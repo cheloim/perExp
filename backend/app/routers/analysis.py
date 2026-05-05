@@ -140,6 +140,55 @@ TOP 10 GASTOS MÁS ALTOS:
     )
 
 
+@router.post("/summarize")
+async def summarize_chat(body: dict):
+    """Stream a concise summary of a chat conversation (for session resume)."""
+    import json as _json
+    from fastapi.responses import StreamingResponse as _SR
+    from google import genai as _genai
+    from google.genai import types as _gtypes
+
+    messages = body.get("messages", [])
+    if not messages:
+        async def _empty():
+            yield f"data: {_json.dumps({'text': 'Sin mensajes para resumir.'})}\n\ndata: [DONE]\n\n"
+        return _SR(_empty(), media_type="text/event-stream")
+
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        async def _no_key():
+            yield f"data: {_json.dumps({'text': 'GOOGLE_API_KEY no configurada.'})}\n\ndata: [DONE]\n\n"
+        return _SR(_no_key(), media_type="text/event-stream")
+
+    convo = "\n".join(
+        f"{'Usuario' if m.get('role') == 'user' else 'Asistente'}: {m.get('text', '')}"
+        for m in messages if m.get("text")
+    )
+    prompt = (
+        "Resumí la siguiente conversación en un párrafo conciso (máx. 5 oraciones). "
+        "El resumen debe capturar los temas principales, conclusiones y cualquier dato clave "
+        "para que el usuario pueda retomar el contexto en una nueva sesión.\n\n"
+        f"CONVERSACIÓN:\n{convo}"
+    )
+
+    async def generate():
+        try:
+            client = _genai.Client(api_key=api_key)
+            async for chunk in await client.aio.models.generate_content_stream(
+                model="gemini-flash-latest",
+                contents=prompt,
+                config=_gtypes.GenerateContentConfig(temperature=0.3),
+            ):
+                if chunk.text:
+                    yield f"data: {_json.dumps({'text': chunk.text})}\n\n"
+        except Exception as e:
+            yield f"data: {_json.dumps({'text': f'Error: {e}'})}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return _SR(generate(), media_type="text/event-stream",
+               headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
 @router.get("/history", response_model=List[AnalysisHistoryResponse])
 def get_analysis_history(db: Session = Depends(get_db)):
     return db.query(AnalysisHistory).order_by(desc(AnalysisHistory.id)).limit(50).all()

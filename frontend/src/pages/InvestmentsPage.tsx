@@ -10,6 +10,8 @@ import {
   syncIOL,
   syncPPI,
   deduplicateInvestments,
+  getUsdRate,
+  getCashBalances,
 } from '../api/client'
 import type { Investment, InvestmentCreate } from '../types'
 
@@ -302,10 +304,28 @@ export default function InvestmentsPage() {
   const [sort, setSort] = useState<{ field: SortField; dir: 'asc' | 'desc' }>({ field: 'current_value', dir: 'desc' })
   const [showCreds, setShowCreds] = useState(false)
   const [syncMsg, setSyncMsg] = useState<{ text: string; ok: boolean } | null>(null)
+  const [showInUsd, setShowInUsd] = useState(false)
+  const [usdRate, setUsdRate] = useState<{ rate: number; date: string } | null>(null)
+  const [usdLoading, setUsdLoading] = useState(false)
 
   const { data: settings = {} } = useQuery({ queryKey: ['settings'], queryFn: getSettings, staleTime: 60_000 })
+  const { data: cashBalances } = useQuery({ queryKey: ['cash-balances'], queryFn: getCashBalances, staleTime: 5 * 60_000 })
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['investments'] })
+
+  const handleToggleUsd = async () => {
+    if (showInUsd) { setShowInUsd(false); return }
+    setUsdLoading(true)
+    try {
+      const r = await getUsdRate()
+      setUsdRate(r)
+      setShowInUsd(true)
+    } catch {
+      showSync('No se pudo obtener el tipo de cambio BCRA', false)
+    } finally {
+      setUsdLoading(false)
+    }
+  }
 
   const { data: investments = [], isLoading } = useQuery({
     queryKey: ['investments'],
@@ -359,6 +379,12 @@ export default function InvestmentsPage() {
 
   const toggleSort = (field: SortField) =>
     setSort(prev => prev.field === field ? { field, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { field, dir: 'desc' })
+
+  // ── USD conversion helper ────────────────────────────────────────────────────
+  const toDisplay = (amount: number, currency: string) => {
+    if (!showInUsd || !usdRate || currency === 'USD') return fmt(amount, currency)
+    return fmt(amount / usdRate.rate, 'USD')
+  }
 
   // ── Aggregates ──────────────────────────────────────────────────────────────
   const arsHoldings = visible.filter(i => i.currency === 'ARS')
@@ -454,6 +480,28 @@ export default function InvestmentsPage() {
             {dedupMut.isPending ? '...' : '⊘'}
           </button>
 
+          {/* USD Conversion */}
+          <div className="flex flex-col items-end">
+            <button
+              onClick={handleToggleUsd}
+              disabled={usdLoading}
+              className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 ${
+                showInUsd
+                  ? 'bg-emerald-500/20 border-emerald-500 text-emerald-600 font-medium'
+                  : 'border-zinc-300 text-zinc-400 hover:text-zinc-700 hover:border-zinc-600'
+              }`}
+              title="Convertir valores ARS a USD oficial (BCRA)"
+            >
+              {usdLoading ? <span className="animate-spin inline-block text-xs">↻</span> : null}
+              {showInUsd ? 'USD Oficial ✓' : '$ → USD'}
+            </button>
+            {showInUsd && usdRate && (
+              <span className="text-[10px] text-zinc-500 mt-0.5">
+                ${usdRate.rate.toLocaleString('es-AR', { minimumFractionDigits: 2 })} · {usdRate.date}
+              </span>
+            )}
+          </div>
+
           <button
             onClick={() => setShowCreds(true)}
             className="text-sm px-3 py-1.5 rounded-lg border border-zinc-300 text-zinc-400 hover:text-zinc-700 hover:border-zinc-600 transition-all"
@@ -492,9 +540,9 @@ export default function InvestmentsPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="card p-4">
           <p className="text-xs text-zinc-400 mb-1">Valor ARS</p>
-          <p className="text-xl font-bold text-zinc-900">{fmt(arsValue)}</p>
+          <p className="text-xl font-bold text-zinc-900">{toDisplay(arsValue, 'ARS')}</p>
           <p className={`text-xs mt-1 font-medium ${arsPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {arsPnl >= 0 ? '+' : ''}{fmt(arsPnl)} P&L
+            {arsPnl >= 0 ? '+' : ''}{toDisplay(arsPnl, 'ARS')} P&L
           </p>
         </div>
         <div className="card p-4">
@@ -536,6 +584,67 @@ export default function InvestmentsPage() {
           )}
         </div>
       </div>
+
+      {/* Cash balances box */}
+      {cashBalances && (cashBalances.iol.configured || cashBalances.ppi.configured) && (
+        <div className="card p-4">
+          <p className="text-xs text-zinc-400 font-medium uppercase tracking-wider mb-3">Saldos disponibles</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* IOL */}
+            <div>
+              <p className="text-xs font-semibold text-zinc-500 mb-2">InvertirOnline</p>
+              {cashBalances.iol.configured ? (
+                cashBalances.iol.error ? (
+                  <p className="text-xs text-red-400">{cashBalances.iol.error}</p>
+                ) : (
+                  <div className="flex gap-4">
+                    <div>
+                      <p className="text-[10px] text-zinc-500">ARS</p>
+                      <p className="text-sm font-semibold text-zinc-900">
+                        {cashBalances.iol.ars !== null ? toDisplay(cashBalances.iol.ars, 'ARS') : '—'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-zinc-500">USD</p>
+                      <p className="text-sm font-semibold text-zinc-900">
+                        {cashBalances.iol.usd !== null ? fmt(cashBalances.iol.usd, 'USD') : '—'}
+                      </p>
+                    </div>
+                  </div>
+                )
+              ) : (
+                <p className="text-xs text-zinc-600">No configurado</p>
+              )}
+            </div>
+            {/* PPI */}
+            <div>
+              <p className="text-xs font-semibold text-zinc-500 mb-2">Portfolio Personal</p>
+              {cashBalances.ppi.configured ? (
+                cashBalances.ppi.error ? (
+                  <p className="text-xs text-red-400">{cashBalances.ppi.error}</p>
+                ) : (
+                  <div className="flex gap-4">
+                    <div>
+                      <p className="text-[10px] text-zinc-500">ARS</p>
+                      <p className="text-sm font-semibold text-zinc-900">
+                        {cashBalances.ppi.ars !== null ? toDisplay(cashBalances.ppi.ars, 'ARS') : '—'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-zinc-500">USD</p>
+                      <p className="text-sm font-semibold text-zinc-900">
+                        {cashBalances.ppi.usd !== null ? fmt(cashBalances.ppi.usd, 'USD') : '—'}
+                      </p>
+                    </div>
+                  </div>
+                )
+              ) : (
+                <p className="text-xs text-zinc-600">No configurado</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Holdings table */}
       <div className="card overflow-hidden">
@@ -598,7 +707,7 @@ export default function InvestmentsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-zinc-400 text-xs">{inv.broker || '—'}</td>
-                    <td className="px-4 py-3 text-right text-zinc-600">{fmt(inv.cost_basis, inv.currency)}</td>
+                    <td className="px-4 py-3 text-right text-zinc-600">{toDisplay(inv.cost_basis, inv.currency)}</td>
                     <td className="px-4 py-3 text-right">
                       <InlinePriceEdit
                         inv={inv}
@@ -611,7 +720,7 @@ export default function InvestmentsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold text-zinc-900">
-                      {inv.current_value !== null ? fmt(inv.current_value, inv.currency) : <span className="text-zinc-500 font-normal">—</span>}
+                      {inv.current_value !== null ? toDisplay(inv.current_value, inv.currency) : <span className="text-zinc-500 font-normal">—</span>}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <PnlChip pnl={inv.pnl} pnl_pct={inv.pnl_pct} currency={inv.currency} />

@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Routes, Route, NavLink } from 'react-router-dom'
+import { Routes, Route, NavLink, useLocation } from 'react-router-dom'
 import AIAssistant from './components/AIAssistant'
+import InvestmentsAssistant from './components/InvestmentsAssistant'
 import Dashboard from './pages/Dashboard'
 import ExpensesPage from './pages/ExpensesPage'
 import ImportPage from './pages/ImportPage'
@@ -31,6 +32,8 @@ function getInitialDrawerState(): boolean {
 }
 
 export default function App() {
+  const location = useLocation()
+  const isInvestments = location.pathname === '/investments'
   const [aiDrawerOpen, setAiDrawerOpen] = useState(getInitialDrawerState)
 
   const toggleDrawer = (open: boolean) => {
@@ -82,7 +85,7 @@ export default function App() {
       </aside>
 
       {/* Main content */}
-      <div className={`flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ${aiDrawerOpen ? 'mr-0 sm:mr-[380px]' : 'mr-0'}`}>
+      <div className={`flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ${isInvestments ? 'mr-0 sm:mr-[360px]' : aiDrawerOpen ? 'mr-0 sm:mr-[380px]' : 'mr-0'}`}>
         {/* Mobile header */}
         <header className="md:hidden h-14 border-b border-zinc-200/80 bg-white/90 backdrop-blur-md flex items-center px-4 sticky top-0 z-40">
           <div className="flex items-center gap-2">
@@ -128,8 +131,8 @@ export default function App() {
           ))}
         </nav>
 
-        {/* Floating AI Assistant toggle button - only shown when closed */}
-        {!aiDrawerOpen && (
+        {/* Floating AI Assistant toggle button — hidden on /investments */}
+        {!aiDrawerOpen && !isInvestments && (
           <button
             onClick={() => toggleDrawer(true)}
             className="fixed top-4 md:top-6 right-4 md:right-6 z-50 flex items-center justify-center w-11 h-11 bg-brand-600 hover:bg-brand-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
@@ -139,7 +142,8 @@ export default function App() {
           </button>
         )}
 
-        <AIAssistant open={aiDrawerOpen} onToggle={() => toggleDrawer(!aiDrawerOpen)} />
+        {!isInvestments && <AIAssistant open={aiDrawerOpen} onToggle={() => toggleDrawer(!aiDrawerOpen)} />}
+        {isInvestments && <InvestmentsAssistant />}
       </div>
     </div>
   )

@@ -198,5 +198,14 @@ export const syncPPI = () =>
 export const deduplicateInvestments = () =>
   api.post<{ removed: number }>('/investments/deduplicate').then((r) => r.data)
 
+export const getUsdRate = () =>
+  api.get<{ rate: number; date: string; source: string }>('/investments/usd-rate').then((r) => r.data)
+
+export const getCashBalances = () =>
+  api.get<{
+    iol: { ars: number | null; usd: number | null; configured: boolean; error?: string }
+    ppi: { ars: number | null; usd: number | null; configured: boolean; error?: string; _raw_keys?: string[] }
+  }>('/investments/cash-balances').then((r) => r.data)
+
 export const getTopMerchants = (params?: { month?: string; person?: string; bank?: string; card_last4?: string; limit?: number }) =>
   api.get<TopMerchant[]>('/dashboard/top-merchants', { params }).then((r) => r.data)
