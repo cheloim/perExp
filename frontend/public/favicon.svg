@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#1e1b4b"/>
+  <!-- Card body -->
+  <rect x="8" y="18" width="48" height="30" rx="5" fill="#4f46e5"/>
+  <rect x="8" y="26" width="48" height="8" fill="#312e81"/>
+  <!-- Chip -->
+  <rect x="14" y="32" width="10" height="8" rx="2" fill="#fbbf24" opacity="0.9"/>
+  <!-- Dots -->
+  <circle cx="38" cy="36" r="2.5" fill="white" opacity="0.5"/>
+  <circle cx="44" cy="36" r="2.5" fill="white" opacity="0.5"/>
+  <circle cx="50" cy="36" r="2.5" fill="white" opacity="0.5"/>
+  <!-- Trend line -->
+  <polyline points="12,52 22,46 32,49 42,42 52,44" stroke="#34d399" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

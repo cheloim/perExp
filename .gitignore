@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+*.egg-info/
+dist/
+.env
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# DB
+*.db
+*.db-shm
+*.db-wal
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+Plan.md
