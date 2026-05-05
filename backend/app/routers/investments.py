@@ -521,6 +521,8 @@ def get_cash_balances():
         balances["ppi"]["configured"] = True
         try:
             from ppi_client.ppi import PPI
+            import requests as _req
+            from requests.exceptions import JSONDecodeError as _JDE
             ppi = PPI(sandbox=False)
             ppi.account.login_api(ppi_key, ppi_secret)
             accounts = ppi.account.get_accounts()
@@ -545,6 +547,8 @@ def get_cash_balances():
                         usd_total += amount
                 balances["ppi"]["ars"] = ars_total
                 balances["ppi"]["usd"] = usd_total
+        except (_JDE, ValueError) as e:
+            balances["ppi"]["error"] = "API de PPI no disponible (intenta de nuevo más tarde)"
         except Exception as e:
             balances["ppi"]["error"] = str(e)
 
