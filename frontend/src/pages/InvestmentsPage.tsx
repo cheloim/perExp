@@ -459,6 +459,7 @@ type SortField = 'name' | 'type' | 'broker' | 'cost_basis' | 'current_value' | '
 export default function InvestmentsPage() {
   const queryClient = useQueryClient()
   const [brokerFilter, setBrokerFilter] = useState<string | null>(null)
+  const [typeFilter, setTypeFilter] = useState<string | null>(null)
   const [editing, setEditing] = useState<Investment | null | undefined>(undefined)
   const [sort, setSort] = useState<{ field: SortField; dir: 'asc' | 'desc' }>({ field: 'current_value', dir: 'desc' })
   const [showCreds, setShowCreds] = useState(false)
@@ -523,7 +524,9 @@ export default function InvestmentsPage() {
     else createMut.mutate(data)
   }
 
-  const visible = brokerFilter ? investments.filter(i => i.broker === brokerFilter) : investments
+  const visible = investments
+    .filter(i => !brokerFilter || i.broker === brokerFilter)
+    .filter(i => !typeFilter || (i.type || 'Otro') === typeFilter)
 
   const sorted = [...visible].sort((a, b) => {
     const av = a[sort.field as keyof Investment] ?? 0
@@ -552,14 +555,15 @@ export default function InvestmentsPage() {
   const arsPnl    = arsValue - arsCost
   const usdPnl    = usdValue - usdCost
 
-  // Allocation by type (based on value)
+  // Allocation by type — uses broker-filtered only, ignores typeFilter so the chart stays stable
+  const visibleForChart = investments.filter(i => !brokerFilter || i.broker === brokerFilter)
   const byType: Record<string, number> = {}
-  for (const inv of visible) {
+  for (const inv of visibleForChart) {
     const v = inv.current_value ?? inv.cost_basis
     byType[inv.type || 'Otro'] = (byType[inv.type || 'Otro'] ?? 0) + v
   }
   const totalValue = Object.values(byType).reduce((s, v) => s + v, 0)
-  const pct = (val: number) => totalValue > 0 ? ((val / totalValue) * 100).toFixed(1) : '0'
+
 
   const brokers = [...new Set(investments.map(i => i.broker).filter(Boolean))]
 
@@ -762,24 +766,36 @@ export default function InvestmentsPage() {
       {/* Composición — bar chart */}
       {totalValue > 0 && (
         <div className="card p-4">
-          <p className="text-xs text-zinc-400 font-medium uppercase tracking-wider mb-4">Composición por tipo</p>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-xs text-zinc-400 font-medium uppercase tracking-wider">Composición por tipo</p>
+            {typeFilter && (
+              <button onClick={() => setTypeFilter(null)} className="text-xs text-indigo-500 hover:text-indigo-700">
+                × {typeFilter}
+              </button>
+            )}
+          </div>
           <div className="space-y-2.5">
             {Object.entries(byType)
               .sort((a, b) => b[1] - a[1])
               .map(([type, val]) => {
-                const pct = (val / totalValue) * 100
+                const pctVal = (val / totalValue) * 100
                 const color = TYPE_COLORS[type] || '#94a3b8'
+                const active = typeFilter === type
                 return (
-                  <div key={type} className="flex items-center gap-3">
+                  <div
+                    key={type}
+                    className={`flex items-center gap-3 rounded cursor-pointer px-1 py-0.5 transition-colors ${active ? 'bg-zinc-100' : 'hover:bg-zinc-50'}`}
+                    onClick={() => setTypeFilter(active ? null : type)}
+                  >
                     <span className="text-xs text-zinc-500 w-20 flex-shrink-0 text-right">{type}</span>
                     <div className="flex-1 h-5 bg-zinc-100 rounded overflow-hidden">
                       <div
                         className="h-full rounded transition-all duration-500"
-                        style={{ width: `${pct}%`, backgroundColor: color }}
+                        style={{ width: `${pctVal}%`, backgroundColor: color, opacity: active ? 1 : 0.8 }}
                       />
                     </div>
                     <span className="text-xs font-semibold w-10 flex-shrink-0" style={{ color }}>
-                      {pct.toFixed(1)}%
+                      {pctVal.toFixed(1)}%
                     </span>
                     <span className="text-xs text-zinc-400 w-32 flex-shrink-0 text-right hidden sm:block">
                       {toDisplay(val, 'ARS')}
@@ -787,18 +803,6 @@ export default function InvestmentsPage() {
                   </div>
                 )
               })}
-          </div>
-          {/* Stacked mini bar at the bottom */}
-          <div className="flex h-1.5 rounded-full overflow-hidden mt-4 gap-px">
-            {Object.entries(byType)
-              .sort((a, b) => b[1] - a[1])
-              .map(([type, val]) => (
-                <div
-                  key={type}
-                  style={{ width: `${(val / totalValue) * 100}%`, backgroundColor: TYPE_COLORS[type] || '#94a3b8' }}
-                  title={`${type}: ${pct(val)}%`}
-                />
-              ))}
           </div>
         </div>
       )}
