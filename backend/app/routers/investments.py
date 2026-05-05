@@ -338,17 +338,22 @@ def sync_ppi(db: Session = Depends(get_db)):
         for instrument in group.get("instruments", []):
             ticker = instrument.get("ticker", "")
             price = instrument.get("price")
-            amount = instrument.get("amount", 0)
+            amount = instrument.get("amount", 0)  # total market value in ARS
             if not ticker:
                 continue
+
+            price_f = float(price) if price else None
+            # PPI returns amount = total value; derive quantity from amount / price
+            amount_f = float(amount or 0)
+            quantity = (amount_f / price_f) if (price_f and price_f > 0) else 0.0
 
             existing = db.query(Investment).filter(
                 Investment.ticker == ticker,
                 Investment.broker == "Portfolio Personal",
             ).first()
             if existing:
-                existing.quantity = float(amount or 0)
-                existing.current_price = float(price) if price else existing.current_price
+                existing.quantity = quantity
+                existing.current_price = price_f if price_f else existing.current_price
                 existing.type = inv_type
                 existing.updated_at = datetime.utcnow()
                 updated += 1
@@ -356,8 +361,8 @@ def sync_ppi(db: Session = Depends(get_db)):
                 db.add(Investment(
                     ticker=ticker, name=ticker, type=inv_type,
                     broker="Portfolio Personal",
-                    quantity=float(amount or 0), avg_cost=0,
-                    current_price=float(price) if price else None,
+                    quantity=quantity, avg_cost=0,
+                    current_price=price_f,
                     currency="ARS", notes="", updated_at=datetime.utcnow(),
                 ))
                 created += 1
