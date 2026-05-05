@@ -14,6 +14,89 @@ import {
 } from '../api/client'
 import type { Investment, InvestmentCreate } from '../types'
 
+// Parses "1.234,56" or "1234,56" or "1234.56" → 1234.56
+function parseCurrency(s: string): number | null {
+  const clean = s.trim()
+  if (!clean) return null
+  // Remove thousands separators: if both . and , present, dots are thousands
+  let normalized: string
+  if (clean.includes('.') && clean.includes(',')) {
+    normalized = clean.replace(/\./g, '').replace(',', '.')
+  } else if (clean.includes(',')) {
+    // single comma → decimal separator (es-AR style)
+    normalized = clean.replace(',', '.')
+  } else {
+    // only dots, no comma → dots are thousands separators (our formatter always uses . for thousands)
+    normalized = clean.replace(/\./g, '')
+  }
+  const n = parseFloat(normalized)
+  return isNaN(n) ? null : n
+}
+
+function formatCurrency(n: number): string {
+  return n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+// Formats the raw string while typing: applies thousands separators preserving partial decimal
+function formatWhileTyping(s: string): string {
+  const clean = s.replace(/[^\d,]/g, '') // keep digits and comma
+  const [intPart, ...rest] = clean.split(',')
+  const intFormatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  return rest.length > 0 ? `${intFormatted},${rest.join('')}` : intFormatted
+}
+
+function CurrencyInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: number | null
+  onChange: (v: number | null) => void
+  placeholder?: string
+}) {
+  const isEmpty = (v: number | null) => v === null || v === 0
+  const [raw, setRaw] = useState(isEmpty(value) ? '' : formatCurrency(value!))
+  const [focused, setFocused] = useState(false)
+
+  useEffect(() => {
+    if (!focused) setRaw(isEmpty(value) ? '' : formatCurrency(value!))
+  }, [value, focused])
+
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    setFocused(true)
+    // clear placeholder-like zeros so paste/type overwrites immediately
+    if (isEmpty(value)) setRaw('')
+    setTimeout(() => e.target.select(), 0)
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target.value
+    const formatted = formatWhileTyping(input)
+    setRaw(formatted)
+    onChange(parseCurrency(formatted))
+  }
+
+  const handleBlur = () => {
+    setFocused(false)
+    const parsed = parseCurrency(raw)
+    onChange(parsed)
+    setRaw(isEmpty(parsed) ? '' : formatCurrency(parsed!))
+  }
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={raw}
+      placeholder={placeholder ?? '0,00'}
+      onChange={handleChange}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      className="w-full input"
+    />
+  )
+}
+
 const INVESTMENT_TYPES = [
   'Acción', 'Cedear', 'Bono', 'Letra', 'ON', 'FCI', 'Caución', 'Plazo Fijo', 'Otro',
 ]
@@ -133,7 +216,7 @@ function InvestmentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/60" onClick={onClose} />
       <div className="relative card w-full max-w-lg max-h-[90vh] overflow-auto p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-zinc-900">{initial ? 'Editar inversión' : 'Nueva inversión'}</h2>
@@ -203,6 +286,7 @@ function InvestmentModal({
               type="number"
               value={form.quantity}
               onChange={e => set('quantity', parseFloat(e.target.value) || 0)}
+              onFocus={e => e.target.select()}
               className="w-full input"
             />
           </div>
@@ -219,21 +303,17 @@ function InvestmentModal({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-zinc-600 mb-1">Precio promedio</label>
-            <input
-              type="number"
-              value={form.avg_cost}
-              onChange={e => set('avg_cost', parseFloat(e.target.value) || 0)}
-              className="w-full input"
+            <CurrencyInput
+              value={form.avg_cost ?? null}
+              onChange={v => set('avg_cost', v ?? 0)}
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-zinc-600 mb-1">Precio actual</label>
-            <input
-              type="number"
-              value={form.current_price ?? ''}
-              onChange={e => set('current_price', e.target.value === '' ? null : parseFloat(e.target.value))}
+            <CurrencyInput
+              value={form.current_price ?? null}
+              onChange={v => set('current_price', v)}
               placeholder="Opcional"
-              className="w-full input"
             />
           </div>
         </div>
@@ -294,7 +374,7 @@ function CredentialsModal({ settings, onClose, onSaved }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/60" onClick={onClose} />
       <div className="relative card w-full max-w-md p-6 space-y-5">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-zinc-900">Configuración de brokers</h2>
