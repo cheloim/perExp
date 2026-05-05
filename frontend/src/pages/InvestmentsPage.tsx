@@ -9,7 +9,6 @@ import {
   getSettings,
   syncIOL,
   syncPPI,
-  deduplicateInvestments,
   getUsdRate,
   getCashBalances,
 } from '../api/client'
@@ -145,10 +144,24 @@ function InvestmentModal({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-zinc-600 mb-1">Broker</label>
-            <select value={form.broker} onChange={e => set('broker', e.target.value)} className="w-full input">
+            <select
+              value={BROKERS.includes(form.broker ?? '') ? form.broker : '__custom__'}
+              onChange={e => set('broker', e.target.value === '__custom__' ? '' : e.target.value)}
+              className="w-full input"
+            >
               {BROKERS.map(b => <option key={b} value={b}>{b}</option>)}
-              <option value="">Otro</option>
+              <option value="__custom__">Otro…</option>
             </select>
+            {!BROKERS.includes(form.broker ?? '') && (
+              <input
+                type="text"
+                value={form.broker}
+                onChange={e => set('broker', e.target.value)}
+                placeholder="Nombre del broker"
+                className="w-full input mt-1.5"
+                autoFocus
+              />
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-zinc-600 mb-1">Tipo</label>
@@ -239,20 +252,45 @@ function InvestmentModal({
   )
 }
 
-function EnvRow({ label, configured }: { label: string; configured: boolean }) {
-  return (
-    <div className="flex items-center justify-between py-1">
-      <code className="text-xs text-zinc-600 font-mono">{label}</code>
-      {configured
-        ? <span className="text-xs text-emerald-400 font-medium">✓ configurado</span>
-        : <span className="text-xs text-red-400 font-medium">✗ vacío</span>}
-    </div>
-  )
-}
+function CredentialsModal({ settings, onClose, onSaved }: {
+  settings: Record<string, string>
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const iolOk = settings.iol_configured === 'true' || (settings.iol_configured as any) === true
+  const ppiOk = settings.ppi_configured === 'true' || (settings.ppi_configured as any) === true
 
-function CredentialsModal({ settings, onClose }: { settings: Record<string, string>; onClose: () => void }) {
-  const iolOk = settings.iol_configured === 'true' || settings.iol_configured === true as any
-  const ppiOk = settings.ppi_configured === 'true' || settings.ppi_configured === true as any
+  const [iolUser, setIolUser] = useState('')
+  const [iolPass, setIolPass] = useState('')
+  const [ppiKey,  setPpiKey]  = useState('')
+  const [ppiSec,  setPpiSec]  = useState('')
+  const [saving,  setSaving]  = useState(false)
+  const [saved,   setSaved]   = useState(false)
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const pairs: [string, string][] = []
+      if (iolUser) pairs.push(['iol_username', iolUser])
+      if (iolPass) pairs.push(['iol_password', iolPass])
+      if (ppiKey)  pairs.push(['ppi_api_key',  ppiKey])
+      if (ppiSec)  pairs.push(['ppi_api_secret', ppiSec])
+      await Promise.all(pairs.map(([k, v]) =>
+        fetch(`http://localhost:8000/settings/${k}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value: v }),
+        })
+      ))
+      setSaved(true)
+      setIolUser(''); setIolPass(''); setPpiKey(''); setPpiSec('')
+      onSaved()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const hasChanges = iolUser || iolPass || ppiKey || ppiSec
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -263,33 +301,74 @@ function CredentialsModal({ settings, onClose }: { settings: Record<string, stri
           <button onClick={onClose} className="text-zinc-400 hover:text-zinc-900">✕</button>
         </div>
 
-        <p className="text-sm text-zinc-400">
-          Las credenciales se configuran en el archivo <code className="text-brand-400 font-mono text-xs">backend/.env</code>
-        </p>
+        {saved && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-700 font-medium">
+            ✓ Credenciales guardadas correctamente
+          </div>
+        )}
 
-        <div className="bg-white rounded-xl p-4 space-y-1 border border-zinc-200">
-          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">InvertirOnline</p>
-          <EnvRow label="IOL_USERNAME" configured={iolOk} />
-          <EnvRow label="IOL_PASSWORD" configured={iolOk} />
+        {/* IOL */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">InvertirOnline</p>
+            <span className={`text-xs font-medium ${iolOk ? 'text-emerald-500' : 'text-zinc-400'}`}>
+              {iolOk ? '✓ configurado' : '✗ sin credenciales'}
+            </span>
+          </div>
+          <input
+            type="email"
+            value={iolUser}
+            onChange={e => setIolUser(e.target.value)}
+            placeholder={iolOk ? 'Usuario (dejar vacío para no cambiar)' : 'usuario@email.com'}
+            className="w-full input text-sm"
+            autoComplete="off"
+          />
+          <input
+            type="password"
+            value={iolPass}
+            onChange={e => setIolPass(e.target.value)}
+            placeholder={iolOk ? 'Contraseña (dejar vacío para no cambiar)' : 'Contraseña'}
+            className="w-full input text-sm"
+            autoComplete="new-password"
+          />
         </div>
 
-        <div className="bg-white rounded-xl p-4 space-y-1 border border-zinc-200">
-          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Portfolio Personal</p>
-          <EnvRow label="PPI_API_KEY" configured={ppiOk} />
-          <EnvRow label="PPI_API_SECRET" configured={ppiOk} />
+        {/* PPI */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Portfolio Personal</p>
+            <span className={`text-xs font-medium ${ppiOk ? 'text-emerald-500' : 'text-zinc-400'}`}>
+              {ppiOk ? '✓ configurado' : '✗ sin credenciales'}
+            </span>
+          </div>
+          <input
+            type="password"
+            value={ppiKey}
+            onChange={e => setPpiKey(e.target.value)}
+            placeholder={ppiOk ? 'API Key (dejar vacío para no cambiar)' : 'API Key'}
+            className="w-full input text-sm"
+            autoComplete="new-password"
+          />
+          <input
+            type="password"
+            value={ppiSec}
+            onChange={e => setPpiSec(e.target.value)}
+            placeholder={ppiOk ? 'API Secret (dejar vacío para no cambiar)' : 'API Secret'}
+            className="w-full input text-sm"
+            autoComplete="new-password"
+          />
         </div>
 
-        <div className="bg-zinc-100 rounded-lg p-3 text-xs text-zinc-400 font-mono space-y-0.5">
-          <p className="text-zinc-500 mb-1"># backend/.env</p>
-          <p>IOL_USERNAME=tu@email.com</p>
-          <p>IOL_PASSWORD=tu_contraseña</p>
-          <p>PPI_API_KEY=tu_api_key</p>
-          <p>PPI_API_SECRET=tu_api_secret</p>
+        <div className="flex gap-3 pt-1">
+          <button onClick={onClose} className="btn-secondary flex-1">Cerrar</button>
+          <button
+            onClick={handleSave}
+            disabled={!hasChanges || saving}
+            className="btn-primary flex-1 disabled:opacity-40"
+          >
+            {saving ? 'Guardando...' : 'Guardar'}
+          </button>
         </div>
-
-        <p className="text-[11px] text-zinc-600">Reiniciá el servidor backend después de editar el .env para que tome los cambios.</p>
-
-        <button onClick={onClose} className="btn-secondary w-full">Cerrar</button>
       </div>
     </div>
   )
@@ -347,10 +426,6 @@ export default function InvestmentsPage() {
     onSuccess: (r) => { invalidate(); showSync(`PPI: ${r.updated} actualizadas, ${r.created} nuevas`, true) },
     onError: (e: Error) => showSync(`PPI error: ${e.message}`, false),
   })
-  const dedupMut = useMutation({
-    mutationFn: deduplicateInvestments,
-    onSuccess: (r) => { invalidate(); showSync(`${r.removed} duplicados eliminados`, true) },
-  })
 
   const createMut = useMutation({ mutationFn: createInvestment, onSuccess: () => { invalidate(); setEditing(undefined) } })
   const updateMut = useMutation({
@@ -404,6 +479,7 @@ export default function InvestmentsPage() {
     byType[inv.type || 'Otro'] = (byType[inv.type || 'Otro'] ?? 0) + v
   }
   const totalValue = Object.values(byType).reduce((s, v) => s + v, 0)
+  const pct = (val: number) => totalValue > 0 ? ((val / totalValue) * 100).toFixed(1) : '0'
 
   const brokers = [...new Set(investments.map(i => i.broker).filter(Boolean))]
 
@@ -471,15 +547,6 @@ export default function InvestmentsPage() {
             )}
           </div>
 
-          <button
-            onClick={() => dedupMut.mutate()}
-            disabled={dedupMut.isPending}
-            className="text-sm px-3 py-1.5 rounded-lg border border-zinc-300 text-zinc-400 hover:text-zinc-700 hover:border-zinc-600 disabled:opacity-50 transition-all"
-            title="Eliminar duplicados"
-          >
-            {dedupMut.isPending ? '...' : '⊘'}
-          </button>
-
           {/* USD Conversion */}
           <div className="flex flex-col items-end">
             <button
@@ -518,7 +585,7 @@ export default function InvestmentsPage() {
       </div>
 
       {/* Broker tabs */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <button
           onClick={() => setBrokerFilter(null)}
           className={`text-sm px-4 py-1.5 rounded-lg border transition-all ${!brokerFilter ? 'bg-zinc-200 border-zinc-600 text-zinc-900' : 'border-zinc-300 text-zinc-400 hover:text-zinc-700'}`}
@@ -534,6 +601,13 @@ export default function InvestmentsPage() {
             {b}
           </button>
         ))}
+        <button
+          onClick={() => setEditing(null)}
+          className="text-sm px-3 py-1.5 rounded-lg border border-dashed border-zinc-300 text-zinc-400 hover:text-zinc-700 hover:border-zinc-500 transition-all"
+          title="Agregar posición con broker personalizado"
+        >
+          + broker
+        </button>
       </div>
 
       {/* Summary cards */}
@@ -552,96 +626,99 @@ export default function InvestmentsPage() {
             {usdPnl >= 0 ? '+' : ''}{fmt(usdPnl, 'USD')} P&L
           </p>
         </div>
+
+        {/* Saldos disponibles — ahora en el grid de cards */}
         <div className="card p-4 col-span-2">
-          <p className="text-xs text-zinc-400 mb-2">Composición</p>
-          <div className="flex flex-wrap gap-1.5">
-            {Object.entries(byType)
-              .sort((a, b) => b[1] - a[1])
-              .map(([type, val]) => {
-                const pct = totalValue > 0 ? (val / totalValue) * 100 : 0
-                return (
-                  <div key={type} className="flex items-center gap-1 text-xs">
-                    <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: TYPE_COLORS[type] || '#94a3b8' }} />
-                    <span className="text-zinc-600">{type}</span>
-                    <span className="text-zinc-500">{pct.toFixed(0)}%</span>
-                  </div>
-                )
-              })}
-          </div>
-          {/* Mini bar */}
-          {totalValue > 0 && (
-            <div className="flex h-2 rounded-full overflow-hidden mt-2 gap-px">
-              {Object.entries(byType)
-                .sort((a, b) => b[1] - a[1])
-                .map(([type, val]) => (
-                  <div
-                    key={type}
-                    style={{ width: `${(val / totalValue) * 100}%`, backgroundColor: TYPE_COLORS[type] || '#94a3b8' }}
-                    title={`${type}: ${fmt(val)}`}
-                  />
-                ))}
+          <p className="text-xs text-zinc-400 font-medium uppercase tracking-wider mb-3">Saldos disponibles</p>
+          {cashBalances && (cashBalances.iol.configured || cashBalances.ppi.configured) ? (
+            <div className="grid grid-cols-2 gap-4">
+              {/* IOL */}
+              <div>
+                <p className="text-xs font-semibold text-zinc-500 mb-1.5">InvertirOnline</p>
+                {cashBalances.iol.configured ? (
+                  cashBalances.iol.error ? (
+                    <p className="text-xs text-red-400">{cashBalances.iol.error}</p>
+                  ) : (
+                    <div className="flex gap-4">
+                      <div>
+                        <p className="text-[10px] text-zinc-500">ARS</p>
+                        <p className="text-sm font-semibold text-zinc-900">{cashBalances.iol.ars !== null ? toDisplay(cashBalances.iol.ars, 'ARS') : '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-zinc-500">USD</p>
+                        <p className="text-sm font-semibold text-zinc-900">{cashBalances.iol.usd !== null ? fmt(cashBalances.iol.usd, 'USD') : '—'}</p>
+                      </div>
+                    </div>
+                  )
+                ) : <p className="text-xs text-zinc-400">No configurado</p>}
+              </div>
+              {/* PPI */}
+              <div>
+                <p className="text-xs font-semibold text-zinc-500 mb-1.5">Portfolio Personal</p>
+                {cashBalances.ppi.configured ? (
+                  cashBalances.ppi.error ? (
+                    <p className="text-xs text-red-400">{cashBalances.ppi.error}</p>
+                  ) : (
+                    <div className="flex gap-4">
+                      <div>
+                        <p className="text-[10px] text-zinc-500">ARS</p>
+                        <p className="text-sm font-semibold text-zinc-900">{cashBalances.ppi.ars !== null ? toDisplay(cashBalances.ppi.ars, 'ARS') : '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-zinc-500">USD</p>
+                        <p className="text-sm font-semibold text-zinc-900">{cashBalances.ppi.usd !== null ? fmt(cashBalances.ppi.usd, 'USD') : '—'}</p>
+                      </div>
+                    </div>
+                  )
+                ) : <p className="text-xs text-zinc-400">No configurado</p>}
+              </div>
             </div>
+          ) : (
+            <p className="text-xs text-zinc-400">Configurá las credenciales de IOL o PPI para ver los saldos</p>
           )}
         </div>
       </div>
 
-      {/* Cash balances box */}
-      {cashBalances && (cashBalances.iol.configured || cashBalances.ppi.configured) && (
+      {/* Composición — bar chart */}
+      {totalValue > 0 && (
         <div className="card p-4">
-          <p className="text-xs text-zinc-400 font-medium uppercase tracking-wider mb-3">Saldos disponibles</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* IOL */}
-            <div>
-              <p className="text-xs font-semibold text-zinc-500 mb-2">InvertirOnline</p>
-              {cashBalances.iol.configured ? (
-                cashBalances.iol.error ? (
-                  <p className="text-xs text-red-400">{cashBalances.iol.error}</p>
-                ) : (
-                  <div className="flex gap-4">
-                    <div>
-                      <p className="text-[10px] text-zinc-500">ARS</p>
-                      <p className="text-sm font-semibold text-zinc-900">
-                        {cashBalances.iol.ars !== null ? toDisplay(cashBalances.iol.ars, 'ARS') : '—'}
-                      </p>
+          <p className="text-xs text-zinc-400 font-medium uppercase tracking-wider mb-4">Composición por tipo</p>
+          <div className="space-y-2.5">
+            {Object.entries(byType)
+              .sort((a, b) => b[1] - a[1])
+              .map(([type, val]) => {
+                const pct = (val / totalValue) * 100
+                const color = TYPE_COLORS[type] || '#94a3b8'
+                return (
+                  <div key={type} className="flex items-center gap-3">
+                    <span className="text-xs text-zinc-500 w-20 flex-shrink-0 text-right">{type}</span>
+                    <div className="flex-1 h-5 bg-zinc-100 rounded overflow-hidden">
+                      <div
+                        className="h-full rounded transition-all duration-500"
+                        style={{ width: `${pct}%`, backgroundColor: color }}
+                      />
                     </div>
-                    <div>
-                      <p className="text-[10px] text-zinc-500">USD</p>
-                      <p className="text-sm font-semibold text-zinc-900">
-                        {cashBalances.iol.usd !== null ? fmt(cashBalances.iol.usd, 'USD') : '—'}
-                      </p>
-                    </div>
+                    <span className="text-xs font-semibold w-10 flex-shrink-0" style={{ color }}>
+                      {pct.toFixed(1)}%
+                    </span>
+                    <span className="text-xs text-zinc-400 w-32 flex-shrink-0 text-right hidden sm:block">
+                      {toDisplay(val, 'ARS')}
+                    </span>
                   </div>
                 )
-              ) : (
-                <p className="text-xs text-zinc-600">No configurado</p>
-              )}
-            </div>
-            {/* PPI */}
-            <div>
-              <p className="text-xs font-semibold text-zinc-500 mb-2">Portfolio Personal</p>
-              {cashBalances.ppi.configured ? (
-                cashBalances.ppi.error ? (
-                  <p className="text-xs text-red-400">{cashBalances.ppi.error}</p>
-                ) : (
-                  <div className="flex gap-4">
-                    <div>
-                      <p className="text-[10px] text-zinc-500">ARS</p>
-                      <p className="text-sm font-semibold text-zinc-900">
-                        {cashBalances.ppi.ars !== null ? toDisplay(cashBalances.ppi.ars, 'ARS') : '—'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-zinc-500">USD</p>
-                      <p className="text-sm font-semibold text-zinc-900">
-                        {cashBalances.ppi.usd !== null ? fmt(cashBalances.ppi.usd, 'USD') : '—'}
-                      </p>
-                    </div>
-                  </div>
-                )
-              ) : (
-                <p className="text-xs text-zinc-600">No configurado</p>
-              )}
-            </div>
+              })}
+          </div>
+          {/* Stacked mini bar at the bottom */}
+          <div className="flex h-1.5 rounded-full overflow-hidden mt-4 gap-px">
+            {Object.entries(byType)
+              .sort((a, b) => b[1] - a[1])
+              .map(([type, val]) => (
+                <div
+                  key={type}
+                  style={{ width: `${(val / totalValue) * 100}%`, backgroundColor: TYPE_COLORS[type] || '#94a3b8' }}
+                  title={`${type}: ${pct(val)}%`}
+                />
+              ))}
           </div>
         </div>
       )}
@@ -755,7 +832,13 @@ export default function InvestmentsPage() {
         />
       )}
 
-      {showCreds && <CredentialsModal settings={settings} onClose={() => setShowCreds(false)} />}
+      {showCreds && (
+        <CredentialsModal
+          settings={settings}
+          onClose={() => setShowCreds(false)}
+          onSaved={() => queryClient.invalidateQueries({ queryKey: ['settings'] })}
+        />
+      )}
     </div>
   )
 }

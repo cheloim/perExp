@@ -98,8 +98,56 @@ def get_settings(db: Session = Depends(get_db)):
 
 @router.put("/settings/{key}")
 def put_setting(key: str, payload: dict, db: Session = Depends(get_db)):
-    _set_setting(db, key, payload.get("value", ""))
+    value = payload.get("value", "")
+    _set_setting(db, key, value)
+
+    # Also write sensitive broker credentials to the .env file so they persist
+    # across server restarts and are picked up by os.getenv()
+    _ENV_KEY_MAP = {
+        "iol_username":   "IOL_USERNAME",
+        "iol_password":   "IOL_PASSWORD",
+        "ppi_api_key":    "PPI_API_KEY",
+        "ppi_api_secret": "PPI_API_SECRET",
+    }
+    env_var = _ENV_KEY_MAP.get(key.lower())
+    if env_var and value:
+        _write_env_var(env_var, value)
+        # Also set in current process so next sync/balance call works immediately
+        import os as _os
+        _os.environ[env_var] = value
+
     return {"ok": True}
+
+
+def _write_env_var(var: str, value: str):
+    """Write or update a variable in backend/.env, creating the file if needed."""
+    import re as _re
+    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
+    try:
+        try:
+            with open(env_path, "r") as f:
+                lines = f.readlines()
+        except FileNotFoundError:
+            lines = []
+
+        pattern = _re.compile(rf"^{_re.escape(var)}\s*=")
+        updated = False
+        new_lines = []
+        for line in lines:
+            if pattern.match(line):
+                new_lines.append(f"{var}={value}\n")
+                updated = True
+            else:
+                new_lines.append(line)
+        if not updated:
+            if new_lines and not new_lines[-1].endswith("\n"):
+                new_lines.append("\n")
+            new_lines.append(f"{var}={value}\n")
+
+        with open(env_path, "w") as f:
+            f.writelines(new_lines)
+    except Exception:
+        pass  # .env write failure is non-fatal
 
 
 # ─── Investments CRUD ─────────────────────────────────────────────────────────
@@ -330,40 +378,46 @@ def sync_ppi(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(502, f"Error conectando con PPI: {e}")
 
+    _PPI_CURRENCY_MAP = {"Pesos": "ARS", "Dólares": "USD", "Dolares": "USD", "USD": "USD"}
+
     created = updated = 0
     for group in data.get("groupedInstruments", []):
         group_name = (group.get("name") or "").upper()
         inv_type = _PPI_TYPE_MAP.get(group_name, "Otro")
 
         for instrument in group.get("instruments", []):
-            ticker = instrument.get("ticker", "")
-            price = instrument.get("price")
-            amount = instrument.get("amount", 0)  # total market value in ARS
-            if not ticker:
+            ticker   = instrument.get("ticker", "")
+            name     = instrument.get("description", ticker)
+            price    = instrument.get("price")
+            quantity = instrument.get("quantity")   # PPI returns actual quantity
+            currency_raw = instrument.get("currency", "Pesos")
+            if not ticker or not quantity:
                 continue
 
-            price_f = float(price) if price else None
-            # PPI returns amount = total value; derive quantity from amount / price
-            amount_f = float(amount or 0)
-            quantity = (amount_f / price_f) if (price_f and price_f > 0) else 0.0
+            price_f    = float(price) if price is not None else None
+            quantity_f = float(quantity)
+            currency   = _PPI_CURRENCY_MAP.get(currency_raw, "ARS")
 
             existing = db.query(Investment).filter(
                 Investment.ticker == ticker,
                 Investment.broker == "Portfolio Personal",
             ).first()
             if existing:
-                existing.quantity = quantity
-                existing.current_price = price_f if price_f else existing.current_price
-                existing.type = inv_type
-                existing.updated_at = datetime.utcnow()
+                existing.quantity      = quantity_f
+                existing.current_price = price_f if price_f is not None else existing.current_price
+                existing.type          = inv_type
+                existing.currency      = currency
+                existing.name          = name or existing.name
+                existing.updated_at    = datetime.utcnow()
+                # avg_cost is NOT provided by PPI API — preserve whatever the user set manually
                 updated += 1
             else:
                 db.add(Investment(
-                    ticker=ticker, name=ticker, type=inv_type,
+                    ticker=ticker, name=name, type=inv_type,
                     broker="Portfolio Personal",
-                    quantity=quantity, avg_cost=0,
+                    quantity=quantity_f, avg_cost=0,
                     current_price=price_f,
-                    currency="ARS", notes="", updated_at=datetime.utcnow(),
+                    currency=currency, notes="", updated_at=datetime.utcnow(),
                 ))
                 created += 1
 
@@ -376,33 +430,39 @@ def sync_ppi(db: Session = Depends(get_db)):
 
 @router.get("/investments/usd-rate")
 def get_usd_rate():
-    """Returns the latest official USD/ARS rate from BCRA public API (variable 4)."""
+    """Returns the official USD/ARS rate. Tries BCRA first, falls back to dolarapi.com (BNA)."""
     import requests as _req
 
-    today = date.today()
-    desde = (today - timedelta(days=7)).strftime("%Y-%m-%d")
-    hasta = today.strftime("%Y-%m-%d")
-
+    # ── Attempt 1: BCRA ───────────────────────────────────────────────────────
     try:
+        today = date.today()
+        desde = (today - timedelta(days=7)).strftime("%Y-%m-%d")
+        hasta = today.strftime("%Y-%m-%d")
         resp = _req.get(
             f"https://api.bcra.gob.ar/estadisticas/v2.0/datosvariable/4/{desde}/{hasta}",
-            timeout=10,
+            timeout=8,
             headers={"Accept": "application/json"},
+            verify=False,  # BCRA cert has been unreliable
         )
+        if resp.status_code == 200:
+            results = resp.json().get("results", [])
+            if results:
+                latest = results[-1]
+                return {"rate": latest["v"], "date": latest["d"], "source": "BCRA"}
+    except Exception:
+        pass  # fall through to BNA
+
+    # ── Attempt 2: dolarapi.com (fuente BNA) ─────────────────────────────────
+    try:
+        resp = _req.get("https://dolarapi.com/v1/dolares/oficial", timeout=8)
         resp.raise_for_status()
-        results = resp.json().get("results", [])
-        if not results:
-            raise HTTPException(502, "BCRA no devolvió datos para el período solicitado")
-        latest = results[-1]
-        return {
-            "rate": latest["v"],
-            "date": latest["d"],
-            "source": "BCRA COM B 9791 - Tipo de cambio de referencia",
-        }
-    except HTTPException:
-        raise
+        data = resp.json()
+        rate = data.get("venta") or data.get("compra")
+        if rate:
+            fecha = (data.get("fechaActualizacion") or "")[:10]
+            return {"rate": float(rate), "date": fecha, "source": "BNA (dolarapi.com)"}
     except Exception as e:
-        raise HTTPException(502, f"Error consultando BCRA: {e}")
+        raise HTTPException(502, f"No se pudo obtener el tipo de cambio (BCRA y BNA fallaron): {e}")
 
 
 # ─── Cash Balances ────────────────────────────────────────────────────────────
@@ -471,39 +531,25 @@ def get_cash_balances():
                     or accounts[0].get("numeroCuenta")
                     or str(accounts[0].get("id", ""))
                 )
-                data = ppi.account.get_balance_and_positions(account_number)
-
-                # PPI cash fields — try several known keys
-                ars = (
-                    data.get("disponiblePesos")
-                    or data.get("cuentaCorrientePesos")
-                    or data.get("saldoPesos")
-                    or _extract_ppi_cash(data, "pesos")
-                )
-                usd = (
-                    data.get("disponibleDolares")
-                    or data.get("cuentaCorrienteDolares")
-                    or data.get("saldoDolares")
-                    or _extract_ppi_cash(data, "dolar")
-                )
-                balances["ppi"]["ars"] = float(ars) if ars is not None else None
-                balances["ppi"]["usd"] = float(usd) if usd is not None else None
-                # Store raw top-level keys to help debug when fields are unknown
-                balances["ppi"]["_raw_keys"] = list(data.keys()) if isinstance(data, dict) else []
+                # Use get_available_balance — returns list of {name, symbol, amount, settlement}
+                availability = ppi.account.get_available_balance(account_number)
+                ars_total = usd_total = 0.0
+                for entry in (availability or []):
+                    if entry.get("settlement") != "INMEDIATA":
+                        continue
+                    symbol = (entry.get("symbol") or "").upper()
+                    amount = float(entry.get("amount") or 0)
+                    if symbol == "ARS":
+                        ars_total += amount
+                    elif symbol == "USD":
+                        usd_total += amount
+                balances["ppi"]["ars"] = ars_total
+                balances["ppi"]["usd"] = usd_total
         except Exception as e:
             balances["ppi"]["error"] = str(e)
 
     return balances
 
-
-def _extract_ppi_cash(data: dict, keyword: str) -> Optional[float]:
-    """Walk top-level keys of PPI response looking for cash-like fields matching keyword."""
-    if not isinstance(data, dict):
-        return None
-    for k, v in data.items():
-        if keyword in k.lower() and isinstance(v, (int, float)):
-            return float(v)
-    return None
 
 
 # ─── Investments Chat ─────────────────────────────────────────────────────────

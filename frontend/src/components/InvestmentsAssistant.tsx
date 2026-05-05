@@ -314,9 +314,9 @@ export default function InvestmentsAssistant() {
     }
   }
 
-  // ── Render helpers ──────────────────────────────────────────────────────────
+  // ── Shared JSX fragments (inlined to avoid remount-on-render bug) ────────────
 
-  const Header = ({ onExpand }: { onExpand?: () => void }) => (
+  const headerJsx = (onExpand?: () => void) => (
     <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 flex-shrink-0">
       <div className="flex items-center gap-2">
         <span className="text-base">📊</span>
@@ -349,7 +349,7 @@ export default function InvestmentsAssistant() {
     </div>
   )
 
-  const Toolbar = () => (
+  const toolbarJsx = (
     <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-100 flex-shrink-0">
       <div className="flex items-center gap-3">
         <button onClick={() => setShowHistory(false)}
@@ -369,7 +369,7 @@ export default function InvestmentsAssistant() {
     </div>
   )
 
-  const HistoryView = () => (
+  const historyJsx = (
     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 min-h-0">
       {sessions.length === 0 ? (
         <p className="text-sm text-zinc-500 text-center py-8">Sin historial aún</p>
@@ -393,7 +393,7 @@ export default function InvestmentsAssistant() {
     </div>
   )
 
-  const InputBar = ({ iRef }: { iRef: React.RefObject<HTMLInputElement> }) => (
+  const inputBarJsx = (iRef: React.RefObject<HTMLInputElement>) => (
     <div className="px-4 py-3 border-t border-zinc-200 flex-shrink-0">
       {activeSession?.summary && (
         <div className="mb-2 px-3 py-2 bg-brand-50 border border-brand-100 rounded-lg">
@@ -420,12 +420,10 @@ export default function InvestmentsAssistant() {
     <>
       {/* Fixed side panel */}
       <div className="fixed top-0 right-0 h-full w-full sm:w-[360px] bg-white border-l border-zinc-200 shadow-lg z-30 flex flex-col">
-        <Header onExpand={() => setFloatingOpen(true)} />
-        <Toolbar />
-        {showHistory
-          ? <HistoryView />
-          : <MessageList messages={messages} streaming={streaming} endRef={chatEndRef} />}
-        {!showHistory && <InputBar iRef={inputRef} />}
+        {headerJsx(() => setFloatingOpen(true))}
+        {toolbarJsx}
+        {showHistory ? historyJsx : <MessageList messages={messages} streaming={streaming} endRef={chatEndRef} />}
+        {!showHistory && inputBarJsx(inputRef)}
       </div>
 
       {/* Floating modal */}
@@ -433,12 +431,10 @@ export default function InvestmentsAssistant() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setFloatingOpen(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl flex flex-col w-full max-w-2xl" style={{ height: '80vh' }}>
-            <Header />
-            <Toolbar />
-            {showHistory
-              ? <HistoryView />
-              : <MessageList messages={messages} streaming={streaming} endRef={floatEndRef} />}
-            {!showHistory && <InputBar iRef={floatInputRef} />}
+            {headerJsx()}
+            {toolbarJsx}
+            {showHistory ? historyJsx : <MessageList messages={messages} streaming={streaming} endRef={floatEndRef} />}
+            {!showHistory && inputBarJsx(floatInputRef)}
           </div>
         </div>
       )}
