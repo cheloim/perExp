@@ -104,10 +104,10 @@ export default function Dashboard() {
     return new Date(y, m, 0) // last day of month
   }, [month, isCurrentMonth])
 
-  // 10 days back from toDate
+  // 40 days back from toDate
   const tenDaysAgo = useMemo(() => {
     const d = new Date(toDate)
-    d.setDate(d.getDate() - 9)
+    d.setDate(d.getDate() - 39)
     return d
   }, [toDate])
 
@@ -146,18 +146,21 @@ export default function Dashboard() {
   const ingresos = dashData?.by_category.reduce((acc, c) => c.total < 0 ? acc + Math.abs(c.total) : acc, 0) ?? 0
   const balance = ingresos - gastos
 
-  // Build daily totals for area chart (last 10 days)
+  // Build cumulative balance for area chart (last 10 days)
+  // ingresos = negative amounts (credits), gastos = positive amounts (debits)
   const dailyChart = useMemo(() => {
-    const days: { date: string; label: string; gastos: number }[] = []
-    for (let i = 0; i < 10; i++) {
+    let cumulative = 0
+    const days: { date: string; label: string; balance: number }[] = []
+    for (let i = 0; i < 40; i++) {
       const d = new Date(tenDaysAgo)
       d.setDate(d.getDate() + i)
       const ymd = toYMD(d)
       const label = `${String(d.getDate()).padStart(2, '0')}/${MONTHS_ES_SHORT[d.getMonth()]}`
-      const dayTotal = areaExpenses
-        .filter(e => e.date === ymd && e.amount > 0)
-        .reduce((s, e) => s + e.amount, 0)
-      days.push({ date: ymd, label, gastos: dayTotal })
+      const dayNet = areaExpenses
+        .filter(e => e.date === ymd)
+        .reduce((s, e) => s + (-e.amount), 0) // income positive, expense negative
+      cumulative += dayNet
+      days.push({ date: ymd, label, balance: cumulative })
     }
     return days
   }, [areaExpenses, tenDaysAgo])
@@ -257,22 +260,26 @@ export default function Dashboard() {
           {/* Daily area chart — last 10 days */}
           <div className="card p-5">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-zinc-900">Gastos diarios</h2>
-              <span className="text-xs text-zinc-400">Últimos 10 días</span>
+              <h2 className="text-sm font-semibold text-zinc-900">Evolución del balance</h2>
+              <span className="text-xs text-zinc-400">Últimos 40 días</span>
             </div>
-            {dailyChart.every(d => d.gastos === 0) ? (
-              <p className="text-sm text-zinc-400 text-center py-10">Sin gastos en este período</p>
+            {areaExpenses.length === 0 ? (
+              <p className="text-sm text-zinc-400 text-center py-10">Sin movimientos en este período</p>
             ) : (
               <ResponsiveContainer width="100%" height={180}>
                 <AreaChart data={dailyChart} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0.02} />
+                    <linearGradient id="areaGradPos" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.02} />
+                    </linearGradient>
+                    <linearGradient id="areaGradNeg" x1="0" y1="1" x2="0" y2="0">
+                      <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#f43f5e" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} interval={1} />
+                  <XAxis dataKey="label" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} interval={4} />
                   <YAxis
                     tickFormatter={(v) => new Intl.NumberFormat('es-AR', { notation: 'compact' } as any).format(v)}
                     tick={{ fontSize: 10, fill: '#94a3b8' }}
@@ -282,18 +289,27 @@ export default function Dashboard() {
                   />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#fff', borderColor: '#e2e8f0', color: '#1e293b', borderRadius: 8, fontSize: 12 }}
-                    formatter={(v: number) => [formatCurrency(v), 'Gastos']}
+                    formatter={(v: number) => [formatCurrency(v), 'Balance acumulado']}
                     labelFormatter={(label) => label}
                   />
-                  <Area
-                    type="monotone"
-                    dataKey="gastos"
-                    stroke="#6366f1"
-                    strokeWidth={2}
-                    fill="url(#areaGrad)"
-                    dot={{ r: 3, fill: '#6366f1', strokeWidth: 0 }}
-                    activeDot={{ r: 5, fill: '#6366f1' }}
-                  />
+                  {(() => {
+                    const hasPos = dailyChart.some(d => d.balance >= 0)
+                    const allNeg = !hasPos
+                    const color = allNeg ? '#f43f5e' : '#10b981'
+                    const grad = allNeg ? 'url(#areaGradNeg)' : 'url(#areaGradPos)'
+                    return (
+                      <Area
+                        type="monotone"
+                        dataKey="balance"
+                        stroke={color}
+                        strokeWidth={2}
+                        fill={grad}
+                        dot={false}
+                        activeDot={{ r: 4, fill: color, strokeWidth: 0 }}
+                        baseValue={0}
+                      />
+                    )
+                  })()}
                 </AreaChart>
               </ResponsiveContainer>
             )}
