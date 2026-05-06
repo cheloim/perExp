@@ -254,6 +254,22 @@ def get_installments_dashboard(db: Session = Depends(get_db)):
 
 @router.get("/installments/monthly-load")
 def get_installments_monthly_load(db: Session = Depends(get_db)):
+    today = date.today()
+    current_month = today.strftime("%Y-%m")
+
+    # Build window: 3 months back to 3 months forward
+    window_start = add_months(today, -3)
+    window_end = add_months(today, 3)
+    window_start_key = window_start.strftime("%Y-%m")
+    window_end_key = window_end.strftime("%Y-%m")
+
+    # Initialize all 7 months in window with zeros
+    monthly: dict = {}
+    for offset in range(-3, 4):
+        m = add_months(today, offset)
+        key = m.strftime("%Y-%m")
+        monthly[key] = {"month": key, "total": 0.0, "count": 0, "is_past": key < current_month, "is_current": key == current_month}
+
     exps = (
         db.query(Expense)
         .filter(Expense.installment_group_id != None, Expense.installment_group_id != "")
@@ -261,6 +277,14 @@ def get_installments_monthly_load(db: Session = Depends(get_db)):
         .all()
     )
 
+    # Past months: sum actual paid installments by their real date
+    for e in exps:
+        key = e.date.strftime("%Y-%m") if isinstance(e.date, date) else str(e.date)[:7]
+        if key < current_month and key in monthly:
+            monthly[key]["total"] += abs(e.amount)
+            monthly[key]["count"] += 1
+
+    # Future months: project remaining installments per group
     groups: dict = {}
     for e in exps:
         gid = e.installment_group_id
@@ -268,7 +292,6 @@ def get_installments_monthly_load(db: Session = Depends(get_db)):
             groups[gid] = {"installment_total": e.installment_total or 0, "amount": abs(e.amount), "dates": []}
         groups[gid]["dates"].append(e.date)
 
-    monthly: dict = {}
     for g in groups.values():
         paid = len(g["dates"])
         remaining = max(0, g["installment_total"] - paid)
@@ -278,10 +301,9 @@ def get_installments_monthly_load(db: Session = Depends(get_db)):
         for i in range(remaining):
             charge_date = add_months(next_date, i)
             key = charge_date.strftime("%Y-%m")
-            if key not in monthly:
-                monthly[key] = {"month": key, "total": 0.0, "count": 0}
-            monthly[key]["total"] += g["amount"]
-            monthly[key]["count"] += 1
+            if key >= current_month and key in monthly:
+                monthly[key]["total"] += g["amount"]
+                monthly[key]["count"] += 1
 
     return sorted(monthly.values(), key=lambda x: x["month"])
 

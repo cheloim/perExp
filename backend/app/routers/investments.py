@@ -555,6 +555,67 @@ def get_cash_balances():
     return balances
 
 
+@router.post("/investments/refresh-manual-prices")
+def refresh_manual_prices_endpoint(db: Session = Depends(get_db)):
+    from app.services.price_refresh import refresh_manual_prices
+    updated = refresh_manual_prices(db)
+    return {"updated": updated}
+
+
+# ─── Manual cash balances ─────────────────────────────────────────────────────
+
+_MANUAL_CASH_KEY = "manual_cash_balances"
+
+
+@router.get("/investments/manual-cash-balances")
+def get_manual_cash_balances(db: Session = Depends(get_db)):
+    import json
+    from app.models import Setting
+    row = db.query(Setting).filter(Setting.key == _MANUAL_CASH_KEY).first()
+    if not row or not row.value:
+        return {}
+    try:
+        return json.loads(row.value)
+    except Exception:
+        return {}
+
+
+@router.put("/investments/manual-cash-balances/{broker}")
+def put_manual_cash_balance(broker: str, body: dict, db: Session = Depends(get_db)):
+    import json
+    from app.models import Setting
+    row = db.query(Setting).filter(Setting.key == _MANUAL_CASH_KEY).first()
+    current: dict = {}
+    if row and row.value:
+        try:
+            current = json.loads(row.value)
+        except Exception:
+            pass
+    current[broker] = {"ars": body.get("ars"), "usd": body.get("usd")}
+    if row:
+        row.value = json.dumps(current)
+    else:
+        db.add(Setting(key=_MANUAL_CASH_KEY, value=json.dumps(current)))
+    db.commit()
+    return current[broker]
+
+
+@router.delete("/investments/manual-cash-balances/{broker}")
+def delete_manual_cash_balance(broker: str, db: Session = Depends(get_db)):
+    import json
+    from app.models import Setting
+    row = db.query(Setting).filter(Setting.key == _MANUAL_CASH_KEY).first()
+    if not row or not row.value:
+        return {}
+    try:
+        current = json.loads(row.value)
+        current.pop(broker, None)
+        row.value = json.dumps(current)
+        db.commit()
+    except Exception:
+        pass
+    return {}
+
 
 # ─── Investments Chat ─────────────────────────────────────────────────────────
 

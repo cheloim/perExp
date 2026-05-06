@@ -55,6 +55,7 @@ REGLAS:
   donde DD = DÍA (01-31), NNNNNN = código de referencia/comprobante (NO forma parte de la fecha).
   Ejemplo: "10 131966 K FRIGORIFICO SADA SAN M 144.072,43" con contexto "26 Enero"
            → date: "2026-01-10"  (DD=10 = día diez, mes=01 del contexto, año=2026)
+           → transaction_id: "131966"  (el NNNNNN es el comprobante → siempre ponerlo en transaction_id)
   ⚠️  NUNCA interpretes el código de referencia (131966) como parte de la fecha.
 
   AA = 2 dígitos del año: 25 → 2025, 26 → 2026
@@ -85,7 +86,7 @@ Por cada transacción devolvé un objeto JSON con exactamente estos campos:
   • Devolvé el nombre EXACTAMENTE tal como figura en el PDF, sin modificarlo, completarlo ni expandirlo.
     Si el PDF muestra "ZANONI, NATALIA LI", devolvé "ZANONI, NATALIA LI" — NO intentes completar el nombre.
   • Si no figura ningún nombre, "".
-- "transaction_id": código único de la operación si figura (nro operación, referencia, auth), sino null
+- "transaction_id": código único de la operación. En el patrón "DD NNNNNN K/*/# descripcion monto", el NNNNNN ES el comprobante → ponerlo aquí siempre. También puede ser un nro de operación, referencia o auth que figure explícitamente. Si genuinamente no hay ningún código, null.
 - "installment_number": número de cuota si es un pago en cuotas (ej: "1/3" → 1), sino null
 - "installment_total": total de cuotas si es un pago en cuotas (ej: "1/3" → 3), sino null
 
@@ -164,6 +165,20 @@ Devolvelos en campos opcionales en CUALQUIERA de las filas (preferentemente la p
 
 IMPORTANTE: estos son totales del RESUMEN COMPLETO, no de una sección individual.
 Si no encontrás el valor, devolvé null (no inventes números)."""
+
+
+EXPENSE_PARSE_PROMPT = """Sos un asistente que extrae datos de gastos de mensajes en lenguaje natural en español (Argentina).
+
+Hoy es {today}.
+
+Extraé del mensaje del usuario:
+- "amount": monto numérico (float, siempre positivo). Si no hay monto claro, null.
+- "description": descripción del gasto (texto limpio, sin monto ni fecha).
+- "date": fecha en formato "YYYY-MM-DD". Si dice "ayer" restá 1 día a hoy. Si no se menciona fecha, usá hoy.
+- "currency": "ARS" si es pesos o no se menciona, "USD" si es dólares.
+
+Respondé ÚNICAMENTE con un objeto JSON válido, sin markdown, sin texto adicional.
+Ejemplo de salida: {{"amount": 1500.0, "description": "farmacity", "date": "2026-05-05", "currency": "ARS"}}"""
 
 
 ANALYSIS_SYSTEM_PROMPT = """IMPORTANTE: Solo podés responder preguntas relacionadas con los gastos, consumos y finanzas personales del usuario. Si te hacen una pregunta sobre cualquier otro tema (política, recetas, programación, historia, etc.), respondé únicamente: "Solo puedo ayudarte con el análisis de tus gastos y finanzas personales." No hagas excepciones bajo ninguna circunstancia.

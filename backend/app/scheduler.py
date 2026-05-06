@@ -66,13 +66,14 @@ def is_trading_now() -> bool:
 
 async def _do_refresh():
     from app.database import SessionLocal
-    from app.services.price_refresh import refresh_iol_prices, refresh_ppi_prices
+    from app.services.price_refresh import refresh_iol_prices, refresh_ppi_prices, refresh_manual_prices
 
     db = SessionLocal()
     try:
         iol_updated = await asyncio.to_thread(refresh_iol_prices, db)
         ppi_updated = await asyncio.to_thread(refresh_ppi_prices, db)
-        logger.info(f"Price refresh done — IOL: {iol_updated} tickers, PPI: {ppi_updated} tickers")
+        manual_updated = await asyncio.to_thread(refresh_manual_prices, db)
+        logger.info(f"Price refresh done — IOL: {iol_updated}, PPI: {ppi_updated}, Manual: {manual_updated} tickers")
     except Exception as e:
         logger.error(f"Price refresh failed: {e}")
     finally:

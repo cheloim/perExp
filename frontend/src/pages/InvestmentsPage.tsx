@@ -7,10 +7,13 @@ import {
   updateInvestmentPrice,
   deleteInvestment,
   getSettings,
-  syncIOL,
-  syncPPI,
+  syncIOL, syncPPI,
+  refreshManualPrices,
   getUsdRate,
   getCashBalances,
+  getManualCashBalances,
+  putManualCashBalance,
+  deleteManualCashBalance,
 } from '../api/client'
 import type { Investment, InvestmentCreate } from '../types'
 
@@ -183,18 +186,21 @@ function InlinePriceEdit({ inv, onSave }: { inv: Investment; onSave: (price: num
   )
 }
 
-const EMPTY_FORM: InvestmentCreate = {
-  ticker: '', name: '', type: 'Acción', broker: 'InvertirOnline',
-  quantity: 0, avg_cost: 0, current_price: null, currency: 'ARS', notes: '',
-}
-
 function InvestmentModal({
-  initial, onClose, onSave,
+  initial, onClose, onSave, defaultBroker, knownBrokers = [],
 }: {
   initial?: Investment | null
   onClose: () => void
   onSave: (data: InvestmentCreate) => void
+  defaultBroker?: string | null
+  knownBrokers?: string[]
 }) {
+  const allBrokers = [...new Set([...BROKERS, ...knownBrokers])]
+  const emptyForm: InvestmentCreate = {
+    ticker: '', name: '', type: 'Acción',
+    broker: defaultBroker || 'InvertirOnline',
+    quantity: 0, avg_cost: 0, current_price: null, currency: 'ARS', notes: '',
+  }
   const [form, setForm] = useState<InvestmentCreate>(
     initial
       ? {
@@ -208,7 +214,7 @@ function InvestmentModal({
           currency:      initial.currency || 'ARS',
           notes:         initial.notes,
         }
-      : EMPTY_FORM,
+      : emptyForm,
   )
 
   const set = (k: keyof InvestmentCreate, v: unknown) =>
@@ -228,14 +234,14 @@ function InvestmentModal({
           <div>
             <label className="block text-sm font-medium text-zinc-600 mb-1">Broker</label>
             <select
-              value={BROKERS.includes(form.broker ?? '') ? form.broker : '__custom__'}
+              value={allBrokers.includes(form.broker ?? '') ? form.broker : '__custom__'}
               onChange={e => set('broker', e.target.value === '__custom__' ? '' : e.target.value)}
               className="w-full input"
             >
-              {BROKERS.map(b => <option key={b} value={b}>{b}</option>)}
+              {allBrokers.map(b => <option key={b} value={b}>{b}</option>)}
               <option value="__custom__">Otro…</option>
             </select>
-            {!BROKERS.includes(form.broker ?? '') && (
+            {!allBrokers.includes(form.broker ?? '') && (
               <input
                 type="text"
                 value={form.broker}
@@ -454,6 +460,90 @@ function CredentialsModal({ settings, onClose, onSaved }: {
   )
 }
 
+function ManualCashSection({
+  knownBrokers, manualCash, onSave, onDelete,
+}: {
+  knownBrokers: string[]
+  manualCash: Record<string, { ars: number | null; usd: number | null }>
+  onSave: (broker: string, ars: number | null, usd: number | null) => void
+  onDelete: (broker: string) => void
+}) {
+  const allBrokers = [...new Set([...Object.keys(manualCash), ...knownBrokers])]
+  const [editing, setEditing] = useState<string | null>(null)
+  const [editArs, setEditArs] = useState('')
+  const [editUsd, setEditUsd] = useState('')
+
+  const startEdit = (broker: string) => {
+    const entry = manualCash[broker]
+    setEditArs(entry?.ars !== null && entry?.ars !== undefined ? String(entry.ars) : '')
+    setEditUsd(entry?.usd !== null && entry?.usd !== undefined ? String(entry.usd) : '')
+    setEditing(broker)
+  }
+
+  const commitEdit = (broker: string) => {
+    const ars = editArs === '' ? null : parseFloat(editArs)
+    const usd = editUsd === '' ? null : parseFloat(editUsd)
+    onSave(broker, isNaN(ars as number) ? null : ars, isNaN(usd as number) ? null : usd)
+    setEditing(null)
+  }
+
+  if (allBrokers.length === 0) return null
+
+  return (
+    <>
+      {allBrokers.map(broker => (
+        <div key={broker} className="flex-shrink-0">
+          <div className="flex items-center gap-1.5 mb-1">
+            <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">{broker}</p>
+            {editing === broker
+              ? <button onClick={() => commitEdit(broker)} className="text-[10px] text-emerald-500 hover:text-emerald-700">✓</button>
+              : <button onClick={() => startEdit(broker)} className="text-[10px] text-zinc-400 hover:text-zinc-600">✏</button>
+            }
+            <button onClick={() => onDelete(broker)} className="text-[10px] text-red-400 hover:text-red-600">✕</button>
+          </div>
+          {editing === broker ? (
+            <div className="flex gap-2">
+              <div>
+                <p className="text-[10px] text-zinc-500">ARS</p>
+                <input
+                  type="number"
+                  value={editArs}
+                  onChange={e => setEditArs(e.target.value)}
+                  placeholder="0"
+                  autoFocus
+                  className="w-28 bg-zinc-100 border border-brand-400 text-zinc-900 text-xs rounded px-2 py-1 focus:outline-none"
+                />
+              </div>
+              <div>
+                <p className="text-[10px] text-zinc-500">USD</p>
+                <input
+                  type="number"
+                  value={editUsd}
+                  onChange={e => setEditUsd(e.target.value)}
+                  placeholder="0"
+                  className="w-24 bg-zinc-100 border border-brand-400 text-zinc-900 text-xs rounded px-2 py-1 focus:outline-none"
+                  onKeyDown={e => { if (e.key === 'Enter') commitEdit(broker) }}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-3">
+              <div>
+                <p className="text-[10px] text-zinc-500">ARS</p>
+                <p className="text-sm font-semibold text-zinc-900">{manualCash[broker]?.ars !== null && manualCash[broker]?.ars !== undefined ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(manualCash[broker].ars!) : '—'}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-zinc-500">USD</p>
+                <p className="text-sm font-semibold text-zinc-900">{manualCash[broker]?.usd !== null && manualCash[broker]?.usd !== undefined ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(manualCash[broker].usd!) : '—'}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+    </>
+  )
+}
+
 type SortField = 'name' | 'type' | 'broker' | 'cost_basis' | 'current_value' | 'pnl' | 'pnl_pct'
 
 export default function InvestmentsPage() {
@@ -470,6 +560,16 @@ export default function InvestmentsPage() {
 
   const { data: settings = {} } = useQuery({ queryKey: ['settings'], queryFn: getSettings, staleTime: 60_000 })
   const { data: cashBalances } = useQuery({ queryKey: ['cash-balances'], queryFn: getCashBalances, staleTime: 5 * 60_000 })
+  const { data: manualCash = {}, refetch: refetchManualCash } = useQuery({ queryKey: ['manual-cash-balances'], queryFn: getManualCashBalances, staleTime: 0 })
+  const manualCashMut = useMutation({
+    mutationFn: ({ broker, ars, usd }: { broker: string; ars: number | null; usd: number | null }) =>
+      putManualCashBalance(broker, ars, usd),
+    onSuccess: () => refetchManualCash(),
+  })
+  const manualCashDelMut = useMutation({
+    mutationFn: (broker: string) => deleteManualCashBalance(broker),
+    onSuccess: () => refetchManualCash(),
+  })
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['investments'] })
 
@@ -497,15 +597,20 @@ export default function InvestmentsPage() {
     setTimeout(() => setSyncMsg(null), 4000)
   }
 
-  const iolMut = useMutation({
-    mutationFn: syncIOL,
-    onSuccess: (r) => { invalidate(); showSync(`IOL: ${r.updated} actualizadas, ${r.created} nuevas`, true) },
-    onError: (e: Error) => showSync(`IOL error: ${e.message}`, false),
+  const syncAllMut = useMutation({
+    mutationFn: async () => {
+      const results: string[] = []
+      try { const r = await syncIOL(); results.push(`IOL: ${r.updated}↑ ${r.created}+`) } catch { results.push('IOL: error') }
+      try { const r = await syncPPI(); results.push(`PPI: ${r.updated}↑ ${r.created}+`) } catch { results.push('PPI: error') }
+      return results.join(' · ')
+    },
+    onSuccess: (msg) => { invalidate(); showSync(msg, true) },
+    onError: (e: Error) => showSync(`Sync error: ${e.message}`, false),
   })
-  const ppiMut = useMutation({
-    mutationFn: syncPPI,
-    onSuccess: (r) => { invalidate(); showSync(`PPI: ${r.updated} actualizadas, ${r.created} nuevas`, true) },
-    onError: (e: Error) => showSync(`PPI error: ${e.message}`, false),
+  const manualRefreshMut = useMutation({
+    mutationFn: refreshManualPrices,
+    onSuccess: (r) => { invalidate(); showSync(`Manuales: ${r.updated} precios actualizados`, true) },
+    onError: (e: Error) => showSync(`Error: ${e.message}`, false),
   })
 
   const createMut = useMutation({ mutationFn: createInvestment, onSuccess: () => { invalidate(); setEditing(undefined) } })
@@ -585,51 +690,39 @@ export default function InvestmentsPage() {
             </span>
           )}
 
-          {/* IOL sync */}
+          {/* Sync all brokers */}
           <div className="flex flex-col items-end">
             <button
-              onClick={() => iolMut.mutate()}
-              disabled={iolMut.isPending}
-              title={!settings.iol_configured ? 'IOL_USERNAME / IOL_PASSWORD no configurados en .env' : ''}
+              onClick={() => syncAllMut.mutate()}
+              disabled={syncAllMut.isPending}
+              title={(!settings.iol_configured && !settings.ppi_configured) ? 'Configurá las credenciales primero' : 'Sincronizar IOL y PPI'}
               className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 ${
-                settings.iol_configured
+                (settings.iol_configured || settings.ppi_configured)
                   ? 'border-zinc-300 text-zinc-600 hover:text-zinc-900 hover:border-zinc-500'
                   : 'border-zinc-300 text-zinc-600 cursor-not-allowed'
               }`}
             >
-              {iolMut.isPending ? <span className="animate-spin inline-block">↻</span> : '↻'}
-              IOL
-              {!settings.iol_configured && <span className="text-yellow-500 text-xs">⚠</span>}
+              {syncAllMut.isPending ? <span className="animate-spin inline-block">↻</span> : '↻'}
+              Sincronizar
+              {(!settings.iol_configured && !settings.ppi_configured) && <span className="text-yellow-500 text-xs">⚠</span>}
             </button>
-            {settings.iol_last_sync && (
+            {(settings.iol_last_sync || settings.ppi_last_sync) && (
               <span className="text-[10px] text-zinc-600 mt-0.5">
-                {new Date(settings.iol_last_sync).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}
+                {new Date(settings.iol_last_sync || settings.ppi_last_sync).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}
               </span>
             )}
           </div>
 
-          {/* PPI sync */}
-          <div className="flex flex-col items-end">
-            <button
-              onClick={() => ppiMut.mutate()}
-              disabled={ppiMut.isPending}
-              title={!settings.ppi_configured ? 'PPI_API_KEY / PPI_API_SECRET no configurados en .env' : ''}
-              className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 ${
-                settings.ppi_configured
-                  ? 'border-zinc-300 text-zinc-600 hover:text-zinc-900 hover:border-zinc-500'
-                  : 'border-zinc-300 text-zinc-600 cursor-not-allowed'
-              }`}
-            >
-              {ppiMut.isPending ? <span className="animate-spin inline-block">↻</span> : '↻'}
-              PPI
-              {!settings.ppi_configured && <span className="text-yellow-500 text-xs">⚠</span>}
-            </button>
-            {settings.ppi_last_sync && (
-              <span className="text-[10px] text-zinc-600 mt-0.5">
-                {new Date(settings.ppi_last_sync).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}
-              </span>
-            )}
-          </div>
+          {/* Manual price refresh */}
+          <button
+            onClick={() => manualRefreshMut.mutate()}
+            disabled={manualRefreshMut.isPending}
+            title="Actualizar precios de posiciones manuales desde IOL/PPI"
+            className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-zinc-300 text-zinc-400 hover:text-zinc-700 hover:border-zinc-600 transition-all disabled:opacity-50"
+          >
+            {manualRefreshMut.isPending ? <span className="animate-spin inline-block">↻</span> : '↻'}
+            Manuales
+          </button>
 
           {/* USD Conversion */}
           <div className="flex flex-col items-end">
@@ -696,70 +789,62 @@ export default function InvestmentsPage() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="card p-4">
-          <p className="text-xs text-zinc-400 mb-1">Valor ARS</p>
-          <p className="text-xl font-bold text-zinc-900">{toDisplay(arsValue, 'ARS')}</p>
-          <p className={`text-xs mt-1 font-medium ${arsPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+        <div className="card p-3">
+          <p className="text-xs text-zinc-400 mb-0.5">Valor ARS</p>
+          <p className="text-base font-bold text-zinc-900">{toDisplay(arsValue, 'ARS')}</p>
+          <p className={`text-xs mt-0.5 font-medium ${arsPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
             {arsPnl >= 0 ? '+' : ''}{toDisplay(arsPnl, 'ARS')} P&L
           </p>
         </div>
-        <div className="card p-4">
-          <p className="text-xs text-zinc-400 mb-1">Valor USD</p>
-          <p className="text-xl font-bold text-zinc-900">{fmt(usdValue, 'USD')}</p>
-          <p className={`text-xs mt-1 font-medium ${usdPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+        <div className="card p-3">
+          <p className="text-xs text-zinc-400 mb-0.5">Valor USD</p>
+          <p className="text-base font-bold text-zinc-900">{fmt(usdValue, 'USD')}</p>
+          <p className={`text-xs mt-0.5 font-medium ${usdPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
             {usdPnl >= 0 ? '+' : ''}{fmt(usdPnl, 'USD')} P&L
           </p>
         </div>
 
-        {/* Saldos disponibles — ahora en el grid de cards */}
-        <div className="card p-4 col-span-2">
-          <p className="text-xs text-zinc-400 font-medium uppercase tracking-wider mb-3">Saldos disponibles</p>
-          {cashBalances && (cashBalances.iol.configured || cashBalances.ppi.configured) ? (
-            <div className="grid grid-cols-2 gap-4">
-              {/* IOL */}
-              <div>
-                <p className="text-xs font-semibold text-zinc-500 mb-1.5">InvertirOnline</p>
-                {cashBalances.iol.configured ? (
-                  cashBalances.iol.error ? (
-                    <p className="text-xs text-red-400">{cashBalances.iol.error}</p>
-                  ) : (
-                    <div className="flex gap-4">
-                      <div>
-                        <p className="text-[10px] text-zinc-500">ARS</p>
-                        <p className="text-sm font-semibold text-zinc-900">{cashBalances.iol.ars !== null ? toDisplay(cashBalances.iol.ars, 'ARS') : '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-zinc-500">USD</p>
-                        <p className="text-sm font-semibold text-zinc-900">{cashBalances.iol.usd !== null ? fmt(cashBalances.iol.usd, 'USD') : '—'}</p>
-                      </div>
+        {/* Saldos disponibles */}
+        <div className="card p-3 col-span-2">
+          <p className="text-xs text-zinc-400 font-medium uppercase tracking-wider mb-2">Saldos disponibles</p>
+          <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
+            {/* IOL — auto from API */}
+            {cashBalances?.iol.configured && (
+              <div className="flex-shrink-0">
+                <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide mb-1">InvertirOnline</p>
+                {cashBalances.iol.error
+                  ? <p className="text-xs text-red-400">{cashBalances.iol.error}</p>
+                  : <div className="flex gap-3">
+                      <div><p className="text-[10px] text-zinc-500">ARS</p><p className="text-sm font-semibold text-zinc-900">{cashBalances.iol.ars !== null ? toDisplay(cashBalances.iol.ars, 'ARS') : '—'}</p></div>
+                      <div><p className="text-[10px] text-zinc-500">USD</p><p className="text-sm font-semibold text-zinc-900">{cashBalances.iol.usd !== null ? fmt(cashBalances.iol.usd, 'USD') : '—'}</p></div>
                     </div>
-                  )
-                ) : <p className="text-xs text-zinc-400">No configurado</p>}
+                }
               </div>
-              {/* PPI */}
-              <div>
-                <p className="text-xs font-semibold text-zinc-500 mb-1.5">Portfolio Personal</p>
-                {cashBalances.ppi.configured ? (
-                  cashBalances.ppi.error ? (
-                    <p className="text-xs text-red-400">{cashBalances.ppi.error}</p>
-                  ) : (
-                    <div className="flex gap-4">
-                      <div>
-                        <p className="text-[10px] text-zinc-500">ARS</p>
-                        <p className="text-sm font-semibold text-zinc-900">{cashBalances.ppi.ars !== null ? toDisplay(cashBalances.ppi.ars, 'ARS') : '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-zinc-500">USD</p>
-                        <p className="text-sm font-semibold text-zinc-900">{cashBalances.ppi.usd !== null ? fmt(cashBalances.ppi.usd, 'USD') : '—'}</p>
-                      </div>
+            )}
+            {/* PPI — auto from API */}
+            {cashBalances?.ppi.configured && (
+              <div className="flex-shrink-0">
+                <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide mb-1">Portfolio Personal</p>
+                {cashBalances.ppi.error
+                  ? <p className="text-xs text-red-400">{cashBalances.ppi.error}</p>
+                  : <div className="flex gap-3">
+                      <div><p className="text-[10px] text-zinc-500">ARS</p><p className="text-sm font-semibold text-zinc-900">{cashBalances.ppi.ars !== null ? toDisplay(cashBalances.ppi.ars, 'ARS') : '—'}</p></div>
+                      <div><p className="text-[10px] text-zinc-500">USD</p><p className="text-sm font-semibold text-zinc-900">{cashBalances.ppi.usd !== null ? fmt(cashBalances.ppi.usd, 'USD') : '—'}</p></div>
                     </div>
-                  )
-                ) : <p className="text-xs text-zinc-400">No configurado</p>}
+                }
               </div>
-            </div>
-          ) : (
-            <p className="text-xs text-zinc-400">Configurá las credenciales de IOL o PPI para ver los saldos</p>
-          )}
+            )}
+            {/* Manual brokers — editable, horizontal */}
+            <ManualCashSection
+              knownBrokers={brokers.filter(b => b !== 'InvertirOnline' && b !== 'Portfolio Personal')}
+              manualCash={manualCash}
+              onSave={(broker, ars, usd) => manualCashMut.mutate({ broker, ars, usd })}
+              onDelete={(broker) => manualCashDelMut.mutate(broker)}
+            />
+            {!cashBalances?.iol.configured && !cashBalances?.ppi.configured && Object.keys(manualCash).length === 0 && (
+              <p className="text-xs text-zinc-400">Configurá las credenciales de IOL o PPI, o agregá un broker manual</p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -913,6 +998,8 @@ export default function InvestmentsPage() {
           initial={editing}
           onClose={() => setEditing(undefined)}
           onSave={handleSave}
+          defaultBroker={editing === null ? brokerFilter : undefined}
+          knownBrokers={brokers}
         />
       )}
 

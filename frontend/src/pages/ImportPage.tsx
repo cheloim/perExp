@@ -12,6 +12,50 @@ function formatCurrency(amount: number, currency: string = 'ARS') {
 
 type Step = 'upload' | 'preview' | 'done'
 
+// Deduplicates accumulated rows from multiple PDF imports.
+// When a comprobante is present, uses (txn_id, inst_num, inst_total) as the unique key —
+// Argentine statements share the same transaction_id across all installments of a purchase.
+// Keeps the non-auto-generated (real) row when both versions exist for the same slot.
+function deduplicateInstallments(rows: SmartImportRow[]): SmartImportRow[] {
+  const key = (r: SmartImportRow) => {
+    if (!r.installment_number || !r.installment_total || r.installment_total < 2) return null
+    const desc = r.description?.toLowerCase() ?? ''
+    if (r.transaction_id) {
+      return `txn:${r.transaction_id}|${r.installment_number}|${r.installment_total}`
+    }
+    // No comprobante: fall back to description + slot + billing month.
+    // Dates arrive as DD-MM-YYYY from the backend; parse year-month accordingly.
+    const d = r.date ?? ''
+    const month = /^\d{2}-\d{2}-\d{4}$/.test(d)
+      ? `${d.slice(6)}-${d.slice(3, 5)}`   // YYYY-MM from DD-MM-YYYY
+      : d.slice(0, 7)                        // YYYY-MM from YYYY-MM-DD
+    return `${desc}|${r.installment_number}|${r.installment_total}|${month}`
+  }
+
+  const seen = new Map<string, number>() // key → index in result
+  const result: SmartImportRow[] = []
+
+  for (const row of rows) {
+    const k = key(row)
+    if (k === null) {
+      result.push(row)
+      continue
+    }
+    if (seen.has(k)) {
+      const existingIdx = seen.get(k)!
+      // Prefer the non-auto-generated (real) row
+      if (result[existingIdx].is_auto_generated && !row.is_auto_generated) {
+        result[existingIdx] = row
+      }
+    } else {
+      seen.set(k, result.length)
+      result.push(row)
+    }
+  }
+
+  return result
+}
+
 export default function ImportPage() {
   const qc = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -77,7 +121,7 @@ export default function ImportPage() {
     setCurrentFile(null)
     setQueued(0)
     setErrors([...accErrsRef.current])
-    setSmartRows([...accRowsRef.current])
+    setSmartRows(deduplicateInstallments(accRowsRef.current))
     setSmartRawCount(accRawRef.current)
     setSummaries([...accSummaries.current])
     if (accRowsRef.current.length > 0) setStep('preview')
@@ -331,6 +375,7 @@ export default function ImportPage() {
                     <th className="px-4 py-3 text-right">Monto</th>
                     <th className="px-4 py-3 text-left">Categoría</th>
                     <th className="px-4 py-3 text-left">Moneda</th>
+                    <th className="px-4 py-3 text-left">Comprobante</th>
                     <th className="px-4 py-3 text-left">Banco</th>
                     <th className="px-4 py-3 text-left">Tarjeta</th>
                   </tr>
@@ -373,6 +418,7 @@ export default function ImportPage() {
                           ? <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">USD</span>
                           : <span className="text-xs text-gray-400">ARS</span>}
                       </td>
+                      <td className="px-4 py-2 text-gray-400 font-mono text-xs">{row.transaction_id || '—'}</td>
                       <td className="px-4 py-2 text-gray-500">{row.bank || '—'}</td>
                       <td className="px-4 py-2 text-gray-500">{row.card || '—'}</td>
                     </tr>

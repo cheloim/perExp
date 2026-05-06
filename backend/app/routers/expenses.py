@@ -143,7 +143,7 @@ def check_duplicate(
     dupe = None
     if transaction_id:
         dupe = db.query(Expense).filter(Expense.transaction_id == transaction_id).first()
-    if not dupe:
+    else:
         dupe = db.query(Expense).filter(
             Expense.date == exp_date,
             Expense.amount == amount,

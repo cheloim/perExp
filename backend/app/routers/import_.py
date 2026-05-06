@@ -490,6 +490,7 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db)):
             category_id = _resolve_category(db, amount, desc, cats)
             norm_bank = _normalize_bank(str(r.get("bank", "") or ""))
             norm_person = _normalize_person(str(r.get("person", "") or ""), db)
+
             db.add(Expense(
                 date=parsed_date,
                 description=desc,

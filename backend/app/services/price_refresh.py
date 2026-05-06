@@ -138,3 +138,86 @@ def refresh_ppi_prices(db: Session) -> int:
 
     db.commit()
     return updated
+
+
+def refresh_manual_prices(db: Session) -> int:
+    """Refresh current_price for investments NOT synced from IOL/PPI portfolios.
+    Tries IOL individual quote endpoint first, falls back to PPI market data.
+    """
+    import requests as _req
+
+    MANAGED_BROKERS = ("InvertirOnline", "Portfolio Personal")
+    manual_invs = db.query(Investment).filter(
+        Investment.broker.notin_(MANAGED_BROKERS)
+    ).all()
+    if not manual_invs:
+        return 0
+
+    tickers = list({inv.ticker for inv in manual_invs if inv.ticker})
+
+    # ── IOL individual quote ───────────────────────────────────────────────────
+    iol_prices: dict[str, float] = {}
+    username = os.getenv("IOL_USERNAME", "")
+    password = os.getenv("IOL_PASSWORD", "")
+    if username and password:
+        try:
+            auth = _req.post(
+                "https://api.invertironline.com/token",
+                data={"username": username, "password": password, "grant_type": "password"},
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                timeout=20,
+            )
+            auth.raise_for_status()
+            token = auth.json().get("access_token")
+            if token:
+                hdrs = {"Authorization": f"Bearer {token}"}
+                for ticker in tickers:
+                    for mercado in ("bCBA", "nYSE"):
+                        try:
+                            resp = _req.get(
+                                f"https://api.invertironline.com/api/v2/{mercado}/Titulos/{ticker}/CotizacionDetalle",
+                                headers=hdrs, timeout=10,
+                            )
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                price = data.get("ultimoPrecio") or data.get("ultimo")
+                                if price is not None:
+                                    iol_prices[ticker] = float(price)
+                                    break
+                        except Exception:
+                            pass
+        except Exception as e:
+            logger.warning(f"IOL auth failed for manual price refresh: {e}")
+
+    # ── PPI market data fallback ───────────────────────────────────────────────
+    ppi_prices: dict[str, float] = {}
+    api_key = os.getenv("PPI_API_KEY", "")
+    api_secret = os.getenv("PPI_API_SECRET", "")
+    remaining = [t for t in tickers if t not in iol_prices]
+    if remaining and api_key and api_secret:
+        try:
+            from ppi_client.ppi import PPI
+            ppi = PPI(sandbox=False)
+            ppi.account.login_api(api_key, api_secret)
+            for ticker in remaining:
+                try:
+                    data = ppi.marketdata.get(ticker, "acciones", "A-48HS")
+                    if data and data.get("price") is not None:
+                        ppi_prices[ticker] = float(data["price"])
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.warning(f"PPI auth failed for manual price refresh: {e}")
+
+    # ── Update rows ────────────────────────────────────────────────────────────
+    updated = 0
+    combined = {**ppi_prices, **iol_prices}  # IOL wins if both have it
+    for inv in manual_invs:
+        price = combined.get(inv.ticker)
+        if price is not None:
+            inv.current_price = price
+            inv.updated_at = datetime.utcnow()
+            updated += 1
+
+    db.commit()
+    return updated

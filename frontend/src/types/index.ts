@@ -1,3 +1,17 @@
+export interface AuthToken {
+  access_token: string
+  token_type: string
+}
+
+export interface User {
+  id: number
+  dni: string
+  full_name: string
+  email?: string | null
+  is_active: boolean
+  created_at: string
+}
+
 export interface Category {
   id: number
   name: string

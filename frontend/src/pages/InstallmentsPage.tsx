@@ -111,10 +111,14 @@ function InstallmentCard({
         </div>
       </div>
 
-      <p className="text-zinc-900/40 text-xs tracking-widest font-mono">
+      <p className="text-zinc-900 text-sm font-bold tracking-widest font-mono">
         •••• •••• •••• {hasDigits ? entry.card_last4 : '????'}
       </p>
-      <p className="text-zinc-900 text-xs font-semibold uppercase tracking-wide truncate mt-0.5">{entry.person}</p>
+      {entry.person && (
+        <p className="text-zinc-900/70 text-[10px] font-medium uppercase tracking-wide truncate mt-0.5">
+          {entry.person}
+        </p>
+      )}
       <div className="mt-1">
         <p className="text-zinc-900/50 text-[10px]">Cuotas pendientes</p>
         <p className="text-zinc-900 font-bold text-base leading-tight">{formatCurrency(entry.pendingTotal, entry.currency)}</p>
@@ -125,7 +129,6 @@ function InstallmentCard({
 
 export default function InstallmentsPage() {
   const [bankFilter, setBankFilter] = useState<string | null>(null)
-  const [personFilter, setPersonFilter] = useState<string | null>(null)
   const [activeCardKey, setActiveCardKey] = useState<string | null>(null)
   const [showCompleted, setShowCompleted] = useState(false)
 
@@ -150,10 +153,10 @@ export default function InstallmentsPage() {
     return g.next_date.startsWith(currentMonth) && g.remaining_installments === 1
   }).length
 
-  // Build card entries from active installment groups
+  // Build card entries — group by last4+bank+person only (card name varies by import)
   const cardMap = new Map<string, CardEntry>()
   for (const g of activeGroups) {
-    const key = `${g.card_last4}|${g.card}|${g.bank}|${g.person}`
+    const key = `${g.card_last4}|${g.bank}|${g.person}`
     if (!cardMap.has(key)) {
       cardMap.set(key, { key, card: g.card, card_last4: g.card_last4, bank: g.bank, person: g.person, pendingTotal: 0, currency: g.currency })
     }
@@ -163,17 +166,15 @@ export default function InstallmentsPage() {
 
   // Filter chips sources
   const banks = [...new Set(groups.map(g => g.bank).filter(Boolean))].sort()
-  const persons = [...new Set(groups.map(g => g.person).filter(Boolean))].sort()
 
-  // Active card's last4 for filtering
+  // Active card for filtering
   const activeCard = activeCardKey ? cardEntries.find(c => c.key === activeCardKey) : null
 
   // Apply filters to group list
   const filtered = groups.filter(g => {
     if (!showCompleted && g.remaining_installments === 0) return false
     if (bankFilter && g.bank !== bankFilter) return false
-    if (personFilter && g.person !== personFilter) return false
-    if (activeCard && g.card_last4 !== activeCard.card_last4) return false
+    if (activeCard && (`${g.card_last4}|${g.bank}|${g.person}`) !== activeCard.key) return false
     return true
   })
 
@@ -217,47 +218,73 @@ export default function InstallmentsPage() {
         {/* Left — chart + list */}
         <div className="xl:col-span-2 space-y-5">
           {/* Monthly load chart */}
-          {monthlyLoad.length > 0 && (
-            <div className="card p-5">
-              <h2 className="text-base font-semibold text-zinc-900 mb-4">Carga mensual proyectada</h2>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={monthlyLoad} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                  <XAxis
-                    dataKey="month"
-                    tick={{ fontSize: 10, fill: '#a1a1aa' }}
-                    tickFormatter={(v: string) => {
-                      const [y, m] = v.split('-')
-                      return `${MONTHS_ES[parseInt(m) - 1]} ${y.slice(2)}`
-                    }}
-                  />
-                  <YAxis
-                    tickFormatter={(v) => new Intl.NumberFormat('es-AR', { notation: 'compact' } as any).format(v)}
-                    tick={{ fontSize: 11, fill: '#a1a1aa' }}
-                    width={52}
-                  />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#f4f4f5' }}
-                    formatter={(v: number) => [formatCurrency(v), 'Total cuotas']}
-                    labelFormatter={(l: string) => {
-                      const [y, m] = l.split('-')
-                      return `${MONTHS_ES[parseInt(m) - 1]} ${y}`
-                    }}
-                  />
-                  {monthlyLoad.map((entry) => (
-                    <Bar key={entry.month} dataKey="total" fill="#6366f1" radius={[4, 4, 0, 0]}>
-                      {monthlyLoad.map((e) => (
-                        <Cell
-                          key={e.month}
-                          fill={e.month === currentMonth ? '#6366f1' : e.month < currentMonth ? '#3f3f46' : '#4f46e5'}
-                        />
-                      ))}
+          <div className="card p-5">
+            <h2 className="text-base font-semibold text-zinc-900 mb-1">Carga mensual en cuotas</h2>
+            <p className="text-xs text-zinc-400 mb-4">Últimos 3 meses (real) + próximos 3 meses (proyección)</p>
+            {(() => {
+              const currentEntry = monthlyLoad.find(e => e.is_current)
+              const currentTotal = currentEntry?.total ?? 0
+              return (
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={monthlyLoad} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" vertical={false} />
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fontSize: 10, fill: '#71717a' }}
+                      tickFormatter={(v: string) => {
+                        const [y, m] = v.split('-')
+                        return `${MONTHS_ES[parseInt(m) - 1]} ${y.slice(2)}`
+                      }}
+                    />
+                    <YAxis
+                      tickFormatter={(v) => new Intl.NumberFormat('es-AR', { notation: 'compact' } as any).format(v)}
+                      tick={{ fontSize: 11, fill: '#71717a' }}
+                      width={52}
+                    />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e4e4e7', color: '#18181b', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.10)' }}
+                      labelStyle={{ fontWeight: 600, color: '#18181b', marginBottom: 4 }}
+                      itemStyle={{ color: '#3f3f46' }}
+                      formatter={(v: number, _: string, props: any) => {
+                        const entry = props.payload
+                        const kind = entry?.is_current ? 'Mes actual' : entry?.is_past ? 'Pagado' : 'Proyectado'
+                        if (!entry?.is_current && currentTotal > 0) {
+                          const pct = ((v - currentTotal) / currentTotal) * 100
+                          const sign = pct > 0 ? '+' : ''
+                          const color = pct > 0 ? '#ef4444' : '#22c55e'
+                          return [
+                            <span style={{ color: '#18181b' }}>{formatCurrency(v)} <span style={{ color, fontWeight: 700 }}>({sign}{pct.toFixed(0)}%)</span></span>,
+                            kind,
+                          ]
+                        }
+                        return [formatCurrency(v), kind]
+                      }}
+                      labelFormatter={(l: string) => {
+                        const [y, m] = l.split('-')
+                        return `${MONTHS_ES[parseInt(m) - 1]} ${y}`
+                      }}
+                    />
+                    <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+                      {monthlyLoad.map((e) => {
+                        let fill = '#3b82f6'
+                        if (e.is_current) fill = '#22c55e'
+                        else if (e.is_past) fill = '#f59e0b'
+                        else if (currentTotal > 0) fill = e.total > currentTotal ? '#ef4444' : '#3b82f6'
+                        return <Cell key={e.month} fill={fill} fillOpacity={e.is_past ? 0.75 : 1} />
+                      })}
                     </Bar>
-                  ))}
-                </BarChart>
-              </ResponsiveContainer>
+                  </BarChart>
+                </ResponsiveContainer>
+              )
+            })()}
+            <div className="flex items-center gap-4 mt-3 justify-center">
+              <span className="flex items-center gap-1.5 text-[10px] text-zinc-400"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#f59e0b' }} />Real pagado</span>
+              <span className="flex items-center gap-1.5 text-[10px] text-zinc-400"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#22c55e' }} />Mes actual</span>
+              <span className="flex items-center gap-1.5 text-[10px] text-zinc-400"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#6366f1' }} />Proyectado</span>
+              <span className="flex items-center gap-1.5 text-[10px] text-zinc-400"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#ef4444' }} />Mayor gasto</span>
+              <span className="flex items-center gap-1.5 text-[10px] text-zinc-400"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#4ade80' }} />Menor gasto</span>
             </div>
-          )}
+          </div>
 
           {/* Groups list */}
           <div className="card overflow-hidden">
@@ -340,9 +367,9 @@ export default function InstallmentsPage() {
           <div className="card p-5 sticky top-24 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-semibold text-zinc-900">Tarjetas</h2>
-              {(bankFilter || personFilter || activeCardKey) && (
+              {(bankFilter || activeCardKey) && (
                 <button
-                  onClick={() => { setBankFilter(null); setPersonFilter(null); setActiveCardKey(null) }}
+                  onClick={() => { setBankFilter(null); setActiveCardKey(null) }}
                   className="text-xs text-zinc-500 hover:text-zinc-400"
                 >
                   Limpiar
@@ -374,34 +401,10 @@ export default function InstallmentsPage() {
               </div>
             )}
 
-            {/* Person filter */}
-            {persons.length > 1 && (
-              <div>
-                <p className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1.5">Titular</p>
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    onClick={() => setPersonFilter(null)}
-                    className={`text-xs px-2.5 py-1 rounded-full border transition-all ${!personFilter ? 'bg-zinc-600 border-zinc-500 text-zinc-900' : 'border-zinc-300 text-zinc-400 hover:text-zinc-600'}`}
-                  >
-                    Todos
-                  </button>
-                  {persons.map(p => (
-                    <button
-                      key={p}
-                      onClick={() => setPersonFilter(personFilter === p ? null : p)}
-                      className={`text-xs px-2.5 py-1 rounded-full border transition-all ${personFilter === p ? 'bg-zinc-600 border-zinc-500 text-zinc-900' : 'border-zinc-300 text-zinc-400 hover:text-zinc-600'}`}
-                    >
-                      {p.split(',')[0]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Card visualizations */}
             <div className="space-y-3 pt-1">
               {cardEntries
-                .filter(c => (!bankFilter || c.bank === bankFilter) && (!personFilter || c.person === personFilter))
+                .filter(c => !bankFilter || c.bank === bankFilter)
                 .map((entry, idx) => (
                   <InstallmentCard
                     key={entry.key}
