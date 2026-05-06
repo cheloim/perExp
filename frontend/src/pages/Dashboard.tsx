@@ -1,3 +1,4 @@
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -6,7 +7,12 @@ import {
 } from 'recharts'
 import { getDashboard, getCardSummary, getExpenses } from '../api/client'
 
-const MONTHS_ES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+const MONTHS_ES_LONG = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+const MONTHS_ES_SHORT = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+
+function toYMD(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 function formatCurrency(amount: number, currency = 'ARS') {
   if (currency === 'USD') {
@@ -24,16 +30,33 @@ function formatDate(dateStr: string) {
   return dateStr
 }
 
+function MonthSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [y, m] = value.split('-').map(Number)
+  const shift = (delta: number) => {
+    const d = new Date(y, m - 1 + delta, 1)
+    onChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+  }
+  const now = new Date()
+  const isCurrentMonth = y === now.getFullYear() && m === now.getMonth() + 1
+  return (
+    <div className="flex items-center gap-0.5 bg-zinc-100 border border-zinc-200 rounded-lg px-1 py-1">
+      <button onClick={() => shift(-1)} className="px-2 py-0.5 text-zinc-400 hover:text-zinc-900 rounded transition-colors">◀</button>
+      <span className="text-zinc-900 text-sm font-medium px-3 min-w-[140px] text-center select-none">
+        {MONTHS_ES_LONG[m - 1]} {y}
+      </span>
+      <button
+        onClick={() => shift(1)}
+        disabled={isCurrentMonth}
+        className="px-2 py-0.5 text-zinc-400 hover:text-zinc-900 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+      >▶</button>
+    </div>
+  )
+}
+
 function StatCard({
-  label,
-  value,
-  sub,
-  accent,
+  label, value, sub, accent,
 }: {
-  label: string
-  value: string
-  sub?: string
-  accent?: 'green' | 'red' | 'blue'
+  label: string; value: string; sub?: string; accent?: 'green' | 'red' | 'blue'
 }) {
   const accentMap = {
     green: 'border-l-4 border-emerald-500',
@@ -69,16 +92,35 @@ function CardRow({ last4, cardName, bank, total }: { last4: string; cardName: st
 export default function Dashboard() {
   const now = new Date()
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const [month, setMonth] = useState(currentMonth)
   const navigate = useNavigate()
 
-  // 7 days ago
-  const sevenDaysAgo = new Date(now)
-  sevenDaysAgo.setDate(now.getDate() - 7)
-  const dateFrom = `${sevenDaysAgo.getFullYear()}-${String(sevenDaysAgo.getMonth() + 1).padStart(2, '0')}-${String(sevenDaysAgo.getDate()).padStart(2, '0')}`
+  const isCurrentMonth = month === currentMonth
+
+  // "To" date: today if current month, else last day of selected month
+  const toDate = useMemo(() => {
+    if (isCurrentMonth) return now
+    const [y, m] = month.split('-').map(Number)
+    return new Date(y, m, 0) // last day of month
+  }, [month, isCurrentMonth])
+
+  // 10 days back from toDate
+  const tenDaysAgo = useMemo(() => {
+    const d = new Date(toDate)
+    d.setDate(d.getDate() - 9)
+    return d
+  }, [toDate])
+
+  // 7 days back from toDate for transactions list
+  const sevenDaysAgo = useMemo(() => {
+    const d = new Date(toDate)
+    d.setDate(d.getDate() - 6)
+    return d
+  }, [toDate])
 
   const { data: dashData } = useQuery({
-    queryKey: ['dashboard', currentMonth],
-    queryFn: () => getDashboard({ month: currentMonth }),
+    queryKey: ['dashboard', month],
+    queryFn: () => getDashboard({ month }),
     placeholderData: (prev) => prev,
   })
 
@@ -87,28 +129,40 @@ export default function Dashboard() {
     queryFn: getCardSummary,
   })
 
-  const { data: recentExpenses = [] } = useQuery({
-    queryKey: ['expenses-recent-7d', dateFrom],
-    queryFn: () => getExpenses({ date_from: dateFrom, limit: 30 }),
+  // Expenses for 10-day area chart
+  const { data: areaExpenses = [] } = useQuery({
+    queryKey: ['expenses-10d-chart', toYMD(tenDaysAgo), toYMD(toDate)],
+    queryFn: () => getExpenses({ date_from: toYMD(tenDaysAgo), date_to: toYMD(toDate), limit: 500 }),
   })
 
-  // Compute balance/ingresos/gastos
+  // Expenses for 7-day transaction list
+  const { data: recentExpenses = [] } = useQuery({
+    queryKey: ['expenses-recent-7d', toYMD(sevenDaysAgo), toYMD(toDate)],
+    queryFn: () => getExpenses({ date_from: toYMD(sevenDaysAgo), date_to: toYMD(toDate), limit: 30 }),
+  })
+
+  // Compute balance/ingresos/gastos from selected month
   const gastos = dashData?.by_currency.find(c => c.currency === 'ARS')?.total ?? dashData?.total_amount ?? 0
-  // Ingresos = sum of negative amounts (credits) in current month, derive from category totals
   const ingresos = dashData?.by_category.reduce((acc, c) => c.total < 0 ? acc + Math.abs(c.total) : acc, 0) ?? 0
   const balance = ingresos - gastos
 
-  // Balance evolution — use trend_data.history
-  const balanceHistory = (dashData?.trend_data?.history ?? []).map(h => ({
-    month: h.month,
-    label: (() => {
-      const [, m] = h.month.split('-')
-      return MONTHS_ES[parseInt(m) - 1]
-    })(),
-    gastos: Math.abs(h.total),
-  }))
+  // Build daily totals for area chart (last 10 days)
+  const dailyChart = useMemo(() => {
+    const days: { date: string; label: string; gastos: number }[] = []
+    for (let i = 0; i < 10; i++) {
+      const d = new Date(tenDaysAgo)
+      d.setDate(d.getDate() + i)
+      const ymd = toYMD(d)
+      const label = `${String(d.getDate()).padStart(2, '0')}/${MONTHS_ES_SHORT[d.getMonth()]}`
+      const dayTotal = areaExpenses
+        .filter(e => e.date === ymd && e.amount > 0)
+        .reduce((s, e) => s + e.amount, 0)
+      days.push({ date: ymd, label, gastos: dayTotal })
+    }
+    return days
+  }, [areaExpenses, tenDaysAgo])
 
-  // Category budgets — show top categories by spending (no budget feature yet, just spend)
+  // Category budgets — top 5 by spending
   const topCategories = [...(dashData?.by_category ?? [])]
     .filter(c => c.total > 0)
     .sort((a, b) => b.total - a.total)
@@ -118,10 +172,15 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Page header */}
-      <div>
-        <h1 className="text-2xl font-bold text-zinc-900">Finanzas Personales</h1>
-        <p className="text-sm text-zinc-400 mt-0.5">Resumen de {MONTHS_ES[now.getMonth()]} {now.getFullYear()}</p>
+      {/* Page header + period selector */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-zinc-900">Finanzas Personales</h1>
+          <p className="text-sm text-zinc-400 mt-0.5">
+            {isCurrentMonth ? 'Mes en curso' : 'Período seleccionado'}
+          </p>
+        </div>
+        <MonthSelector value={month} onChange={setMonth} />
       </div>
 
       {/* Top 3 stat boxes */}
@@ -129,13 +188,13 @@ export default function Dashboard() {
         <StatCard
           label="Balance"
           value={formatCurrency(balance)}
-          sub={balance >= 0 ? 'Superávit del mes' : 'Déficit del mes'}
+          sub={balance >= 0 ? 'Superávit del período' : 'Déficit del período'}
           accent={balance >= 0 ? 'green' : 'red'}
         />
         <StatCard
           label="Ingresos"
           value={formatCurrency(ingresos)}
-          sub="Acreditaciones del mes"
+          sub="Acreditaciones del período"
           accent="green"
         />
         <StatCard
@@ -167,7 +226,7 @@ export default function Dashboard() {
             ) : (
               <div className="divide-y divide-zinc-100">
                 {cardData.map((card, i) => {
-                  const monthEntry = card.monthly?.find(m => m.month === currentMonth)
+                  const monthEntry = card.monthly?.find(m => m.month === month)
                   return (
                     <CardRow
                       key={i}
@@ -184,9 +243,7 @@ export default function Dashboard() {
 
           {/* Scheduled expenses placeholder */}
           <div className="card p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-zinc-900">Próximos Gastos Programados</h2>
-            </div>
+            <h2 className="text-sm font-semibold text-zinc-900 mb-3">Próximos Gastos Programados</h2>
             <div className="flex flex-col items-center justify-center py-8 text-center gap-2">
               <span className="text-3xl opacity-30">📅</span>
               <p className="text-sm text-zinc-400">Próximamente</p>
@@ -197,14 +254,17 @@ export default function Dashboard() {
 
         {/* Right column */}
         <div className="space-y-4">
-          {/* Balance evolution area chart */}
+          {/* Daily area chart — last 10 days */}
           <div className="card p-5">
-            <h2 className="text-sm font-semibold text-zinc-900 mb-4">Evolución de Gastos</h2>
-            {balanceHistory.length === 0 ? (
-              <p className="text-sm text-zinc-400 text-center py-10">Sin datos históricos</p>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-zinc-900">Gastos diarios</h2>
+              <span className="text-xs text-zinc-400">Últimos 10 días</span>
+            </div>
+            {dailyChart.every(d => d.gastos === 0) ? (
+              <p className="text-sm text-zinc-400 text-center py-10">Sin gastos en este período</p>
             ) : (
               <ResponsiveContainer width="100%" height={180}>
-                <AreaChart data={balanceHistory} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                <AreaChart data={dailyChart} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
@@ -212,7 +272,7 @@ export default function Dashboard() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} interval={1} />
                   <YAxis
                     tickFormatter={(v) => new Intl.NumberFormat('es-AR', { notation: 'compact' } as any).format(v)}
                     tick={{ fontSize: 10, fill: '#94a3b8' }}
@@ -223,6 +283,7 @@ export default function Dashboard() {
                   <Tooltip
                     contentStyle={{ backgroundColor: '#fff', borderColor: '#e2e8f0', color: '#1e293b', borderRadius: 8, fontSize: 12 }}
                     formatter={(v: number) => [formatCurrency(v), 'Gastos']}
+                    labelFormatter={(label) => label}
                   />
                   <Area
                     type="monotone"
@@ -238,7 +299,7 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Category budgets */}
+          {/* Category spending */}
           <div className="card p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-zinc-900">Gasto por Categoría</h2>
@@ -259,10 +320,7 @@ export default function Dashboard() {
                     <div key={i}>
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-1.5">
-                          <span
-                            className="w-2 h-2 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: cat.category_color || '#94a3b8' }}
-                          />
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.category_color || '#94a3b8' }} />
                           <span className="text-xs text-zinc-600 font-medium">{cat.category_name}</span>
                         </div>
                         <span className="text-xs font-semibold text-zinc-900">{formatCurrency(cat.total)}</span>
@@ -282,10 +340,12 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Last 7 days transactions */}
+      {/* Recent transactions */}
       <div className="card">
         <div className="px-5 py-4 border-b border-zinc-100 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-zinc-900">Transacciones — Últimos 7 días</h2>
+          <h2 className="text-sm font-semibold text-zinc-900">
+            Transacciones — Últimos 7 días{!isCurrentMonth && ` (al ${formatDate(toYMD(toDate))})`}
+          </h2>
           <button
             onClick={() => navigate('/expenses')}
             className="text-xs text-brand-500 hover:text-brand-400 transition-colors"
@@ -294,16 +354,13 @@ export default function Dashboard() {
           </button>
         </div>
         {recentExpenses.length === 0 ? (
-          <p className="text-sm text-zinc-400 text-center py-10">Sin transacciones en los últimos 7 días</p>
+          <p className="text-sm text-zinc-400 text-center py-10">Sin transacciones en este período</p>
         ) : (
           <div className="divide-y divide-zinc-100">
             {recentExpenses.map((exp) => (
               <div key={exp.id} className="flex items-center justify-between px-5 py-3 hover:bg-zinc-50 transition-colors">
                 <div className="flex items-center gap-3">
-                  <span
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: exp.category_color || '#94a3b8' }}
-                  />
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: exp.category_color || '#94a3b8' }} />
                   <div>
                     <p className="text-sm font-medium text-zinc-900">{exp.description}</p>
                     <p className="text-xs text-zinc-400">
