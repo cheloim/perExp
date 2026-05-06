@@ -1,23 +1,27 @@
 import { useState } from 'react'
-import { Routes, Route, NavLink, useLocation } from 'react-router-dom'
+import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom'
 import AIAssistant from './components/AIAssistant'
 import InvestmentsAssistant from './components/InvestmentsAssistant'
 import Dashboard from './pages/Dashboard'
+import CreditCardsPage from './pages/CreditCardsPage'
 import ExpensesPage from './pages/ExpensesPage'
 import ImportPage from './pages/ImportPage'
 import CategoriesPage from './pages/CategoriesPage'
 import CategoryDashboard from './pages/CategoryDashboard'
 import InstallmentsPage from './pages/InstallmentsPage'
 import InvestmentsPage from './pages/InvestmentsPage'
+import LoginPage from './pages/LoginPage'
+import { getStoredToken } from './api/client'
 
 const TABS = [
-  { path: '/',              label: 'Dashboard',          icon: '📊', exact: true },
-  { path: '/expenses',      label: 'Gastos',             icon: '💳', exact: false },
-  { path: '/cat-dashboard', label: 'Por Categoría',      icon: '🏷️', exact: false },
-  { path: '/installments',  label: 'Consumos',           icon: '📋', exact: false },
-  { path: '/investments',   label: 'Inversiones',        icon: '📈', exact: false },
-  { path: '/import',        label: 'Importar',           icon: '📂', exact: false },
-  { path: '/categories',    label: 'Config. Categorías', icon: '⚙️', exact: false },
+  { path: '/',               label: 'Inicio',             icon: '🏠', exact: true },
+  { path: '/credit-cards',   label: 'Tarjetas',           icon: '💳', exact: false },
+  { path: '/expenses',       label: 'Gastos',             icon: '📋', exact: false },
+  { path: '/cat-dashboard',  label: 'Por Categoría',      icon: '🏷️', exact: false },
+  { path: '/installments',   label: 'Gasto en cuotas',    icon: '🔄', exact: false },
+  { path: '/investments',    label: 'Inversiones',        icon: '📈', exact: false },
+  { path: '/import',         label: 'Importar',           icon: '📂', exact: false },
+  { path: '/categories',     label: 'Config. Categorías', icon: '⚙️', exact: false },
 ]
 
 const AI_DRAWER_STATE_KEY = 'ai_drawer_open'
@@ -31,8 +35,18 @@ function getInitialDrawerState(): boolean {
   }
 }
 
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  if (!getStoredToken()) return <Navigate to="/login" replace />
+  return <>{children}</>
+}
+
 export default function App() {
   const location = useLocation()
+
+  if (location.pathname === '/login') return <LoginPage />
+
+  if (!getStoredToken()) return <Navigate to="/login" replace />
+
   const isInvestments = location.pathname === '/investments'
   const [aiDrawerOpen, setAiDrawerOpen] = useState(getInitialDrawerState)
 
@@ -100,15 +114,16 @@ export default function App() {
         <main className="flex-1 overflow-y-auto overflow-x-auto relative z-10">
           <div className="w-full px-4 sm:px-6 lg:px-8 py-8 md:py-10">
             <Routes>
-              <Route path="/"               element={<Dashboard />} />
-              <Route path="/expenses"       element={<ExpensesPage />} />
-              <Route path="/cat-dashboard"  element={<CategoryDashboard />} />
-              <Route path="/installments"   element={<InstallmentsPage />} />
-              <Route path="/investments"    element={<InvestmentsPage />} />
-              <Route path="/import"         element={<ImportPage />} />
-              <Route path="/categories"     element={<CategoriesPage />} />
-              <Route path="/categories/:id" element={<CategoriesPage />} />
-              <Route path="*"               element={<Dashboard />} />
+              <Route path="/"               element={<RequireAuth><Dashboard /></RequireAuth>} />
+              <Route path="/credit-cards"   element={<RequireAuth><CreditCardsPage /></RequireAuth>} />
+              <Route path="/expenses"       element={<RequireAuth><ExpensesPage /></RequireAuth>} />
+              <Route path="/cat-dashboard"  element={<RequireAuth><CategoryDashboard /></RequireAuth>} />
+              <Route path="/installments"   element={<RequireAuth><InstallmentsPage /></RequireAuth>} />
+              <Route path="/investments"    element={<RequireAuth><InvestmentsPage /></RequireAuth>} />
+              <Route path="/import"         element={<RequireAuth><ImportPage /></RequireAuth>} />
+              <Route path="/categories"     element={<RequireAuth><CategoriesPage /></RequireAuth>} />
+              <Route path="/categories/:id" element={<RequireAuth><CategoriesPage /></RequireAuth>} />
+              <Route path="*"               element={<RequireAuth><Dashboard /></RequireAuth>} />
             </Routes>
           </div>
         </main>
