@@ -146,7 +146,17 @@ export default function Dashboard() {
   const ingresos = dashData?.by_category.reduce((acc, c) => c.total < 0 ? acc + Math.abs(c.total) : acc, 0) ?? 0
   const balance = ingresos - gastos
 
-  // Build cumulative balance for area chart (last 10 days)
+  // Normalize API date (DD-MM-YYYY or YYYY-MM-DD) → YYYY-MM-DD for comparison
+  const normalizeDate = (d: string) => {
+    if (!d) return d
+    if (/^\d{2}-\d{2}-\d{4}$/.test(d)) {
+      const [dd, mm, yyyy] = d.split('-')
+      return `${yyyy}-${mm}-${dd}`
+    }
+    return d
+  }
+
+  // Build cumulative balance for area chart (last 40 days)
   // ingresos = negative amounts (credits), gastos = positive amounts (debits)
   const dailyChart = useMemo(() => {
     let cumulative = 0
@@ -157,7 +167,7 @@ export default function Dashboard() {
       const ymd = toYMD(d)
       const label = `${String(d.getDate()).padStart(2, '0')}/${MONTHS_ES_SHORT[d.getMonth()]}`
       const dayNet = areaExpenses
-        .filter(e => e.date === ymd)
+        .filter(e => normalizeDate(e.date) === ymd)
         .reduce((s, e) => s + (-e.amount), 0) // income positive, expense negative
       cumulative += dayNet
       days.push({ date: ymd, label, balance: cumulative })
