@@ -14,8 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def _get_setting(db: Session, key: str, user_id: int) -> str:
-    scoped_key = f"{user_id}:{key}"
-    row = db.query(Setting).filter(Setting.key == scoped_key).first()
+    row = db.query(Setting).filter(Setting.key == f"{user_id}:{key}").first()
     return row.value if row else ""
 
 _IOL_TYPE_MAP = {

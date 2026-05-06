@@ -75,10 +75,6 @@ def _inv_response(inv: Investment) -> dict:
 def _get_setting(db: Session, key: str, user_id: int | None = None) -> str:
     scoped_key = f"{user_id}:{key}" if user_id is not None else key
     row = db.query(Setting).filter(Setting.key == scoped_key).first()
-    if row:
-        return row.value
-    # fallback to global key for backwards compatibility
-    row = db.query(Setting).filter(Setting.key == key).first()
     return row.value if row else ""
 
 
