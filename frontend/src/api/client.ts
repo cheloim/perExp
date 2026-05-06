@@ -1,5 +1,7 @@
 import axios from 'axios'
 import type {
+  AuthToken,
+  User,
   Category,
   Expense,
   ExpenseCreate,
@@ -17,7 +19,40 @@ import type {
   TopMerchant,
 } from '../types'
 
+const TOKEN_KEY = 'auth_token'
+
+export const getStoredToken = () => localStorage.getItem(TOKEN_KEY)
+export const storeToken = (token: string) => localStorage.setItem(TOKEN_KEY, token)
+export const clearToken = () => localStorage.removeItem(TOKEN_KEY)
+
 const api = axios.create({ baseURL: 'http://localhost:8000' })
+
+api.interceptors.request.use((config) => {
+  const token = getStoredToken()
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+
+api.interceptors.response.use(
+  (r) => r,
+  (error) => {
+    if (error.response?.status === 401) {
+      clearToken()
+      window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  },
+)
+
+// Auth
+export const login = (dni: string, password: string) =>
+  api.post<AuthToken>('/auth/login', { dni, password }).then((r) => r.data)
+
+export const register = (full_name: string, dni: string, password: string, email?: string) =>
+  api.post<AuthToken>('/auth/register', { full_name, dni, password, email }).then((r) => r.data)
+
+export const getMe = () =>
+  api.get<User>('/auth/me').then((r) => r.data)
 
 // Categories
 export const getCategories = () =>
@@ -91,7 +126,7 @@ export const getInstallmentsDashboard = () =>
   api.get<InstallmentGroup[]>('/dashboard/installments').then((r) => r.data)
 
 export const getInstallmentsMonthlyLoad = () =>
-  api.get<{ month: string; total: number; count: number }[]>('/dashboard/installments/monthly-load').then((r) => r.data)
+  api.get<{ month: string; total: number; count: number; is_past: boolean; is_current: boolean }[]>('/dashboard/installments/monthly-load').then((r) => r.data)
 
 export const getCardSummary = () =>
   api.get<CardSummary[]>('/dashboard/card-summary').then((r) => r.data)
@@ -200,6 +235,18 @@ export const deduplicateInvestments = () =>
 
 export const getUsdRate = () =>
   api.get<{ rate: number; date: string; source: string }>('/investments/usd-rate').then((r) => r.data)
+
+export const refreshManualPrices = () =>
+  api.post<{ updated: number }>('/investments/refresh-manual-prices').then((r) => r.data)
+
+export const getManualCashBalances = () =>
+  api.get<Record<string, { ars: number | null; usd: number | null }>>('/investments/manual-cash-balances').then((r) => r.data)
+
+export const putManualCashBalance = (broker: string, ars: number | null, usd: number | null) =>
+  api.put(`/investments/manual-cash-balances/${encodeURIComponent(broker)}`, { ars, usd }).then((r) => r.data)
+
+export const deleteManualCashBalance = (broker: string) =>
+  api.delete(`/investments/manual-cash-balances/${encodeURIComponent(broker)}`).then((r) => r.data)
 
 export const getCashBalances = () =>
   api.get<{
