@@ -140,16 +140,17 @@ def refresh_ppi_prices(db: Session) -> int:
     return updated
 
 
-def refresh_manual_prices(db: Session) -> int:
+def refresh_manual_prices(db: Session, user_id: int = None) -> int:
     """Refresh current_price for investments NOT synced from IOL/PPI portfolios.
     Tries IOL individual quote endpoint first, falls back to PPI market data.
     """
     import requests as _req
 
     MANAGED_BROKERS = ("InvertirOnline", "Portfolio Personal")
-    manual_invs = db.query(Investment).filter(
-        Investment.broker.notin_(MANAGED_BROKERS)
-    ).all()
+    q = db.query(Investment).filter(Investment.broker.notin_(MANAGED_BROKERS))
+    if user_id is not None:
+        q = q.filter(Investment.user_id == user_id)
+    manual_invs = q.all()
     if not manual_invs:
         return 0
 

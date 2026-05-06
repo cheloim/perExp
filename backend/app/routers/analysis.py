@@ -12,16 +12,17 @@ from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db
-from app.models import AnalysisHistory, Category, Expense
+from app.models import AnalysisHistory, Category, Expense, User
 from app.prompts import ANALYSIS_SYSTEM_PROMPT
 from app.schemas import AnalysisHistoryResponse, AnalysisRequest
+from app.services.auth import get_current_user
 
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
 
 @router.post("/stream")
-async def stream_analysis(req: AnalysisRequest, db: Session = Depends(get_db)):
-    q = db.query(Expense)
+async def stream_analysis(req: AnalysisRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    q = db.query(Expense).filter(Expense.user_id == current_user.id)
     if req.month:
         try:
             y, m = int(req.month[:4]), int(req.month[5:7])
@@ -124,6 +125,7 @@ TOP 10 GASTOS MÁS ALTOS:
                     result_text="".join(accumulated_text),
                     expense_count=expense_count_val,
                     total_amount=total_val,
+                    user_id=current_user.id,
                 ))
                 hist_db.commit()
             except Exception:
@@ -190,13 +192,13 @@ async def summarize_chat(body: dict):
 
 
 @router.get("/history", response_model=List[AnalysisHistoryResponse])
-def get_analysis_history(db: Session = Depends(get_db)):
-    return db.query(AnalysisHistory).order_by(desc(AnalysisHistory.id)).limit(50).all()
+def get_analysis_history(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return db.query(AnalysisHistory).filter(AnalysisHistory.user_id == current_user.id).order_by(desc(AnalysisHistory.id)).limit(50).all()
 
 
 @router.delete("/history/{hist_id}")
-def delete_analysis_history(hist_id: int, db: Session = Depends(get_db)):
-    h = db.query(AnalysisHistory).filter(AnalysisHistory.id == hist_id).first()
+def delete_analysis_history(hist_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    h = db.query(AnalysisHistory).filter(AnalysisHistory.id == hist_id, AnalysisHistory.user_id == current_user.id).first()
     if not h:
         raise HTTPException(404, "Historial no encontrado")
     db.delete(h)

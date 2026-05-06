@@ -6,8 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Investment, Setting
+from app.models import Investment, Setting, User
 from app.schemas import InvestmentCreate
+from app.services.auth import get_current_user
 
 router = APIRouter(tags=["investments"])
 
@@ -71,35 +72,42 @@ def _inv_response(inv: Investment) -> dict:
     }
 
 
-def _get_setting(db: Session, key: str) -> str:
+def _get_setting(db: Session, key: str, user_id: int | None = None) -> str:
+    scoped_key = f"{user_id}:{key}" if user_id is not None else key
+    row = db.query(Setting).filter(Setting.key == scoped_key).first()
+    if row:
+        return row.value
+    # fallback to global key for backwards compatibility
     row = db.query(Setting).filter(Setting.key == key).first()
     return row.value if row else ""
 
 
-def _set_setting(db: Session, key: str, value: str):
-    row = db.query(Setting).filter(Setting.key == key).first()
+def _set_setting(db: Session, key: str, value: str, user_id: int | None = None):
+    scoped_key = f"{user_id}:{key}" if user_id is not None else key
+    row = db.query(Setting).filter(Setting.key == scoped_key).first()
     if row:
         row.value = value
     else:
-        db.add(Setting(key=key, value=value))
+        db.add(Setting(key=scoped_key, value=value))
     db.commit()
 
 
 # ─── Settings ────────────────────────────────────────────────────────────────
 
 @router.get("/settings")
-def get_settings(db: Session = Depends(get_db)):
-    rows = db.query(Setting).all()
-    result = {r.key: r.value for r in rows}
+def get_settings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    prefix = f"{current_user.id}:"
+    rows = db.query(Setting).filter(Setting.key.like(f"{prefix}%")).all()
+    result = {r.key[len(prefix):]: r.value for r in rows}
     result["iol_configured"] = bool(os.getenv("IOL_USERNAME") and os.getenv("IOL_PASSWORD"))
     result["ppi_configured"] = bool(os.getenv("PPI_API_KEY") and os.getenv("PPI_API_SECRET"))
     return result
 
 
 @router.put("/settings/{key}")
-def put_setting(key: str, payload: dict, db: Session = Depends(get_db)):
+def put_setting(key: str, payload: dict, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     value = payload.get("value", "")
-    _set_setting(db, key, value)
+    _set_setting(db, key, value, user_id=current_user.id)
 
     # Also write sensitive broker credentials to the .env file so they persist
     # across server restarts and are picked up by os.getenv()
@@ -153,16 +161,16 @@ def _write_env_var(var: str, value: str):
 # ─── Investments CRUD ─────────────────────────────────────────────────────────
 
 @router.get("/investments")
-def get_investments(broker: Optional[str] = None, db: Session = Depends(get_db)):
-    q = db.query(Investment)
+def get_investments(broker: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    q = db.query(Investment).filter(Investment.user_id == current_user.id)
     if broker:
         q = q.filter(Investment.broker == broker)
     return [_inv_response(inv) for inv in q.order_by(Investment.broker, Investment.type, Investment.name).all()]
 
 
 @router.post("/investments", status_code=201)
-def create_investment(data: InvestmentCreate, db: Session = Depends(get_db)):
-    inv = Investment(**data.model_dump(), updated_at=datetime.utcnow())
+def create_investment(data: InvestmentCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    inv = Investment(**data.model_dump(), user_id=current_user.id, updated_at=datetime.utcnow())
     db.add(inv)
     db.commit()
     db.refresh(inv)
@@ -170,8 +178,8 @@ def create_investment(data: InvestmentCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/investments/{inv_id}")
-def update_investment(inv_id: int, data: InvestmentCreate, db: Session = Depends(get_db)):
-    inv = db.query(Investment).filter(Investment.id == inv_id).first()
+def update_investment(inv_id: int, data: InvestmentCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    inv = db.query(Investment).filter(Investment.id == inv_id, Investment.user_id == current_user.id).first()
     if not inv:
         raise HTTPException(404, "Inversión no encontrada")
     for k, v in data.model_dump().items():
@@ -183,8 +191,8 @@ def update_investment(inv_id: int, data: InvestmentCreate, db: Session = Depends
 
 
 @router.patch("/investments/{inv_id}/price")
-def update_investment_price(inv_id: int, payload: dict, db: Session = Depends(get_db)):
-    inv = db.query(Investment).filter(Investment.id == inv_id).first()
+def update_investment_price(inv_id: int, payload: dict, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    inv = db.query(Investment).filter(Investment.id == inv_id, Investment.user_id == current_user.id).first()
     if not inv:
         raise HTTPException(404, "Inversión no encontrada")
     inv.current_price = payload.get("current_price")
@@ -195,8 +203,8 @@ def update_investment_price(inv_id: int, payload: dict, db: Session = Depends(ge
 
 
 @router.delete("/investments/{inv_id}")
-def delete_investment(inv_id: int, db: Session = Depends(get_db)):
-    inv = db.query(Investment).filter(Investment.id == inv_id).first()
+def delete_investment(inv_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    inv = db.query(Investment).filter(Investment.id == inv_id, Investment.user_id == current_user.id).first()
     if not inv:
         raise HTTPException(404, "Inversión no encontrada")
     db.delete(inv)
@@ -205,8 +213,8 @@ def delete_investment(inv_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/investments/deduplicate")
-def deduplicate_investments(db: Session = Depends(get_db)):
-    all_inv = db.query(Investment).order_by(Investment.id).all()
+def deduplicate_investments(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    all_inv = db.query(Investment).filter(Investment.user_id == current_user.id).order_by(Investment.id).all()
     seen: dict[tuple, int] = {}
     to_delete: list[int] = []
 
@@ -234,7 +242,7 @@ def deduplicate_investments(db: Session = Depends(get_db)):
 # ─── Broker Sync ─────────────────────────────────────────────────────────────
 
 @router.post("/investments/sync/iol")
-def sync_iol(db: Session = Depends(get_db)):
+def sync_iol(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     import requests as _req
 
     username = os.getenv("IOL_USERNAME", "")
@@ -320,6 +328,7 @@ def sync_iol(db: Session = Depends(get_db)):
         all_existing = db.query(Investment).filter(
             Investment.ticker == h["ticker"],
             Investment.broker == "InvertirOnline",
+            Investment.user_id == current_user.id,
         ).all()
 
         if all_existing:
@@ -339,16 +348,17 @@ def sync_iol(db: Session = Depends(get_db)):
                 broker="InvertirOnline", quantity=h["quantity"],
                 avg_cost=h["avg_cost"], current_price=h["current_price"],
                 currency=h["currency"], notes="", updated_at=datetime.utcnow(),
+                user_id=current_user.id,
             ))
             created += 1
 
     db.commit()
-    _set_setting(db, "iol_last_sync", datetime.utcnow().isoformat())
+    _set_setting(db, "iol_last_sync", datetime.utcnow().isoformat(), user_id=current_user.id)
     return {"broker": "IOL", "created": created, "updated": updated, "total": len(best)}
 
 
 @router.post("/investments/sync/ppi")
-def sync_ppi(db: Session = Depends(get_db)):
+def sync_ppi(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     from ppi_client.ppi import PPI
 
     api_key = os.getenv("PPI_API_KEY", "")
@@ -401,6 +411,7 @@ def sync_ppi(db: Session = Depends(get_db)):
             existing = db.query(Investment).filter(
                 Investment.ticker == ticker,
                 Investment.broker == "Portfolio Personal",
+                Investment.user_id == current_user.id,
             ).first()
             if existing:
                 existing.quantity      = quantity_f
@@ -418,11 +429,12 @@ def sync_ppi(db: Session = Depends(get_db)):
                     quantity=quantity_f, avg_cost=0,
                     current_price=price_f,
                     currency=currency, notes="", updated_at=datetime.utcnow(),
+                    user_id=current_user.id,
                 ))
                 created += 1
 
     db.commit()
-    _set_setting(db, "ppi_last_sync", datetime.utcnow().isoformat())
+    _set_setting(db, "ppi_last_sync", datetime.utcnow().isoformat(), user_id=current_user.id)
     return {"broker": "PPI", "created": created, "updated": updated}
 
 
@@ -556,9 +568,9 @@ def get_cash_balances():
 
 
 @router.post("/investments/refresh-manual-prices")
-def refresh_manual_prices_endpoint(db: Session = Depends(get_db)):
+def refresh_manual_prices_endpoint(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     from app.services.price_refresh import refresh_manual_prices
-    updated = refresh_manual_prices(db)
+    updated = refresh_manual_prices(db, user_id=current_user.id)
     return {"updated": updated}
 
 
@@ -568,10 +580,11 @@ _MANUAL_CASH_KEY = "manual_cash_balances"
 
 
 @router.get("/investments/manual-cash-balances")
-def get_manual_cash_balances(db: Session = Depends(get_db)):
+def get_manual_cash_balances(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     import json
     from app.models import Setting
-    row = db.query(Setting).filter(Setting.key == _MANUAL_CASH_KEY).first()
+    scoped_key = f"{current_user.id}:{_MANUAL_CASH_KEY}"
+    row = db.query(Setting).filter(Setting.key == scoped_key).first()
     if not row or not row.value:
         return {}
     try:
@@ -581,10 +594,11 @@ def get_manual_cash_balances(db: Session = Depends(get_db)):
 
 
 @router.put("/investments/manual-cash-balances/{broker}")
-def put_manual_cash_balance(broker: str, body: dict, db: Session = Depends(get_db)):
+def put_manual_cash_balance(broker: str, body: dict, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     import json
     from app.models import Setting
-    row = db.query(Setting).filter(Setting.key == _MANUAL_CASH_KEY).first()
+    scoped_key = f"{current_user.id}:{_MANUAL_CASH_KEY}"
+    row = db.query(Setting).filter(Setting.key == scoped_key).first()
     current: dict = {}
     if row and row.value:
         try:
@@ -595,16 +609,17 @@ def put_manual_cash_balance(broker: str, body: dict, db: Session = Depends(get_d
     if row:
         row.value = json.dumps(current)
     else:
-        db.add(Setting(key=_MANUAL_CASH_KEY, value=json.dumps(current)))
+        db.add(Setting(key=scoped_key, value=json.dumps(current)))
     db.commit()
     return current[broker]
 
 
 @router.delete("/investments/manual-cash-balances/{broker}")
-def delete_manual_cash_balance(broker: str, db: Session = Depends(get_db)):
+def delete_manual_cash_balance(broker: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     import json
     from app.models import Setting
-    row = db.query(Setting).filter(Setting.key == _MANUAL_CASH_KEY).first()
+    scoped_key = f"{current_user.id}:{_MANUAL_CASH_KEY}"
+    row = db.query(Setting).filter(Setting.key == scoped_key).first()
     if not row or not row.value:
         return {}
     try:

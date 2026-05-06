@@ -11,7 +11,8 @@ from google.genai import types as genai_types
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Category, Expense
+from app.models import Category, Expense, User
+from app.services.auth import get_current_user
 from app.prompts import SMART_IMPORT_PROMPT
 from app.schemas import RowsConfirmBody
 from app.services.categorization import _resolve_category, _should_skip
@@ -109,6 +110,7 @@ async def confirm_import(
     bank_col: Optional[str] = None,
     person_col: Optional[str] = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     content = await file.read()
     try:
@@ -166,6 +168,7 @@ async def confirm_import(
                 card=card,
                 bank=bank,
                 person=person,
+                user_id=current_user.id,
             ))
             imported += 1
         except Exception:
@@ -200,7 +203,7 @@ async def pdf_debug(file: UploadFile = File(...)):
 
 
 @router.post("/smart")
-async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
         raise HTTPException(500, "GOOGLE_API_KEY no está configurada.")
@@ -442,7 +445,7 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
 
 
 @router.post("/rows-confirm")
-def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db)):
+def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     cats = db.query(Category).all()
     imported = 0
     skipped = 0
@@ -505,6 +508,7 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db)):
                 installment_number=inst_num,
                 installment_total=inst_total,
                 installment_group_id=str(r.get("installment_group_id") or "") or None,
+                user_id=current_user.id,
             ))
             imported += 1
         except Exception:

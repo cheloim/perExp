@@ -9,8 +9,9 @@ from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Category, Expense
+from app.models import Category, Expense, User
 from app.schemas import ExpenseCreate, ExpenseUpdate, ExpenseResponse
+from app.services.auth import get_current_user
 from app.services.categorization import auto_categorize, _resolve_category
 from app.services.date_utils import _normalize_date_str
 from app.services.import_utils import _is_duplicate
@@ -32,8 +33,9 @@ def get_expenses(
     skip: int = 0,
     limit: int = 200,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    q = db.query(Expense)
+    q = db.query(Expense).filter(Expense.user_id == current_user.id)
     if month:
         try:
             y, m = int(month[:4]), int(month[5:7])
@@ -58,9 +60,9 @@ def get_expenses(
 
 
 @router.get("/distinct-values")
-def get_distinct_values(db: Session = Depends(get_db)):
+def get_distinct_values(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     def distinct(col):
-        return sorted({r[0] for r in db.query(col).distinct().all() if r[0]})
+        return sorted({r[0] for r in db.query(col).filter(Expense.user_id == current_user.id).distinct().all() if r[0]})
     return {
         "banks":   distinct(Expense.bank),
         "persons": distinct(Expense.person),
@@ -69,14 +71,15 @@ def get_distinct_values(db: Session = Depends(get_db)):
 
 
 @router.get("/card-options")
-def get_card_options(db: Session = Depends(get_db)):
+def get_card_options(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     def _sig_tokens(name: str) -> set:
         return {re.sub(r'[^A-Z]', '', t) for t in name.upper().split()
                 if len(re.sub(r'[^A-Z]', '', t)) >= 5}
 
     rows = (
         db.query(Expense.person, Expense.bank, Expense.card)
-        .filter(Expense.person != "", Expense.bank != "", Expense.card != "",
+        .filter(Expense.user_id == current_user.id,
+                Expense.person != "", Expense.bank != "", Expense.card != "",
                 Expense.card != "Efectivo")
         .distinct()
         .all()
@@ -139,12 +142,14 @@ def check_duplicate(
     description: str = Query(...),
     transaction_id: Optional[str] = Query(None),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
+    base = db.query(Expense).filter(Expense.user_id == current_user.id)
     dupe = None
     if transaction_id:
-        dupe = db.query(Expense).filter(Expense.transaction_id == transaction_id).first()
+        dupe = base.filter(Expense.transaction_id == transaction_id).first()
     else:
-        dupe = db.query(Expense).filter(
+        dupe = base.filter(
             Expense.date == exp_date,
             Expense.amount == amount,
             func.lower(Expense.description) == description.lower(),
@@ -156,14 +161,14 @@ def check_duplicate(
 
 
 @router.post("", response_model=ExpenseResponse)
-def create_expense(expense: ExpenseCreate, db: Session = Depends(get_db)):
+def create_expense(expense: ExpenseCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if _is_duplicate(db, expense.date, expense.amount, expense.description, expense.transaction_id):
         raise HTTPException(409, "Ya existe un gasto con la misma fecha, monto y descripción.")
     data = expense.model_dump()
     if data.get("category_id") is None:
         cats = db.query(Category).all()
         data["category_id"] = auto_categorize(data["description"], cats)
-    db_exp = Expense(**data)
+    db_exp = Expense(**data, user_id=current_user.id)
     db.add(db_exp)
     db.commit()
     db.refresh(db_exp)
@@ -171,8 +176,8 @@ def create_expense(expense: ExpenseCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{exp_id}", response_model=ExpenseResponse)
-def update_expense(exp_id: int, expense: ExpenseUpdate, db: Session = Depends(get_db)):
-    db_exp = db.query(Expense).filter(Expense.id == exp_id).first()
+def update_expense(exp_id: int, expense: ExpenseUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db_exp = db.query(Expense).filter(Expense.id == exp_id, Expense.user_id == current_user.id).first()
     if not db_exp:
         raise HTTPException(404, "Gasto no encontrado")
     data = expense.model_dump(exclude_none=True)
@@ -191,16 +196,16 @@ def update_expense(exp_id: int, expense: ExpenseUpdate, db: Session = Depends(ge
 
 
 @router.delete("/all")
-def delete_all_expenses(db: Session = Depends(get_db)):
-    count = db.query(Expense).count()
-    db.query(Expense).delete()
+def delete_all_expenses(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    count = db.query(Expense).filter(Expense.user_id == current_user.id).count()
+    db.query(Expense).filter(Expense.user_id == current_user.id).delete()
     db.commit()
     return {"deleted": count}
 
 
 @router.delete("/{exp_id}")
-def delete_expense(exp_id: int, db: Session = Depends(get_db)):
-    db_exp = db.query(Expense).filter(Expense.id == exp_id).first()
+def delete_expense(exp_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db_exp = db.query(Expense).filter(Expense.id == exp_id, Expense.user_id == current_user.id).first()
     if not db_exp:
         raise HTTPException(404, "Gasto no encontrado")
     db.delete(db_exp)
@@ -212,10 +217,11 @@ def delete_expense(exp_id: int, db: Session = Depends(get_db)):
 def recategorize_expenses(
     payload: dict = {},
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     only_uncategorized = (payload or {}).get("only_uncategorized", False)
     cats = db.query(Category).all()
-    q = db.query(Expense)
+    q = db.query(Expense).filter(Expense.user_id == current_user.id)
     if only_uncategorized:
         q = q.filter(Expense.category_id.is_(None))
     expenses = q.all()
@@ -233,12 +239,13 @@ def recategorize_expenses(
 def bulk_update_category(
     payload: dict,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     ids: list = payload.get("ids", [])
     category_id = payload.get("category_id")
     if not ids:
         return {"updated": 0}
-    db.query(Expense).filter(Expense.id.in_(ids)).update(
+    db.query(Expense).filter(Expense.id.in_(ids), Expense.user_id == current_user.id).update(
         {"category_id": category_id}, synchronize_session=False
     )
     db.commit()
