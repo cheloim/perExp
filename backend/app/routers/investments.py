@@ -94,13 +94,20 @@ def _set_setting(db: Session, key: str, value: str, user_id: int | None = None):
 
 # ─── Settings ────────────────────────────────────────────────────────────────
 
+def _get_user_creds(db: Session, user_id: int) -> dict:
+    """Return broker credentials for a user from the DB settings table."""
+    keys = ("iol_username", "iol_password", "ppi_api_key", "ppi_api_secret")
+    return {k: _get_setting(db, k, user_id=user_id) for k in keys}
+
+
 @router.get("/settings")
 def get_settings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     prefix = f"{current_user.id}:"
     rows = db.query(Setting).filter(Setting.key.like(f"{prefix}%")).all()
     result = {r.key[len(prefix):]: r.value for r in rows}
-    result["iol_configured"] = bool(os.getenv("IOL_USERNAME") and os.getenv("IOL_PASSWORD"))
-    result["ppi_configured"] = bool(os.getenv("PPI_API_KEY") and os.getenv("PPI_API_SECRET"))
+    creds = _get_user_creds(db, current_user.id)
+    result["iol_configured"] = bool(creds["iol_username"] and creds["iol_password"])
+    result["ppi_configured"] = bool(creds["ppi_api_key"] and creds["ppi_api_secret"])
     return result
 
 
@@ -108,54 +115,7 @@ def get_settings(db: Session = Depends(get_db), current_user: User = Depends(get
 def put_setting(key: str, payload: dict, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     value = payload.get("value", "")
     _set_setting(db, key, value, user_id=current_user.id)
-
-    # Also write sensitive broker credentials to the .env file so they persist
-    # across server restarts and are picked up by os.getenv()
-    _ENV_KEY_MAP = {
-        "iol_username":   "IOL_USERNAME",
-        "iol_password":   "IOL_PASSWORD",
-        "ppi_api_key":    "PPI_API_KEY",
-        "ppi_api_secret": "PPI_API_SECRET",
-    }
-    env_var = _ENV_KEY_MAP.get(key.lower())
-    if env_var and value:
-        _write_env_var(env_var, value)
-        # Also set in current process so next sync/balance call works immediately
-        import os as _os
-        _os.environ[env_var] = value
-
     return {"ok": True}
-
-
-def _write_env_var(var: str, value: str):
-    """Write or update a variable in backend/.env, creating the file if needed."""
-    import re as _re
-    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
-    try:
-        try:
-            with open(env_path, "r") as f:
-                lines = f.readlines()
-        except FileNotFoundError:
-            lines = []
-
-        pattern = _re.compile(rf"^{_re.escape(var)}\s*=")
-        updated = False
-        new_lines = []
-        for line in lines:
-            if pattern.match(line):
-                new_lines.append(f"{var}={value}\n")
-                updated = True
-            else:
-                new_lines.append(line)
-        if not updated:
-            if new_lines and not new_lines[-1].endswith("\n"):
-                new_lines.append("\n")
-            new_lines.append(f"{var}={value}\n")
-
-        with open(env_path, "w") as f:
-            f.writelines(new_lines)
-    except Exception:
-        pass  # .env write failure is non-fatal
 
 
 # ─── Investments CRUD ─────────────────────────────────────────────────────────
@@ -245,10 +205,11 @@ def deduplicate_investments(db: Session = Depends(get_db), current_user: User = 
 def sync_iol(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     import requests as _req
 
-    username = os.getenv("IOL_USERNAME", "")
-    password = os.getenv("IOL_PASSWORD", "")
+    creds = _get_user_creds(db, current_user.id)
+    username = creds["iol_username"]
+    password = creds["iol_password"]
     if not username or not password:
-        raise HTTPException(400, "IOL_USERNAME / IOL_PASSWORD no configurados en .env")
+        raise HTTPException(400, "Credenciales de InvertirOnline no configuradas. Ingresalas en Ajustes.")
 
     try:
         auth = _req.post(
@@ -361,10 +322,11 @@ def sync_iol(db: Session = Depends(get_db), current_user: User = Depends(get_cur
 def sync_ppi(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     from ppi_client.ppi import PPI
 
-    api_key = os.getenv("PPI_API_KEY", "")
-    api_secret = os.getenv("PPI_API_SECRET", "")
+    creds = _get_user_creds(db, current_user.id)
+    api_key = creds["ppi_api_key"]
+    api_secret = creds["ppi_api_secret"]
     if not api_key or not api_secret:
-        raise HTTPException(400, "PPI_API_KEY / PPI_API_SECRET no configurados en .env")
+        raise HTTPException(400, "Credenciales de Portfolio Personal no configuradas. Ingresalas en Ajustes.")
 
     try:
         ppi = PPI(sandbox=False)
@@ -480,16 +442,17 @@ def get_usd_rate():
 # ─── Cash Balances ────────────────────────────────────────────────────────────
 
 @router.get("/investments/cash-balances")
-def get_cash_balances():
+def get_cash_balances(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Returns uninvested cash balances from IOL and PPI."""
+    creds = _get_user_creds(db, current_user.id)
     balances: dict = {
         "iol": {"ars": None, "usd": None, "configured": False},
         "ppi": {"ars": None, "usd": None, "configured": False},
     }
 
     # ── IOL ──────────────────────────────────────────────────────────────────
-    iol_user = os.getenv("IOL_USERNAME", "")
-    iol_pass = os.getenv("IOL_PASSWORD", "")
+    iol_user = creds["iol_username"]
+    iol_pass = creds["iol_password"]
     if iol_user and iol_pass:
         balances["iol"]["configured"] = True
         try:
@@ -527,8 +490,8 @@ def get_cash_balances():
             balances["iol"]["error"] = str(e)
 
     # ── PPI ──────────────────────────────────────────────────────────────────
-    ppi_key = os.getenv("PPI_API_KEY", "")
-    ppi_secret = os.getenv("PPI_API_SECRET", "")
+    ppi_key = creds["ppi_api_key"]
+    ppi_secret = creds["ppi_api_secret"]
     if ppi_key and ppi_secret:
         balances["ppi"]["configured"] = True
         try:
