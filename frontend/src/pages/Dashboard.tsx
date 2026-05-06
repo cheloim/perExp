@@ -8,7 +8,6 @@ import {
 import { getDashboard, getCardSummary, getExpenses } from '../api/client'
 
 const MONTHS_ES_LONG = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-const MONTHS_ES_SHORT = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
 function toYMD(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -104,13 +103,6 @@ export default function Dashboard() {
     return new Date(y, m, 0) // last day of month
   }, [month, isCurrentMonth])
 
-  // 40 days back from toDate
-  const tenDaysAgo = useMemo(() => {
-    const d = new Date(toDate)
-    d.setDate(d.getDate() - 39)
-    return d
-  }, [toDate])
-
   // 7 days back from toDate for transactions list
   const sevenDaysAgo = useMemo(() => {
     const d = new Date(toDate)
@@ -129,10 +121,10 @@ export default function Dashboard() {
     queryFn: getCardSummary,
   })
 
-  // Expenses for 10-day area chart
+  // Expenses for the full selected month (used for balance evolution chart)
   const { data: areaExpenses = [] } = useQuery({
-    queryKey: ['expenses-10d-chart', toYMD(tenDaysAgo), toYMD(toDate)],
-    queryFn: () => getExpenses({ date_from: toYMD(tenDaysAgo), date_to: toYMD(toDate), limit: 500 }),
+    queryKey: ['expenses-month-chart', month],
+    queryFn: () => getExpenses({ month, limit: 1000 }),
   })
 
   // Expenses for 7-day transaction list
@@ -156,24 +148,26 @@ export default function Dashboard() {
     return d
   }
 
-  // Build cumulative balance for area chart (last 40 days)
-  // ingresos = negative amounts (credits), gastos = positive amounts (debits)
+  // Build cumulative balance for area chart — all days of selected month up to toDate
   const dailyChart = useMemo(() => {
+    const [y, m] = month.split('-').map(Number)
+    const firstDay = new Date(y, m - 1, 1)
+    const lastDay = toDate
     let cumulative = 0
     const days: { date: string; label: string; balance: number }[] = []
-    for (let i = 0; i < 40; i++) {
-      const d = new Date(tenDaysAgo)
-      d.setDate(d.getDate() + i)
-      const ymd = toYMD(d)
-      const label = `${String(d.getDate()).padStart(2, '0')}/${MONTHS_ES_SHORT[d.getMonth()]}`
+    const cur = new Date(firstDay)
+    while (cur <= lastDay) {
+      const ymd = toYMD(cur)
+      const label = `${String(cur.getDate()).padStart(2, '0')}`
       const dayNet = areaExpenses
         .filter(e => normalizeDate(e.date) === ymd)
-        .reduce((s, e) => s + (-e.amount), 0) // income positive, expense negative
+        .reduce((s, e) => s + (-e.amount), 0) // credits (+), debits (-)
       cumulative += dayNet
       days.push({ date: ymd, label, balance: cumulative })
+      cur.setDate(cur.getDate() + 1)
     }
     return days
-  }, [areaExpenses, tenDaysAgo])
+  }, [areaExpenses, month, toDate])
 
   // Category budgets — top 5 by spending
   const topCategories = [...(dashData?.by_category ?? [])]
@@ -271,7 +265,7 @@ export default function Dashboard() {
           <div className="card p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-zinc-900">Evolución del balance</h2>
-              <span className="text-xs text-zinc-400">Últimos 40 días</span>
+              <span className="text-xs text-zinc-400">{MONTHS_ES_LONG[parseInt(month.split('-')[1]) - 1]}</span>
             </div>
             {areaExpenses.length === 0 ? (
               <p className="text-sm text-zinc-400 text-center py-10">Sin movimientos en este período</p>
@@ -289,7 +283,7 @@ export default function Dashboard() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} interval={4} />
+                  <XAxis dataKey="label" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} interval={4} minTickGap={20} />
                   <YAxis
                     tickFormatter={(v) => new Intl.NumberFormat('es-AR', { notation: 'compact' } as any).format(v)}
                     tick={{ fontSize: 10, fill: '#94a3b8' }}
