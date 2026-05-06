@@ -106,6 +106,7 @@ export default function ExpensesPage() {
   const { data: distinctValues } = useQuery({ queryKey: ['distinct-values'], queryFn: getDistinctValues, staleTime: 60_000 })
 
   const [editing, setEditing] = useState<Expense | null | undefined>(undefined)
+  const [editingIsIncome, setEditingIsIncome] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({ field: 'date', dir: 'desc' })
   const [selectMode, setSelectMode] = useState(false)
@@ -198,7 +199,14 @@ export default function ExpensesPage() {
             {selectMode ? 'Cancelar' : 'Seleccionar'}
           </button>
           <button
-            onClick={() => setEditing(null)}
+            onClick={() => { setEditingIsIncome(true); setEditing(null) }}
+            className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all"
+          >
+            <span className="text-base leading-none">↓</span>
+            Ingreso
+          </button>
+          <button
+            onClick={() => { setEditingIsIncome(false); setEditing(null) }}
             className="btn-primary flex items-center gap-2 text-sm"
           >
             <span className="text-lg leading-none">+</span>
@@ -453,7 +461,7 @@ export default function ExpensesPage() {
                       {!selectMode && (
                         <td className="px-4 py-3 text-center">
                           <button
-                            onClick={() => setEditing(exp)}
+                            onClick={() => { setEditingIsIncome(exp.amount < 0); setEditing(exp) }}
                             className="text-brand-400 hover:text-brand-300 mr-3"
                           >
                             ✏️
@@ -538,6 +546,7 @@ export default function ExpensesPage() {
       {editing !== undefined && (
         <ExpenseModal
           initial={editing}
+          isIncome={editingIsIncome}
           onClose={() => { setEditing(undefined); setSaveError(null) }}
           onSave={handleSave}
           saveError={saveError}
@@ -567,10 +576,14 @@ const EMPTY_FORM: ExpenseCreate = {
   notes: '',
   transaction_id: '',
   card_last4: '',
+  installment_number: null,
+  installment_total: null,
+  installment_group_id: null,
 }
 
 interface ExpenseModalProps {
   initial?: Expense | null
+  isIncome?: boolean
   onClose: () => void
   onSave: (data: ExpenseCreate) => void
   saveError?: string | null
@@ -637,14 +650,14 @@ function DatePickerInput({ value, onChange }: { value: string; onChange: (d: str
   )
 }
 
-function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseModalProps) {
+function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }: ExpenseModalProps) {
   const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: getCategories })
   const { data: cardSummary = [] } = useQuery({ queryKey: ['card-summary'], queryFn: getCardSummary, staleTime: 60_000 })
 
   const isCash = (card: string) => !card || card === 'Efectivo'
 
   const [payMethod, setPayMethod] = useState<'card' | 'cash'>(
-    initial ? (isCash(initial.card ?? '') ? 'cash' : 'card') : 'card'
+    initial ? (isCash(initial.card ?? '') ? 'cash' : 'card') : isIncome ? 'cash' : 'card'
   )
 
   const [form, setForm] = useState<ExpenseCreate>(
@@ -652,7 +665,7 @@ function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseModalProps
       ? {
           date: initial.date,
           description: initial.description,
-          amount: initial.amount,
+          amount: Math.abs(initial.amount),
           currency: initial.currency || 'ARS',
           category_id: initial.category_id,
           card: initial.card ?? '',
@@ -661,9 +674,26 @@ function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseModalProps
           notes: initial.notes ?? '',
           transaction_id: initial.transaction_id ?? '',
           card_last4: initial.card_last4 ?? '',
+          installment_number: initial.installment_number ?? null,
+          installment_total: initial.installment_total ?? null,
+          installment_group_id: initial.installment_group_id ?? null,
         }
       : EMPTY_FORM,
   )
+
+  const [cuotasEnabled, setCuotasEnabled] = useState(
+    !!(initial?.installment_total && initial.installment_total > 1)
+  )
+
+  const toggleCuotas = (enabled: boolean) => {
+    setCuotasEnabled(enabled)
+    if (enabled) {
+      const gid = form.installment_group_id || crypto.randomUUID()
+      setForm((prev) => ({ ...prev, installment_number: 1, installment_total: 1, installment_group_id: gid }))
+    } else {
+      setForm((prev) => ({ ...prev, installment_number: null, installment_total: null, installment_group_id: null }))
+    }
+  }
 
   const set = (field: keyof ExpenseCreate, value: unknown) =>
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -714,10 +744,18 @@ function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseModalProps
       <div className="relative card w-full max-w-lg max-h-[90vh] overflow-auto p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-zinc-900">
-            {initial ? 'Editar gasto' : 'Nuevo gasto'}
+            {initial
+              ? (isIncome ? 'Editar ingreso' : 'Editar gasto')
+              : (isIncome ? 'Nuevo ingreso' : 'Nuevo gasto')}
           </h2>
           <button onClick={onClose} className="text-zinc-400 hover:text-zinc-900">✕</button>
         </div>
+        {isIncome && (
+          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-700">
+            <span>↓</span>
+            <span>El monto se registrará como ingreso (acreditación)</span>
+          </div>
+        )}
 
         {saveError && (
           <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">
@@ -881,6 +919,45 @@ function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseModalProps
           </div>
         </div>
 
+        {payMethod === 'card' && !isIncome && (
+          <div className="border border-zinc-200 rounded-xl p-3 space-y-3">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={cuotasEnabled}
+                onChange={(e) => toggleCuotas(e.target.checked)}
+                className="rounded border-zinc-300 text-brand-600"
+              />
+              <span className="text-sm font-medium text-zinc-700">Compra en cuotas</span>
+            </label>
+            {cuotasEnabled && (
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs text-zinc-500 mb-1">Cuota N°</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.installment_number ?? 1}
+                    onChange={(e) => set('installment_number', parseInt(e.target.value) || 1)}
+                    className="w-full input text-center"
+                  />
+                </div>
+                <span className="text-zinc-400 mt-4">de</span>
+                <div className="flex-1">
+                  <label className="block text-xs text-zinc-500 mb-1">Total cuotas</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.installment_total ?? 1}
+                    onChange={(e) => set('installment_total', parseInt(e.target.value) || 1)}
+                    className="w-full input text-center"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div>
           <label className="block text-sm font-medium text-zinc-600 mb-1">Notas</label>
           <textarea value={form.notes ?? ''} onChange={(e) => set('notes', e.target.value)} className="w-full input" rows={2} />
@@ -888,7 +965,12 @@ function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseModalProps
 
         <div className="flex gap-3 pt-2">
           <button onClick={onClose} className="btn-secondary flex-1">Cancelar</button>
-          <button onClick={() => onSave(form)} className="btn-primary flex-1">Guardar</button>
+          <button
+            onClick={() => onSave({ ...form, amount: isIncome ? -Math.abs(form.amount) : Math.abs(form.amount) })}
+            className={`flex-1 ${isIncome ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2 px-4 rounded-xl transition-colors' : 'btn-primary'}`}
+          >
+            Guardar
+          </button>
         </div>
       </div>
     </div>
