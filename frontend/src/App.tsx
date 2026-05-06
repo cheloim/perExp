@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom'
 import AIAssistant from './components/AIAssistant'
 import InvestmentsAssistant from './components/InvestmentsAssistant'
+import UserPanel from './components/UserPanel'
 import Dashboard from './pages/Dashboard'
 import CreditCardsPage from './pages/CreditCardsPage'
 import ExpensesPage from './pages/ExpensesPage'
@@ -49,6 +50,7 @@ export default function App() {
 
   const isInvestments = location.pathname === '/investments'
   const [aiDrawerOpen, setAiDrawerOpen] = useState(getInitialDrawerState)
+  const [userPanelOpen, setUserPanelOpen] = useState(false)
 
   const toggleDrawer = (open: boolean) => {
     setAiDrawerOpen(open)
@@ -96,6 +98,22 @@ export default function App() {
             </NavLink>
           ))}
         </nav>
+
+        {/* User button — bottom of sidebar */}
+        <div className="px-2 py-3 border-t border-zinc-200/80">
+          <button
+            onClick={() => setUserPanelOpen(true)}
+            title="Mi cuenta"
+            className="w-full flex items-center gap-3 px-2.5 py-2.5 text-sm font-medium rounded-xl text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 border border-transparent transition-all duration-200"
+          >
+            <span className="w-8 h-8 flex-shrink-0 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white text-xs font-bold">
+              U
+            </span>
+            <span className="whitespace-nowrap overflow-hidden w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300">
+              Mi cuenta
+            </span>
+          </button>
+        </div>
       </aside>
 
       {/* Main content */}
@@ -160,6 +178,8 @@ export default function App() {
         {!isInvestments && <AIAssistant open={aiDrawerOpen} onToggle={() => toggleDrawer(!aiDrawerOpen)} />}
         {isInvestments && <InvestmentsAssistant />}
       </div>
+
+      <UserPanel open={userPanelOpen} onClose={() => setUserPanelOpen(false)} />
     </div>
   )
 }

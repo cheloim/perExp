@@ -8,6 +8,38 @@ from pydantic import BaseModel, computed_field, field_validator, field_serialize
 from app.services.date_utils import _normalize_date_str
 
 
+class LoginRequest(BaseModel):
+    dni: str
+    password: str
+
+
+class UserCreate(BaseModel):
+    dni: str
+    full_name: str
+    password: str
+    email: Optional[str] = None
+
+
+class UserResponse(BaseModel):
+    id: int
+    dni: str
+    full_name: str
+    email: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+    model_config = {"from_attributes": True}
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
 class InvestmentCreate(BaseModel):
     ticker: str = ""
     name: str = ""
