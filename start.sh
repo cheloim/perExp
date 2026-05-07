@@ -3,8 +3,8 @@
 
 cd "$(dirname "$0")"
 
-# Backend
-(cd backend && uvicorn main:app --reload --port 8000) &
+# Backend — pipe through sed to prefix each line, so Telegram logs are visible
+(cd backend && uvicorn main:app --reload --port 8000 2>&1 | sed 's/^/[backend] /') &
 BACKEND_PID=$!
 
 # Frontend

@@ -12,6 +12,7 @@ from app.database import get_db
 from app.models import Category, Expense, User
 from app.schemas import ExpenseCreate, ExpenseUpdate, ExpenseResponse
 from app.services.auth import get_current_user
+from app.routers.groups import get_group_user_ids
 from app.services.categorization import auto_categorize, _resolve_category
 from app.services.date_utils import _normalize_date_str
 from app.services.import_utils import _is_duplicate
@@ -35,7 +36,8 @@ def get_expenses(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    q = db.query(Expense).filter(Expense.user_id == current_user.id)
+    uid_list = get_group_user_ids(current_user.id, db)
+    q = db.query(Expense).filter(Expense.user_id.in_(uid_list))
     if month:
         try:
             y, m = int(month[:4]), int(month[5:7])
@@ -61,8 +63,9 @@ def get_expenses(
 
 @router.get("/distinct-values")
 def get_distinct_values(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    uid_list = get_group_user_ids(current_user.id, db)
     def distinct(col):
-        return sorted({r[0] for r in db.query(col).filter(Expense.user_id == current_user.id).distinct().all() if r[0]})
+        return sorted({r[0] for r in db.query(col).filter(Expense.user_id.in_(uid_list)).distinct().all() if r[0]})
     return {
         "banks":   distinct(Expense.bank),
         "persons": distinct(Expense.person),
@@ -76,9 +79,10 @@ def get_card_options(db: Session = Depends(get_db), current_user: User = Depends
         return {re.sub(r'[^A-Z]', '', t) for t in name.upper().split()
                 if len(re.sub(r'[^A-Z]', '', t)) >= 5}
 
+    uid_list = get_group_user_ids(current_user.id, db)
     rows = (
         db.query(Expense.person, Expense.bank, Expense.card)
-        .filter(Expense.user_id == current_user.id,
+        .filter(Expense.user_id.in_(uid_list),
                 Expense.person != "", Expense.bank != "", Expense.card != "",
                 Expense.card != "Efectivo")
         .distinct()
@@ -164,6 +168,20 @@ def check_duplicate(
 def create_expense(expense: ExpenseCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if _is_duplicate(db, expense.date, expense.amount, expense.description, expense.transaction_id):
         raise HTTPException(409, "Ya existe un gasto con la misma fecha, monto y descripción.")
+
+    # Validate account/card requirement for cash/transfer payments
+    if not expense.account_id and not expense.card_id:
+        # Check if it's a cash/transfer payment using legacy field
+        card_lower = expense.card.lower()
+        if any(kw in card_lower for kw in ["efectivo", "transferencia", "cash"]):
+            raise HTTPException(
+                400,
+                detail={
+                    "error": "account_required",
+                    "message": "Para gastos en efectivo o transferencia, debes seleccionar o crear una cuenta."
+                }
+            )
+
     data = expense.model_dump()
     if data.get("category_id") is None:
         cats = db.query(Category).all()

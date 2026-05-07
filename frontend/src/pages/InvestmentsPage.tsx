@@ -14,6 +14,7 @@ import {
   getManualCashBalances,
   putManualCashBalance,
   deleteManualCashBalance,
+  putSetting,
 } from '../api/client'
 import type { Investment, InvestmentCreate } from '../types'
 
@@ -352,25 +353,23 @@ function CredentialsModal({ settings, onClose, onSaved }: {
   const [ppiSec,  setPpiSec]  = useState('')
   const [saving,  setSaving]  = useState(false)
   const [saved,   setSaved]   = useState(false)
+  const [error,   setError]   = useState<string | null>(null)
 
   const handleSave = async () => {
     setSaving(true)
+    setError(null)
     try {
       const pairs: [string, string][] = []
       if (iolUser) pairs.push(['iol_username', iolUser])
       if (iolPass) pairs.push(['iol_password', iolPass])
       if (ppiKey)  pairs.push(['ppi_api_key',  ppiKey])
       if (ppiSec)  pairs.push(['ppi_api_secret', ppiSec])
-      await Promise.all(pairs.map(([k, v]) =>
-        fetch(`http://localhost:8000/settings/${k}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ value: v }),
-        })
-      ))
+      await Promise.all(pairs.map(([k, v]) => putSetting(k, v)))
       setSaved(true)
       setIolUser(''); setIolPass(''); setPpiKey(''); setPpiSec('')
       onSaved()
+    } catch (err: any) {
+      setError(err?.response?.data?.detail ?? 'Error al guardar credenciales')
     } finally {
       setSaving(false)
     }
@@ -390,6 +389,11 @@ function CredentialsModal({ settings, onClose, onSaved }: {
         {saved && (
           <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-700 font-medium">
             ✓ Credenciales guardadas correctamente
+          </div>
+        )}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700 font-medium">
+            ✗ {error}
           </div>
         )}
 
@@ -580,6 +584,7 @@ export default function InvestmentsPage() {
       const r = await getUsdRate()
       setUsdRate(r)
       setShowInUsd(true)
+      showSync(`USD Oficial: $${r.rate.toLocaleString('es-AR', { minimumFractionDigits: 2 })} · ${r.date}`, true)
     } catch {
       showSync('No se pudo obtener el tipo de cambio BCRA', false)
     } finally {
@@ -594,23 +599,30 @@ export default function InvestmentsPage() {
 
   const showSync = (text: string, ok: boolean) => {
     setSyncMsg({ text, ok })
-    setTimeout(() => setSyncMsg(null), 4000)
+    setTimeout(() => setSyncMsg(null), 10_000)
   }
 
   const syncAllMut = useMutation({
     mutationFn: async () => {
+      const iolOk = settings.iol_configured === 'true' || (settings.iol_configured as any) === true
+      const ppiOk = settings.ppi_configured === 'true' || (settings.ppi_configured as any) === true
       const results: string[] = []
-      try { const r = await syncIOL(); results.push(`IOL: ${r.updated}↑ ${r.created}+`) } catch { results.push('IOL: error') }
-      try { const r = await syncPPI(); results.push(`PPI: ${r.updated}↑ ${r.created}+`) } catch { results.push('PPI: error') }
+      const errors: string[] = []
+      if (iolOk) {
+        try { const r = await syncIOL(); results.push(`IOL: ${r.updated}↑ ${r.created}+`) }
+        catch (e: any) { errors.push(`IOL: ${e?.response?.data?.detail ?? 'error'}`) }
+      }
+      if (ppiOk) {
+        try { const r = await syncPPI(); results.push(`PPI: ${r.updated}↑ ${r.created}+`) }
+        catch (e: any) { errors.push(`PPI: ${e?.response?.data?.detail ?? 'error'}`) }
+      }
+      try { const r = await refreshManualPrices(); if (r.updated > 0) results.push(`Manuales: ${r.updated}↑`) }
+      catch { /* non-critical */ }
+      if (errors.length) throw new Error(errors.join(' · '))
       return results.join(' · ')
     },
-    onSuccess: (msg) => { invalidate(); showSync(msg, true) },
-    onError: (e: Error) => showSync(`Sync error: ${e.message}`, false),
-  })
-  const manualRefreshMut = useMutation({
-    mutationFn: refreshManualPrices,
-    onSuccess: (r) => { invalidate(); showSync(`Manuales: ${r.updated} precios actualizados`, true) },
-    onError: (e: Error) => showSync(`Error: ${e.message}`, false),
+    onSuccess: (msg) => { invalidate(); showSync(msg || 'Sincronizado', true) },
+    onError: (e: Error) => { invalidate(); showSync(e.message, false) },
   })
 
   const createMut = useMutation({ mutationFn: createInvestment, onSuccess: () => { invalidate(); setEditing(undefined) } })
@@ -690,61 +702,33 @@ export default function InvestmentsPage() {
             </span>
           )}
 
-          {/* Sync all brokers */}
+          {/* Sync all brokers + manual prices */}
           <div className="flex flex-col items-end">
             <button
               onClick={() => syncAllMut.mutate()}
-              disabled={syncAllMut.isPending}
-              title={(!settings.iol_configured && !settings.ppi_configured) ? 'Configurá las credenciales primero' : 'Sincronizar IOL y PPI'}
-              className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 ${
-                (settings.iol_configured || settings.ppi_configured)
-                  ? 'border-zinc-300 text-zinc-600 hover:text-zinc-900 hover:border-zinc-500'
-                  : 'border-zinc-300 text-zinc-600 cursor-not-allowed'
-              }`}
+              disabled={syncAllMut.isPending || (!settings.iol_configured && !settings.ppi_configured)}
+              title={(!settings.iol_configured && !settings.ppi_configured) ? 'Configurá las credenciales primero' : 'Sincronizar brokers y actualizar precios'}
+              className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-zinc-300 text-zinc-600 hover:text-zinc-900 hover:border-zinc-500 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {syncAllMut.isPending ? <span className="animate-spin inline-block">↻</span> : '↻'}
               Sincronizar
-              {(!settings.iol_configured && !settings.ppi_configured) && <span className="text-yellow-500 text-xs">⚠</span>}
             </button>
-            {(settings.iol_last_sync || settings.ppi_last_sync) && (
-              <span className="text-[10px] text-zinc-600 mt-0.5">
-                {new Date(settings.iol_last_sync || settings.ppi_last_sync).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}
-              </span>
-            )}
           </div>
-
-          {/* Manual price refresh */}
-          <button
-            onClick={() => manualRefreshMut.mutate()}
-            disabled={manualRefreshMut.isPending}
-            title="Actualizar precios de posiciones manuales desde IOL/PPI"
-            className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-zinc-300 text-zinc-400 hover:text-zinc-700 hover:border-zinc-600 transition-all disabled:opacity-50"
-          >
-            {manualRefreshMut.isPending ? <span className="animate-spin inline-block">↻</span> : '↻'}
-            Manuales
-          </button>
 
           {/* USD Conversion */}
-          <div className="flex flex-col items-end">
-            <button
-              onClick={handleToggleUsd}
-              disabled={usdLoading}
-              className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 ${
-                showInUsd
-                  ? 'bg-emerald-500/20 border-emerald-500 text-emerald-600 font-medium'
-                  : 'border-zinc-300 text-zinc-400 hover:text-zinc-700 hover:border-zinc-600'
-              }`}
-              title="Convertir valores ARS a USD oficial (BCRA)"
-            >
-              {usdLoading ? <span className="animate-spin inline-block text-xs">↻</span> : null}
-              {showInUsd ? 'USD Oficial ✓' : '$ → USD'}
-            </button>
-            {showInUsd && usdRate && (
-              <span className="text-[10px] text-zinc-500 mt-0.5">
-                ${usdRate.rate.toLocaleString('es-AR', { minimumFractionDigits: 2 })} · {usdRate.date}
-              </span>
-            )}
-          </div>
+          <button
+            onClick={handleToggleUsd}
+            disabled={usdLoading}
+            className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 ${
+              showInUsd
+                ? 'bg-emerald-500/20 border-emerald-500 text-emerald-600 font-medium'
+                : 'border-zinc-300 text-zinc-400 hover:text-zinc-700 hover:border-zinc-600'
+            }`}
+            title="Convertir valores ARS a USD oficial (BCRA)"
+          >
+            {usdLoading ? <span className="animate-spin inline-block text-xs">↻</span> : null}
+            {showInUsd ? 'USD Oficial ✓' : '$ → USD'}
+          </button>
 
           <button
             onClick={() => setShowCreds(true)}

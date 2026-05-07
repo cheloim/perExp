@@ -246,7 +246,7 @@ export default function AIAssistant({ open, onToggle }: { open: boolean; onToggl
     setStreaming(true)
     try {
       await streamTo(
-        'http://localhost:8000/analysis/stream',
+        '/api/analysis/stream',
         { month: currentMonth, question: text },
         full => setMessages(prev => {
           const u = [...prev]
@@ -271,7 +271,7 @@ export default function AIAssistant({ open, onToggle }: { open: boolean; onToggl
     try {
       let summary = ''
       await streamTo(
-        'http://localhost:8000/analysis/summarize',
+        '/api/analysis/summarize',
         { messages: sessionMessages },
         full => { summary = full },
       )

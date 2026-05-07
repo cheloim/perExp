@@ -40,20 +40,38 @@ frontend/src/
 ## Database Schema (`expenses.db`)
 
 ```sql
-categories (id, name, color, keywords)
+categories (id, name, color, keywords, parent_id)
+accounts   (id, name, type, user_id, created_at)
+cards      (id, name, bank, last4_digits, card_type, user_id, created_at)
 expenses   (id, date, description, amount, currency,
             category_id, card, bank, person, notes,
-            transaction_id, installment_number, installment_total, installment_group_id)
-analysis_history (id, created_at, month, question, result_text, expense_count, total_amount)
+            transaction_id, installment_number, installment_total, installment_group_id,
+            card_last4, user_id, group_id,
+            account_id, card_id)
+analysis_history (id, created_at, month, question, result_text, expense_count, total_amount, user_id)
+users      (id, dni, full_name, email, hashed_password, is_active, created_at, telegram_key, telegram_chat_id)
+groups     (id, name, created_by, created_at)
+group_members (id, group_id, user_id, role, status, invited_by, joined_at)
+investments (id, ticker, name, type, broker, quantity, avg_cost, current_price, currency, notes, updated_at, user_id)
+card_closings (id, card, card_last_digits, card_type, bank, closing_date, next_closing_date, due_date, last_imported_at, user_id)
+notifications (id, user_id, type, title, body, data, read, created_at)
 ```
 
-New columns are added via `ALTER TABLE … ADD COLUMN` in `main.py` startup block — no migrations library.
+**New structured fields (2026-05):**
+- `expenses.account_id` → FK to `accounts` (for cash/transfer payments)
+- `expenses.card_id` → FK to `cards` (for card payments)
+- Legacy fields (`card`, `bank`, `person`) maintained for compatibility
+
+New columns are added via `ALTER TABLE … ADD COLUMN` in `models.py` startup block — no migrations library.
 
 ## Backend Patterns
 
 - **DB session**: `get_db()` FastAPI dependency, yields `Session`
+- **Authentication**: JWT tokens via `get_current_user()` dependency, user isolation enforced in all routers
+- **Multi-user**: All data (expenses, categories, investments, etc.) filtered by `user_id` or group membership
 - **Null strings**: `ExpenseResponse` has a `coerce_none` validator that converts `None → ""` for `card, bank, person, notes, currency`. This means the frontend ALWAYS receives strings, never null for those fields.
 - **PUT /expenses/{id}**: Uses `model_dump(exclude_none=True)` — only sends fields explicitly set (None fields are skipped)
+- **Account/Card separation (2026-05)**: POST /expenses validates that cash/transfer payments have `account_id`. Legacy `card`/`bank` fields still supported. See `MIGRATION_ACCOUNTS_CARDS.md`
 - **Auto-categorize**: keyword matching in `auto_categorize()` + sign-based logic in `_resolve_category()`
 - **Duplicate detection**: `_is_duplicate()` checks `transaction_id` first, then `(date, amount, description)` triple — does NOT account for installment_number (known bug)
 - **Smart import flow**: `POST /import/smart` (LLM parse) → returns preview → `POST /import/rows-confirm` (bulk save)
@@ -61,6 +79,7 @@ New columns are added via `ALTER TABLE … ADD COLUMN` in `main.py` startup bloc
 - **Spanish month dates**: LLM prompt instructs YYYY-MM-DD output but PDF dates like "15-ENE" / "15-Enero" need explicit handling — `pd.to_datetime` cannot parse Spanish abbreviations
 - **Installment date fixing**: after LLM parse, `add_months()` shifts dates for installments C.02/03, C.03/03, etc.
 - **Cors**: allows `localhost:5173` and `localhost:8082`
+- **Telegram bot**: Separate thread running async bot, users authenticate with 12-char key, auto-categorization + installment support
 
 ## Frontend Patterns
 
@@ -93,12 +112,24 @@ New columns are added via `ALTER TABLE … ADD COLUMN` in `main.py` startup bloc
 
 | Method | Path | Description |
 |---|---|---|
+| POST | /auth/register | Register new user |
+| POST | /auth/login | Login (returns JWT) |
+| GET | /auth/me | Get current user info |
+| PUT | /auth/change-password | Change password |
 | GET | /categories | List all categories |
 | POST | /categories | Create category |
 | PUT | /categories/{id} | Update category |
 | DELETE | /categories/{id} | Delete category |
+| **GET** | **/accounts** | **List user's accounts** |
+| **POST** | **/accounts** | **Create account** |
+| **PUT** | **/accounts/{id}** | **Update account** |
+| **DELETE** | **/accounts/{id}** | **Delete account (fails if has expenses)** |
+| **GET** | **/cards** | **List user's cards** |
+| **POST** | **/cards** | **Create card** |
+| **PUT** | **/cards/{id}** | **Update card** |
+| **DELETE** | **/cards/{id}** | **Delete card (fails if has expenses)** |
 | GET | /expenses | List expenses (params: category_id, month, bank, person, search, limit, offset) |
-| POST | /expenses | Create expense |
+| POST | /expenses | Create expense (validates account_id for cash/transfer) |
 | PUT | /expenses/{id} | Update expense (partial, exclude_none) |
 | DELETE | /expenses/{id} | Delete expense |
 | GET | /expenses/check-duplicate | Check duplicate (params: date, amount, description, transaction_id) |
@@ -110,3 +141,11 @@ New columns are added via `ALTER TABLE … ADD COLUMN` in `main.py` startup bloc
 | POST | /analysis/stream | Gemini analysis stream (SSE) |
 | GET | /analysis/history | Analysis history |
 | DELETE | /analysis/history/{id} | Delete history entry |
+| GET | /investments | List investments |
+| POST | /investments | Create investment |
+| PUT | /investments/{id} | Update investment |
+| DELETE | /investments/{id} | Delete investment |
+| GET | /groups/me | Get user's family group |
+| POST | /groups/invite | Invite user to group (by DNI) |
+| DELETE | /groups/leave | Leave current group |
+| GET | /notifications | List notifications |

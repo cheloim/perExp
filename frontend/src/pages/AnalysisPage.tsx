@@ -142,7 +142,7 @@ export default function AnalysisPage() {
     setStreaming(true)
 
     try {
-      const response = await fetch('http://localhost:8000/analysis/stream', {
+      const response = await fetch('/api/analysis/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

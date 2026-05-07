@@ -16,6 +16,8 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    telegram_key = Column(String(12), nullable=True, unique=True, index=True)
+    telegram_chat_id = Column(String, nullable=True, unique=True, index=True)
 
 
 class Group(Base):
@@ -33,8 +35,22 @@ class GroupMember(Base):
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     role = Column(String, default="member")
+    status = Column(String, default="accepted")  # pending | accepted | rejected
+    invited_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     joined_at = Column(DateTime, default=datetime.utcnow)
     group = relationship("Group", back_populates="members")
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    type = Column(String, nullable=False)
+    title = Column(String, nullable=False)
+    body = Column(Text, default="")
+    data = Column(Text, default="{}")  # JSON
+    read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class Category(Base):
@@ -47,6 +63,26 @@ class Category(Base):
     expenses = relationship("Expense", back_populates="category")
 
 
+class Account(Base):
+    __tablename__ = "accounts"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    type = Column(String, default="efectivo")  # efectivo, cuenta_corriente, caja_ahorro, mercadopago, etc
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Card(Base):
+    __tablename__ = "cards"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)  # Visa, Mastercard, etc
+    bank = Column(String, default="")
+    last4_digits = Column(String(4), nullable=True)
+    card_type = Column(String, default="credito")  # credito, debito
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Expense(Base):
     __tablename__ = "expenses"
     id = Column(Integer, primary_key=True, index=True)
@@ -54,6 +90,7 @@ class Expense(Base):
     description = Column(String, nullable=False)
     amount = Column(Float, nullable=False)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
+    # Legacy fields (deprecated, use account_id or card_id instead)
     card = Column(String, default="")
     bank = Column(String, default="")
     person = Column(String, default="")
@@ -66,7 +103,12 @@ class Expense(Base):
     card_last4 = Column(String(4), nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
+    # New structured fields
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
+    card_id = Column(Integer, ForeignKey("cards.id"), nullable=True)
     category = relationship("Category", back_populates="expenses")
+    account_rel = relationship("Account")
+    card_rel = relationship("Card")
 
 
 class AnalysisHistory(Base):
@@ -133,12 +175,21 @@ with engine.connect() as _conn:
         ("card_last4", "VARCHAR(4)"),
         ("user_id", "INTEGER REFERENCES users(id)"),
         ("group_id", "INTEGER REFERENCES groups(id)"),
+        ("account_id", "INTEGER REFERENCES accounts(id)"),
+        ("card_id", "INTEGER REFERENCES cards(id)"),
     ]:
         if _col not in _cols:
             _conn.execute(sa_text(f"ALTER TABLE expenses ADD COLUMN {_col} {_type}"))
     _cat_cols = [c["name"] for c in inspect(engine).get_columns("categories")]
     if "parent_id" not in _cat_cols:
         _conn.execute(sa_text("ALTER TABLE categories ADD COLUMN parent_id INTEGER REFERENCES categories(id)"))
+    _gm_cols = [c["name"] for c in inspect(engine).get_columns("group_members")]
+    for _col, _type in [
+        ("status", "VARCHAR DEFAULT 'accepted'"),
+        ("invited_by", "INTEGER REFERENCES users(id)"),
+    ]:
+        if _col not in _gm_cols:
+            _conn.execute(sa_text(f"ALTER TABLE group_members ADD COLUMN {_col} {_type}"))
     for _tbl, _col, _type in [
         ("analysis_history", "user_id", "INTEGER REFERENCES users(id)"),
         ("investments", "user_id", "INTEGER REFERENCES users(id)"),
@@ -147,4 +198,11 @@ with engine.connect() as _conn:
         _tbl_cols = [c["name"] for c in inspect(engine).get_columns(_tbl)]
         if _col not in _tbl_cols:
             _conn.execute(sa_text(f"ALTER TABLE {_tbl} ADD COLUMN {_col} {_type}"))
+    _user_cols = [c["name"] for c in inspect(engine).get_columns("users")]
+    for _col, _type in [
+        ("telegram_key", "VARCHAR(12)"),
+        ("telegram_chat_id", "VARCHAR"),
+    ]:
+        if _col not in _user_cols:
+            _conn.execute(sa_text(f"ALTER TABLE users ADD COLUMN {_col} {_type}"))
     _conn.commit()

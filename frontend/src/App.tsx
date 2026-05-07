@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import AIAssistant from './components/AIAssistant'
 import InvestmentsAssistant from './components/InvestmentsAssistant'
 import UserPanel from './components/UserPanel'
+import NotificationsPanel from './components/NotificationsPanel'
 import Dashboard from './pages/Dashboard'
 import CreditCardsPage from './pages/CreditCardsPage'
 import ExpensesPage from './pages/ExpensesPage'
@@ -12,11 +14,11 @@ import CategoryDashboard from './pages/CategoryDashboard'
 import InstallmentsPage from './pages/InstallmentsPage'
 import InvestmentsPage from './pages/InvestmentsPage'
 import LoginPage from './pages/LoginPage'
-import { getStoredToken } from './api/client'
+import { getStoredToken, getUnreadCount } from './api/client'
 
 const TABS = [
   { path: '/',               label: 'Inicio',             icon: '🏠', exact: true },
-  { path: '/credit-cards',   label: 'Tarjetas',           icon: '💳', exact: false },
+  { path: '/credit-cards',   label: 'Cuentas',            icon: '💳', exact: false },
   { path: '/expenses',       label: 'Gastos',             icon: '📋', exact: false },
   { path: '/cat-dashboard',  label: 'Por Categoría',      icon: '🏷️', exact: false },
   { path: '/installments',   label: 'Gasto en cuotas',    icon: '🔄', exact: false },
@@ -51,6 +53,14 @@ export default function App() {
   const isInvestments = location.pathname === '/investments'
   const [aiDrawerOpen, setAiDrawerOpen] = useState(getInitialDrawerState)
   const [userPanelOpen, setUserPanelOpen] = useState(false)
+  const [notifOpen, setNotifOpen] = useState(false)
+
+  const { data: unreadData } = useQuery({
+    queryKey: ['notifications-count'],
+    queryFn: getUnreadCount,
+    refetchInterval: 30000,
+  })
+  const unreadCount = unreadData?.count ?? 0
 
   const toggleDrawer = (open: boolean) => {
     setAiDrawerOpen(open)
@@ -99,8 +109,30 @@ export default function App() {
           ))}
         </nav>
 
-        {/* User button — bottom of sidebar */}
-        <div className="px-2 py-3 border-t border-zinc-200/80">
+        {/* Notifications + User buttons — bottom of sidebar */}
+        <div className="px-2 py-3 border-t border-zinc-200/80 space-y-1">
+          {/* Bell */}
+          <div className="relative">
+            <button
+              onClick={() => setNotifOpen((v) => !v)}
+              title="Notificaciones"
+              className="w-full flex items-center gap-3 px-2.5 py-2.5 text-sm font-medium rounded-xl text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 border border-transparent transition-all duration-200"
+            >
+              <span className="relative w-8 h-8 flex-shrink-0 flex items-center justify-center text-lg">
+                🔔
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </span>
+              <span className="whitespace-nowrap overflow-hidden w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300">
+                Notificaciones
+              </span>
+            </button>
+          </div>
+
+          {/* User */}
           <button
             onClick={() => setUserPanelOpen(true)}
             title="Mi cuenta"
@@ -180,6 +212,7 @@ export default function App() {
       </div>
 
       <UserPanel open={userPanelOpen} onClose={() => setUserPanelOpen(false)} />
+      {notifOpen && <NotificationsPanel onClose={() => setNotifOpen(false)} />}
     </div>
   )
 }

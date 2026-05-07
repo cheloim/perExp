@@ -15,6 +15,7 @@ from app.models import Category, Expense, User
 from app.services.auth import get_current_user
 from app.services.date_utils import add_months
 from app.services.normalizers import _norm_bank, _norm_holder
+from app.routers.groups import get_group_user_ids
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -58,7 +59,8 @@ def get_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    base_q = db.query(Expense).filter(Expense.user_id == current_user.id)
+    uid_list = get_group_user_ids(current_user.id, db)
+    base_q = db.query(Expense).filter(Expense.user_id.in_(uid_list))
     expenses = _apply_filters(base_q, month, search, person, category_id, card_last4, bank).order_by(desc(Expense.date)).all()
     categories = db.query(Category).all()
     cat_map = {c.id: c for c in categories}
@@ -142,7 +144,7 @@ def get_summary(
     today = date.today()
     six_months_ago = add_months(today, -6)
 
-    hist_expenses = db.query(Expense).filter(Expense.user_id == current_user.id, Expense.date >= six_months_ago).all()
+    hist_expenses = db.query(Expense).filter(Expense.user_id.in_(uid_list), Expense.date >= six_months_ago).all()
     trend_history: dict = {}
     for e in hist_expenses:
         k = e.date.strftime("%Y-%m")
@@ -151,7 +153,7 @@ def get_summary(
         trend_history[k]["total"] += e.amount
         trend_history[k]["count"] += 1
 
-    installments_exp = db.query(Expense).filter(Expense.user_id == current_user.id, Expense.installment_group_id != None, Expense.installment_group_id != "").all()
+    installments_exp = db.query(Expense).filter(Expense.user_id.in_(uid_list), Expense.installment_group_id != None, Expense.installment_group_id != "").all()
     groups: dict = {}
     for e in installments_exp:
         if e.installment_group_id not in groups:
@@ -192,9 +194,10 @@ def get_summary(
 
 @router.get("/installments")
 def get_installments_dashboard(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    uid_list = get_group_user_ids(current_user.id, db)
     exps = (
         db.query(Expense)
-        .filter(Expense.user_id == current_user.id, Expense.installment_group_id != None, Expense.installment_group_id != "")
+        .filter(Expense.user_id.in_(uid_list), Expense.installment_group_id != None, Expense.installment_group_id != "")
         .order_by(Expense.installment_number)
         .all()
     )
@@ -275,7 +278,7 @@ def get_installments_monthly_load(db: Session = Depends(get_db), current_user: U
 
     exps = (
         db.query(Expense)
-        .filter(Expense.user_id == current_user.id, Expense.installment_group_id != None, Expense.installment_group_id != "")
+        .filter(Expense.user_id.in_(uid_list), Expense.installment_group_id != None, Expense.installment_group_id != "")
         .order_by(Expense.installment_number)
         .all()
     )
@@ -321,7 +324,8 @@ def get_top_merchants(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    q = db.query(Expense).filter(Expense.user_id == current_user.id)
+    uid_list = get_group_user_ids(current_user.id, db)
+    q = db.query(Expense).filter(Expense.user_id.in_(uid_list))
     if month:
         try:
             y, m = int(month[:4]), int(month[5:7])
@@ -367,6 +371,7 @@ def get_top_merchants(
 
 @router.get("/card-summary")
 def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    uid_list = get_group_user_ids(current_user.id, db)
     def _card_network(card_str: str) -> str:
         s = (card_str or "").strip().lower()
         if "visa" in s:
@@ -377,7 +382,7 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
             return "amex"
         return s or "unknown"
 
-    exps = db.query(Expense).filter(Expense.user_id == current_user.id, Expense.amount > 0).all()
+    exps = db.query(Expense).filter(Expense.user_id.in_(uid_list), Expense.amount > 0).all()
 
     by_card: dict = {}
     by_card_monthly: dict = {}
@@ -506,6 +511,7 @@ def get_card_category_breakdown(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    uid_list = get_group_user_ids(current_user.id, db)
     def _card_network_local(card_str: str) -> str:
         s = (card_str or "").strip().lower()
         if "visa" in s:
@@ -516,7 +522,7 @@ def get_card_category_breakdown(
             return "Amex"
         return s.title() or "Otra"
 
-    q = db.query(Expense).filter(Expense.user_id == current_user.id, Expense.amount > 0)
+    q = db.query(Expense).filter(Expense.user_id.in_(uid_list), Expense.amount > 0)
     if month:
         try:
             y, m_num = int(month[:4]), int(month[5:7])
@@ -562,6 +568,7 @@ def get_card_category_breakdown(
 
 @router.get("/category-trend")
 def get_category_trend(months: int = 4, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    uid_list = get_group_user_ids(current_user.id, db)
     today = date.today()
     month_keys = []
     for i in range(months - 1, -1, -1):
@@ -576,7 +583,7 @@ def get_category_trend(months: int = 4, db: Session = Depends(get_db), current_u
     cats_by_id = {c.id: c for c in cats_list}
 
     start = date.fromisoformat(f"{month_keys[0]}-01")
-    exps = db.query(Expense).filter(Expense.user_id == current_user.id, Expense.amount > 0, Expense.date >= start).all()
+    exps = db.query(Expense).filter(Expense.user_id.in_(uid_list), Expense.amount > 0, Expense.date >= start).all()
 
     data: dict = {mk: {} for mk in month_keys}
     cat_colors: dict = {}
@@ -603,6 +610,7 @@ async def get_ai_trends(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    uid_list = get_group_user_ids(current_user.id, db)
     from app.prompts import AI_TRENDS_PROMPT
     from google import genai
     from google.genai import types as genai_types
@@ -616,7 +624,7 @@ async def get_ai_trends(
 
     expenses_hist = (
         db.query(Expense)
-        .filter(Expense.user_id == current_user.id, Expense.date >= six_months_ago)
+        .filter(Expense.user_id.in_(uid_list), Expense.date >= six_months_ago)
         .order_by(Expense.date)
         .all()
     )
@@ -633,7 +641,7 @@ async def get_ai_trends(
 
     installments_exp = (
         db.query(Expense)
-        .filter(Expense.user_id == current_user.id, Expense.installment_group_id != None, Expense.installment_group_id != "")
+        .filter(Expense.user_id.in_(uid_list), Expense.installment_group_id != None, Expense.installment_group_id != "")
         .all()
     )
 

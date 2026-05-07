@@ -68,11 +68,28 @@ class CategoryResponse(CategoryBase):
     model_config = {"from_attributes": True}
 
 
+class AccountSimple(BaseModel):
+    id: int
+    name: str
+    type: str
+    model_config = {"from_attributes": True}
+
+
+class CardSimple(BaseModel):
+    id: int
+    name: str
+    bank: str
+    last4_digits: Optional[str] = None
+    card_type: str
+    model_config = {"from_attributes": True}
+
+
 class ExpenseCreate(BaseModel):
     date: date
     description: str
     amount: float
     category_id: Optional[int] = None
+    # Legacy fields (deprecated)
     card: str = ""
     bank: str = ""
     person: str = ""
@@ -83,6 +100,9 @@ class ExpenseCreate(BaseModel):
     installment_total: Optional[int] = None
     installment_group_id: Optional[str] = None
     card_last4: Optional[str] = None
+    # New structured fields
+    account_id: Optional[int] = None
+    card_id: Optional[int] = None
 
     @field_validator("date", mode="before")
     @classmethod
@@ -103,6 +123,7 @@ class ExpenseUpdate(BaseModel):
     description: Optional[str] = None
     amount: Optional[float] = None
     category_id: Optional[int] = None
+    # Legacy fields
     card: Optional[str] = None
     bank: Optional[str] = None
     person: Optional[str] = None
@@ -113,6 +134,9 @@ class ExpenseUpdate(BaseModel):
     installment_total: Optional[int] = None
     installment_group_id: Optional[str] = None
     card_last4: Optional[str] = None
+    # New structured fields
+    account_id: Optional[int] = None
+    card_id: Optional[int] = None
 
 
 class ExpenseResponse(BaseModel):
@@ -121,6 +145,7 @@ class ExpenseResponse(BaseModel):
     description: str
     amount: float
     category_id: Optional[int] = None
+    # Legacy fields
     card: str = ""
     bank: str = ""
     person: str = ""
@@ -131,7 +156,12 @@ class ExpenseResponse(BaseModel):
     installment_total: Optional[int] = None
     installment_group_id: Optional[str] = None
     card_last4: str = ""
+    # Relations
     category: Optional[CategoryResponse] = None
+    account_id: Optional[int] = None
+    card_id: Optional[int] = None
+    account_rel: Optional[AccountSimple] = None
+    card_rel: Optional[CardSimple] = None
     model_config = {"from_attributes": True}
 
     @field_validator("card", "bank", "person", "notes", "currency", "card_last4", mode="before")

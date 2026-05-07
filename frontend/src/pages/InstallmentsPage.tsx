@@ -112,7 +112,7 @@ function InstallmentCard({
       </div>
 
       <p className="text-zinc-900 text-sm font-bold tracking-widest font-mono">
-        •••• •••• •••• {hasDigits ? entry.card_last4 : '????'}
+        {hasDigits ? `•••• •••• •••• ${entry.card_last4}` : '💳 Tarjeta'}
       </p>
       {entry.person && (
         <p className="text-zinc-900/70 text-[10px] font-medium uppercase tracking-wide truncate mt-0.5">

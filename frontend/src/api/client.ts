@@ -1,5 +1,7 @@
 import axios from 'axios'
 import type {
+  Account,
+  Card,
   AuthToken,
   User,
   Category,
@@ -17,6 +19,8 @@ import type {
   Investment,
   InvestmentCreate,
   TopMerchant,
+  Notification,
+  FamilyGroup,
 } from '../types'
 
 const TOKEN_KEY = 'auth_token'
@@ -25,7 +29,7 @@ export const getStoredToken = () => localStorage.getItem(TOKEN_KEY)
 export const storeToken = (token: string) => localStorage.setItem(TOKEN_KEY, token)
 export const clearToken = () => localStorage.removeItem(TOKEN_KEY)
 
-const api = axios.create({ baseURL: 'http://localhost:8000' })
+const api = axios.create({ baseURL: '/api' })
 
 api.interceptors.request.use((config) => {
   const token = getStoredToken()
@@ -56,6 +60,12 @@ export const getMe = () =>
 
 export const changePassword = (current_password: string, new_password: string) =>
   api.put('/auth/password', { current_password, new_password })
+
+export const getTelegramKey = () =>
+  api.get<{ telegram_key: string }>('/auth/me/telegram-key').then((r) => r.data)
+
+export const regenerateTelegramKey = () =>
+  api.post<{ telegram_key: string }>('/auth/me/telegram-key/regenerate').then((r) => r.data)
 
 // Categories
 export const getCategories = () =>
@@ -259,3 +269,43 @@ export const getCashBalances = () =>
 
 export const getTopMerchants = (params?: { month?: string; person?: string; bank?: string; card_last4?: string; limit?: number }) =>
   api.get<TopMerchant[]>('/dashboard/top-merchants', { params }).then((r) => r.data)
+
+// Notifications
+export const getNotifications = () =>
+  api.get<Notification[]>('/notifications').then((r) => r.data)
+export const getUnreadCount = () =>
+  api.get<{ count: number }>('/notifications/unread-count').then((r) => r.data)
+export const markNotificationRead = (id: number) =>
+  api.put(`/notifications/${id}/read`).then((r) => r.data)
+export const acceptGroupInvitation = (id: number) =>
+  api.post(`/notifications/${id}/accept`).then((r) => r.data)
+export const rejectGroupInvitation = (id: number) =>
+  api.post(`/notifications/${id}/reject`).then((r) => r.data)
+
+// Family Group
+export const getMyGroup = () =>
+  api.get<FamilyGroup | null>('/groups/me').then((r) => r.data)
+export const inviteToGroup = (dni: string) =>
+  api.post('/groups/invite', { dni }).then((r) => r.data)
+export const leaveGroup = () =>
+  api.delete('/groups/leave').then((r) => r.data)
+
+// Accounts
+export const getAccounts = () =>
+  api.get<Account[]>('/accounts').then((r) => r.data)
+export const createAccount = (data: { name: string; type: string }) =>
+  api.post<Account>('/accounts', data).then((r) => r.data)
+export const updateAccount = (id: number, data: { name?: string; type?: string }) =>
+  api.put<Account>(`/accounts/${id}`, data).then((r) => r.data)
+export const deleteAccount = (id: number) =>
+  api.delete(`/accounts/${id}`).then((r) => r.data)
+
+// Cards
+export const getCards = () =>
+  api.get<Card[]>('/cards').then((r) => r.data)
+export const createCard = (data: { name: string; bank?: string; last4_digits?: string | null; card_type?: string }) =>
+  api.post<Card>('/cards', data).then((r) => r.data)
+export const updateCard = (id: number, data: { name?: string; bank?: string; last4_digits?: string | null; card_type?: string }) =>
+  api.put<Card>(`/cards/${id}`, data).then((r) => r.data)
+export const deleteCard = (id: number) =>
+  api.delete(`/cards/${id}`).then((r) => r.data)

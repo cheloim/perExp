@@ -1,3 +1,29 @@
+export interface Notification {
+  id: number
+  type: string
+  title: string
+  body: string
+  data: Record<string, unknown>
+  read: boolean
+  created_at: string
+}
+
+export interface GroupMember {
+  id: number
+  user_id: number
+  full_name: string
+  dni: string
+  role: string
+  status: string
+  joined_at: string
+}
+
+export interface FamilyGroup {
+  id: number
+  name: string
+  members: GroupMember[]
+}
+
 export interface AuthToken {
   access_token: string
   token_type: string
@@ -20,6 +46,24 @@ export interface Category {
   parent_id?: number | null
 }
 
+export interface Account {
+  id: number
+  name: string
+  type: string
+  user_id: number
+  created_at: string
+}
+
+export interface Card {
+  id: number
+  name: string
+  bank: string
+  last4_digits: string | null
+  card_type: string
+  user_id: number
+  created_at: string
+}
+
 export interface Expense {
   id: number
   date: string
@@ -29,6 +73,7 @@ export interface Expense {
   category_id: number | null
   category_name: string | null
   category_color: string | null
+  // Legacy fields
   card: string
   bank: string
   person: string
@@ -38,6 +83,11 @@ export interface Expense {
   installment_total?: number | null
   installment_group_id?: string | null
   card_last4?: string
+  // New structured fields
+  account_id?: number | null
+  card_id?: number | null
+  account_rel?: Account | null
+  card_rel?: Card | null
 }
 
 export interface ExpenseCreate {
@@ -46,6 +96,7 @@ export interface ExpenseCreate {
   amount: number
   currency?: string
   category_id?: number | null
+  // Legacy fields
   card?: string
   bank?: string
   person?: string
@@ -55,6 +106,9 @@ export interface ExpenseCreate {
   installment_total?: number | null
   installment_group_id?: string | null
   card_last4?: string
+  // New structured fields
+  account_id?: number | null
+  card_id?: number | null
 }
 
 export interface CategorySummary {

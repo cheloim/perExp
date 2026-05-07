@@ -21,14 +21,18 @@ from app.scheduler import price_refresh_loop
 from app.seed import _apply_base_hierarchy
 from app.services.auth import get_password_hash
 from app.routers import (
+    accounts,
     analysis,
     auth,
     card_closings,
+    cards,
     categories,
     dashboard,
     expenses,
+    groups,
     import_,
     investments,
+    notifications,
 )
 
 
@@ -80,13 +84,15 @@ app = FastAPI(title="Credit Card Analyzer API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:8082"],
+    allow_origins=["http://localhost:5173", "http://localhost:8082", "http://127.0.0.1:5173", "http://127.0.0.1:8082"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(auth.router)
+app.include_router(accounts.router)
+app.include_router(cards.router)
 app.include_router(categories.router)
 app.include_router(card_closings.router)
 app.include_router(expenses.router)
@@ -94,3 +100,5 @@ app.include_router(investments.router)
 app.include_router(import_.router)
 app.include_router(dashboard.router)
 app.include_router(analysis.router)
+app.include_router(groups.router)
+app.include_router(notifications.router)

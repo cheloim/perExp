@@ -244,7 +244,7 @@ export default function InvestmentsAssistant() {
     const context = buildPortfolioContext(investments)
     try {
       await streamTo(
-        'http://localhost:8000/investments/chat/stream',
+        '/api/investments/chat/stream',
         { question: text, context },
         full => setMessages(prev => {
           const u = [...prev]
@@ -269,7 +269,7 @@ export default function InvestmentsAssistant() {
     try {
       let summary = ''
       await streamTo(
-        'http://localhost:8000/analysis/summarize',
+        '/api/analysis/summarize',
         { messages: sessionMessages },
         full => { summary = full },
       )

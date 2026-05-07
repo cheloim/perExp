@@ -1,4 +1,8 @@
+import secrets
+import string
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -60,3 +64,36 @@ def change_password(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Contraseña actual incorrecta")
     current_user.hashed_password = get_password_hash(body.new_password)
     db.commit()
+
+
+class TelegramKeyResponse(BaseModel):
+    telegram_key: str
+
+
+def _generate_telegram_key() -> str:
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(12))
+
+
+@router.get("/me/telegram-key", response_model=TelegramKeyResponse)
+def get_telegram_key(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not current_user.telegram_key:
+        current_user.telegram_key = _generate_telegram_key()
+        db.commit()
+        db.refresh(current_user)
+    return TelegramKeyResponse(telegram_key=current_user.telegram_key)
+
+
+@router.post("/me/telegram-key/regenerate", response_model=TelegramKeyResponse)
+def regenerate_telegram_key(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    current_user.telegram_key = _generate_telegram_key()
+    current_user.telegram_chat_id = None
+    db.commit()
+    db.refresh(current_user)
+    return TelegramKeyResponse(telegram_key=current_user.telegram_key)

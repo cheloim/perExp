@@ -1,15 +1,30 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
+import { DayPicker } from 'react-day-picker'
+import { es } from 'date-fns/locale'
 import {
   PieChart, Pie, Cell,
   BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
-import { getExpenses, getCardSummary, getDashboard, getCardCategoryBreakdown } from '../api/client'
-import type { CategorySummary } from '../types'
+import {
+  getExpenses,
+  getCardSummary,
+  getDashboard,
+  getCardCategoryBreakdown,
+  getCategories,
+  createExpense,
+  updateExpense,
+  deleteExpense,
+  getDistinctValues,
+  bulkUpdateCategory
+} from '../api/client'
+import type { CategorySummary, Expense, ExpenseCreate, Category, CardSummary } from '../types'
 
 type GroupBy = 'month' | 'year'
+type SortField = 'date' | 'description' | 'category' | 'bank' | 'person' | 'amount'
+type SortDir = 'asc' | 'desc'
 
 function formatCurrency(amount: number, currency: string = 'ARS') {
   if (currency === 'USD') {
@@ -70,6 +85,11 @@ function TrendIcon({ current, previous }: { current: number; previous: number })
   if (Math.abs(pct) < 5) return <span className="text-zinc-500 text-xs">→</span>
   if (pct > 0) return <span className="text-red-500 text-xs font-bold">▲{pct.toFixed(0)}%</span>
   return <span className="text-green-500 text-xs font-bold">▼{Math.abs(pct).toFixed(0)}%</span>
+}
+
+function SortIcon({ field, sort }: { field: SortField; sort: { field: SortField; dir: SortDir } }) {
+  if (sort.field !== field) return <span className="ml-1 text-zinc-600">↕</span>
+  return <span className="ml-1 text-brand-400">{sort.dir === 'asc' ? '↑' : '↓'}</span>
 }
 
 function CategoryDrilldown({ category, month, onClose }: { category: CategorySummary; month: string; onClose: () => void }) {
@@ -198,7 +218,7 @@ function CreditCardViz({ holder, cardName, bank, monthly, active, onClick, index
             {holder.split(',').reverse().join(' ').trim()}
           </p>
           <p className="text-zinc-900/50 text-xs tracking-widest font-mono">
-            •••• {hasDigits ? last4 : '????'}
+            {hasDigits ? `•••• ${last4}` : '💳 Tarjeta'}
           </p>
         </div>
       </div>
@@ -324,11 +344,74 @@ export default function CreditCardsPage() {
   const [activeCat, setActiveCat] = useState<CategorySummary | null>(null)
   const [activeCard, setActiveCard] = useState<string | null>(null)
   const [bankFilter, setBankFilter] = useState<string | null>(null)
-  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // URL-synced filters
+  const filterCategory = searchParams.get('category_id') ? parseInt(searchParams.get('category_id')!) : undefined
+  const filterUncategorized = searchParams.get('uncategorized') === '1'
+  const filterBank = searchParams.get('bank') || undefined
+  const filterPerson = searchParams.get('person') || undefined
+  const filterCard = searchParams.get('card') || undefined
+  const filterDateFrom = searchParams.get('date_from') || undefined
+  const filterDateTo = searchParams.get('date_to') || undefined
+  const filterSearch = searchParams.get('search') || undefined
+
+  // UI states
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [bulkCategoryId, setBulkCategoryId] = useState<string>('')
+  const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({ field: 'date', dir: 'desc' })
+
+  // Modal states
+  const [editing, setEditing] = useState<Expense | null | undefined>(undefined)
+  const [editingIsIncome, setEditingIsIncome] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+
+  // Helper functions
+  const setFilter = (key: string, value: string | undefined) => {
+    const next = new URLSearchParams(searchParams)
+    if (value) next.set(key, value); else next.delete(key)
+    setSearchParams(next)
+  }
+
+  const clearFilters = () => {
+    setSearchParams(new URLSearchParams())
+  }
+
+  const activeFiltersCount = [
+    filterCategory, filterUncategorized || undefined, filterBank,
+    filterPerson, filterCard, filterDateFrom, filterDateTo, filterSearch
+  ].filter(Boolean).length
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
 
   const { data: cardData = [] } = useQuery({
     queryKey: ['card-summary'],
     queryFn: getCardSummary,
+  })
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: getCategories
+  })
+
+  const { data: distinctValues } = useQuery({
+    queryKey: ['distinct-values'],
+    queryFn: getDistinctValues,
+    staleTime: 60_000
+  })
+
+  const { data: cardSummary = [] } = useQuery({
+    queryKey: ['card-summary'],
+    queryFn: getCardSummary
   })
 
   const activeCardLast4 = activeCard
@@ -346,6 +429,25 @@ export default function CreditCardsPage() {
     placeholderData: (prev) => prev,
   })
 
+  // Full expenses list with all filters
+  const { data: expenses = [], isLoading: expensesLoading } = useQuery({
+    queryKey: ['expenses', month, filterCategory, filterUncategorized, filterBank,
+               filterPerson, filterCard, filterDateFrom, filterDateTo, filterSearch,
+               activeCardLast4, bankFilter],
+    queryFn: () => getExpenses({
+      month: month || undefined,
+      category_id: filterCategory,
+      uncategorized: filterUncategorized || undefined,
+      bank: filterBank,
+      person: filterPerson,
+      card: filterCard,
+      date_from: filterDateFrom,
+      date_to: filterDateTo,
+      search: filterSearch,
+      limit: 500,
+    }),
+  })
+
   const { data: cardCategoryData } = useQuery({
     queryKey: ['card-category-breakdown', month, activeCardLast4, bankFilter],
     queryFn: () => getCardCategoryBreakdown({
@@ -354,6 +456,50 @@ export default function CreditCardsPage() {
       bank: bankFilter || undefined,
     }),
     staleTime: 60_000,
+  })
+
+  // Mutations
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['expenses'] })
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    queryClient.invalidateQueries({ queryKey: ['card-summary'] })
+    queryClient.invalidateQueries({ queryKey: ['card-category-breakdown'] })
+  }
+
+  const createMut = useMutation({
+    mutationFn: createExpense,
+    onSuccess: () => { invalidate(); setEditing(undefined); setSaveError(null) },
+    onError: (e: any) => setSaveError(e?.response?.data?.detail || e.message),
+  })
+
+  const updateMut = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<ExpenseCreate> }) =>
+      updateExpense(id, data),
+    onSuccess: () => { invalidate(); setEditing(undefined); setSaveError(null) },
+    onError: (e: any) => setSaveError(e?.response?.data?.detail || e.message),
+  })
+
+  const deleteMut = useMutation({
+    mutationFn: deleteExpense,
+    onSuccess: invalidate,
+  })
+
+  const bulkMut = useMutation({
+    mutationFn: ({ ids, catId }: { ids: number[]; catId: number | null }) =>
+      bulkUpdateCategory(ids, catId),
+    onSuccess: () => {
+      invalidate()
+      setSelectedIds(new Set())
+      setBulkCategoryId('')
+    },
+  })
+
+  const bulkDeleteMut = useMutation({
+    mutationFn: (ids: number[]) => Promise.all(ids.map(id => deleteExpense(id))),
+    onSuccess: () => {
+      invalidate()
+      setSelectedIds(new Set())
+    },
   })
 
   if (isLoading && !data) {
@@ -408,22 +554,24 @@ export default function CreditCardsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <MonthSelector value={month} onChange={(v) => { setMonth(v); setActiveCat(null) }} />
+      <div className="flex items-center justify-end gap-2">
+        {/* Botón Ingreso */}
+        <button
+          onClick={() => { setEditingIsIncome(true); setEditing(null) }}
+          className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all"
+        >
+          <span className="text-base leading-none">↓</span>
+          Ingreso
+        </button>
 
-        <div className="flex items-center gap-1 bg-zinc-100 border border-zinc-300 rounded-lg p-0.5">
-          {(['month', 'year'] as GroupBy[]).map((g) => (
-            <button
-              key={g}
-              onClick={() => setGroupBy(g)}
-              className={`px-3 py-1 text-xs rounded-md transition-all ${
-                groupBy === g ? 'bg-zinc-600 text-zinc-900 font-medium' : 'text-zinc-400 hover:text-zinc-600'
-              }`}
-            >
-              {g === 'month' ? 'Mes' : 'Año'}
-            </button>
-          ))}
-        </div>
+        {/* Botón Nuevo gasto */}
+        <button
+          onClick={() => { setEditingIsIncome(false); setEditing(null) }}
+          className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg bg-brand-500 text-white hover:bg-brand-600 transition-all"
+        >
+          <span className="text-lg leading-none">+</span>
+          Nuevo gasto
+        </button>
       </div>
 
       <div className={`grid grid-cols-1 gap-4 ${data.by_currency.length > 1 ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3'}`}>
@@ -630,42 +778,813 @@ export default function CreditCardsPage() {
             </div>
           </div>
 
-          <div className="card">
-            <div className="px-5 py-4 border-b border-zinc-200">
-              <h2 className="text-base font-semibold text-zinc-900">Últimos Gastos</h2>
-            </div>
-            {data.recent_expenses.length === 0 ? (
-              <p className="text-zinc-500 text-sm text-center py-10">Aún no hay gastos registrados</p>
-            ) : (
-              <div className="divide-y divide-zinc-200">
-                {data.recent_expenses.map((exp) => (
-                  <div key={exp.id} className="flex items-center justify-between px-5 py-3">
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => navigate(`/expenses?category_id=${exp.category_id}`)}
-                        disabled={!exp.category_id}
-                        className="inline-block w-3 h-3 rounded-full flex-shrink-0 disabled:cursor-default"
-                        style={{ backgroundColor: exp.category_color || '#94a3b8' }}
-                        title={exp.category_name ?? undefined}
-                      />
-                      <div>
-                        <p className="text-sm font-medium text-zinc-900">{exp.description}</p>
-                        <p className="text-xs text-zinc-500">
-                          {formatDate(exp.date)} · {exp.category_name ?? 'Sin categoría'}
-                        </p>
-                      </div>
-                    </div>
-                    <span className={`text-sm font-semibold flex items-center gap-1.5 ${exp.amount < 0 ? 'text-green-400' : 'text-zinc-900'}`}>
-                      {exp.currency === 'USD' && (
-                        <span className="text-xs font-normal bg-green-100 text-green-700 px-1.5 py-0.5 rounded">USD</span>
-                      )}
-                      {formatCurrency(exp.amount, exp.currency)}
+          {/* Gastos - Full Featured Table */}
+          <div className="card p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setFiltersOpen(!filtersOpen)}
+                  className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border transition-all ${
+                    filtersOpen || activeFiltersCount > 0
+                      ? 'bg-brand-500/20 border-brand-500/40 text-brand-700'
+                      : 'border-zinc-300 text-zinc-600 hover:border-zinc-600'
+                  }`}
+                >
+                  Filtros
+                  {activeFiltersCount > 0 && (
+                    <span className="bg-brand-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                      {activeFiltersCount}
                     </span>
-                  </div>
-                ))}
+                  )}
+                </button>
+                <button
+                  onClick={() => { setSelectMode(v => !v); setSelectedIds(new Set()) }}
+                  className={`text-sm px-3 py-1.5 rounded-lg border transition-all ${
+                    selectMode
+                      ? 'bg-brand-500/20 border-brand-500/40 text-brand-400'
+                      : 'border-zinc-300 text-zinc-400 hover:text-zinc-700 hover:border-zinc-600'
+                  }`}
+                >
+                  {selectMode ? 'Cancelar selección' : 'Seleccionar'}
+                </button>
+              </div>
+              {activeFiltersCount > 0 && (
+                <button onClick={clearFilters} className="text-xs text-zinc-400 hover:text-zinc-900 flex items-center gap-1">
+                  <span className="bg-brand-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{activeFiltersCount}</span>
+                  Limpiar filtros
+                </button>
+              )}
+            </div>
+
+            {/* Filter Panel */}
+            {filtersOpen && (
+              <div className="mb-4 p-4 bg-zinc-50 rounded-lg border border-zinc-200 space-y-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                  {/* Categoría */}
+                  {(() => {
+                    const parentIds = new Set(categories.filter(c => c.parent_id).map(c => c.parent_id!))
+                    const parents = categories.filter(c => !c.parent_id && parentIds.has(c.id))
+                    const orphans = categories.filter(c => !c.parent_id && !parentIds.has(c.id))
+
+                    const handleCategoryFilter = (value: string) => {
+                      if (value === '__none__') {
+                        setFilter('uncategorized', '1')
+                        setFilter('category_id', undefined)
+                      } else if (value) {
+                        setFilter('category_id', value)
+                        setFilter('uncategorized', undefined)
+                      } else {
+                        setFilter('category_id', undefined)
+                        setFilter('uncategorized', undefined)
+                      }
+                    }
+
+                    return (
+                      <select
+                        value={filterUncategorized ? '__none__' : (filterCategory ?? '')}
+                        onChange={e => handleCategoryFilter(e.target.value)}
+                        className="bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-500"
+                      >
+                        <option value="">Categoría</option>
+                        <option value="__none__">Sin categoría</option>
+                        {parents.map(parent => (
+                          <optgroup key={parent.id} label={parent.name}>
+                            {categories.filter(c => c.parent_id === parent.id).map(c => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </optgroup>
+                        ))}
+                        {orphans.length > 0 && (
+                          <optgroup label="—">
+                            {orphans.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </optgroup>
+                        )}
+                      </select>
+                    )
+                  })()}
+
+                  {/* Banco */}
+                  <select
+                    value={filterBank ?? ''}
+                    onChange={e => setFilter('bank', e.target.value || undefined)}
+                    className="bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-500"
+                  >
+                    <option value="">Banco</option>
+                    {(distinctValues?.banks ?? []).map(b => <option key={b} value={b}>{b}</option>)}
+                  </select>
+
+                  {/* Persona */}
+                  <select
+                    value={filterPerson ?? ''}
+                    onChange={e => setFilter('person', e.target.value || undefined)}
+                    className="bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-500"
+                  >
+                    <option value="">Titular</option>
+                    {(distinctValues?.persons ?? []).map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+
+                  {/* Tarjeta */}
+                  <select
+                    value={filterCard ?? ''}
+                    onChange={e => setFilter('card', e.target.value || undefined)}
+                    className="bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-500"
+                  >
+                    <option value="">Tarjeta</option>
+                    {(distinctValues?.cards ?? []).map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+
+                  {/* Desde */}
+                  <input
+                    type="date"
+                    value={filterDateFrom ?? ''}
+                    onChange={e => setFilter('date_from', e.target.value || undefined)}
+                    className="bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-500"
+                    placeholder="Desde"
+                  />
+
+                  {/* Hasta */}
+                  <input
+                    type="date"
+                    value={filterDateTo ?? ''}
+                    onChange={e => setFilter('date_to', e.target.value || undefined)}
+                    className="bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-500"
+                    placeholder="Hasta"
+                  />
+                </div>
+
+                {/* Search */}
+                <input
+                  type="text"
+                  value={filterSearch ?? ''}
+                  onChange={e => setFilter('search', e.target.value || undefined)}
+                  placeholder="Buscar en descripción..."
+                  className="w-full bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 rounded-lg px-3 py-1.5 focus:outline-none focus:border-brand-500 placeholder:text-zinc-500"
+                />
+              </div>
+            )}
+
+            {expensesLoading ? (
+              <div className="text-center py-10 text-zinc-400">Cargando...</div>
+            ) : expenses.length === 0 ? (
+              <div className="text-center py-10 text-zinc-400">
+                No hay gastos en este período
+              </div>
+            ) : (
+              <div className="overflow-x-auto -mx-5 px-5">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-200 text-zinc-500">
+                      {selectMode && (
+                        <th className="pb-2 text-left w-8">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.size === expenses.length}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedIds(new Set(expenses.map(exp => exp.id)))
+                              } else {
+                                setSelectedIds(new Set())
+                              }
+                            }}
+                            className="w-4 h-4 text-brand-500 border-zinc-300 rounded focus:ring-brand-500"
+                          />
+                        </th>
+                      )}
+                      <th
+                        className="pb-2 text-left cursor-pointer hover:text-zinc-900"
+                        onClick={() => setSort(s => ({ field: 'date', dir: s.field === 'date' && s.dir === 'asc' ? 'desc' : 'asc' }))}
+                      >
+                        Fecha
+                        <SortIcon field="date" sort={sort} />
+                      </th>
+                      <th
+                        className="pb-2 text-left cursor-pointer hover:text-zinc-900"
+                        onClick={() => setSort(s => ({ field: 'description', dir: s.field === 'description' && s.dir === 'asc' ? 'desc' : 'asc' }))}
+                      >
+                        Descripción
+                        <SortIcon field="description" sort={sort} />
+                      </th>
+                      <th
+                        className="pb-2 text-left cursor-pointer hover:text-zinc-900"
+                        onClick={() => setSort(s => ({ field: 'category', dir: s.field === 'category' && s.dir === 'asc' ? 'desc' : 'asc' }))}
+                      >
+                        Categoría
+                        <SortIcon field="category" sort={sort} />
+                      </th>
+                      <th
+                        className="pb-2 text-right cursor-pointer hover:text-zinc-900"
+                        onClick={() => setSort(s => ({ field: 'amount', dir: s.field === 'amount' && s.dir === 'asc' ? 'desc' : 'asc' }))}
+                      >
+                        Monto
+                        <SortIcon field="amount" sort={sort} />
+                      </th>
+                      {!selectMode && <th className="pb-2 text-right">Acciones</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {expenses
+                      .sort((a, b) => {
+                        const dir = sort.dir === 'asc' ? 1 : -1
+                        if (sort.field === 'date') return (new Date(a.date).getTime() - new Date(b.date).getTime()) * dir
+                        if (sort.field === 'description') return a.description.localeCompare(b.description) * dir
+                        if (sort.field === 'category') return (a.category_name ?? '').localeCompare(b.category_name ?? '') * dir
+                        if (sort.field === 'amount') return (a.amount - b.amount) * dir
+                        return 0
+                      })
+                      .map(exp => (
+                        <tr
+                          key={exp.id}
+                          className={`border-b border-zinc-100 hover:bg-zinc-50 transition-colors ${
+                            selectedIds.has(exp.id) ? 'bg-brand-500/10' : ''
+                          }`}
+                          onClick={selectMode ? () => toggleSelect(exp.id) : undefined}
+                          style={selectMode ? { cursor: 'pointer' } : undefined}
+                        >
+                          {selectMode && (
+                            <td className="py-2">
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.has(exp.id)}
+                                onChange={() => toggleSelect(exp.id)}
+                                className="w-4 h-4 text-brand-500 border-zinc-300 rounded focus:ring-brand-500"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </td>
+                          )}
+                          <td className="py-2 text-zinc-900">{formatDate(exp.date)}</td>
+                          <td className="py-2">
+                            <div className="text-zinc-900 font-medium">
+                              {exp.description}
+                              {exp.installment_total && (
+                                <span className="ml-2 text-[10px] bg-zinc-200 text-zinc-600 px-1.5 py-0.5 rounded-full">
+                                  {exp.installment_number}/{exp.installment_total}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-zinc-400">
+                              {[exp.card, exp.bank, exp.person].filter(Boolean).join(' · ')}
+                            </div>
+                          </td>
+                          <td className="py-2">
+                            {exp.category_name && (
+                              <span
+                                className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full"
+                                style={{
+                                  backgroundColor: `${exp.category_color || '#6366f1'}20`,
+                                  color: exp.category_color || '#6366f1'
+                                }}
+                              >
+                                <span
+                                  className="w-1.5 h-1.5 rounded-full"
+                                  style={{ backgroundColor: exp.category_color || '#6366f1' }}
+                                />
+                                {exp.category_name}
+                              </span>
+                            )}
+                          </td>
+                          <td className={`py-2 text-right font-semibold ${exp.amount < 0 ? 'text-emerald-600' : 'text-zinc-900'}`}>
+                            {formatCurrency(Math.abs(exp.amount), exp.currency)}
+                          </td>
+                          {!selectMode && (
+                            <td className="py-2 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => setEditing(exp)}
+                                  className="text-xs text-brand-500 hover:text-brand-700"
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (confirm('¿Eliminar este gasto?')) {
+                                      deleteMut.mutate(exp.id)
+                                    }
+                                  }}
+                                  className="text-xs text-red-500 hover:text-red-700"
+                                >
+                                  Eliminar
+                                </button>
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
+      </div>
+
+      {/* Expense Modal */}
+      {editing !== undefined && (
+        <ExpenseModal
+          expense={editing}
+          isIncome={editingIsIncome}
+          onClose={() => {
+            setEditing(undefined)
+            setSaveError(null)
+          }}
+          onSave={(data) => {
+            if (editing) {
+              updateMut.mutate({ id: editing.id, data })
+            } else {
+              createMut.mutate(data)
+            }
+          }}
+          onDelete={(id) => deleteMut.mutate(id)}
+          categories={categories}
+          cardSummary={cardSummary}
+          saveError={saveError}
+        />
+      )}
+
+      {/* Bulk Actions Floating Bar */}
+      {selectMode && selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-white border border-zinc-300 rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-4">
+          <span className="text-sm text-zinc-600">
+            {selectedIds.size} seleccionado{selectedIds.size > 1 ? 's' : ''}
+          </span>
+
+          <select
+            value={bulkCategoryId}
+            onChange={(e) => setBulkCategoryId(e.target.value)}
+            className="text-sm border border-zinc-300 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-500"
+          >
+            <option value="">Categoría</option>
+            <option value="__none__">Sin categoría</option>
+            <optgroup label="Padres">
+              {categories.filter(c => !c.parent_id).map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Subcategorías">
+              {categories.filter(c => c.parent_id).map(c => (
+                <option key={c.id} value={c.id}>└ {c.name}</option>
+              ))}
+            </optgroup>
+          </select>
+
+          <button
+            onClick={() => {
+              if (!bulkCategoryId) return
+              const catId = bulkCategoryId === '__none__' ? null : parseInt(bulkCategoryId)
+              bulkMut.mutate({ ids: Array.from(selectedIds), catId })
+            }}
+            disabled={!bulkCategoryId || bulkMut.isPending}
+            className="text-sm px-3 py-1.5 bg-brand-500 text-white rounded-lg hover:bg-brand-600 disabled:opacity-50 transition-all"
+          >
+            Aplicar
+          </button>
+
+          <button
+            onClick={() => {
+              if (confirm(`¿Eliminar ${selectedIds.size} gasto(s)?`)) {
+                bulkDeleteMut.mutate(Array.from(selectedIds))
+              }
+            }}
+            disabled={bulkDeleteMut.isPending}
+            className="text-sm px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 disabled:opacity-50 transition-all"
+          >
+            Eliminar
+          </button>
+
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-sm px-3 py-1.5 border border-zinc-300 rounded-lg hover:bg-zinc-50 transition-all"
+          >
+            Limpiar
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Helper functions and components
+function todayDDMMYYYY() {
+  const now = new Date()
+  const d = String(now.getDate()).padStart(2, '0')
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const y = now.getFullYear()
+  return `${d}-${m}-${y}`
+}
+
+const EMPTY_FORM: ExpenseCreate = {
+  date: todayDDMMYYYY(),
+  description: '',
+  amount: 0,
+  currency: 'ARS',
+  category_id: null,
+  card: '',
+  bank: '',
+  person: '',
+  notes: '',
+  transaction_id: '',
+  card_last4: '',
+  installment_number: null,
+  installment_total: null,
+  installment_group_id: null,
+}
+
+function DatePickerInput({ value, onChange }: { value: string; onChange: (d: string) => void }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  const getValidDate = (val: string): Date => {
+    if (!val || typeof val !== 'string') return new Date()
+    const parts = val.split('-')
+    if (parts.length !== 3) return new Date()
+    const d = parseInt(parts[0])
+    const m = parseInt(parts[1])
+    const y = parseInt(parts[2])
+    if (isNaN(d) || isNaN(m) || isNaN(y)) return new Date()
+    if (d < 1 || d > 31 || m < 1 || m > 12 || y < 2000 || y > 2100) return new Date()
+    return new Date(y, m - 1, d)
+  }
+
+  const selectedDate = getValidDate(value)
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  return (
+    <div ref={ref} className="relative">
+      <input
+        type="text"
+        readOnly
+        value={value}
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition cursor-pointer"
+        placeholder="DD-MM-YYYY"
+      />
+      {isOpen && (
+        <div className="absolute z-50 mt-2 p-3 bg-white border border-zinc-300 rounded-xl shadow-xl">
+          <DayPicker
+            mode="single"
+            selected={selectedDate}
+            onSelect={(d) => {
+              if (d) {
+                const nd = String(d.getDate()).padStart(2, '0')
+                const nm = String(d.getMonth() + 1).padStart(2, '0')
+                const ny = d.getFullYear()
+                onChange(`${nd}-${nm}-${ny}`)
+                setIsOpen(false)
+              }
+            }}
+            locale={es}
+            className=""
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ExpenseModal({
+  expense,
+  isIncome = false,
+  onClose,
+  onSave,
+  onDelete: _onDelete,
+  categories,
+  cardSummary,
+  saveError
+}: {
+  expense?: Expense | null
+  isIncome: boolean
+  onClose: () => void
+  onSave: (data: ExpenseCreate) => void
+  onDelete?: (id: number) => void
+  categories: Category[]
+  cardSummary: CardSummary[]
+  saveError?: string | null
+}) {
+  const isCash = (card: string) => !card || card === 'Efectivo'
+
+  const [payMethod, setPayMethod] = useState<'card' | 'cash'>(
+    expense ? (isCash(expense.card ?? '') ? 'cash' : 'card') : isIncome ? 'cash' : 'card'
+  )
+
+  const [form, setForm] = useState<ExpenseCreate>(
+    expense
+      ? {
+          date: expense.date,
+          description: expense.description,
+          amount: Math.abs(expense.amount),
+          currency: expense.currency || 'ARS',
+          category_id: expense.category_id,
+          card: expense.card ?? '',
+          bank: expense.bank ?? '',
+          person: expense.person ?? '',
+          notes: expense.notes ?? '',
+          transaction_id: expense.transaction_id ?? '',
+          card_last4: expense.card_last4 ?? '',
+          installment_number: expense.installment_number ?? null,
+          installment_total: expense.installment_total ?? null,
+          installment_group_id: expense.installment_group_id ?? null,
+        }
+      : EMPTY_FORM,
+  )
+
+  const [cuotasEnabled, setCuotasEnabled] = useState(
+    !!(expense?.installment_total && expense.installment_total > 1)
+  )
+
+  const toggleCuotas = (enabled: boolean) => {
+    setCuotasEnabled(enabled)
+    if (enabled) {
+      const gid = form.installment_group_id || crypto.randomUUID()
+      setForm((prev) => ({ ...prev, installment_number: 1, installment_total: 1, installment_group_id: gid }))
+    } else {
+      setForm((prev) => ({ ...prev, installment_number: null, installment_total: null, installment_group_id: null }))
+    }
+  }
+
+  const set = (field: keyof ExpenseCreate, value: unknown) =>
+    setForm((prev) => ({ ...prev, [field]: value }))
+
+  const switchPayMethod = (method: 'card' | 'cash') => {
+    setPayMethod(method)
+    if (method === 'cash') {
+      setForm((prev) => ({ ...prev, card: 'Efectivo', bank: '', person: prev.person, card_last4: '' }))
+    } else {
+      setForm((prev) => ({ ...prev, card: '', bank: '', card_last4: '' }))
+    }
+  }
+
+  // Cascading selectors driven by CardSummary
+  const persons = [...new Set(cardSummary.map(c => c.holder))].filter(Boolean).sort()
+
+  const selectedPerson = form.person ?? ''
+  const cardsForPerson = cardSummary.filter(c => !selectedPerson || c.holder === selectedPerson)
+  const availableBanks = [...new Set(cardsForPerson.map(c => c.bank))].filter(Boolean).sort()
+
+  const selectedBank = form.bank ?? ''
+  const availableCards = cardsForPerson.filter(c => !selectedBank || c.bank === selectedBank)
+
+  const cardLabel = (c: CardSummary) =>
+    c.last4 ? `${c.card_name} *${c.last4}` : c.card_name
+
+  const handlePersonChange = (p: string) => {
+    setForm((prev) => ({ ...prev, person: p, bank: '', card: '', card_last4: '' }))
+  }
+
+  const handleBankChange = (b: string) => {
+    setForm((prev) => ({ ...prev, bank: b, card: '', card_last4: '' }))
+  }
+
+  const handleCardSelect = (c: CardSummary) => {
+    setForm((prev) => ({
+      ...prev,
+      card: c.card_name,
+      bank: c.bank,
+      person: c.holder,
+      card_last4: c.last4 ?? '',
+    }))
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative card w-full max-w-lg max-h-[90vh] overflow-auto p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-zinc-900">
+            {expense
+              ? (isIncome ? 'Editar ingreso' : 'Editar gasto')
+              : (isIncome ? 'Nuevo ingreso' : 'Nuevo gasto')}
+          </h2>
+          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-900">✕</button>
+        </div>
+        {isIncome && (
+          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-700">
+            <span>↓</span>
+            <span>El monto se registrará como ingreso (acreditación)</span>
+          </div>
+        )}
+
+        {saveError && (
+          <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">
+            <span className="mt-0.5">✕</span>
+            <span>{saveError}</span>
+          </div>
+        )}
+
+        {/* Payment method toggle */}
+        <div>
+          <label className="block text-sm font-medium text-zinc-600 mb-2">Medio de pago</label>
+          <div className="flex rounded-xl overflow-hidden border border-zinc-300">
+            <button
+              type="button"
+              onClick={() => switchPayMethod('card')}
+              className={`flex-1 py-2 text-sm font-medium transition-colors border-r border-zinc-300 ${
+                payMethod === 'card' ? 'bg-brand-500/20 text-brand-400' : 'text-zinc-400 hover:text-zinc-700'
+              }`}
+            >
+              💳 Tarjeta
+            </button>
+            <button
+              type="button"
+              onClick={() => switchPayMethod('cash')}
+              className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                payMethod === 'cash' ? 'bg-emerald-500/20 text-emerald-400' : 'text-zinc-400 hover:text-zinc-700'
+              }`}
+            >
+              💵 Efectivo / Transferencia
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-zinc-600 mb-1">Fecha</label>
+          <DatePickerInput value={form.date} onChange={(d) => set('date', d)} />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-zinc-600 mb-1">Descripción</label>
+          <input
+            type="text"
+            value={form.description}
+            onChange={(e) => set('description', e.target.value)}
+            placeholder="Ej: Supermercado Coto"
+            className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition"
+          />
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-zinc-600 mb-1">Monto</label>
+            <input
+              type="number"
+              value={form.amount}
+              onChange={(e) => set('amount', parseFloat(e.target.value) || 0)}
+              className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-zinc-600 mb-1">Moneda</label>
+            <select value={form.currency ?? 'ARS'} onChange={(e) => set('currency', e.target.value)} className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition">
+              <option value="ARS">ARS $</option>
+              <option value="USD">USD $</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-zinc-600 mb-1">Categoría</label>
+          <select
+            value={form.category_id ?? ''}
+            onChange={(e) => set('category_id', e.target.value ? parseInt(e.target.value) : null)}
+            className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition"
+          >
+            <option value="">Sin categoría</option>
+            {(() => {
+              const parentIds = new Set(categories.filter(c => c.parent_id).map(c => c.parent_id!))
+              const parents = categories.filter(c => !c.parent_id && parentIds.has(c.id))
+              const orphans = categories.filter(c => !c.parent_id && !parentIds.has(c.id))
+              return <>
+                {parents.map(parent => (
+                  <optgroup key={parent.id} label={parent.name}>
+                    {categories.filter(c => c.parent_id === parent.id).map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+                {orphans.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </>
+            })()}
+          </select>
+        </div>
+
+        {/* Cascading: Titular → Banco → Tarjeta */}
+        <div>
+          <label className="block text-sm font-medium text-zinc-600 mb-1">Titular</label>
+          <select value={form.person ?? ''} onChange={(e) => handlePersonChange(e.target.value)} className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition">
+            <option value="">— Seleccionar titular —</option>
+            {persons.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
+
+        <div className={`space-y-3 transition-opacity ${payMethod === 'cash' ? 'opacity-40 pointer-events-none' : ''}`}>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${!selectedPerson ? 'text-zinc-500' : 'text-zinc-600'}`}>
+                Banco {!selectedPerson && <span className="text-xs">(elegí titular primero)</span>}
+              </label>
+              <select
+                value={form.bank ?? ''}
+                onChange={(e) => handleBankChange(e.target.value)}
+                disabled={payMethod === 'cash' || !selectedPerson}
+                className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition disabled:opacity-50"
+              >
+                <option value="">— Banco —</option>
+                {availableBanks.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${!selectedBank ? 'text-zinc-500' : 'text-zinc-600'}`}>
+                Tarjeta {!selectedBank && payMethod === 'card' && <span className="text-xs">(elegí banco primero)</span>}
+              </label>
+              <select
+                value={form.card_last4 ? `${form.card}|${form.card_last4}` : (form.card ?? '')}
+                onChange={(e) => {
+                  const selected = availableCards.find(c =>
+                    (c.last4 ? `${c.card_name}|${c.last4}` : c.card_name) === e.target.value
+                  )
+                  if (selected) handleCardSelect(selected)
+                  else set('card', e.target.value)
+                }}
+                disabled={payMethod === 'cash' || !selectedBank}
+                className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition disabled:opacity-50"
+              >
+                <option value="">— Tarjeta —</option>
+                {availableCards.map(c => {
+                  const val = c.last4 ? `${c.card_name}|${c.last4}` : c.card_name
+                  return <option key={val} value={val}>{cardLabel(c)}</option>
+                })}
+              </select>
+            </div>
+          </div>
+          {/* Last 4 digits */}
+          <div className={payMethod === 'cash' ? 'hidden' : ''}>
+            <label className="block text-sm font-medium text-zinc-600 mb-1">
+              Últimos 4 dígitos de la tarjeta
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="text-zinc-500 font-mono text-sm tracking-widest">•••• •••• ••••</span>
+              <input
+                type="text"
+                maxLength={4}
+                pattern="\d{4}"
+                value={form.card_last4 ?? ''}
+                onChange={(e) => set('card_last4', e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="0000"
+                className="w-20 px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition font-mono tracking-widest text-center"
+              />
+            </div>
+          </div>
+        </div>
+
+        {payMethod === 'card' && !isIncome && (
+          <div className="border border-zinc-200 rounded-xl p-3 space-y-3">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={cuotasEnabled}
+                onChange={(e) => toggleCuotas(e.target.checked)}
+                className="rounded border-zinc-300 text-brand-600"
+              />
+              <span className="text-sm font-medium text-zinc-700">Compra en cuotas</span>
+            </label>
+            {cuotasEnabled && (
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs text-zinc-500 mb-1">Cuota N°</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.installment_number ?? 1}
+                    onChange={(e) => set('installment_number', parseInt(e.target.value) || 1)}
+                    className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition text-center"
+                  />
+                </div>
+                <span className="text-zinc-400 mt-4">de</span>
+                <div className="flex-1">
+                  <label className="block text-xs text-zinc-500 mb-1">Total cuotas</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.installment_total ?? 1}
+                    onChange={(e) => set('installment_total', parseInt(e.target.value) || 1)}
+                    className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition text-center"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div>
+          <label className="block text-sm font-medium text-zinc-600 mb-1">Notas</label>
+          <textarea value={form.notes ?? ''} onChange={(e) => set('notes', e.target.value)} className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition" rows={2} />
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <button onClick={onClose} className="flex-1 px-4 py-2 bg-white border border-zinc-300 text-zinc-700 rounded-lg hover:bg-zinc-50 transition-colors font-medium text-sm">Cancelar</button>
+          <button
+            onClick={() => onSave({ ...form, amount: isIncome ? -Math.abs(form.amount) : Math.abs(form.amount) })}
+            className={`flex-1 ${isIncome ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2 px-4 rounded-lg transition-colors' : 'px-4 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 transition-colors font-medium text-sm'}`}
+          >
+            Guardar
+          </button>
+        </div>
       </div>
     </div>
   )

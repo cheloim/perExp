@@ -9,6 +9,7 @@ from app.database import get_db
 from app.models import Investment, Setting, User
 from app.schemas import InvestmentCreate
 from app.services.auth import get_current_user
+from app.routers.groups import get_group_user_ids
 
 router = APIRouter(tags=["investments"])
 
@@ -29,6 +30,8 @@ _IOL_CURRENCY_MAP = {
     "dolares_estadounidenses": "USD",
     "dolares_cable":           "USD",
 }
+
+_PPI_CURRENCY_MAP = {"Pesos": "ARS", "Dólares": "USD", "Dolares": "USD", "USD": "USD"}
 
 _PPI_TYPE_MAP = {
     "ACCIONES":     "Acción",
@@ -118,7 +121,8 @@ def put_setting(key: str, payload: dict, db: Session = Depends(get_db), current_
 
 @router.get("/investments")
 def get_investments(broker: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    q = db.query(Investment).filter(Investment.user_id == current_user.id)
+    uid_list = get_group_user_ids(current_user.id, db)
+    q = db.query(Investment).filter(Investment.user_id.in_(uid_list))
     if broker:
         q = q.filter(Investment.broker == broker)
     return [_inv_response(inv) for inv in q.order_by(Investment.broker, Investment.type, Investment.name).all()]
@@ -215,6 +219,15 @@ def sync_iol(db: Session = Depends(get_db), current_user: User = Depends(get_cur
             timeout=20,
         )
         auth.raise_for_status()
+    except _req.exceptions.HTTPError as e:
+        status = e.response.status_code if e.response is not None else "?"
+        if status in (400, 401):
+            raise HTTPException(401, "Credenciales de IOL incorrectas. Verificá usuario y contraseña.")
+        raise HTTPException(502, f"IOL respondió con error {status}. Intentá de nuevo más tarde.")
+    except _req.exceptions.ConnectionError:
+        raise HTTPException(502, "No se pudo conectar con IOL. Verificá tu conexión a internet.")
+    except _req.exceptions.Timeout:
+        raise HTTPException(504, "La conexión con IOL tardó demasiado. Intentá de nuevo.")
     except Exception as e:
         raise HTTPException(502, f"Error autenticando con IOL: {e}")
 
@@ -343,10 +356,13 @@ def sync_ppi(db: Session = Depends(get_db), current_user: User = Depends(get_cur
         data = ppi.account.get_balance_and_positions(account_number)
     except HTTPException:
         raise
+    except PermissionError:
+        raise HTTPException(401, "Credenciales de PPI incorrectas. Verificá tu API Key y Secret.")
     except Exception as e:
+        msg = str(e)
+        if "401" in msg or "unauthorized" in msg.lower() or "forbidden" in msg.lower():
+            raise HTTPException(401, "Credenciales de PPI rechazadas. Verificá tu API Key y Secret.")
         raise HTTPException(502, f"Error conectando con PPI: {e}")
-
-    _PPI_CURRENCY_MAP = {"Pesos": "ARS", "Dólares": "USD", "Dolares": "USD", "USD": "USD"}
 
     created = updated = 0
     for group in data.get("groupedInstruments", []):

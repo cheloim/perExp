@@ -72,15 +72,32 @@ function StatCard({
 }
 
 function CardRow({ last4, cardName, bank, total }: { last4: string; cardName: string; bank: string; total: number }) {
+  // Detectar si es una cuenta (no tiene bank o el cardName sugiere que es cuenta)
+  const isAccount = !bank || cardName.toLowerCase().includes('efectivo') || cardName.toLowerCase().includes('cuenta')
+
+  const renderIcon = () => {
+    if (isAccount) {
+      // Íconos para cuentas según el tipo
+      if (cardName.toLowerCase().includes('efectivo')) return '💵'
+      if (cardName.toLowerCase().includes('mercadopago') || cardName.toLowerCase().includes('mp')) return '📱'
+      return '🏦'
+    }
+    // Para tarjetas, mostrar last4 o un ícono de tarjeta
+    if (last4 && /^\d{4}$/.test(last4)) {
+      return last4
+    }
+    return '💳'
+  }
+
   return (
     <div className="flex items-center justify-between py-2.5 px-1">
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-xs font-mono text-zinc-500 font-semibold">
-          {last4 && /^\d{4}$/.test(last4) ? last4 : '????'}
+        <div className={`w-8 h-8 rounded-lg ${isAccount ? 'bg-emerald-50' : 'bg-zinc-100'} flex items-center justify-center text-xs ${last4 && /^\d{4}$/.test(last4) ? 'font-mono text-zinc-500 font-semibold' : 'text-base'}`}>
+          {renderIcon()}
         </div>
         <div>
           <p className="text-sm font-medium text-zinc-900 leading-tight">{cardName}</p>
-          <p className="text-xs text-zinc-400">{bank}</p>
+          {bank && <p className="text-xs text-zinc-400">{bank}</p>}
         </div>
       </div>
       <span className="text-sm font-semibold text-zinc-900">{formatCurrency(total)}</span>
