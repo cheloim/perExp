@@ -11,7 +11,7 @@ from google.genai import types as genai_types
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Card, CardClosing, Category, Expense, User
+from app.models import Category, Expense, User
 from app.services.auth import get_current_user
 from app.prompts import SMART_IMPORT_PROMPT
 from app.schemas import RowsConfirmBody
@@ -27,7 +27,7 @@ from app.services.import_utils import (
 from app.services.normalizers import _normalize_bank, _normalize_person
 from app.services.pdf import _extract_pdf_text, _inject_card_markers, _inject_csv_card_markers, _normalize_santander_dates
 from app.services.categorization import auto_categorize
-from app.services.csv_parser import parse_csv_expenses
+
 
 router = APIRouter(prefix="/import", tags=["import"])
 
@@ -228,6 +228,134 @@ async def csv_debug(file: UploadFile = File(...)):
         raise HTTPException(400, str(e))
 
 
+@router.post("/csv-parser-debug")
+async def csv_parser_debug(file: UploadFile = File(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from app.services.csv_parser import (
+        _csv_split, _parse_amount, _parse_date, _parse_installments,
+        _extract_card_from_text, _extract_person_from_text, _load_dataframe,
+    )
+    import re
+    content = await file.read()
+    filename = (file.filename or "").lower()
+    try:
+        if filename.endswith(".csv"):
+            raw_text = content.decode("utf-8", errors="replace")
+        else:
+            df = _load_dataframe(content, filename)
+            raw_text = df.to_csv(index=False)
+
+        lines = raw_text.splitlines()
+
+        header_idx = None
+        header_col_idx = {}
+        for i, line in enumerate(lines):
+            ll = line.lower()
+            if "fecha" in ll and "descripci" in ll:
+                header_idx = i
+                parts = _csv_split(line)
+                for j, p in enumerate(parts):
+                    p_lower = p.lower().strip()
+                    if "fecha" in p_lower:
+                        header_col_idx["date"] = j
+                    elif "descripci" in p_lower:
+                        header_col_idx["desc"] = j
+                    elif "cuota" in p_lower:
+                        header_col_idx["cuotas"] = j
+                    elif "comprob" in p_lower:
+                        header_col_idx["comprob"] = j
+                    elif "monto en pesos" in p_lower or "importe en pesos" in p_lower:
+                        header_col_idx["pesos"] = j
+                    elif "dólares" in p_lower or "dolares" in p_lower or "us$" in p_lower:
+                        header_col_idx["dolares"] = j
+                break
+
+        sample_rows = []
+        parsed_count = 0
+        skipped_reasons = {"no_header": 0, "no_desc": 0, "no_amount": 0, "ok": 0}
+
+        if header_idx is None:
+            return {"error": "No se encontró la fila de encabezado con 'Fecha' y 'Descripción'.", "header_col_idx": {}}
+
+        current_last4 = None
+        current_person = None
+        previous_date = None
+
+        for i in range(header_idx + 1, len(lines)):
+            line = lines[i].strip()
+            if not line:
+                continue
+
+            parts = _csv_split(line)
+            card = _extract_card_from_text(line)
+            if card:
+                current_last4 = card
+            person = _extract_person_from_text(line)
+            if person:
+                current_person = person
+
+            date_idx = header_col_idx.get("date")
+            date_raw = parts[date_idx].strip() if date_idx is not None and date_idx < len(parts) else ""
+            date_obj = _parse_date(date_raw)
+
+            desc_idx = header_col_idx.get("desc")
+            desc_raw = parts[desc_idx].strip() if desc_idx is not None and desc_idx < len(parts) else ""
+
+            if date_obj is None:
+                comp_idx = header_col_idx.get("comprob")
+                comp_raw = parts[comp_idx].strip() if comp_idx is not None and comp_idx < len(parts) else ""
+                if not (re.match(r"^\d{4,}$", comp_raw) and desc_raw):
+                    skipped_reasons["no_header"] += 1
+                    continue
+
+            if not desc_raw:
+                skipped_reasons["no_desc"] += 1
+                continue
+
+            pesos_idx = header_col_idx.get("pesos")
+            dolares_idx = header_col_idx.get("dolares")
+            pesos_raw = parts[pesos_idx].strip() if pesos_idx is not None and pesos_idx < len(parts) else ""
+            dolares_raw = parts[dolares_idx].strip() if dolares_idx is not None and dolares_idx < len(parts) else ""
+
+            amount = None
+            if dolares_raw and dolares_raw not in ("", "-"):
+                amount = _parse_amount(dolares_raw)
+            if amount is None and pesos_raw and pesos_raw not in ("", "-"):
+                amount = _parse_amount(pesos_raw)
+
+            if len(sample_rows) < 20:
+                sample_rows.append({
+                    "line_idx": i,
+                    "date_raw": date_raw,
+                    "desc_raw": desc_raw,
+                    "pesos_raw": pesos_raw,
+                    "dolares_raw": dolares_raw,
+                    "amount_parsed": amount,
+                    "card_last4": current_last4,
+                    "person": current_person,
+                })
+
+            if amount is None or amount == 0:
+                skipped_reasons["no_amount"] += 1
+                continue
+
+            parsed_count += 1
+            skipped_reasons["ok"] += 1
+
+        return {
+            "filename": filename,
+            "total_lines": len(lines),
+            "header_idx": header_idx,
+            "header_col_idx": header_col_idx,
+            "skipped_reasons": skipped_reasons,
+            "parsed_count": parsed_count,
+            "sample_rows": sample_rows,
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(400, str(e))
+
+
 @router.post("/smart")
 async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     api_key = os.getenv("GOOGLE_API_KEY")
@@ -235,57 +363,6 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
     filename = (file.filename or "").lower()
 
     is_csv = filename.endswith((".csv", ".xls", ".xlsx"))
-
-    if is_csv:
-        try:
-            result = parse_csv_expenses(content, filename, db, current_user.id)
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(400, f"No se pudo parsear el archivo CSV/XLSX: {e}")
-
-        rows = result["rows"]
-        summary = result["summary"]
-        card_closings_data = result.get("card_closings", [])
-
-        if not rows:
-            raise HTTPException(422, "No se encontraron transacciones en el archivo.")
-
-        non_auto = [r for r in rows if not r.get("is_auto_generated")]
-        if not non_auto:
-            raise HTTPException(422, "No se encontraron transacciones en el archivo. El resumen puede estar vacío o sin consumos.")
-
-        if card_closings_data:
-            for cc in card_closings_data:
-                existing = db.query(CardClosing).filter(
-                    CardClosing.user_id == current_user.id,
-                    CardClosing.card_last_digits == cc["card_last_digits"],
-                    CardClosing.closing_date == cc["closing_date"],
-                ).first()
-                if existing:
-                    if cc.get("due_date"):
-                        existing.due_date = cc["due_date"]
-                    if cc.get("bank"):
-                        existing.bank = cc["bank"]
-                    existing.last_imported_at = pd.Timestamp.now()
-                else:
-                    db.add(CardClosing(
-                        card=cc.get("card", ""),
-                        card_last_digits=cc.get("card_last_digits", ""),
-                        card_type=cc.get("card_type", "credito"),
-                        bank=cc.get("bank", ""),
-                        closing_date=cc["closing_date"],
-                        next_closing_date=cc.get("next_closing_date"),
-                        due_date=cc.get("due_date"),
-                        user_id=current_user.id,
-                    ))
-            db.commit()
-
-        return {
-            "rows": rows,
-            "raw_count": result["raw_count"],
-            "summary": summary,
-        }
 
     if not api_key:
         raise HTTPException(500, "GOOGLE_API_KEY no está configurada.")
@@ -303,6 +380,13 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
                 if _m:
                     _marker_map.append((_i, _m.group(1)))
             _pdf_last4_fallback = _marker_map[0][1] if _marker_map else ""
+        elif is_csv:
+            df = _load_dataframe(content, filename)
+            raw_text = df.to_string(index=False, max_rows=1000)
+            raw_text = _inject_csv_card_markers(raw_text)
+            _marker_re = re.compile(r'\[TARJETA_LAST4:\s*(\d{4})\]')
+            _match = _marker_re.search(raw_text)
+            _pdf_last4_fallback = _match.group(1) if _match else ""
         else:
             raise HTTPException(415, f"Formato no soportado: {filename}. Usá PDF, CSV o Excel.")
     except HTTPException:
