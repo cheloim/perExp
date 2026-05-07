@@ -284,7 +284,7 @@ export default function ImportPage() {
                 <div key={i} className="card p-4 space-y-2">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-mono bg-zinc-200 text-zinc-700 px-2 py-0.5 rounded">
-                      •••• {s.card_last4 || '????'}
+                      {s.card_last4 ? `•••• ${s.card_last4}` : '💳'}
                     </span>
                     <span className="text-sm font-semibold text-zinc-900">{s.card_type || '—'}</span>
                     {s.bank && <span className="text-xs text-zinc-400">{s.bank}</span>}
@@ -378,6 +378,7 @@ export default function ImportPage() {
                     <th className="px-4 py-3 text-left">Comprobante</th>
                     <th className="px-4 py-3 text-left">Banco</th>
                     <th className="px-4 py-3 text-left">Tarjeta</th>
+                    <th className="px-4 py-3 text-left">Últimos 4</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -421,6 +422,7 @@ export default function ImportPage() {
                       <td className="px-4 py-2 text-gray-400 font-mono text-xs">{row.transaction_id || '—'}</td>
                       <td className="px-4 py-2 text-gray-500">{row.bank || '—'}</td>
                       <td className="px-4 py-2 text-gray-500">{row.card || '—'}</td>
+                      <td className="px-4 py-2 text-gray-500 font-mono text-xs">{row.card_last4 || '—'}</td>
                     </tr>
                   ))}
                 </tbody>

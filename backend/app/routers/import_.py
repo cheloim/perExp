@@ -11,7 +11,7 @@ from google.genai import types as genai_types
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Category, Expense, User
+from app.models import Card, Category, Expense, User
 from app.services.auth import get_current_user
 from app.prompts import SMART_IMPORT_PROMPT
 from app.schemas import RowsConfirmBody
@@ -381,12 +381,14 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
                     _marker_map.append((_i, _m.group(1)))
             _pdf_last4_fallback = _marker_map[0][1] if _marker_map else ""
         elif is_csv:
-            df = _load_dataframe(content, filename)
-            raw_text = df.to_string(index=False, max_rows=1000)
-            raw_text = _inject_csv_card_markers(raw_text)
-            _marker_re = re.compile(r'\[TARJETA_LAST4:\s*(\d{4})\]')
-            _match = _marker_re.search(raw_text)
-            _pdf_last4_fallback = _match.group(1) if _match else ""
+            if filename.endswith(".csv"):
+                raw_text = content.decode("utf-8", errors="replace")
+                raw_text = _inject_csv_card_markers(raw_text)
+            else:
+                df = _load_dataframe(content, filename)
+                raw_text = df.to_string(index=False, max_rows=1000)
+                raw_text = _inject_csv_card_markers(raw_text)
+            _pdf_last4_fallback = ""
         else:
             raise HTTPException(415, f"Formato no soportado: {filename}. Usá PDF, CSV o Excel.")
     except HTTPException:
@@ -408,7 +410,7 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
     try:
         response = await client.aio.models.generate_content(
             model="gemini-flash-latest",
-            contents=f"Extracto bancario:\n\n{raw_text[:60000]}",
+            contents=f"Extracto bancario:\n\n{raw_text[:20000]}",
             config=genai_types.GenerateContentConfig(
                 system_instruction=SMART_IMPORT_PROMPT,
                 response_mime_type="application/json",
@@ -490,6 +492,9 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
 
     cats = db.query(Category).all()
 
+    user_cards = db.query(Card).filter(Card.user_id == current_user.id).all()
+    card_bank_map = {c.last4_digits: _normalize_bank(c.bank) for c in user_cards if c.last4_digits}
+
     parsed = []
     for r in rows_raw:
         desc = str(r.get("description", "")).strip()
@@ -526,6 +531,8 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
         row_last4  = (str(r.get("card_last4") or "").strip()[:4]
                       or closing_info["card_last_digits"][:4]
                       or _pdf_last4_fallback)
+        if row_last4 and row_last4 in card_bank_map:
+            row_bank = card_bank_map[row_last4]
         parsed.append({
             "date": raw_date,
             "_date_obj": row_date,
@@ -606,6 +613,8 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
 @router.post("/rows-confirm")
 def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     cats = db.query(Category).all()
+    user_cards = db.query(Card).filter(Card.user_id == current_user.id).all()
+    card_bank_map = {c.last4_digits: _normalize_bank(c.bank) for c in user_cards if c.last4_digits}
     imported = 0
     skipped = 0
 
@@ -651,6 +660,8 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
             currency = "USD" if raw_currency == "USD" else "ARS"
             category_id = _resolve_category(db, amount, desc, cats)
             norm_bank = _normalize_bank(str(r.get("bank", "") or ""))
+            if row_last4 and row_last4 in card_bank_map:
+                norm_bank = card_bank_map[row_last4]
             norm_person = _normalize_person(str(r.get("person", "") or ""), db)
 
             db.add(Expense(
@@ -675,3 +686,58 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
 
     db.commit()
     return {"imported": imported, "skipped": skipped}
+
+
+@router.post("/csv-raw-llm-preview")
+async def csv_raw_llm_preview(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        raise HTTPException(500, "GOOGLE_API_KEY no está configurada.")
+
+    content = await file.read()
+    filename = (file.filename or "").lower()
+
+    if filename.endswith(".csv"):
+        raw_text = content.decode("utf-8", errors="replace")
+    elif filename.endswith((".xls", ".xlsx")):
+        df = _load_dataframe(content, filename)
+        raw_text = df.to_string(index=False, max_rows=2000)
+    else:
+        raise HTTPException(415, "Solo CSV o Excel.")
+
+    preview = raw_text[:8000]
+
+    debug_prompt = f"""Parseá este extracto CSV y devolvé SOLO un JSON array con las transacciones identificadas.
+
+Reglas:
+1. Identificá las tarjetas buscando patrones como "terminada en XXXX" o "Visa/MC terminada en XXXX" en los headers de sección
+2. Para cada transacción, asigná el card_last4 según el último header de sección visto antes de esa transacción
+3. Devolvé: fecha (YYYY-MM-DD), description, amount, currency, card_last4, installment_number, installment_total
+4. Solo transacciones de consumo/débito (NO pagos, NO totales, NO subtotales)
+5. Si una fila parece ser un header de totales/subtotales, ignorala
+
+Formato del CSV:
+- Filas que contienen "terminada en" o "Visa" o "MC" o "Mastercard" son ENCABEZADOS DE SECCIÓN (contienen el card_last4)
+- Filas que tienen fecha (DD/MM/YYYY), descripción y monto son TRANSACCIONES
+- Las transacciones que siguen a un encabezado de sección pertenecen a esa tarjeta
+
+Texto a parsear:
+---
+{preview}
+---"""
+
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model="gemini-flash-latest",
+        contents=debug_prompt,
+    )
+
+    return {
+        "filename": file.filename,
+        "raw_preview": preview,
+        "raw_length": len(raw_text),
+        "llm_response": response.text.strip(),
+    }
