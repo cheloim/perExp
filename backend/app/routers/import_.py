@@ -531,8 +531,11 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
         row_last4  = (str(r.get("card_last4") or "").strip()[:4]
                       or closing_info["card_last_digits"][:4]
                       or _pdf_last4_fallback)
+        llm_bank = str(r.get("bank", "") or "").strip() or fallback_bank
         if row_last4 and row_last4 in card_bank_map:
             row_bank = card_bank_map[row_last4]
+        else:
+            row_bank = llm_bank
         parsed.append({
             "date": raw_date,
             "_date_obj": row_date,
