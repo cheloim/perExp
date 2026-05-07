@@ -140,3 +140,35 @@ def _inject_card_markers(text: str) -> str:
                     out.append(f'[TARJETA_LAST4: {digits[-4:]}]')
 
     return '\n'.join(out)
+
+
+def _inject_csv_card_markers(text: str) -> str:
+    _card_re = re.compile(r'terminada\s+en\s+(\d{4})', re.IGNORECASE)
+    lines = text.split('\n')
+    out = []
+    current_last4 = None
+    for line in lines:
+        s = line.strip()
+        m = _card_re.search(s)
+        if m:
+            current_last4 = m.group(1)
+            out.append(line)
+            out.append(f'[TARJETA_LAST4: {current_last4}]')
+            continue
+        marker_match = re.search(r'\[TARJETA_LAST4:\s*(\d{4})\]', s)
+        if marker_match:
+            current_last4 = marker_match.group(1)
+            out.append(line)
+            continue
+        is_header = (
+            not s
+            or s == 'NaN'
+            or 'NaN' in s and len(s) < 50
+            or re.match(r'^(Fecha|Description|Monto|Tarjeta|Subtotal|Total Últimos|Total de|Total Pago|Unnamed)', s, re.IGNORECASE)
+            or re.match(r'^(Unnamed:|\s)*$', s)
+        )
+        if current_last4 and not is_header:
+            out.append(f'[CARD:{current_last4}] {line}')
+        else:
+            out.append(line)
+    return '\n'.join(out)

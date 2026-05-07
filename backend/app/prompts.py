@@ -110,18 +110,32 @@ Reglas:
 Devolvé ÚNICAMENTE un array JSON válido. Sin texto adicional, sin markdown, sin bloques de código.
 
 ── IDENTIFICACIÓN DE TARJETA ────────────────────────────────────────
-El texto contiene marcadores automáticos con el formato:
-  [TARJETA_LAST4: XXXX]
+El texto puede venir de PDF (con marcadores automáticos) o de CSV/XLSX.
+Para CADA transacción, identificá el card_last4 según el origen del texto:
 
-Cada marcador aparece justo después del encabezado de una sección de tarjeta.
-Para CADA transacción, devolvé el campo:
-- "card_last4": los 4 dígitos del marcador [TARJETA_LAST4: XXXX] más reciente
-  que aparece ANTES de esa transacción en el texto.
-  Si no hubo ningún marcador antes, devolvé null.
-  Usá el MISMO valor para todas las transacciones de la misma sección.
+CSV / XLSX — Prefijo [CARD:XXXX] en cada línea de transacción:
+  El texto ya tiene prefijos [CARD:XXXX] en las líneas de transacción.
+  Extraé los 4 dígitos del prefijo [CARD:XXXX] al inicio de la línea.
+  Si la línea no tiene prefijo [CARD:XXXX], buscá el último marcador
+  [TARJETA_LAST4: XXXX] que apareció antes en el texto.
+  Ejemplo de línea con prefijo:
+    "[CARD:8130] 01/05/2026 Microsoft*xbox g microsoft*xbox NaN 00894509 NaN U$S13,90"
+    → card_last4: "8130"
+  Si cambia la tarjeta (ej: "[CARD:1108]"), usá el nuevo valor.
 
-También extraé a nivel de encabezado (para usar como fallback):
-- "card_last_digits": primer [TARJETA_LAST4: XXXX] del PDF (encabezado principal)
+PDF — Marcadores automáticos:
+  El texto contiene marcadores con el formato: [TARJETA_LAST4: XXXX]
+  Cada marcador aparece justo después del encabezado de una sección de tarjeta.
+  Usá el card_last4 del marcador [TARJETA_LAST4: XXXX] más reciente que aparece
+  ANTES de esa transacción. Si no hubo ningún marcador antes, null.
+
+Reglas de identificación por origen:
+  - Si la línea tiene prefijo [CARD:XXXX] → extraer los 4 dígitos de ahí
+  - Si hay marcadores [TARJETA_LAST4: XXXX] → usar el más reciente antes de la transacción
+  - Si none aplica, usar el card_last_digits del encabezado principal
+
+Fallback a nivel de encabezado:
+- "card_last_digits": primer identificador de tarjeta del archivo (CSV/XLSX: extraer de "terminada en XXXX", PDF: [TARJETA_LAST4: XXXX])
 - "card_type": tipo de tarjeta del encabezado (Visa, Mastercard, etc.)
 
 ── FECHAS DE CIERRE DEL RESUMEN ─────────────────────────────────────────

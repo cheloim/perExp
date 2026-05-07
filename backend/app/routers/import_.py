@@ -11,7 +11,7 @@ from google.genai import types as genai_types
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Category, Expense, User
+from app.models import Card, CardClosing, Category, Expense, User
 from app.services.auth import get_current_user
 from app.prompts import SMART_IMPORT_PROMPT
 from app.schemas import RowsConfirmBody
@@ -25,8 +25,9 @@ from app.services.import_utils import (
     _normalize_persons_llm,
 )
 from app.services.normalizers import _normalize_bank, _normalize_person
-from app.services.pdf import _extract_pdf_text, _inject_card_markers, _normalize_santander_dates
+from app.services.pdf import _extract_pdf_text, _inject_card_markers, _inject_csv_card_markers, _normalize_santander_dates
 from app.services.categorization import auto_categorize
+from app.services.csv_parser import parse_csv_expenses
 
 router = APIRouter(prefix="/import", tags=["import"])
 
@@ -202,14 +203,92 @@ async def pdf_debug(file: UploadFile = File(...)):
         raise HTTPException(400, str(e))
 
 
+@router.post("/csv-debug")
+async def csv_debug(file: UploadFile = File(...)):
+    content = await file.read()
+    filename = (file.filename or "").lower()
+    try:
+        df = _load_dataframe(content, filename)
+        raw_text = df.to_string(index=False, max_rows=1000)
+        injected_text = _inject_csv_card_markers(raw_text)
+        injected_lines = injected_text.splitlines()
+        return {
+            "total_rows": len(df),
+            "df_columns": list(df.columns),
+            "raw_text_preview": raw_text[:3000],
+            "injected_text_preview": injected_text[:3000],
+            "card_lines": [
+                {"i": i, "line": l}
+                for i, l in enumerate(injected_lines)
+                if "terminada en" in l.lower() or "[tarjeta_last4" in l.lower()
+            ],
+            "markers_found": [l for l in injected_lines if "[TARJETA_LAST4" in l],
+        }
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+
 @router.post("/smart")
 async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     api_key = os.getenv("GOOGLE_API_KEY")
-    if not api_key:
-        raise HTTPException(500, "GOOGLE_API_KEY no está configurada.")
-
     content = await file.read()
     filename = (file.filename or "").lower()
+
+    is_csv = filename.endswith((".csv", ".xls", ".xlsx"))
+
+    if is_csv:
+        try:
+            result = parse_csv_expenses(content, filename, db, current_user.id)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(400, f"No se pudo parsear el archivo CSV/XLSX: {e}")
+
+        rows = result["rows"]
+        summary = result["summary"]
+        card_closings_data = result.get("card_closings", [])
+
+        if not rows:
+            raise HTTPException(422, "No se encontraron transacciones en el archivo.")
+
+        non_auto = [r for r in rows if not r.get("is_auto_generated")]
+        if not non_auto:
+            raise HTTPException(422, "No se encontraron transacciones en el archivo. El resumen puede estar vacío o sin consumos.")
+
+        if card_closings_data:
+            for cc in card_closings_data:
+                existing = db.query(CardClosing).filter(
+                    CardClosing.user_id == current_user.id,
+                    CardClosing.card_last_digits == cc["card_last_digits"],
+                    CardClosing.closing_date == cc["closing_date"],
+                ).first()
+                if existing:
+                    if cc.get("due_date"):
+                        existing.due_date = cc["due_date"]
+                    if cc.get("bank"):
+                        existing.bank = cc["bank"]
+                    existing.last_imported_at = pd.Timestamp.now()
+                else:
+                    db.add(CardClosing(
+                        card=cc.get("card", ""),
+                        card_last_digits=cc.get("card_last_digits", ""),
+                        card_type=cc.get("card_type", "credito"),
+                        bank=cc.get("bank", ""),
+                        closing_date=cc["closing_date"],
+                        next_closing_date=cc.get("next_closing_date"),
+                        due_date=cc.get("due_date"),
+                        user_id=current_user.id,
+                    ))
+            db.commit()
+
+        return {
+            "rows": rows,
+            "raw_count": result["raw_count"],
+            "summary": summary,
+        }
+
+    if not api_key:
+        raise HTTPException(500, "GOOGLE_API_KEY no está configurada.")
 
     try:
         if filename.endswith(".pdf"):
@@ -224,10 +303,6 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
                 if _m:
                     _marker_map.append((_i, _m.group(1)))
             _pdf_last4_fallback = _marker_map[0][1] if _marker_map else ""
-        elif filename.endswith((".csv", ".xls", ".xlsx")):
-            df = _load_dataframe(content, filename)
-            raw_text = df.to_string(index=False, max_rows=1000)
-            _pdf_last4_fallback = ""
         else:
             raise HTTPException(415, f"Formato no soportado: {filename}. Usá PDF, CSV o Excel.")
     except HTTPException:
