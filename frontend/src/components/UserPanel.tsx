@@ -130,40 +130,40 @@ export default function UserPanel({ open, onClose }: Props) {
       >
         {/* Header */}
         <div className="border-b border-zinc-100">
-          <div className="flex items-center justify-between px-5 py-4">
+            <div className="flex items-center justify-between px-4 py-3">
             <h2 className="text-base font-semibold text-zinc-900">Mi cuenta</h2>
             <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 transition-colors">
               ✕
             </button>
           </div>
-          {/* Tabs */}
-          <div className="flex px-5 gap-1">
+          {/* Pill segmented nav */}
+          <div className="flex gap-1 p-1 mx-4 mb-1 bg-zinc-100 rounded-xl">
             <button
               onClick={() => setActiveTab('config')}
-              className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 activeTab === 'config'
-                  ? 'border-brand-500 text-brand-600'
-                  : 'border-transparent text-zinc-500 hover:text-zinc-700'
+                  ? 'bg-white shadow-sm text-zinc-900'
+                  : 'text-zinc-500 hover:text-zinc-700'
               }`}
             >
-              Configuración
+              Config
             </button>
             <button
               onClick={() => setActiveTab('accounts')}
-              className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 activeTab === 'accounts'
-                  ? 'border-brand-500 text-brand-600'
-                  : 'border-transparent text-zinc-500 hover:text-zinc-700'
+                  ? 'bg-white shadow-sm text-zinc-900'
+                  : 'text-zinc-500 hover:text-zinc-700'
               }`}
             >
               Cuentas
             </button>
             <button
               onClick={() => setActiveTab('cards')}
-              className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 activeTab === 'cards'
-                  ? 'border-brand-500 text-brand-600'
-                  : 'border-transparent text-zinc-500 hover:text-zinc-700'
+                  ? 'bg-white shadow-sm text-zinc-900'
+                  : 'text-zinc-500 hover:text-zinc-700'
               }`}
             >
               Tarjetas
@@ -172,7 +172,7 @@ export default function UserPanel({ open, onClose }: Props) {
         </div>
 
         <div className="flex-1 overflow-y-auto">{activeTab === 'config' && (
-          <div className="px-5 py-5 space-y-6">
+          <div className="px-4 py-4 space-y-6">
           {/* User info */}
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">

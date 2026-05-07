@@ -4,17 +4,17 @@ import { getAccounts, createAccount, updateAccount, deleteAccount } from '../api
 import type { Account } from '../types'
 
 const ACCOUNT_TYPES = [
-  { value: 'efectivo', label: '💵 Efectivo' },
-  { value: 'cuenta_corriente', label: '🏦 Cuenta Corriente' },
-  { value: 'caja_ahorro', label: '💳 Caja de Ahorro' },
-  { value: 'mercadopago', label: '📱 MercadoPago / Billetera' },
-  { value: 'otro', label: '💰 Otro' },
+  { value: 'efectivo', label: 'Efectivo', color: 'bg-emerald-100 text-emerald-600' },
+  { value: 'cuenta_corriente', label: 'Cta. Corriente', color: 'bg-blue-100 text-blue-600' },
+  { value: 'caja_ahorro', label: 'Caja de Ahorro', color: 'bg-indigo-100 text-indigo-600' },
+  { value: 'mercadopago', label: 'MercadoPago', color: 'bg-purple-100 text-purple-600' },
+  { value: 'otro', label: 'Otro', color: 'bg-zinc-100 text-zinc-600' },
 ]
 
 export default function AccountsManager() {
   const queryClient = useQueryClient()
-  const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
+  const [menuOpen, setMenuOpen] = useState<number | null>(null)
   const [name, setName] = useState('')
   const [type, setType] = useState('efectivo')
 
@@ -27,7 +27,9 @@ export default function AccountsManager() {
     mutationFn: createAccount,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] })
-      resetForm()
+      setEditId(null)
+      setName('')
+      setType('efectivo')
     },
   })
 
@@ -36,7 +38,9 @@ export default function AccountsManager() {
       updateAccount(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] })
-      resetForm()
+      setEditId(null)
+      setName('')
+      setType('efectivo')
     },
   })
 
@@ -44,99 +48,175 @@ export default function AccountsManager() {
     mutationFn: deleteAccount,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      setMenuOpen(null)
     },
   })
-
-  const resetForm = () => {
-    setShowForm(false)
-    setEditId(null)
-    setName('')
-    setType('efectivo')
-  }
 
   const handleEdit = (account: Account) => {
     setEditId(account.id)
     setName(account.name)
     setType(account.type)
-    setShowForm(true)
+    setMenuOpen(null)
+  }
+
+  const handleAdd = () => {
+    setEditId(-1)
+    setName('')
+    setType('efectivo')
+    setMenuOpen(null)
+  }
+
+  const handleCancel = () => {
+    setEditId(null)
+    setName('')
+    setType('efectivo')
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
 
-    if (editId) {
+    if (editId && editId > 0) {
       updateMut.mutate({ id: editId, data: { name: name.trim(), type } })
     } else {
       createMut.mutate({ name: name.trim(), type })
     }
   }
 
-  if (isLoading) return <div className="p-4">Cargando...</div>
+  if (isLoading) return <div className="p-4 text-sm text-zinc-400">Cargando…</div>
 
   return (
-    <div className="p-4 max-w-2xl mx-auto">
-      <div className="mb-6">
-        <div className="flex justify-between items-center mb-2">
-          <h2 className="text-xl font-semibold">Cuentas</h2>
-          {!showForm && (
-            <button
-              onClick={() => setShowForm(true)}
-              className="px-4 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 transition-colors text-sm font-medium"
-            >
-              + Nueva Cuenta
-            </button>
-          )}
-        </div>
-        <p className="text-sm text-zinc-500">
-          Administra tus cuentas para efectivo, transferencias y billeteras digitales.
-        </p>
-      </div>
+    <div className="px-4 py-4 space-y-2">
+      {accounts.map((account) => {
+        const typeInfo = ACCOUNT_TYPES.find((t) => t.value === account.type) || ACCOUNT_TYPES[4]
+        const isEditing = editId === account.id
+        const isMenuOpen = menuOpen === account.id
 
-      {showForm && (
-        <form onSubmit={handleSubmit} className="mb-6 p-5 bg-zinc-50 rounded-lg border border-zinc-200">
-          <h3 className="text-sm font-semibold text-zinc-900 mb-4">
-            {editId ? '✏️ Editar Cuenta' : '➕ Nueva Cuenta'}
-          </h3>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-zinc-700 mb-1.5">
-              Nombre de la cuenta
-            </label>
+        return (
+          <div key={account.id} className="relative">
+            {isEditing ? (
+              <form onSubmit={handleSubmit} className="p-3 bg-brand-50 border border-brand-200 rounded-lg space-y-3">
+                <div>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+                    placeholder="Nombre de la cuenta"
+                    autoFocus
+                    required
+                  />
+                </div>
+                <select
+                  value={type}
+                  onChange={(e) => setType(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
+                >
+                  {ACCOUNT_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </select>
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={createMut.isPending || updateMut.isPending}
+                    className="flex-1 py-1.5 text-xs font-semibold bg-brand-600 text-white rounded-lg hover:bg-brand-500 disabled:opacity-50 transition"
+                  >
+                    Guardar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancel}
+                    className="flex-1 py-1.5 text-xs font-medium bg-white border border-zinc-300 text-zinc-600 rounded-lg hover:bg-zinc-50 transition"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="group relative flex items-center gap-3 p-3 bg-white border border-zinc-200 rounded-lg hover:border-zinc-300 transition-colors">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${typeInfo.color}`}>
+                  {account.type === 'efectivo' ? '💵' :
+                   account.type === 'mercadopago' ? '📱' :
+                   account.type === 'cuenta_corriente' ? '🏦' :
+                   account.type === 'caja_ahorro' ? '💳' : '💰'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-zinc-900 truncate">{account.name}</div>
+                  <div className="text-xs text-zinc-400">{typeInfo.label}</div>
+                </div>
+                <div className="relative">
+                  <button
+                    onClick={() => setMenuOpen(isMenuOpen ? null : account.id)}
+                    className="w-7 h-7 flex items-center justify-center rounded text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 transition-colors"
+                  >
+                    ···
+                  </button>
+                  {isMenuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(null)} />
+                      <div className="absolute right-0 top-8 z-50 w-28 bg-white border border-zinc-200 rounded-lg shadow-lg overflow-hidden">
+                        <button
+                          onClick={() => handleEdit(account)}
+                          className="w-full px-3 py-2 text-xs text-left text-zinc-700 hover:bg-zinc-50 transition-colors"
+                        >
+                          ✏️ Editar
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm(`¿Eliminar "${account.name}"?`)) {
+                              deleteMut.mutate(account.id)
+                            }
+                          }}
+                          disabled={deleteMut.isPending}
+                          className="w-full px-3 py-2 text-xs text-left text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                        >
+                          🗑️ Eliminar
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      {editId === -1 && (
+        <form onSubmit={handleSubmit} className="p-3 bg-brand-50 border border-brand-200 rounded-lg space-y-3">
+          <div>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition"
-              placeholder="Ej: Efectivo, MercadoPago, Cuenta Galicia"
+              className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+              placeholder="Nombre de la cuenta"
+              autoFocus
               required
             />
           </div>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-zinc-700 mb-1.5">Tipo de cuenta</label>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition"
-            >
-              {ACCOUNT_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <select
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
+          >
+            {ACCOUNT_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </select>
           <div className="flex gap-2">
             <button
               type="submit"
-              className="px-4 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 transition-colors font-medium text-sm"
               disabled={createMut.isPending || updateMut.isPending}
+              className="flex-1 py-1.5 text-xs font-semibold bg-brand-600 text-white rounded-lg hover:bg-brand-500 disabled:opacity-50 transition"
             >
-              {editId ? '💾 Guardar Cambios' : '✅ Crear Cuenta'}
+              Crear
             </button>
             <button
               type="button"
-              onClick={resetForm}
-              className="px-4 py-2 bg-white border border-zinc-300 text-zinc-700 rounded-lg hover:bg-zinc-50 transition-colors font-medium text-sm"
+              onClick={handleCancel}
+              className="flex-1 py-1.5 text-xs font-medium bg-white border border-zinc-300 text-zinc-600 rounded-lg hover:bg-zinc-50 transition"
             >
               Cancelar
             </button>
@@ -144,61 +224,26 @@ export default function AccountsManager() {
         </form>
       )}
 
-      <div className="space-y-3">
-        {accounts.map((account) => {
-          const accountIcon = account.name.toLowerCase().includes('efectivo') ? '💵' :
-                            account.name.toLowerCase().includes('mercadopago') ? '📱' :
-                            account.type === 'efectivo' ? '💵' :
-                            account.type === 'mercadopago' ? '📱' : '🏦'
+      {accounts.length === 0 && editId !== -1 && (
+        <div className="text-center py-8 px-4">
+          <p className="text-sm text-zinc-500 mb-3">No hay cuentas registradas</p>
+          <button
+            onClick={handleAdd}
+            className="px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600 transition-colors font-medium"
+          >
+            + Nueva Cuenta
+          </button>
+        </div>
+      )}
 
-          return (
-            <div
-              key={account.id}
-              className="flex justify-between items-center p-4 bg-white border border-zinc-200 rounded-lg hover:shadow-sm transition-shadow"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-xl">
-                  {accountIcon}
-                </div>
-                <div>
-                  <div className="font-semibold text-zinc-900">{account.name}</div>
-                  <div className="text-sm text-zinc-500">
-                    {ACCOUNT_TYPES.find((t) => t.value === account.type)?.label || account.type}
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleEdit(account)}
-                  className="px-3 py-1.5 text-sm bg-brand-50 text-brand-700 rounded-lg hover:bg-brand-100 transition-colors font-medium"
-                >
-                  ✏️ Editar
-                </button>
-                <button
-                  onClick={() => {
-                    if (confirm(`¿Eliminar cuenta "${account.name}"?\n\nEsta acción no se puede deshacer.`)) {
-                      deleteMut.mutate(account.id)
-                    }
-                  }}
-                  className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors font-medium"
-                  disabled={deleteMut.isPending}
-                >
-                  🗑️ Eliminar
-                </button>
-              </div>
-            </div>
-          )
-        })}
-        {accounts.length === 0 && !showForm && (
-          <div className="text-center py-12 px-6 bg-zinc-50 rounded-lg border-2 border-dashed border-zinc-200">
-            <div className="text-4xl mb-3">🏦</div>
-            <p className="text-zinc-600 font-medium mb-1">No hay cuentas registradas</p>
-            <p className="text-sm text-zinc-500">
-              Creá una cuenta para registrar gastos en efectivo o transferencia
-            </p>
-          </div>
-        )}
-      </div>
+      {editId === null && accounts.length > 0 && (
+        <button
+          onClick={handleAdd}
+          className="w-full py-2.5 border-2 border-dashed border-zinc-200 rounded-lg text-sm text-zinc-500 hover:border-brand-300 hover:text-brand-500 transition-colors"
+        >
+          + Agregar cuenta
+        </button>
+      )}
     </div>
   )
 }
