@@ -308,6 +308,7 @@ export default function CardsManager() {
               placeholder={accountType === 'tarjeta' ? 'Ej: Visa Galicia' : 'Ej: Mi Cuenta'}
               autoFocus
             />
+            {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
           </div>
 
           <div className="flex gap-2 pt-2">
