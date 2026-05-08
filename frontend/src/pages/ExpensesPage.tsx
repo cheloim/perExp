@@ -44,8 +44,8 @@ type SortField = 'date' | 'description' | 'category' | 'bank' | 'person' | 'amou
 type SortDir = 'asc' | 'desc'
 
 function SortIcon({ field, sort }: { field: SortField; sort: { field: SortField; dir: SortDir } }) {
-  if (sort.field !== field) return <span className="ml-1 text-tertiary">↕</span>
-  return <span className="ml-1 text-primary">{sort.dir === 'asc' ? '↑' : '↓'}</span>
+  if (sort.field !== field) return <span className="ml-1 text-[var(--text-tertiary)]">↕</span>
+  return <span className="ml-1 text-[var(--color-primary)]">{sort.dir === 'asc' ? '↑' : '↓'}</span>
 }
 
 export default function ExpensesPage() {
@@ -181,27 +181,27 @@ export default function ExpensesPage() {
   }
 
   const thClass = (field: SortField) =>
-    `px-4 py-3 text-left cursor-pointer select-none hover:bg-base-alt whitespace-nowrap ${sort.field === field ? 'text-primary' : ''}`
+    `px-4 py-3 text-left cursor-pointer select-none hover:bg-[var(--color-base-alt)] whitespace-nowrap text-xs font-medium text-[var(--text-secondary)] uppercase ${sort.field === field ? 'text-[var(--color-primary)]' : ''}`
 
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-primary">Gastos</h1>
+        <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Gastos</h1>
         <div className="flex items-center gap-2">
           <button
             onClick={() => { setSelectMode(v => !v); setSelectedIds(new Set()) }}
-            className={`text-sm px-3 py-1.5 rounded-lg border transition-all ${
+            className={`text-sm px-3 py-1.5 rounded-md border transition-all ${
               selectMode
-                ? 'bg-primary/20 border-primary/40 text-primary'
-                : 'border-border-color text-secondary hover:text-primary hover:border-border-color'
+                ? 'bg-[var(--color-primary)]/20 border-[var(--color-primary)]/40 text-[var(--color-primary)]'
+                : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--color-primary)] hover:border-[var(--border-color)]'
             }`}
           >
             {selectMode ? 'Cancelar' : 'Seleccionar'}
           </button>
           <button
             onClick={() => { setEditingIsIncome(true); setEditing(null) }}
-            className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border border-success/40 bg-success/10 text-success hover:bg-success/20 transition-all"
+            className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 text-[var(--color-primary)] hover:bg-[var(--color-primary)]/20 transition-all"
           >
             <span className="text-base leading-none">↓</span>
             Ingreso
@@ -219,10 +219,10 @@ export default function ExpensesPage() {
       {/* Filter panel */}
       <div className="card p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-primary">Filtros</span>
+          <span className="text-sm font-medium text-[var(--text-primary)]">Filtros</span>
           {activeFiltersCount > 0 && (
-            <button onClick={clearFilters} className="text-xs text-secondary hover:text-primary flex items-center gap-1">
-              <span className="bg-primary text-on-primary text-[10px] px-1.5 py-0.5 rounded-full">{activeFiltersCount}</span>
+            <button onClick={clearFilters} className="text-xs text-[var(--text-secondary)] hover:text-[var(--color-primary)] flex items-center gap-1">
+              <span className="bg-[var(--color-primary)] text-[var(--color-on-primary)] text-[10px] px-1.5 py-0.5 rounded-full">{activeFiltersCount}</span>
               Limpiar filtros
             </button>
           )}
@@ -237,7 +237,7 @@ export default function ExpensesPage() {
               <select
                 value={filterUncategorized ? '__none__' : (filterCategory ?? '')}
                 onChange={e => handleCategoryFilter(e.target.value)}
-                className="bg-base-alt border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
+                className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
               >
                 <option value="">Categoría</option>
                 <option value="__none__">Sin categoría</option>
@@ -261,7 +261,7 @@ export default function ExpensesPage() {
           <select
             value={filterBank ?? ''}
             onChange={e => setFilter('bank', e.target.value || undefined)}
-            className="bg-base-alt border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
+            className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
           >
             <option value="">Banco</option>
             {(distinctValues?.banks ?? []).map(b => <option key={b} value={b}>{b}</option>)}
@@ -271,7 +271,7 @@ export default function ExpensesPage() {
           <select
             value={filterPerson ?? ''}
             onChange={e => setFilter('person', e.target.value || undefined)}
-            className="bg-base-alt border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
+            className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
           >
             <option value="">Persona</option>
             {(distinctValues?.persons ?? []).map(p => <option key={p} value={p}>{p}</option>)}
@@ -281,7 +281,7 @@ export default function ExpensesPage() {
           <select
             value={filterCard ?? ''}
             onChange={e => setFilter('card', e.target.value || undefined)}
-            className="bg-base-alt border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
+            className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
           >
             <option value="">Tarjeta</option>
             {(distinctValues?.cards ?? []).map(c => <option key={c} value={c}>{c}</option>)}
@@ -292,7 +292,7 @@ export default function ExpensesPage() {
             type="date"
             value={filterDateFrom ?? ''}
             onChange={e => setFilter('date_from', e.target.value || undefined)}
-            className="bg-base-alt border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
+            className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
             placeholder="Desde"
           />
 
@@ -301,7 +301,7 @@ export default function ExpensesPage() {
             type="date"
             value={filterDateTo ?? ''}
             onChange={e => setFilter('date_to', e.target.value || undefined)}
-            className="bg-base-alt border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
+            className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
             placeholder="Hasta"
           />
         </div>
@@ -312,7 +312,7 @@ export default function ExpensesPage() {
           value={filterSearch ?? ''}
           onChange={e => setFilter('search', e.target.value || undefined)}
           placeholder="Buscar en descripción..."
-          className="w-full bg-base-alt border border-border-color text-sm text-primary rounded-lg px-3 py-1.5 focus:outline-none focus:border-primary placeholder:text-tertiary"
+          className="w-full text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)] placeholder:text-[var(--text-tertiary)]"
         />
       </div>
 
@@ -324,20 +324,20 @@ export default function ExpensesPage() {
         const usdTotal = usdExpenses.reduce((s, e) => s + e.amount, 0)
         const avg = arsExpenses.length > 0 ? arsTotal / arsExpenses.length : 0
         return (
-          <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 text-sm">
-            <span className="text-secondary">
-              <span className="font-semibold text-primary">{expenses.length}</span> gastos
+          <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-md bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/20 text-sm">
+            <span className="text-[var(--text-secondary)]">
+              <span className="font-semibold text-[var(--color-primary)]">{expenses.length}</span> gastos
               {filterDateFrom && filterDateTo && (
-                <> del <span className="text-primary font-medium">{filterDateFrom}</span> al <span className="text-primary font-medium">{filterDateTo}</span></>
+                <> del <span className="text-[var(--color-primary)] font-medium">{filterDateFrom}</span> al <span className="text-[var(--color-primary)] font-medium">{filterDateTo}</span></>
               )}
-              {filterDateFrom && !filterDateTo && <> desde <span className="text-primary font-medium">{filterDateFrom}</span></>}
-              {!filterDateFrom && filterDateTo && <> hasta <span className="text-primary font-medium">{filterDateTo}</span></>}
+              {filterDateFrom && !filterDateTo && <> desde <span className="text-[var(--color-primary)] font-medium">{filterDateFrom}</span></>}
+              {!filterDateFrom && filterDateTo && <> hasta <span className="text-[var(--color-primary)] font-medium">{filterDateTo}</span></>}
             </span>
-            <span className="text-tertiary">·</span>
-            <span className="text-secondary">Total ARS: <span className="text-primary font-semibold">{new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(arsTotal)}</span></span>
-            {usdTotal !== 0 && <><span className="text-tertiary">·</span><span className="text-secondary">Total USD: <span className="text-primary font-semibold">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(usdTotal)}</span></span></>}
-            <span className="text-tertiary">·</span>
-            <span className="text-secondary">Promedio: <span className="text-primary font-semibold">{new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(avg)}</span></span>
+            <span className="text-[var(--text-tertiary)]">·</span>
+            <span className="text-[var(--text-secondary)]">Total ARS: <span className="text-[var(--color-primary)] font-semibold">{new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(arsTotal)}</span></span>
+            {usdTotal !== 0 && <><span className="text-[var(--text-tertiary)]">·</span><span className="text-[var(--text-secondary)]">Total USD: <span className="text-[var(--color-primary)] font-semibold">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(usdTotal)}</span></span></>}
+            <span className="text-[var(--text-tertiary)]">·</span>
+            <span className="text-[var(--text-secondary)]">Promedio: <span className="text-[var(--color-primary)] font-semibold">{new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(avg)}</span></span>
           </div>
         )
       })()}
@@ -345,7 +345,7 @@ export default function ExpensesPage() {
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-surface border-b border-border-color">
+            <thead className="bg-[var(--color-surface)] border-b border-[var(--border-color)]">
               <tr>
                 {selectMode && (
                   <th className="px-3 py-3 w-10">
@@ -353,7 +353,7 @@ export default function ExpensesPage() {
                       type="checkbox"
                       checked={expenses.length > 0 && selectedIds.size === expenses.length}
                       onChange={e => setSelectedIds(e.target.checked ? new Set(expenses.map(x => x.id)) : new Set())}
-                      className="accent-primary"
+                      className="accent-[var(--color-primary)]"
                     />
                   </th>
                 )}
@@ -367,19 +367,19 @@ export default function ExpensesPage() {
                 <th className={thClass('amount')} onClick={() => setSort({ field: 'amount', dir: sort.dir === 'asc' && sort.field === 'amount' ? 'desc' : 'asc' })}>
                   Monto <SortIcon field="amount" sort={sort} />
                 </th>
-                {!selectMode && <th className="px-4 py-3 text-center">Acciones</th>}
+                {!selectMode && <th className="px-4 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase">Acciones</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-color">
+            <tbody className="divide-y divide-[var(--border-color)]">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-secondary">
+                  <td colSpan={5} className="px-4 py-8 text-center text-[var(--text-secondary)]">
                     Cargando...
                   </td>
                 </tr>
               ) : expenses.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-secondary">
+                  <td colSpan={5} className="px-4 py-8 text-center text-[var(--text-secondary)]">
                     No hay gastos registrados.
                   </td>
                 </tr>
@@ -408,7 +408,7 @@ export default function ExpensesPage() {
                   .map((exp) => (
                     <tr
                       key={exp.id}
-                      className={`transition-colors ${selectMode ? 'cursor-pointer hover:bg-base-alt/50' : 'hover:bg-base-alt/30'} ${selectedIds.has(exp.id) ? 'bg-primary/10' : ''}`}
+                      className={`transition-colors ${selectMode ? 'cursor-pointer hover:bg-[var(--color-base-alt)]/50' : 'hover:bg-[var(--color-base-alt)]/30'} ${selectedIds.has(exp.id) ? 'bg-[var(--color-primary)]/10' : ''}`}
                       onClick={selectMode ? () => toggleSelect(exp.id) : undefined}
                     >
                       {selectMode && (
@@ -417,23 +417,23 @@ export default function ExpensesPage() {
                             type="checkbox"
                             checked={selectedIds.has(exp.id)}
                             onChange={() => toggleSelect(exp.id)}
-                            className="accent-primary"
+                            className="accent-[var(--color-primary)]"
                           />
                         </td>
                       )}
-                      <td className="px-4 py-3 text-tertiary whitespace-nowrap">
+                      <td className="px-4 py-3 text-[var(--text-tertiary)] whitespace-nowrap">
                         {formatDate(exp.date)}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-primary">{exp.description}</span>
+                          <span className="text-[var(--text-primary)]">{exp.description}</span>
                           {exp.installment_number && exp.installment_total && (
-                            <span className="text-xs bg-primary text-on-primary px-1.5 py-0.5 rounded">
+                            <span className="text-xs bg-[var(--color-primary)] text-[var(--color-on-primary)] px-1.5 py-0.5 rounded">
                               {exp.installment_number}/{exp.installment_total}
                             </span>
                           )}
                         </div>
-                        <div className="text-xs text-tertiary flex gap-2">
+                        <div className="text-xs text-[var(--text-tertiary)] flex gap-2">
                           {exp.card && <span>{exp.card}</span>}
                           {exp.bank && <span>{exp.bank}</span>}
                           {exp.person && <span>{exp.person}</span>}
@@ -451,11 +451,11 @@ export default function ExpensesPage() {
                             {exp.category_name}
                           </span>
                         ) : (
-                          <span className="text-tertiary">—</span>
+                          <span className="text-[var(--text-tertiary)]">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <span className={exp.amount < 0 ? 'text-success' : 'text-primary'}>
+                        <span className={exp.amount < 0 ? 'text-[var(--color-success)]' : 'text-[var(--text-primary)]'}>
                           {formatCurrency(exp.amount, exp.currency)}
                         </span>
                       </td>
@@ -463,7 +463,7 @@ export default function ExpensesPage() {
                         <td className="px-4 py-3 text-center">
                           <button
                             onClick={() => { setEditingIsIncome(exp.amount < 0); setEditing(exp) }}
-                            className="text-primary hover:brightness-110 mr-3"
+                            className="text-[var(--color-primary)] hover:brightness-110 mr-3"
                           >
                             ✏️
                           </button>
@@ -471,7 +471,7 @@ export default function ExpensesPage() {
                             onClick={() => {
                               if (confirm('¿Eliminar este gasto?')) deleteMut.mutate(exp.id)
                             }}
-                            className="text-danger hover:brightness-110"
+                            className="text-[var(--color-danger)] hover:brightness-110"
                           >
                             🗑️
                           </button>
@@ -486,18 +486,18 @@ export default function ExpensesPage() {
       </div>
 
       {expenses.length > 0 && (
-        <p className="text-xs text-tertiary text-right">{expenses.length} gastos</p>
+        <p className="text-xs text-[var(--text-tertiary)] text-right">{expenses.length} gastos</p>
       )}
 
       {/* Bulk action bar */}
       {selectMode && selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl bg-surface border border-border-color shadow-gnome-xl">
-          <span className="text-sm text-primary font-medium">{selectedIds.size} seleccionados</span>
-          <span className="text-tertiary">|</span>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-xl bg-[var(--color-surface)] border border-[var(--border-color)] shadow-gnome-xl">
+          <span className="text-sm text-[var(--text-primary)] font-medium">{selectedIds.size} seleccionados</span>
+          <span className="text-[var(--text-tertiary)]">|</span>
           <select
             value={bulkCategoryId}
             onChange={e => setBulkCategoryId(e.target.value)}
-            className="bg-base-alt border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
+            className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
           >
             <option value="">Sin categoría</option>
             {(() => {
@@ -523,7 +523,7 @@ export default function ExpensesPage() {
           >
             {bulkMut.isPending ? 'Aplicando...' : 'Aplicar'}
           </button>
-          <span className="text-tertiary">|</span>
+          <span className="text-[var(--text-tertiary)]">|</span>
           <button
             onClick={() => {
               if (confirm(`¿Eliminar ${selectedIds.size} gasto${selectedIds.size !== 1 ? 's' : ''}?`)) {
@@ -531,13 +531,13 @@ export default function ExpensesPage() {
               }
             }}
             disabled={bulkMut.isPending || bulkDeleteMut.isPending}
-            className="text-sm px-4 py-1.5 rounded-lg bg-danger/20 border border-danger/40 text-danger hover:bg-danger/30 disabled:opacity-50 transition-colors"
+            className="text-sm px-4 py-1.5 rounded-md bg-[var(--color-danger)]/20 border border-[var(--color-danger)]/40 text-[var(--color-danger)] hover:bg-[var(--color-danger)]/30 disabled:opacity-50 transition-colors"
           >
             {bulkDeleteMut.isPending ? 'Eliminando...' : 'Eliminar'}
           </button>
           <button
             onClick={() => setSelectedIds(new Set())}
-            className="text-tertiary hover:text-primary text-sm"
+            className="text-[var(--text-tertiary)] hover:text-[var(--color-primary)] text-sm"
           >
             Limpiar
           </button>
