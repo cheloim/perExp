@@ -117,7 +117,7 @@ export default function AccountsManager() {
   if (isLoading) return <div className="p-4 text-sm text-zinc-400">Cargando…</div>
 
   return (
-    <div className="px-4 py-4 space-y-2">
+    <div className="px-4 py-2 space-y-2">
       <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-3">Cuentas</h3>
       {accounts.map((account) => {
         const typeInfo = ACCOUNT_TYPES.find((t) => t.value === account.type) || ACCOUNT_TYPES[4]
@@ -139,7 +139,7 @@ export default function AccountsManager() {
                     required
                   />
                 </div>
-                
+
                 {/* Campos de Tarjeta */}
                 {type === 'tarjeta' && (
                   <>

@@ -123,7 +123,7 @@ export default function CardsManager() {
   if (isLoading) return <div className="p-4 text-sm text-zinc-400">Cargando…</div>
 
   return (
-    <div className="px-4 py-4 space-y-2">
+    <div className="px-4 py-2 space-y-2">
       <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-3">Tarjetas</h3>
       {cards.map((card) => {
         const isEditing = editId === card.id
@@ -270,7 +270,7 @@ export default function CardsManager() {
               required
             />
           </div>
-          
+
           {accountType === 'tarjeta' && (
             <>
               <div>
