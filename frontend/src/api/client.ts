@@ -49,11 +49,17 @@ api.interceptors.response.use(
 )
 
 // Auth
-export const login = (dni: string, password: string) =>
-  api.post<AuthToken>('/auth/login', { dni, password }).then((r) => r.data)
+export const login = (email: string, password: string) =>
+  api.post<AuthToken>('/auth/login', { email, password }).then((r) => r.data)
 
-export const register = (full_name: string, dni: string, password: string, email?: string) =>
-  api.post<AuthToken>('/auth/register', { full_name, dni, password, email }).then((r) => r.data)
+export const register = (full_name: string, email: string, password: string) =>
+  api.post<AuthToken>('/auth/register', { full_name, email, password }).then((r) => r.data)
+
+export const oauthLogin = (provider: string, idTokenOrCode: string) =>
+  api.post<AuthToken>('/auth/oauth', { provider, id_token: idTokenOrCode }).then((r) => r.data)
+
+export const oauthCallback = (provider: string, code: string) =>
+  api.post<AuthToken>('/auth/oauth/callback', { provider, code }).then((r) => r.data)
 
 export const getMe = () =>
   api.get<User>('/auth/me').then((r) => r.data)
@@ -285,8 +291,12 @@ export const rejectGroupInvitation = (id: number) =>
 // Family Group
 export const getMyGroup = () =>
   api.get<FamilyGroup | null>('/groups/me').then((r) => r.data)
-export const inviteToGroup = (dni: string) =>
-  api.post('/groups/invite', { dni }).then((r) => r.data)
+export const inviteToGroup = (inviteCode: string) =>
+  api.post('/groups/invite', { invite_code: inviteCode }).then((r) => r.data)
+export const getMyInviteCode = () =>
+  api.get<{ invite_code: string }>('/groups/my-invite-code').then((r) => r.data)
+export const generateInviteCode = () =>
+  api.post<{ invite_code: string }>('/groups/generate-invite-code').then((r) => r.data)
 export const leaveGroup = () =>
   api.delete('/groups/leave').then((r) => r.data)
 

@@ -10,14 +10,17 @@ from app.database import Base, engine
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
-    dni = Column(String, unique=True, nullable=False, index=True)
     full_name = Column(String, nullable=False, default="")
-    email = Column(String, unique=True, nullable=True)
-    hashed_password = Column(String, nullable=False)
+    email = Column(String, unique=True, nullable=False)
+    invite_code = Column(String(8), nullable=True, unique=True, index=True)
+    hashed_password = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     telegram_key = Column(String(12), nullable=True, unique=True, index=True)
     telegram_chat_id = Column(String, nullable=True, unique=True, index=True)
+    provider = Column(String, nullable=True)
+    provider_id = Column(String, nullable=True, index=True)
+    avatar_url = Column(String, nullable=True)
 
 
 class Group(Base):
@@ -206,9 +209,18 @@ with engine.connect() as _conn:
         if _col not in _tbl_cols:
             _conn.execute(sa_text(f"ALTER TABLE {_tbl} ADD COLUMN {_col} {_type}"))
     _user_cols = [c["name"] for c in inspect(engine).get_columns("users")]
+    if "dni" in _user_cols:
+        try:
+            _conn.execute(sa_text("ALTER TABLE users DROP COLUMN dni"))
+        except Exception:
+            pass
     for _col, _type in [
         ("telegram_key", "VARCHAR(12)"),
         ("telegram_chat_id", "VARCHAR"),
+        ("provider", "VARCHAR"),
+        ("provider_id", "VARCHAR"),
+        ("avatar_url", "VARCHAR"),
+        ("invite_code", "VARCHAR(8)"),
     ]:
         if _col not in _user_cols:
             _conn.execute(sa_text(f"ALTER TABLE users ADD COLUMN {_col} {_type}"))

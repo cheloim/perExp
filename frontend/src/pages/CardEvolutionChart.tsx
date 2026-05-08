@@ -72,21 +72,21 @@ export function CardEvolutionChart({ cardData, activeCard, filterMonth }: Props)
 
   return (
     <div className="card p-5">
-      <h2 className="text-base font-semibold text-white mb-4">
+      <h2 className="text-base font-semibold text-primary mb-4">
         Evolución por Tarjeta — 4 meses + proyección 2 meses
       </h2>
       <ResponsiveContainer width="100%" height={320}>
         <ComposedChart data={fullData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-          <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#a1a1aa' }} tickFormatter={fmtMonth} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-color)" />
+          <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--color-tertiary)' }} tickFormatter={fmtMonth} />
           <YAxis
             tickFormatter={(v) => new Intl.NumberFormat('es-AR', { notation: 'compact' } as any).format(v as number)}
-            tick={{ fontSize: 11, fill: '#a1a1aa' }}
+            tick={{ fontSize: 11, fill: 'var(--color-tertiary)' }}
             width={55}
           />
           <Tooltip
-            contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#f4f4f5' }}
-            itemStyle={{ color: '#f4f4f5' }}
+            contentStyle={{ backgroundColor: 'var(--color-bg-color)', borderColor: 'var(--color-border-color)', color: 'var(--color-text-color)' }}
+            itemStyle={{ color: 'var(--color-text-color)' }}
             formatter={(v: number, name: string) => {
               if (name === 'total') return [formatCurrency(v), 'Total']
               const card = cardData.find(c => ckey(c) === name)
@@ -94,7 +94,7 @@ export function CardEvolutionChart({ cardData, activeCard, filterMonth }: Props)
             }}
             labelFormatter={fmtMonth}
           />
-          <ReferenceLine x={filterMonth} stroke="#52525b" strokeDasharray="4 4" label={{ value: 'hoy', fill: '#71717a', fontSize: 10 }} />
+          <ReferenceLine x={filterMonth} stroke="var(--color-border-color)" strokeDasharray="4 4" label={{ value: 'hoy', fill: 'var(--color-tertiary)', fontSize: 10 }} />
           <Line
             type="monotone" dataKey="total" name="total"
             stroke="#6366f1" strokeWidth={activeCard ? 1 : 3}
@@ -120,16 +120,16 @@ export function CardEvolutionChart({ cardData, activeCard, filterMonth }: Props)
         </ComposedChart>
       </ResponsiveContainer>
       <div className="flex items-center gap-4 mt-3 flex-wrap">
-        <span className="flex items-center gap-1.5 text-xs text-zinc-400">
+        <span className="flex items-center gap-1.5 text-xs text-secondary">
           <span className="w-3 h-2 rounded-sm bg-indigo-500 inline-block" /> Total
         </span>
         {cardData.slice(0, 6).map((card, idx) => (
-          <span key={ckey(card)} className="flex items-center gap-1.5 text-xs text-zinc-400">
+          <span key={ckey(card)} className="flex items-center gap-1.5 text-xs text-secondary">
             <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
             {cardLabel(card, cardData)}
           </span>
         ))}
-        <span className="ml-auto text-[10px] text-zinc-600">--- proyección</span>
+        <span className="ml-auto text-[10px] text-tertiary">--- proyección</span>
       </div>
     </div>
   )

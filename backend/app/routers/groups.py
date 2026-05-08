@@ -1,4 +1,6 @@
 import json
+import secrets
+import string
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,15 +16,20 @@ router = APIRouter(prefix="/groups", tags=["groups"])
 MAX_MEMBERS = 5
 
 
+def _generate_invite_code() -> str:
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(8))
+
+
 class InviteRequest(BaseModel):
-    dni: str
+    invite_code: str
 
 
 class GroupMemberResponse(BaseModel):
     id: int
     user_id: int
     full_name: str
-    dni: str
+    email: str
     role: str
     status: str
     joined_at: str
@@ -75,7 +82,7 @@ def get_my_group(current_user: User = Depends(get_current_user), db: Session = D
                 id=m.id,
                 user_id=m.user_id,
                 full_name=u.full_name,
-                dni=u.dni,
+                email=u.email,
                 role=m.role,
                 status=m.status,
                 joined_at=m.joined_at.isoformat() if m.joined_at else "",
@@ -89,9 +96,9 @@ def invite_user(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    target = db.query(User).filter(User.dni == body.dni).first()
+    target = db.query(User).filter(User.invite_code == body.invite_code).first()
     if not target:
-        raise HTTPException(404, "Usuario no encontrado")
+        raise HTTPException(404, "Código de invitación inválido")
     if target.id == current_user.id:
         raise HTTPException(400, "No puedes invitarte a ti mismo")
 
@@ -175,3 +182,24 @@ def leave_group(current_user: User = Depends(get_current_user), db: Session = De
 
     db.commit()
     return {"message": "Saliste del grupo"}
+
+
+@router.get("/my-invite-code")
+def get_my_invite_code(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not current_user.invite_code:
+        current_user.invite_code = _generate_invite_code()
+        db.commit()
+    return {"invite_code": current_user.invite_code}
+
+
+@router.post("/generate-invite-code")
+def generate_invite_code(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    current_user.invite_code = _generate_invite_code()
+    db.commit()
+    return {"invite_code": current_user.invite_code}

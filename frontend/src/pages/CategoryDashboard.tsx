@@ -30,12 +30,12 @@ function MonthSelector({ value, onChange }: { value: string; onChange: (v: strin
     onChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
   }
   return (
-    <div className="flex items-center gap-0.5 bg-zinc-100 border border-zinc-300 rounded-lg px-1 py-1">
-      <button onClick={() => shift(-1)} className="px-2 py-0.5 text-zinc-400 hover:text-zinc-900 rounded transition-colors">◀</button>
-      <span className="text-zinc-900 text-sm font-medium px-3 min-w-[130px] text-center select-none">
+    <div className="flex items-center gap-0.5 bg-base-alt border border-border-color rounded-lg px-1 py-1">
+      <button onClick={() => shift(-1)} className="px-2 py-0.5 text-tertiary hover:text-primary rounded transition-colors">◀</button>
+      <span className="text-primary text-sm font-medium px-3 min-w-[130px] text-center select-none">
         {MONTHS_ES[m - 1]} {y}
       </span>
-      <button onClick={() => shift(1)} className="px-2 py-0.5 text-zinc-400 hover:text-zinc-900 rounded transition-colors">▶</button>
+      <button onClick={() => shift(1)} className="px-2 py-0.5 text-tertiary hover:text-primary rounded transition-colors">▶</button>
     </div>
   )
 }
@@ -173,41 +173,41 @@ export default function CategoryDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-zinc-900">Por Categoría</h1>
+        <h1 className="text-xl font-bold text-primary">Por Categoría</h1>
         <MonthSelector value={month} onChange={(v) => { setMonth(v); setSelectedCategoryName(null) }} />
       </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-4">
         <div className="card p-4">
-          <p className="text-xs text-zinc-400 mb-1">{activeCat ? activeCat.category_name : 'Total'}</p>
-          <p className="text-2xl font-bold text-zinc-900">{formatCurrency(displayTotal)}</p>
+          <p className="text-xs text-tertiary mb-1">{activeCat ? activeCat.category_name : 'Total'}</p>
+          <p className="text-2xl font-bold text-primary">{formatCurrency(displayTotal)}</p>
         </div>
         <div className="card p-4">
-          <p className="text-xs text-zinc-400 mb-1">Transacciones</p>
-          <p className="text-2xl font-bold text-zinc-900">{displayCount}</p>
+          <p className="text-xs text-tertiary mb-1">Transacciones</p>
+          <p className="text-2xl font-bold text-primary">{displayCount}</p>
         </div>
         <div className="card p-4">
-          <p className="text-xs text-zinc-400 mb-1">Promedio</p>
-          <p className="text-2xl font-bold text-zinc-900">{formatCurrency(displayAvg)}</p>
+          <p className="text-xs text-tertiary mb-1">Promedio</p>
+          <p className="text-2xl font-bold text-primary">{formatCurrency(displayAvg)}</p>
         </div>
       </div>
 
       {/* Grouped category bars */}
       <div className="card p-5">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-zinc-900">Gastos por categoría</h2>
+          <h2 className="text-base font-semibold text-primary">Gastos por categoría</h2>
           {selectedCategoryName && (
-            <button onClick={() => setSelectedCategoryName(null)} className="text-xs text-zinc-500 hover:text-zinc-600 transition-colors">
+            <button onClick={() => setSelectedCategoryName(null)} className="text-xs text-secondary hover:text-primary transition-colors">
               Limpiar selección
             </button>
           )}
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center py-10"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" /></div>
+          <div className="flex justify-center py-10"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
         ) : grouped.length === 0 ? (
-          <p className="text-zinc-500 text-sm text-center py-10">Sin datos</p>
+          <p className="text-secondary text-sm text-center py-10">Sin datos</p>
         ) : (
           <div className="space-y-1">
             {grouped.map(group => {
@@ -218,8 +218,8 @@ export default function CategoryDashboard() {
                 <div key={group.name}>
                   {/* Group row */}
                   <div
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all hover:bg-zinc-100 ${
-                      !group.isParent && selectedCategoryName === group.name ? 'bg-zinc-100/70 ring-1 ring-white/10' : ''
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all hover:bg-base-alt ${
+                      !group.isParent && selectedCategoryName === group.name ? 'bg-base-alt/70 ring-1 ring-white/10' : ''
                     }`}
                     onClick={() => {
                       if (group.isParent) {
@@ -230,19 +230,19 @@ export default function CategoryDashboard() {
                     }}
                   >
                     <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: group.color }} />
-                    <span className="text-sm text-zinc-900 font-medium w-36 truncate flex-shrink-0">{group.name}</span>
-                    <div className="flex-1 h-2 bg-zinc-100 rounded-full overflow-hidden">
+                    <span className="text-sm text-primary font-medium w-36 truncate flex-shrink-0">{group.name}</span>
+                    <div className="flex-1 h-2 bg-base-alt rounded-full overflow-hidden">
                       <div className="h-full rounded-full transition-all duration-300" style={{ width: `${pct}%`, backgroundColor: group.color }} />
                     </div>
-                    <span className="text-xs text-zinc-400 w-8 text-right flex-shrink-0">{group.count}</span>
-                    <span className="text-sm font-semibold text-zinc-900 w-32 text-right flex-shrink-0">{formatCurrency(group.total)}</span>
+                    <span className="text-xs text-tertiary w-8 text-right flex-shrink-0">{group.count}</span>
+                    <span className="text-sm font-semibold text-primary w-32 text-right flex-shrink-0">{formatCurrency(group.total)}</span>
                     {grandTotal > 0 && (
-                      <span className="text-xs text-zinc-500 w-10 text-right flex-shrink-0">
+                      <span className="text-xs text-secondary w-10 text-right flex-shrink-0">
                         {((group.total / grandTotal) * 100).toFixed(0)}%
                       </span>
                     )}
                     {group.isParent && (
-                      <span className="text-zinc-500 text-xs flex-shrink-0 w-4">{isExpanded ? '▼' : '▶'}</span>
+                      <span className="text-secondary text-xs flex-shrink-0 w-4">{isExpanded ? '▼' : '▶'}</span>
                     )}
                   </div>
 
@@ -256,17 +256,17 @@ export default function CategoryDashboard() {
                           <div
                             key={child.category_name}
                             onClick={() => setSelectedCategoryName(prev => prev === child.category_name ? null : child.category_name)}
-                            className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all hover:bg-zinc-100 ${isSelected ? 'bg-zinc-100/70 ring-1 ring-white/10' : ''}`}
+                            className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all hover:bg-base-alt ${isSelected ? 'bg-base-alt/70 ring-1 ring-white/10' : ''}`}
                           >
                             <span className="w-2 h-2 rounded-full flex-shrink-0 opacity-80" style={{ backgroundColor: child.category_color }} />
-                            <span className="text-xs text-zinc-600 w-36 truncate flex-shrink-0">{child.category_name}</span>
-                            <div className="flex-1 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                            <span className="text-xs text-secondary w-36 truncate flex-shrink-0">{child.category_name}</span>
+                            <div className="flex-1 h-1.5 bg-base-alt rounded-full overflow-hidden">
                               <div className="h-full rounded-full" style={{ width: `${childPct}%`, backgroundColor: child.category_color }} />
                             </div>
-                            <span className="text-xs text-zinc-500 w-8 text-right flex-shrink-0">{child.count}</span>
-                            <span className="text-xs font-medium text-zinc-600 w-32 text-right flex-shrink-0">{formatCurrency(child.total)}</span>
+                            <span className="text-xs text-secondary w-8 text-right flex-shrink-0">{child.count}</span>
+                            <span className="text-xs font-medium text-secondary w-32 text-right flex-shrink-0">{formatCurrency(child.total)}</span>
                             {grandTotal > 0 && (
-                              <span className="text-xs text-zinc-600 w-10 text-right flex-shrink-0">
+                              <span className="text-xs text-secondary w-10 text-right flex-shrink-0">
                                 {((child.total / grandTotal) * 100).toFixed(0)}%
                               </span>
                             )}
@@ -281,16 +281,16 @@ export default function CategoryDashboard() {
             })}
           </div>
         )}
-        <p className="text-xs text-zinc-600 mt-3 text-center">Hacé clic en una categoría para ver el detalle · clic en padre para expandir subcategorías</p>
+        <p className="text-xs text-secondary mt-3 text-center">Hacé clic en una categoría para ver el detalle · clic en padre para expandir subcategorías</p>
       </div>
 
       {/* Line chart — 4-month trend per category */}
       <div className="card p-5">
-        <h2 className="text-base font-semibold text-zinc-900 mb-4">Evolución — últimos 4 meses</h2>
+        <h2 className="text-base font-semibold text-primary mb-4">Evolución — últimos 4 meses</h2>
         {!trendData ? (
-          <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" /></div>
+          <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
         ) : visibleCategories.length === 0 ? (
-          <p className="text-zinc-500 text-sm text-center py-12">Sin datos</p>
+          <p className="text-secondary text-sm text-center py-12">Sin datos</p>
         ) : (
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={trendData.rows} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
@@ -310,7 +310,7 @@ export default function CategoryDashboard() {
                 width={52}
               />
               <Tooltip
-                contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#f4f4f5' }}
+                contentStyle={{ backgroundColor: 'var(--color-chart-tooltip-bg)', borderColor: 'var(--color-chart-tooltip-border)', color: '#f4f4f5' }}
                 itemStyle={{ color: '#f4f4f5' }}
                 formatter={(v: number, name: string) => [formatCurrency(v), name]}
                 labelFormatter={(l: string) => {
@@ -325,7 +325,7 @@ export default function CategoryDashboard() {
                 iconSize={8}
                 onClick={(e) => handleLegendClick(e.value as string)}
                 formatter={(value: string) => (
-                  <span className={`cursor-pointer text-xs ${selectedCategoryName && selectedCategoryName !== value ? 'opacity-40' : 'text-zinc-600'}`}>
+                  <span className={`cursor-pointer text-xs ${selectedCategoryName && selectedCategoryName !== value ? 'opacity-40' : 'text-secondary'}`}>
                     {value}
                   </span>
                 )}
@@ -351,20 +351,20 @@ export default function CategoryDashboard() {
       {/* Top Comercios */}
       <div className="card p-5">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-zinc-900">
+          <h2 className="text-base font-semibold text-primary">
             Top Comercios
-            {activeCat && <span className="ml-2 text-xs text-zinc-500">— {activeCat.category_name}</span>}
+            {activeCat && <span className="ml-2 text-xs text-secondary">— {activeCat.category_name}</span>}
           </h2>
-          <div className="flex rounded-lg overflow-hidden border border-zinc-300">
+          <div className="flex rounded-lg overflow-hidden border border-border-color">
             <button
               onClick={() => setMerchantTab('amount')}
-              className={`px-3 py-1 text-xs transition-colors ${merchantTab === 'amount' ? 'bg-zinc-600 text-zinc-900 font-medium' : 'text-zinc-400 hover:text-zinc-700'}`}
+              className={`px-3 py-1 text-xs transition-colors ${merchantTab === 'amount' ? 'bg-primary text-on-primary font-medium' : 'text-tertiary hover:text-primary'}`}
             >
               Por monto
             </button>
             <button
               onClick={() => setMerchantTab('count')}
-              className={`px-3 py-1 text-xs transition-colors border-l border-zinc-300 ${merchantTab === 'count' ? 'bg-zinc-600 text-zinc-900 font-medium' : 'text-zinc-400 hover:text-zinc-700'}`}
+              className={`px-3 py-1 text-xs transition-colors border-l border-border-color ${merchantTab === 'count' ? 'bg-primary text-on-primary font-medium' : 'text-tertiary hover:text-primary'}`}
             >
               Por frecuencia
             </button>
@@ -372,7 +372,7 @@ export default function CategoryDashboard() {
         </div>
 
         {sortedMerchants.length === 0 ? (
-          <p className="text-zinc-500 text-sm text-center py-8">Sin datos</p>
+          <p className="text-secondary text-sm text-center py-8">Sin datos</p>
         ) : (
           <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
             {sortedMerchants.map((m, i) => {
@@ -381,11 +381,11 @@ export default function CategoryDashboard() {
               return (
                 <div key={i} className="flex items-center gap-2 group">
                   <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: m.category_color || '#6366f1' }} />
-                  <span className="text-xs text-zinc-600 w-40 truncate flex-shrink-0" title={m.description}>{m.description}</span>
-                  <div className="flex-1 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                  <span className="text-xs text-secondary w-40 truncate flex-shrink-0" title={m.description}>{m.description}</span>
+                  <div className="flex-1 h-1.5 bg-base-alt rounded-full overflow-hidden">
                     <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: m.category_color || '#6366f1' }} />
                   </div>
-                  <span className="text-xs text-zinc-400 flex-shrink-0 w-28 text-right">
+                  <span className="text-xs text-tertiary flex-shrink-0 w-28 text-right">
                     {merchantTab === 'amount'
                       ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(m.total_amount)
                       : `${m.count}×`}
@@ -400,31 +400,31 @@ export default function CategoryDashboard() {
       {/* Expense drilldown */}
       {selectedCategoryName !== null && (
         <div className="card overflow-hidden">
-          <div className="px-5 py-4 border-b border-zinc-200 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-zinc-900">
+          <div className="px-5 py-4 border-b border-border-color flex items-center justify-between">
+            <h2 className="text-base font-semibold text-primary">
               {activeCat
                 ? <><span style={{ color: activeCat.category_color }}>{activeCat.category_name}</span> — mayor a menor</>
                 : 'Gastos'}
             </h2>
-            <span className="text-xs text-zinc-500">{sortedExpenses.length} registros</span>
+            <span className="text-xs text-secondary">{sortedExpenses.length} registros</span>
           </div>
           {expLoading ? (
-            <div className="flex justify-center py-10"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-500" /></div>
+            <div className="flex justify-center py-10"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>
           ) : sortedExpenses.length === 0 ? (
-            <p className="text-zinc-500 text-sm text-center py-10">Sin gastos en este período</p>
+            <p className="text-secondary text-sm text-center py-10">Sin gastos en este período</p>
           ) : (
-            <div className="divide-y divide-zinc-200 max-h-[480px] overflow-y-auto">
+            <div className="divide-y divide-border-color max-h-[480px] overflow-y-auto">
               {sortedExpenses.map((exp) => (
-                <div key={exp.id} className="flex items-center justify-between px-5 py-3 hover:bg-zinc-100/30">
+                <div key={exp.id} className="flex items-center justify-between px-5 py-3 hover:bg-base-alt/50">
                   <div>
-                    <p className="text-sm font-medium text-zinc-900">{exp.description}</p>
-                    <p className="text-xs text-zinc-500">
+                    <p className="text-sm font-medium text-primary">{exp.description}</p>
+                    <p className="text-xs text-secondary">
                       {formatDate(exp.date)}
                       {exp.person ? ` · ${exp.person}` : ''}
                       {exp.bank ? ` · ${exp.bank}` : ''}
                     </p>
                   </div>
-                  <span className={`text-sm font-semibold ml-4 whitespace-nowrap ${exp.amount < 0 ? 'text-green-400' : 'text-zinc-900'}`}>
+                  <span className={`text-sm font-semibold ml-4 whitespace-nowrap ${exp.amount < 0 ? 'text-success' : 'text-primary'}`}>
                     {formatCurrency(exp.amount, exp.currency)}
                   </span>
                 </div>

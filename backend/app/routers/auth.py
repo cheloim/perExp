@@ -1,3 +1,4 @@
+import os
 import secrets
 import string
 
@@ -7,12 +8,14 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import User
-from app.schemas import LoginRequest, UserCreate, UserResponse, Token, ChangePasswordRequest
+from app.schemas import LoginRequest, UserCreate, UserResponse, Token, ChangePasswordRequest, OAuthRequest
 from app.services.auth import (
     create_access_token,
     get_current_user,
     get_password_hash,
     verify_password,
+    verify_google_token,
+    exchange_google_code,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -20,11 +23,11 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/login", response_model=Token)
 def login(body: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.dni == body.dni).first()
+    user = db.query(User).filter(User.email == body.email.lower().strip()).first()
     if not user or not verify_password(body.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="DNI o contraseña incorrectos",
+            detail="Email o contraseña incorrectos",
         )
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuario inactivo")
@@ -33,14 +36,12 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
 
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
 def register(body: UserCreate, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.dni == body.dni).first():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El DNI ya está registrado")
-    if body.email and db.query(User).filter(User.email == body.email).first():
+    email = body.email.lower().strip()
+    if db.query(User).filter(User.email == email).first():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El email ya está registrado")
     user = User(
-        dni=body.dni,
         full_name=body.full_name,
-        email=body.email,
+        email=email,
         hashed_password=get_password_hash(body.password),
     )
     db.add(user)
@@ -48,6 +49,124 @@ def register(body: UserCreate, db: Session = Depends(get_db)):
     db.refresh(user)
     from app.seed import _apply_base_hierarchy_for_user
     _apply_base_hierarchy_for_user(db, user.id)
+    return Token(access_token=create_access_token(user.id), token_type="bearer")
+
+
+@router.post("/oauth", response_model=Token)
+async def oauth_login(body: OAuthRequest, db: Session = Depends(get_db)):
+    if body.provider != "google":
+        raise HTTPException(status_code=400, detail="Proveedor no soportado")
+    if not body.id_token:
+        raise HTTPException(status_code=400, detail="Falta id_token de Google")
+    google_data = await verify_google_token(body.id_token)
+    email = google_data.get("email", "").lower()
+    provider_id = google_data.get("sub")
+    full_name = google_data.get("name", "")
+    avatar_url = google_data.get("picture")
+
+    if not email:
+        raise HTTPException(status_code=400, detail="No se pudo obtener el email del proveedor")
+
+    user = db.query(User).filter(
+        User.provider == body.provider,
+        User.provider_id == provider_id
+    ).first()
+
+    if not user:
+        existing = db.query(User).filter(User.email == email).first()
+        if existing and existing.provider:
+            raise HTTPException(
+                status_code=409,
+                detail="Este email ya está vinculado a otra cuenta. Iniciá sesión con tu proveedor original."
+            )
+        if existing and not existing.provider:
+            existing.provider = body.provider
+            existing.provider_id = provider_id
+            existing.avatar_url = avatar_url
+            if not existing.full_name:
+                existing.full_name = full_name
+            db.commit()
+            db.refresh(existing)
+            user = existing
+        else:
+            user = User(
+                email=email,
+                full_name=full_name,
+                provider=body.provider,
+                provider_id=provider_id,
+                avatar_url=avatar_url,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            from app.seed import _apply_base_hierarchy_for_user
+            _apply_base_hierarchy_for_user(db, user.id)
+
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuario inactivo")
+
+    return Token(access_token=create_access_token(user.id), token_type="bearer")
+
+
+@router.post("/oauth/callback", response_model=Token)
+async def oauth_callback(
+    body: OAuthRequest,
+    db: Session = Depends(get_db),
+):
+    if body.provider != "google":
+        raise HTTPException(status_code=400, detail="Proveedor no soportado")
+    if not body.code:
+        raise HTTPException(status_code=400, detail="Falta código de autorización")
+
+    redirect_uri = f"{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/oauth/google/callback"
+    google_data = await exchange_google_code(body.code, redirect_uri)
+
+    email = google_data.get("email", "").lower()
+    provider_id = google_data.get("sub")
+    full_name = google_data.get("name", "")
+    avatar_url = google_data.get("picture")
+
+    if not email:
+        raise HTTPException(status_code=400, detail="No se pudo obtener el email del proveedor")
+
+    user = db.query(User).filter(
+        User.provider == body.provider,
+        User.provider_id == provider_id
+    ).first()
+
+    if not user:
+        existing = db.query(User).filter(User.email == email).first()
+        if existing and existing.provider:
+            raise HTTPException(
+                status_code=409,
+                detail="Este email ya está vinculado a otra cuenta. Iniciá sesión con tu proveedor original."
+            )
+        if existing and not existing.provider:
+            existing.provider = body.provider
+            existing.provider_id = provider_id
+            existing.avatar_url = avatar_url
+            if not existing.full_name:
+                existing.full_name = full_name
+            db.commit()
+            db.refresh(existing)
+            user = existing
+        else:
+            user = User(
+                email=email,
+                full_name=full_name,
+                provider=body.provider,
+                provider_id=provider_id,
+                avatar_url=avatar_url,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            from app.seed import _apply_base_hierarchy_for_user
+            _apply_base_hierarchy_for_user(db, user.id)
+
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuario inactivo")
+
     return Token(access_token=create_access_token(user.id), token_type="bearer")
 
 

@@ -81,14 +81,14 @@ function PieLabel({ cx, cy, midAngle, outerRadius, percent, category_name }: any
 function TrendIcon({ current, previous }: { current: number; previous: number }) {
   if (!previous || previous === 0) return null
   const pct = ((current - previous) / Math.abs(previous)) * 100
-  if (Math.abs(pct) < 5) return <span className="text-zinc-500 text-xs">→</span>
+  if (Math.abs(pct) < 5) return <span className="text-tertiary text-xs">→</span>
   if (pct > 0) return <span className="text-red-500 text-xs font-bold">▲{pct.toFixed(0)}%</span>
   return <span className="text-green-500 text-xs font-bold">▼{Math.abs(pct).toFixed(0)}%</span>
 }
 
 function SortIcon({ field, sort }: { field: SortField; sort: { field: SortField; dir: SortDir } }) {
-  if (sort.field !== field) return <span className="ml-1 text-zinc-600">↕</span>
-  return <span className="ml-1 text-brand-400">{sort.dir === 'asc' ? '↑' : '↓'}</span>
+  if (sort.field !== field) return <span className="ml-1 text-tertiary">↕</span>
+  return <span className="ml-1 text-primary">{sort.dir === 'asc' ? '↑' : '↓'}</span>
 }
 
 function CategoryDrilldown({ category, month, onClose }: { category: CategorySummary; month: string; onClose: () => void }) {
@@ -99,31 +99,31 @@ function CategoryDrilldown({ category, month, onClose }: { category: CategorySum
   })
 
   return (
-    <div className="border border-zinc-200 rounded-xl bg-white shadow-sm overflow-hidden">
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-200 bg-zinc-100/80">
-        <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: category.category_color || '#94a3b8' }} />
-        <span className="font-semibold text-zinc-900 text-sm">{category.category_name}</span>
-        <span className="text-xs text-zinc-500 ml-1">{category.count} gastos</span>
-        <span className="ml-auto text-sm font-semibold text-zinc-900">{formatCurrency(category.total)}</span>
-        <button onClick={onClose} className="text-zinc-500 hover:text-zinc-400 text-lg leading-none ml-2">×</button>
+    <div className="border border-border-color rounded-xl bg-surface shadow-sm overflow-hidden">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-border-color bg-base-alt">
+        <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: category.category_color || '#9a9996' }} />
+        <span className="font-semibold text-primary text-sm">{category.category_name}</span>
+        <span className="text-xs text-tertiary ml-1">{category.count} gastos</span>
+        <span className="ml-auto text-sm font-semibold text-primary">{formatCurrency(category.total)}</span>
+        <button onClick={onClose} className="text-tertiary hover:text-primary text-lg leading-none ml-2">×</button>
       </div>
-      <div className="max-h-64 overflow-y-auto divide-y divide-zinc-200">
+      <div className="max-h-64 overflow-y-auto divide-y divide-border-color">
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
           </div>
         ) : category.category_id == null ? (
-          <p className="text-center text-zinc-500 py-8 text-sm">Esta categoría agrupa varios items pequeños.</p>
+          <p className="text-center text-secondary py-8 text-sm">Esta categoría agrupa varios items pequeños.</p>
         ) : expenses.length === 0 ? (
-          <p className="text-center text-zinc-500 py-8 text-sm">Sin gastos en este período</p>
+          <p className="text-center text-secondary py-8 text-sm">Sin gastos en este período</p>
         ) : (
           expenses.map((exp) => (
-            <div key={exp.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-zinc-100">
+            <div key={exp.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-base-alt">
               <div>
-                <p className="text-sm text-zinc-900">{exp.description}</p>
-                <p className="text-xs text-zinc-500">{formatDate(exp.date)}{exp.person ? ` · ${exp.person}` : ''}</p>
+                <p className="text-sm text-primary">{exp.description}</p>
+                <p className="text-xs text-tertiary">{formatDate(exp.date)}{exp.person ? ` · ${exp.person}` : ''}</p>
               </div>
-              <span className={`text-sm font-semibold ${exp.amount < 0 ? 'text-green-400' : 'text-zinc-900'}`}>
+              <span className={`text-sm font-semibold ${exp.amount < 0 ? 'text-success' : 'text-primary'}`}>
                 {formatCurrency(exp.amount, exp.currency)}
               </span>
             </div>
@@ -178,9 +178,9 @@ function CardNetworkLogo({ network }: { network: CardNetwork }) {
 }
 
 
-function CreditCardViz({ holder, cardName, bank, monthly, active, onClick, index, filterMonth, last4 }: {
-  holder: string; cardName: string; bank: string; monthly?: { month: string; total: number }[];
-  active: boolean; onClick: () => void; index: number; filterMonth: string; last4?: string;
+function CreditCardViz({ cardName, bank, monthly, active, onClick, index, filterMonth }: {
+  cardName: string; bank: string; monthly?: { month: string; total: number }[];
+  active: boolean; onClick: () => void; index: number; filterMonth: string;
 }) {
   const network = detectNetwork(cardName)
   const exactEntry = monthly?.find(m => m.month === filterMonth)
@@ -188,45 +188,36 @@ function CreditCardViz({ holder, cardName, bank, monthly, active, onClick, index
   const [dispY, dispM] = filterMonth.split('-')
   const monthLabel = `${MONTHS_ES[parseInt(dispM) - 1]} ${dispY}`
   const gradientColors = [
-    'from-indigo-600 to-purple-700',
-    'from-emerald-600 to-teal-700',
-    'from-orange-600 to-red-700',
-    'from-pink-600 to-rose-700',
-    'from-cyan-600 to-blue-700',
-    'from-amber-600 to-yellow-700',
+    'from-gnomeBlue4 to-gnomePurple4',
+    'from-gnomeGreen4 to-gnomeBlue4',
+    'from-gnomeOrange4 to-gnomeRed4',
+    'from-gnomePurple4 to-gnomeRed4',
+    'from-gnomeBlue5 to-gnomeBlue3',
+    'from-gnomeYellow5 to-gnomeOrange3',
   ]
   const color = gradientColors[index % gradientColors.length]
-  const hasDigits = !!last4 && /^\d{4}$/.test(last4)
 
   return (
     <div
       onClick={onClick}
       className={`relative rounded-2xl p-5 bg-gradient-to-br ${color} cursor-pointer transition-all duration-200 hover:scale-[1.01] shadow-xl flex-shrink-0 w-72 ${active ? 'ring-2 ring-white/70 scale-[1.01]' : 'opacity-90 hover:opacity-100'}`}
     >
-      {/* Top row: left = bank + card type, right = logo + holder + number */}
+      {/* Top row: left = bank + card type, right = logo */}
       <div className="flex justify-between items-start gap-3">
-        {/* Left */}
         <div className="min-w-0">
-          <p className="text-zinc-900/55 text-[11px] font-semibold tracking-widest uppercase">{bank || 'Banco'}</p>
-          <p className="text-zinc-900 text-sm font-bold tracking-wide mt-0.5 truncate">{cardName}</p>
+          <p className="text-primary/55 text-[11px] font-semibold tracking-widest uppercase">{bank || 'Banco'}</p>
+          <p className="text-primary text-sm font-bold tracking-wide mt-0.5 truncate">{cardName}</p>
         </div>
-        {/* Right: logo + holder + number stacked */}
-        <div className="flex-shrink-0 flex flex-col items-end gap-1">
+        <div className="flex-shrink-0">
           <CardNetworkLogo network={network} />
-          <p className="text-zinc-900 text-xs font-semibold uppercase tracking-wide text-right leading-tight">
-            {holder.split(',').reverse().join(' ').trim()}
-          </p>
-          <p className="text-zinc-900/50 text-xs tracking-widest font-mono">
-            {hasDigits ? `•••• ${last4}` : '💳 Tarjeta'}
-          </p>
         </div>
       </div>
 
       {/* Month total */}
       <div className="mt-4 pt-3 border-t border-white/15 flex items-end justify-between">
         <div>
-          <p className="text-zinc-900/50 text-[11px]">{monthLabel}</p>
-          <p className="text-zinc-900 font-bold text-xl leading-tight mt-0.5">{formatCurrency(monthTotal)}</p>
+          <p className="text-primary/50 text-[11px]">{monthLabel}</p>
+          <p className="text-primary font-bold text-xl leading-tight mt-0.5">{formatCurrency(monthTotal)}</p>
         </div>
         {/* Sparkline */}
         {monthly && monthly.length > 0 && (
@@ -235,7 +226,7 @@ function CreditCardViz({ holder, cardName, bank, monthly, active, onClick, index
               const slice = monthly.slice(-6)
               const maxVal = Math.max(...slice.map(m => Math.abs(m.total)), 1)
               return slice.map((m, i) => (
-                <div key={i} className="flex-1 bg-white/70 rounded-t-sm" style={{ height: `${(Math.abs(m.total) / maxVal) * 100}%` }} />
+                <div key={i} className="flex-1 bg-surface/70 rounded-t-sm" style={{ height: `${(Math.abs(m.total) / maxVal) * 100}%` }} />
               ))
             })()}
           </div>
@@ -291,7 +282,7 @@ function HScrollCards({ children }: { children: React.ReactNode }) {
           className="absolute left-0 top-0 bottom-0 z-10 flex items-center w-12 cursor-pointer"
           style={{ background: 'linear-gradient(to right, rgba(24,24,27,0.85) 0%, transparent 100%)' }}
         >
-          <span className="ml-1 text-zinc-600 text-lg select-none">‹</span>
+          <span className="ml-1 text-secondary text-lg select-none">‹</span>
         </div>
       )}
       {/* Right arrow */}
@@ -302,7 +293,7 @@ function HScrollCards({ children }: { children: React.ReactNode }) {
           className="absolute right-0 top-0 bottom-0 z-10 flex items-center justify-end w-12 cursor-pointer"
           style={{ background: 'linear-gradient(to left, rgba(24,24,27,0.85) 0%, transparent 100%)' }}
         >
-          <span className="mr-1 text-zinc-600 text-lg select-none">›</span>
+          <span className="mr-1 text-secondary text-lg select-none">›</span>
         </div>
       )}
       <div
@@ -394,16 +385,16 @@ export default function AccountsPage() {
     queryFn: getCardSummary
   })
 
-  const activeCardLast4 = activeCard
-    ? (cardData.find(c => `${c.holder}|${c.card_name}` === activeCard)?.last4 || null)
+  const activeCardKey = activeCard
+    ? (cardData.find(c => `${c.card_name}|${c.bank}` === activeCard)?.card_name || null)
     : null
 
   const { data, isLoading } = useQuery({
-    queryKey: ['dashboard', month, groupBy, activeCardLast4, bankFilter],
+    queryKey: ['dashboard', month, groupBy, activeCardKey, bankFilter],
     queryFn: () => getDashboard({
       month: month || undefined,
       group_by: groupBy,
-      card_last4: activeCardLast4 || undefined,
+      card_last4: activeCardKey || undefined,
       bank: bankFilter || undefined,
     }),
     placeholderData: (prev) => prev,
@@ -413,7 +404,7 @@ export default function AccountsPage() {
   const { data: expenses = [], isLoading: expensesLoading } = useQuery({
     queryKey: ['expenses', month, filterCategory, filterUncategorized, filterBank,
                filterPerson, filterCard, filterDateFrom, filterDateTo, filterSearch,
-               activeCardLast4, bankFilter],
+               activeCardKey, bankFilter],
     queryFn: () => getExpenses({
       month: month || undefined,
       category_id: filterCategory,
@@ -475,13 +466,13 @@ export default function AccountsPage() {
   if (isLoading && !data) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
       </div>
     )
   }
 
   if (!data) {
-    return <div className="text-center text-zinc-500 py-20">Error loading dashboard</div>
+    return <div className="text-center text-secondary py-20">Error loading dashboard</div>
   }
 
   const hasTrend = data.by_category.some(c => c.previous_total !== undefined)
@@ -527,28 +518,28 @@ export default function AccountsPage() {
       <div className={`grid grid-cols-1 gap-4 ${data.by_currency.length > 1 ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3'}`}>
         {data.by_currency.length <= 1 ? (
           <div className="card p-5">
-            <p className="text-sm text-zinc-400">Total Gastos</p>
-            <p className="text-3xl font-bold text-zinc-900 mt-1">
+            <p className="text-sm text-secondary">Total Gastos</p>
+            <p className="text-3xl font-bold text-primary mt-1">
               {formatCurrency(data.total_amount, data.by_currency[0]?.currency ?? 'ARS')}
             </p>
           </div>
         ) : (
           data.by_currency.map((bc) => (
             <div key={bc.currency} className="card p-5">
-              <p className="text-sm text-zinc-400">
+              <p className="text-sm text-secondary">
                 Total Gastos{' '}
-                <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${bc.currency === 'USD' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-brand-300'}`}>
+                <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${bc.currency === 'USD' ? 'badge-success' : 'badge-primary'}`}>
                   {bc.currency}
                 </span>
               </p>
-              <p className="text-3xl font-bold text-zinc-900 mt-1">{formatCurrency(bc.total, bc.currency)}</p>
-              <p className="text-xs text-zinc-500 mt-0.5">{bc.count} transacciones</p>
+              <p className="text-3xl font-bold text-primary mt-1">{formatCurrency(bc.total, bc.currency)}</p>
+              <p className="text-xs text-tertiary mt-0.5">{bc.count} transacciones</p>
             </div>
           ))
         )}
         <div className="card p-5">
-          <p className="text-sm text-zinc-400">Transacciones</p>
-          <p className="text-3xl font-bold text-zinc-900 mt-1">{data.total_expenses}</p>
+          <p className="text-sm text-secondary">Transacciones</p>
+          <p className="text-3xl font-bold text-primary mt-1">{data.total_expenses}</p>
         </div>
       </div>
 
@@ -556,7 +547,7 @@ export default function AccountsPage() {
       {cardData.length > 0 && (
         <div className="card p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-zinc-900">Tarjetas</h2>
+            <h2 className="text-sm font-semibold text-primary">Tarjetas</h2>
             <div className="flex items-center gap-2">
               {(() => {
                 const banks = [...new Set(cardData.map(c => c.bank))].sort()
@@ -565,7 +556,7 @@ export default function AccountsPage() {
                   <div className="flex flex-wrap gap-1.5">
                     <button
                       onClick={() => setBankFilter(null)}
-                      className={`text-xs px-2.5 py-1 rounded-full border transition-all ${!bankFilter ? 'bg-zinc-600 border-zinc-500 text-zinc-900' : 'border-zinc-300 text-zinc-400 hover:text-zinc-600'}`}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-all ${!bankFilter ? 'bg-primary text-on-primary border-primary' : 'border-border-color text-tertiary hover:text-primary'}`}
                     >
                       Todos
                     </button>
@@ -573,7 +564,7 @@ export default function AccountsPage() {
                       <button
                         key={b}
                         onClick={() => setBankFilter(bankFilter === b ? null : b)}
-                        className={`text-xs px-2.5 py-1 rounded-full border transition-all ${bankFilter === b ? 'bg-zinc-600 border-zinc-500 text-zinc-900' : 'border-zinc-300 text-zinc-400 hover:text-zinc-600'}`}
+                        className={`text-xs px-2.5 py-1 rounded-full border transition-all ${bankFilter === b ? 'bg-primary text-on-primary border-primary' : 'border-border-color text-tertiary hover:text-primary'}`}
                       >
                         {b}
                       </button>
@@ -582,7 +573,7 @@ export default function AccountsPage() {
                 )
               })()}
               {activeCard && (
-                <button onClick={() => setActiveCard(null)} className="text-xs text-zinc-500 hover:text-zinc-400">
+                <button onClick={() => setActiveCard(null)} className="text-xs text-tertiary hover:text-primary">
                   Limpiar
                 </button>
               )}
@@ -592,19 +583,17 @@ export default function AccountsPage() {
             {cardData
               .filter(card => !bankFilter || card.bank === bankFilter)
               .map((card, idx) => {
-                const ckey = `${card.holder}|${card.card_name}|${card.last4 || idx}`
+                const ckey = `${card.card_name}|${card.bank}`
                 return (
                   <CreditCardViz
                     key={ckey}
                     index={idx}
-                    holder={card.holder}
                     cardName={card.card_name}
                     bank={card.bank}
                     monthly={card.monthly}
                     active={activeCard === ckey}
                     onClick={() => setActiveCard(activeCard === ckey ? null : ckey)}
                     filterMonth={month}
-                    last4={card.last4}
                   />
                 )
               })}
@@ -616,16 +605,16 @@ export default function AccountsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="card p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-base font-semibold text-zinc-900">Gastos por Categoría</h2>
+                <h2 className="text-base font-semibold text-primary">Gastos por Categoría</h2>
                 {activeCat && (
-                  <button onClick={() => setActiveCat(null)} className="text-xs text-zinc-500 hover:text-zinc-400">
+                  <button onClick={() => setActiveCat(null)} className="text-xs text-tertiary hover:text-primary">
                     Cerrar detalle
                   </button>
                 )}
               </div>
 
               {data.by_category.length === 0 ? (
-                <p className="text-zinc-500 text-sm text-center py-12">Sin datos</p>
+                <p className="text-secondary text-sm text-center py-12">Sin datos</p>
               ) : (
                 <>
                   <ResponsiveContainer width="100%" height={320}>
@@ -647,14 +636,14 @@ export default function AccountsPage() {
                         {pieData.map((entry, i) => (
                           <Cell
                             key={i}
-                            fill={entry.category_color || '#94a3b8'}
+                            fill={entry.category_color || '#9a9996'}
                             opacity={activeCat && activeCat.category_name !== entry.category_name ? 0.4 : 1}
-                            stroke={activeCat?.category_name === entry.category_name ? '#1e293b' : 'none'}
+                            stroke={activeCat?.category_name === entry.category_name ? 'var(--color-primary)' : 'none'}
                             strokeWidth={2}
                           />
                         ))}
                       </Pie>
-                      <Tooltip contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#f4f4f5' }} itemStyle={{ color: '#f4f4f5' }} formatter={(v: number, name: string) => [formatCurrency(v), name]} />
+                      <Tooltip contentStyle={{ backgroundColor: 'var(--chart-tooltip-bg)', borderColor: 'var(--chart-tooltip-border)', color: 'var(--chart-tooltip-text)', borderRadius: 8, fontSize: 12 }} itemStyle={{ color: 'var(--chart-tooltip-text)' }} formatter={(v: number, name: string) => [formatCurrency(v), name]} />
                     </PieChart>
                   </ResponsiveContainer>
 
@@ -667,11 +656,11 @@ export default function AccountsPage() {
                           onClick={() => handlePieClick(entry)}
                           className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full border transition-all ${
                             activeCat?.category_name === entry.category_name
-                              ? 'border-gray-400 bg-gray-100 font-semibold'
-                              : 'border-zinc-200 hover:border-gray-300 hover:bg-zinc-100'
+                              ? 'border-primary bg-primary/10 font-semibold text-primary'
+                              : 'border-border-color text-secondary hover:bg-base-alt hover:border-border-color'
                           }`}
                         >
-                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: entry.category_color || '#94a3b8' }} />
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: entry.category_color || '#9a9996' }} />
                           {entry.category_name}
                           {hasTrend && full?.previous_total !== undefined && full.previous_total > 0 && (
                             <TrendIcon current={full.total} previous={full.previous_total} />
@@ -689,11 +678,11 @@ export default function AccountsPage() {
             </div>
 
             <div className="card p-5">
-              <h2 className="text-base font-semibold text-zinc-900 mb-4">Evolución por Tarjeta</h2>
+              <h2 className="text-base font-semibold text-primary mb-4">Evolución por Tarjeta</h2>
               {(() => {
                 const filteredCards = cardData.filter(card => !bankFilter || card.bank === bankFilter)
                 if (filteredCards.length === 0) {
-                  return <p className="text-zinc-500 text-sm text-center py-12">Sin datos</p>
+                  return <p className="text-secondary text-sm text-center py-12">Sin datos</p>
                 }
 
                 const now = new Date()
@@ -709,7 +698,7 @@ export default function AccountsPage() {
                   const entry: Record<string, number | string> = { month: m }
                   let monthTotal = 0
                   filteredCards.forEach(card => {
-                    const cardKey = card.card_name + (card.last4 ? ` (••${card.last4})` : '')
+                    const cardKey = card.card_name
                     const monthData = card.monthly?.find((x: { month: string }) => x.month === m)
                     const value = monthData?.total || 0
                     entry[cardKey] = value
@@ -722,17 +711,34 @@ export default function AccountsPage() {
                 const colors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16']
 
                 return (
-                  <div className="bg-zinc-50 rounded-lg p-4">
+                  <div className="bg-base-alt rounded-lg p-4">
                     <ResponsiveContainer width="100%" height={320}>
                       <LineChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 40 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#d4d4d8" vertical={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                         <XAxis
                           dataKey="month"
-                          tick={{ fontSize: 10, fill: '#71717a' }}
+                          tick={{ fontSize: 10, fill: 'var(--chart-text)' }}
                           tickFormatter={(v) => {
                             const [y, m] = v.split('-')
                             return `${MONTHS_ES[parseInt(m) - 1].slice(0, 3)} ${y.slice(2)}`
                           }}
+                        />
+                        <YAxis tickFormatter={(v) => new Intl.NumberFormat('es-AR', { notation: 'compact' } as any).format(v)} tick={{ fontSize: 11, fill: 'var(--chart-text)' }} width={50} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: 'var(--chart-tooltip-bg)', borderColor: 'var(--chart-tooltip-border)', color: 'var(--chart-tooltip-text)', borderRadius: 8 }}
+                          itemStyle={{ color: 'var(--chart-tooltip-text)' }}
+                          formatter={(v: number, name: string) => [formatCurrency(v), name]}
+                        />
+                        <Legend wrapperStyle={{ fontSize: '11px' }} />
+                        <Line
+                          type="monotone"
+                          dataKey="total"
+                          name="Total"
+                          stroke="var(--chart-text)"
+                          strokeWidth={2}
+                          strokeDasharray="5 5"
+                          dot={{ r: 4, fill: 'var(--chart-text)' }}
+                          opacity={0.4}
                         />
                         <YAxis tickFormatter={(v) => new Intl.NumberFormat('es-AR', { notation: 'compact' } as any).format(v)} tick={{ fontSize: 11, fill: '#71717a' }} width={50} />
                         <Tooltip
@@ -767,7 +773,7 @@ export default function AccountsPage() {
                           opacity={0.4}
                         />
                         {filteredCards.map((card, idx) => {
-                          const cardKey = card.card_name + (card.last4 ? ` (••${card.last4})` : '')
+                          const cardKey = card.card_name
                           return (
                             <Line
                               key={cardKey}
@@ -797,13 +803,13 @@ export default function AccountsPage() {
                   onClick={() => setFiltersOpen(!filtersOpen)}
                   className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border transition-all ${
                     filtersOpen || activeFiltersCount > 0
-                      ? 'bg-brand-500/20 border-brand-500/40 text-brand-700'
-                      : 'border-zinc-300 text-zinc-600 hover:border-zinc-600'
+                      ? 'bg-primary/20 border-primary/40 text-primary'
+                      : 'border-border-color text-secondary hover:border-border-color'
                   }`}
                 >
                   Filtros
                   {activeFiltersCount > 0 && (
-                    <span className="bg-brand-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                    <span className="bg-primary text-on-primary text-[10px] px-1.5 py-0.5 rounded-full">
                       {activeFiltersCount}
                     </span>
                   )}
@@ -812,16 +818,16 @@ export default function AccountsPage() {
                   onClick={() => { setSelectMode(v => !v); setSelectedIds(new Set()) }}
                   className={`text-sm px-3 py-1.5 rounded-lg border transition-all ${
                     selectMode
-                      ? 'bg-brand-500/20 border-brand-500/40 text-brand-400'
-                      : 'border-zinc-300 text-zinc-400 hover:text-zinc-700 hover:border-zinc-600'
+                      ? 'bg-primary/20 border-primary/40 text-primary'
+                      : 'border-border-color text-tertiary hover:text-primary hover:border-border-color'
                   }`}
                 >
                   {selectMode ? 'Cancelar selección' : 'Seleccionar'}
                 </button>
               </div>
               {activeFiltersCount > 0 && (
-                <button onClick={clearFilters} className="text-xs text-zinc-400 hover:text-zinc-900 flex items-center gap-1">
-                  <span className="bg-brand-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{activeFiltersCount}</span>
+                <button onClick={clearFilters} className="text-xs text-secondary hover:text-primary flex items-center gap-1">
+                  <span className="bg-primary text-on-primary text-[10px] px-1.5 py-0.5 rounded-full">{activeFiltersCount}</span>
                   Limpiar filtros
                 </button>
               )}
@@ -829,7 +835,7 @@ export default function AccountsPage() {
 
             {/* Filter Panel */}
             {filtersOpen && (
-              <div className="mb-4 p-4 bg-zinc-50 rounded-lg border border-zinc-200 space-y-3">
+              <div className="mb-4 p-4 bg-base-alt rounded-lg border border-border-color space-y-3">
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                   {/* Categoría */}
                   {(() => {
@@ -854,7 +860,7 @@ export default function AccountsPage() {
                       <select
                         value={filterUncategorized ? '__none__' : (filterCategory ?? '')}
                         onChange={e => handleCategoryFilter(e.target.value)}
-                        className="bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-500"
+                        className="bg-surface border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
                       >
                         <option value="">Categoría</option>
                         <option value="__none__">Sin categoría</option>
@@ -878,7 +884,7 @@ export default function AccountsPage() {
                   <select
                     value={filterBank ?? ''}
                     onChange={e => setFilter('bank', e.target.value || undefined)}
-                    className="bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-500"
+                    className="bg-surface border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
                   >
                     <option value="">Banco</option>
                     {(distinctValues?.banks ?? []).map(b => <option key={b} value={b}>{b}</option>)}
@@ -888,7 +894,7 @@ export default function AccountsPage() {
                   <select
                     value={filterPerson ?? ''}
                     onChange={e => setFilter('person', e.target.value || undefined)}
-                    className="bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-500"
+                    className="bg-surface border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
                   >
                     <option value="">Titular</option>
                     {(distinctValues?.persons ?? []).map(p => <option key={p} value={p}>{p}</option>)}
@@ -898,7 +904,7 @@ export default function AccountsPage() {
                   <select
                     value={filterCard ?? ''}
                     onChange={e => setFilter('card', e.target.value || undefined)}
-                    className="bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-500"
+                    className="bg-surface border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
                   >
                     <option value="">Tarjeta</option>
                     {(distinctValues?.cards ?? []).map(c => <option key={c} value={c}>{c}</option>)}
@@ -909,7 +915,7 @@ export default function AccountsPage() {
                     type="date"
                     value={filterDateFrom ?? ''}
                     onChange={e => setFilter('date_from', e.target.value || undefined)}
-                    className="bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-500"
+                    className="bg-base-alt border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
                     placeholder="Desde"
                   />
 
@@ -918,7 +924,7 @@ export default function AccountsPage() {
                     type="date"
                     value={filterDateTo ?? ''}
                     onChange={e => setFilter('date_to', e.target.value || undefined)}
-                    className="bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-500"
+                    className="bg-base-alt border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
                     placeholder="Hasta"
                   />
                 </div>
@@ -929,22 +935,22 @@ export default function AccountsPage() {
                   value={filterSearch ?? ''}
                   onChange={e => setFilter('search', e.target.value || undefined)}
                   placeholder="Buscar en descripción..."
-                  className="w-full bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 rounded-lg px-3 py-1.5 focus:outline-none focus:border-brand-500 placeholder:text-zinc-500"
+                  className="w-full bg-base-alt border border-border-color text-sm text-primary rounded-lg px-3 py-1.5 focus:outline-none focus:border-primary placeholder:text-tertiary"
                 />
               </div>
             )}
 
             {expensesLoading ? (
-              <div className="text-center py-10 text-zinc-400">Cargando...</div>
+              <div className="text-center py-10 text-secondary">Cargando...</div>
             ) : expenses.length === 0 ? (
-              <div className="text-center py-10 text-zinc-400">
+              <div className="text-center py-10 text-secondary">
                 No hay gastos en este período
               </div>
             ) : (
               <div className="overflow-x-auto -mx-5 px-5">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-zinc-200 text-zinc-500">
+                    <tr className="border-b border-border-color text-secondary">
                       {selectMode && (
                         <th className="pb-2 text-left w-8">
                           <input
@@ -957,33 +963,33 @@ export default function AccountsPage() {
                                 setSelectedIds(new Set())
                               }
                             }}
-                            className="w-4 h-4 text-brand-500 border-zinc-300 rounded focus:ring-brand-500"
+                            className="w-4 h-4 text-primary border-border-color rounded focus:ring-primary"
                           />
                         </th>
                       )}
                       <th
-                        className="pb-2 text-left cursor-pointer hover:text-zinc-900"
+                        className="pb-2 text-left cursor-pointer hover:text-primary"
                         onClick={() => setSort(s => ({ field: 'date', dir: s.field === 'date' && s.dir === 'asc' ? 'desc' : 'asc' }))}
                       >
                         Fecha
                         <SortIcon field="date" sort={sort} />
                       </th>
                       <th
-                        className="pb-2 text-left cursor-pointer hover:text-zinc-900"
+                        className="pb-2 text-left cursor-pointer hover:text-primary"
                         onClick={() => setSort(s => ({ field: 'description', dir: s.field === 'description' && s.dir === 'asc' ? 'desc' : 'asc' }))}
                       >
                         Descripción
                         <SortIcon field="description" sort={sort} />
                       </th>
                       <th
-                        className="pb-2 text-left cursor-pointer hover:text-zinc-900"
+                        className="pb-2 text-left cursor-pointer hover:text-primary"
                         onClick={() => setSort(s => ({ field: 'category', dir: s.field === 'category' && s.dir === 'asc' ? 'desc' : 'asc' }))}
                       >
                         Categoría
                         <SortIcon field="category" sort={sort} />
                       </th>
                       <th
-                        className="pb-2 text-right cursor-pointer hover:text-zinc-900"
+                        className="pb-2 text-right cursor-pointer hover:text-primary"
                         onClick={() => setSort(s => ({ field: 'amount', dir: s.field === 'amount' && s.dir === 'asc' ? 'desc' : 'asc' }))}
                       >
                         Monto
@@ -1005,8 +1011,8 @@ export default function AccountsPage() {
                       .map(exp => (
                         <tr
                           key={exp.id}
-                          className={`border-b border-zinc-100 hover:bg-zinc-50 transition-colors ${
-                            selectedIds.has(exp.id) ? 'bg-brand-500/10' : ''
+                          className={`border-b border-border-color hover:bg-base-alt transition-colors ${
+                            selectedIds.has(exp.id) ? 'bg-primary/10' : ''
                           }`}
                           onClick={selectMode ? () => toggleSelect(exp.id) : undefined}
                           style={selectMode ? { cursor: 'pointer' } : undefined}
@@ -1017,22 +1023,22 @@ export default function AccountsPage() {
                                 type="checkbox"
                                 checked={selectedIds.has(exp.id)}
                                 onChange={() => toggleSelect(exp.id)}
-                                className="w-4 h-4 text-brand-500 border-zinc-300 rounded focus:ring-brand-500"
+                                className="w-4 h-4 text-primary border-border-color rounded focus:ring-primary"
                                 onClick={(e) => e.stopPropagation()}
                               />
                             </td>
                           )}
-                          <td className="py-2 text-zinc-900">{formatDate(exp.date)}</td>
+                          <td className="py-2 text-primary">{formatDate(exp.date)}</td>
                           <td className="py-2">
-                            <div className="text-zinc-900 font-medium">
+                            <div className="text-primary font-medium">
                               {exp.description}
                               {exp.installment_total && (
-                                <span className="ml-2 text-[10px] bg-zinc-200 text-zinc-600 px-1.5 py-0.5 rounded-full">
+                                <span className="ml-2 text-[10px] bg-base-alt text-secondary px-1.5 py-0.5 rounded-full">
                                   {exp.installment_number}/{exp.installment_total}
                                 </span>
                               )}
                             </div>
-                            <div className="text-xs text-zinc-400">
+                            <div className="text-xs text-tertiary">
                               {[exp.card, exp.bank, exp.person].filter(Boolean).join(' · ')}
                             </div>
                           </td>
@@ -1041,19 +1047,19 @@ export default function AccountsPage() {
                               <span
                                 className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full"
                                 style={{
-                                  backgroundColor: `${exp.category_color || '#6366f1'}20`,
-                                  color: exp.category_color || '#6366f1'
+                                  backgroundColor: `${exp.category_color || '#9a9996'}20`,
+                                  color: exp.category_color || '#9a9996'
                                 }}
                               >
                                 <span
                                   className="w-1.5 h-1.5 rounded-full"
-                                  style={{ backgroundColor: exp.category_color || '#6366f1' }}
+                                  style={{ backgroundColor: exp.category_color || '#9a9996' }}
                                 />
                                 {exp.category_name}
                               </span>
                             )}
                           </td>
-                          <td className={`py-2 text-right font-semibold ${exp.amount < 0 ? 'text-emerald-600' : 'text-zinc-900'}`}>
+                          <td className={`py-2 text-right font-semibold ${exp.amount < 0 ? 'text-success' : 'text-primary'}`}>
                             {formatCurrency(Math.abs(exp.amount), exp.currency)}
                           </td>
                           {!selectMode && (
@@ -1061,7 +1067,7 @@ export default function AccountsPage() {
                               <div className="flex items-center justify-end gap-2">
                                 <button
                                   onClick={() => setEditing(exp)}
-                                  className="text-xs text-brand-500 hover:text-brand-700"
+                                  className="text-xs text-primary hover:brightness-110"
                                 >
                                   Editar
                                 </button>
@@ -1071,7 +1077,7 @@ export default function AccountsPage() {
                                       deleteMut.mutate(exp.id)
                                     }
                                   }}
-                                  className="text-xs text-red-500 hover:text-red-700"
+                                  className="text-xs text-danger hover:brightness-110"
                                 >
                                   Eliminar
                                 </button>
@@ -1112,15 +1118,15 @@ export default function AccountsPage() {
 
       {/* Bulk Actions Floating Bar */}
       {selectMode && selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-white border border-zinc-300 rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-4">
-          <span className="text-sm text-zinc-600">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-surface border border-border-color rounded-2xl shadow-gnome-xl px-5 py-3 flex items-center gap-4">
+          <span className="text-sm text-primary">
             {selectedIds.size} seleccionado{selectedIds.size > 1 ? 's' : ''}
           </span>
 
           <select
             value={bulkCategoryId}
             onChange={(e) => setBulkCategoryId(e.target.value)}
-            className="text-sm border border-zinc-300 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-500"
+            className="text-sm border border-border-color rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary bg-surface text-primary"
           >
             <option value="">Categoría</option>
             <option value="__none__">Sin categoría</option>
@@ -1143,7 +1149,7 @@ export default function AccountsPage() {
               bulkMut.mutate({ ids: Array.from(selectedIds), catId })
             }}
             disabled={!bulkCategoryId || bulkMut.isPending}
-            className="text-sm px-3 py-1.5 bg-brand-500 text-white rounded-lg hover:bg-brand-600 disabled:opacity-50 transition-all"
+            className="text-sm px-3 py-1.5 bg-primary text-on-primary rounded-lg hover:brightness-110 disabled:opacity-50 transition-all"
           >
             Aplicar
           </button>
@@ -1155,14 +1161,14 @@ export default function AccountsPage() {
               }
             }}
             disabled={bulkDeleteMut.isPending}
-            className="text-sm px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 disabled:opacity-50 transition-all"
+            className="text-sm px-3 py-1.5 bg-danger/10 text-danger rounded-lg hover:bg-danger/20 disabled:opacity-50 transition-all"
           >
             Eliminar
           </button>
 
           <button
             onClick={() => setSelectedIds(new Set())}
-            className="text-sm px-3 py-1.5 border border-zinc-300 rounded-lg hover:bg-zinc-50 transition-all"
+            className="text-sm px-3 py-1.5 border border-border-color rounded-lg hover:bg-base-alt transition-all"
           >
             Limpiar
           </button>
@@ -1233,11 +1239,11 @@ function DatePickerInput({ value, onChange }: { value: string; onChange: (d: str
         readOnly
         value={value}
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition cursor-pointer"
+        className="w-full px-3 py-2 border border-border-color rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition cursor-pointer"
         placeholder="DD-MM-YYYY"
       />
       {isOpen && (
-        <div className="absolute z-50 mt-2 p-3 bg-white border border-zinc-300 rounded-xl shadow-xl">
+        <div className="absolute z-50 mt-2 p-3 bg-surface border border-border-color rounded-xl shadow-xl">
           <DayPicker
             mode="single"
             selected={selectedDate}
@@ -1331,25 +1337,16 @@ function ExpenseModal({
     }
   }
 
-  // Cascading selectors driven by CardSummary
-  const persons = [...new Set(cardSummary.map(c => c.holder))].filter(Boolean).sort()
-
-  const selectedPerson = form.person ?? ''
-  const cardsForPerson = cardSummary.filter(c => !selectedPerson || c.holder === selectedPerson)
-  const availableBanks = [...new Set(cardsForPerson.map(c => c.bank))].filter(Boolean).sort()
+  // Cascading selectors: bank → card (sin persona)
+  const availableBanks = [...new Set(cardSummary.map(c => c.bank))].filter(Boolean).sort()
 
   const selectedBank = form.bank ?? ''
-  const availableCards = cardsForPerson.filter(c => !selectedBank || c.bank === selectedBank)
+  const availableCards = cardSummary.filter(c => !selectedBank || c.bank === selectedBank)
 
-  const cardLabel = (c: CardSummary) =>
-    c.last4 ? `${c.card_name} *${c.last4}` : c.card_name
-
-  const handlePersonChange = (p: string) => {
-    setForm((prev) => ({ ...prev, person: p, bank: '', card: '', card_last4: '' }))
-  }
+  const cardLabel = (c: CardSummary) => c.card_name
 
   const handleBankChange = (b: string) => {
-    setForm((prev) => ({ ...prev, bank: b, card: '', card_last4: '' }))
+    setForm((prev) => ({ ...prev, bank: b, card: '' }))
   }
 
   const handleCardSelect = (c: CardSummary) => {
@@ -1357,8 +1354,6 @@ function ExpenseModal({
       ...prev,
       card: c.card_name,
       bank: c.bank,
-      person: c.holder,
-      card_last4: c.last4 ?? '',
     }))
   }
 
@@ -1367,12 +1362,12 @@ function ExpenseModal({
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <div className="relative card w-full max-w-lg max-h-[90vh] overflow-auto p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-zinc-900">
+          <h2 className="text-lg font-semibold text-primary">
             {expense
               ? (isIncome ? 'Editar ingreso' : 'Editar gasto')
               : (isIncome ? 'Nuevo ingreso' : 'Nuevo gasto')}
           </h2>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-900">✕</button>
+          <button onClick={onClose} className="text-tertiary hover:text-primary">✕</button>
         </div>
         {isIncome && (
           <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-700">
@@ -1390,13 +1385,13 @@ function ExpenseModal({
 
         {/* Payment method toggle */}
         <div>
-          <label className="block text-sm font-medium text-zinc-600 mb-2">Medio de pago</label>
-          <div className="flex rounded-xl overflow-hidden border border-zinc-300">
+          <label className="block text-sm font-medium text-secondary mb-2">Medio de pago</label>
+          <div className="flex rounded-xl overflow-hidden border border-border-color">
             <button
               type="button"
               onClick={() => switchPayMethod('card')}
-              className={`flex-1 py-2 text-sm font-medium transition-colors border-r border-zinc-300 ${
-                payMethod === 'card' ? 'bg-brand-500/20 text-brand-400' : 'text-zinc-400 hover:text-zinc-700'
+              className={`flex-1 py-2 text-sm font-medium transition-colors border-r border-border-color ${
+                payMethod === 'card' ? 'bg-primary/10 text-primary' : 'text-tertiary hover:text-secondary'
               }`}
             >
               💳 Tarjeta
@@ -1405,7 +1400,7 @@ function ExpenseModal({
               type="button"
               onClick={() => switchPayMethod('cash')}
               className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                payMethod === 'cash' ? 'bg-emerald-500/20 text-emerald-400' : 'text-zinc-400 hover:text-zinc-700'
+                payMethod === 'cash' ? 'bg-success/10 text-success' : 'text-tertiary hover:text-secondary'
               }`}
             >
               💵 Efectivo / Transferencia
@@ -1414,34 +1409,34 @@ function ExpenseModal({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-zinc-600 mb-1">Fecha</label>
+          <label className="block text-sm font-medium text-secondary mb-1">Fecha</label>
           <DatePickerInput value={form.date} onChange={(d) => set('date', d)} />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-zinc-600 mb-1">Descripción</label>
+          <label className="block text-sm font-medium text-secondary mb-1">Descripción</label>
           <input
             type="text"
             value={form.description}
             onChange={(e) => set('description', e.target.value)}
             placeholder="Ej: Supermercado Coto"
-            className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition"
+            className="w-full px-3 py-2 border border-border-color rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition"
           />
         </div>
 
         <div className="grid grid-cols-3 gap-3">
           <div className="col-span-2">
-            <label className="block text-sm font-medium text-zinc-600 mb-1">Monto</label>
+            <label className="block text-sm font-medium text-secondary mb-1">Monto</label>
             <input
               type="number"
               value={form.amount}
               onChange={(e) => set('amount', parseFloat(e.target.value) || 0)}
-              className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition"
+              className="w-full px-3 py-2 border border-border-color rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-zinc-600 mb-1">Moneda</label>
-            <select value={form.currency ?? 'ARS'} onChange={(e) => set('currency', e.target.value)} className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition">
+            <label className="block text-sm font-medium text-secondary mb-1">Moneda</label>
+            <select value={form.currency ?? 'ARS'} onChange={(e) => set('currency', e.target.value)} className="w-full px-3 py-2 border border-border-color rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition">
               <option value="ARS">ARS $</option>
               <option value="USD">USD $</option>
             </select>
@@ -1449,11 +1444,11 @@ function ExpenseModal({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-zinc-600 mb-1">Categoría</label>
+          <label className="block text-sm font-medium text-secondary mb-1">Categoría</label>
           <select
             value={form.category_id ?? ''}
             onChange={(e) => set('category_id', e.target.value ? parseInt(e.target.value) : null)}
-            className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition"
+            className="w-full px-3 py-2 border border-border-color rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition"
           >
             <option value="">Sin categoría</option>
             {(() => {
@@ -1474,107 +1469,74 @@ function ExpenseModal({
           </select>
         </div>
 
-        {/* Cascading: Titular → Banco → Tarjeta */}
-        <div>
-          <label className="block text-sm font-medium text-zinc-600 mb-1">Titular</label>
-          <select value={form.person ?? ''} onChange={(e) => handlePersonChange(e.target.value)} className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition">
-            <option value="">— Seleccionar titular —</option>
-            {persons.map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
-        </div>
-
+        {/* Cascading: Banco → Tarjeta */}
         <div className={`space-y-3 transition-opacity ${payMethod === 'cash' ? 'opacity-40 pointer-events-none' : ''}`}>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={`block text-sm font-medium mb-1 ${!selectedPerson ? 'text-zinc-500' : 'text-zinc-600'}`}>
-                Banco {!selectedPerson && <span className="text-xs">(elegí titular primero)</span>}
-              </label>
+              <label className="block text-sm font-medium mb-1 text-secondary">Banco</label>
               <select
                 value={form.bank ?? ''}
                 onChange={(e) => handleBankChange(e.target.value)}
-                disabled={payMethod === 'cash' || !selectedPerson}
-                className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition disabled:opacity-50"
+                disabled={payMethod === 'cash'}
+                className="w-full px-3 py-2 border border-border-color rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition disabled:opacity-50"
               >
                 <option value="">— Banco —</option>
                 {availableBanks.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
             <div>
-              <label className={`block text-sm font-medium mb-1 ${!selectedBank ? 'text-zinc-500' : 'text-zinc-600'}`}>
-                Tarjeta {!selectedBank && payMethod === 'card' && <span className="text-xs">(elegí banco primero)</span>}
-              </label>
+              <label className="block text-sm font-medium mb-1 text-secondary">Tarjeta</label>
               <select
-                value={form.card_last4 ? `${form.card}|${form.card_last4}` : (form.card ?? '')}
+                value={form.card ?? ''}
                 onChange={(e) => {
-                  const selected = availableCards.find(c =>
-                    (c.last4 ? `${c.card_name}|${c.last4}` : c.card_name) === e.target.value
-                  )
+                  const selected = availableCards.find(c => c.card_name === e.target.value)
                   if (selected) handleCardSelect(selected)
                   else set('card', e.target.value)
                 }}
-                disabled={payMethod === 'cash' || !selectedBank}
-                className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition disabled:opacity-50"
+                disabled={payMethod === 'cash'}
+                className="w-full px-3 py-2 border border-border-color rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition disabled:opacity-50"
               >
                 <option value="">— Tarjeta —</option>
-                {availableCards.map(c => {
-                  const val = c.last4 ? `${c.card_name}|${c.last4}` : c.card_name
-                  return <option key={val} value={val}>{cardLabel(c)}</option>
-                })}
+                {availableCards.map(c => (
+                  <option key={c.card_name} value={c.card_name}>{cardLabel(c)}</option>
+                ))}
               </select>
-            </div>
-          </div>
-          {/* Last 4 digits */}
-          <div className={payMethod === 'cash' ? 'hidden' : ''}>
-            <label className="block text-sm font-medium text-zinc-600 mb-1">
-              Últimos 4 dígitos de la tarjeta
-            </label>
-            <div className="flex items-center gap-2">
-              <span className="text-zinc-500 font-mono text-sm tracking-widest">•••• •••• ••••</span>
-              <input
-                type="text"
-                maxLength={4}
-                pattern="\d{4}"
-                value={form.card_last4 ?? ''}
-                onChange={(e) => set('card_last4', e.target.value.replace(/\D/g, '').slice(0, 4))}
-                placeholder="0000"
-                className="w-20 px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition font-mono tracking-widest text-center"
-              />
             </div>
           </div>
         </div>
 
         {payMethod === 'card' && !isIncome && (
-          <div className="border border-zinc-200 rounded-xl p-3 space-y-3">
+          <div className="border border-border-color rounded-xl p-3 space-y-3">
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={cuotasEnabled}
                 onChange={(e) => toggleCuotas(e.target.checked)}
-                className="rounded border-zinc-300 text-brand-600"
+                className="rounded border-border-color text-brand-600"
               />
-              <span className="text-sm font-medium text-zinc-700">Compra en cuotas</span>
+              <span className="text-sm font-medium text-secondary">Compra en cuotas</span>
             </label>
             {cuotasEnabled && (
               <div className="flex items-center gap-3">
                 <div className="flex-1">
-                  <label className="block text-xs text-zinc-500 mb-1">Cuota N°</label>
+                  <label className="block text-xs text-tertiary mb-1">Cuota N°</label>
                   <input
                     type="number"
                     min={1}
                     value={form.installment_number ?? 1}
                     onChange={(e) => set('installment_number', parseInt(e.target.value) || 1)}
-                    className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition text-center"
+                    className="w-full px-3 py-2 border border-border-color rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition text-center"
                   />
                 </div>
-                <span className="text-zinc-400 mt-4">de</span>
+                <span className="text-tertiary mt-4">de</span>
                 <div className="flex-1">
-                  <label className="block text-xs text-zinc-500 mb-1">Total cuotas</label>
+                  <label className="block text-xs text-tertiary mb-1">Total cuotas</label>
                   <input
                     type="number"
                     min={1}
                     value={form.installment_total ?? 1}
                     onChange={(e) => set('installment_total', parseInt(e.target.value) || 1)}
-                    className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition text-center"
+                    className="w-full px-3 py-2 border border-border-color rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition text-center"
                   />
                 </div>
               </div>
@@ -1583,12 +1545,12 @@ function ExpenseModal({
         )}
 
         <div>
-          <label className="block text-sm font-medium text-zinc-600 mb-1">Notas</label>
-          <textarea value={form.notes ?? ''} onChange={(e) => set('notes', e.target.value)} className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition" rows={2} />
+          <label className="block text-sm font-medium text-secondary mb-1">Notas</label>
+          <textarea value={form.notes ?? ''} onChange={(e) => set('notes', e.target.value)} className="w-full px-3 py-2 border border-border-color rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition" rows={2} />
         </div>
 
         <div className="flex gap-3 pt-2">
-          <button onClick={onClose} className="flex-1 px-4 py-2 bg-white border border-zinc-300 text-zinc-700 rounded-lg hover:bg-zinc-50 transition-colors font-medium text-sm">Cancelar</button>
+          <button onClick={onClose} className="flex-1 px-4 py-2 bg-surface border border-border-color text-secondary rounded-lg hover:bg-base-alt transition-colors font-medium text-sm">Cancelar</button>
           <button
             onClick={() => onSave({ ...form, amount: isIncome ? -Math.abs(form.amount) : Math.abs(form.amount) })}
             className={`flex-1 ${isIncome ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2 px-4 rounded-lg transition-colors' : 'px-4 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 transition-colors font-medium text-sm'}`}

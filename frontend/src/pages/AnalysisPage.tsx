@@ -67,28 +67,28 @@ function HistorySection() {
 
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">
+      <h3 className="text-sm font-semibold text-tertiary uppercase tracking-wider">
         Historial de análisis
       </h3>
       {history.map((h: AnalysisHistory) => (
         <div
           key={h.id}
-          className="bg-white rounded-xl border border-zinc-200 shadow-sm overflow-hidden"
+          className="bg-surface rounded-xl border border-border-color shadow-sm overflow-hidden"
         >
           <div
-            className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-zinc-100 select-none"
+            className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-base-alt select-none"
             onClick={() => setExpanded(expanded === h.id ? null : h.id)}
           >
             <div className="flex items-center gap-3 min-w-0">
-              <span className="text-xs text-zinc-500 whitespace-nowrap">
+              <span className="text-xs text-tertiary whitespace-nowrap">
                 {formatDate(h.created_at)}
               </span>
               {h.month && (
-                <span className="text-xs bg-brand-500/10 text-brand-400 px-2 py-0.5 rounded-full whitespace-nowrap">
+                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full whitespace-nowrap">
                   {h.month}
                 </span>
               )}
-              <span className="text-sm text-zinc-400 truncate">
+              <span className="text-sm text-tertiary truncate">
                 {h.question || `${h.expense_count} gastos · ${formatARS(h.total_amount)}`}
               </span>
             </div>
@@ -100,15 +100,15 @@ function HistorySection() {
                     deleteMut.mutate(h.id)
                   }
                 }}
-                className="text-zinc-600 hover:text-red-400 text-base leading-none"
+                className="text-secondary hover:text-danger text-base leading-none"
               >
                 ✕
               </button>
-              <span className="text-zinc-500 text-xs">{expanded === h.id ? '▲' : '▼'}</span>
+              <span className="text-tertiary text-xs">{expanded === h.id ? '▲' : '▼'}</span>
             </div>
           </div>
           {expanded === h.id && (
-            <div className="px-4 py-4 border-t border-zinc-200 bg-zinc-100 text-sm text-zinc-600 whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto">
+            <div className="px-4 py-4 border-t border-border-color bg-base-alt text-sm text-secondary whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto">
               {h.result_text}
             </div>
           )}
@@ -198,14 +198,14 @@ export default function AnalysisPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="card p-6 space-y-4">
-        <h2 className="text-lg font-semibold text-zinc-900">📈 Análisis de consumo</h2>
-        <p className="text-sm text-zinc-400">
+        <h2 className="text-lg font-semibold text-primary">📈 Análisis de consumo</h2>
+        <p className="text-sm text-tertiary">
           Gemini analizará tus gastos y te dará sugerencias personalizadas de ahorro.
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-600 mb-1">
+            <label className="block text-sm font-medium text-secondary mb-1">
               Mes a analizar
             </label>
             <input
@@ -214,13 +214,13 @@ export default function AnalysisPage() {
               onChange={(e) => setMonth(e.target.value)}
               className="w-full input"
             />
-            <p className="text-xs text-zinc-500 mt-1">
+            <p className="text-xs text-tertiary mt-1">
               Dejá vacío para analizar todos los gastos
             </p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-600 mb-1">
+            <label className="block text-sm font-medium text-secondary mb-1">
               Pregunta específica (opcional)
             </label>
             <input
@@ -235,12 +235,12 @@ export default function AnalysisPage() {
 
         {savedQueries.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs text-zinc-400 font-medium">Consultas guardadas</p>
+            <p className="text-xs text-tertiary font-medium">Consultas guardadas</p>
             <div className="flex flex-wrap gap-2">
               {savedQueries.map((q) => (
                 <span
                   key={q}
-                  className="group flex items-center gap-1 bg-zinc-100 hover:bg-brand-500/10 border border-zinc-200 hover:border-brand-500/30 rounded-full px-3 py-1 text-xs text-zinc-600 cursor-pointer transition-colors"
+                  className="group flex items-center gap-1 bg-base-alt hover:bg-primary/10 border border-border-color hover:border-primary/30 rounded-full px-3 py-1 text-xs text-secondary cursor-pointer transition-colors"
                   onClick={() => setQuestion(q)}
                 >
                   <span className="truncate max-w-[260px]">{q}</span>
@@ -250,7 +250,7 @@ export default function AnalysisPage() {
                       removeQuery(q)
                       refreshSaved()
                     }}
-                    className="ml-1 text-zinc-500 hover:text-red-400 leading-none opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="ml-1 text-tertiary hover:text-danger leading-none opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     ×
                   </button>
@@ -263,7 +263,7 @@ export default function AnalysisPage() {
         <button
           onClick={handleAnalyze}
           disabled={streaming}
-          className="w-full py-2.5 text-sm font-medium text-white bg-gradient-to-r from-brand-500 to-brand-700 rounded-lg hover:from-brand-600 hover:to-brand-800 disabled:opacity-50 transition"
+          className="w-full py-2.5 text-sm font-medium text-white btn-primary rounded-lg disabled:opacity-50 transition"
         >
           {streaming ? (
             <span className="flex items-center justify-center gap-2">
@@ -277,28 +277,28 @@ export default function AnalysisPage() {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+        <div className="alert-danger rounded-lg p-4 text-sm">
           {error}
         </div>
       )}
 
       {(output || streaming) && (
         <div className="card">
-          <div className="flex items-center gap-2 px-5 py-3 border-b border-zinc-200">
-            <span className="text-sm font-medium text-zinc-600">Análisis</span>
+          <div className="flex items-center gap-2 px-5 py-3 border-b border-border-color">
+            <span className="text-sm font-medium text-secondary">Análisis</span>
             {streaming && (
-              <span className="flex items-center gap-1 text-xs text-blue-500">
+              <span className="flex items-center gap-1 text-xs text-info">
                 <span className="animate-pulse">●</span> Generando...
               </span>
             )}
           </div>
           <div
             ref={outputRef}
-            className="px-5 py-4 text-sm text-zinc-600 whitespace-pre-wrap leading-relaxed max-h-[500px] overflow-y-auto"
+            className="px-5 py-4 text-sm text-secondary whitespace-pre-wrap leading-relaxed max-h-[500px] overflow-y-auto"
           >
             {output}
             {streaming && (
-              <span className="inline-block w-2 h-4 bg-blue-400 animate-pulse ml-0.5 align-middle" />
+              <span className="inline-block w-2 h-4 bg-info animate-pulse ml-0.5 align-middle" />
             )}
           </div>
         </div>

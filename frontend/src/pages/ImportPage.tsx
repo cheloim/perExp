@@ -186,12 +186,12 @@ export default function ImportPage() {
     return (
       <div className="max-w-lg mx-auto text-center py-16 space-y-4">
         <div className="text-5xl">✅</div>
-        <h2 className="text-xl font-semibold text-gray-800">Importación completada</h2>
-        <p className="text-gray-600">
+        <h2 className="text-xl font-semibold text-primary">Importación completada</h2>
+        <p className="text-secondary">
           Se importaron <strong>{result.imported}</strong> gastos.
           {result.skipped > 0 && ` Se omitieron ${result.skipped} filas.`}
         </p>
-        <button onClick={reset} className="mt-4 px-6 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700">
+        <button onClick={reset} className="mt-4 px-6 py-2 text-sm text-on-primary bg-primary rounded-lg hover:brightness-110">
           Importar otro archivo
         </button>
       </div>
@@ -204,15 +204,15 @@ export default function ImportPage() {
       <div className="flex items-center gap-2 text-sm">
         {(['upload', 'preview'] as Step[]).map((s, i) => (
           <span key={s} className="flex items-center gap-2">
-            {i > 0 && <span className="text-gray-300">›</span>}
-            <span className={`font-medium ${step === s || (s === 'upload' && isProcessing) ? 'text-blue-600' : 'text-gray-400'}`}>
+            {i > 0 && <span className="text-tertiary">›</span>}
+            <span className={`font-medium ${step === s || (s === 'upload' && isProcessing) ? 'text-primary' : 'text-tertiary'}`}>
               {i + 1}. {s === 'upload' ? 'Cargar archivos' : 'Confirmar'}
             </span>
           </span>
         ))}
       </div>
 
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-secondary">
         ✨ La IA detecta automáticamente las columnas. Soporta CSV, Excel y <strong>PDF</strong>. Podés agregar más archivos en cualquier momento, incluso mientras se procesan otros.
       </p>
 
@@ -237,34 +237,34 @@ export default function ImportPage() {
         <div
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
-          className="border-2 border-dashed border-gray-300 rounded-2xl p-12 text-center hover:border-blue-400 transition-colors cursor-pointer"
+          className="border-2 border-dashed border-border-color rounded-2xl p-12 text-center hover:border-primary transition-colors cursor-pointer"
           onClick={() => fileRef.current?.click()}
         >
           {isProcessing ? (
             <div className="space-y-3">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mx-auto" />
-              <p className="text-gray-700 font-medium text-sm truncate max-w-xs mx-auto">
-                Analizando: <span className="text-blue-600">{currentFile}</span>
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto" />
+              <p className="text-primary font-medium text-sm truncate max-w-xs mx-auto">
+                Analizando: <span className="text-primary">{currentFile}</span>
               </p>
               {queued > 0 && (
-                <p className="text-gray-400 text-xs">{queued} archivo{queued > 1 ? 's' : ''} más en cola</p>
+                <p className="text-tertiary text-xs">{queued} archivo{queued > 1 ? 's' : ''} más en cola</p>
               )}
-              <p className="text-gray-400 text-xs mt-1">Podés seguir agregando archivos mientras se procesan</p>
+              <p className="text-tertiary text-xs mt-1">Podés seguir agregando archivos mientras se procesan</p>
             </div>
           ) : (
             <div className="space-y-3">
               <div className="text-4xl">✨</div>
-              <p className="text-gray-700 font-medium">Arrastrá o hacé click para cargar archivos</p>
-              <p className="text-gray-400 text-sm">CSV, XLS, XLSX o PDF · múltiples archivos</p>
+              <p className="text-primary font-medium">Arrastrá o hacé click para cargar archivos</p>
+              <p className="text-secondary text-sm">CSV, XLS, XLSX o PDF · múltiples archivos</p>
             </div>
           )}
         </div>
       )}
 
       {errors.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-1">
+        <div className="alert-error">
           {errors.map((err, i) => (
-            <p key={i} className="text-sm text-red-700">{err}</p>
+            <p key={i} className="text-sm text-danger">{err}</p>
           ))}
         </div>
       )}
@@ -272,7 +272,7 @@ export default function ImportPage() {
       {/* Step: preview */}
       {step === 'preview' && smartRows.length > 0 && (
         <div className="space-y-4">
-          <div className="flex items-center gap-2 text-sm text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-2">
+          <div className="flex items-center gap-2 text-sm text-primary bg-primary-subtle border border-border-color rounded-lg px-4 py-2">
             <span>✨</span>
             <span>La IA detectó <strong>{smartRawCount}</strong> transacciones en los archivos.</span>
           </div>
@@ -283,41 +283,39 @@ export default function ImportPage() {
               {summaries.map((s, i) => (
                 <div key={i} className="card p-4 space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono bg-zinc-200 text-zinc-700 px-2 py-0.5 rounded">
-                      {s.card_last4 ? `•••• ${s.card_last4}` : '💳'}
-                    </span>
-                    <span className="text-sm font-semibold text-zinc-900">{s.card_type || '—'}</span>
-                    {s.bank && <span className="text-xs text-zinc-400">{s.bank}</span>}
+                    <span className="text-xs bg-base-alt text-secondary px-2 py-0.5 rounded">💳</span>
+                    <span className="text-sm font-semibold text-primary">{s.card_type || '—'}</span>
+                    {s.bank && <span className="text-xs text-tertiary">{s.bank}</span>}
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <p className="text-zinc-500">Consumos ARS</p>
-                      <p className="text-zinc-900 font-semibold">
+                      <p className="text-tertiary">Consumos ARS</p>
+                      <p className="text-primary font-semibold">
                         {s.total_ars != null ? formatCurrency(s.total_ars) : '—'}
                       </p>
                     </div>
                     {s.total_usd != null && (
                       <div>
-                        <p className="text-zinc-500">Consumos USD</p>
-                        <p className="text-zinc-900 font-semibold">{formatCurrency(s.total_usd, 'USD')}</p>
+                        <p className="text-tertiary">Consumos USD</p>
+                        <p className="text-primary font-semibold">{formatCurrency(s.total_usd, 'USD')}</p>
                       </div>
                     )}
                     {s.future_charges_ars != null && (
                       <div>
-                        <p className="text-zinc-500">Consumos futuros ARS</p>
-                        <p className="text-amber-400 font-semibold">{formatCurrency(s.future_charges_ars)}</p>
+                        <p className="text-tertiary">Consumos futuros ARS</p>
+                        <p className="text-warning font-semibold">{formatCurrency(s.future_charges_ars)}</p>
                       </div>
                     )}
                     {s.future_charges_usd != null && (
                       <div>
-                        <p className="text-zinc-500">Consumos futuros USD</p>
-                        <p className="text-amber-400 font-semibold">{formatCurrency(s.future_charges_usd, 'USD')}</p>
+                        <p className="text-tertiary">Consumos futuros USD</p>
+                        <p className="text-warning font-semibold">{formatCurrency(s.future_charges_usd, 'USD')}</p>
                       </div>
                     )}
                     {s.due_date && (
                       <div>
-                        <p className="text-zinc-500">Vencimiento</p>
-                        <p className="text-zinc-900 font-semibold">{s.due_date}</p>
+                        <p className="text-tertiary">Vencimiento</p>
+                        <p className="text-primary font-semibold">{s.due_date}</p>
                       </div>
                     )}
                   </div>
@@ -327,7 +325,7 @@ export default function ImportPage() {
           )}
 
           {dupeCount > 0 && (
-            <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+            <div className="flex items-center gap-2 text-sm text-warning bg-warning/5 border border-warning/20 rounded-lg px-4 py-2">
               <span>⚠️</span>
               <span>
                 <strong>{dupeCount}</strong> fila{dupeCount > 1 ? 's' : ''} ya exist{dupeCount > 1 ? 'en' : 'e'} y {dupeCount > 1 ? 'serán omitidas' : 'será omitida'}.
@@ -340,35 +338,35 @@ export default function ImportPage() {
             onDrop={handleDrop}
             onDragOver={(e) => e.preventDefault()}
             onClick={() => fileRef.current?.click()}
-            className="border border-dashed border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3 cursor-pointer hover:border-blue-300 hover:bg-blue-50/40 transition-colors"
+            className="border border-dashed border-border-color rounded-xl px-4 py-3 flex items-center gap-3 cursor-pointer hover:border-primary hover:bg-primary-subtle/40 transition-colors"
           >
             {isProcessing ? (
               <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 flex-shrink-0" />
-                <span className="text-sm text-gray-600 truncate">
-                  Analizando <span className="font-medium text-blue-600">{currentFile}</span>
-                  {queued > 0 && <span className="text-gray-400"> · {queued} en cola</span>}
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary flex-shrink-0" />
+                <span className="text-sm text-secondary truncate">
+                  Analizando <span className="font-medium text-primary">{currentFile}</span>
+                  {queued > 0 && <span className="text-tertiary"> · {queued} en cola</span>}
                 </span>
               </>
             ) : (
               <>
                 <span className="text-lg">➕</span>
-                <span className="text-sm text-gray-500">Agregar más archivos al preview</span>
+                <span className="text-sm text-secondary">Agregar más archivos al preview</span>
               </>
             )}
           </div>
 
           <div className="card overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b">
-              <h2 className="font-semibold text-gray-800">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border-color">
+              <h2 className="font-semibold text-primary">
                 Preview — {previewCount} filas
-                {dupeCount > 0 && <span className="ml-2 text-xs font-normal text-amber-600">({dupeCount} duplicadas)</span>}
-                {autoGenCount > 0 && <span className="ml-2 text-xs font-normal text-indigo-600">({autoGenCount} cuotas prev. auto-generadas)</span>}
+                {dupeCount > 0 && <span className="ml-2 text-xs font-normal text-warning">({dupeCount} duplicadas)</span>}
+                {autoGenCount > 0 && <span className="ml-2 text-xs font-normal text-primary">({autoGenCount} cuotas prev. auto-generadas)</span>}
               </h2>
             </div>
             <div className="overflow-x-auto max-h-80">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider sticky top-0">
+                <thead className="bg-base-alt text-secondary text-xs uppercase tracking-wider sticky top-0">
                   <tr>
                     <th className="px-4 py-3 text-left">Fecha</th>
                     <th className="px-4 py-3 text-left">Descripción</th>
@@ -381,55 +379,54 @@ export default function ImportPage() {
                     <th className="px-4 py-3 text-left">Últimos 4</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-border-color">
                   {smartRows.slice(0, 50).map((row, i) => (
                     <tr
                       key={i}
                       className={
                         row.is_duplicate
-                          ? 'bg-amber-50 opacity-60'
+                          ? 'bg-warning/10 opacity-60'
                           : row.is_auto_generated
-                          ? 'bg-indigo-50/60 hover:bg-indigo-50'
-                          : 'hover:bg-gray-50'
+                          ? 'bg-primary-subtle hover:bg-primary-subtle'
+                          : 'hover:bg-base-alt'
                       }
                     >
-                      <td className="px-4 py-2 text-gray-500 whitespace-nowrap">
+                      <td className="px-4 py-2 text-secondary whitespace-nowrap">
                         {row.date}
-                        {row.is_duplicate && <span className="ml-1 text-amber-500 text-xs">dup</span>}
+                        {row.is_duplicate && <span className="ml-1 text-warning text-xs">dup</span>}
                         {row.is_auto_generated && !row.is_duplicate && (
-                          <span className="ml-1 text-indigo-500 text-xs">prev</span>
+                          <span className="ml-1 text-primary text-xs">prev</span>
                         )}
                       </td>
-                      <td className="px-4 py-2 text-gray-800">
+                      <td className="px-4 py-2 text-primary">
                         <span className="flex items-center gap-1.5 flex-wrap">
                           {row.description}
                           {row.installment_number && row.installment_total && (
-                            <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded whitespace-nowrap">
+                            <span className="text-xs bg-primary-subtle text-primary px-1.5 py-0.5 rounded whitespace-nowrap">
                               {row.installment_number}/{row.installment_total}
                             </span>
                           )}
                         </span>
                       </td>
-                      <td className={`px-4 py-2 text-right font-medium ${row.amount < 0 ? 'text-green-600' : ''}`}>
+                      <td className={`px-4 py-2 text-right font-medium ${row.amount < 0 ? 'text-success' : ''}`}>
                         {formatCurrency(row.amount, row.currency)}
                       </td>
-                      <td className="px-4 py-2 text-gray-500">{row.suggested_category ?? <span className="text-gray-300">—</span>}</td>
+                      <td className="px-4 py-2 text-secondary">{row.suggested_category ?? <span className="text-tertiary">—</span>}</td>
                       <td className="px-4 py-2">
                         {row.currency === 'USD'
-                          ? <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">USD</span>
-                          : <span className="text-xs text-gray-400">ARS</span>}
+                          ? <span className="badge-success">USD</span>
+                          : <span className="text-xs text-tertiary">ARS</span>}
                       </td>
-                      <td className="px-4 py-2 text-gray-400 font-mono text-xs">{row.transaction_id || '—'}</td>
-                      <td className="px-4 py-2 text-gray-500">{row.bank || '—'}</td>
-                      <td className="px-4 py-2 text-gray-500">{row.card || '—'}</td>
-                      <td className="px-4 py-2 text-gray-500 font-mono text-xs">{row.card_last4 || '—'}</td>
+                      <td className="px-4 py-2 text-tertiary font-mono text-xs">{row.transaction_id || '—'}</td>
+                      <td className="px-4 py-2 text-secondary">{row.bank || '—'}</td>
+                      <td className="px-4 py-2 text-secondary">{row.card || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
             {previewCount > 50 && (
-              <p className="text-xs text-gray-400 px-5 py-2 border-t">Mostrando 50 de {previewCount} filas</p>
+              <p className="text-xs text-tertiary px-5 py-2 border-t border-border-color">Mostrando 50 de {previewCount} filas</p>
             )}
           </div>
 
@@ -438,7 +435,7 @@ export default function ImportPage() {
             <button
               onClick={handleConfirmImport}
               disabled={confirmSmartMut.isPending || isProcessing}
-              className="btn-primary bg-green-600 hover:bg-green-700 disabled:opacity-50"
+              className="btn-primary bg-success hover:brightness-110 disabled:opacity-50"
             >
               {confirmSmartMut.isPending
                 ? 'Importando...'

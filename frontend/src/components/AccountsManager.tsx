@@ -4,11 +4,11 @@ import { getAccounts, createAccount, updateAccount, deleteAccount, createCard } 
 import type { Account } from '../types'
 
 const ACCOUNT_TYPES = [
-  { value: 'efectivo', label: 'Efectivo', color: 'bg-emerald-100 text-emerald-600' },
-  { value: 'cuenta_corriente', label: 'Cta. Corriente', color: 'bg-blue-100 text-blue-600' },
-  { value: 'caja_ahorro', label: 'Caja de Ahorro', color: 'bg-indigo-100 text-indigo-600' },
-  { value: 'mercadopago', label: 'MercadoPago', color: 'bg-purple-100 text-purple-600' },
-  { value: 'tarjeta', label: 'Tarjeta', color: 'bg-pink-100 text-pink-600' },
+  { value: 'efectivo', label: 'Efectivo', color: 'badge-success' },
+  { value: 'cuenta_corriente', label: 'Cta. Corriente', color: 'badge-primary' },
+  { value: 'caja_ahorro', label: 'Caja de Ahorro', color: 'badge-warning' },
+  { value: 'mercadopago', label: 'MercadoPago', color: 'badge-neutral' },
+  { value: 'tarjeta', label: 'Tarjeta', color: 'badge-neutral' },
 ]
 
 const CARD_TYPES = [
@@ -24,7 +24,6 @@ export default function AccountsManager() {
   const [name, setName] = useState('')
   const [type, setType] = useState('efectivo')
   const [bank, setBank] = useState('')
-  const [last4, setLast4] = useState('')
   const [cardType, setCardType] = useState('credito')
 
   const { data: accounts = [], isLoading } = useQuery({
@@ -62,14 +61,13 @@ export default function AccountsManager() {
   })
 
   const createCardMut = useMutation({
-    mutationFn: (data: { name: string; bank: string; last4_digits?: string; card_type: string }) => createCard(data),
+    mutationFn: (data: { name: string; bank: string; card_type: string }) => createCard(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards'] })
       setEditId(null)
       setName('')
       setType('efectivo')
       setBank('')
-      setLast4('')
       setCardType('credito')
     },
   })
@@ -86,7 +84,6 @@ export default function AccountsManager() {
     setName('')
     setType('efectivo')
     setBank('')
-    setLast4('')
     setCardType('credito')
   }
 
@@ -96,14 +93,12 @@ export default function AccountsManager() {
 
     if (type === 'tarjeta') {
       if (editId && editId > 0) {
-        // Editing would require updateCard - keeping simple for now
         alert('La edición de tarjetas se puede hacer desde la sección de Tarjetas')
         return
       }
       createCardMut.mutate({
         name: name.trim(),
         bank: bank.trim(),
-        last4_digits: last4.trim() || undefined,
         card_type: cardType,
       })
     } else {
@@ -115,11 +110,11 @@ export default function AccountsManager() {
     }
   }
 
-  if (isLoading) return <div className="p-4 text-sm text-zinc-400">Cargando…</div>
+  if (isLoading) return <div className="p-4 text-sm text-tertiary">Cargando…</div>
 
   return (
     <div className="px-4 py-2 space-y-2">
-      <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-3">Cuentas</h3>
+      <h3 className="text-xs font-semibold text-secondary uppercase tracking-wide mb-3">Cuentas</h3>
       {accounts.map((account) => {
         const typeInfo = ACCOUNT_TYPES.find((t) => t.value === account.type) || ACCOUNT_TYPES[4]
         const isEditing = editId === account.id
@@ -128,14 +123,16 @@ export default function AccountsManager() {
         return (
           <div key={account.id} className="relative">
             {isEditing ? (
-              <form onSubmit={handleSubmit} className="p-3 bg-brand-50 border border-brand-200 rounded-lg space-y-3">
-                <div>
+              <form onSubmit={handleSubmit} className="p-4 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg space-y-4">
+                {/* Nombre */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">Nombre</label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
-                    placeholder={type === 'tarjeta' ? 'Nombre (ej: Visa Galicia)' : 'Nombre de la cuenta'}
+                    className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+                    placeholder={type === 'tarjeta' ? 'Ej: Visa Galicia' : 'Ej: Mi Cuenta'}
                     autoFocus
                     required
                   />
@@ -143,70 +140,55 @@ export default function AccountsManager() {
 
                 {/* Campos de Tarjeta */}
                 {type === 'tarjeta' && (
-                  <>
-                    <div>
+                  <div className="space-y-3 pt-2 border-t border-[var(--border-color)]">
+                    {/* Tipo: Crédito/Débito */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-[var(--text-secondary)]">Tipo de tarjeta</label>
+                      <select
+                        value={cardType}
+                        onChange={(e) => setCardType(e.target.value)}
+                        className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+                      >
+                        {CARD_TYPES.map((t) => (
+                          <option key={t.value} value={t.value}>{t.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Banco */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
                       <input
                         type="text"
                         value={bank}
                         onChange={(e) => setBank(e.target.value)}
-                        className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
-                        placeholder="Banco (ej: Galicia)"
+                        className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+                        placeholder="Ej: Galicia"
                       />
                     </div>
-                    <div>
-                      <input
-                        type="text"
-                        value={last4}
-                        onChange={(e) => setLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                        className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 font-mono"
-                        placeholder="Últimos 4 dígitos (opcional)"
-                        maxLength={4}
-                      />
-                    </div>
-                    <select
-                      value={cardType}
-                      onChange={(e) => setCardType(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
-                    >
-                      {CARD_TYPES.map((t) => (
-                        <option key={t.value} value={t.value}>{t.label}</option>
-                      ))}
-                    </select>
-                  </>
-                )}
-
-                {/* Campos de Caja de Ahorro con última tarjeta opcional */}
-                {type === 'caja_ahorro' && (
-                  <div>
-                    <input
-                      type="text"
-                      value={last4}
-                      onChange={(e) => setLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                      className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 font-mono"
-                      placeholder="Últimos 4 dígitos tarjeta débito (opcional)"
-                      maxLength={4}
-                    />
                   </div>
                 )}
-                <div className="flex gap-2">
+
+                {/* Botones */}
+                <div className="flex gap-2 pt-2">
                   <button
                     type="submit"
                     disabled={createMut.isPending || updateMut.isPending}
-                    className="flex-1 py-1.5 text-xs font-semibold bg-brand-600 text-white rounded-lg hover:bg-brand-500 disabled:opacity-50 transition"
+                    className="flex-1 px-4 py-2 rounded-md bg-[var(--color-primary)] text-[var(--color-on-primary)] text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"
                   >
-                    Guardar
+                    {createMut.isPending || updateMut.isPending ? 'Guardando...' : 'Guardar'}
                   </button>
                   <button
                     type="button"
                     onClick={handleCancel}
-                    className="flex-1 py-1.5 text-xs font-medium bg-white border border-zinc-300 text-zinc-600 rounded-lg hover:bg-zinc-50 transition"
+                    className="flex-1 px-4 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
                   >
                     Cancelar
                   </button>
                 </div>
               </form>
             ) : (
-              <div className="group relative flex items-center gap-3 p-3 bg-white border border-zinc-200 rounded-lg hover:border-zinc-300 transition-colors">
+              <div className="group relative flex items-center gap-3 p-3 bg-surface border border-border-color rounded-lg hover:border-border-color transition-colors">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${typeInfo.color}`}>
                   {account.type === 'efectivo' ? '💵' :
                    account.type === 'mercadopago' ? '📱' :
@@ -214,30 +196,30 @@ export default function AccountsManager() {
                    account.type === 'caja_ahorro' ? '💳' : '💰'}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-zinc-900 truncate">{account.name}</div>
-                  <div className="text-xs text-zinc-400">{typeInfo.label}</div>
+                  <div className="text-sm font-semibold text-primary truncate">{account.name}</div>
+                  <div className="text-xs text-secondary">{typeInfo.label}</div>
                 </div>
                 <div className="relative">
                   <button
                     onClick={() => setMenuOpen(isMenuOpen ? null : account.id)}
-                    className="w-7 h-7 flex items-center justify-center rounded text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 transition-colors"
+                    className="w-7 h-7 flex items-center justify-center rounded text-tertiary hover:text-primary hover:bg-base-alt transition-colors"
                   >
                     ···
                   </button>
                   {isMenuOpen && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(null)} />
-                      <div className="absolute right-0 top-8 z-50 w-28 bg-white border border-zinc-200 rounded-lg shadow-lg overflow-hidden">
+                      <div className="absolute right-0 top-8 z-50 w-28 bg-surface border border-border-color rounded-lg shadow-lg overflow-hidden">
                         <button
                           onClick={() => handleEdit(account)}
-                          className="w-full px-3 py-2 text-xs text-left text-zinc-700 hover:bg-zinc-50 transition-colors"
+                          className="w-full px-3 py-2 text-xs text-left text-primary hover:bg-base-alt transition-colors"
                         >
                           ✏️ Editar
                         </button>
                         <button
                           onClick={() => setDeleteConfirm({ type: 'account', id: account.id, name: account.name })}
                           disabled={deleteMut.isPending}
-                          className="w-full px-3 py-2 text-xs text-left text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                          className="w-full px-3 py-2 text-xs text-left text-danger hover:bg-danger/10 transition-colors disabled:opacity-50"
                         >
                           🗑️ Eliminar
                         </button>
@@ -253,15 +235,15 @@ export default function AccountsManager() {
 
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full">
-            <h3 className="text-lg font-semibold text-zinc-900 mb-2">Confirmar eliminación</h3>
-            <p className="text-sm text-zinc-600 mb-6">
-              ¿Estás seguro de eliminar <span className="font-medium text-zinc-900">"{deleteConfirm.name}"</span>? Esta acción no se puede deshacer.
+          <div className="bg-surface rounded-xl shadow-xl p-6 max-w-sm w-full">
+            <h3 className="text-lg font-semibold text-primary mb-2">Confirmar eliminación</h3>
+            <p className="text-sm text-secondary mb-6">
+              ¿Estás seguro de eliminar <span className="font-medium text-primary">"{deleteConfirm.name}"</span>? Esta acción no se puede deshacer.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setDeleteConfirm(null)}
-                className="flex-1 py-2.5 text-sm font-medium text-zinc-700 bg-zinc-100 rounded-lg hover:bg-zinc-200 transition-colors"
+                className="flex-1 btn-secondary"
               >
                 Cancelar
               </button>
@@ -271,7 +253,7 @@ export default function AccountsManager() {
                   setDeleteConfirm(null)
                 }}
                 disabled={deleteMut.isPending}
-                className="flex-1 py-2.5 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-500 disabled:opacity-50 transition-colors"
+                className="flex-1 btn-danger"
               >
                 Eliminar
               </button>

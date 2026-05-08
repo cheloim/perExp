@@ -88,7 +88,6 @@ function InstallmentCard({
 }) {
   const network = detectNetwork(entry.card)
   const color = CARD_GRADIENTS[index % CARD_GRADIENTS.length]
-  const hasDigits = /^\d{4}$/.test(entry.card_last4)
 
   return (
     <div
@@ -98,8 +97,8 @@ function InstallmentCard({
     >
       <div className="flex justify-between items-start">
         <div>
-          <p className="text-zinc-900/60 text-[10px] font-medium tracking-widest uppercase">{entry.bank || 'Banco'}</p>
-          <p className="text-zinc-900 text-xs font-bold tracking-wide">{entry.card}</p>
+          <p className="text-primary/60 text-[10px] font-medium tracking-widest uppercase">{entry.bank || 'Banco'}</p>
+          <p className="text-primary text-xs font-bold tracking-wide">{entry.card}</p>
         </div>
         <CardNetworkLogo network={network} />
       </div>
@@ -111,17 +110,10 @@ function InstallmentCard({
         </div>
       </div>
 
-      <p className="text-zinc-900 text-sm font-bold tracking-widest font-mono">
-        {hasDigits ? `•••• •••• •••• ${entry.card_last4}` : '💳 Tarjeta'}
-      </p>
-      {entry.person && (
-        <p className="text-zinc-900/70 text-[10px] font-medium uppercase tracking-wide truncate mt-0.5">
-          {entry.person}
-        </p>
-      )}
+      <p className="text-primary text-sm font-bold">💳 Tarjeta</p>
       <div className="mt-1">
-        <p className="text-zinc-900/50 text-[10px]">Cuotas pendientes</p>
-        <p className="text-zinc-900 font-bold text-base leading-tight">{formatCurrency(entry.pendingTotal, entry.currency)}</p>
+        <p className="text-primary/50 text-[10px]">Cuotas pendientes</p>
+        <p className="text-primary font-bold text-base leading-tight">{formatCurrency(entry.pendingTotal, entry.currency)}</p>
       </div>
     </div>
   )
@@ -190,8 +182,8 @@ export default function InstallmentsPage() {
     return (
       <div className="text-center py-20">
         <p className="text-4xl mb-4">💳</p>
-        <h2 className="text-lg font-semibold text-zinc-900">Sin compras en cuotas</h2>
-        <p className="text-sm text-zinc-400 mt-1">Importá extractos con cuotas para ver la proyección.</p>
+        <h2 className="text-lg font-semibold text-primary">Sin compras en cuotas</h2>
+        <p className="text-sm text-tertiary mt-1">Importá extractos con cuotas para ver la proyección.</p>
       </div>
     )
   }
@@ -201,16 +193,16 @@ export default function InstallmentsPage() {
       {/* Summary stats */}
       <div className="grid grid-cols-3 gap-4">
         <div className="card p-4">
-          <p className="text-xs text-zinc-400 mb-1">Deuda total pendiente</p>
-          <p className="text-2xl font-bold text-zinc-900">{formatCurrency(totalPending)}</p>
+          <p className="text-xs text-tertiary mb-1">Deuda total pendiente</p>
+          <p className="text-2xl font-bold text-primary">{formatCurrency(totalPending)}</p>
         </div>
         <div className="card p-4">
-          <p className="text-xs text-zinc-400 mb-1">Cuotas activas</p>
-          <p className="text-2xl font-bold text-zinc-900">{activeGroups.length}</p>
+          <p className="text-xs text-tertiary mb-1">Cuotas activas</p>
+          <p className="text-2xl font-bold text-primary">{activeGroups.length}</p>
         </div>
         <div className="card p-4">
-          <p className="text-xs text-zinc-400 mb-1">Terminan este mes</p>
-          <p className="text-2xl font-bold text-green-400">{finishingThisMonth}</p>
+          <p className="text-xs text-tertiary mb-1">Terminan este mes</p>
+          <p className="text-2xl font-bold text-success">{finishingThisMonth}</p>
         </div>
       </div>
 
@@ -219,8 +211,8 @@ export default function InstallmentsPage() {
         <div className="xl:col-span-2 space-y-5">
           {/* Monthly load chart */}
           <div className="card p-5">
-            <h2 className="text-base font-semibold text-zinc-900 mb-1">Carga mensual en cuotas</h2>
-            <p className="text-xs text-zinc-400 mb-4">Últimos 3 meses (real) + próximos 3 meses (proyección)</p>
+            <h2 className="text-base font-semibold text-primary mb-1">Carga mensual en cuotas</h2>
+            <p className="text-xs text-tertiary mb-4">Últimos 3 meses (real) + próximos 3 meses (proyección)</p>
             {(() => {
               const currentEntry = monthlyLoad.find(e => e.is_current)
               const currentTotal = currentEntry?.total ?? 0
@@ -278,38 +270,38 @@ export default function InstallmentsPage() {
               )
             })()}
             <div className="flex items-center gap-4 mt-3 justify-center">
-              <span className="flex items-center gap-1.5 text-[10px] text-zinc-400"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#f59e0b' }} />Real pagado</span>
-              <span className="flex items-center gap-1.5 text-[10px] text-zinc-400"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#22c55e' }} />Mes actual</span>
-              <span className="flex items-center gap-1.5 text-[10px] text-zinc-400"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#6366f1' }} />Proyectado</span>
-              <span className="flex items-center gap-1.5 text-[10px] text-zinc-400"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#ef4444' }} />Mayor gasto</span>
-              <span className="flex items-center gap-1.5 text-[10px] text-zinc-400"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#4ade80' }} />Menor gasto</span>
+              <span className="flex items-center gap-1.5 text-[10px] text-tertiary"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#f59e0b' }} />Real pagado</span>
+              <span className="flex items-center gap-1.5 text-[10px] text-tertiary"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#22c55e' }} />Mes actual</span>
+              <span className="flex items-center gap-1.5 text-[10px] text-tertiary"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#6366f1' }} />Proyectado</span>
+              <span className="flex items-center gap-1.5 text-[10px] text-tertiary"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#ef4444' }} />Mayor gasto</span>
+              <span className="flex items-center gap-1.5 text-[10px] text-tertiary"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#4ade80' }} />Menor gasto</span>
             </div>
           </div>
 
           {/* Groups list */}
           <div className="card overflow-hidden">
-            <div className="px-5 py-3 border-b border-zinc-200 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-zinc-900">
+            <div className="px-5 py-3 border-b border-border-color flex items-center justify-between">
+              <h2 className="text-base font-semibold text-primary">
                 Compras en cuotas
-                <span className="ml-2 text-xs text-zinc-500">{filtered.length} registros</span>
+                <span className="ml-2 text-xs text-secondary">{filtered.length} registros</span>
               </h2>
               <button
                 onClick={() => setShowCompleted(v => !v)}
-                className={`text-xs px-2.5 py-1 rounded-full border transition-all ${showCompleted ? 'bg-zinc-600 border-zinc-500 text-zinc-900' : 'border-zinc-300 text-zinc-400 hover:text-zinc-600'}`}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-all ${showCompleted ? 'bg-primary text-on-primary' : 'border-border-color text-tertiary hover:text-secondary'}`}
               >
                 {showCompleted ? 'Ocultar completadas' : 'Mostrar completadas'}
               </button>
             </div>
 
             {filtered.length === 0 ? (
-              <p className="text-zinc-500 text-sm text-center py-10">Sin resultados para los filtros seleccionados</p>
+              <p className="text-secondary text-sm text-center py-10">Sin resultados para los filtros seleccionados</p>
             ) : (
-              <div className="divide-y divide-zinc-200">
+              <div className="divide-y divide-border-color">
                 {filtered.map((g) => {
                   const pct = g.installment_total > 0 ? (g.installments_paid / g.installment_total) * 100 : 0
                   const done = g.remaining_installments === 0
                   return (
-                    <div key={g.installment_group_id} className="px-5 py-3 hover:bg-zinc-100/30">
+                    <div key={g.installment_group_id} className="px-5 py-3 hover:bg-primary/5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-2.5 min-w-0 flex-1">
                           <span
@@ -317,22 +309,22 @@ export default function InstallmentsPage() {
                             style={{ backgroundColor: g.category_color || '#6366f1' }}
                           />
                           <div className="min-w-0">
-                            <p className={`text-sm font-medium ${done ? 'text-zinc-500' : 'text-zinc-900'} truncate`}>
+                            <p className={`text-sm font-medium ${done ? 'text-secondary' : 'text-primary'} truncate`}>
                               {g.description}
                             </p>
-                            <p className="text-xs text-zinc-500 mt-0.5">
-                              {g.bank}{g.person ? ` · ${g.person}` : ''}{g.card_last4 ? ` · ****${g.card_last4}` : ''}
+                            <p className="text-xs text-secondary mt-0.5">
+                              {g.bank}{g.card ? ` · ${g.card}` : ''}
                               {g.next_date && !done && <> · próxima: {formatDate(g.next_date)}</>}
                             </p>
                           </div>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <p className={`text-sm font-semibold ${done ? 'text-zinc-500' : 'text-zinc-900'}`}>
+                          <p className={`text-sm font-semibold ${done ? 'text-secondary' : 'text-primary'}`}>
                             {formatCurrency(g.installment_amount, g.currency)}
                           </p>
-                          <p className="text-xs text-zinc-500">
+                          <p className="text-xs text-secondary">
                             {done
-                              ? <span className="text-green-500">✓ Completada</span>
+                              ? <span className="text-success">✓ Completada</span>
                               : <>{g.remaining_installments} restante{g.remaining_installments !== 1 ? 's' : ''}</>
                             }
                           </p>
@@ -341,7 +333,7 @@ export default function InstallmentsPage() {
 
                       {/* Progress bar */}
                       <div className="mt-2 flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                        <div className="flex-1 h-1.5 bg-base-alt rounded-full overflow-hidden">
                           <div
                             className="h-full rounded-full transition-all"
                             style={{
@@ -350,7 +342,7 @@ export default function InstallmentsPage() {
                             }}
                           />
                         </div>
-                        <span className="text-[10px] text-zinc-500 flex-shrink-0">
+                        <span className="text-[10px] text-secondary flex-shrink-0">
                           {g.installments_paid}/{g.installment_total}
                         </span>
                       </div>
@@ -366,11 +358,11 @@ export default function InstallmentsPage() {
         <div className="xl:col-span-1">
           <div className="card p-5 sticky top-24 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-zinc-900">Tarjetas</h2>
+              <h2 className="text-base font-semibold text-primary">Tarjetas</h2>
               {(bankFilter || activeCardKey) && (
                 <button
                   onClick={() => { setBankFilter(null); setActiveCardKey(null) }}
-                  className="text-xs text-zinc-500 hover:text-zinc-400"
+                  className="text-xs text-secondary hover:text-tertiary"
                 >
                   Limpiar
                 </button>
@@ -380,11 +372,11 @@ export default function InstallmentsPage() {
             {/* Bank filter */}
             {banks.length > 1 && (
               <div>
-                <p className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1.5">Banco</p>
+                <p className="text-[10px] text-secondary uppercase tracking-wide mb-1.5">Banco</p>
                 <div className="flex flex-wrap gap-1.5">
                   <button
                     onClick={() => setBankFilter(null)}
-                    className={`text-xs px-2.5 py-1 rounded-full border transition-all ${!bankFilter ? 'bg-zinc-600 border-zinc-500 text-zinc-900' : 'border-zinc-300 text-zinc-400 hover:text-zinc-600'}`}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-all ${!bankFilter ? 'bg-primary text-on-primary' : 'border-border-color text-tertiary hover:text-secondary'}`}
                   >
                     Todos
                   </button>
@@ -392,7 +384,7 @@ export default function InstallmentsPage() {
                     <button
                       key={b}
                       onClick={() => setBankFilter(bankFilter === b ? null : b)}
-                      className={`text-xs px-2.5 py-1 rounded-full border transition-all ${bankFilter === b ? 'bg-zinc-600 border-zinc-500 text-zinc-900' : 'border-zinc-300 text-zinc-400 hover:text-zinc-600'}`}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-all ${bankFilter === b ? 'bg-primary text-on-primary' : 'border-border-color text-tertiary hover:text-secondary'}`}
                     >
                       {b}
                     </button>

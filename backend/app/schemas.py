@@ -9,25 +9,32 @@ from app.services.date_utils import _normalize_date_str
 
 
 class LoginRequest(BaseModel):
-    dni: str
+    email: str
     password: str
 
 
 class UserCreate(BaseModel):
-    dni: str
     full_name: str
+    email: str
     password: str
-    email: Optional[str] = None
 
 
 class UserResponse(BaseModel):
     id: int
-    dni: str
     full_name: str
-    email: Optional[str] = None
+    email: str
     is_active: bool
     created_at: datetime
+    provider: Optional[str] = None
+    avatar_url: Optional[str] = None
+    invite_code: Optional[str] = None
     model_config = {"from_attributes": True}
+
+
+class OAuthRequest(BaseModel):
+    id_token: Optional[str] = None
+    code: Optional[str] = None
+    provider: str
 
 
 class Token(BaseModel):

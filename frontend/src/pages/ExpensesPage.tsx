@@ -43,8 +43,8 @@ type SortField = 'date' | 'description' | 'category' | 'bank' | 'person' | 'amou
 type SortDir = 'asc' | 'desc'
 
 function SortIcon({ field, sort }: { field: SortField; sort: { field: SortField; dir: SortDir } }) {
-  if (sort.field !== field) return <span className="ml-1 text-zinc-600">↕</span>
-  return <span className="ml-1 text-brand-400">{sort.dir === 'asc' ? '↑' : '↓'}</span>
+  if (sort.field !== field) return <span className="ml-1 text-tertiary">↕</span>
+  return <span className="ml-1 text-primary">{sort.dir === 'asc' ? '↑' : '↓'}</span>
 }
 
 export default function ExpensesPage() {
@@ -180,27 +180,27 @@ export default function ExpensesPage() {
   }
 
   const thClass = (field: SortField) =>
-    `px-4 py-3 text-left cursor-pointer select-none hover:bg-zinc-100/80 whitespace-nowrap ${sort.field === field ? 'text-brand-400' : ''}`
+    `px-4 py-3 text-left cursor-pointer select-none hover:bg-base-alt whitespace-nowrap ${sort.field === field ? 'text-primary' : ''}`
 
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-zinc-900">Gastos</h1>
+        <h1 className="text-xl font-bold text-primary">Gastos</h1>
         <div className="flex items-center gap-2">
           <button
             onClick={() => { setSelectMode(v => !v); setSelectedIds(new Set()) }}
             className={`text-sm px-3 py-1.5 rounded-lg border transition-all ${
               selectMode
-                ? 'bg-brand-500/20 border-brand-500/40 text-brand-400'
-                : 'border-zinc-300 text-zinc-400 hover:text-zinc-700 hover:border-zinc-600'
+                ? 'bg-primary/20 border-primary/40 text-primary'
+                : 'border-border-color text-secondary hover:text-primary hover:border-border-color'
             }`}
           >
             {selectMode ? 'Cancelar' : 'Seleccionar'}
           </button>
           <button
             onClick={() => { setEditingIsIncome(true); setEditing(null) }}
-            className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all"
+            className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border border-success/40 bg-success/10 text-success hover:bg-success/20 transition-all"
           >
             <span className="text-base leading-none">↓</span>
             Ingreso
@@ -218,10 +218,10 @@ export default function ExpensesPage() {
       {/* Filter panel */}
       <div className="card p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-zinc-900">Filtros</span>
+          <span className="text-sm font-medium text-primary">Filtros</span>
           {activeFiltersCount > 0 && (
-            <button onClick={clearFilters} className="text-xs text-zinc-400 hover:text-zinc-900 flex items-center gap-1">
-              <span className="bg-brand-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{activeFiltersCount}</span>
+            <button onClick={clearFilters} className="text-xs text-secondary hover:text-primary flex items-center gap-1">
+              <span className="bg-primary text-on-primary text-[10px] px-1.5 py-0.5 rounded-full">{activeFiltersCount}</span>
               Limpiar filtros
             </button>
           )}
@@ -236,7 +236,7 @@ export default function ExpensesPage() {
               <select
                 value={filterUncategorized ? '__none__' : (filterCategory ?? '')}
                 onChange={e => handleCategoryFilter(e.target.value)}
-                className="bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-500"
+                className="bg-base-alt border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
               >
                 <option value="">Categoría</option>
                 <option value="__none__">Sin categoría</option>
@@ -260,7 +260,7 @@ export default function ExpensesPage() {
           <select
             value={filterBank ?? ''}
             onChange={e => setFilter('bank', e.target.value || undefined)}
-            className="bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-500"
+            className="bg-base-alt border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
           >
             <option value="">Banco</option>
             {(distinctValues?.banks ?? []).map(b => <option key={b} value={b}>{b}</option>)}
@@ -270,7 +270,7 @@ export default function ExpensesPage() {
           <select
             value={filterPerson ?? ''}
             onChange={e => setFilter('person', e.target.value || undefined)}
-            className="bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-500"
+            className="bg-base-alt border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
           >
             <option value="">Persona</option>
             {(distinctValues?.persons ?? []).map(p => <option key={p} value={p}>{p}</option>)}
@@ -280,7 +280,7 @@ export default function ExpensesPage() {
           <select
             value={filterCard ?? ''}
             onChange={e => setFilter('card', e.target.value || undefined)}
-            className="bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-500"
+            className="bg-base-alt border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
           >
             <option value="">Tarjeta</option>
             {(distinctValues?.cards ?? []).map(c => <option key={c} value={c}>{c}</option>)}
@@ -291,7 +291,7 @@ export default function ExpensesPage() {
             type="date"
             value={filterDateFrom ?? ''}
             onChange={e => setFilter('date_from', e.target.value || undefined)}
-            className="bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-500"
+            className="bg-base-alt border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
             placeholder="Desde"
           />
 
@@ -300,7 +300,7 @@ export default function ExpensesPage() {
             type="date"
             value={filterDateTo ?? ''}
             onChange={e => setFilter('date_to', e.target.value || undefined)}
-            className="bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-500"
+            className="bg-base-alt border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
             placeholder="Hasta"
           />
         </div>
@@ -311,7 +311,7 @@ export default function ExpensesPage() {
           value={filterSearch ?? ''}
           onChange={e => setFilter('search', e.target.value || undefined)}
           placeholder="Buscar en descripción..."
-          className="w-full bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 rounded-lg px-3 py-1.5 focus:outline-none focus:border-brand-500 placeholder:text-zinc-500"
+          className="w-full bg-base-alt border border-border-color text-sm text-primary rounded-lg px-3 py-1.5 focus:outline-none focus:border-primary placeholder:text-tertiary"
         />
       </div>
 
@@ -323,20 +323,20 @@ export default function ExpensesPage() {
         const usdTotal = usdExpenses.reduce((s, e) => s + e.amount, 0)
         const avg = arsExpenses.length > 0 ? arsTotal / arsExpenses.length : 0
         return (
-          <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-brand-500/10 border border-brand-500/20 text-sm">
-            <span className="text-zinc-600">
-              <span className="font-semibold text-zinc-900">{expenses.length}</span> gastos
+          <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 text-sm">
+            <span className="text-secondary">
+              <span className="font-semibold text-primary">{expenses.length}</span> gastos
               {filterDateFrom && filterDateTo && (
-                <> del <span className="text-zinc-900 font-medium">{filterDateFrom}</span> al <span className="text-zinc-900 font-medium">{filterDateTo}</span></>
+                <> del <span className="text-primary font-medium">{filterDateFrom}</span> al <span className="text-primary font-medium">{filterDateTo}</span></>
               )}
-              {filterDateFrom && !filterDateTo && <> desde <span className="text-zinc-900 font-medium">{filterDateFrom}</span></>}
-              {!filterDateFrom && filterDateTo && <> hasta <span className="text-zinc-900 font-medium">{filterDateTo}</span></>}
+              {filterDateFrom && !filterDateTo && <> desde <span className="text-primary font-medium">{filterDateFrom}</span></>}
+              {!filterDateFrom && filterDateTo && <> hasta <span className="text-primary font-medium">{filterDateTo}</span></>}
             </span>
-            <span className="text-zinc-500">·</span>
-            <span className="text-zinc-600">Total ARS: <span className="text-zinc-900 font-semibold">{new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(arsTotal)}</span></span>
-            {usdTotal !== 0 && <><span className="text-zinc-500">·</span><span className="text-zinc-600">Total USD: <span className="text-zinc-900 font-semibold">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(usdTotal)}</span></span></>}
-            <span className="text-zinc-500">·</span>
-            <span className="text-zinc-600">Promedio: <span className="text-zinc-900 font-semibold">{new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(avg)}</span></span>
+            <span className="text-tertiary">·</span>
+            <span className="text-secondary">Total ARS: <span className="text-primary font-semibold">{new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(arsTotal)}</span></span>
+            {usdTotal !== 0 && <><span className="text-tertiary">·</span><span className="text-secondary">Total USD: <span className="text-primary font-semibold">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(usdTotal)}</span></span></>}
+            <span className="text-tertiary">·</span>
+            <span className="text-secondary">Promedio: <span className="text-primary font-semibold">{new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(avg)}</span></span>
           </div>
         )
       })()}
@@ -344,7 +344,7 @@ export default function ExpensesPage() {
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-white border-b border-zinc-200">
+            <thead className="bg-surface border-b border-border-color">
               <tr>
                 {selectMode && (
                   <th className="px-3 py-3 w-10">
@@ -352,7 +352,7 @@ export default function ExpensesPage() {
                       type="checkbox"
                       checked={expenses.length > 0 && selectedIds.size === expenses.length}
                       onChange={e => setSelectedIds(e.target.checked ? new Set(expenses.map(x => x.id)) : new Set())}
-                      className="accent-brand-500"
+                      className="accent-primary"
                     />
                   </th>
                 )}
@@ -369,16 +369,16 @@ export default function ExpensesPage() {
                 {!selectMode && <th className="px-4 py-3 text-center">Acciones</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-200">
+            <tbody className="divide-y divide-border-color">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-zinc-500">
+                  <td colSpan={5} className="px-4 py-8 text-center text-secondary">
                     Cargando...
                   </td>
                 </tr>
               ) : expenses.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-zinc-500">
+                  <td colSpan={5} className="px-4 py-8 text-center text-secondary">
                     No hay gastos registrados.
                   </td>
                 </tr>
@@ -407,7 +407,7 @@ export default function ExpensesPage() {
                   .map((exp) => (
                     <tr
                       key={exp.id}
-                      className={`transition-colors ${selectMode ? 'cursor-pointer hover:bg-zinc-100/40' : 'hover:bg-zinc-100/30'} ${selectedIds.has(exp.id) ? 'bg-brand-500/10' : ''}`}
+                      className={`transition-colors ${selectMode ? 'cursor-pointer hover:bg-base-alt/50' : 'hover:bg-base-alt/30'} ${selectedIds.has(exp.id) ? 'bg-primary/10' : ''}`}
                       onClick={selectMode ? () => toggleSelect(exp.id) : undefined}
                     >
                       {selectMode && (
@@ -416,23 +416,23 @@ export default function ExpensesPage() {
                             type="checkbox"
                             checked={selectedIds.has(exp.id)}
                             onChange={() => toggleSelect(exp.id)}
-                            className="accent-brand-500"
+                            className="accent-primary"
                           />
                         </td>
                       )}
-                      <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">
+                      <td className="px-4 py-3 text-tertiary whitespace-nowrap">
                         {formatDate(exp.date)}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-zinc-900">{exp.description}</span>
+                          <span className="text-primary">{exp.description}</span>
                           {exp.installment_number && exp.installment_total && (
-                            <span className="text-xs bg-brand-900 text-brand-300 px-1.5 py-0.5 rounded">
+                            <span className="text-xs bg-primary text-on-primary px-1.5 py-0.5 rounded">
                               {exp.installment_number}/{exp.installment_total}
                             </span>
                           )}
                         </div>
-                        <div className="text-xs text-zinc-500 flex gap-2">
+                        <div className="text-xs text-tertiary flex gap-2">
                           {exp.card && <span>{exp.card}</span>}
                           {exp.bank && <span>{exp.bank}</span>}
                           {exp.person && <span>{exp.person}</span>}
@@ -443,18 +443,18 @@ export default function ExpensesPage() {
                           <span
                             className="px-2 py-1 rounded text-xs font-medium"
                             style={{
-                              backgroundColor: (exp.category_color || '#6b7280') + '20',
-                              color: exp.category_color || '#6b7280',
+                              backgroundColor: (exp.category_color || '#9a9996') + '20',
+                              color: exp.category_color || '#9a9996',
                             }}
                           >
                             {exp.category_name}
                           </span>
                         ) : (
-                          <span className="text-zinc-500">—</span>
+                          <span className="text-tertiary">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <span className={exp.amount < 0 ? 'text-green-400' : 'text-zinc-900'}>
+                        <span className={exp.amount < 0 ? 'text-success' : 'text-primary'}>
                           {formatCurrency(exp.amount, exp.currency)}
                         </span>
                       </td>
@@ -462,7 +462,7 @@ export default function ExpensesPage() {
                         <td className="px-4 py-3 text-center">
                           <button
                             onClick={() => { setEditingIsIncome(exp.amount < 0); setEditing(exp) }}
-                            className="text-brand-400 hover:text-brand-300 mr-3"
+                            className="text-primary hover:brightness-110 mr-3"
                           >
                             ✏️
                           </button>
@@ -470,7 +470,7 @@ export default function ExpensesPage() {
                             onClick={() => {
                               if (confirm('¿Eliminar este gasto?')) deleteMut.mutate(exp.id)
                             }}
-                            className="text-red-400 hover:text-red-600"
+                            className="text-danger hover:brightness-110"
                           >
                             🗑️
                           </button>
@@ -485,18 +485,18 @@ export default function ExpensesPage() {
       </div>
 
       {expenses.length > 0 && (
-        <p className="text-xs text-zinc-500 text-right">{expenses.length} gastos</p>
+        <p className="text-xs text-tertiary text-right">{expenses.length} gastos</p>
       )}
 
       {/* Bulk action bar */}
       {selectMode && selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl bg-white border border-zinc-300 shadow-2xl">
-          <span className="text-sm text-zinc-900 font-medium">{selectedIds.size} seleccionados</span>
-          <span className="text-zinc-600">|</span>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl bg-surface border border-border-color shadow-gnome-xl">
+          <span className="text-sm text-primary font-medium">{selectedIds.size} seleccionados</span>
+          <span className="text-tertiary">|</span>
           <select
             value={bulkCategoryId}
             onChange={e => setBulkCategoryId(e.target.value)}
-            className="bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 rounded-lg px-2 py-1.5 focus:outline-none focus:border-brand-500"
+            className="bg-base-alt border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
           >
             <option value="">Sin categoría</option>
             {(() => {
@@ -522,7 +522,7 @@ export default function ExpensesPage() {
           >
             {bulkMut.isPending ? 'Aplicando...' : 'Aplicar'}
           </button>
-          <span className="text-zinc-600">|</span>
+          <span className="text-tertiary">|</span>
           <button
             onClick={() => {
               if (confirm(`¿Eliminar ${selectedIds.size} gasto${selectedIds.size !== 1 ? 's' : ''}?`)) {
@@ -530,13 +530,13 @@ export default function ExpensesPage() {
               }
             }}
             disabled={bulkMut.isPending || bulkDeleteMut.isPending}
-            className="text-sm px-4 py-1.5 rounded-lg bg-red-600/20 border border-red-600/40 text-red-400 hover:bg-red-600/30 disabled:opacity-50 transition-colors"
+            className="text-sm px-4 py-1.5 rounded-lg bg-danger/20 border border-danger/40 text-danger hover:bg-danger/30 disabled:opacity-50 transition-colors"
           >
             {bulkDeleteMut.isPending ? 'Eliminando...' : 'Eliminar'}
           </button>
           <button
             onClick={() => setSelectedIds(new Set())}
-            className="text-zinc-400 hover:text-zinc-700 text-sm"
+            className="text-tertiary hover:text-primary text-sm"
           >
             Limpiar
           </button>
@@ -628,7 +628,7 @@ function DatePickerInput({ value, onChange }: { value: string; onChange: (d: str
         placeholder="DD-MM-YYYY"
       />
       {isOpen && (
-        <div className="absolute z-50 mt-2 p-3 bg-white border border-zinc-300 rounded-xl shadow-xl">
+        <div className="absolute z-50 mt-2 p-3 bg-surface border border-border-color rounded-xl shadow-gnome-lg">
           <DayPicker
             mode="single"
             selected={selectedDate}
@@ -707,25 +707,16 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
     }
   }
 
-  // Cascading selectors driven by CardSummary
-  const persons = [...new Set(cardSummary.map(c => c.holder))].filter(Boolean).sort()
-
-  const selectedPerson = form.person ?? ''
-  const cardsForPerson = cardSummary.filter(c => !selectedPerson || c.holder === selectedPerson)
-  const availableBanks = [...new Set(cardsForPerson.map(c => c.bank))].filter(Boolean).sort()
+  // Cascading selectors: bank → card (sin persona)
+  const availableBanks = [...new Set(cardSummary.map(c => c.bank))].filter(Boolean).sort()
 
   const selectedBank = form.bank ?? ''
-  const availableCards = cardsForPerson.filter(c => !selectedBank || c.bank === selectedBank)
+  const availableCards = cardSummary.filter(c => !selectedBank || c.bank === selectedBank)
 
-  const cardLabel = (c: CardSummary) =>
-    c.last4 ? `${c.card_name} *${c.last4}` : c.card_name
-
-  const handlePersonChange = (p: string) => {
-    setForm((prev) => ({ ...prev, person: p, bank: '', card: '', card_last4: '' }))
-  }
+  const cardLabel = (c: CardSummary) => c.card_name
 
   const handleBankChange = (b: string) => {
-    setForm((prev) => ({ ...prev, bank: b, card: '', card_last4: '' }))
+    setForm((prev) => ({ ...prev, bank: b, card: '' }))
   }
 
   const handleCardSelect = (c: CardSummary) => {
@@ -733,8 +724,6 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
       ...prev,
       card: c.card_name,
       bank: c.bank,
-      person: c.holder,
-      card_last4: c.last4 ?? '',
     }))
   }
 
@@ -743,22 +732,22 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <div className="relative card w-full max-w-lg max-h-[90vh] overflow-auto p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-zinc-900">
+          <h2 className="text-lg font-semibold text-primary">
             {initial
               ? (isIncome ? 'Editar ingreso' : 'Editar gasto')
               : (isIncome ? 'Nuevo ingreso' : 'Nuevo gasto')}
           </h2>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-900">✕</button>
+          <button onClick={onClose} className="text-tertiary hover:text-primary">✕</button>
         </div>
         {isIncome && (
-          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-700">
+          <div className="flex items-center gap-2 bg-success/10 border border-success/30 rounded-lg px-3 py-2 text-xs text-success">
             <span>↓</span>
             <span>El monto se registrará como ingreso (acreditación)</span>
           </div>
         )}
 
         {saveError && (
-          <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">
+          <div className="flex items-start gap-2 bg-danger/10 border border-danger/30 rounded-lg px-3 py-2 text-xs text-danger">
             <span className="mt-0.5">✕</span>
             <span>{saveError}</span>
           </div>
@@ -766,13 +755,13 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
 
         {/* Payment method toggle */}
         <div>
-          <label className="block text-sm font-medium text-zinc-600 mb-2">Medio de pago</label>
-          <div className="flex rounded-xl overflow-hidden border border-zinc-300">
+          <label className="block text-sm font-medium text-secondary mb-2">Medio de pago</label>
+          <div className="flex rounded-xl overflow-hidden border border-border-color">
             <button
               type="button"
               onClick={() => switchPayMethod('card')}
-              className={`flex-1 py-2 text-sm font-medium transition-colors border-r border-zinc-300 ${
-                payMethod === 'card' ? 'bg-brand-500/20 text-brand-400' : 'text-zinc-400 hover:text-zinc-700'
+              className={`flex-1 py-2 text-sm font-medium transition-colors border-r border-border-color ${
+                payMethod === 'card' ? 'bg-primary/20 text-primary' : 'text-tertiary hover:text-primary'
               }`}
             >
               💳 Tarjeta
@@ -781,7 +770,7 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
               type="button"
               onClick={() => switchPayMethod('cash')}
               className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                payMethod === 'cash' ? 'bg-emerald-500/20 text-emerald-400' : 'text-zinc-400 hover:text-zinc-700'
+                payMethod === 'cash' ? 'bg-success/20 text-success' : 'text-tertiary hover:text-primary'
               }`}
             >
               💵 Efectivo / Transferencia
@@ -790,12 +779,12 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-zinc-600 mb-1">Fecha</label>
+          <label className="block text-sm font-medium text-secondary mb-1">Fecha</label>
           <DatePickerInput value={form.date} onChange={(d) => set('date', d)} />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-zinc-600 mb-1">Descripción</label>
+          <label className="block text-sm font-medium text-secondary mb-1">Descripción</label>
           <input
             type="text"
             value={form.description}
@@ -807,7 +796,7 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
 
         <div className="grid grid-cols-3 gap-3">
           <div className="col-span-2">
-            <label className="block text-sm font-medium text-zinc-600 mb-1">Monto</label>
+            <label className="block text-sm font-medium text-secondary mb-1">Monto</label>
             <input
               type="number"
               value={form.amount}
@@ -816,7 +805,7 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-zinc-600 mb-1">Moneda</label>
+            <label className="block text-sm font-medium text-secondary mb-1">Moneda</label>
             <select value={form.currency ?? 'ARS'} onChange={(e) => set('currency', e.target.value)} className="w-full input">
               <option value="ARS">ARS $</option>
               <option value="USD">USD $</option>
@@ -825,7 +814,7 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-zinc-600 mb-1">Categoría</label>
+          <label className="block text-sm font-medium text-secondary mb-1">Categoría</label>
           <select
             value={form.category_id ?? ''}
             onChange={(e) => set('category_id', e.target.value ? parseInt(e.target.value) : null)}
@@ -850,25 +839,15 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
           </select>
         </div>
 
-        {/* Cascading: Titular → Banco → Tarjeta */}
-        <div>
-          <label className="block text-sm font-medium text-zinc-600 mb-1">Titular</label>
-          <select value={form.person ?? ''} onChange={(e) => handlePersonChange(e.target.value)} className="w-full input">
-            <option value="">— Seleccionar titular —</option>
-            {persons.map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
-        </div>
-
+        {/* Cascading: Banco → Tarjeta */}
         <div className={`space-y-3 transition-opacity ${payMethod === 'cash' ? 'opacity-40 pointer-events-none' : ''}`}>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={`block text-sm font-medium mb-1 ${!selectedPerson ? 'text-zinc-500' : 'text-zinc-600'}`}>
-                Banco {!selectedPerson && <span className="text-xs">(elegí titular primero)</span>}
-              </label>
+              <label className="block text-sm font-medium mb-1 text-secondary">Banco</label>
               <select
                 value={form.bank ?? ''}
                 onChange={(e) => handleBankChange(e.target.value)}
-                disabled={payMethod === 'cash' || !selectedPerson}
+                disabled={payMethod === 'cash'}
                 className="w-full input disabled:opacity-50"
               >
                 <option value="">— Banco —</option>
@@ -876,64 +855,41 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
               </select>
             </div>
             <div>
-              <label className={`block text-sm font-medium mb-1 ${!selectedBank ? 'text-zinc-500' : 'text-zinc-600'}`}>
-                Tarjeta {!selectedBank && payMethod === 'card' && <span className="text-xs">(elegí banco primero)</span>}
-              </label>
+              <label className="block text-sm font-medium mb-1 text-secondary">Tarjeta</label>
               <select
-                value={form.card_last4 ? `${form.card}|${form.card_last4}` : (form.card ?? '')}
+                value={form.card ?? ''}
                 onChange={(e) => {
-                  const selected = availableCards.find(c =>
-                    (c.last4 ? `${c.card_name}|${c.last4}` : c.card_name) === e.target.value
-                  )
+                  const selected = availableCards.find(c => c.card_name === e.target.value)
                   if (selected) handleCardSelect(selected)
                   else set('card', e.target.value)
                 }}
-                disabled={payMethod === 'cash' || !selectedBank}
+                disabled={payMethod === 'cash'}
                 className="w-full input disabled:opacity-50"
               >
                 <option value="">— Tarjeta —</option>
-                {availableCards.map(c => {
-                  const val = c.last4 ? `${c.card_name}|${c.last4}` : c.card_name
-                  return <option key={val} value={val}>{cardLabel(c)}</option>
-                })}
+                {availableCards.map(c => (
+                  <option key={c.card_name} value={c.card_name}>{cardLabel(c)}</option>
+                ))}
               </select>
-            </div>
-          </div>
-          {/* Last 4 digits — auto-filled from card selection, editable manually */}
-          <div className={payMethod === 'cash' ? 'hidden' : ''}>
-            <label className="block text-sm font-medium text-zinc-600 mb-1">
-              Últimos 4 dígitos de la tarjeta
-            </label>
-            <div className="flex items-center gap-2">
-              <span className="text-zinc-500 font-mono text-sm tracking-widest">•••• •••• ••••</span>
-              <input
-                type="text"
-                maxLength={4}
-                pattern="\d{4}"
-                value={form.card_last4 ?? ''}
-                onChange={(e) => set('card_last4', e.target.value.replace(/\D/g, '').slice(0, 4))}
-                placeholder="0000"
-                className="w-20 input font-mono tracking-widest text-center"
-              />
             </div>
           </div>
         </div>
 
         {payMethod === 'card' && !isIncome && (
-          <div className="border border-zinc-200 rounded-xl p-3 space-y-3">
+          <div className="border border-border-color rounded-xl p-3 space-y-3">
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={cuotasEnabled}
                 onChange={(e) => toggleCuotas(e.target.checked)}
-                className="rounded border-zinc-300 text-brand-600"
+                className="rounded border-border-color text-primary"
               />
-              <span className="text-sm font-medium text-zinc-700">Compra en cuotas</span>
+              <span className="text-sm font-medium text-secondary">Compra en cuotas</span>
             </label>
             {cuotasEnabled && (
               <div className="flex items-center gap-3">
                 <div className="flex-1">
-                  <label className="block text-xs text-zinc-500 mb-1">Cuota N°</label>
+                  <label className="block text-xs text-tertiary mb-1">Cuota N°</label>
                   <input
                     type="number"
                     min={1}
@@ -942,9 +898,9 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
                     className="w-full input text-center"
                   />
                 </div>
-                <span className="text-zinc-400 mt-4">de</span>
+                <span className="text-tertiary mt-4">de</span>
                 <div className="flex-1">
-                  <label className="block text-xs text-zinc-500 mb-1">Total cuotas</label>
+                  <label className="block text-xs text-tertiary mb-1">Total cuotas</label>
                   <input
                     type="number"
                     min={1}
@@ -959,7 +915,7 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
         )}
 
         <div>
-          <label className="block text-sm font-medium text-zinc-600 mb-1">Notas</label>
+          <label className="block text-sm font-medium text-secondary mb-1">Notas</label>
           <textarea value={form.notes ?? ''} onChange={(e) => set('notes', e.target.value)} className="w-full input" rows={2} />
         </div>
 
@@ -967,7 +923,7 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
           <button onClick={onClose} className="btn-secondary flex-1">Cancelar</button>
           <button
             onClick={() => onSave({ ...form, amount: isIncome ? -Math.abs(form.amount) : Math.abs(form.amount) })}
-            className={`flex-1 ${isIncome ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2 px-4 rounded-xl transition-colors' : 'btn-primary'}`}
+            className={`flex-1 ${isIncome ? 'bg-success hover:brightness-110 text-on-primary font-semibold py-2 px-4 rounded-xl transition-colors' : 'btn-primary'}`}
           >
             Guardar
           </button>

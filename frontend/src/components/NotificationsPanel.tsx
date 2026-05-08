@@ -44,46 +44,49 @@ export default function NotificationsPanel({ onClose }: Props) {
     <>
       <div className="fixed inset-0 z-30" onClick={onClose} />
 
-      <div className="fixed bottom-20 left-4 z-40 w-80 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl flex flex-col max-h-[480px]">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
-          <div className="flex items-center gap-2 text-white font-semibold">
-            🔔 Notificaciones
+      <div className="fixed bottom-20 left-4 z-40 w-80 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-gnome-lg flex flex-col max-h-[480px]">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)]">
+          <div className="flex items-center gap-2 text-[var(--text-primary)] font-semibold">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" className="text-[var(--color-primary)]">
+              <path d="M8 16a2 2 0 01-2-2h4a2 2 0 01-2 2v-3H8v3zM15 6a4 4 0 00-8 0v3h8V6z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+            </svg>
+            Notificaciones
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors text-lg leading-none">
+          <button onClick={onClose} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors text-lg leading-none">
             ✕
           </button>
         </div>
 
         <div className="overflow-y-auto flex-1">
           {isLoading && (
-            <p className="text-gray-500 text-sm text-center py-8">Cargando…</p>
+            <p className="text-[var(--text-tertiary)] text-sm text-center py-8">Cargando…</p>
           )}
           {!isLoading && notifications.length === 0 && (
-            <p className="text-gray-500 text-sm text-center py-8">Sin notificaciones</p>
+            <p className="text-[var(--text-tertiary)] text-sm text-center py-8">Sin notificaciones</p>
           )}
           {notifications.map((n) => (
             <div
               key={n.id}
-              className={`px-4 py-3 border-b border-gray-800 last:border-0 ${!n.read ? 'bg-indigo-950/30' : ''}`}
+              className={`px-4 py-3 border-b border-[var(--border-color)] last:border-0 ${!n.read ? 'bg-[var(--color-primary)]/8' : ''}`}
             >
               <div className="flex items-start justify-between gap-2 mb-1">
-                <p className="text-white text-sm font-medium leading-tight">{n.title}</p>
-                <span className="text-gray-500 text-xs whitespace-nowrap">{timeAgo(n.created_at)}</span>
+                <p className="text-[var(--text-primary)] text-sm font-medium leading-tight">{n.title}</p>
+                <span className="text-[var(--text-tertiary)] text-xs whitespace-nowrap">{timeAgo(n.created_at)}</span>
               </div>
-              <p className="text-gray-400 text-xs mb-2">{n.body}</p>
+              <p className="text-[var(--text-secondary)] text-xs mb-2">{n.body}</p>
 
               {n.type === 'group_invitation' && !n.read && (
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleAccept(n)}
-                    className="text-xs px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+                    className="text-xs px-3 py-1 rounded-md bg-[var(--color-primary)] hover:brightness-110 text-white transition-colors"
                   >
                     ✓ Aceptar
                   </button>
                   <button
                     onClick={() => reject.mutate(n.id)}
                     disabled={reject.isPending}
-                    className="text-xs px-3 py-1 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-800 transition-colors disabled:opacity-50"
+                    className="text-xs px-3 py-1 rounded-md border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition-colors disabled:opacity-50"
                   >
                     ✕ Rechazar
                   </button>

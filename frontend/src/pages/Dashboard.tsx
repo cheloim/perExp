@@ -46,19 +46,19 @@ function MonthSelector({ value, onChange }: { value: string; onChange: (v: strin
     onChange(`${newY}-${String(newM).padStart(2, '0')}`)
   }
   return (
-    <div className="flex items-center gap-0.5 bg-zinc-100 border border-zinc-200 rounded-lg px-1 py-1">
+    <div className="flex items-center gap-0.5 bg-base-alt border border-border-color rounded-lg px-1 py-1">
       <button
         onClick={() => shift(-1)}
         disabled={isSixMonthsAgo}
-        className="px-2 py-0.5 text-zinc-400 hover:text-zinc-900 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        className="px-2 py-0.5 text-tertiary hover:text-primary rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
       >◀</button>
-      <span className="text-zinc-900 text-sm font-medium px-3 min-w-[140px] text-center select-none">
+      <span className="text-primary text-sm font-medium px-3 min-w-[140px] text-center select-none">
         {MONTHS_ES_LONG[m - 1]} {y}
       </span>
       <button
         onClick={() => shift(1)}
         disabled={isCurrentMonth}
-        className="px-2 py-0.5 text-zinc-400 hover:text-zinc-900 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        className="px-2 py-0.5 text-tertiary hover:text-primary rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
       >▶</button>
     </div>
   )
@@ -70,33 +70,27 @@ function StatCard({
   label: string; value: string; sub?: string; accent?: 'green' | 'red' | 'blue'
 }) {
   const accentMap = {
-    green: 'border-l-4 border-emerald-500',
-    red: 'border-l-4 border-rose-500',
-    blue: 'border-l-4 border-brand-500',
+    green: 'border-l-4 border-success',
+    red: 'border-l-4 border-danger',
+    blue: 'border-l-4 border-primary',
   }
   return (
     <div className={`card p-5 ${accent ? accentMap[accent] : ''}`}>
-      <p className="text-xs font-medium text-zinc-400 uppercase tracking-wide mb-1">{label}</p>
-      <p className="text-2xl font-bold text-zinc-900 leading-tight">{value}</p>
-      {sub && <p className="text-xs text-zinc-500 mt-1">{sub}</p>}
+      <p className="text-xs font-medium text-secondary uppercase tracking-wide mb-1">{label}</p>
+      <p className="text-2xl font-bold text-primary leading-tight">{value}</p>
+      {sub && <p className="text-xs text-tertiary mt-1">{sub}</p>}
     </div>
   )
 }
 
-function CardRow({ last4, cardName, bank, total }: { last4: string; cardName: string; bank: string; total: number }) {
-  // Detectar si es una cuenta (no tiene bank o el cardName sugiere que es cuenta)
+function CardRow({ cardName, bank, total }: { cardName: string; bank: string; total: number }) {
   const isAccount = !bank || cardName.toLowerCase().includes('efectivo') || cardName.toLowerCase().includes('cuenta')
 
   const renderIcon = () => {
     if (isAccount) {
-      // Íconos para cuentas según el tipo
       if (cardName.toLowerCase().includes('efectivo')) return '💵'
       if (cardName.toLowerCase().includes('mercadopago') || cardName.toLowerCase().includes('mp')) return '📱'
       return '🏦'
-    }
-    // Para tarjetas, mostrar last4 o un ícono de tarjeta
-    if (last4 && /^\d{4}$/.test(last4)) {
-      return last4
     }
     return '💳'
   }
@@ -104,15 +98,15 @@ function CardRow({ last4, cardName, bank, total }: { last4: string; cardName: st
   return (
     <div className="flex items-center justify-between py-2.5 px-1">
       <div className="flex items-center gap-3">
-        <div className={`w-8 h-8 rounded-lg ${isAccount ? 'bg-emerald-50' : 'bg-zinc-100'} flex items-center justify-center text-xs ${last4 && /^\d{4}$/.test(last4) ? 'font-mono text-zinc-500 font-semibold' : 'text-base'}`}>
+        <div className={`w-8 h-8 rounded-lg ${isAccount ? 'bg-success/10' : 'bg-base-alt'} flex items-center justify-center text-xs`}>
           {renderIcon()}
         </div>
         <div>
-          <p className="text-sm font-medium text-zinc-900 leading-tight">{cardName}</p>
-          {bank && <p className="text-xs text-zinc-400">{bank}</p>}
+          <p className="text-sm font-medium text-primary leading-tight">{cardName}</p>
+          {bank && <p className="text-xs text-tertiary">{bank}</p>}
         </div>
       </div>
-      <span className="text-sm font-semibold text-zinc-900">{formatCurrency(total)}</span>
+      <span className="text-sm font-semibold text-primary">{formatCurrency(total)}</span>
     </div>
   )
 }
@@ -211,8 +205,8 @@ export default function Dashboard() {
       {/* Page header + period selector */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">Finanzas Personales</h1>
-          <p className="text-sm text-zinc-400 mt-0.5">
+          <h1 className="text-2xl font-bold text-primary">Finanzas Personales</h1>
+          <p className="text-sm text-secondary mt-0.5">
             {isCurrentMonth ? 'Mes en curso' : 'Período seleccionado'}
           </p>
         </div>
@@ -249,24 +243,23 @@ export default function Dashboard() {
           {/* Credit cards */}
           <div className="card p-5">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-zinc-900">Tarjetas de Crédito</h2>
+              <h2 className="text-sm font-semibold text-primary">Tarjetas de Crédito</h2>
               <button
                 onClick={() => navigate('/accounts')}
-                className="text-xs text-brand-500 hover:text-brand-400 transition-colors"
+                className="text-xs text-primary hover:brightness-110 transition-colors"
               >
                 Ver detalle →
               </button>
             </div>
             {cardData.length === 0 ? (
-              <p className="text-sm text-zinc-400 text-center py-6">Sin tarjetas registradas</p>
+              <p className="text-sm text-secondary text-center py-6">Sin tarjetas registradas</p>
             ) : (
-              <div className="divide-y divide-zinc-100">
+              <div className="divide-y divide-border-color">
                 {cardData.map((card, i) => {
                   const monthEntry = card.monthly?.find(m => m.month === month)
                   return (
                     <CardRow
                       key={i}
-                      last4={card.last4}
                       cardName={card.card_name}
                       bank={card.bank}
                       total={monthEntry?.total ?? 0}
@@ -279,11 +272,11 @@ export default function Dashboard() {
 
           {/* Scheduled expenses placeholder */}
           <div className="card p-5">
-            <h2 className="text-sm font-semibold text-zinc-900 mb-3">Próximos Gastos Programados</h2>
+            <h2 className="text-sm font-semibold text-primary mb-3">Próximos Gastos Programados</h2>
             <div className="flex flex-col items-center justify-center py-8 text-center gap-2">
               <span className="text-3xl opacity-30">📅</span>
-              <p className="text-sm text-zinc-400">Próximamente</p>
-              <p className="text-xs text-zinc-300">Los gastos programados y vencimientos aparecerán aquí</p>
+              <p className="text-sm text-secondary">Próximamente</p>
+              <p className="text-xs text-tertiary">Los gastos programados y vencimientos aparecerán aquí</p>
             </div>
           </div>
         </div>
@@ -293,42 +286,42 @@ export default function Dashboard() {
           {/* Daily area chart — last 10 days */}
           <div className="card p-5">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-zinc-900">Evolución del balance</h2>
-              <span className="text-xs text-zinc-400">{MONTHS_ES_LONG[parseInt(month.split('-')[1]) - 1]}</span>
+              <h2 className="text-sm font-semibold text-primary">Evolución del balance</h2>
+              <span className="text-xs text-tertiary">{MONTHS_ES_LONG[parseInt(month.split('-')[1]) - 1]}</span>
             </div>
             {areaExpenses.length === 0 ? (
-              <p className="text-sm text-zinc-400 text-center py-10">Sin movimientos en este período</p>
+              <p className="text-sm text-secondary text-center py-10">Sin movimientos en este período</p>
             ) : (
               <ResponsiveContainer width="100%" height={180}>
                 <AreaChart data={dailyChart} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="areaGradPos" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.02} />
+                      <stop offset="5%" stopColor="#33d17a" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#33d17a" stopOpacity={0.02} />
                     </linearGradient>
                     <linearGradient id="areaGradNeg" x1="0" y1="1" x2="0" y2="0">
-                      <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#f43f5e" stopOpacity={0.02} />
+                      <stop offset="5%" stopColor="#e01b24" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#e01b24" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} interval={4} minTickGap={20} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 9, fill: 'var(--chart-text)' }} axisLine={false} tickLine={false} interval={4} minTickGap={20} />
                   <YAxis
                     tickFormatter={(v) => new Intl.NumberFormat('es-AR', { notation: 'compact' } as any).format(v)}
-                    tick={{ fontSize: 10, fill: '#94a3b8' }}
+                    tick={{ fontSize: 10, fill: 'var(--chart-text)' }}
                     width={48}
                     axisLine={false}
                     tickLine={false}
                   />
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#fff', borderColor: '#e2e8f0', color: '#1e293b', borderRadius: 8, fontSize: 12 }}
+                    contentStyle={{ backgroundColor: 'var(--chart-tooltip-bg)', borderColor: 'var(--chart-tooltip-border)', color: 'var(--chart-tooltip-text)', borderRadius: 8, fontSize: 12 }}
                     formatter={(v: number) => [formatCurrency(v), 'Balance acumulado']}
                     labelFormatter={(label) => label}
                   />
                   {(() => {
                     const hasPos = dailyChart.some(d => d.balance >= 0)
                     const allNeg = !hasPos
-                    const color = allNeg ? '#f43f5e' : '#10b981'
+                    const color = allNeg ? '#e01b24' : '#33d17a'
                     const grad = allNeg ? 'url(#areaGradNeg)' : 'url(#areaGradPos)'
                     return (
                       <Area
@@ -351,16 +344,16 @@ export default function Dashboard() {
           {/* Category spending */}
           <div className="card p-5">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-zinc-900">Gasto por Categoría</h2>
+              <h2 className="text-sm font-semibold text-primary">Gasto por Categoría</h2>
               <button
                 onClick={() => navigate('/cat-dashboard')}
-                className="text-xs text-brand-500 hover:text-brand-400 transition-colors"
+                className="text-xs text-primary hover:brightness-110 transition-colors"
               >
                 Ver todo →
               </button>
             </div>
             {topCategories.length === 0 ? (
-              <p className="text-sm text-zinc-400 text-center py-6">Sin datos</p>
+              <p className="text-sm text-secondary text-center py-6">Sin datos</p>
             ) : (
               <div className="space-y-3">
                 {topCategories.map((cat, i) => {
@@ -369,15 +362,15 @@ export default function Dashboard() {
                     <div key={i}>
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.category_color || '#94a3b8' }} />
-                          <span className="text-xs text-zinc-600 font-medium">{cat.category_name}</span>
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.category_color || '#9a9996' }} />
+                          <span className="text-xs text-secondary font-medium">{cat.category_name}</span>
                         </div>
-                        <span className="text-xs font-semibold text-zinc-900">{formatCurrency(cat.total)}</span>
+                        <span className="text-xs font-semibold text-primary">{formatCurrency(cat.total)}</span>
                       </div>
-                      <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                      <div className="h-1.5 bg-base-alt rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all duration-500"
-                          style={{ width: `${pct}%`, backgroundColor: cat.category_color || '#94a3b8' }}
+                          style={{ width: `${pct}%`, backgroundColor: cat.category_color || '#9a9996' }}
                         />
                       </div>
                     </div>
@@ -391,37 +384,37 @@ export default function Dashboard() {
 
       {/* Recent transactions */}
       <div className="card">
-        <div className="px-5 py-4 border-b border-zinc-100 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-zinc-900">
+        <div className="px-5 py-4 border-b border-border-color flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-primary">
             Transacciones — Últimos 7 días{!isCurrentMonth && ` (al ${formatDate(toYMD(toDate))})`}
           </h2>
           <button
             onClick={() => navigate('/expenses')}
-            className="text-xs text-brand-500 hover:text-brand-400 transition-colors"
+            className="text-xs text-primary hover:brightness-110 transition-colors"
           >
             Ver todos →
           </button>
         </div>
         {recentExpenses.length === 0 ? (
-          <p className="text-sm text-zinc-400 text-center py-10">Sin transacciones en este período</p>
+          <p className="text-sm text-secondary text-center py-10">Sin transacciones en este período</p>
         ) : (
-          <div className="divide-y divide-zinc-100">
+          <div className="divide-y divide-border-color">
             {recentExpenses.map((exp) => (
-              <div key={exp.id} className="flex items-center justify-between px-5 py-3 hover:bg-zinc-50 transition-colors">
+              <div key={exp.id} className="flex items-center justify-between px-5 py-3 hover:bg-base-alt transition-colors">
                 <div className="flex items-center gap-3">
-                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: exp.category_color || '#94a3b8' }} />
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: exp.category_color || '#9a9996' }} />
                   <div>
-                    <p className="text-sm font-medium text-zinc-900">{exp.description}</p>
-                    <p className="text-xs text-zinc-400">
+                    <p className="text-sm font-medium text-primary">{exp.description}</p>
+                    <p className="text-xs text-tertiary">
                       {formatDate(exp.date)}
                       {exp.category_name ? ` · ${exp.category_name}` : ''}
                       {exp.card ? ` · ${exp.card}` : ''}
                     </p>
                   </div>
                 </div>
-                <span className={`text-sm font-semibold ${exp.amount < 0 ? 'text-emerald-500' : 'text-zinc-900'}`}>
+                <span className={`text-sm font-semibold ${exp.amount < 0 ? 'text-success' : 'text-primary'}`}>
                   {exp.currency === 'USD' && (
-                    <span className="text-xs font-normal bg-green-100 text-green-700 px-1.5 py-0.5 rounded mr-1">USD</span>
+                    <span className="text-xs font-normal badge-success px-1.5 py-0.5 rounded mr-1">USD</span>
                   )}
                   {formatCurrency(exp.amount, exp.currency)}
                 </span>

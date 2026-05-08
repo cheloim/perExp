@@ -31,11 +31,13 @@ export interface AuthToken {
 
 export interface User {
   id: number
-  dni: string
+  dni?: string | null
   full_name: string
-  email?: string | null
+  email: string
   is_active: boolean
   created_at: string
+  provider?: string | null
+  avatar_url?: string | null
 }
 
 export interface Category {

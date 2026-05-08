@@ -1,0 +1,288 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* =========================================
+   GNOME Adwaita CSS Variable Tokens
+   ========================================= */
+:root {
+  /* Light mode */
+  --color-base:             #f6f5f4;
+  --color-base-alt:          #deddda;
+  --color-base-container:    #ffffff;
+  --color-surface:           #ffffff;
+  --color-on-surface:       #3d3846;
+  --color-sidebar:          #faf9f7;
+  --color-on-sidebar:       #3d3846;
+  --color-primary:          #3584e4;
+  --color-on-primary:       #ffffff;
+  --color-sidebar-icon:     #77767b;
+  --color-sidebar-icon-active: #1c71d8;
+  --color-sidebar-indicator: #3584e4;
+  --color-sidebar-text-active: #1c71d8;
+
+  --text-primary:           #1c1b1f;
+  --text-secondary:         #5e5c64;
+  --text-tertiary:         #9a9996;
+  --border-color:          rgba(0,0,0,0.1);
+
+  --rdp-accent-color:      #3584e4;
+  --rdp-background-color:   rgba(53,132,228,0.1);
+}
+
+.dark {
+  /* Dark mode — GNOME Adwaita Dark */
+  --color-base:             #303030;
+  --color-base-alt:         #383838;
+  --color-base-container:   #424242;
+  --color-surface:          #424242;
+  --color-on-surface:      #ffffff;
+  --color-sidebar:          #2a2a2a;
+  --color-on-sidebar:       #ffffff;
+  --color-primary:          #62a0ea;
+  --color-on-primary:       #ffffff;
+  --color-sidebar-icon:     #9a9996;
+  --color-sidebar-icon-active: #62a0ea;
+  --color-sidebar-indicator: #62a0ea;
+  --color-sidebar-text-active: #62a0ea;
+
+  --text-primary:           #ffffff;
+  --text-secondary:         #c0bfbc;
+  --text-tertiary:          #77767b;
+  --border-color:           rgba(255,255,255,0.1);
+
+  --rdp-accent-color:       #62a0ea;
+  --rdp-background-color:    rgba(98,160,234,0.15);
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-base text-on-surface min-h-screen relative overflow-x-hidden;
+    font-feature-settings: "cv11", "ss01", "cv01";
+  }
+
+  h1, h2, h3, h4 {
+    @apply tracking-tight font-semibold text-[var(--text-primary)];
+  }
+
+  /* GNOME sleek scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-base-alt);
+    @apply rounded-full transition-colors;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-sidebar-icon);
+  }
+
+  input[type="date"],
+  input[type="month"],
+  input[type="text"],
+  input[type="number"],
+  select,
+  textarea {
+    @apply transition-all duration-200 color-scheme-light;
+  }
+
+  .color-scheme-light {
+    color-scheme: light;
+  }
+}
+
+.dark input[type="date"],
+.dark input[type="month"],
+.dark input[type="text"],
+.dark input[type="number"],
+.dark select,
+.dark textarea {
+  color-scheme: dark;
+}
+
+/* =========================================
+   react-day-picker theming
+   ========================================= */
+.rdp {
+  --rdp-cell-size: 40px;
+  margin: 0;
+}
+
+.rdp-root {
+  background: transparent;
+}
+
+.rdp-months {
+  justify-content: center;
+}
+
+.rdp-month {
+  width: 100%;
+}
+
+.rdp-caption {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.rdp-caption_dropdowns {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.rdp-nav {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.rdp-nav_button {
+  @apply p-2 rounded-lg transition-colors;
+  width: var(--rdp-cell-size);
+  height: var(--rdp-cell-size);
+  color: var(--text-secondary);
+}
+
+.rdp-nav_button:hover {
+  background: var(--color-base-alt);
+  color: var(--text-primary);
+}
+
+.rdp-head_cell {
+  @apply text-xs font-medium uppercase tracking-wider;
+  color: var(--text-tertiary);
+  padding: 0;
+}
+
+.rdp-tbody {
+  gap: 2px;
+}
+
+.rdp-row {
+  gap: 2px;
+}
+
+.rdp-cell {
+  padding: 2px;
+}
+
+.rdp-day {
+  @apply rounded-lg text-sm transition-colors;
+  width: var(--rdp-cell-size);
+  height: var(--rdp-cell-size);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+
+.rdp-day:hover {
+  background: var(--color-base-alt);
+}
+
+.rdp-day_button {
+  @apply rounded-lg text-sm transition-colors;
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+
+.rdp-day_button:hover {
+  background: var(--color-base-alt);
+}
+
+.rdp-day_button:focus,
+.rdp-day_button:active {
+  background: var(--rdp-accent-color);
+  color: white;
+}
+
+.rdp-today .rdp-day_button {
+  @apply font-semibold;
+  color: var(--color-primary);
+}
+
+.rdp-disabled .rdp-day_button,
+.rdp-day_button:disabled {
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+.rdp-outside .rdp-day_button {
+  color: var(--text-tertiary);
+  opacity: 0.5;
+}
+
+@layer components {
+  /* GNOME-style card */
+  .card {
+    @apply bg-surface border border-[var(--border-color)] rounded-lg relative overflow-hidden transition-all duration-200;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  /* GNOME Primary Button */
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-5 py-2.5 text-sm font-medium text-white
+           bg-primary rounded-md overflow-hidden
+           hover:brightness-110 active:scale-[0.98]
+           transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* GNOME Secondary Button */
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-[var(--text-primary)]
+           bg-[var(--color-base-alt)] border border-[var(--border-color)] rounded-md
+           hover:brightness-90 active:scale-[0.98]
+           transition-all duration-150;
+  }
+
+  /* Light Inputs */
+  .input {
+    @apply w-full border border-[var(--border-color)] bg-[var(--color-base-container)] rounded-md px-4 py-2.5 text-sm text-[var(--text-primary)]
+           placeholder:text-[var(--text-tertiary)]
+           focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary
+           transition-all duration-200;
+  }
+
+  /* Table headers */
+  .table-th {
+    @apply px-4 py-3 text-left text-xs font-medium uppercase tracking-wider
+           cursor-pointer select-none transition-colors duration-200;
+    color: var(--text-secondary);
+  }
+
+  .table-th:hover {
+    background: var(--color-base-alt);
+    color: var(--text-primary);
+  }
+
+  .table-th.active {
+    color: var(--color-primary);
+  }
+}

@@ -13,15 +13,16 @@ interface ChatMessage {
 
 interface Session {
   id: string
-  ts: number             // session start timestamp
+  ts: number
+  lastMessageTs?: number
   messages: ChatMessage[]
-  summary?: string       // LLM-generated summary
+  summary?: string
 }
 
 // ── Storage ──────────────────────────────────────────────────────────────────
 
 const SESSIONS_KEY = 'inv_assistant_sessions'
-const ACTIVE_KEY   = 'inv_assistant_active'   // id of current session
+const ACTIVE_KEY   = 'inv_assistant_active'
 
 function loadSessions(): Session[] {
   try { return JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]') } catch { return [] }
@@ -74,9 +75,13 @@ async function streamTo(
   body: object,
   onChunk: (t: string) => void,
 ): Promise<string> {
+  const token = localStorage.getItem('auth_token')
   const resp = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    },
     body: JSON.stringify(body),
   })
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
@@ -102,6 +107,83 @@ async function streamTo(
   return full
 }
 
+// ── SVG Icons ──────────────────────────────────────────────────────────────────
+
+function ChatBubbleIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  )
+}
+
+function ChartIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10" />
+      <line x1="12" y1="20" x2="12" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="14" />
+    </svg>
+  )
+}
+
+function BoltIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  )
+}
+
+function NewChatIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  )
+}
+
+function SendIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="22" y1="2" x2="11" y2="13" />
+      <polygon points="22 2 15 22 11 13 2 9 22 2" />
+    </svg>
+  )
+}
+
+function ChevronRightIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  )
+}
+
+function TrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14H6L5 6" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M9 6V4h6v2" />
+    </svg>
+  )
+}
+
+function SummaryIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+      <polyline points="10 9 9 9 8 9" />
+    </svg>
+  )
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function ThinkingDots() {
@@ -110,7 +192,7 @@ function ThinkingDots() {
     const id = setInterval(() => setD(p => p.length >= 3 ? '.' : p + '.'), 400)
     return () => clearInterval(id)
   }, [])
-  return <span className="text-zinc-400 text-sm">{d}</span>
+  return <span className="text-tertiary text-sm">{d}</span>
 }
 
 function MessageList({
@@ -120,15 +202,17 @@ function MessageList({
     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
       {messages.length === 0 && (
         <div className="flex flex-col items-center justify-center h-full text-center space-y-2">
-          <span className="text-3xl">💬</span>
-          <p className="text-sm text-zinc-500">Preguntame sobre tus inversiones</p>
-          <p className="text-xs text-zinc-400">Ej: ¿Cómo están mis CEDEARs? ¿Qué bonos convienen hoy?</p>
+          <span className="text-secondary"><ChatBubbleIcon /></span>
+          <p className="text-sm text-secondary">Preguntame sobre tus inversiones</p>
+          <p className="text-xs text-tertiary">Ej: ¿Cómo están mis CEDEARs? ¿Qué bonos convienen hoy?</p>
         </div>
       )}
       {messages.map((msg, i) => (
         <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
           <div className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
-            msg.role === 'user' ? 'bg-brand-600 text-white rounded-br-sm' : 'bg-zinc-100 text-zinc-800 rounded-bl-sm'
+            msg.role === 'user'
+              ? 'bg-primary text-on-primary rounded-br-sm'
+              : 'bg-base-alt text-primary rounded-bl-sm'
           }`}>
             {msg.text || (streaming && i === messages.length - 1 ? <ThinkingDots /> : '')}
           </div>
@@ -147,34 +231,36 @@ function SessionCard({
   const dateStr  = new Date(session.ts).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 
   return (
-    <div className="bg-zinc-50 rounded-lg border border-zinc-200 overflow-hidden">
+    <div className="bg-base-container border border-border-color rounded-lg overflow-hidden">
       <div
-        className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-zinc-100 transition-colors"
+        className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-base-alt transition-colors"
         onClick={onToggle}
       >
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-zinc-700 truncate">{preview}</p>
-          <p className="text-xs text-zinc-400">{dateStr} · {userMsgs.length} preguntas</p>
+          <p className="text-sm text-primary truncate">{preview}</p>
+          <p className="text-xs text-tertiary">{dateStr} · {userMsgs.length} preguntas</p>
         </div>
         <div className="flex items-center gap-2 ml-2 flex-shrink-0">
           <button onClick={e => { e.stopPropagation(); if (confirm('¿Eliminar sesión?')) onDelete() }}
-            className="text-zinc-400 hover:text-red-500 text-sm transition-colors">✕</button>
-          <span className="text-zinc-400 text-xs">{expanded ? '▲' : '▼'}</span>
+            className="text-tertiary hover:text-danger text-sm transition-colors"><TrashIcon /></button>
+          <span className="text-tertiary text-xs">{expanded ? '▲' : '▼'}</span>
         </div>
       </div>
       {expanded && (
-        <div className="border-t border-zinc-200 bg-white">
+        <div className="border-t border-border-color bg-surface">
           {session.summary && (
-            <div className="px-3 py-2 bg-brand-50 border-b border-brand-100">
-              <p className="text-[10px] font-semibold text-brand-600 uppercase tracking-wider mb-1">Resumen</p>
-              <p className="text-xs text-brand-800 leading-relaxed">{session.summary}</p>
+            <div className="px-3 py-2 bg-primary-subtle border-b border-border-color">
+              <p className="text-[10px] font-semibold text-primary uppercase tracking-wider mb-1 flex items-center gap-1">
+                <SummaryIcon /> Resumen
+              </p>
+              <p className="text-xs text-primary leading-relaxed">{session.summary}</p>
             </div>
           )}
           <div className="px-3 py-2 space-y-2 max-h-64 overflow-y-auto">
             {session.messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[90%] px-2 py-1.5 rounded-xl text-xs leading-relaxed whitespace-pre-wrap ${
-                  m.role === 'user' ? 'bg-brand-600 text-white' : 'bg-zinc-100 text-zinc-700'
+                  m.role === 'user' ? 'bg-primary text-on-primary' : 'bg-base-alt text-primary'
                 }`}>{m.text}</div>
               </div>
             ))}
@@ -340,7 +426,6 @@ export default function InvestmentsAssistant() {
   }
 
   const startNewSession = async () => {
-    // Auto-summarize current session before switching (fire-and-forget)
     const curSession = sessions.find(s => s.id === activeId)
     if (curSession && curSession.messages.length > 0 && !curSession.summary) {
       summarizeSession(activeId, curSession.messages)
@@ -374,16 +459,16 @@ export default function InvestmentsAssistant() {
     }
   }
 
-  // ── Shared JSX fragments (inlined to avoid remount-on-render bug) ────────────
+  // ── Shared JSX fragments ────────────────────────────────────────────────────
 
   const headerJsx = (onExpand?: () => void) => (
-    <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 flex-shrink-0">
+    <div className="flex items-center justify-between px-4 py-3 border-b border-border-color flex-shrink-0">
       <div className="flex items-center gap-2">
-        <span className="text-base">📊</span>
-        <span className="text-sm font-semibold text-zinc-900">Asistente Inversiones</span>
-        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">WIP</span>
+        <span className="text-secondary"><ChartIcon /></span>
+        <span className="text-sm font-semibold text-primary">Asistente Inversiones</span>
+        <span className="badge-warning text-[10px]">WIP</span>
         {investments.length > 0 && (
-          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200"
+          <span className="badge-primary text-[10px]"
             title="El asistente ve tu cartera actual">
             {investments.length} pos.
           </span>
@@ -394,15 +479,15 @@ export default function InvestmentsAssistant() {
           <button
             onClick={() => summarizeSession(activeId, messages)}
             disabled={summarizing}
-            className="text-xs px-2 py-1 rounded border border-brand-200 bg-brand-50 text-brand-600 hover:bg-brand-100 disabled:opacity-50 transition-colors"
-            title="Generar resumen de la sesión para retomar después"
+            className="text-xs px-2 py-1 rounded border border-border-color bg-base-alt text-secondary hover:bg-base-container disabled:opacity-50 transition-colors"
+            title="Generar resumen de la sesión"
           >
             {summarizing ? '...' : 'Resumir'}
           </button>
         )}
         {onExpand && (
-          <button onClick={onExpand} className="text-zinc-400 hover:text-zinc-700 transition-colors p-1 rounded" title="Expandir">
-            ⤢
+          <button onClick={onExpand} className="text-tertiary hover:text-primary transition-colors p-1 rounded" title="Expandir">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" /></svg>
           </button>
         )}
       </div>
@@ -410,20 +495,20 @@ export default function InvestmentsAssistant() {
   )
 
   const toolbarJsx = (
-    <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-100 flex-shrink-0">
+    <div className="flex items-center justify-between px-4 py-2 border-b border-border-color flex-shrink-0">
       <div className="flex items-center gap-3">
         <button onClick={() => setShowHistory(false)}
-          className={`text-xs font-medium transition-colors ${!showHistory ? 'text-brand-600' : 'text-zinc-400 hover:text-zinc-600'}`}>
+          className={`text-xs font-medium transition-colors ${!showHistory ? 'text-primary' : 'text-tertiary hover:text-primary'}`}>
           Chat
         </button>
         <button onClick={() => setShowHistory(true)}
-          className={`text-xs font-medium transition-colors ${showHistory ? 'text-brand-600' : 'text-zinc-400 hover:text-zinc-600'}`}>
-          Historial {sessions.length > 0 && <span className="ml-1 text-zinc-400">({sessions.length})</span>}
+          className={`text-xs font-medium transition-colors ${showHistory ? 'text-primary' : 'text-tertiary hover:text-primary'}`}>
+          Historial {sessions.filter(s => s.id !== activeId).length > 0 && <span className="ml-1 text-tertiary">({sessions.filter(s => s.id !== activeId).length})</span>}
         </button>
       </div>
       {!showHistory && (
-        <button onClick={startNewSession} className="text-xs text-zinc-400 hover:text-zinc-600 transition-colors">
-          + Nueva sesión
+        <button onClick={startNewSession} className="text-xs text-tertiary hover:text-primary transition-colors flex items-center gap-1">
+          <NewChatIcon /> Nueva sesión
         </button>
       )}
     </div>
@@ -432,33 +517,27 @@ export default function InvestmentsAssistant() {
   const historyJsx = (
     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 min-h-0">
       {sessions.length === 0 ? (
-        <p className="text-sm text-zinc-500 text-center py-8">Sin historial aún</p>
+        <p className="text-sm text-secondary text-center py-8">Sin historial aún</p>
       ) : (
-        [...sessions].reverse().map(s => (
-          <div key={s.id} className="relative">
-            {s.id === activeId && (
-              <span className="absolute -top-1 -right-1 z-10 text-[9px] font-bold px-1.5 py-0.5 bg-brand-600 text-white rounded-full">
-                activa
-              </span>
-            )}
-            <SessionCard
-              session={s}
-              expanded={expandedId === s.id}
-              onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)}
-              onDelete={() => deleteSession(s.id)}
+        [...sessions].reverse().filter(s => s.id !== activeId).map(s => (
+          <SessionCard
+            key={s.id}
+            session={s}
+            expanded={expandedId === s.id}
+            onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)}
+            onDelete={() => deleteSession(s.id)}
             />
-          </div>
         ))
       )}
     </div>
   )
 
   const inputBarJsx = (iRef: React.RefObject<HTMLInputElement>) => (
-    <div className="px-4 py-3 border-t border-zinc-200 flex-shrink-0">
+    <div className="px-4 py-3 border-t border-border-color flex-shrink-0">
       {activeSession?.summary && (
-        <div className="mb-2 px-3 py-2 bg-brand-50 border border-brand-100 rounded-lg">
-          <p className="text-[10px] font-semibold text-brand-600 uppercase tracking-wider mb-0.5">Resumen de sesión</p>
-          <p className="text-xs text-brand-700 leading-relaxed line-clamp-3">{activeSession.summary}</p>
+        <div className="mb-2 px-3 py-2 bg-primary-subtle border border-border-color rounded-lg">
+          <p className="text-[10px] font-semibold text-primary uppercase tracking-wider mb-0.5 flex items-center gap-1"><SummaryIcon /> Resumen de sesión</p>
+          <p className="text-xs text-primary leading-relaxed line-clamp-3">{activeSession.summary}</p>
         </div>
       )}
       <div className="flex items-center gap-2">
@@ -466,11 +545,11 @@ export default function InvestmentsAssistant() {
           onKeyDown={e => e.key === 'Enter' && sendMessage()}
           placeholder="Preguntá sobre tus inversiones..."
           disabled={streaming}
-          className="flex-1 border border-zinc-300 bg-white rounded-xl px-4 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 disabled:opacity-50"
+          className="flex-1 input text-sm"
         />
         <button onClick={sendMessage} disabled={!input.trim() || streaming}
-          className="w-9 h-9 bg-brand-600 hover:bg-brand-500 text-white rounded-xl flex items-center justify-center disabled:opacity-40 transition-colors flex-shrink-0">
-          <span className="text-sm">↑</span>
+          className="w-9 h-9 bg-primary text-on-primary hover:brightness-110 rounded-xl flex items-center justify-center disabled:opacity-40 transition-colors flex-shrink-0">
+          <SendIcon />
         </button>
       </div>
     </div>
@@ -481,26 +560,24 @@ export default function InvestmentsAssistant() {
       {/* Fixed side panel */}
       {!isCollapsed ? (
         <div
-          className={`fixed top-0 right-0 h-full bg-white border-l border-zinc-200 shadow-lg z-30 flex flex-col transition-all duration-200 ease-out ${isDragging ? '' : 'will-change-[width]'}`}
+          className={`fixed top-0 right-0 h-full bg-surface border-l border-border-color shadow-lg z-30 flex flex-col transition-all duration-200 ease-out ${isDragging ? '' : 'will-change-[width]'}`}
           style={{ width: panelWidth }}
         >
           {/* Drag handle - left edge */}
           <div
-            className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-brand-400/30 transition-colors flex items-center justify-center"
+            className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-primary/20 transition-colors flex items-center justify-center"
             onMouseDown={handleMouseDown}
           >
-            <div className="w-0.5 h-12 bg-zinc-300 rounded-full hover:bg-brand-500 transition-colors" />
+            <div className="w-0.5 h-12 bg-border-color rounded-full hover:bg-primary transition-colors" />
           </div>
 
-          {/* Collapse button - iOS style */}
+          {/* Collapse button */}
           <button
             onClick={() => { setIsCollapsedLocal(true); setIsCollapsed(true) }}
-            className="absolute -left-3 top-1/2 -translate-y-1/2 w-5 h-12 bg-white/70 backdrop-blur-sm border border-zinc-200/50 rounded-l-md flex items-center justify-center text-zinc-400 hover:text-zinc-600 hover:bg-white/90 transition-all z-30"
+            className="absolute -left-3 top-1/2 -translate-y-1/2 w-5 h-12 bg-surface border border-border-color rounded-l-md flex items-center justify-center text-tertiary hover:text-primary hover:bg-base-alt transition-all z-30"
             title="Contraer panel"
           >
-            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
+            <ChevronRightIcon />
           </button>
 
           {headerJsx(() => setFloatingOpen(true))}
@@ -512,13 +589,11 @@ export default function InvestmentsAssistant() {
         /* Collapsed state - floating button */
         <button
           onClick={expandPanel}
-          className="fixed right-0 top-1/2 -translate-y-1/2 w-10 h-20 bg-brand-600 hover:bg-brand-500 rounded-l-xl shadow-lg flex items-center justify-center text-white transition-all duration-300 ease-out hover:w-12 z-40 group"
+          className="fixed right-0 top-1/2 -translate-y-1/2 w-10 h-20 bg-primary hover:brightness-110 rounded-l-xl shadow-lg flex items-center justify-center text-on-primary transition-all duration-300 ease-out hover:w-12 z-40 group"
           title="Abrir Asistente de Inversiones"
         >
           <div className="flex flex-col items-center gap-1">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
+            <BoltIcon />
             <span className="text-[8px] font-medium uppercase tracking-wider opacity-80">Inv</span>
           </div>
           <div className="absolute -left-1 w-1 h-4 bg-white/30 rounded-full group-hover:h-6 transition-all" />
@@ -529,7 +604,7 @@ export default function InvestmentsAssistant() {
       {floatingOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setFloatingOpen(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl flex flex-col w-full max-w-2xl" style={{ height: '80vh' }}>
+          <div className="relative bg-surface rounded-xl shadow-2xl flex flex-col w-full max-w-2xl" style={{ height: '80vh' }}>
             {headerJsx()}
             {toolbarJsx}
             {showHistory ? historyJsx : <MessageList messages={messages} streaming={streaming} endRef={floatEndRef} />}
