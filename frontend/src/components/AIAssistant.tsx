@@ -129,6 +129,17 @@ function ThinkingDots() {
   return <span className="text-[var(--text-tertiary)] text-sm">{d}</span>
 }
 
+function TrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14H6L5 6" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M9 6V4h6v2" />
+    </svg>
+  )
+}
+
 function SessionCard({
   session, expanded, onToggle, onDelete, isActive,
 }: { session: Session; expanded: boolean; onToggle: () => void; onDelete: () => void; isActive: boolean }) {
@@ -150,7 +161,7 @@ function SessionCard({
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <button onClick={e => { e.stopPropagation(); if (confirm('¿Eliminar sesión?')) onDelete() }}
-            className="text-[var(--text-tertiary)] hover:text-[var(--gnome-red-3)] text-sm transition-colors">✕</button>
+            className="text-[var(--text-tertiary)] hover:text-[var(--color-danger)] text-sm transition-colors"><TrashIcon /></button>
           <span className="text-[var(--text-tertiary)] text-xs">{expanded ? '▲' : '▼'}</span>
         </div>
       </div>

@@ -231,36 +231,36 @@ function SessionCard({
   const dateStr  = new Date(session.ts).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 
   return (
-    <div className="bg-base-container border border-border-color rounded-lg overflow-hidden">
+    <div className="bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md overflow-hidden">
       <div
-        className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-base-alt transition-colors"
+        className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
         onClick={onToggle}
       >
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-primary truncate">{preview}</p>
-          <p className="text-xs text-tertiary">{dateStr} · {userMsgs.length} preguntas</p>
+          <p className="text-sm text-[var(--text-primary)] truncate">{preview}</p>
+          <p className="text-xs text-[var(--text-tertiary)]">{dateStr} · {userMsgs.length} preguntas</p>
         </div>
         <div className="flex items-center gap-2 ml-2 flex-shrink-0">
           <button onClick={e => { e.stopPropagation(); if (confirm('¿Eliminar sesión?')) onDelete() }}
-            className="text-tertiary hover:text-danger text-sm transition-colors"><TrashIcon /></button>
-          <span className="text-tertiary text-xs">{expanded ? '▲' : '▼'}</span>
+            className="text-[var(--text-tertiary)] hover:text-[var(--color-danger)] text-sm transition-colors"><TrashIcon /></button>
+          <span className="text-[var(--text-tertiary)] text-xs">{expanded ? '▲' : '▼'}</span>
         </div>
       </div>
       {expanded && (
-        <div className="border-t border-border-color bg-surface">
+        <div className="border-t border-[var(--border-color)] bg-[var(--color-surface)]">
           {session.summary && (
-            <div className="px-3 py-2 bg-primary-subtle border-b border-border-color">
-              <p className="text-[10px] font-semibold text-primary uppercase tracking-wider mb-1 flex items-center gap-1">
+            <div className="px-3 py-2 bg-[var(--color-primary)]/10 border-b border-[var(--border-color)]">
+              <p className="text-[10px] font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-1 flex items-center gap-1">
                 <SummaryIcon /> Resumen
               </p>
-              <p className="text-xs text-primary leading-relaxed">{session.summary}</p>
+              <p className="text-xs text-[var(--text-primary)] leading-relaxed">{session.summary}</p>
             </div>
           )}
           <div className="px-3 py-2 space-y-2 max-h-64 overflow-y-auto">
             {session.messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[90%] px-2 py-1.5 rounded-xl text-xs leading-relaxed whitespace-pre-wrap ${
-                  m.role === 'user' ? 'bg-primary text-on-primary' : 'bg-base-alt text-primary'
+                <div className={`max-w-[90%] px-2 py-1.5 rounded-md text-xs leading-relaxed whitespace-pre-wrap ${
+                  m.role === 'user' ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)]' : 'bg-[var(--color-base-alt)] text-[var(--text-primary)]'
                 }`}>{m.text}</div>
               </div>
             ))}
@@ -462,18 +462,11 @@ export default function InvestmentsAssistant() {
   // ── Shared JSX fragments ────────────────────────────────────────────────────
 
   const headerJsx = (onExpand?: () => void) => (
-    <div className="flex items-center justify-between px-4 py-3 border-b border-border-color flex-shrink-0">
-      <div className="flex items-center gap-2">
-        <span className="text-secondary"><ChartIcon /></span>
-        <span className="text-sm font-semibold text-primary">Asistente Inversiones</span>
-        <span className="badge-warning text-[10px]">WIP</span>
-        {investments.length > 0 && (
-          <span className="badge-primary text-[10px]"
-            title="El asistente ve tu cartera actual">
-            {investments.length} pos.
-          </span>
-        )}
-      </div>
+<div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)] flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="text-[var(--text-secondary)]"><ChartIcon /></span>
+          <span className="text-sm font-semibold text-[var(--text-primary)]">Asistente Inversiones</span>
+        </div>
       <div className="flex items-center gap-2">
         {messages.length > 0 && (
           <button
@@ -495,19 +488,19 @@ export default function InvestmentsAssistant() {
   )
 
   const toolbarJsx = (
-    <div className="flex items-center justify-between px-4 py-2 border-b border-border-color flex-shrink-0">
-      <div className="flex items-center gap-3">
+    <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border-color)] flex-shrink-0">
+      <div className="flex gap-4">
         <button onClick={() => setShowHistory(false)}
-          className={`text-xs font-medium transition-colors ${!showHistory ? 'text-primary' : 'text-tertiary hover:text-primary'}`}>
+          className={`text-xs font-medium transition-colors ${!showHistory ? 'text-[var(--color-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--color-primary)]'}`}>
           Chat
         </button>
         <button onClick={() => setShowHistory(true)}
-          className={`text-xs font-medium transition-colors ${showHistory ? 'text-primary' : 'text-tertiary hover:text-primary'}`}>
-          Historial {sessions.filter(s => s.id !== activeId).length > 0 && <span className="ml-1 text-tertiary">({sessions.filter(s => s.id !== activeId).length})</span>}
+          className={`text-xs font-medium transition-colors ${showHistory ? 'text-[var(--color-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--color-primary)]'}`}>
+          Historial {sessions.filter(s => s.id !== activeId).length > 0 && <span className="ml-1 text-[var(--text-tertiary)]">({sessions.filter(s => s.id !== activeId).length})</span>}
         </button>
       </div>
       {!showHistory && (
-        <button onClick={startNewSession} className="text-xs text-tertiary hover:text-primary transition-colors flex items-center gap-1">
+        <button onClick={startNewSession} className="text-xs text-[var(--text-tertiary)] hover:text-[var(--color-primary)] transition-colors flex items-center gap-1">
           <NewChatIcon /> Nueva sesión
         </button>
       )}
@@ -517,7 +510,7 @@ export default function InvestmentsAssistant() {
   const historyJsx = (
     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 min-h-0">
       {sessions.length === 0 ? (
-        <p className="text-sm text-secondary text-center py-8">Sin historial aún</p>
+        <p className="text-sm text-[var(--text-secondary)] text-center py-8">Sin historial aún</p>
       ) : (
         [...sessions].reverse().filter(s => s.id !== activeId).map(s => (
           <SessionCard
@@ -533,11 +526,11 @@ export default function InvestmentsAssistant() {
   )
 
   const inputBarJsx = (iRef: React.RefObject<HTMLInputElement>) => (
-    <div className="px-4 py-3 border-t border-border-color flex-shrink-0">
+    <div className="px-4 py-3 border-t border-[var(--border-color)] flex-shrink-0">
       {activeSession?.summary && (
-        <div className="mb-2 px-3 py-2 bg-primary-subtle border border-border-color rounded-lg">
-          <p className="text-[10px] font-semibold text-primary uppercase tracking-wider mb-0.5 flex items-center gap-1"><SummaryIcon /> Resumen de sesión</p>
-          <p className="text-xs text-primary leading-relaxed line-clamp-3">{activeSession.summary}</p>
+        <div className="mb-2 px-3 py-2 bg-[var(--color-primary)]/10 border border-[var(--border-color)] rounded-lg">
+          <p className="text-[10px] font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-0.5 flex items-center gap-1"><SummaryIcon /> Resumen de sesión</p>
+          <p className="text-xs text-[var(--text-primary)] leading-relaxed line-clamp-3">{activeSession.summary}</p>
         </div>
       )}
       <div className="flex items-center gap-2">
@@ -548,7 +541,7 @@ export default function InvestmentsAssistant() {
           className="flex-1 input text-sm"
         />
         <button onClick={sendMessage} disabled={!input.trim() || streaming}
-          className="w-9 h-9 bg-primary text-on-primary hover:brightness-110 rounded-xl flex items-center justify-center disabled:opacity-40 transition-colors flex-shrink-0">
+          className="w-9 h-9 bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 rounded-xl flex items-center justify-center disabled:opacity-40 transition-colors flex-shrink-0">
           <SendIcon />
         </button>
       </div>
