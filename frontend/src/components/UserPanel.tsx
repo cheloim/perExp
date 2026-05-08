@@ -353,8 +353,8 @@ export default function UserPanel({ open, onClose }: Props) {
 
         {activeTab === 'accounts' && (
           <div className="space-y-4">
-            <CardsManager />
             <AccountsManager />
+            <CardsManager />
           </div>
         )}
         </div>
