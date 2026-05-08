@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getCards, createCard, updateCard, deleteCard, createAccount } from '../api/client'
+import { getCards, createCard, updateCard, deleteCard, createAccount, getCardSummary } from '../api/client'
 import type { Card } from '../types'
 
 const ACCOUNT_TYPES = [
@@ -15,6 +15,7 @@ export default function CardsManager() {
   const queryClient = useQueryClient()
   const [editId, setEditId] = useState<number | null>(null)
   const [menuOpen, setMenuOpen] = useState<number | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'card' | 'account'; id: number; name: string } | null>(null)
   const [name, setName] = useState('')
   const [bank, setBank] = useState('')
   const [last4, setLast4] = useState('')
@@ -24,6 +25,11 @@ export default function CardsManager() {
   const { data: cards = [], isLoading } = useQuery({
     queryKey: ['cards'],
     queryFn: getCards,
+  })
+
+  const { data: cardData = [] } = useQuery({
+    queryKey: ['card-summary'],
+    queryFn: getCardSummary,
   })
 
   const createMut = useMutation({
@@ -70,6 +76,26 @@ export default function CardsManager() {
       setCardType('credito')
     },
   })
+
+  const cardsInitialized = useRef(false)
+
+  useEffect(() => {
+    if (!cards.length || !cardData.length || cardsInitialized.current) return
+    cardsInitialized.current = true
+
+    const missingCards = cardData.filter(
+      (cd) => !cards.some((c) => c.last4_digits === cd.last4 && c.name.toLowerCase() === cd.card_name.toLowerCase())
+    )
+
+    missingCards.forEach((cd) => {
+      createMut.mutate({
+        name: cd.card_name,
+        bank: cd.bank || '',
+        last4_digits: cd.last4 || null,
+        card_type: 'credito',
+      })
+    })
+  }, [cards, cardData, createMut])
 
   const handleEdit = (card: Card) => {
     setEditId(card.id)
@@ -125,12 +151,15 @@ export default function CardsManager() {
   return (
     <div className="px-4 py-2 space-y-2">
       <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-3">Tarjetas</h3>
-      {cards.map((card) => {
-        const isEditing = editId === card.id
-        const isMenuOpen = menuOpen === card.id
+      {cardData.map((card, idx) => {
+        const cardKey = `${card.last4}|${card.card_name}|${idx}`
+        const matchedCard = cards.find(c => c.last4_digits === card.last4 && c.name.toLowerCase() === card.card_name.toLowerCase())
+        const cardId = matchedCard?.id
+        const isEditing = editId === cardId
+        const isMenuOpen = menuOpen === cardId
 
         return (
-          <div key={card.id} className="relative">
+          <div key={cardKey} className="relative">
             {isEditing ? (
               <form onSubmit={handleSubmit} className="p-3 bg-brand-50 border border-brand-200 rounded-lg space-y-3">
                 <div>
@@ -190,53 +219,51 @@ export default function CardsManager() {
               </form>
             ) : (
               <div className="group relative flex items-center gap-3 p-3 bg-white border border-zinc-200 rounded-lg hover:border-zinc-300 transition-colors">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${
-                  card.card_type === 'credito' ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600'
-                }`}>
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold bg-blue-100 text-blue-600">
                   💳
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-zinc-900 truncate">
-                    {card.name}
+                    {card.card_name}
                     {card.bank && <span className="text-zinc-400 font-normal"> — {card.bank}</span>}
                   </div>
                   <div className="text-xs text-zinc-400 flex items-center gap-2">
-                    {card.card_type === 'credito' ? 'Crédito' : 'Débito'}
-                    {card.last4_digits && (
+                    Crédito
+                    {card.last4 && (
                       <span className="font-mono text-[10px] bg-zinc-100 px-1.5 py-0.5 rounded">
-                        ····{card.last4_digits}
+                        ····{card.last4}
                       </span>
                     )}
                   </div>
                 </div>
                 <div className="relative">
                   <button
-                    onClick={() => setMenuOpen(isMenuOpen ? null : card.id)}
+                    onClick={() => setMenuOpen(isMenuOpen ? null : cardId || idx)}
                     className="w-7 h-7 flex items-center justify-center rounded text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 transition-colors"
                   >
                     ···
                   </button>
-                  {isMenuOpen && (
+                  {isMenuOpen && cardId && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(null)} />
                       <div className="absolute right-0 top-8 z-50 w-28 bg-white border border-zinc-200 rounded-lg shadow-lg overflow-hidden">
                         <button
-                          onClick={() => handleEdit(card)}
+                          onClick={() => {
+                            if (matchedCard) handleEdit(matchedCard)
+                          }}
                           className="w-full px-3 py-2 text-xs text-left text-zinc-700 hover:bg-zinc-50 transition-colors"
                         >
                           ✏️ Editar
                         </button>
-                        <button
-                          onClick={() => {
-                            if (confirm(`¿Eliminar "${card.name}"?`)) {
-                              deleteMut.mutate(card.id)
-                            }
-                          }}
-                          disabled={deleteMut.isPending}
-                          className="w-full px-3 py-2 text-xs text-left text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
-                        >
-                          🗑️ Eliminar
-                        </button>
+                        {matchedCard && (
+                          <button
+                            onClick={() => setDeleteConfirm({ type: 'card', id: matchedCard.id, name: matchedCard.name })}
+                            disabled={deleteMut.isPending}
+                            className="w-full px-3 py-2 text-xs text-left text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                          >
+                            🗑️ Eliminar
+                          </button>
+                        )}
                       </div>
                     </>
 
@@ -342,6 +369,35 @@ export default function CardsManager() {
         >
           + Agregar
         </button>
+      )}
+
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full">
+            <h3 className="text-lg font-semibold text-zinc-900 mb-2">Confirmar eliminación</h3>
+            <p className="text-sm text-zinc-600 mb-6">
+              ¿Estás seguro de eliminar <span className="font-medium text-zinc-900">"{deleteConfirm.name}"</span>? Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 py-2.5 text-sm font-medium text-zinc-700 bg-zinc-100 rounded-lg hover:bg-zinc-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  deleteMut.mutate(deleteConfirm.id)
+                  setDeleteConfirm(null)
+                }}
+                disabled={deleteMut.isPending}
+                className="flex-1 py-2.5 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-500 disabled:opacity-50 transition-colors"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

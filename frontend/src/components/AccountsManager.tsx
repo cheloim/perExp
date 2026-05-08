@@ -20,6 +20,7 @@ export default function AccountsManager() {
   const queryClient = useQueryClient()
   const [editId, setEditId] = useState<number | null>(null)
   const [menuOpen, setMenuOpen] = useState<number | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'account'; id: number; name: string } | null>(null)
   const [name, setName] = useState('')
   const [type, setType] = useState('efectivo')
   const [bank, setBank] = useState('')
@@ -234,11 +235,7 @@ export default function AccountsManager() {
                           ✏️ Editar
                         </button>
                         <button
-                          onClick={() => {
-                            if (confirm(`¿Eliminar "${account.name}"?`)) {
-                              deleteMut.mutate(account.id)
-                            }
-                          }}
+                          onClick={() => setDeleteConfirm({ type: 'account', id: account.id, name: account.name })}
                           disabled={deleteMut.isPending}
                           className="w-full px-3 py-2 text-xs text-left text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
                         >
@@ -253,6 +250,35 @@ export default function AccountsManager() {
           </div>
         )
       })}
+
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full">
+            <h3 className="text-lg font-semibold text-zinc-900 mb-2">Confirmar eliminación</h3>
+            <p className="text-sm text-zinc-600 mb-6">
+              ¿Estás seguro de eliminar <span className="font-medium text-zinc-900">"{deleteConfirm.name}"</span>? Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 py-2.5 text-sm font-medium text-zinc-700 bg-zinc-100 rounded-lg hover:bg-zinc-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  deleteMut.mutate(deleteConfirm.id)
+                  setDeleteConfirm(null)
+                }}
+                disabled={deleteMut.isPending}
+                className="flex-1 py-2.5 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-500 disabled:opacity-50 transition-colors"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
