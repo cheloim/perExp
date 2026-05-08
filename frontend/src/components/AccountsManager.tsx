@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getAccounts, createAccount, updateAccount, deleteAccount } from '../api/client'
+import { getAccounts, createAccount, updateAccount, deleteAccount, getCards, createCard, deleteCard } from '../api/client'
 import type { Account } from '../types'
 
 const ACCOUNT_TYPES = [
@@ -8,7 +8,12 @@ const ACCOUNT_TYPES = [
   { value: 'cuenta_corriente', label: 'Cta. Corriente', color: 'bg-blue-100 text-blue-600' },
   { value: 'caja_ahorro', label: 'Caja de Ahorro', color: 'bg-indigo-100 text-indigo-600' },
   { value: 'mercadopago', label: 'MercadoPago', color: 'bg-purple-100 text-purple-600' },
-  { value: 'otro', label: 'Otro', color: 'bg-zinc-100 text-zinc-600' },
+  { value: 'tarjeta', label: 'Tarjeta', color: 'bg-pink-100 text-pink-600' },
+]
+
+const CARD_TYPES = [
+  { value: 'credito', label: 'Crédito' },
+  { value: 'debito', label: 'Débito' },
 ]
 
 export default function AccountsManager() {
@@ -17,10 +22,18 @@ export default function AccountsManager() {
   const [menuOpen, setMenuOpen] = useState<number | null>(null)
   const [name, setName] = useState('')
   const [type, setType] = useState('efectivo')
+  const [bank, setBank] = useState('')
+  const [last4, setLast4] = useState('')
+  const [cardType, setCardType] = useState('credito')
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['accounts'],
     queryFn: getAccounts,
+  })
+
+  const { data: cards = [] } = useQuery({
+    queryKey: ['cards'],
+    queryFn: getCards,
   })
 
   const createMut = useMutation({
@@ -52,6 +65,27 @@ export default function AccountsManager() {
     },
   })
 
+  const createCardMut = useMutation({
+    mutationFn: (data: { name: string; bank: string; last4_digits?: string; card_type: string }) => createCard(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cards'] })
+      setEditId(null)
+      setName('')
+      setType('efectivo')
+      setBank('')
+      setLast4('')
+      setCardType('credito')
+    },
+  })
+
+  const deleteCardMut = useMutation({
+    mutationFn: (id: number) => deleteCard(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cards'] })
+      setMenuOpen(null)
+    },
+  })
+
   const handleEdit = (account: Account) => {
     setEditId(account.id)
     setName(account.name)
@@ -60,9 +94,21 @@ export default function AccountsManager() {
   }
 
   const handleAdd = () => {
+    const choice = prompt('¿Qué deseas crear?\n1. Efectivo\n2. Cta. Corriente\n3. Caja de Ahorro\n4. MercadoPago\n5. Tarjeta de Crédito/Débito\n\nIngresa el número:')
+    if (!choice) return
+    
+    const typeMap: Record<string, string> = {
+      '1': 'efectivo', '2': 'cuenta_corriente', '3': 'caja_ahorro', '4': 'mercadopago', '5': 'tarjeta'
+    }
+    const selectedType = typeMap[choice]
+    if (!selectedType) { alert('Opción inválida'); return }
+    
     setEditId(-1)
     setName('')
-    setType('efectivo')
+    setType(selectedType)
+    setBank('')
+    setLast4('')
+    setCardType('credito')
     setMenuOpen(null)
   }
 
@@ -70,16 +116,33 @@ export default function AccountsManager() {
     setEditId(null)
     setName('')
     setType('efectivo')
+    setBank('')
+    setLast4('')
+    setCardType('credito')
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
 
-    if (editId && editId > 0) {
-      updateMut.mutate({ id: editId, data: { name: name.trim(), type } })
+    if (type === 'tarjeta') {
+      if (editId && editId > 0) {
+        // Editing would require updateCard - keeping simple for now
+        alert('La edición de tarjetas se puede hacer desde la sección de Tarjetas')
+        return
+      }
+      createCardMut.mutate({
+        name: name.trim(),
+        bank: bank.trim(),
+        last4_digits: last4.trim() || undefined,
+        card_type: cardType,
+      })
     } else {
-      createMut.mutate({ name: name.trim(), type })
+      if (editId && editId > 0) {
+        updateMut.mutate({ id: editId, data: { name: name.trim(), type } })
+      } else {
+        createMut.mutate({ name: name.trim(), type })
+      }
     }
   }
 
@@ -102,20 +165,59 @@ export default function AccountsManager() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
-                    placeholder="Nombre de la cuenta"
+                    placeholder={type === 'tarjeta' ? 'Nombre (ej: Visa Galicia)' : 'Nombre de la cuenta'}
                     autoFocus
                     required
                   />
                 </div>
-                <select
-                  value={type}
-                  onChange={(e) => setType(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
-                >
-                  {ACCOUNT_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
-                </select>
+                
+                {/* Campos de Tarjeta */}
+                {type === 'tarjeta' && (
+                  <>
+                    <div>
+                      <input
+                        type="text"
+                        value={bank}
+                        onChange={(e) => setBank(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+                        placeholder="Banco (ej: Galicia)"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="text"
+                        value={last4}
+                        onChange={(e) => setLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                        className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 font-mono"
+                        placeholder="Últimos 4 dígitos (opcional)"
+                        maxLength={4}
+                      />
+                    </div>
+                    <select
+                      value={cardType}
+                      onChange={(e) => setCardType(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
+                    >
+                      {CARD_TYPES.map((t) => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
+
+                {/* Campos de Caja de Ahorro con última tarjeta opcional */}
+                {type === 'caja_ahorro' && (
+                  <div>
+                    <input
+                      type="text"
+                      value={last4}
+                      onChange={(e) => setLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 font-mono"
+                      placeholder="Últimos 4 dígitos tarjeta débito (opcional)"
+                      maxLength={4}
+                    />
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <button
                     type="submit"
@@ -243,6 +345,47 @@ export default function AccountsManager() {
         >
           + Agregar cuenta
         </button>
+      )}
+
+      {/* Tarjetas */}
+      {cards.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-zinc-200">
+          <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-3">Tarjetas</h3>
+          <div className="space-y-2">
+            {cards.map((card) => (
+              <div key={card.id} className="flex items-center gap-3 p-3 bg-white border border-zinc-200 rounded-lg">
+                <div className="w-8 h-8 rounded-lg bg-pink-100 text-pink-600 flex items-center justify-center text-sm font-bold">
+                  💳
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-zinc-900 truncate">
+                    {card.name}
+                    {card.bank && <span className="text-zinc-400 font-normal"> — {card.bank}</span>}
+                  </div>
+                  <div className="text-xs text-zinc-400 flex items-center gap-2">
+                    {card.card_type === 'credito' ? 'Crédito' : 'Débito'}
+                    {card.last4_digits && (
+                      <span className="font-mono text-[10px] bg-zinc-100 px-1.5 py-0.5 rounded">
+                        ····{card.last4_digits}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    if (confirm(`¿Eliminar "${card.name}"?`)) {
+                      deleteCardMut.mutate(card.id)
+                    }
+                  }}
+                  disabled={deleteCardMut.isPending}
+                  className="text-zinc-400 hover:text-red-500 text-xs"
+                >
+                  🗑️
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   )

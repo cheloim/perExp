@@ -688,7 +688,7 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
             row_card_name = str(r.get("card", "") or "").strip()
             if row_last4 and row_card_name:
                 existing_card = next(
-                    (c for c in user_cards if c.last4_digits == row_last4), None
+                    (c for c in user_cards if c.last4_digits == row_last4 and c.name.lower() == row_card_name.lower()), None
                 )
                 if not existing_card:
                     new_card = Card(
