@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getInvestments } from '../api/client'
+import { usePanelWidth } from '../context/PanelWidthContext'
 import type { Investment } from '../types'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -186,6 +187,10 @@ function SessionCard({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+const PANEL_MIN_WIDTH = 180
+const PANEL_DEFAULT_WIDTH = 360
+const COLLAPSE_THRESHOLD = 200
+
 export default function InvestmentsAssistant() {
   const [sessions, setSessions] = useState<Session[]>(loadSessions)
   const [activeId, setActiveId] = useState<string>(() => {
@@ -204,6 +209,18 @@ export default function InvestmentsAssistant() {
   const [showHistory, setShowHistory] = useState(false)
   const [expandedId, setExpandedId]   = useState<string | null>(null)
   const [floatingOpen, setFloatingOpen] = useState(false)
+
+  const { panelWidth: contextWidth, isCollapsed: contextCollapsed, setPanelWidth, setIsCollapsed } = usePanelWidth()
+  const [panelWidth, setPanelWidthLocal] = useState(PANEL_DEFAULT_WIDTH)
+  const [isCollapsed, setIsCollapsedLocal] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
+
+  useEffect(() => {
+    if (contextWidth !== panelWidth) setPanelWidthLocal(contextWidth)
+  }, [contextWidth])
+  useEffect(() => {
+    if (contextCollapsed !== isCollapsed) setIsCollapsedLocal(contextCollapsed)
+  }, [contextCollapsed])
 
   const chatEndRef  = useRef<HTMLDivElement>(null)
   const floatEndRef = useRef<HTMLDivElement>(null)
@@ -234,6 +251,49 @@ export default function InvestmentsAssistant() {
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
   useEffect(() => { floatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, floatingOpen])
   useEffect(() => { if (floatingOpen) setTimeout(() => floatInputRef.current?.focus(), 100) }, [floatingOpen])
+
+  const startDrag = useRef<number | null>(null)
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (isCollapsed) return
+    e.preventDefault()
+    setIsDragging(true)
+    startDrag.current = e.clientX
+  }
+
+  useEffect(() => {
+    if (!isDragging) return
+    const handleMouseMove = (e: MouseEvent) => {
+      if (startDrag.current === null) return
+      const delta = startDrag.current - e.clientX
+      const newWidth = Math.max(PANEL_MIN_WIDTH, Math.min(window.innerWidth - 100, panelWidth + delta))
+      setPanelWidthLocal(newWidth)
+      setPanelWidth(newWidth)
+      startDrag.current = e.clientX
+      if (newWidth < COLLAPSE_THRESHOLD) {
+        setIsCollapsedLocal(true)
+        setIsCollapsed(true)
+        setIsDragging(false)
+      }
+    }
+    const handleMouseUp = () => {
+      setIsDragging(false)
+      startDrag.current = null
+    }
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging, panelWidth])
+
+  const expandPanel = () => {
+    setIsCollapsedLocal(false)
+    setIsCollapsed(false)
+    setPanelWidthLocal(PANEL_DEFAULT_WIDTH)
+    setPanelWidth(PANEL_DEFAULT_WIDTH)
+  }
 
   const sendMessage = async () => {
     const text = input.trim()
@@ -419,12 +479,51 @@ export default function InvestmentsAssistant() {
   return (
     <>
       {/* Fixed side panel */}
-      <div className="fixed top-0 right-0 h-full w-full sm:w-[360px] bg-white border-l border-zinc-200 shadow-lg z-30 flex flex-col">
-        {headerJsx(() => setFloatingOpen(true))}
-        {toolbarJsx}
-        {showHistory ? historyJsx : <MessageList messages={messages} streaming={streaming} endRef={chatEndRef} />}
-        {!showHistory && inputBarJsx(inputRef)}
-      </div>
+      {!isCollapsed ? (
+        <div
+          className={`fixed top-0 right-0 h-full bg-white border-l border-zinc-200 shadow-lg z-30 flex flex-col transition-all duration-200 ease-out ${isDragging ? '' : 'will-change-[width]'}`}
+          style={{ width: panelWidth }}
+        >
+          {/* Drag handle - left edge */}
+          <div
+            className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-brand-400/30 transition-colors flex items-center justify-center"
+            onMouseDown={handleMouseDown}
+          >
+            <div className="w-0.5 h-12 bg-zinc-300 rounded-full hover:bg-brand-500 transition-colors" />
+          </div>
+
+          {/* Collapse button - iOS style */}
+          <button
+            onClick={() => { setIsCollapsedLocal(true); setIsCollapsed(true) }}
+            className="absolute -left-3 top-1/2 -translate-y-1/2 w-5 h-12 bg-white/70 backdrop-blur-sm border border-zinc-200/50 rounded-l-md flex items-center justify-center text-zinc-400 hover:text-zinc-600 hover:bg-white/90 transition-all z-30"
+            title="Contraer panel"
+          >
+            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+
+          {headerJsx(() => setFloatingOpen(true))}
+          {toolbarJsx}
+          {showHistory ? historyJsx : <MessageList messages={messages} streaming={streaming} endRef={chatEndRef} />}
+          {!showHistory && inputBarJsx(inputRef)}
+        </div>
+      ) : (
+        /* Collapsed state - floating button */
+        <button
+          onClick={expandPanel}
+          className="fixed right-0 top-1/2 -translate-y-1/2 w-10 h-20 bg-brand-600 hover:bg-brand-500 rounded-l-xl shadow-lg flex items-center justify-center text-white transition-all duration-300 ease-out hover:w-12 z-40 group"
+          title="Abrir Asistente de Inversiones"
+        >
+          <div className="flex flex-col items-center gap-1">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span className="text-[8px] font-medium uppercase tracking-wider opacity-80">Inv</span>
+          </div>
+          <div className="absolute -left-1 w-1 h-4 bg-white/30 rounded-full group-hover:h-6 transition-all" />
+        </button>
+      )}
 
       {/* Floating modal */}
       {floatingOpen && (

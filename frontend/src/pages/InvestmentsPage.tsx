@@ -563,7 +563,7 @@ export default function InvestmentsPage() {
   const [usdLoading, setUsdLoading] = useState(false)
 
   const { data: settings = {} } = useQuery({ queryKey: ['settings'], queryFn: getSettings, staleTime: 60_000 })
-  const { data: cashBalances } = useQuery({ queryKey: ['cash-balances'], queryFn: getCashBalances, staleTime: 5 * 60_000 })
+  const { data: cashBalances } = useQuery({ queryKey: ['cash-balances'], queryFn: getCashBalances, staleTime: 15 * 60_000 })
   const { data: manualCash = {}, refetch: refetchManualCash } = useQuery({ queryKey: ['manual-cash-balances'], queryFn: getManualCashBalances, staleTime: 0 })
   const manualCashMut = useMutation({
     mutationFn: ({ broker, ars, usd }: { broker: string; ars: number | null; usd: number | null }) =>
@@ -771,63 +771,74 @@ export default function InvestmentsPage() {
         </button>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="card p-3">
-          <p className="text-xs text-zinc-400 mb-0.5">Valor ARS</p>
-          <p className="text-base font-bold text-zinc-900">{toDisplay(arsValue, 'ARS')}</p>
-          <p className={`text-xs mt-0.5 font-medium ${arsPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {arsPnl >= 0 ? '+' : ''}{toDisplay(arsPnl, 'ARS')} P&L
-          </p>
-        </div>
-        <div className="card p-3">
-          <p className="text-xs text-zinc-400 mb-0.5">Valor USD</p>
-          <p className="text-base font-bold text-zinc-900">{fmt(usdValue, 'USD')}</p>
-          <p className={`text-xs mt-0.5 font-medium ${usdPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {usdPnl >= 0 ? '+' : ''}{fmt(usdPnl, 'USD')} P&L
-          </p>
-        </div>
+      {/* Resumen de cartera - card consolidado con carrusel */}
+      <div className="card p-4">
+        <p className="text-xs text-zinc-400 font-medium uppercase tracking-wider mb-3">Resumen de cartera</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {/* Valor ARS */}
+          <div className="card p-1.5">
+            <p className="text-[10px] text-zinc-400 uppercase tracking-wider mb-0.5">Valor ARS</p>
+            <p className="text-sm font-bold text-zinc-900">{toDisplay(arsValue, 'ARS')}</p>
+            <p className={`text-[10px] mt-0.5 font-medium ${arsPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {arsPnl >= 0 ? '+' : ''}{toDisplay(arsPnl, 'ARS')} P&L
+            </p>
+            <p className="text-[9px] text-zinc-500 mt-0.5">
+              {arsHoldings.length} pos · {arsValue + usdValue > 0 ? ((arsValue / (arsValue + usdValue)) * 100).toFixed(0) : 0}%
+            </p>
+          </div>
+          {/* Valor USD */}
+          <div className="card p-1.5">
+            <p className="text-[10px] text-zinc-400 uppercase tracking-wider mb-0.5">Valor USD</p>
+            <p className="text-sm font-bold text-zinc-900">{fmt(usdValue, 'USD')}</p>
+            <p className={`text-[10px] mt-0.5 font-medium ${usdPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {usdPnl >= 0 ? '+' : ''}{fmt(usdPnl, 'USD')} P&L
+            </p>
+            <p className="text-[9px] text-zinc-500 mt-0.5">
+              {usdHoldings.length} pos · {arsValue + usdValue > 0 ? ((usdValue / (arsValue + usdValue)) * 100).toFixed(0) : 0}%
+            </p>
+          </div>
 
-        {/* Saldos disponibles */}
-        <div className="card p-3 col-span-2">
-          <p className="text-xs text-zinc-400 font-medium uppercase tracking-wider mb-2">Saldos disponibles</p>
-          <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
-            {/* IOL — auto from API */}
-            {cashBalances?.iol.configured && (
-              <div className="flex-shrink-0">
-                <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide mb-1">InvertirOnline</p>
-                {cashBalances.iol.error
-                  ? <p className="text-xs text-red-400">{cashBalances.iol.error}</p>
-                  : <div className="flex gap-3">
-                      <div><p className="text-[10px] text-zinc-500">ARS</p><p className="text-sm font-semibold text-zinc-900">{cashBalances.iol.ars !== null ? toDisplay(cashBalances.iol.ars, 'ARS') : '—'}</p></div>
-                      <div><p className="text-[10px] text-zinc-500">USD</p><p className="text-sm font-semibold text-zinc-900">{cashBalances.iol.usd !== null ? fmt(cashBalances.iol.usd, 'USD') : '—'}</p></div>
-                    </div>
-                }
-              </div>
-            )}
-            {/* PPI — auto from API */}
-            {cashBalances?.ppi.configured && (
-              <div className="flex-shrink-0">
-                <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide mb-1">Portfolio Personal</p>
-                {cashBalances.ppi.error
-                  ? <p className="text-xs text-red-400">{cashBalances.ppi.error}</p>
-                  : <div className="flex gap-3">
-                      <div><p className="text-[10px] text-zinc-500">ARS</p><p className="text-sm font-semibold text-zinc-900">{cashBalances.ppi.ars !== null ? toDisplay(cashBalances.ppi.ars, 'ARS') : '—'}</p></div>
-                      <div><p className="text-[10px] text-zinc-500">USD</p><p className="text-sm font-semibold text-zinc-900">{cashBalances.ppi.usd !== null ? fmt(cashBalances.ppi.usd, 'USD') : '—'}</p></div>
-                    </div>
-                }
-              </div>
-            )}
-            {/* Manual brokers — editable, horizontal */}
-            <ManualCashSection
-              knownBrokers={brokers.filter(b => b !== 'InvertirOnline' && b !== 'Portfolio Personal')}
-              manualCash={manualCash}
-              onSave={(broker, ars, usd) => manualCashMut.mutate({ broker, ars, usd })}
-              onDelete={(broker) => manualCashDelMut.mutate(broker)}
-            />
-            {!cashBalances?.iol.configured && !cashBalances?.ppi.configured && Object.keys(manualCash).length === 0 && (
-              <p className="text-xs text-zinc-400">Configurá las credenciales de IOL o PPI, o agregá un broker manual</p>
-            )}
+          {/* Saldos disponibles */}
+          <div className="card p-3 col-span-2">
+            <p className="text-xs text-zinc-400 font-medium uppercase tracking-wider mb-2">Saldos disponibles</p>
+            <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
+              {/* IOL — auto from API */}
+              {cashBalances?.iol.configured && (
+                <div className="flex-shrink-0">
+                  <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide mb-1">InvertirOnline</p>
+                  {cashBalances.iol.error
+                    ? <p className="text-xs text-red-400">{cashBalances.iol.error}</p>
+                    : <div className="flex gap-3">
+                        <div><p className="text-[10px] text-zinc-500">ARS</p><p className="text-sm font-semibold text-zinc-900">{cashBalances.iol.ars !== null ? toDisplay(cashBalances.iol.ars, 'ARS') : '—'}</p></div>
+                        <div><p className="text-[10px] text-zinc-500">USD</p><p className="text-sm font-semibold text-zinc-900">{cashBalances.iol.usd !== null ? fmt(cashBalances.iol.usd, 'USD') : '—'}</p></div>
+                      </div>
+                  }
+                </div>
+              )}
+              {/* PPI — auto from API */}
+              {cashBalances?.ppi.configured && (
+                <div className="flex-shrink-0">
+                  <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide mb-1">Portfolio Personal</p>
+                  {cashBalances.ppi.error
+                    ? <p className="text-xs text-red-400">{cashBalances.ppi.error}</p>
+                    : <div className="flex gap-3">
+                        <div><p className="text-[10px] text-zinc-500">ARS</p><p className="text-sm font-semibold text-zinc-900">{cashBalances.ppi.ars !== null ? toDisplay(cashBalances.ppi.ars, 'ARS') : '—'}</p></div>
+                        <div><p className="text-[10px] text-zinc-500">USD</p><p className="text-sm font-semibold text-zinc-900">{cashBalances.ppi.usd !== null ? fmt(cashBalances.ppi.usd, 'USD') : '—'}</p></div>
+                      </div>
+                  }
+                </div>
+              )}
+              {/* Manual brokers — editable, horizontal */}
+              <ManualCashSection
+                knownBrokers={brokers.filter(b => b !== 'InvertirOnline' && b !== 'Portfolio Personal')}
+                manualCash={manualCash}
+                onSave={(broker, ars, usd) => manualCashMut.mutate({ broker, ars, usd })}
+                onDelete={(broker) => manualCashDelMut.mutate(broker)}
+              />
+              {!cashBalances?.iol.configured && !cashBalances?.ppi.configured && Object.keys(manualCash).length === 0 && (
+                <p className="text-xs text-zinc-400">Configurá las credenciales de IOL o PPI, o agregá un broker manual</p>
+              )}
+            </div>
           </div>
         </div>
       </div>

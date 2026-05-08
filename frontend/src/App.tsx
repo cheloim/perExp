@@ -5,6 +5,7 @@ import AIAssistant from './components/AIAssistant'
 import InvestmentsAssistant from './components/InvestmentsAssistant'
 import UserPanel from './components/UserPanel'
 import NotificationsPanel from './components/NotificationsPanel'
+import { usePanelWidth } from './context/PanelWidthContext'
 import Dashboard from './pages/Dashboard'
 import AccountsPage from './pages/AccountsPage'
 import ExpensesPage from './pages/ExpensesPage'
@@ -54,6 +55,7 @@ export default function App() {
   const [aiDrawerOpen, setAiDrawerOpen] = useState(getInitialDrawerState)
   const [userPanelOpen, setUserPanelOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
+  const { panelWidth, isCollapsed } = usePanelWidth()
 
   const { data: unreadData } = useQuery({
     queryKey: ['notifications-count'],
@@ -149,7 +151,7 @@ export default function App() {
       </aside>
 
       {/* Main content */}
-      <div className={`flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ${isInvestments ? 'mr-0 sm:mr-[360px]' : aiDrawerOpen ? 'mr-0 sm:mr-[380px]' : 'mr-0'}`}>
+      <div className={`flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ${isInvestments ? (isCollapsed ? 'mr-0' : `mr-0 sm:mr-[${panelWidth}px]`) : aiDrawerOpen ? 'mr-0 sm:mr-[380px]' : 'mr-0'}`} style={isInvestments && !isCollapsed ? { marginRight: panelWidth } : undefined}>
         {/* Mobile header */}
         <header className="md:hidden h-14 border-b border-zinc-200/80 bg-white/90 backdrop-blur-md flex items-center px-4 sticky top-0 z-40">
           <div className="flex items-center gap-2">
