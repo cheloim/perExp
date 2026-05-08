@@ -18,6 +18,7 @@ export default function CardsManager() {
   const [menuOpen, setMenuOpen] = useState<number | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'card' | 'account'; id: number; name: string } | null>(null)
   const [duplicateFound, setDuplicateFound] = useState<{ id: number; name: string; bank: string; card_type: string } | null>(null)
+  const [errors, setErrors] = useState<{ name?: string; bank?: string }>({})
   const [name, setName] = useState('')
   const [bank, setBank] = useState('')
   const [cardType, setCardType] = useState('credito')
@@ -115,7 +116,16 @@ export default function CardsManager() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim()) return
+    
+    const newErrors: { name?: string; bank?: string } = {}
+    if (!name.trim()) newErrors.name = 'El nombre es obligatorio'
+    if (accountType === 'tarjeta' && !bank.trim()) newErrors.bank = 'El banco es obligatorio'
+    
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      return
+    }
+    setErrors({})
 
     if (accountType === 'tarjeta') {
       const data = {
@@ -152,22 +162,23 @@ export default function CardsManager() {
                   <input
                     type="text"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+                    onChange={(e) => { setName(e.target.value); setErrors(prev => ({ ...prev, name: undefined })) }}
+                    className={`w-full px-3 py-2 rounded-md border text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 transition ${errors.name ? 'border-red-500 focus:ring-red-300 focus:border-red-500' : 'border-[var(--border-color)] focus:border-primary'}`}
                     placeholder="Ej: Visa Galicia"
                     autoFocus
-                    required
                   />
+                  {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
                   <input
                     type="text"
                     value={bank}
-                    onChange={(e) => setBank(e.target.value)}
-                    className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+                    onChange={(e) => { setBank(e.target.value); setErrors(prev => ({ ...prev, bank: undefined })) }}
+                    className={`w-full px-3 py-2 rounded-md border text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 transition ${errors.bank ? 'border-red-500 focus:ring-red-300 focus:border-red-500' : 'border-[var(--border-color)] focus:border-primary'}`}
                     placeholder="Ej: Galicia"
                   />
+                  {errors.bank && <p className="text-xs text-red-500">{errors.bank}</p>}
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-[var(--text-secondary)]">Tipo</label>
@@ -278,10 +289,11 @@ export default function CardsManager() {
                 <input
                   type="text"
                   value={bank}
-                  onChange={(e) => setBank(e.target.value)}
-                  className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+                  onChange={(e) => { setBank(e.target.value); setErrors(prev => ({ ...prev, bank: undefined })) }}
+                  className={`w-full px-3 py-2 rounded-md border text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 transition ${errors.bank ? 'border-red-500 focus:ring-red-300 focus:border-red-500' : 'border-[var(--border-color)] focus:border-primary'}`}
                   placeholder="Ej: Galicia"
                 />
+                {errors.bank && <p className="text-xs text-red-500">{errors.bank}</p>}
               </div>
             </div>
           )}
@@ -291,11 +303,10 @@ export default function CardsManager() {
             <input
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+              onChange={(e) => { setName(e.target.value); setErrors(prev => ({ ...prev, name: undefined })) }}
+              className={`w-full px-3 py-2 rounded-md border text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 transition ${errors.name ? 'border-red-500 focus:ring-red-300 focus:border-red-500' : 'border-[var(--border-color)] focus:border-primary'}`}
               placeholder={accountType === 'tarjeta' ? 'Ej: Visa Galicia' : 'Ej: Mi Cuenta'}
               autoFocus
-              required
             />
           </div>
 

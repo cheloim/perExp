@@ -22,6 +22,7 @@ export default function AccountsManager() {
   const [menuOpen, setMenuOpen] = useState<number | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'account'; id: number; name: string } | null>(null)
   const [duplicateFound, setDuplicateFound] = useState<{ id: number; name: string; type: string } | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [type, setType] = useState('efectivo')
   const [bank, setBank] = useState('')
@@ -100,11 +101,19 @@ export default function AccountsManager() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim()) return
+    if (!name.trim()) {
+      setError('El nombre es obligatorio')
+      return
+    }
+    setError(null)
 
     if (type === 'tarjeta') {
       if (editId && editId > 0) {
         alert('La edición de tarjetas se puede hacer desde la sección de Tarjetas')
+        return
+      }
+      if (!bank.trim()) {
+        setError('El banco es obligatorio')
         return
       }
       createCardMut.mutate({
@@ -141,12 +150,12 @@ export default function AccountsManager() {
                   <input
                     type="text"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+                    onChange={(e) => { setName(e.target.value); setError(null) }}
+                    className={`w-full px-3 py-2 rounded-md border text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 transition ${error ? 'border-red-500 focus:ring-red-300 focus:border-red-500' : 'border-[var(--border-color)] focus:border-primary'}`}
                     placeholder={type === 'tarjeta' ? 'Ej: Visa Galicia' : 'Ej: Mi Cuenta'}
                     autoFocus
-                    required
                   />
+                  {error && <p className="text-xs text-red-500">{error}</p>}
                 </div>
 
                 {/* Campos de Tarjeta */}
@@ -172,8 +181,8 @@ export default function AccountsManager() {
                       <input
                         type="text"
                         value={bank}
-                        onChange={(e) => setBank(e.target.value)}
-                        className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+                        onChange={(e) => { setBank(e.target.value); setError(null) }}
+                        className={`w-full px-3 py-2 rounded-md border text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 transition ${error && type === 'tarjeta' && !bank.trim() ? 'border-red-500 focus:ring-red-300 focus:border-red-500' : 'border-[var(--border-color)] focus:border-primary'}`}
                         placeholder="Ej: Galicia"
                       />
                     </div>
