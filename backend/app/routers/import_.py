@@ -683,6 +683,24 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
                 installment_group_id=str(r.get("installment_group_id") or "") or None,
                 user_id=current_user.id,
             ))
+
+            # Auto-create card if not exists
+            row_card_name = str(r.get("card", "") or "").strip()
+            if row_last4 and row_card_name:
+                existing_card = next(
+                    (c for c in user_cards if c.last4_digits == row_last4), None
+                )
+                if not existing_card:
+                    new_card = Card(
+                        name=row_card_name,
+                        bank=norm_bank,
+                        last4_digits=row_last4,
+                        card_type="credito",  # default a credito
+                        user_id=current_user.id,
+                    )
+                    db.add(new_card)
+                    user_cards.append(new_card)  # agregar a la lista para próximos gastos
+
             imported += 1
         except Exception:
             skipped += 1

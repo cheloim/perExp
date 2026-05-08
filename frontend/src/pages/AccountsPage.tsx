@@ -17,7 +17,15 @@ import {
   updateExpense,
   deleteExpense,
   getDistinctValues,
-  bulkUpdateCategory
+  bulkUpdateCategory,
+  getCards,
+  getAccounts,
+  createCard,
+  updateCard,
+  deleteCard,
+  createAccount,
+  updateAccount,
+  deleteAccount
 } from '../api/client'
 import type { CategorySummary, Expense, ExpenseCreate, Category, CardSummary } from '../types'
 
@@ -347,6 +355,8 @@ export default function AccountsPage() {
   const [editing, setEditing] = useState<Expense | null | undefined>(undefined)
   const [saveError, setSaveError] = useState<string | null>(null)
 
+  
+
   // Helper functions
   const setFilter = (key: string, value: string | undefined) => {
     const next = new URLSearchParams(searchParams)
@@ -374,6 +384,16 @@ export default function AccountsPage() {
   const { data: cardData = [] } = useQuery({
     queryKey: ['card-summary'],
     queryFn: getCardSummary,
+  })
+
+  const { data: cardsTable = [] } = useQuery({
+    queryKey: ['cards'],
+    queryFn: getCards,
+  })
+
+  const { data: accountsTable = [] } = useQuery({
+    queryKey: ['accounts'],
+    queryFn: getAccounts,
   })
 
   const { data: categories = [] } = useQuery({
@@ -469,6 +489,72 @@ export default function AccountsPage() {
       setSelectedIds(new Set())
     },
   })
+
+  const createCardMut = useMutation({
+    mutationFn: (data: { name: string; bank: string; last4_digits?: string; card_type: string }) => createCard(data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['cards'] }) },
+  })
+
+  const updateCardMut = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: { name?: string; bank?: string; last4_digits?: string; card_type?: string } }) => updateCard(id, data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['cards'] }) },
+  })
+
+  const deleteCardMut = useMutation({
+    mutationFn: (id: number) => deleteCard(id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['cards'] }) },
+  })
+
+  const createAccountMut = useMutation({
+    mutationFn: (data: { name: string; type: string }) => createAccount(data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['accounts'] }) },
+  })
+
+  const updateAccountMut = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: { name?: string; type?: string } }) => updateAccount(id, data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['accounts'] }) },
+  })
+
+  const deleteAccountMut = useMutation({
+    mutationFn: (id: number) => deleteAccount(id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['accounts'] }) },
+  })
+
+  const handleAddAccount = () => {
+    const type = prompt('Tipo de cuenta:\n1. Efectivo\n2. Cta. Corriente\n3. Caja de Ahorro\n4. MercadoPago\n5. Tarjeta\n\nIngresa el número:')
+    if (!type) return
+
+    if (type === '5') {
+      const name = prompt('Nombre de la tarjeta (ej: Visa Galicia):')
+      if (!name) return
+      const bank = prompt('Banco (ej: Galicia):') || ''
+      const last4 = prompt('Últimos 4 dígitos (opcional):') || undefined
+      createCardMut.mutate({ name, bank, last4_digits: last4 || undefined, card_type: 'credito' })
+    } else {
+      const typeMap: Record<string, string> = { '1': 'efectivo', '2': 'cuenta_corriente', '3': 'caja_ahorro', '4': 'mercadopago' }
+      const accountType = typeMap[type]
+      if (!accountType) { alert('Tipo inválido'); return }
+      const name = prompt('Nombre de la cuenta:')
+      if (!name) return
+      createAccountMut.mutate({ name, type: accountType })
+    }
+  }
+
+  const handleEditCard = (card: { id: number; name: string; bank: string; last4_digits: string | null; card_type: string }) => {
+    const name = prompt('Nombre de la tarjeta:', card.name)
+    if (name === null) return
+    const bank = prompt('Banco:', card.bank) || ''
+    const last4 = prompt('Últimos 4 dígitos:', card.last4_digits || '') || ''
+    const cardType = prompt('Tipo (credito/debito):', card.card_type) || 'credito'
+    updateCardMut.mutate({ id: card.id, data: { name, bank, last4_digits: last4 || undefined, card_type: cardType } })
+  }
+
+  const handleEditAccount = (account: { id: number; name: string; type: string }) => {
+    const name = prompt('Nombre de la cuenta:', account.name)
+    if (name === null) return
+    const type = prompt('Tipo (efectivo/cuenta_corriente/caja_ahorro/mercadopago):', account.type) || 'efectivo'
+    updateAccountMut.mutate({ id: account.id, data: { name, type } })
+  }
 
   if (isLoading && !data) {
     return (
@@ -786,6 +872,92 @@ export default function AccountsPage() {
               })()}
             </div>
           </div>
+
+          {/* Cuentas y Tarjetas - tabla CRUD */}
+          {(cardsTable.length > 0 || accountsTable.length > 0) && (
+            <div className="card p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-zinc-900">Cuentas y Tarjetas</h2>
+                <button
+                  onClick={handleAddAccount}
+                  className="text-xs px-2.5 py-1 rounded-full bg-brand-500 text-white hover:bg-brand-600 transition-all"
+                >
+                  + Nuevo
+                </button>
+              </div>
+              <div className="flex gap-3 overflow-x-auto pb-1">
+                {accountsTable.map((account) => (
+                  <div
+                    key={`account-${account.id}`}
+                    className="flex-shrink-0 w-40 p-3 rounded-xl border border-zinc-200 bg-white hover:border-zinc-300 transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${
+                        account.type === 'efectivo' ? 'bg-emerald-100 text-emerald-600' :
+                        account.type === 'cuenta_corriente' ? 'bg-blue-100 text-blue-600' :
+                        account.type === 'caja_ahorro' ? 'bg-indigo-100 text-indigo-600' :
+                        account.type === 'mercadopago' ? 'bg-purple-100 text-purple-600' :
+                        'bg-zinc-100 text-zinc-600'
+                      }`}>
+                        {account.type === 'efectivo' ? 'Efectivo' :
+                         account.type === 'cuenta_corriente' ? 'Cta. Corr.' :
+                         account.type === 'caja_ahorro' ? 'Caja Ahorro' :
+                         account.type === 'mercadopago' ? 'MP' : account.type}
+                      </span>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handleEditAccount(account)}
+                          className="text-zinc-400 hover:text-zinc-600 text-xs"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={() => { if (confirm(`¿Eliminar "${account.name}"?`)) { deleteAccountMut.mutate(account.id) } }}
+                          className="text-zinc-400 hover:text-red-500 text-xs"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-sm font-semibold text-zinc-900 truncate">{account.name}</p>
+                  </div>
+                ))}
+                {cardsTable.map((card) => (
+                  <div
+                    key={`card-${card.id}`}
+                    className="flex-shrink-0 w-48 p-4 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-700 text-zinc-900"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] font-semibold tracking-widest uppercase">
+                        {card.bank || 'Banco'}
+                      </span>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handleEditCard(card)}
+                          className="text-white/60 hover:text-white text-xs"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={() => { if (confirm(`¿Eliminar "${card.name}"?`)) { deleteCardMut.mutate(card.id) } }}
+                          className="text-white/60 hover:text-red-300 text-xs"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-sm font-bold truncate">{card.name}</p>
+                    <p className="text-xs mt-2 opacity-70">
+                      {card.last4_digits ? `•••• ${card.last4_digits}` : '💳'}
+                      <span className="ml-2 text-[10px] opacity-60">
+                        {card.card_type === 'credito' ? 'Crédito' : 'Débito'}
+                      </span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Gastos - Full Featured Table */}
           <div className="card p-5">

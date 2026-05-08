@@ -22,7 +22,7 @@ function formatFullName(full_name: string) {
 export default function UserPanel({ open, onClose }: Props) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [activeTab, setActiveTab] = useState<'config' | 'accounts' | 'cards'>('config')
+  const [activeTab, setActiveTab] = useState<'config' | 'accounts'>('config')
   const [currentPw, setCurrentPw] = useState('')
   const [newPw, setNewPw] = useState('')
   const [confirmPw, setConfirmPw] = useState('')
@@ -157,16 +157,6 @@ export default function UserPanel({ open, onClose }: Props) {
               }`}
             >
               Cuentas
-            </button>
-            <button
-              onClick={() => setActiveTab('cards')}
-              className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                activeTab === 'cards'
-                  ? 'bg-white shadow-sm text-zinc-900'
-                  : 'text-zinc-500 hover:text-zinc-700'
-              }`}
-            >
-              Tarjetas
             </button>
           </div>
         </div>
@@ -361,8 +351,12 @@ export default function UserPanel({ open, onClose }: Props) {
           </div>
         )}
 
-        {activeTab === 'accounts' && <AccountsManager />}
-        {activeTab === 'cards' && <CardsManager />}
+        {activeTab === 'accounts' && (
+          <div className="space-y-4">
+            <AccountsManager />
+            <CardsManager />
+          </div>
+        )}
         </div>
 
         {/* Logout */}
