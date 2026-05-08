@@ -15,6 +15,7 @@ import {
 } from '../api/client'
 import type { Card } from '../types'
 import type { Expense, ExpenseCreate } from '../types'
+import { Select } from '../components/Select'
 
 function formatCurrency(amount: number, currency: string = 'ARS') {
   if (currency === 'USD') {
@@ -233,59 +234,49 @@ export default function ExpensesPage() {
             const parentIds = new Set(categories.filter(c => c.parent_id).map(c => c.parent_id!))
             const parents = categories.filter(c => !c.parent_id && parentIds.has(c.id))
             const orphans = categories.filter(c => !c.parent_id && !parentIds.has(c.id))
+            const groups = parents.map(parent => ({
+              label: parent.name,
+              options: categories.filter(c => c.parent_id === parent.id).map(c => ({ value: String(c.id), label: c.name }))
+            }))
+            if (orphans.length > 0) {
+              groups.push({
+                label: '—',
+                options: orphans.map(c => ({ value: String(c.id), label: c.name }))
+              })
+            }
             return (
-              <select
-                value={filterUncategorized ? '__none__' : (filterCategory ?? '')}
-                onChange={e => handleCategoryFilter(e.target.value)}
-                className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
-              >
-                <option value="">Categoría</option>
-                <option value="__none__">Sin categoría</option>
-                {parents.map(parent => (
-                  <optgroup key={parent.id} label={parent.name}>
-                    {categories.filter(c => c.parent_id === parent.id).map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </optgroup>
-                ))}
-                {orphans.length > 0 && (
-                  <optgroup label="—">
-                    {orphans.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </optgroup>
-                )}
-              </select>
+              <Select
+                value={filterUncategorized ? '__none__' : (filterCategory ? String(filterCategory) : '')}
+                onChange={v => handleCategoryFilter(v)}
+                groups={groups}
+                placeholder="Categoría"
+              />
             )
           })()}
 
           {/* Banco */}
-          <select
+          <Select
             value={filterBank ?? ''}
-            onChange={e => setFilter('bank', e.target.value || undefined)}
-            className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
-          >
-            <option value="">Banco</option>
-            {(distinctValues?.banks ?? []).map(b => <option key={b} value={b}>{b}</option>)}
-          </select>
+            onChange={v => setFilter('bank', v || undefined)}
+            options={(distinctValues?.banks ?? []).map(b => ({ value: b, label: b }))}
+            placeholder="Banco"
+          />
 
           {/* Persona */}
-          <select
+          <Select
             value={filterPerson ?? ''}
-            onChange={e => setFilter('person', e.target.value || undefined)}
-            className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
-          >
-            <option value="">Persona</option>
-            {(distinctValues?.persons ?? []).map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
+            onChange={v => setFilter('person', v || undefined)}
+            options={(distinctValues?.persons ?? []).map(p => ({ value: p, label: p }))}
+            placeholder="Persona"
+          />
 
           {/* Tarjeta */}
-          <select
+          <Select
             value={filterCard ?? ''}
-            onChange={e => setFilter('card', e.target.value || undefined)}
-            className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
-          >
-            <option value="">Tarjeta</option>
-            {(distinctValues?.cards ?? []).map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
+            onChange={v => setFilter('card', v || undefined)}
+            options={(distinctValues?.cards ?? []).map(c => ({ value: c, label: c }))}
+            placeholder="Tarjeta"
+          />
 
           {/* Desde */}
           <input
@@ -714,8 +705,6 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
   const selectedBank = form.bank ?? ''
   const availableCards = cards.filter(c => !selectedBank || c.bank === selectedBank)
 
-  const cardLabel = (c: Card) => c.name
-
   const handleBankChange = (b: string) => {
     setForm((prev) => ({ ...prev, bank: b, card: '' }))
   }
@@ -811,10 +800,14 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
           </div>
           <div>
             <label className="text-xs font-medium text-[var(--text-secondary)]">Moneda</label>
-            <select value={form.currency ?? 'ARS'} onChange={(e) => set('currency', e.target.value)} className="w-full input">
-              <option value="ARS">ARS $</option>
-              <option value="USD">USD $</option>
-            </select>
+            <Select
+              value={form.currency ?? 'ARS'}
+              onChange={v => set('currency', v)}
+              options={[
+                { value: 'ARS', label: 'ARS $' },
+                { value: 'USD', label: 'USD $' },
+              ]}
+            />
           </div>
         </div>
 
@@ -849,33 +842,27 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
-              <select
+              <Select
                 value={form.bank ?? ''}
-                onChange={(e) => handleBankChange(e.target.value)}
+                onChange={v => handleBankChange(v)}
+                options={availableBanks.map(b => ({ value: b, label: b }))}
+                placeholder="— Banco —"
                 disabled={payMethod === 'cash'}
-                className="w-full input disabled:opacity-50"
-              >
-                <option value="">— Banco —</option>
-                {availableBanks.map(b => <option key={b} value={b}>{b}</option>)}
-              </select>
+              />
             </div>
             <div>
               <label className="text-xs font-medium text-[var(--text-secondary)]">Tarjeta</label>
-              <select
+              <Select
                 value={form.card ?? ''}
-                onChange={(e) => {
-                  const selected = availableCards.find(c => c.name === e.target.value)
+                onChange={v => {
+                  const selected = availableCards.find(c => c.name === v)
                   if (selected) handleCardSelect(selected)
-                  else set('card', e.target.value)
+                  else set('card', v)
                 }}
+                options={availableCards.map(c => ({ value: c.name, label: c.name }))}
+                placeholder="— Tarjeta —"
                 disabled={payMethod === 'cash'}
-                className="w-full input disabled:opacity-50"
-              >
-                <option value="">— Tarjeta —</option>
-                {availableCards.map(c => (
-                  <option key={c.name} value={c.name}>{cardLabel(c)}</option>
-                ))}
-              </select>
+              />
             </div>
           </div>
         </div>

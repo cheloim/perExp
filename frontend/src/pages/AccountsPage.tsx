@@ -20,6 +20,7 @@ import {
   bulkUpdateCategory
 } from '../api/client'
 import type { CategorySummary, Expense, ExpenseCreate, Category, CardSummary } from '../types'
+import { Select } from '../components/Select'
 
 type GroupBy = 'month' | 'year'
 type SortField = 'date' | 'description' | 'category' | 'bank' | 'person' | 'amount'
@@ -857,58 +858,44 @@ export default function AccountsPage() {
                     }
 
                     return (
-                      <select
-                        value={filterUncategorized ? '__none__' : (filterCategory ?? '')}
-                        onChange={e => handleCategoryFilter(e.target.value)}
-                        className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
-                      >
-                        <option value="">Categoría</option>
-                        <option value="__none__">Sin categoría</option>
-                        {parents.map(parent => (
-                          <optgroup key={parent.id} label={parent.name}>
-                            {categories.filter(c => c.parent_id === parent.id).map(c => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                          </optgroup>
-                        ))}
-                        {orphans.length > 0 && (
-                          <optgroup label="—">
-                            {orphans.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                          </optgroup>
-                        )}
-                      </select>
+                      <Select
+                        value={filterUncategorized ? '__none__' : (filterCategory ? String(filterCategory) : '')}
+                        onChange={v => handleCategoryFilter(v)}
+                        groups={[
+                          ...parents.map(parent => ({
+                            label: parent.name,
+                            options: categories.filter(c => c.parent_id === parent.id).map(c => ({ value: String(c.id), label: c.name }))
+                          })),
+                          ...(orphans.length > 0 ? [{ label: '—', options: orphans.map(c => ({ value: String(c.id), label: c.name })) }] : [])
+                        ]}
+                        placeholder="Categoría"
+                      />
                     )
                   })()}
 
                   {/* Banco */}
-                  <select
+                  <Select
                     value={filterBank ?? ''}
-                    onChange={e => setFilter('bank', e.target.value || undefined)}
-                    className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
-                  >
-                    <option value="">Banco</option>
-                    {(distinctValues?.banks ?? []).map(b => <option key={b} value={b}>{b}</option>)}
-                  </select>
+                    onChange={v => setFilter('bank', v || undefined)}
+                    options={(distinctValues?.banks ?? []).map(b => ({ value: b, label: b }))}
+                    placeholder="Banco"
+                  />
 
                   {/* Persona */}
-                  <select
+                  <Select
                     value={filterPerson ?? ''}
-                    onChange={e => setFilter('person', e.target.value || undefined)}
-                    className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
-                  >
-                    <option value="">Titular</option>
-                    {(distinctValues?.persons ?? []).map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
+                    onChange={v => setFilter('person', v || undefined)}
+                    options={(distinctValues?.persons ?? []).map(p => ({ value: p, label: p }))}
+                    placeholder="Titular"
+                  />
 
                   {/* Tarjeta */}
-                  <select
+                  <Select
                     value={filterCard ?? ''}
-                    onChange={e => setFilter('card', e.target.value || undefined)}
-                    className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
-                  >
-                    <option value="">Tarjeta</option>
-                    {(distinctValues?.cards ?? []).map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                    onChange={v => setFilter('card', v || undefined)}
+                    options={(distinctValues?.cards ?? []).map(c => ({ value: c, label: c }))}
+                    placeholder="Tarjeta"
+                  />
 
                   {/* Desde */}
                   <input
