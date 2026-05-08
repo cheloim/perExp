@@ -250,6 +250,15 @@ export default function CardsManager() {
 
       {editId === -1 && (
         <form onSubmit={handleSubmit} className="p-3 bg-brand-50 border border-brand-200 rounded-lg space-y-3">
+          <select
+            value={accountType}
+            onChange={(e) => setAccountType(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
+          >
+            {ACCOUNT_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </select>
           <div>
             <input
               type="text"
@@ -261,15 +270,6 @@ export default function CardsManager() {
               required
             />
           </div>
-          <select
-            value={accountType}
-            onChange={(e) => setAccountType(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
-          >
-            {ACCOUNT_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
-            ))}
-          </select>
           
           {accountType === 'tarjeta' && (
             <>
