@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCards, createCard, updateCard, deleteCard, createAccount, getCardSummary } from '../api/client'
+import { useQuery as useCardDataQuery } from '@tanstack/react-query'
 import type { Card } from '../types'
 
 const ACCOUNT_TYPES = [
@@ -26,9 +27,11 @@ export default function CardsManager() {
     queryFn: getCards,
   })
 
-  const { data: cardData = [] } = useQuery({
+  // Card data from expenses (for future extension - show spending by card)
+  useCardDataQuery({
     queryKey: ['card-summary'],
     queryFn: getCardSummary,
+    enabled: false, // Disabled for now - can be enabled for future features
   })
 
   const createMut = useMutation({
@@ -73,29 +76,10 @@ export default function CardsManager() {
     },
   })
 
-  const cardsInitialized = useRef(false)
-
-  useEffect(() => {
-    if (!cards.length || !cardData.length || cardsInitialized.current) return
-    cardsInitialized.current = true
-
-    const missingCards = cardData.filter(
-      (cd) => !cards.some((c) => c.name.toLowerCase() === cd.card_name.toLowerCase() && c.bank?.toLowerCase() === (cd.bank || '').toLowerCase())
-    )
-
-    missingCards.forEach((cd) => {
-      createMut.mutate({
-        name: cd.card_name,
-        bank: cd.bank || '',
-        card_type: 'credito',
-      })
-    })
-  }, [cards, cardData, createMut])
-
   const handleEdit = (card: Card) => {
     setEditId(card.id)
     setName(card.name)
-    setBank(card.bank)
+    setBank(card.bank || '')
     setCardType(card.card_type)
     setMenuOpen(null)
   }
@@ -142,57 +126,60 @@ export default function CardsManager() {
   return (
     <div className="px-4 py-2 space-y-2">
       <h3 className="text-xs font-semibold text-secondary uppercase tracking-wide mb-3">Tarjetas</h3>
-      {cardData.map((card, idx) => {
-        const cardKey = `${card.card_name}|${card.bank}|${idx}`
-        const matchedCard = cards.find(c => c.name.toLowerCase() === card.card_name.toLowerCase() && c.bank?.toLowerCase() === (card.bank || '').toLowerCase())
-        const cardId = matchedCard?.id
-        const isEditing = editId === cardId
-        const isMenuOpen = menuOpen === cardId
+      
+      {cards.map((card) => {
+        const isEditing = editId === card.id
+        const isMenuOpen = menuOpen === card.id
 
         return (
-          <div key={cardKey} className="relative">
+          <div key={card.id} className="relative">
             {isEditing ? (
-              <form onSubmit={handleSubmit} className="p-3 bg-primary-subtle border border-border-color rounded-lg space-y-3">
-                <div>
+              <form onSubmit={handleSubmit} className="p-4 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">Nombre</label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full input"
-                    placeholder="Nombre (ej: Visa Galicia)"
+                    className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+                    placeholder="Ej: Visa Galicia"
                     autoFocus
                     required
                   />
                 </div>
-                <div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
                   <input
                     type="text"
                     value={bank}
                     onChange={(e) => setBank(e.target.value)}
-                    className="w-full input"
-                    placeholder="Banco (ej: Galicia)"
+                    className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+                    placeholder="Ej: Galicia"
                   />
                 </div>
-                <select
-                  value={cardType}
-                  onChange={(e) => setCardType(e.target.value)}
-                  className="w-full input bg-surface"
-                >
-                  <option value="credito">Crédito</option>
-                  <option value="debito">Débito</option>
-                </select>
-                <div className="flex gap-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">Tipo</label>
+                  <select
+                    value={cardType}
+                    onChange={(e) => setCardType(e.target.value)}
+                    className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+                  >
+                    <option value="credito">Crédito</option>
+                    <option value="debito">Débito</option>
+                  </select>
+                </div>
+                <div className="flex gap-2 pt-2">
                   <button
                     type="submit"
                     disabled={createMut.isPending || updateMut.isPending}
-                    className="flex-1 btn-primary text-xs py-1.5"
+                    className="flex-1 px-4 py-2 rounded-md bg-[var(--color-primary)] text-[var(--color-on-primary)] text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"
                   >
-                    Guardar
+                    {createMut.isPending || updateMut.isPending ? 'Guardando...' : 'Guardar'}
                   </button>
                   <button
                     type="button"
                     onClick={handleCancel}
-                    className="flex-1 btn-secondary text-xs py-1.5"
+                    className="flex-1 px-4 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
                   >
                     Cancelar
                   </button>
@@ -205,41 +192,37 @@ export default function CardsManager() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-primary truncate">
-                    {card.card_name}
+                    {card.name}
                     {card.bank && <span className="text-tertiary font-normal"> — {card.bank}</span>}
                   </div>
-                  <div className="text-xs text-secondary flex items-center gap-2">
-                    Crédito
+                  <div className="text-xs text-secondary capitalize">
+                    {card.card_type}
                   </div>
                 </div>
                 <div className="relative">
-<button
-                    onClick={() => setMenuOpen(isMenuOpen ? null : cardId || idx)}
+                  <button
+                    onClick={() => setMenuOpen(isMenuOpen ? null : card.id)}
                     className="w-7 h-7 flex items-center justify-center rounded text-tertiary hover:text-primary hover:bg-base-alt transition-colors"
                   >
                     ···
                   </button>
-                  {isMenuOpen && cardId && (
+                  {isMenuOpen && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(null)} />
                       <div className="absolute right-0 top-8 z-50 w-28 bg-surface border border-border-color rounded-lg shadow-lg overflow-hidden">
                         <button
-                          onClick={() => {
-                            if (matchedCard) handleEdit(matchedCard)
-                          }}
+                          onClick={() => handleEdit(card)}
                           className="w-full px-3 py-2 text-xs text-left text-primary hover:bg-base-alt transition-colors"
                         >
                           ✏️ Editar
                         </button>
-                        {matchedCard && (
-                          <button
-                            onClick={() => setDeleteConfirm({ type: 'card', id: matchedCard.id, name: matchedCard.name })}
-                            disabled={deleteMut.isPending}
-                            className="w-full px-3 py-2 text-xs text-left text-danger hover:bg-danger/10 transition-colors disabled:opacity-50"
-                          >
-                            🗑️ Eliminar
-                          </button>
-                        )}
+                        <button
+                          onClick={() => setDeleteConfirm({ type: 'card', id: card.id, name: card.name })}
+                          disabled={deleteMut.isPending}
+                          className="w-full px-3 py-2 text-xs text-left text-danger hover:bg-danger/10 transition-colors disabled:opacity-50"
+                        >
+                          🗑️ Eliminar
+                        </button>
                       </div>
                     </>
                   )}
@@ -251,7 +234,7 @@ export default function CardsManager() {
       })}
 
       {editId === -1 && (
-        <form onSubmit={handleSubmit} className="p-3 bg-primary-subtle border border-border-color rounded-lg space-y-3">
+        <form onSubmit={handleSubmit} className="p-4 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg space-y-4">
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-[var(--text-secondary)]">Tipo de cuenta</label>
             <select
@@ -304,18 +287,18 @@ export default function CardsManager() {
             />
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 pt-2">
             <button
               type="submit"
               disabled={createMut.isPending || createAccountMut.isPending}
-              className="flex-1 btn-primary text-xs py-1.5"
+              className="flex-1 px-4 py-2 rounded-md bg-[var(--color-primary)] text-[var(--color-on-primary)] text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"
             >
-              Crear
+              {createMut.isPending || createAccountMut.isPending ? 'Creando...' : 'Crear'}
             </button>
             <button
               type="button"
               onClick={handleCancel}
-              className="flex-1 btn-secondary text-xs py-1.5"
+              className="flex-1 px-4 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
             >
               Cancelar
             </button>
@@ -342,7 +325,7 @@ export default function CardsManager() {
             <div className="flex gap-3">
               <button
                 onClick={() => setDeleteConfirm(null)}
-                className="flex-1 btn-secondary"
+                className="flex-1 px-4 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
               >
                 Cancelar
               </button>
@@ -352,9 +335,9 @@ export default function CardsManager() {
                   setDeleteConfirm(null)
                 }}
                 disabled={deleteMut.isPending}
-                className="flex-1 btn-danger"
+                className="flex-1 px-4 py-2 rounded-md bg-[var(--red-3,#e01b24)] text-white text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"
               >
-                Eliminar
+                {deleteMut.isPending ? 'Eliminando...' : 'Eliminar'}
               </button>
             </div>
           </div>
