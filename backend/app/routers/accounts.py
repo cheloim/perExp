@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from pydantic import BaseModel
 from datetime import datetime
 from app.database import get_db
@@ -47,8 +48,30 @@ def create_account(
     current_user: User = Depends(get_current_user),
 ):
     """Create a new account"""
+    name = account.name.strip()
+    
+    if not name:
+        raise HTTPException(status_code=400, detail="El nombre es obligatorio")
+    
+    existing = db.query(Account).filter(
+        Account.user_id == current_user.id,
+        func.lower(func.trim(Account.name)) == name.lower(),
+        Account.type == account.type,
+    ).first()
+    
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "Ya existe una cuenta con esos datos",
+                "existing_id": existing.id,
+                "existing_name": existing.name,
+                "existing_type": existing.type,
+            }
+        )
+    
     db_account = Account(
-        name=account.name,
+        name=name,
         type=account.type,
         user_id=current_user.id,
     )

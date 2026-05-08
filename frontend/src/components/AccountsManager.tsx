@@ -21,6 +21,7 @@ export default function AccountsManager() {
   const [editId, setEditId] = useState<number | null>(null)
   const [menuOpen, setMenuOpen] = useState<number | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'account'; id: number; name: string } | null>(null)
+  const [duplicateFound, setDuplicateFound] = useState<{ id: number; name: string; type: string } | null>(null)
   const [name, setName] = useState('')
   const [type, setType] = useState('efectivo')
   const [bank, setBank] = useState('')
@@ -38,6 +39,16 @@ export default function AccountsManager() {
       setEditId(null)
       setName('')
       setType('efectivo')
+    },
+    onError: (error: any) => {
+      if (error.response?.status === 409) {
+        const detail = error.response.data.detail
+        setDuplicateFound({
+          id: detail.existing_id,
+          name: detail.existing_name,
+          type: detail.existing_type,
+        })
+      }
     },
   })
 
@@ -256,6 +267,44 @@ export default function AccountsManager() {
                 className="flex-1 btn-danger"
               >
                 Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {duplicateFound && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-surface rounded-xl shadow-xl p-6 max-w-sm w-full">
+            <h3 className="text-lg font-semibold text-primary mb-2">Cuenta existente</h3>
+            <p className="text-sm text-secondary mb-6">
+              Ya existe una cuenta con estos datos: <span className="font-medium text-primary">"{duplicateFound.name}"</span> ({duplicateFound.type})
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setDuplicateFound(null)
+                  setName('')
+                  setType('efectivo')
+                  setEditId(null)
+                }}
+                className="flex-1 px-4 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  const accountToEdit = accounts.find(a => a.id === duplicateFound.id)
+                  if (accountToEdit) {
+                    setEditId(duplicateFound.id)
+                    setName(duplicateFound.name)
+                    setType(duplicateFound.type)
+                  }
+                  setDuplicateFound(null)
+                }}
+                className="flex-1 px-4 py-2 rounded-md bg-[var(--color-primary)] text-[var(--color-on-primary)] text-sm font-medium hover:brightness-110 transition"
+              >
+                Editar existente
               </button>
             </div>
           </div>

@@ -17,6 +17,7 @@ export default function CardsManager() {
   const [editId, setEditId] = useState<number | null>(null)
   const [menuOpen, setMenuOpen] = useState<number | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'card' | 'account'; id: number; name: string } | null>(null)
+  const [duplicateFound, setDuplicateFound] = useState<{ id: number; name: string; bank: string; card_type: string } | null>(null)
   const [name, setName] = useState('')
   const [bank, setBank] = useState('')
   const [cardType, setCardType] = useState('credito')
@@ -42,6 +43,17 @@ export default function CardsManager() {
       setName('')
       setBank('')
       setCardType('credito')
+    },
+    onError: (error: any) => {
+      if (error.response?.status === 409) {
+        const detail = error.response.data.detail
+        setDuplicateFound({
+          id: detail.existing_id,
+          name: detail.existing_name,
+          bank: detail.existing_bank,
+          card_type: detail.existing_card_type,
+        })
+      }
     },
   })
 
@@ -338,6 +350,46 @@ export default function CardsManager() {
                 className="flex-1 px-4 py-2 rounded-md bg-[var(--red-3,#e01b24)] text-white text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"
               >
                 {deleteMut.isPending ? 'Eliminando...' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {duplicateFound && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-surface rounded-xl shadow-xl p-6 max-w-sm w-full">
+            <h3 className="text-lg font-semibold text-primary mb-2">Tarjeta existente</h3>
+            <p className="text-sm text-secondary mb-6">
+              Ya existe una tarjeta con estos datos: <span className="font-medium text-primary">"{duplicateFound.name}"</span> ({duplicateFound.bank} - {duplicateFound.card_type})
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setDuplicateFound(null)
+                  setName('')
+                  setBank('')
+                  setCardType('credito')
+                  setEditId(null)
+                }}
+                className="flex-1 px-4 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  const cardToEdit = cards.find(c => c.id === duplicateFound.id)
+                  if (cardToEdit) {
+                    setEditId(duplicateFound.id)
+                    setName(duplicateFound.name)
+                    setBank(duplicateFound.bank)
+                    setCardType(duplicateFound.card_type)
+                  }
+                  setDuplicateFound(null)
+                }}
+                className="flex-1 px-4 py-2 rounded-md bg-[var(--color-primary)] text-[var(--color-on-primary)] text-sm font-medium hover:brightness-110 transition"
+              >
+                Editar existente
               </button>
             </div>
           </div>

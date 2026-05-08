@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from pydantic import BaseModel
 from datetime import datetime
 from app.database import get_db
@@ -53,9 +54,34 @@ def create_card(
     current_user: User = Depends(get_current_user),
 ):
     """Create a new card"""
+    name = card.name.strip()
+    bank = card.bank.strip() if card.bank else ""
+    
+    if not name or not bank:
+        raise HTTPException(status_code=400, detail="Nombre y banco son obligatorios")
+    
+    existing = db.query(Card).filter(
+        Card.user_id == current_user.id,
+        func.lower(func.trim(Card.name)) == name.lower(),
+        func.lower(func.trim(Card.bank)) == bank.lower(),
+        Card.card_type == card.card_type,
+    ).first()
+    
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "Ya existe una tarjeta con esos datos",
+                "existing_id": existing.id,
+                "existing_name": existing.name,
+                "existing_bank": existing.bank,
+                "existing_card_type": existing.card_type,
+            }
+        )
+    
     db_card = Card(
-        name=card.name,
-        bank=card.bank,
+        name=name,
+        bank=bank,
         last4_digits=card.last4_digits,
         card_type=card.card_type,
         user_id=current_user.id,
