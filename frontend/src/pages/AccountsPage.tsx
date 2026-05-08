@@ -1436,28 +1436,23 @@ function ExpenseModal({
 
         <div>
           <label className="text-xs font-medium text-[var(--text-secondary)]">Categoría</label>
-          <select
-            value={form.category_id ?? ''}
-            onChange={(e) => set('category_id', e.target.value ? parseInt(e.target.value) : null)}
-            className="w-full input"
-          >
-            <option value="">Sin categoría</option>
-            {(() => {
+          <Select
+            value={form.category_id ? String(form.category_id) : ''}
+            onChange={v => set('category_id', v ? parseInt(v) : null)}
+            groups={(() => {
               const parentIds = new Set(categories.filter(c => c.parent_id).map(c => c.parent_id!))
               const parents = categories.filter(c => !c.parent_id && parentIds.has(c.id))
               const orphans = categories.filter(c => !c.parent_id && !parentIds.has(c.id))
-              return <>
-                {parents.map(parent => (
-                  <optgroup key={parent.id} label={parent.name}>
-                    {categories.filter(c => c.parent_id === parent.id).map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </optgroup>
-                ))}
-                {orphans.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </>
+              return [
+                ...parents.map(parent => ({
+                  label: parent.name,
+                  options: categories.filter(c => c.parent_id === parent.id).map(c => ({ value: String(c.id), label: c.name }))
+                })),
+                ...(orphans.length > 0 ? [{ label: '—', options: orphans.map(c => ({ value: String(c.id), label: c.name })) }] : [])
+              ]
             })()}
-          </select>
+            placeholder="Sin categoría"
+          />
         </div>
 
         {/* Cascading: Banco → Tarjeta */}

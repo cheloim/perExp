@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getAccounts, createAccount, updateAccount, deleteAccount, createCard } from '../api/client'
 import type { Account } from '../types'
+import { Select } from './Select'
 
 const ACCOUNT_TYPES = [
   { value: 'efectivo', label: 'Efectivo', color: 'badge-success' },
@@ -164,15 +165,11 @@ export default function AccountsManager() {
                     {/* Tipo: Crédito/Débito */}
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-[var(--text-secondary)]">Tipo de tarjeta</label>
-                      <select
+                      <Select
                         value={cardType}
-                        onChange={(e) => setCardType(e.target.value)}
-                        className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-                      >
-                        {CARD_TYPES.map((t) => (
-                          <option key={t.value} value={t.value}>{t.label}</option>
-                        ))}
-                      </select>
+                        onChange={v => setCardType(v)}
+                        options={CARD_TYPES.map(t => ({ value: t.value, label: t.label }))}
+                      />
                     </div>
 
                     {/* Banco */}

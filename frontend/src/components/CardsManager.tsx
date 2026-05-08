@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCards, createCard, updateCard, deleteCard, createAccount, getCardSummary } from '../api/client'
 import { useQuery as useCardDataQuery } from '@tanstack/react-query'
 import type { Card } from '../types'
+import { Select } from './Select'
 
 const ACCOUNT_TYPES = [
   { value: 'efectivo', label: 'Efectivo' },
@@ -182,14 +183,14 @@ export default function CardsManager() {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-[var(--text-secondary)]">Tipo</label>
-                  <select
+                  <Select
                     value={cardType}
-                    onChange={(e) => setCardType(e.target.value)}
-                    className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-                  >
-                    <option value="credito">Crédito</option>
-                    <option value="debito">Débito</option>
-                  </select>
+                    onChange={v => setCardType(v)}
+                    options={[
+                      { value: 'credito', label: 'Crédito' },
+                      { value: 'debito', label: 'Débito' },
+                    ]}
+                  />
                 </div>
                 <div className="flex gap-2 pt-2">
                   <button
@@ -260,29 +261,25 @@ export default function CardsManager() {
         <form onSubmit={handleSubmit} className="p-4 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg space-y-4">
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-[var(--text-secondary)]">Tipo de cuenta</label>
-            <select
+            <Select
               value={accountType}
-              onChange={(e) => setAccountType(e.target.value)}
-              className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-            >
-              {ACCOUNT_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </select>
+              onChange={v => setAccountType(v)}
+              options={ACCOUNT_TYPES.map(t => ({ value: t.value, label: t.label }))}
+            />
           </div>
 
           {accountType === 'tarjeta' && (
             <div className="space-y-3 pt-2 border-t border-[var(--border-color)]">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[var(--text-secondary)]">Crédito / Débito</label>
-                <select
+                <Select
                   value={cardType}
-                  onChange={(e) => setCardType(e.target.value)}
-                  className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-                >
-                  <option value="credito">Crédito</option>
-                  <option value="debito">Débito</option>
-                </select>
+                  onChange={v => setCardType(v)}
+                  options={[
+                    { value: 'credito', label: 'Crédito' },
+                    { value: 'debito', label: 'Débito' },
+                  ]}
+                />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
