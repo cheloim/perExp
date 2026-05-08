@@ -757,12 +757,14 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
         {/* Payment method toggle */}
         <div>
           <label className="block text-sm font-medium text-secondary mb-2">Medio de pago</label>
-          <div className="flex rounded-xl overflow-hidden border border-border-color">
+          <div className="flex rounded-md border border-[var(--border-color)] overflow-hidden">
             <button
               type="button"
               onClick={() => switchPayMethod('card')}
-              className={`flex-1 py-2 text-sm font-medium transition-colors border-r border-border-color ${
-                payMethod === 'card' ? 'bg-primary/20 text-primary' : 'text-tertiary hover:text-primary'
+              className={`flex-1 px-3 py-2 text-sm font-medium transition ${
+                payMethod === 'card' 
+                  ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)]' 
+                  : 'bg-[var(--color-base-container)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]'
               }`}
             >
               💳 Tarjeta
@@ -770,8 +772,10 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
             <button
               type="button"
               onClick={() => switchPayMethod('cash')}
-              className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                payMethod === 'cash' ? 'bg-success/20 text-success' : 'text-tertiary hover:text-primary'
+              className={`flex-1 px-3 py-2 text-sm font-medium transition ${
+                payMethod === 'cash' 
+                  ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)]' 
+                  : 'bg-[var(--color-base-container)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]'
               }`}
             >
               💵 Efectivo / Transferencia
