@@ -771,36 +771,36 @@ export default function InvestmentsPage() {
         </button>
       </div>
 
-      {/* Resumen de cartera - card consolidado con carrusel */}
+      {/* Resumen de cartera */}
       <div className="card p-4">
         <p className="text-xs text-zinc-400 font-medium uppercase tracking-wider mb-3">Resumen de cartera</p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="flex flex-wrap items-stretch gap-3">
           {/* Valor ARS */}
-          <div className="card p-1.5">
-            <p className="text-[10px] text-zinc-400 uppercase tracking-wider mb-0.5">Valor ARS</p>
-            <p className="text-sm font-bold text-zinc-900">{toDisplay(arsValue, 'ARS')}</p>
-            <p className={`text-[10px] mt-0.5 font-medium ${arsPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+          <div className="card p-2 w-36">
+            <p className="text-xs text-zinc-400 uppercase tracking-wider mb-0.5">Valor ARS</p>
+            <p className="text-base font-bold text-zinc-900">{toDisplay(arsValue, 'ARS')}</p>
+            <p className={`text-xs mt-0.5 font-medium ${arsPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {arsPnl >= 0 ? '+' : ''}{toDisplay(arsPnl, 'ARS')} P&L
             </p>
-            <p className="text-[9px] text-zinc-500 mt-0.5">
+            <p className="text-[10px] text-zinc-500 mt-0.5">
               {arsHoldings.length} pos · {arsValue + usdValue > 0 ? ((arsValue / (arsValue + usdValue)) * 100).toFixed(0) : 0}%
             </p>
           </div>
           {/* Valor USD */}
-          <div className="card p-1.5">
-            <p className="text-[10px] text-zinc-400 uppercase tracking-wider mb-0.5">Valor USD</p>
-            <p className="text-sm font-bold text-zinc-900">{fmt(usdValue, 'USD')}</p>
-            <p className={`text-[10px] mt-0.5 font-medium ${usdPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+          <div className="card p-2 w-36">
+            <p className="text-xs text-zinc-400 uppercase tracking-wider mb-0.5">Valor USD</p>
+            <p className="text-base font-bold text-zinc-900">{fmt(usdValue, 'USD')}</p>
+            <p className={`text-xs mt-0.5 font-medium ${usdPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {usdPnl >= 0 ? '+' : ''}{fmt(usdPnl, 'USD')} P&L
             </p>
-            <p className="text-[9px] text-zinc-500 mt-0.5">
+            <p className="text-[10px] text-zinc-500 mt-0.5">
               {usdHoldings.length} pos · {arsValue + usdValue > 0 ? ((usdValue / (arsValue + usdValue)) * 100).toFixed(0) : 0}%
             </p>
           </div>
 
           {/* Saldos disponibles */}
-          <div className="card p-3 col-span-2">
-            <p className="text-xs text-zinc-400 font-medium uppercase tracking-wider mb-2">Saldos disponibles</p>
+          <div className="card p-2 flex-1 min-w-[280px]">
+            <p className="text-xs text-zinc-400 uppercase tracking-wider mb-0.5">Saldos disponibles</p>
             <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
               {/* IOL — auto from API */}
               {cashBalances?.iol.configured && (
