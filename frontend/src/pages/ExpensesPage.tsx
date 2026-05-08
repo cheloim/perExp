@@ -629,7 +629,7 @@ function DatePickerInput({ value, onChange }: { value: string; onChange: (d: str
         placeholder="DD-MM-YYYY"
       />
       {isOpen && (
-        <div className="absolute z-50 mt-2 p-3 bg-surface border border-border-color rounded-xl shadow-gnome-lg">
+        <div className="absolute z-50 mt-2 p-3 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl shadow-gnome-lg">
           <DayPicker
             mode="single"
             selected={selectedDate}
@@ -733,12 +733,12 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <div className="relative card w-full max-w-lg max-h-[90vh] overflow-auto p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-primary">
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">
             {initial
               ? (isIncome ? 'Editar ingreso' : 'Editar gasto')
               : (isIncome ? 'Nuevo ingreso' : 'Nuevo gasto')}
           </h2>
-          <button onClick={onClose} className="text-tertiary hover:text-primary">✕</button>
+          <button onClick={onClose} className="text-[var(--text-tertiary)] hover:text-[var(--color-primary)]">✕</button>
         </div>
         {isIncome && (
           <div className="flex items-center gap-2 bg-success/10 border border-success/30 rounded-lg px-3 py-2 text-xs text-success">
@@ -756,7 +756,7 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
 
         {/* Payment method toggle */}
         <div>
-          <label className="block text-sm font-medium text-secondary mb-2">Medio de pago</label>
+          <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Medio de pago</label>
           <div className="flex rounded-md border border-[var(--border-color)] overflow-hidden">
             <button
               type="button"
