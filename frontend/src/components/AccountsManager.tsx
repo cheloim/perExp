@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getAccounts, createAccount, updateAccount, deleteAccount, getCards, createCard, deleteCard } from '../api/client'
+import { getAccounts, createAccount, updateAccount, deleteAccount, createCard } from '../api/client'
 import type { Account } from '../types'
 
 const ACCOUNT_TYPES = [
@@ -29,11 +29,6 @@ export default function AccountsManager() {
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['accounts'],
     queryFn: getAccounts,
-  })
-
-  const { data: cards = [] } = useQuery({
-    queryKey: ['cards'],
-    queryFn: getCards,
   })
 
   const createMut = useMutation({
@@ -78,14 +73,6 @@ export default function AccountsManager() {
     },
   })
 
-  const deleteCardMut = useMutation({
-    mutationFn: (id: number) => deleteCard(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cards'] })
-      setMenuOpen(null)
-    },
-  })
-
   const handleEdit = (account: Account) => {
     setEditId(account.id)
     setName(account.name)
@@ -94,18 +81,9 @@ export default function AccountsManager() {
   }
 
   const handleAdd = () => {
-    const choice = prompt('¿Qué deseas crear?\n1. Efectivo\n2. Cta. Corriente\n3. Caja de Ahorro\n4. MercadoPago\n5. Tarjeta de Crédito/Débito\n\nIngresa el número:')
-    if (!choice) return
-    
-    const typeMap: Record<string, string> = {
-      '1': 'efectivo', '2': 'cuenta_corriente', '3': 'caja_ahorro', '4': 'mercadopago', '5': 'tarjeta'
-    }
-    const selectedType = typeMap[choice]
-    if (!selectedType) { alert('Opción inválida'); return }
-    
     setEditId(-1)
     setName('')
-    setType(selectedType)
+    setType('efectivo')
     setBank('')
     setLast4('')
     setCardType('credito')
@@ -345,47 +323,6 @@ export default function AccountsManager() {
         >
           + Agregar cuenta
         </button>
-      )}
-
-      {/* Tarjetas */}
-      {cards.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-zinc-200">
-          <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-3">Tarjetas</h3>
-          <div className="space-y-2">
-            {cards.map((card) => (
-              <div key={card.id} className="flex items-center gap-3 p-3 bg-white border border-zinc-200 rounded-lg">
-                <div className="w-8 h-8 rounded-lg bg-pink-100 text-pink-600 flex items-center justify-center text-sm font-bold">
-                  💳
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-zinc-900 truncate">
-                    {card.name}
-                    {card.bank && <span className="text-zinc-400 font-normal"> — {card.bank}</span>}
-                  </div>
-                  <div className="text-xs text-zinc-400 flex items-center gap-2">
-                    {card.card_type === 'credito' ? 'Crédito' : 'Débito'}
-                    {card.last4_digits && (
-                      <span className="font-mono text-[10px] bg-zinc-100 px-1.5 py-0.5 rounded">
-                        ····{card.last4_digits}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    if (confirm(`¿Eliminar "${card.name}"?`)) {
-                      deleteCardMut.mutate(card.id)
-                    }
-                  }}
-                  disabled={deleteCardMut.isPending}
-                  className="text-zinc-400 hover:text-red-500 text-xs"
-                >
-                  🗑️
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
       )}
     </div>
   )
