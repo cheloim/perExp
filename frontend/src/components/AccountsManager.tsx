@@ -80,16 +80,6 @@ export default function AccountsManager() {
     setMenuOpen(null)
   }
 
-  const handleAdd = () => {
-    setEditId(-1)
-    setName('')
-    setType('efectivo')
-    setBank('')
-    setLast4('')
-    setCardType('credito')
-    setMenuOpen(null)
-  }
-
   const handleCancel = () => {
     setEditId(null)
     setName('')
@@ -128,6 +118,7 @@ export default function AccountsManager() {
 
   return (
     <div className="px-4 py-4 space-y-2">
+      <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-3">Cuentas</h3>
       {accounts.map((account) => {
         const typeInfo = ACCOUNT_TYPES.find((t) => t.value === account.type) || ACCOUNT_TYPES[4]
         const isEditing = editId === account.id
@@ -262,68 +253,6 @@ export default function AccountsManager() {
           </div>
         )
       })}
-
-      {editId === -1 && (
-        <form onSubmit={handleSubmit} className="p-3 bg-brand-50 border border-brand-200 rounded-lg space-y-3">
-          <div>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
-              placeholder="Nombre de la cuenta"
-              autoFocus
-              required
-            />
-          </div>
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
-          >
-            {ACCOUNT_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
-            ))}
-          </select>
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={createMut.isPending || updateMut.isPending}
-              className="flex-1 py-1.5 text-xs font-semibold bg-brand-600 text-white rounded-lg hover:bg-brand-500 disabled:opacity-50 transition"
-            >
-              Crear
-            </button>
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="flex-1 py-1.5 text-xs font-medium bg-white border border-zinc-300 text-zinc-600 rounded-lg hover:bg-zinc-50 transition"
-            >
-              Cancelar
-            </button>
-          </div>
-        </form>
-      )}
-
-      {accounts.length === 0 && editId !== -1 && (
-        <div className="text-center py-8 px-4">
-          <p className="text-sm text-zinc-500 mb-3">No hay cuentas registradas</p>
-          <button
-            onClick={handleAdd}
-            className="px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600 transition-colors font-medium"
-          >
-            + Nueva Cuenta
-          </button>
-        </div>
-      )}
-
-      {editId === null && accounts.length > 0 && (
-        <button
-          onClick={handleAdd}
-          className="w-full py-2.5 border-2 border-dashed border-zinc-200 rounded-lg text-sm text-zinc-500 hover:border-brand-300 hover:text-brand-500 transition-colors"
-        >
-          + Agregar cuenta
-        </button>
-      )}
     </div>
   )
 }

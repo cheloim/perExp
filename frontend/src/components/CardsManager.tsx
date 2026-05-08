@@ -1,7 +1,15 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getCards, createCard, updateCard, deleteCard } from '../api/client'
+import { getCards, createCard, updateCard, deleteCard, createAccount } from '../api/client'
 import type { Card } from '../types'
+
+const ACCOUNT_TYPES = [
+  { value: 'efectivo', label: 'Efectivo' },
+  { value: 'cuenta_corriente', label: 'Cta. Corriente' },
+  { value: 'caja_ahorro', label: 'Caja de Ahorro' },
+  { value: 'mercadopago', label: 'MercadoPago' },
+  { value: 'tarjeta', label: 'Tarjeta' },
+]
 
 export default function CardsManager() {
   const queryClient = useQueryClient()
@@ -11,6 +19,7 @@ export default function CardsManager() {
   const [bank, setBank] = useState('')
   const [last4, setLast4] = useState('')
   const [cardType, setCardType] = useState('credito')
+  const [accountType, setAccountType] = useState('efectivo')
 
   const { data: cards = [], isLoading } = useQuery({
     queryKey: ['cards'],
@@ -49,6 +58,19 @@ export default function CardsManager() {
     },
   })
 
+  const createAccountMut = useMutation({
+    mutationFn: (data: { name: string; type: string }) => createAccount(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      setEditId(null)
+      setName('')
+      setAccountType('efectivo')
+      setBank('')
+      setLast4('')
+      setCardType('credito')
+    },
+  })
+
   const handleEdit = (card: Card) => {
     setEditId(card.id)
     setName(card.name)
@@ -64,23 +86,37 @@ export default function CardsManager() {
     setBank('')
     setLast4('')
     setCardType('credito')
+    setAccountType('efectivo')
+  }
+
+  const handleAdd = () => {
+    setEditId(-1)
+    setName('')
+    setBank('')
+    setLast4('')
+    setCardType('credito')
+    setAccountType('efectivo')
+    setMenuOpen(null)
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
 
-    const data = {
-      name: name.trim(),
-      bank: bank.trim(),
-      last4_digits: last4.trim() || null,
-      card_type: cardType,
-    }
-
-    if (editId && editId > 0) {
-      updateMut.mutate({ id: editId, data })
+    if (accountType === 'tarjeta') {
+      const data = {
+        name: name.trim(),
+        bank: bank.trim(),
+        last4_digits: last4.trim() || null,
+        card_type: cardType,
+      }
+      if (editId && editId > 0) {
+        updateMut.mutate({ id: editId, data })
+      } else {
+        createMut.mutate(data)
+      }
     } else {
-      createMut.mutate(data)
+      createAccountMut.mutate({ name: name.trim(), type: accountType })
     }
   }
 
@@ -212,10 +248,100 @@ export default function CardsManager() {
         )
       })}
 
-      {cards.length === 0 && editId !== -1 && (
-        <div className="text-center py-8 px-4">
-          <p className="text-sm text-zinc-500">No hay tarjetas registradas</p>
-        </div>
+      {editId === -1 && (
+        <form onSubmit={handleSubmit} className="p-3 bg-brand-50 border border-brand-200 rounded-lg space-y-3">
+          <div>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+              placeholder={accountType === 'tarjeta' ? 'Nombre (ej: Visa Galicia)' : 'Nombre de la cuenta'}
+              autoFocus
+              required
+            />
+          </div>
+          <select
+            value={accountType}
+            onChange={(e) => setAccountType(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
+          >
+            {ACCOUNT_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </select>
+          
+          {accountType === 'tarjeta' && (
+            <>
+              <div>
+                <input
+                  type="text"
+                  value={bank}
+                  onChange={(e) => setBank(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
+                  placeholder="Banco (ej: Galicia)"
+                />
+              </div>
+              <div>
+                <input
+                  type="text"
+                  value={last4}
+                  onChange={(e) => setLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 font-mono"
+                  placeholder="Últimos 4 dígitos (opcional)"
+                  maxLength={4}
+                />
+              </div>
+              <select
+                value={cardType}
+                onChange={(e) => setCardType(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
+              >
+                <option value="credito">Crédito</option>
+                <option value="debito">Débito</option>
+              </select>
+            </>
+          )}
+
+          {accountType === 'caja_ahorro' && (
+            <div>
+              <input
+                type="text"
+                value={last4}
+                onChange={(e) => setLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 font-mono"
+                placeholder="Últimos 4 dígitos tarjeta débito (opcional)"
+                maxLength={4}
+              />
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={createMut.isPending || createAccountMut.isPending}
+              className="flex-1 py-1.5 text-xs font-semibold bg-brand-600 text-white rounded-lg hover:bg-brand-500 disabled:opacity-50 transition"
+            >
+              Crear
+            </button>
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="flex-1 py-1.5 text-xs font-medium bg-white border border-zinc-300 text-zinc-600 rounded-lg hover:bg-zinc-50 transition"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+
+      {editId === null && (
+        <button
+          onClick={handleAdd}
+          className="w-full py-2.5 border-2 border-dashed border-zinc-200 rounded-lg text-sm text-zinc-500 hover:border-brand-300 hover:text-brand-500 transition-colors"
+        >
+          + Agregar
+        </button>
       )}
     </div>
   )
