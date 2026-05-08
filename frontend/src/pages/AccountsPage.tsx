@@ -860,7 +860,7 @@ export default function AccountsPage() {
                       <select
                         value={filterUncategorized ? '__none__' : (filterCategory ?? '')}
                         onChange={e => handleCategoryFilter(e.target.value)}
-                        className="bg-surface border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
+                        className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
                       >
                         <option value="">Categoría</option>
                         <option value="__none__">Sin categoría</option>
@@ -884,7 +884,7 @@ export default function AccountsPage() {
                   <select
                     value={filterBank ?? ''}
                     onChange={e => setFilter('bank', e.target.value || undefined)}
-                    className="bg-surface border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
+                    className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
                   >
                     <option value="">Banco</option>
                     {(distinctValues?.banks ?? []).map(b => <option key={b} value={b}>{b}</option>)}
@@ -894,7 +894,7 @@ export default function AccountsPage() {
                   <select
                     value={filterPerson ?? ''}
                     onChange={e => setFilter('person', e.target.value || undefined)}
-                    className="bg-surface border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
+                    className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
                   >
                     <option value="">Titular</option>
                     {(distinctValues?.persons ?? []).map(p => <option key={p} value={p}>{p}</option>)}
@@ -904,7 +904,7 @@ export default function AccountsPage() {
                   <select
                     value={filterCard ?? ''}
                     onChange={e => setFilter('card', e.target.value || undefined)}
-                    className="bg-surface border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
+                    className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
                   >
                     <option value="">Tarjeta</option>
                     {(distinctValues?.cards ?? []).map(c => <option key={c} value={c}>{c}</option>)}
@@ -915,7 +915,7 @@ export default function AccountsPage() {
                     type="date"
                     value={filterDateFrom ?? ''}
                     onChange={e => setFilter('date_from', e.target.value || undefined)}
-                    className="bg-base-alt border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
+                    className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
                     placeholder="Desde"
                   />
 
@@ -924,7 +924,7 @@ export default function AccountsPage() {
                     type="date"
                     value={filterDateTo ?? ''}
                     onChange={e => setFilter('date_to', e.target.value || undefined)}
-                    className="bg-base-alt border border-border-color text-sm text-primary rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary"
+                    className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
                     placeholder="Hasta"
                   />
                 </div>
@@ -935,7 +935,7 @@ export default function AccountsPage() {
                   value={filterSearch ?? ''}
                   onChange={e => setFilter('search', e.target.value || undefined)}
                   placeholder="Buscar en descripción..."
-                  className="w-full bg-base-alt border border-border-color text-sm text-primary rounded-lg px-3 py-1.5 focus:outline-none focus:border-primary placeholder:text-tertiary"
+                  className="w-full text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)] placeholder:text-[var(--text-tertiary)]"
                 />
               </div>
             )}
@@ -1126,7 +1126,7 @@ export default function AccountsPage() {
           <select
             value={bulkCategoryId}
             onChange={(e) => setBulkCategoryId(e.target.value)}
-            className="text-sm border border-border-color rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary bg-surface text-primary"
+            className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
           >
             <option value="">Categoría</option>
             <option value="__none__">Sin categoría</option>
@@ -1452,7 +1452,7 @@ function ExpenseModal({
           <select
             value={form.category_id ?? ''}
             onChange={(e) => set('category_id', e.target.value ? parseInt(e.target.value) : null)}
-            className="w-full px-3 py-2 border border-border-color rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition"
+            className="w-full input"
           >
             <option value="">Sin categoría</option>
             {(() => {
