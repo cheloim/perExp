@@ -784,12 +784,12 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-secondary mb-1">Fecha</label>
+          <label className="text-xs font-medium text-[var(--text-secondary)]">Fecha</label>
           <DatePickerInput value={form.date} onChange={(d) => set('date', d)} />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-secondary mb-1">Descripción</label>
+          <label className="text-xs font-medium text-[var(--text-secondary)]">Descripción</label>
           <input
             type="text"
             value={form.description}
@@ -801,7 +801,7 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
 
         <div className="grid grid-cols-3 gap-3">
           <div className="col-span-2">
-            <label className="block text-sm font-medium text-secondary mb-1">Monto</label>
+            <label className="text-xs font-medium text-[var(--text-secondary)]">Monto</label>
             <input
               type="number"
               value={form.amount}
@@ -810,7 +810,7 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-secondary mb-1">Moneda</label>
+            <label className="text-xs font-medium text-[var(--text-secondary)]">Moneda</label>
             <select value={form.currency ?? 'ARS'} onChange={(e) => set('currency', e.target.value)} className="w-full input">
               <option value="ARS">ARS $</option>
               <option value="USD">USD $</option>
@@ -819,7 +819,7 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-secondary mb-1">Categoría</label>
+          <label className="text-xs font-medium text-[var(--text-secondary)]">Categoría</label>
           <select
             value={form.category_id ?? ''}
             onChange={(e) => set('category_id', e.target.value ? parseInt(e.target.value) : null)}
@@ -848,7 +848,7 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
         <div className={`space-y-3 transition-opacity ${payMethod === 'cash' ? 'opacity-40 pointer-events-none' : ''}`}>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium mb-1 text-secondary">Banco</label>
+              <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
               <select
                 value={form.bank ?? ''}
                 onChange={(e) => handleBankChange(e.target.value)}
@@ -860,7 +860,7 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1 text-secondary">Tarjeta</label>
+              <label className="text-xs font-medium text-[var(--text-secondary)]">Tarjeta</label>
               <select
                 value={form.card ?? ''}
                 onChange={(e) => {
@@ -881,20 +881,20 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
         </div>
 
         {payMethod === 'card' && !isIncome && (
-          <div className="border border-border-color rounded-xl p-3 space-y-3">
+          <div className="border border-[var(--border-color)] rounded-md p-3 space-y-3">
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={cuotasEnabled}
                 onChange={(e) => toggleCuotas(e.target.checked)}
-                className="rounded border-border-color text-primary"
+                className="accent-[var(--color-primary)]"
               />
-              <span className="text-sm font-medium text-secondary">Compra en cuotas</span>
+              <span className="text-sm font-medium text-[var(--text-secondary)]">Compra en cuotas</span>
             </label>
             {cuotasEnabled && (
               <div className="flex items-center gap-3">
                 <div className="flex-1">
-                  <label className="block text-xs text-tertiary mb-1">Cuota N°</label>
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">Cuota N°</label>
                   <input
                     type="number"
                     min={1}
@@ -903,9 +903,9 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
                     className="w-full input text-center"
                   />
                 </div>
-                <span className="text-tertiary mt-4">de</span>
+                <span className="text-[var(--text-tertiary)] mt-4">de</span>
                 <div className="flex-1">
-                  <label className="block text-xs text-tertiary mb-1">Total cuotas</label>
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">Total cuotas</label>
                   <input
                     type="number"
                     min={1}
@@ -920,15 +920,15 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
         )}
 
         <div>
-          <label className="block text-sm font-medium text-secondary mb-1">Notas</label>
+          <label className="text-xs font-medium text-[var(--text-secondary)]">Notas</label>
           <textarea value={form.notes ?? ''} onChange={(e) => set('notes', e.target.value)} className="w-full input" rows={2} />
         </div>
 
-        <div className="flex gap-3 pt-2">
+        <div className="flex gap-2 pt-2">
           <button onClick={onClose} className="btn-secondary flex-1">Cancelar</button>
           <button
             onClick={() => onSave({ ...form, amount: isIncome ? -Math.abs(form.amount) : Math.abs(form.amount) })}
-            className={`flex-1 ${isIncome ? 'bg-success hover:brightness-110 text-on-primary font-semibold py-2 px-4 rounded-xl transition-colors' : 'btn-primary'}`}
+            className="flex-1 btn-primary"
           >
             Guardar
           </button>

@@ -1413,34 +1413,34 @@ function ExpenseModal({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-secondary mb-1">Fecha</label>
+          <label className="text-xs font-medium text-[var(--text-secondary)]">Fecha</label>
           <DatePickerInput value={form.date} onChange={(d) => set('date', d)} />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-secondary mb-1">Descripción</label>
+          <label className="text-xs font-medium text-[var(--text-secondary)]">Descripción</label>
           <input
             type="text"
             value={form.description}
             onChange={(e) => set('description', e.target.value)}
             placeholder="Ej: Supermercado Coto"
-            className="w-full px-3 py-2 border border-border-color rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition"
+            className="w-full input"
           />
         </div>
 
         <div className="grid grid-cols-3 gap-3">
           <div className="col-span-2">
-            <label className="block text-sm font-medium text-secondary mb-1">Monto</label>
+            <label className="text-xs font-medium text-[var(--text-secondary)]">Monto</label>
             <input
               type="number"
               value={form.amount}
               onChange={(e) => set('amount', parseFloat(e.target.value) || 0)}
-              className="w-full px-3 py-2 border border-border-color rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition"
+              className="w-full input"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-secondary mb-1">Moneda</label>
-            <select value={form.currency ?? 'ARS'} onChange={(e) => set('currency', e.target.value)} className="w-full px-3 py-2 border border-border-color rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition">
+            <label className="text-xs font-medium text-[var(--text-secondary)]">Moneda</label>
+            <select value={form.currency ?? 'ARS'} onChange={(e) => set('currency', e.target.value)} className="w-full input">
               <option value="ARS">ARS $</option>
               <option value="USD">USD $</option>
             </select>
@@ -1448,7 +1448,7 @@ function ExpenseModal({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-secondary mb-1">Categoría</label>
+          <label className="text-xs font-medium text-[var(--text-secondary)]">Categoría</label>
           <select
             value={form.category_id ?? ''}
             onChange={(e) => set('category_id', e.target.value ? parseInt(e.target.value) : null)}
@@ -1477,19 +1477,19 @@ function ExpenseModal({
         <div className={`space-y-3 transition-opacity ${payMethod === 'cash' ? 'opacity-40 pointer-events-none' : ''}`}>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium mb-1 text-secondary">Banco</label>
+              <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
               <select
                 value={form.bank ?? ''}
                 onChange={(e) => handleBankChange(e.target.value)}
                 disabled={payMethod === 'cash'}
-                className="w-full px-3 py-2 border border-border-color rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition disabled:opacity-50"
+                className="w-full input disabled:opacity-50"
               >
                 <option value="">— Banco —</option>
                 {availableBanks.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1 text-secondary">Tarjeta</label>
+              <label className="text-xs font-medium text-[var(--text-secondary)]">Tarjeta</label>
               <select
                 value={form.card ?? ''}
                 onChange={(e) => {
@@ -1498,7 +1498,7 @@ function ExpenseModal({
                   else set('card', e.target.value)
                 }}
                 disabled={payMethod === 'cash'}
-                className="w-full px-3 py-2 border border-border-color rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition disabled:opacity-50"
+                className="w-full input disabled:opacity-50"
               >
                 <option value="">— Tarjeta —</option>
                 {availableCards.map(c => (
@@ -1510,37 +1510,37 @@ function ExpenseModal({
         </div>
 
         {payMethod === 'card' && !isIncome && (
-          <div className="border border-border-color rounded-xl p-3 space-y-3">
+          <div className="border border-[var(--border-color)] rounded-md p-3 space-y-3">
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={cuotasEnabled}
                 onChange={(e) => toggleCuotas(e.target.checked)}
-                className="rounded border-border-color text-brand-600"
+                className="accent-[var(--color-primary)]"
               />
-              <span className="text-sm font-medium text-secondary">Compra en cuotas</span>
+              <span className="text-sm font-medium text-[var(--text-secondary)]">Compra en cuotas</span>
             </label>
             {cuotasEnabled && (
               <div className="flex items-center gap-3">
                 <div className="flex-1">
-                  <label className="block text-xs text-tertiary mb-1">Cuota N°</label>
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">Cuota N°</label>
                   <input
                     type="number"
                     min={1}
                     value={form.installment_number ?? 1}
                     onChange={(e) => set('installment_number', parseInt(e.target.value) || 1)}
-                    className="w-full px-3 py-2 border border-border-color rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition text-center"
+                    className="w-full input text-center"
                   />
                 </div>
-                <span className="text-tertiary mt-4">de</span>
+                <span className="text-[var(--text-tertiary)] mt-4">de</span>
                 <div className="flex-1">
-                  <label className="block text-xs text-tertiary mb-1">Total cuotas</label>
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">Total cuotas</label>
                   <input
                     type="number"
                     min={1}
                     value={form.installment_total ?? 1}
                     onChange={(e) => set('installment_total', parseInt(e.target.value) || 1)}
-                    className="w-full px-3 py-2 border border-border-color rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition text-center"
+                    className="w-full input text-center"
                   />
                 </div>
               </div>
@@ -1549,15 +1549,15 @@ function ExpenseModal({
         )}
 
         <div>
-          <label className="block text-sm font-medium text-secondary mb-1">Notas</label>
-          <textarea value={form.notes ?? ''} onChange={(e) => set('notes', e.target.value)} className="w-full px-3 py-2 border border-border-color rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition" rows={2} />
+          <label className="text-xs font-medium text-[var(--text-secondary)]">Notas</label>
+          <textarea value={form.notes ?? ''} onChange={(e) => set('notes', e.target.value)} className="w-full input" rows={2} />
         </div>
 
-        <div className="flex gap-3 pt-2">
-          <button onClick={onClose} className="flex-1 px-4 py-2 bg-surface border border-border-color text-secondary rounded-lg hover:bg-base-alt transition-colors font-medium text-sm">Cancelar</button>
+        <div className="flex gap-2 pt-2">
+          <button onClick={onClose} className="flex-1 btn-secondary">Cancelar</button>
           <button
             onClick={() => onSave({ ...form, amount: isIncome ? -Math.abs(form.amount) : Math.abs(form.amount) })}
-            className={`flex-1 ${isIncome ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2 px-4 rounded-lg transition-colors' : 'px-4 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 transition-colors font-medium text-sm'}`}
+            className="flex-1 btn-primary"
           >
             Guardar
           </button>
