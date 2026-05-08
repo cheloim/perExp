@@ -31,15 +31,27 @@ function formatDate(dateStr: string) {
 
 function MonthSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [y, m] = value.split('-').map(Number)
+  const now = new Date()
+  const currentY = now.getFullYear()
+  const currentM = now.getMonth() + 1
+  const isCurrentMonth = y === currentY && m === currentM
+  const sixMonthsAgo = new Date(currentY, currentM - 1 - 6, 1)
+  const isSixMonthsAgo = y < sixMonthsAgo.getFullYear() || (y === sixMonthsAgo.getFullYear() && m <= sixMonthsAgo.getMonth() + 1)
   const shift = (delta: number) => {
     const d = new Date(y, m - 1 + delta, 1)
-    onChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+    const newY = d.getFullYear()
+    const newM = d.getMonth() + 1
+    if (newY > currentY || (newY === currentY && newM > currentM)) return
+    if (newY < currentY - 1 || (newY === currentY - 1 && newM < currentM - 5)) return
+    onChange(`${newY}-${String(newM).padStart(2, '0')}`)
   }
-  const now = new Date()
-  const isCurrentMonth = y === now.getFullYear() && m === now.getMonth() + 1
   return (
     <div className="flex items-center gap-0.5 bg-zinc-100 border border-zinc-200 rounded-lg px-1 py-1">
-      <button onClick={() => shift(-1)} className="px-2 py-0.5 text-zinc-400 hover:text-zinc-900 rounded transition-colors">◀</button>
+      <button
+        onClick={() => shift(-1)}
+        disabled={isSixMonthsAgo}
+        className="px-2 py-0.5 text-zinc-400 hover:text-zinc-900 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+      >◀</button>
       <span className="text-zinc-900 text-sm font-medium px-3 min-w-[140px] text-center select-none">
         {MONTHS_ES_LONG[m - 1]} {y}
       </span>
@@ -239,7 +251,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-zinc-900">Tarjetas de Crédito</h2>
               <button
-                onClick={() => navigate('/credit-cards')}
+                onClick={() => navigate('/accounts')}
                 className="text-xs text-brand-500 hover:text-brand-400 transition-colors"
               >
                 Ver detalle →

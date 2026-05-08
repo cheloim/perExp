@@ -5,14 +5,13 @@ import { DayPicker } from 'react-day-picker'
 import { es } from 'date-fns/locale'
 import {
   PieChart, Pie, Cell,
-  BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart, Line,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
 import {
   getExpenses,
   getCardSummary,
   getDashboard,
-  getCardCategoryBreakdown,
   getCategories,
   createExpense,
   updateExpense,
@@ -316,31 +315,11 @@ function HScrollCards({ children }: { children: React.ReactNode }) {
   )
 }
 
-function MonthSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [y, m] = value.split('-').map(Number)
-
-  const shift = (delta: number) => {
-    const d = new Date(y, m - 1 + delta, 1)
-    onChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
-  }
-
-  return (
-    <div className="flex items-center gap-0.5 bg-zinc-100 border border-zinc-300 rounded-lg px-1 py-1">
-      <button onClick={() => shift(-1)} className="px-2 py-0.5 text-zinc-400 hover:text-zinc-900 rounded transition-colors">◀</button>
-      <span className="text-zinc-900 text-sm font-medium px-3 min-w-[130px] text-center select-none">
-        {MONTHS_ES[m - 1]} {y}
-      </span>
-      <button onClick={() => shift(1)} className="px-2 py-0.5 text-zinc-400 hover:text-zinc-900 rounded transition-colors">▶</button>
-    </div>
-  )
-}
-
-
-export default function CreditCardsPage() {
+export default function AccountsPage() {
   const now = new Date()
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const [month, setMonth] = useState(currentMonth)
-  const [groupBy, setGroupBy] = useState<GroupBy>('month')
+  const [month, _setMonth] = useState(currentMonth)
+  const [groupBy, _setGroupBy] = useState<GroupBy>('month')
   const [activeCat, setActiveCat] = useState<CategorySummary | null>(null)
   const [activeCard, setActiveCard] = useState<string | null>(null)
   const [bankFilter, setBankFilter] = useState<string | null>(null)
@@ -366,7 +345,6 @@ export default function CreditCardsPage() {
 
   // Modal states
   const [editing, setEditing] = useState<Expense | null | undefined>(undefined)
-  const [editingIsIncome, setEditingIsIncome] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
   // Helper functions
@@ -446,16 +424,6 @@ export default function CreditCardsPage() {
       search: filterSearch,
       limit: 500,
     }),
-  })
-
-  const { data: cardCategoryData } = useQuery({
-    queryKey: ['card-category-breakdown', month, activeCardLast4, bankFilter],
-    queryFn: () => getCardCategoryBreakdown({
-      month: month || undefined,
-      card_last4: activeCardLast4 || undefined,
-      bank: bankFilter || undefined,
-    }),
-    staleTime: 60_000,
   })
 
   // Mutations
@@ -554,26 +522,6 @@ export default function CreditCardsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-end gap-2">
-        {/* Botón Ingreso */}
-        <button
-          onClick={() => { setEditingIsIncome(true); setEditing(null) }}
-          className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all"
-        >
-          <span className="text-base leading-none">↓</span>
-          Ingreso
-        </button>
-
-        {/* Botón Nuevo gasto */}
-        <button
-          onClick={() => { setEditingIsIncome(false); setEditing(null) }}
-          className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg bg-brand-500 text-white hover:bg-brand-600 transition-all"
-        >
-          <span className="text-lg leading-none">+</span>
-          Nuevo gasto
-        </button>
-      </div>
-
       <div className={`grid grid-cols-1 gap-4 ${data.by_currency.length > 1 ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3'}`}>
         {data.by_currency.length <= 1 ? (
           <div className="card p-5">
@@ -678,7 +626,7 @@ export default function CreditCardsPage() {
                 <p className="text-zinc-500 text-sm text-center py-12">Sin datos</p>
               ) : (
                 <>
-                  <ResponsiveContainer width="100%" height={240}>
+                  <ResponsiveContainer width="100%" height={320}>
                     <PieChart>
                       <Pie
                         data={pieData}
@@ -686,8 +634,8 @@ export default function CreditCardsPage() {
                         nameKey="category_name"
                         cx="50%"
                         cy="50%"
-                        outerRadius={80}
-                        innerRadius={30}
+                        outerRadius={110}
+                        innerRadius={40}
                         paddingAngle={2}
                         onClick={(entry) => handlePieClick(entry)}
                         style={{ cursor: 'pointer' }}
@@ -739,42 +687,103 @@ export default function CreditCardsPage() {
             </div>
 
             <div className="card p-5">
-              <h2 className="text-base font-semibold text-zinc-900 mb-4">Gastos por Tarjeta</h2>
-              {!cardCategoryData || cardCategoryData.rows.length === 0 ? (
-                <p className="text-zinc-500 text-sm text-center py-12">Sin datos</p>
-              ) : (
-                <>
-                  <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={cardCategoryData.rows} margin={{ top: 4, right: 4, left: 0, bottom: 40 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                      <XAxis
-                        dataKey="card"
-                        tick={{ fontSize: 10, fill: '#a1a1aa' }}
-                        angle={-30}
-                        textAnchor="end"
-                        interval={0}
-                      />
-                      <YAxis tickFormatter={(v) => new Intl.NumberFormat('es-AR', { notation: 'compact' } as any).format(v)} tick={{ fontSize: 11, fill: '#a1a1aa' }} width={50} />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#f4f4f5' }}
-                        itemStyle={{ color: '#f4f4f5' }}
-                        formatter={(v: number, name: string) => [formatCurrency(v), name]}
-                      />
-                      {cardCategoryData.categories.map((cat) => (
-                        <Bar key={cat.name} dataKey={cat.name} stackId="a" fill={cat.color || '#94a3b8'} radius={[0,0,0,0]} />
-                      ))}
-                    </BarChart>
-                  </ResponsiveContainer>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {cardCategoryData.categories.map(cat => (
-                      <span key={cat.name} className="flex items-center gap-1 text-xs text-zinc-400">
-                        <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: cat.color || '#94a3b8' }} />
-                        {cat.name}
-                      </span>
-                    ))}
+              <h2 className="text-base font-semibold text-zinc-900 mb-4">Evolución por Tarjeta</h2>
+              {(() => {
+                const filteredCards = cardData.filter(card => !bankFilter || card.bank === bankFilter)
+                if (filteredCards.length === 0) {
+                  return <p className="text-zinc-500 text-sm text-center py-12">Sin datos</p>
+                }
+
+                const now = new Date()
+                const currentYear = now.getFullYear()
+                const currentMonthNum = now.getMonth() + 1
+                const monthsRange: string[] = []
+                for (let i = -3; i <= 0; i++) {
+                  const d = new Date(currentYear, currentMonthNum - 1 + i, 1)
+                  monthsRange.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+                }
+
+                const chartData = monthsRange.map(m => {
+                  const entry: Record<string, number | string> = { month: m }
+                  let monthTotal = 0
+                  filteredCards.forEach(card => {
+                    const cardKey = card.card_name + (card.last4 ? ` (••${card.last4})` : '')
+                    const monthData = card.monthly?.find((x: { month: string }) => x.month === m)
+                    const value = monthData?.total || 0
+                    entry[cardKey] = value
+                    monthTotal += value
+                  })
+                  entry['total'] = monthTotal
+                  return entry
+                })
+
+                const colors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16']
+
+                return (
+                  <div className="bg-zinc-50 rounded-lg p-4">
+                    <ResponsiveContainer width="100%" height={320}>
+                      <LineChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 40 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#d4d4d8" vertical={false} />
+                        <XAxis
+                          dataKey="month"
+                          tick={{ fontSize: 10, fill: '#71717a' }}
+                          tickFormatter={(v) => {
+                            const [y, m] = v.split('-')
+                            return `${MONTHS_ES[parseInt(m) - 1].slice(0, 3)} ${y.slice(2)}`
+                          }}
+                        />
+                        <YAxis tickFormatter={(v) => new Intl.NumberFormat('es-AR', { notation: 'compact' } as any).format(v)} tick={{ fontSize: 11, fill: '#71717a' }} width={50} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: '#ffffff', borderColor: '#d4d4d8', color: '#18181b' }}
+                          itemStyle={{ color: '#18181b' }}
+                          formatter={(v: number, name: string) => [formatCurrency(v), name]}
+                          labelFormatter={(label) => {
+                            const [y, m] = label.split('-')
+                            const currentData = chartData.find((d: Record<string, number | string>) => d.month === label)
+                            const currentTotal = typeof currentData?.total === 'number' ? currentData.total : 0
+                            const currentIdx = monthsRange.indexOf(label)
+                            const prevMonth = currentIdx > 0 ? chartData[currentIdx - 1] : null
+                            let tooltip = `${MONTHS_ES[parseInt(m) - 1]} ${y}`
+                            if (prevMonth && typeof prevMonth.total === 'number') {
+                              const diff = currentTotal - prevMonth.total
+                              const pct = prevMonth.total > 0 ? ((diff / prevMonth.total) * 100).toFixed(1) : '0'
+                              const diffSign = diff >= 0 ? '+' : ''
+                              tooltip += `\nvs mes anterior: ${diffSign}${formatCurrency(diff)} (${diffSign}${pct}%)`
+                            }
+                            return tooltip
+                          }}
+                        />
+                        <Legend wrapperStyle={{ fontSize: '11px' }} />
+                        <Line
+                          type="monotone"
+                          dataKey="total"
+                          name="Total"
+                          stroke="#71717a"
+                          strokeWidth={2}
+                          strokeDasharray="5 5"
+                          dot={{ r: 4, fill: '#71717a' }}
+                          opacity={0.4}
+                        />
+                        {filteredCards.map((card, idx) => {
+                          const cardKey = card.card_name + (card.last4 ? ` (••${card.last4})` : '')
+                          return (
+                            <Line
+                              key={cardKey}
+                              type="monotone"
+                              dataKey={cardKey}
+                              name={card.card_name}
+                              stroke={colors[idx % colors.length]}
+                              strokeWidth={2}
+                              dot={{ r: 3, fill: colors[idx % colors.length] }}
+                              connectNulls
+                            />
+                          )
+                        })}
+                      </LineChart>
+                    </ResponsiveContainer>
                   </div>
-                </>
-              )}
+                )
+              })()}
             </div>
           </div>
 
@@ -1080,7 +1089,7 @@ export default function CreditCardsPage() {
       {editing !== undefined && (
         <ExpenseModal
           expense={editing}
-          isIncome={editingIsIncome}
+          isIncome={false}
           onClose={() => {
             setEditing(undefined)
             setSaveError(null)

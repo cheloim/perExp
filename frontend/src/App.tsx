@@ -6,7 +6,7 @@ import InvestmentsAssistant from './components/InvestmentsAssistant'
 import UserPanel from './components/UserPanel'
 import NotificationsPanel from './components/NotificationsPanel'
 import Dashboard from './pages/Dashboard'
-import CreditCardsPage from './pages/CreditCardsPage'
+import AccountsPage from './pages/AccountsPage'
 import ExpensesPage from './pages/ExpensesPage'
 import ImportPage from './pages/ImportPage'
 import CategoriesPage from './pages/CategoriesPage'
@@ -18,7 +18,7 @@ import { getStoredToken, getUnreadCount } from './api/client'
 
 const TABS = [
   { path: '/',               label: 'Inicio',             icon: '🏠', exact: true },
-  { path: '/credit-cards',   label: 'Cuentas',            icon: '💳', exact: false },
+  { path: '/accounts',       label: 'Cuentas',            icon: '💳', exact: false },
   { path: '/expenses',       label: 'Gastos',             icon: '📋', exact: false },
   { path: '/cat-dashboard',  label: 'Por Categoría',      icon: '🏷️', exact: false },
   { path: '/installments',   label: 'Gasto en cuotas',    icon: '🔄', exact: false },
@@ -165,7 +165,7 @@ export default function App() {
           <div className="w-full px-4 sm:px-6 lg:px-8 py-8 md:py-10">
             <Routes>
               <Route path="/"               element={<RequireAuth><Dashboard /></RequireAuth>} />
-              <Route path="/credit-cards"   element={<RequireAuth><CreditCardsPage /></RequireAuth>} />
+              <Route path="/accounts"       element={<RequireAuth><AccountsPage /></RequireAuth>} />
               <Route path="/expenses"       element={<RequireAuth><ExpensesPage /></RequireAuth>} />
               <Route path="/cat-dashboard"  element={<RequireAuth><CategoryDashboard /></RequireAuth>} />
               <Route path="/installments"   element={<RequireAuth><InstallmentsPage /></RequireAuth>} />
@@ -200,7 +200,7 @@ export default function App() {
         {!aiDrawerOpen && !isInvestments && (
           <button
             onClick={() => toggleDrawer(true)}
-            className="fixed top-4 md:top-6 right-4 md:right-6 z-50 flex items-center justify-center w-11 h-11 bg-brand-600 hover:bg-brand-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+            className="fixed bottom-4 md:bottom-6 right-4 md:right-6 z-50 flex items-center justify-center w-11 h-11 bg-brand-600 hover:bg-brand-500 text-white rounded-full opacity-60 hover:opacity-100 scale-100 hover:scale-110 transition-all duration-300"
             title="Abrir asistente IA"
           >
             <span className="text-xl">✨</span>
