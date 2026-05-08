@@ -592,7 +592,7 @@ export default function AccountsPage() {
             {cardData
               .filter(card => !bankFilter || card.bank === bankFilter)
               .map((card, idx) => {
-                const ckey = `${card.holder}|${card.card_name}`
+                const ckey = `${card.holder}|${card.card_name}|${card.last4 || idx}`
                 return (
                   <CreditCardViz
                     key={ckey}
