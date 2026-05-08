@@ -7,13 +7,14 @@ import {
   getExpenses,
   getCategories,
   getDistinctValues,
-  getCardSummary,
+  getCards,
   createExpense,
   updateExpense,
   deleteExpense,
   bulkUpdateCategory,
 } from '../api/client'
-import type { Expense, ExpenseCreate, CardSummary } from '../types'
+import type { Card } from '../types'
+import type { Expense, ExpenseCreate } from '../types'
 
 function formatCurrency(amount: number, currency: string = 'ARS') {
   if (currency === 'USD') {
@@ -652,7 +653,7 @@ function DatePickerInput({ value, onChange }: { value: string; onChange: (d: str
 
 function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }: ExpenseModalProps) {
   const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: getCategories })
-  const { data: cardSummary = [] } = useQuery({ queryKey: ['card-summary'], queryFn: getCardSummary, staleTime: 60_000 })
+  const { data: cards = [] } = useQuery({ queryKey: ['cards'], queryFn: getCards })
 
   const isCash = (card: string) => !card || card === 'Efectivo'
 
@@ -708,22 +709,22 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
   }
 
   // Cascading selectors: bank → card (sin persona)
-  const availableBanks = [...new Set(cardSummary.map(c => c.bank))].filter(Boolean).sort()
+  const availableBanks = [...new Set(cards.map(c => c.bank).filter(Boolean))].sort()
 
   const selectedBank = form.bank ?? ''
-  const availableCards = cardSummary.filter(c => !selectedBank || c.bank === selectedBank)
+  const availableCards = cards.filter(c => !selectedBank || c.bank === selectedBank)
 
-  const cardLabel = (c: CardSummary) => c.card_name
+  const cardLabel = (c: Card) => c.name
 
   const handleBankChange = (b: string) => {
     setForm((prev) => ({ ...prev, bank: b, card: '' }))
   }
 
-  const handleCardSelect = (c: CardSummary) => {
+  const handleCardSelect = (c: Card) => {
     setForm((prev) => ({
       ...prev,
-      card: c.card_name,
-      bank: c.bank,
+      card: c.name,
+      bank: c.bank || '',
     }))
   }
 
@@ -859,7 +860,7 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
               <select
                 value={form.card ?? ''}
                 onChange={(e) => {
-                  const selected = availableCards.find(c => c.card_name === e.target.value)
+                  const selected = availableCards.find(c => c.name === e.target.value)
                   if (selected) handleCardSelect(selected)
                   else set('card', e.target.value)
                 }}
@@ -868,7 +869,7 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
               >
                 <option value="">— Tarjeta —</option>
                 {availableCards.map(c => (
-                  <option key={c.card_name} value={c.card_name}>{cardLabel(c)}</option>
+                  <option key={c.name} value={c.name}>{cardLabel(c)}</option>
                 ))}
               </select>
             </div>
