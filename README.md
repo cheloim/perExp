@@ -1,6 +1,6 @@
 # Credit Card Analyzer
 
-Gestión de gastos personales con importación inteligente de extractos bancarios.
+Personal expense management with intelligent bank statement import.
 
 ## Stack
 
@@ -12,13 +12,13 @@ Gestión de gastos personales con importación inteligente de extractos bancario
 | LLM | Google Gemini Flash |
 | PDF parsing | pdfplumber |
 
-## Requisitos
+## Requirements
 
 - Python 3.11+
 - Node.js 18+
-- npm o yarn
+- npm or yarn
 
-## Instalación
+## Installation
 
 ```bash
 # Backend
@@ -26,36 +26,36 @@ cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env  # Configurar variables de entorno
+cp .env.example .env  # Configure environment variables
 
 # Frontend
 cd frontend
 npm install
 ```
 
-## Ejecutar
+## Running
 
 ```bash
-# Backend (desde backend/)
+# Backend (from backend/)
 source .venv/bin/activate
 uvicorn main:app --reload  # http://localhost:8000
 
-# Frontend (desde frontend/)
+# Frontend (from frontend/)
 npm run dev  # http://localhost:5173
 ```
 
-## Características
+## Features
 
-- **Importación inteligente**: PDF y CSV con análisis LLM (Gemini)
-- **Gestión de tarjetas**: CRUD de tarjetas de crédito/débito
-- **Categorización automática**: Por palabras clave y tipo de transacción
-- **Cuotas**: Seguimiento de compras en cuotas
-- **Inversiones**: Sincronización con IOL y Portfolio Personal
-- **Análisis**: Chat con IA para consultar gastos
-- **Grupos familiares**: Compartí gastos con tu familia
-- **Bot de Telegram**: Recibí notificaciones y registrá gastos desde Telegram
+- **Smart Import**: PDF and CSV with LLM (Gemini) analysis
+- **Card Management**: Credit/debit card CRUD
+- **Auto-categorization**: By keywords and transaction type
+- **Installments**: Track installment purchases
+- **Investments**: Sync with IOL and Portfolio Personal
+- **AI Analysis**: Chat with AI to query expenses
+- **Family Groups**: Share expenses with your family
+- **Telegram Bot**: Receive notifications and log expenses from Telegram
 
-## Estructura
+## Structure
 
 ```
 backend/
@@ -73,14 +73,14 @@ frontend/
     types/             # TypeScript interfaces
 ```
 
-## Configuración
+## Configuration
 
-El proyecto usa variables de entorno. Copiá `.env.example` a `.env` y configurá las necesarias:
+The project uses environment variables. Copy `.env.example` to `.env` and configure as needed:
 
-- `SECRET_KEY`: Clave para JWT
-- `GEMINI_API_KEY`: API key de Google Gemini
-- `IOL_API_KEY` / `PPI_API_KEY`: Para синхронизацию de inversiones
+- `SECRET_KEY`: JWT secret key
+- `GEMINI_API_KEY`: Google Gemini API key
+- `IOL_API_KEY` / `PPI_API_KEY`: For investment sync
 
-## Licencia
+## License
 
 MIT
