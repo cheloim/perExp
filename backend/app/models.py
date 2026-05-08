@@ -56,10 +56,11 @@ class Notification(Base):
 class Category(Base):
     __tablename__ = "categories"
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True)
+    name = Column(String, index=True)
     color = Column(String, default="#6366f1")
     keywords = Column(Text, default="")
     parent_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     expenses = relationship("Expense", back_populates="category")
 
 
@@ -183,6 +184,12 @@ with engine.connect() as _conn:
     _cat_cols = [c["name"] for c in inspect(engine).get_columns("categories")]
     if "parent_id" not in _cat_cols:
         _conn.execute(sa_text("ALTER TABLE categories ADD COLUMN parent_id INTEGER REFERENCES categories(id)"))
+    if "user_id" not in _cat_cols:
+        _conn.execute(sa_text("ALTER TABLE categories ADD COLUMN user_id INTEGER REFERENCES users(id)"))
+    try:
+        _conn.execute(sa_text("DROP INDEX IF EXISTS ix_categories_name"))
+    except Exception:
+        pass
     _gm_cols = [c["name"] for c in inspect(engine).get_columns("group_members")]
     for _col, _type in [
         ("status", "VARCHAR DEFAULT 'accepted'"),

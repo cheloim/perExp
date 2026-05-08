@@ -46,6 +46,8 @@ def register(body: UserCreate, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
+    from app.seed import _apply_base_hierarchy_for_user
+    _apply_base_hierarchy_for_user(db, user.id)
     return Token(access_token=create_access_token(user.id), token_type="bearer")
 
 

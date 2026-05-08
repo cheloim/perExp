@@ -119,3 +119,46 @@ def _apply_base_hierarchy(db: Session) -> dict:
 
     db.commit()
     return {"created": created, "updated": updated}
+
+
+def _apply_base_hierarchy_for_user(db: Session, user_id: int) -> dict:
+    created = 0
+
+    for group in BASE_HIERARCHY:
+        pd = group["parent"]
+        existing_parent = db.query(Category).filter(
+            Category.name == pd["name"],
+            Category.user_id == user_id
+        ).first()
+
+        if not existing_parent:
+            parent_cat = Category(
+                name=pd["name"],
+                color=pd["color"],
+                keywords="",
+                parent_id=None,
+                user_id=user_id
+            )
+            db.add(parent_cat)
+            db.flush()
+            created += 1
+        else:
+            parent_cat = existing_parent
+
+        for cd in group["children"]:
+            existing_child = db.query(Category).filter(
+                Category.name == cd["name"],
+                Category.user_id == user_id
+            ).first()
+            if not existing_child:
+                db.add(Category(
+                    name=cd["name"],
+                    color=cd["color"],
+                    keywords=cd["keywords"],
+                    parent_id=parent_cat.id,
+                    user_id=user_id
+                ))
+                created += 1
+
+    db.commit()
+    return {"created": created, "message": f"Se crearon {created} categorías por defecto"}
