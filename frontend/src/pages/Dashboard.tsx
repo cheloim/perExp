@@ -5,7 +5,7 @@ import {
   AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
-import { getDashboard, getCardSummary, getExpenses } from '../api/client'
+import { getDashboard, getCardSummary, getExpenses, getScheduledSummary } from '../api/client'
 
 const MONTHS_ES_LONG = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
@@ -174,8 +174,14 @@ export default function Dashboard() {
     queryFn: () => getExpenses({ date_from: toYMD(sevenDaysAgo), date_to: toYMD(toDate), limit: 30 }),
   })
 
-  // Compute balance/ingresos/gastos from selected month
-  const gastos = dashData?.by_currency.find(c => c.currency === 'ARS')?.total ?? dashData?.total_amount ?? 0
+  // Scheduled expenses for current month
+  const { data: scheduledData } = useQuery({
+    queryKey: ['scheduled-summary'],
+    queryFn: () => getScheduledSummary(),
+  })
+
+  // Compute balance/ingresos/gastos from selected month (excluir tarjetas de credito)
+  const gastos = dashData?.total_by_account ?? 0
   const ingresos = dashData?.by_category.reduce((acc, c) => c.total < 0 ? acc + Math.abs(c.total) : acc, 0) ?? 0
   const balance = ingresos - gastos
 
@@ -290,14 +296,45 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Scheduled expenses placeholder */}
+          {/* Scheduled expenses */}
           <div className="card p-5">
             <h2 className="text-sm font-semibold text-primary mb-3">Próximos Gastos Programados</h2>
-            <div className="flex flex-col items-center justify-center py-8 text-center gap-2">
-              <span className="text-3xl opacity-30">📅</span>
-              <p className="text-sm text-secondary">Próximamente</p>
-              <p className="text-xs text-tertiary">Los gastos programados y vencimientos aparecerán aquí</p>
-            </div>
+            {(!scheduledData || (scheduledData.installments.length === 0 && scheduledData.manual.length === 0)) ? (
+              <div className="flex flex-col items-center justify-center py-6 text-center gap-2">
+                <span className="text-3xl opacity-30">📅</span>
+                <p className="text-sm text-secondary">Sin gastos programados</p>
+                <p className="text-xs text-tertiary">Los vencimientos del mes aparecerán aquí</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {scheduledData.installments.map((inst) => (
+                  <div key={`inst-${inst.id}`} className="flex items-center justify-between py-2 px-1 rounded hover:bg-base-alt transition-colors">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">📦</span>
+                      <div>
+                        <p className="text-sm font-medium text-primary">{inst.description}</p>
+                        <p className="text-xs text-tertiary">
+                          {formatDate(inst.scheduled_date)} · {inst.installment_number}/{inst.installment_total}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-semibold text-primary">{formatCurrency(inst.amount, inst.currency)}</span>
+                  </div>
+                ))}
+                {scheduledData.manual.map((man) => (
+                  <div key={`man-${man.id}`} className="flex items-center justify-between py-2 px-1 rounded hover:bg-base-alt transition-colors">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">📅</span>
+                      <div>
+                        <p className="text-sm font-medium text-primary">{man.description}</p>
+                        <p className="text-xs text-tertiary">{formatDate(man.scheduled_date)}</p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-semibold text-primary">{formatCurrency(man.amount, man.currency)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

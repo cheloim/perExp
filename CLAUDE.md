@@ -87,12 +87,16 @@ backend/
       categories.py                 # /categories — CRUD + /apply-base-hierarchy, /seed-defaults
       card_closings.py              # /card-closings — CRUD
       expenses.py                   # /expenses — list, create, update, delete, bulk, recategorize
-      dashboard.py                  # /dashboard — summary, installments, card-summary, trends, merchants
+      scheduled_expenses.py         # /scheduled-expenses — CRUD + execute, update, delete
+      dashboard.py                  # /dashboard — summary, installments, monthly-load, card-summary, trends, merchants
       import_.py                    # /import — preview, confirm, smart (PDF/CSV LLM), rows-confirm, debug
       investments.py                # /investments — CRUD, sync IOL/PPI, cash balances, chat stream
       analysis.py                   # /analysis — stream, summarize, history
       groups.py                     # /groups — invite, leave, /me
       notifications.py             # /notifications — list, read, accept, reject
+
+  app/tasks/
+    scheduled_expenses.py          # Background task to execute due installments
 
 frontend/src/
   api/client.ts                    # All axios API calls
@@ -115,6 +119,7 @@ frontend/src/
     InvestmentsAssistant.tsx  # Side panel chat (Investments page)
     NotificationsPanel.tsx    # Bell notifications drawer
     UserPanel.tsx              # User account drawer
+    CustomSelect.tsx          # Custom styled select component
 ```
 
 ## Database Schema (`expenses.db`)
@@ -134,6 +139,7 @@ groups     (id, name, created_by, created_at)
 group_members (id, group_id, user_id, role, status, invited_by, joined_at)
 investments (id, ticker, name, type, broker, quantity, avg_cost, current_price, currency, notes, updated_at, user_id)
 card_closings (id, card, card_last_digits, card_type, bank, closing_date, next_closing_date, due_date, last_imported_at, user_id)
+scheduled_expenses (id, description, amount, currency, scheduled_date, status, installment_number, installment_total, installment_group_id, card_id, account_id, category_id, card, bank, person, transaction_id, executed_expense_id, executed_at, user_id, group_id, created_at)
 notifications (id, user_id, type, title, body, data, read, created_at)
 ```
 
@@ -156,6 +162,7 @@ New columns are added via `ALTER TABLE … ADD COLUMN` in `models.py` startup bl
 - **Duplicate detection**: `_is_duplicate()` checks `transaction_id` first, then `(date, amount, description)` triple — does NOT account for installment_number (known bug)
 - **Smart import flow**: `POST /import/smart` (LLM parse) → returns preview → `POST /import/rows-confirm` (bulk save)
 - **PDF extraction**: `_extract_pdf_text()` using pdfplumber; text sent raw to Gemini with `SMART_IMPORT_PROMPT`
+- **Scheduled expenses**: `/scheduled-expenses` router manages pending/executed cuotas. Task runs periodically to execute due installments.
 - **Spanish month dates**: LLM prompt instructs YYYY-MM-DD output but PDF dates like "15-ENE" / "15-Enero" need explicit handling — `pd.to_datetime` cannot parse Spanish abbreviations
 - **Installment date fixing**: after LLM parse, `add_months()` shifts dates for installments C.02/03, C.03/03, etc.
 - **Cors**: allows `localhost:5173` and `localhost:8082`
@@ -174,7 +181,7 @@ New columns are added via `ALTER TABLE … ADD COLUMN` in `models.py` startup bl
 1. **Installment false duplicates**: `_is_duplicate` treats C.01/03 and C.02/03 as same row if same (date, amount, cleaned_description). Fix: include `installment_number` + `installment_total` in uniqueness check.
 2. **Spanish month PDF dates**: LLM may not always convert "15-ENE" → "2025-01-15". Fix: add Spanish→number month map to `SMART_IMPORT_PROMPT` and/or fallback parser in `smart_import`.
 
-## Pending Features (as of 2026-05-08)
+## Pending Features (as of 2026-05-09)
 
 - Dashboard: trend indicators (alcista/bajista) per category
 - Replace bar chart with line chart (Recharts `LineChart`)
@@ -184,7 +191,7 @@ New columns are added via `ALTER TABLE … ADD COLUMN` in `models.py` startup bl
 - Right-side cards info panel (last 4 digits, cardholder, bank, total per card)
 - Multiple file upload for LLM import (`multiple` on `<input>`, loop in handler)
 - Disable manual import mode (LLM-only UI)
-- Installments/cuotas dashboard (grouped by `installment_group_id`)
+- Scheduled expenses widget in dashboard (integrate `/scheduled-expenses` data)
 
 ## API Endpoints Reference
 
@@ -248,13 +255,22 @@ New columns are added via `ALTER TABLE … ADD COLUMN` in `models.py` startup bl
 | Method | Path | Description |
 |---|---|---|
 | GET | /dashboard/summary | Dashboard aggregates |
-| GET | /dashboard/installments | Installment groups |
-| GET | /dashboard/installments/monthly-load | Monthly installment load |
+| GET | /dashboard/installments | Installment groups (paid + pending) |
+| GET | /dashboard/installments/monthly-load | Monthly installment load (past + projected) |
 | GET | /dashboard/card-summary | Card spending summary (with DSU grouping) |
 | GET | /dashboard/card-category-breakdown | Card × category breakdown |
 | GET | /dashboard/category-trend | Category trend over N months |
 | GET | /dashboard/ai-trends | AI-generated trends & projections |
 | GET | /dashboard/top-merchants | Top merchants by spending |
+
+### Scheduled Expenses
+
+| Method | Path | Description |
+|---|---|---|
+| GET | /scheduled-expenses | List scheduled expenses (filter: status, installment_group_id) |
+| POST | /scheduled-expenses/{id}/execute | Execute pending scheduled expense |
+| PUT | /scheduled-expenses/{id} | Update scheduled expense |
+| DELETE | /scheduled-expenses/{id} | Cancel scheduled expense |
 
 ### Import
 

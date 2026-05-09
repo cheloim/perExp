@@ -148,6 +148,34 @@ export const getInstallmentsDashboard = () =>
 export const getInstallmentsMonthlyLoad = () =>
   api.get<{ month: string; total: number; count: number; is_past: boolean; is_current: boolean }[]>('/dashboard/installments/monthly-load').then((r) => r.data)
 
+export const getScheduledSummary = () =>
+  api.get<{
+    installments: {
+      id: number
+      description: string
+      amount: number
+      currency: string
+      scheduled_date: string
+      installment_number: number
+      installment_total: number
+      category_name: string | null
+      category_color: string | null
+      card: string
+      bank: string
+    }[]
+    manual: {
+      id: number
+      description: string
+      amount: number
+      currency: string
+      scheduled_date: string
+      category_name: string | null
+      category_color: string | null
+      card: string
+      bank: string
+    }[]
+  }>('/dashboard/scheduled-summary').then((r) => r.data)
+
 export const getScheduledExpenses = async (params?: {
   status?: string
   installment_group_id?: string

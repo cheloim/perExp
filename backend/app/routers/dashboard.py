@@ -63,6 +63,13 @@ def get_summary(
     cat_map = {c.id: c for c in categories}
     total = sum(e.amount for e in expenses)
 
+    # Calcular total_by_account (excluir gastos con tarjetas de credito)
+    credit_card_ids = {c.id for c in db.query(Card).filter(Card.user_id.in_(uid_list), Card.card_type == "credito").all()}
+    total_by_account = sum(
+        e.amount for e in expenses
+        if not (e.card_id and e.card_id in credit_card_ids)
+    )
+
     by_category: dict = {}
     for e in expenses:
         if e.category_id and e.category_id in cat_map:
@@ -176,7 +183,9 @@ def get_summary(
             trend_future[future_key] += inst_amount
 
     return {
-        "total_amount": total, "total_expenses": len(expenses),
+        "total_amount": total,
+        "total_by_account": total_by_account,
+        "total_expenses": len(expenses),
         "by_category": sorted(by_category.values(), key=lambda x: x["total"], reverse=True),
         "by_period": sorted(by_period.values(), key=lambda x: x["period"]),
         "by_currency": sorted(by_currency.values(), key=lambda x: x["total"], reverse=True),
@@ -344,6 +353,82 @@ def get_installments_monthly_load(db: Session = Depends(get_db), current_user: U
                 monthly[key]["count"] += 1
 
     return sorted(monthly.values(), key=lambda x: x["month"])
+
+
+@router.get("/scheduled-summary")
+def get_scheduled_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from app.models import ScheduledExpense
+    uid_list = get_group_user_ids(current_user.id, db)
+    today = date.today()
+    current_month_start = date(today.year, today.month, 1)
+    current_month_end = date(today.year, today.month, monthrange(today.year, today.month)[1])
+
+    cat_map = {c.id: c for c in db.query(Category).all()}
+
+    # Cuotas pendientes del mes (installment_total > 1)
+    pending_installments = (
+        db.query(ScheduledExpense)
+        .filter(
+            ScheduledExpense.user_id.in_(uid_list),
+            ScheduledExpense.status == "PENDING",
+            ScheduledExpense.installment_total > 1,
+            ScheduledExpense.scheduled_date >= current_month_start,
+            ScheduledExpense.scheduled_date <= current_month_end,
+        )
+        .order_by(ScheduledExpense.scheduled_date)
+        .all()
+    )
+
+    # Gastos manuales programados del mes (installment_total = 1)
+    pending_manual = (
+        db.query(ScheduledExpense)
+        .filter(
+            ScheduledExpense.user_id.in_(uid_list),
+            ScheduledExpense.status == "PENDING",
+            ScheduledExpense.installment_total == 1,
+            ScheduledExpense.scheduled_date >= current_month_start,
+            ScheduledExpense.scheduled_date <= current_month_end,
+        )
+        .order_by(ScheduledExpense.scheduled_date)
+        .all()
+    )
+
+    result = {
+        "installments": [],
+        "manual": [],
+    }
+
+    for s in pending_installments:
+        cat = cat_map.get(s.category_id) if s.category_id else None
+        result["installments"].append({
+            "id": s.id,
+            "description": s.description,
+            "amount": s.amount,
+            "currency": s.currency or "ARS",
+            "scheduled_date": s.scheduled_date.isoformat(),
+            "installment_number": s.installment_number,
+            "installment_total": s.installment_total,
+            "category_name": cat.name if cat else None,
+            "category_color": cat.color if cat else None,
+            "card": s.card or "",
+            "bank": s.bank or "",
+        })
+
+    for s in pending_manual:
+        cat = cat_map.get(s.category_id) if s.category_id else None
+        result["manual"].append({
+            "id": s.id,
+            "description": s.description,
+            "amount": s.amount,
+            "currency": s.currency or "ARS",
+            "scheduled_date": s.scheduled_date.isoformat(),
+            "category_name": cat.name if cat else None,
+            "category_color": cat.color if cat else None,
+            "card": s.card or "",
+            "bank": s.bank or "",
+        })
+
+    return result
 
 
 @router.get("/top-merchants")

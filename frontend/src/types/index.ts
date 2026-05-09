@@ -155,6 +155,7 @@ export interface CardConsumption {
 export interface DashboardSummary {
   total_expenses: number
   total_amount: number
+  total_by_account: number
   by_category: CategorySummary[]
   by_period: PeriodSummary[]
   by_currency: CurrencySummary[]
