@@ -191,18 +191,27 @@ def get_summary(
 
 @router.get("/installments")
 def get_installments_dashboard(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from app.models import ScheduledExpense
     uid_list = get_group_user_ids(current_user.id, db)
-    exps = (
-        db.query(Expense)
-        .filter(Expense.user_id.in_(uid_list), Expense.installment_group_id != None, Expense.installment_group_id != "")
-        .order_by(Expense.installment_number)
-        .all()
-    )
-    cat_list = db.query(Category).all()
-    cat_map_local = {c.id: c for c in cat_list}
 
+    # Cuotas realizadas (expenses)
+    paid_exps = db.query(Expense).filter(
+        Expense.user_id.in_(uid_list),
+        Expense.installment_group_id != None,
+        Expense.installment_group_id != ""
+    ).all()
+
+    # Cuotas programadas (scheduled_expenses)
+    scheduled_exps = db.query(ScheduledExpense).filter(
+        ScheduledExpense.user_id.in_(uid_list),
+        ScheduledExpense.status == "PENDING"
+    ).all()
+
+    cat_map = {c.id: c for c in db.query(Category).all()}
     groups: dict = {}
-    for e in exps:
+
+    # Procesar cuotas pagadas
+    for e in paid_exps:
         gid = e.installment_group_id
         if gid not in groups:
             groups[gid] = {
@@ -210,12 +219,14 @@ def get_installments_dashboard(db: Session = Depends(get_db), current_user: User
                 "description": e.description,
                 "installment_total": e.installment_total or 0,
                 "installments_paid": 0,
+                "remaining_installments": 0,
                 "total_amount": 0.0,
                 "installment_amount": abs(e.amount),
-                "dates": [],
+                "paid_dates": [],
+                "next_dates": [],  # NUEVO
                 "category_id": e.category_id,
-                "category_name": cat_map_local[e.category_id].name if e.category_id and e.category_id in cat_map_local else None,
-                "category_color": cat_map_local[e.category_id].color if e.category_id and e.category_id in cat_map_local else None,
+                "category_name": cat_map[e.category_id].name if e.category_id in cat_map else None,
+                "category_color": cat_map[e.category_id].color if e.category_id in cat_map else None,
                 "bank": e.bank or "",
                 "person": e.person or "",
                 "currency": e.currency or "ARS",
@@ -223,24 +234,49 @@ def get_installments_dashboard(db: Session = Depends(get_db), current_user: User
             }
         groups[gid]["installments_paid"] += 1
         groups[gid]["total_amount"] += e.amount
-        groups[gid]["dates"].append(e.date)
+        groups[gid]["paid_dates"].append(e.date)
 
+    # Procesar cuotas programadas
+    for s in scheduled_exps:
+        gid = s.installment_group_id
+        if gid not in groups:
+            groups[gid] = {
+                "installment_group_id": gid,
+                "description": s.description,
+                "installment_total": s.installment_total or 0,
+                "installments_paid": 0,
+                "remaining_installments": 0,
+                "total_amount": 0.0,
+                "installment_amount": abs(s.amount),
+                "paid_dates": [],
+                "next_dates": [],
+                "category_id": s.category_id,
+                "category_name": cat_map[s.category_id].name if s.category_id in cat_map else None,
+                "category_color": cat_map[s.category_id].color if s.category_id in cat_map else None,
+                "bank": s.bank or "",
+                "person": s.person or "",
+                "currency": s.currency or "ARS",
+                "card": s.card or "",
+            }
+        groups[gid]["remaining_installments"] += 1
+        groups[gid]["next_dates"].append(s.scheduled_date.isoformat())
+
+    # Construir resultado
     result = []
     for g in groups.values():
-        paid = g["installments_paid"]
-        total_inst = g["installment_total"]
-        remaining = max(0, total_inst - paid)
-        dates = sorted(g["dates"])
-        next_date = add_months(max(dates), 1).isoformat() if remaining > 0 and dates else None
+        next_dates = sorted(g["next_dates"])
+        next_date = next_dates[0] if next_dates else None
+
         result.append({
             "installment_group_id": g["installment_group_id"],
             "description": g["description"],
-            "installment_total": total_inst,
-            "installments_paid": paid,
-            "remaining_installments": remaining,
+            "installment_total": g["installment_total"],
+            "installments_paid": g["installments_paid"],
+            "remaining_installments": g["remaining_installments"],
             "total_amount": g["total_amount"],
             "installment_amount": g["installment_amount"],
             "next_date": next_date,
+            "next_dates": next_dates,  # NUEVO: array de todas las fechas
             "category_id": g["category_id"],
             "category_name": g["category_name"],
             "category_color": g["category_color"],
@@ -257,7 +293,7 @@ def get_installments_dashboard(db: Session = Depends(get_db), current_user: User
 def get_installments_monthly_load(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     today = date.today()
     current_month = today.strftime("%Y-%m")
-    uid_list = [current_user.id]
+    uid_list = get_group_user_ids(current_user.id, db)
 
     # Build window: 3 months back to 3 months forward
     window_start = add_months(today, -3)
@@ -279,10 +315,10 @@ def get_installments_monthly_load(db: Session = Depends(get_db), current_user: U
         .all()
     )
 
-    # Past months: sum actual paid installments by their real date
+    # Past months + current month: sum actual paid installments by their real date
     for e in exps:
         key = e.date.strftime("%Y-%m") if isinstance(e.date, date) else str(e.date)[:7]
-        if key < current_month and key in monthly:
+        if key <= current_month and key in monthly:
             monthly[key]["total"] += abs(e.amount)
             monthly[key]["count"] += 1
 

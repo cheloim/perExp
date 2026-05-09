@@ -21,6 +21,7 @@ import type {
   TopMerchant,
   Notification,
   FamilyGroup,
+  ScheduledExpense,
 } from '../types'
 
 const TOKEN_KEY = 'auth_token'
@@ -146,6 +147,29 @@ export const getInstallmentsDashboard = () =>
 
 export const getInstallmentsMonthlyLoad = () =>
   api.get<{ month: string; total: number; count: number; is_past: boolean; is_current: boolean }[]>('/dashboard/installments/monthly-load').then((r) => r.data)
+
+export const getScheduledExpenses = async (params?: {
+  status?: string
+  installment_group_id?: string
+}): Promise<ScheduledExpense[]> => {
+  const { data } = await api.get('/scheduled-expenses', { params })
+  return data
+}
+
+export const executeScheduledExpense = async (id: number) => {
+  const { data } = await api.post(`/scheduled-expenses/${id}/execute`)
+  return data
+}
+
+export const updateScheduledExpense = async (id: number, payload: Partial<ScheduledExpense>) => {
+  const { data } = await api.put(`/scheduled-expenses/${id}`, payload)
+  return data
+}
+
+export const cancelScheduledExpense = async (id: number) => {
+  const { data } = await api.delete(`/scheduled-expenses/${id}`)
+  return data
+}
 
 export const getCardSummary = () =>
   api.get<CardSummary[]>('/dashboard/card-summary').then((r) => r.data)

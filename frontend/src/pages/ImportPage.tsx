@@ -231,10 +231,19 @@ export default function ImportPage() {
     }
 
     setImportingSingle(fileResult.filename)
-    
+
     try {
-      await importRowsConfirm(fileResult.rows)
-      setFileResults(prev => prev.filter(f => f.filename !== fileResult.filename))
+      const data = await importRowsConfirm(fileResult.rows)
+      const remainingFiles = fileResults.filter(f => f.filename !== fileResult.filename)
+
+      if (remainingFiles.length === 0) {
+        // Last file imported, show success screen
+        setResult(data)
+        setStep('done')
+        invalidate()
+      }
+
+      setFileResults(remainingFiles)
     } catch (err: any) {
       alert(err?.response?.data?.detail ?? 'Error al importar')
     } finally {
@@ -319,7 +328,7 @@ export default function ImportPage() {
         }}
       />
 
-      {step === 'upload' && (
+      {(step === 'upload' || (step === 'preview' && fileResults.length === 0)) && (
         <div
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}

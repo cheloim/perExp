@@ -162,6 +162,51 @@ class CardClosing(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
 
+class ScheduledExpense(Base):
+    __tablename__ = "scheduled_expenses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    installment_group_id = Column(String, nullable=False, index=True)
+    installment_number = Column(Integer, nullable=False)
+    installment_total = Column(Integer, nullable=False)
+
+    scheduled_date = Column(Date, nullable=False, index=True)
+    amount = Column(Float, nullable=False)
+    currency = Column(String, default="ARS")
+    description = Column(String, nullable=False)
+
+    # Legacy fields (compatibilidad)
+    card = Column(String, default="")
+    bank = Column(String, default="")
+    person = Column(String, default="")
+
+    # Nuevos campos estructurados
+    card_id = Column(Integer, ForeignKey("cards.id"), nullable=True)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
+
+    # Estado
+    status = Column(String, default="PENDING", index=True)  # PENDING | EXECUTED | CANCELLED
+
+    # Categoría
+    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
+
+    # Si fue ejecutada
+    executed_expense_id = Column(Integer, ForeignKey("expenses.id"), nullable=True)
+    executed_at = Column(DateTime, nullable=True)
+
+    # Auditoría
+    created_at = Column(DateTime, default=datetime.utcnow)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
+    transaction_id = Column(String, nullable=True, index=True)
+
+    # Relationships
+    category = relationship("Category")
+    executed_expense = relationship("Expense", foreign_keys=[executed_expense_id])
+    card_rel = relationship("Card")
+    account_rel = relationship("Account")
+
+
 Base.metadata.create_all(bind=engine)
 
 # Add new columns to existing DBs without losing data
@@ -225,4 +270,17 @@ with engine.connect() as _conn:
     _card_cols = [c["name"] for c in inspect(engine).get_columns("cards")]
     if "holder" not in _card_cols:
         _conn.execute(sa_text("ALTER TABLE cards ADD COLUMN holder VARCHAR DEFAULT ''"))
+
+    # Crear tabla scheduled_expenses si no existe
+    inspector = inspect(engine)
+    if "scheduled_expenses" not in inspector.get_table_names():
+        Base.metadata.tables["scheduled_expenses"].create(bind=engine)
+        # Crear índices adicionales
+        _conn.execute(sa_text(
+            "CREATE INDEX IF NOT EXISTS idx_scheduled_status_date ON scheduled_expenses(status, scheduled_date)"
+        ))
+        _conn.execute(sa_text(
+            "CREATE INDEX IF NOT EXISTS idx_scheduled_user_status ON scheduled_expenses(user_id, status)"
+        ))
+
     _conn.commit()

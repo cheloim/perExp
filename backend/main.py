@@ -33,6 +33,7 @@ from app.routers import (
     import_,
     investments,
     notifications,
+    scheduled_expenses,
 )
 
 
@@ -70,10 +71,20 @@ async def lifespan(application: FastAPI):
     else:
         logging.getLogger(__name__).warning("TELEGRAM_BOT_TOKEN not set — bot disabled")
 
+    # Scheduled expenses job
+    from apscheduler.schedulers.background import BackgroundScheduler
+    from app.tasks.scheduled_expenses import execute_due_installments
+
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(execute_due_installments, 'cron', hour=2, minute=0)  # 2 AM diario
+    scheduler.start()
+    logging.getLogger(__name__).info("Scheduler started for scheduled expenses")
+
     yield
 
     # Shutdown
     task.cancel()
+    scheduler.shutdown()
     try:
         await task
     except asyncio.CancelledError:
@@ -102,3 +113,4 @@ app.include_router(dashboard.router)
 app.include_router(analysis.router)
 app.include_router(groups.router)
 app.include_router(notifications.router)
+app.include_router(scheduled_expenses.router)

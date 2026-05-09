@@ -558,7 +558,8 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
             p["_date_obj"] = last_known_date
             p["date"] = last_known_raw
 
-    parsed = _expand_installments(parsed, db)
+    expenses_list, scheduled_list = _expand_installments(parsed, db, current_user.id)
+    parsed = expenses_list  # Mantener compatibilidad con código siguiente
 
     rows = []
     for p in parsed:
@@ -573,7 +574,7 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
             "card": p["card"],
             "bank": p["bank"],
             "person": p["person"],
-            
+
             "transaction_id": p["transaction_id"],
             "installment_number": p["installment_number"],
             "installment_total": p["installment_total"],
@@ -581,6 +582,28 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
             "suggested_category": cat_name,
             "is_duplicate": _is_duplicate(db, row_date, p["amount"], p["description"], p["transaction_id"], p["installment_number"], p["installment_total"]) if row_date else False,
             "is_auto_generated": p.get("_auto_generated", False),
+        })
+
+    # Agregar scheduled_expenses a rows con flag especial
+    for s in scheduled_list:
+        cat_id = _resolve_category(db, s["amount"], s["description"], cats)
+        cat_name = next((c.name for c in cats if c.id == cat_id), None)
+        rows.append({
+            "date": s["scheduled_date"].strftime("%d-%m-%Y"),
+            "description": s["description"],
+            "amount": s["amount"],
+            "currency": s["currency"],
+            "card": s["card"],
+            "bank": s["bank"],
+            "person": s["person"],
+            "transaction_id": s["transaction_id"],
+            "installment_number": s["installment_number"],
+            "installment_total": s["installment_total"],
+            "installment_group_id": s["installment_group_id"],
+            "suggested_category": cat_name,
+            "is_duplicate": False,
+            "is_auto_generated": True,
+            "is_scheduled": True,  # NUEVO flag
         })
 
     non_auto = [r for r in rows if not r.get("is_auto_generated")]
@@ -611,9 +634,11 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
 
 @router.post("/rows-confirm")
 def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from app.models import ScheduledExpense
     cats = db.query(Category).all()
     user_cards = db.query(Card).filter(Card.user_id == current_user.id).all()
     imported = 0
+    scheduled_count = 0
     skipped = 0
 
     print(f"[DEBUG] rows-confirm: received {len(body.rows)} rows")
@@ -664,51 +689,78 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
         currency = "USD" if raw_currency == "USD" else "ARS"
         category_id = _resolve_category(db, amount, desc, cats)
 
-        try:
-            db.add(Expense(
-                date=parsed_date,
-                description=desc,
-                amount=amount,
-                currency=currency,
-                category_id=category_id,
-                card=str(r.get("card", "") or ""),
-                bank=norm_bank,
-                person=norm_person,
-                transaction_id=txn_id,
-                installment_number=inst_num,
-                installment_total=inst_total,
-                installment_group_id=str(r.get("installment_group_id") or "") or None,
-                user_id=current_user.id,
-            ))
+        # Determinar si es scheduled
+        is_scheduled = r.get("is_scheduled", False)
 
-            row_card_name = str(r.get("card", "") or "").strip()
-            if row_card_name:
-                existing_card = next(
-                    (c for c in user_cards 
-                     if c.name.lower() == row_card_name.lower() 
-                     and c.bank.lower() == norm_bank.lower()
-                     and c.holder.lower() == norm_person.lower()), None
-                )
-                if existing_card:
-                    if existing_card.name.lower() != row_card_name.lower():
-                        existing_card.name = row_card_name
-                else:
-                    new_card = Card(
-                        name=row_card_name,
-                        bank=norm_bank,
-                        holder=norm_person,
-                        card_type="credito",
-                        user_id=current_user.id,
+        if is_scheduled:
+            # Crear scheduled_expense
+            try:
+                db.add(ScheduledExpense(
+                    scheduled_date=parsed_date,
+                    description=desc,
+                    amount=amount,
+                    currency=currency,
+                    category_id=category_id,
+                    card=str(r.get("card", "") or ""),
+                    bank=norm_bank,
+                    person=norm_person,
+                    transaction_id=txn_id,
+                    installment_number=inst_num,
+                    installment_total=inst_total,
+                    installment_group_id=str(r.get("installment_group_id") or "") or None,
+                    status="PENDING",
+                    user_id=current_user.id,
+                ))
+                scheduled_count += 1
+            except Exception:
+                skipped += 1
+        else:
+            # Crear expense normal
+            try:
+                db.add(Expense(
+                    date=parsed_date,
+                    description=desc,
+                    amount=amount,
+                    currency=currency,
+                    category_id=category_id,
+                    card=str(r.get("card", "") or ""),
+                    bank=norm_bank,
+                    person=norm_person,
+                    transaction_id=txn_id,
+                    installment_number=inst_num,
+                    installment_total=inst_total,
+                    installment_group_id=str(r.get("installment_group_id") or "") or None,
+                    user_id=current_user.id,
+                ))
+
+                row_card_name = str(r.get("card", "") or "").strip()
+                if row_card_name:
+                    existing_card = next(
+                        (c for c in user_cards
+                         if c.name.lower() == row_card_name.lower()
+                         and c.bank.lower() == norm_bank.lower()
+                         and c.holder.lower() == norm_person.lower()), None
                     )
-                    db.add(new_card)
-                    user_cards.append(new_card)
+                    if existing_card:
+                        if existing_card.name.lower() != row_card_name.lower():
+                            existing_card.name = row_card_name
+                    else:
+                        new_card = Card(
+                            name=row_card_name,
+                            bank=norm_bank,
+                            holder=norm_person,
+                            card_type="credito",
+                            user_id=current_user.id,
+                        )
+                        db.add(new_card)
+                        user_cards.append(new_card)
 
-            imported += 1
-        except Exception:
-            skipped += 1
+                imported += 1
+            except Exception:
+                skipped += 1
 
     db.commit()
-    return {"imported": imported, "skipped": skipped}
+    return {"imported": imported, "scheduled": scheduled_count, "skipped": skipped}
 
 
 @router.post("/csv-raw-llm-preview")

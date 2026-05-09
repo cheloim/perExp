@@ -192,17 +192,13 @@ export default function ExpensesPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => { setSelectMode(v => !v); setSelectedIds(new Set()) }}
-            className={`text-sm px-3 py-1.5 rounded-md border transition-all ${
-              selectMode
-                ? 'bg-[var(--color-primary)]/20 border-[var(--color-primary)]/40 text-[var(--color-primary)]'
-                : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--color-primary)] hover:border-[var(--border-color)]'
-            }`}
+            className={selectMode ? 'btn-primary text-sm' : 'btn-secondary text-sm'}
           >
             {selectMode ? 'Cancelar' : 'Seleccionar'}
           </button>
           <button
             onClick={() => { setEditingIsIncome(true); setEditing(null) }}
-            className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 text-[var(--color-primary)] hover:bg-[var(--color-primary)]/20 transition-all"
+            className="btn-secondary flex items-center gap-2 text-sm"
           >
             <span className="text-base leading-none">↓</span>
             Ingreso
@@ -283,7 +279,7 @@ export default function ExpensesPage() {
             type="date"
             value={filterDateFrom ?? ''}
             onChange={e => setFilter('date_from', e.target.value || undefined)}
-            className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
+            className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
             placeholder="Desde"
           />
 
@@ -292,7 +288,7 @@ export default function ExpensesPage() {
             type="date"
             value={filterDateTo ?? ''}
             onChange={e => setFilter('date_to', e.target.value || undefined)}
-            className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
+            className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
             placeholder="Hasta"
           />
         </div>
@@ -303,7 +299,7 @@ export default function ExpensesPage() {
           value={filterSearch ?? ''}
           onChange={e => setFilter('search', e.target.value || undefined)}
           placeholder="Buscar en descripción..."
-          className="w-full text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)] placeholder:text-[var(--text-tertiary)]"
+          className="w-full text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition placeholder:text-[var(--text-tertiary)]"
         />
       </div>
 
@@ -385,6 +381,15 @@ export default function ExpensesPage() {
                       return sort.dir === 'asc'
                         ? (aVal as number) - (bVal as number)
                         : (bVal as number) - (aVal as number)
+                    }
+                    if (sort.field === 'date') {
+                      const parseDate = (s: string) => {
+                        const [d, m, y] = s.split('-').map(Number)
+                        return new Date(y, m - 1, d).getTime()
+                      }
+                      const aTime = parseDate(String(aVal))
+                      const bTime = parseDate(String(bVal))
+                      return sort.dir === 'asc' ? aTime - bTime : bTime - aTime
                     }
                     let aStr = String(aVal)
                     let bStr = String(bVal)
@@ -496,7 +501,7 @@ export default function ExpensesPage() {
           <select
             value={bulkCategoryId}
             onChange={e => setBulkCategoryId(e.target.value)}
-            className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
+            className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
           >
             <option value="">Sin categoría</option>
             {(() => {
@@ -530,13 +535,13 @@ export default function ExpensesPage() {
               }
             }}
             disabled={bulkMut.isPending || bulkDeleteMut.isPending}
-            className="text-sm px-4 py-1.5 rounded-md bg-[var(--color-danger)]/20 border border-[var(--color-danger)]/40 text-[var(--color-danger)] hover:bg-[var(--color-danger)]/30 disabled:opacity-50 transition-colors"
+            className="btn-danger text-sm px-4 py-1.5"
           >
             {bulkDeleteMut.isPending ? 'Eliminando...' : 'Eliminar'}
           </button>
           <button
             onClick={() => setSelectedIds(new Set())}
-            className="text-[var(--text-tertiary)] hover:text-[var(--color-primary)] text-sm"
+            className="btn-secondary text-sm"
           >
             Limpiar
           </button>

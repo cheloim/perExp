@@ -5,6 +5,7 @@ import {
   getExpenses, recategorizeExpenses, applyBaseHierarchy,
 } from '../api/client'
 import type { Category } from '../types'
+import { CustomSelect } from '../components/CustomSelect'
 
 const COLORS = [
   '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
@@ -60,16 +61,15 @@ function CategoryForm({ initial, isParentForm, parentCategories, onClose, onSave
           {!isParentForm && (
             <div>
               <label className="block text-xs font-medium text-tertiary mb-1.5">Categoría padre</label>
-              <select
+              <CustomSelect
                 value={form.parent_id ?? ''}
-                onChange={(e) => setForm(p => ({ ...p, parent_id: e.target.value ? parseInt(e.target.value) : null }))}
-                className="input"
-              >
-                <option value="">— Sin padre (independiente) —</option>
-                {parentCategories.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
+                onChange={(value) => setForm(p => ({ ...p, parent_id: value ? parseInt(value.toString()) : null }))}
+                options={[
+                  { value: '', label: '— Sin padre (independiente) —' },
+                  ...parentCategories.map(p => ({ value: p.id, label: p.name }))
+                ]}
+                placeholder="Seleccionar categoría padre"
+              />
             </div>
           )}
 

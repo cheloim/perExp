@@ -75,9 +75,36 @@ def _is_duplicate(
     return q.first() is not None
 
 
-def _expand_installments(parsed: list, db: Session) -> list:
-    from collections import defaultdict
+def _is_scheduled_duplicate(
+    db: Session,
+    scheduled_date: date,
+    amount: float,
+    description: str,
+    installment_number: int,
+    installment_total: int,
+    user_id: int,
+) -> bool:
+    """Verificar si ya existe una cuota programada duplicada"""
+    from app.models import ScheduledExpense
 
+    return db.query(ScheduledExpense).filter(
+        ScheduledExpense.user_id == user_id,
+        ScheduledExpense.scheduled_date == scheduled_date,
+        ScheduledExpense.installment_number == installment_number,
+        ScheduledExpense.installment_total == installment_total,
+        func.lower(ScheduledExpense.description) == description.lower(),
+        ScheduledExpense.status == "PENDING"
+    ).first() is not None
+
+
+def _expand_installments(parsed: list, db: Session, user_id: int) -> tuple[list, list]:
+    """
+    Retorna: (expenses_to_create, scheduled_expenses_to_create)
+    """
+    from collections import defaultdict
+    from datetime import date
+
+    today = date.today()
     groups: dict = defaultdict(list)
     for r in parsed:
         inst_num = r.get("installment_number")
@@ -96,7 +123,8 @@ def _expand_installments(parsed: list, db: Session) -> list:
             key = (r["description"].lower(), inst_total, base_date.strftime("%Y-%m"), r.get("person") or "")
         groups[key].append((r, base_date))
 
-    extra: list = []
+    expenses_extra: list = []
+    scheduled_extra: list = []
     # Tracks already-generated slots to prevent cross-group duplicates within a batch.
     generated: set = set()
 
@@ -117,11 +145,16 @@ def _expand_installments(parsed: list, db: Session) -> list:
                 else (desc_lower, r["installment_number"], inst_total, r.get("_date_obj").strftime("%Y-%m") if r.get("_date_obj") else "")
             generated.add(gen_key)
 
-        # Generate past installments (retrasados)
+        # Generate past installments (retrasados) - solo si fecha <= today
         for i in range(1, inst_num):
             if i in present_nums:
                 continue
             charge_date = add_months(base_date, i - 1)
+
+            # Saltear si es futura
+            if charge_date > today:
+                continue
+
             gen_key = (desc_lower, i, inst_total, txn_id) if txn_id \
                 else (desc_lower, i, inst_total, charge_date.strftime("%Y-%m"))
             if gen_key in generated:
@@ -131,7 +164,7 @@ def _expand_installments(parsed: list, db: Session) -> list:
                              installment_number=i, installment_total=inst_total):
                 continue
             generated.add(gen_key)
-            extra.append({
+            expenses_extra.append({
                 "date": charge_date.strftime("%d-%m-%Y"),
                 "_date_obj": charge_date,
                 "description": template["description"],
@@ -147,7 +180,7 @@ def _expand_installments(parsed: list, db: Session) -> list:
                 "_auto_generated": True,
             })
 
-        # Generate future installments (already existing behavior)
+        # Generate future installments - separar expenses (<=today) de scheduled (>today)
         for i in range(inst_num + 1, inst_total + 1):
             if i in present_nums:
                 continue
@@ -156,28 +189,59 @@ def _expand_installments(parsed: list, db: Session) -> list:
                 else (desc_lower, i, inst_total, charge_date.strftime("%Y-%m"))
             if gen_key in generated:
                 continue
+
+            # Verificar duplicados en expenses
             if _is_duplicate(db, charge_date, template["amount"], template["description"],
                              transaction_id=txn_id or None,
                              installment_number=i, installment_total=inst_total):
                 continue
-            generated.add(gen_key)
-            extra.append({
-                "date": charge_date.strftime("%d-%m-%Y"),
-                "_date_obj": charge_date,
-                "description": template["description"],
-                "amount": template["amount"],
-                "currency": template.get("currency", "ARS"),
-                "card": template.get("card", ""),
-                "bank": template.get("bank", ""),
-                "person": template.get("person", ""),
-                "transaction_id": txn_id or None,
-                "installment_number": i,
-                "installment_total": inst_total,
-                "installment_group_id": group_id,
-                "_auto_generated": True,
-            })
 
-    return parsed + extra
+            # Verificar duplicados en scheduled_expenses
+            if _is_scheduled_duplicate(db, charge_date, template["amount"],
+                                       template["description"], i, inst_total, user_id):
+                continue
+
+            generated.add(gen_key)
+
+            # DECISIÓN: pasado/presente vs futuro
+            if charge_date <= today:
+                # Crear en expenses
+                expenses_extra.append({
+                    "date": charge_date.strftime("%d-%m-%Y"),
+                    "_date_obj": charge_date,
+                    "description": template["description"],
+                    "amount": template["amount"],
+                    "currency": template.get("currency", "ARS"),
+                    "card": template.get("card", ""),
+                    "bank": template.get("bank", ""),
+                    "person": template.get("person", ""),
+                    "transaction_id": txn_id or None,
+                    "installment_number": i,
+                    "installment_total": inst_total,
+                    "installment_group_id": group_id,
+                    "_auto_generated": True,
+                })
+            else:
+                # Crear en scheduled_expenses
+                scheduled_extra.append({
+                    "scheduled_date": charge_date,
+                    "description": template["description"],
+                    "amount": template["amount"],
+                    "currency": template.get("currency", "ARS"),
+                    "card": template.get("card", ""),
+                    "bank": template.get("bank", ""),
+                    "person": template.get("person", ""),
+                    "transaction_id": txn_id or None,
+                    "installment_number": i,
+                    "installment_total": inst_total,
+                    "installment_group_id": group_id,
+                    "status": "PENDING",
+                    "category_id": None,
+                    "user_id": user_id,
+                    "_is_scheduled": True,  # Flag para el frontend
+                })
+
+    return (parsed + expenses_extra, scheduled_extra)
 
 
 async def _normalize_persons_llm(persons: list[str], client) -> dict[str, str]:

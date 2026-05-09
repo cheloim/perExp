@@ -1,9 +1,17 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts'
-import { getInstallmentsDashboard, getInstallmentsMonthlyLoad } from '../api/client'
+import {
+  getInstallmentsDashboard,
+  getInstallmentsMonthlyLoad,
+  getScheduledExpenses,
+  executeScheduledExpense,
+  cancelScheduledExpense,
+} from '../api/client'
+import type { InstallmentGroup } from '../types'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 
 function formatCurrency(amount: number, currency = 'ARS') {
   if (currency === 'USD')
@@ -96,8 +104,8 @@ function InstallmentCard({
     >
       <div className="flex justify-between items-start">
         <div>
-          <p className="text-primary/60 text-[10px] font-medium tracking-widest uppercase">{entry.bank || 'Banco'}</p>
-          <p className="text-primary text-xs font-bold tracking-wide">{entry.card}</p>
+          <p className="text-white/70 text-[10px] font-medium tracking-widest uppercase">{entry.bank || 'Banco'}</p>
+          <p className="text-white text-xs font-bold tracking-wide">{entry.card}</p>
         </div>
         <CardNetworkLogo network={network} />
       </div>
@@ -109,19 +117,23 @@ function InstallmentCard({
         </div>
       </div>
 
-      <p className="text-primary text-sm font-bold">💳 Tarjeta</p>
+      <p className="text-white text-sm font-bold">💳 Tarjeta</p>
       <div className="mt-1">
-        <p className="text-primary/50 text-[10px]">Cuotas pendientes</p>
-        <p className="text-primary font-bold text-base leading-tight">{formatCurrency(entry.pendingTotal, entry.currency)}</p>
+        <p className="text-white/60 text-[10px]">Cuotas pendientes</p>
+        <p className="text-white font-bold text-base leading-tight">{formatCurrency(entry.pendingTotal, entry.currency)}</p>
       </div>
     </div>
   )
 }
 
 export default function InstallmentsPage() {
+  const queryClient = useQueryClient()
   const [bankFilter, setBankFilter] = useState<string | null>(null)
   const [activeCardKey, setActiveCardKey] = useState<string | null>(null)
   const [showCompleted, setShowCompleted] = useState(true)
+  const [selectedGroup, setSelectedGroup] = useState<InstallmentGroup | null>(null)
+  const [showScheduledModal, setShowScheduledModal] = useState(false)
+  const [cancelConfirm, setCancelConfirm] = useState<number | null>(null)
 
   const { data: groups = [], isLoading } = useQuery({
     queryKey: ['installments'],
@@ -135,19 +147,43 @@ export default function InstallmentsPage() {
     staleTime: 60_000,
   })
 
+  const { data: scheduledForGroup = [] } = useQuery({
+    queryKey: ['scheduled-expenses', selectedGroup?.installment_group_id],
+    queryFn: () => getScheduledExpenses({
+      installment_group_id: selectedGroup?.installment_group_id,
+      status: 'PENDING'
+    }),
+    enabled: !!selectedGroup,
+  })
+
+  const executeMutation = useMutation({
+    mutationFn: executeScheduledExpense,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['installments'] })
+      queryClient.invalidateQueries({ queryKey: ['scheduled-expenses'] })
+    }
+  })
+
+  const cancelMutation = useMutation({
+    mutationFn: cancelScheduledExpense,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['installments'] })
+      queryClient.invalidateQueries({ queryKey: ['scheduled-expenses'] })
+    }
+  })
+
   // Summary stats
   const now = new Date()
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
   const activeGroups = groups.filter(g => g.remaining_installments > 0)
 
-  const currentMonthGroups = activeGroups.filter(g => {
-    if (!g.next_date) return false
-    return g.next_date.startsWith(currentMonth)
-  })
-
   const totalPending = activeGroups.reduce((s, g) => s + g.installment_amount * g.remaining_installments, 0)
-  const currentMonthTotal = currentMonthGroups.reduce((s, g) => s + g.installment_amount, 0)
+
+  // Get current month data from monthlyLoad (includes actual paid installments)
+  const currentMonthData = monthlyLoad.find(e => e.month === currentMonth)
+  const currentMonthTotal = currentMonthData?.total ?? 0
+  const currentMonthCount = currentMonthData?.count ?? 0
 
   // Build card entries — group by bank+person only (card name varies by import)
   const cardMap = new Map<string, CardEntry>()
@@ -198,7 +234,7 @@ export default function InstallmentsPage() {
       <div className="grid grid-cols-2 gap-4">
         <div className="card p-4">
           <p className="text-xs text-tertiary mb-1">Este mes</p>
-          <p className="text-2xl font-bold text-success">{currentMonthGroups.length}</p>
+          <p className="text-2xl font-bold text-success">{currentMonthCount}</p>
           <p className="text-xs text-tertiary">{formatCurrency(currentMonthTotal)}</p>
         </div>
         <div className="card p-4">
@@ -313,6 +349,11 @@ export default function InstallmentsPage() {
                           <div className="min-w-0">
                             <p className={`text-sm font-medium ${done ? 'text-secondary' : 'text-primary'} truncate`}>
                               {g.description}
+                              {g.remaining_installments > 0 && (
+                                <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                                  {g.remaining_installments} programada{g.remaining_installments > 1 ? 's' : ''}
+                                </span>
+                              )}
                             </p>
                             <p className="text-xs text-secondary mt-0.5">
                               {g.bank}{g.card ? ` · ${g.card}` : ''}
@@ -320,16 +361,29 @@ export default function InstallmentsPage() {
                             </p>
                           </div>
                         </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className={`text-sm font-semibold ${done ? 'text-secondary' : 'text-primary'}`}>
-                            {formatCurrency(g.installment_amount, g.currency)}
-                          </p>
-                          <p className="text-xs text-secondary">
-                            {done
-                              ? <span className="text-success">✓ Completada</span>
-                              : <>{g.remaining_installments} restante{g.remaining_installments !== 1 ? 's' : ''}</>
-                            }
-                          </p>
+                        <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
+                          <div>
+                            <p className={`text-sm font-semibold ${done ? 'text-secondary' : 'text-primary'}`}>
+                              {formatCurrency(g.installment_amount, g.currency)}
+                            </p>
+                            <p className="text-xs text-secondary">
+                              {done
+                                ? <span className="text-success">✓ Completada</span>
+                                : <>{g.remaining_installments} restante{g.remaining_installments !== 1 ? 's' : ''}</>
+                              }
+                            </p>
+                          </div>
+                          {g.remaining_installments > 0 && (
+                            <button
+                              onClick={() => {
+                                setSelectedGroup(g)
+                                setShowScheduledModal(true)
+                              }}
+                              className="text-xs text-secondary hover:text-primary underline"
+                            >
+                              Gestionar
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -412,6 +466,72 @@ export default function InstallmentsPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal de gestión de cuotas programadas */}
+      {showScheduledModal && selectedGroup && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowScheduledModal(false)}>
+          <div className="card p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-primary">
+                Cuotas programadas: {selectedGroup.description}
+              </h2>
+              <button onClick={() => setShowScheduledModal(false)} className="text-secondary hover:text-primary">✕</button>
+            </div>
+
+            <div className="space-y-2">
+              {scheduledForGroup.length === 0 ? (
+                <p className="text-secondary text-sm text-center py-4">No hay cuotas programadas</p>
+              ) : (
+                scheduledForGroup.map(s => (
+                  <div key={s.id} className="flex items-center justify-between p-3 border border-border-color rounded">
+                    <div>
+                      <p className="font-medium text-primary">
+                        Cuota {s.installment_number}/{s.installment_total}
+                      </p>
+                      <p className="text-xs text-secondary">
+                        {formatDate(s.scheduled_date)} · {formatCurrency(s.amount, s.currency)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => executeMutation.mutate(s.id)}
+                        className="px-3 py-1.5 text-xs rounded bg-primary text-on-primary hover:brightness-110"
+                        disabled={executeMutation.isPending}
+                      >
+                        Ejecutar ahora
+                      </button>
+                      <button
+                        onClick={() => setCancelConfirm(s.id)}
+                        className="px-3 py-1.5 text-xs rounded border border-border-color text-secondary hover:bg-base-alt"
+                        disabled={cancelMutation.isPending}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation dialog for canceling installment */}
+      <ConfirmDialog
+        isOpen={cancelConfirm !== null}
+        title="Cancelar cuota programada"
+        message="¿Estás seguro que querés cancelar esta cuota? Esta acción no se puede deshacer."
+        confirmLabel="Cancelar cuota"
+        cancelLabel="Volver"
+        variant="danger"
+        onConfirm={() => {
+          if (cancelConfirm !== null) {
+            cancelMutation.mutate(cancelConfirm)
+            setCancelConfirm(null)
+          }
+        }}
+        onCancel={() => setCancelConfirm(null)}
+      />
     </div>
   )
 }

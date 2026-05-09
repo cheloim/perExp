@@ -175,6 +175,7 @@ export interface InstallmentGroup {
   total_amount: number
   installment_amount: number
   next_date: string | null
+  next_dates: string[]
   category_id: number | null
   category_name: string | null
   category_color: string | null
@@ -182,6 +183,22 @@ export interface InstallmentGroup {
   person: string
   currency: string
   card: string
+}
+
+export interface ScheduledExpense {
+  id: number
+  installment_group_id: string
+  installment_number: number
+  installment_total: number
+  scheduled_date: string
+  amount: number
+  currency: string
+  description: string
+  status: 'PENDING' | 'EXECUTED' | 'CANCELLED'
+  category_id: number | null
+  card: string
+  bank: string
+  person: string
 }
 
 export interface CardSummary {
