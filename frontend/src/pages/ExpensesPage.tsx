@@ -707,9 +707,9 @@ function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }:
   const switchPayMethod = (method: 'card' | 'cash') => {
     setPayMethod(method)
     if (method === 'cash') {
-      setForm((prev) => ({ ...prev, card: 'Efectivo', bank: '', person: prev.person, card_last4: '' }))
+      setForm((prev) => ({ ...prev, card: 'Efectivo', bank: '', person: prev.person }))
     } else {
-      setForm((prev) => ({ ...prev, card: '', bank: '', card_last4: '' }))
+      setForm((prev) => ({ ...prev, card: '', bank: '' }))
     }
   }
 

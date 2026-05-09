@@ -136,7 +136,7 @@ export const getDashboard = (params?: {
   search?: string
   person?: string
   category_id?: number
-  card_last4?: string
+  card_last4_old?: string
   bank?: string
 }) =>
   api.get<DashboardSummary>('/dashboard/summary', { params }).then((r) => r.data)
@@ -207,7 +207,7 @@ export const getCategoryTrend = (months = 4) =>
     '/dashboard/category-trend', { params: { months } }
   ).then((r) => r.data)
 
-export const getCardCategoryBreakdown = (params?: { month?: string; card_last4?: string; bank?: string }) =>
+export const getCardCategoryBreakdown = (params?: { month?: string; bank?: string }) =>
   api.get<{ rows: Record<string, number | string>[]; categories: { name: string; color: string }[] }>(
     '/dashboard/card-category-breakdown', { params }
   ).then((r) => r.data)
@@ -273,7 +273,7 @@ export const getCashBalances = () =>
     ppi: { ars: number | null; usd: number | null; configured: boolean; error?: string; _raw_keys?: string[] }
   }>('/investments/cash-balances').then((r) => r.data)
 
-export const getTopMerchants = (params?: { month?: string; person?: string; bank?: string; card_last4?: string; limit?: number }) =>
+export const getTopMerchants = (params?: { month?: string; person?: string; bank?: string; limit?: number }) =>
   api.get<TopMerchant[]>('/dashboard/top-merchants', { params }).then((r) => r.data)
 
 // Notifications
@@ -313,9 +313,9 @@ export const deleteAccount = (id: number) =>
 // Cards
 export const getCards = () =>
   api.get<Card[]>('/cards').then((r) => r.data)
-export const createCard = (data: { name: string; bank?: string; last4_digits?: string | null; card_type?: string }) =>
+export const createCard = (data: { name: string; bank?: string; card_type?: string }) =>
   api.post<Card>('/cards', data).then((r) => r.data)
-export const updateCard = (id: number, data: { name?: string; bank?: string; last4_digits?: string | null; card_type?: string }) =>
+export const updateCard = (id: number, data: { name?: string; bank?: string; card_type?: string }) =>
   api.put<Card>(`/cards/${id}`, data).then((r) => r.data)
 export const deleteCard = (id: number) =>
   api.delete(`/cards/${id}`).then((r) => r.data)

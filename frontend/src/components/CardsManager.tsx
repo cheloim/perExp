@@ -22,6 +22,7 @@ export default function CardsManager() {
   const [errors, setErrors] = useState<{ name?: string; bank?: string }>({})
   const [name, setName] = useState('')
   const [bank, setBank] = useState('')
+  const [holder, setHolder] = useState('')
   const [cardType, setCardType] = useState('credito')
   const [accountType, setAccountType] = useState('efectivo')
 
@@ -44,6 +45,7 @@ export default function CardsManager() {
       setEditId(null)
       setName('')
       setBank('')
+      setHolder('')
       setCardType('credito')
     },
     onError: (error: any) => {
@@ -66,6 +68,7 @@ export default function CardsManager() {
       setEditId(null)
       setName('')
       setBank('')
+      setHolder('')
       setCardType('credito')
     },
   })
@@ -94,6 +97,7 @@ export default function CardsManager() {
     setEditId(card.id)
     setName(card.name)
     setBank(card.bank || '')
+    setHolder(card.holder || '')
     setCardType(card.card_type)
     setMenuOpen(null)
   }
@@ -102,6 +106,7 @@ export default function CardsManager() {
     setEditId(null)
     setName('')
     setBank('')
+    setHolder('')
     setCardType('credito')
     setAccountType('efectivo')
   }
@@ -110,6 +115,7 @@ export default function CardsManager() {
     setEditId(-1)
     setName('')
     setBank('')
+    setHolder('')
     setCardType('credito')
     setAccountType('efectivo')
     setMenuOpen(null)
@@ -132,6 +138,7 @@ export default function CardsManager() {
       const data = {
         name: name.trim(),
         bank: bank.trim(),
+        holder: holder.trim(),
         card_type: cardType,
       }
       if (editId && editId > 0) {
@@ -182,6 +189,16 @@ export default function CardsManager() {
                   {errors.bank && <p className="text-xs text-red-500">{errors.bank}</p>}
                 </div>
                 <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">Titular</label>
+                  <input
+                    type="text"
+                    value={holder}
+                    onChange={(e) => setHolder(e.target.value)}
+                    className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+                    placeholder="Ej: Juan Perez"
+                  />
+                </div>
+                <div className="space-y-1.5">
                   <label className="text-xs font-medium text-[var(--text-secondary)]">Tipo</label>
                   <Select
                     value={cardType}
@@ -222,6 +239,7 @@ export default function CardsManager() {
                   <div className="text-xs text-secondary capitalize">
                     {card.card_type}
                   </div>
+                  {card.holder && <div className="text-xs text-tertiary mt-0.5">{card.holder}</div>}
                 </div>
                 <div className="relative">
                   <button
@@ -291,6 +309,16 @@ export default function CardsManager() {
                   placeholder="Ej: Galicia"
                 />
                 {errors.bank && <p className="text-xs text-red-500">{errors.bank}</p>}
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-[var(--text-secondary)]">Titular</label>
+                <input
+                  type="text"
+                  value={holder}
+                  onChange={(e) => setHolder(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+                  placeholder="Ej: Juan Perez"
+                />
               </div>
             </div>
           )}

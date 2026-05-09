@@ -144,3 +144,38 @@ def delete_card(
     db.delete(db_card)
     db.commit()
     return None
+
+
+@router.post("/sync-holders")
+def sync_card_holders(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Sync holders from expenses to cards based on most frequent person per bank+name"""
+    from sqlalchemy import func
+    from app.models import Expense
+    
+    cards = db.query(Card).filter(Card.user_id == current_user.id).all()
+    updated = 0
+    
+    for card in cards:
+        if card.holder:
+            continue
+        
+        most_common_person = db.query(
+            Expense.person,
+            func.count(Expense.id).label('cnt')
+        ).filter(
+            Expense.user_id == current_user.id,
+            func.lower(func.trim(Expense.bank)) == (card.bank or '').lower().strip(),
+            Expense.card.ilike(f"%{card.name}%"),
+            Expense.person.isnot(None),
+            Expense.person != ''
+        ).group_by(Expense.person).order_by(func.count(Expense.id).desc()).first()
+        
+        if most_common_person and most_common_person[0]:
+            card.holder = most_common_person[0]
+            updated += 1
+    
+    db.commit()
+    return {"updated": updated, "total_cards": len(cards)}

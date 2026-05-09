@@ -379,7 +379,7 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
                 _m = _marker_re.search(_ln)
                 if _m:
                     _marker_map.append((_i, _m.group(1)))
-            _pdf_last4_fallback = _marker_map[0][1] if _marker_map else ""
+            
         elif is_csv:
             if filename.endswith(".csv"):
                 raw_text = content.decode("utf-8", errors="replace")
@@ -388,7 +388,7 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
                 df = _load_dataframe(content, filename)
                 raw_text = df.to_string(index=False, max_rows=1000)
                 raw_text = _inject_csv_card_markers(raw_text)
-            _pdf_last4_fallback = ""
+            
         else:
             raise HTTPException(415, f"Formato no soportado: {filename}. Usá PDF, CSV o Excel.")
     except HTTPException:
@@ -401,7 +401,7 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
 
     closing_info = {
         "closing_date": None, "next_closing_date": None, "due_date": None,
-        "bank": "", "card_last_digits": "", "card_type": "",
+        "bank": "", "card_type": "",
         "total_ars": None, "total_usd": None,
         "future_charges_ars": None, "future_charges_usd": None,
     }
@@ -459,8 +459,6 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
 
         for r in rows_raw:
             if r:
-                if r.get("card_last_digits") and not closing_info["card_last_digits"]:
-                    closing_info["card_last_digits"] = str(r.get("card_last_digits", "")).strip()
                 if r.get("card_type") and not closing_info["card_type"]:
                     closing_info["card_type"] = str(r.get("card_type", "")).strip()
                 if r.get("total_ars") is not None and closing_info["total_ars"] is None:
@@ -575,13 +573,13 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
             "card": p["card"],
             "bank": p["bank"],
             "person": p["person"],
-            "card_last4": p.get("card_last4", ""),
+            
             "transaction_id": p["transaction_id"],
             "installment_number": p["installment_number"],
             "installment_total": p["installment_total"],
             "installment_group_id": p["installment_group_id"],
             "suggested_category": cat_name,
-            "is_duplicate": _is_duplicate(db, row_date, p["amount"], p["description"], p["transaction_id"], p["installment_number"], p["installment_total"], p.get("card_last4") or None) if row_date else False,
+            "is_duplicate": _is_duplicate(db, row_date, p["amount"], p["description"], p["transaction_id"], p["installment_number"], p["installment_total"]) if row_date else False,
             "is_auto_generated": p.get("_auto_generated", False),
         })
 
@@ -590,7 +588,7 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
         raise HTTPException(422, "No se encontraron transacciones en el archivo. El resumen puede estar vacío o sin consumos.")
 
     summary = {
-        "card_last4":         closing_info["card_last_digits"] or _pdf_last4_fallback,
+        
         "card_type":          closing_info["card_type"] or "",
         "bank":               closing_info["bank"] or "",
         "closing_date":       closing_info["closing_date"].isoformat() if closing_info["closing_date"] else None,
@@ -610,49 +608,55 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
     imported = 0
     skipped = 0
 
+    print(f"[DEBUG] rows-confirm: received {len(body.rows)} rows")
+    if body.rows:
+        print(f"[DEBUG] first row keys: {list(body.rows[0].keys())}")
+        print(f"[DEBUG] first row: {body.rows[0]}")
+
     for r in body.rows:
+        desc = str(r.get("description", "")).strip()
         try:
-            desc = str(r.get("description", "")).strip()
-            try:
-                amount = float(r.get("amount", 0) or 0)
-            except (ValueError, TypeError):
-                amount = 0.0
+            amount = float(r.get("amount", 0) or 0)
+        except (ValueError, TypeError):
+            amount = 0.0
 
-            if not desc or amount == 0:
-                skipped += 1
-                continue
+        if not desc or amount == 0:
+            skipped += 1
+            continue
 
-            try:
-                raw_date = str(r.get("date", "")).strip()
-                normalized = _normalize_date_str(raw_date)
-                if re.match(r'^\d{4}-\d{2}-\d{2}$', normalized):
-                    parsed_date = date.fromisoformat(normalized)
-                else:
-                    parsed_date = pd.to_datetime(normalized, dayfirst=True).date()
-            except Exception:
-                parsed_date = date.today()
+        try:
+            raw_date = str(r.get("date", "")).strip()
+            normalized = _normalize_date_str(raw_date)
+            if re.match(r'^\d{4}-\d{2}-\d{2}$', normalized):
+                parsed_date = date.fromisoformat(normalized)
+            else:
+                parsed_date = pd.to_datetime(normalized, dayfirst=True).date()
+        except Exception:
+            parsed_date = date.today()
 
-            if _should_skip(desc):
-                skipped += 1
-                continue
+        if _should_skip(desc):
+            skipped += 1
+            continue
 
-            try:
-                inst_num = int(r["installment_number"]) if r.get("installment_number") else None
-                inst_total = int(r["installment_total"]) if r.get("installment_total") else None
-            except (ValueError, TypeError):
-                inst_num = inst_total = None
+        try:
+            inst_num = int(r["installment_number"]) if r.get("installment_number") else None
+            inst_total = int(r["installment_total"]) if r.get("installment_total") else None
+        except (ValueError, TypeError):
+            inst_num = inst_total = None
 
-            txn_id = str(r.get("transaction_id") or "").strip() or None
-            if _is_duplicate(db, parsed_date, amount, desc, txn_id, inst_num, inst_total, None):
-                skipped += 1
-                continue
+        txn_id = str(r.get("transaction_id") or "").strip() or None
 
-            raw_currency = str(r.get("currency", "") or "").strip().upper()
-            currency = "USD" if raw_currency == "USD" else "ARS"
-            category_id = _resolve_category(db, amount, desc, cats)
-            norm_bank = _normalize_bank(str(r.get("bank", "") or ""))
-            norm_person = _normalize_person(str(r.get("person", "") or ""), db)
+        if _is_duplicate(db, parsed_date, amount, desc, txn_id, inst_num, inst_total):
+            skipped += 1
+            continue
 
+        norm_bank = _normalize_bank(str(r.get("bank", "") or ""))
+        norm_person = _normalize_person(str(r.get("person", "") or ""), db)
+        raw_currency = str(r.get("currency", "") or "").strip().upper()
+        currency = "USD" if raw_currency == "USD" else "ARS"
+        category_id = _resolve_category(db, amount, desc, cats)
+
+        try:
             db.add(Expense(
                 date=parsed_date,
                 description=desc,
@@ -669,7 +673,6 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
                 user_id=current_user.id,
             ))
 
-            # Auto-create card if not exists (deduplicate by bank + name + holder)
             row_card_name = str(r.get("card", "") or "").strip()
             if row_card_name:
                 existing_card = next(

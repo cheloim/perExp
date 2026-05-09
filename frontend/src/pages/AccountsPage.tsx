@@ -396,7 +396,7 @@ export default function AccountsPage() {
     queryFn: () => getDashboard({
       month: month || undefined,
       group_by: groupBy,
-      card_last4: activeCardKey || undefined,
+      
       bank: bankFilter || undefined,
     }),
     placeholderData: (prev) => prev,
@@ -1324,9 +1324,9 @@ function ExpenseModal({
   const switchPayMethod = (method: 'card' | 'cash') => {
     setPayMethod(method)
     if (method === 'cash') {
-      setForm((prev) => ({ ...prev, card: 'Efectivo', bank: '', person: prev.person, card_last4: '' }))
+      setForm((prev) => ({ ...prev, card: 'Efectivo', bank: '', person: prev.person }))
     } else {
-      setForm((prev) => ({ ...prev, card: '', bank: '', card_last4: '' }))
+      setForm((prev) => ({ ...prev, card: '', bank: '' }))
     }
   }
 

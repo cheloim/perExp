@@ -318,7 +318,7 @@ def parse_csv_expenses(content: bytes, filename: str, db, user_id: int):
             "card": card_name,
             "bank": bank_name,
             "person": p.get("person", ""),
-            "card_last4": p.get("card_last4", ""),
+            
             "transaction_id": p.get("transaction_id"),
             "installment_number": p.get("installment_number"),
             "installment_total": p.get("installment_total"),
@@ -418,7 +418,7 @@ def _csv_split(line: str) -> list[str]:
             "card": card_name,
             "bank": bank_name,
             "person": p.get("person", ""),
-            "card_last4": p.get("card_last4", ""),
+            
             "transaction_id": p.get("transaction_id"),
             "installment_number": p.get("installment_number"),
             "installment_total": p.get("installment_total"),

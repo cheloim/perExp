@@ -211,7 +211,6 @@ class RowsConfirmBody(BaseModel):
 class CardClosingResponse(BaseModel):
     id: int
     card: str
-    card_last_digits: str = ""
     card_type: str = ""
     bank: str
     closing_date: date

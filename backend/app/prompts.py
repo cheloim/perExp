@@ -91,7 +91,7 @@ Por cada transacción devolvé un objeto JSON con exactamente estos campos:
 - "transaction_id": código único de la operación. En el patrón "DD NNNNNN K/*/# descripcion monto", el NNNNNN ES el comprobante → ponerlo aquí siempre. También puede ser un nro de operación, referencia o auth que figure explícitamente. Si genuinamente no hay ningún código, null.
 - "installment_number": número de cuota si es un pago en cuotas (ej: "1/3" → 1), sino null
 - "installment_total": total de cuotas si es un pago en cuotas (ej: "1/3" → 3), sino null
-- "card_last4": los 4 últimos dígitos de la tarjeta para ESTA transacción específica. OBLIGATORIO para CSV/XLSX. Extraer del prefijo [CARD:XXXX] si existe, o del encabezado de sección "terminada en XXXX". Para PDF usar el marcador [TARJETA_LAST4: XXXX] más reciente.
+- "card_last4": (DEPRECATED - no usar más) Ahora usá bank + card + person del header para identificar la tarjeta. Los 4 dígitos ya no se almacenan por seguridad.
 
 Para pagos en cuotas. Formatos reconocidos:
   • Santander / genérico: "C.12/12", "C.01/03", "Cta 2/6"
@@ -114,31 +114,27 @@ Devolvé ÚNICAMENTE un array JSON válido. Sin texto adicional, sin markdown, s
 
 ── IDENTIFICACIÓN DE TARJETA ────────────────────────────────────────
 El texto puede venir de PDF (con marcadores automáticos) o de CSV/XLSX.
-Para CADA transacción, identificá el card_last4 según el origen del texto:
+Para CADA transacción, usá el HEADER más reciente para obtener bank + card + person.
+NO uses los 4 dígitos (card_last4) para nada - el backend deduce la tarjeta por bank+name+holder.
 
-CSV / XLSX — Texto RAW sin marcadores (o con ellos si vienen inyectados):
+CSV / XLSX:
   El texto es una exportación directa del banco. Puede tener VARIAS SECCIONES, una por cada tarjeta.
   Cada SECCIÓN tiene un ENCABEZADO que contiene "terminada en XXXX" o "Visa/MC terminada en XXXX".
   Ejemplo de encabezado de sección CSV:
     "TARJETA ADICIONAL - PEREZ, JUAN - Mastercard terminada en 1108"
     "Visa terminada en 8130"
-  Para cada transacción, usá el card_last4 del ÚLTIMO encabezado de sección visto antes de esa transacción.
-  Si el texto ya tiene prefijos [CARD:XXXX] en las líneas, extraé de ahí.
+  Para cada transacción, usá los valores (card, bank, person) del ÚLTIMO encabezado de sección visto.
 
-PDF — Marcadores automáticos:
+PDF:
   El texto contiene marcadores con el formato: [TARJETA_LAST4: XXXX]
   Cada marcador aparece justo después del encabezado de una sección de tarjeta.
-  Usá el card_last4 del marcador [TARJETA_LAST4: XXXX] más reciente que aparece
-  ANTES de esa transacción. Si no hubo ningún marcador antes, null.
+  También podés extraer el nombre del banco del header del PDF.
+  Usá el bank + card + person del ÚLTIMO encabezado de sección visto.
 
-Reglas de identificación por origen:
-  - Si la línea tiene prefijo [CARD:XXXX] → extraer los 4 dígitos de ahí
-  - Si hay marcadores [TARJETA_LAST4: XXXX] → usar el más reciente antes de la transacción
-  - Si none aplica, usar el card_last_digits del encabezado principal
-
-Fallback a nivel de encabezado:
-- "card_last_digits": primer identificador de tarjeta del archivo (CSV/XLSX: extraer de "terminada en XXXX", PDF: [TARJETA_LAST4: XXXX])
-- "card_type": tipo de tarjeta del encabezado (Visa, Mastercard, etc.)
+IMPORTANTE: En lugar de card_last4, ahora UKILIZÁ estos campos:
+  - "card": tipo de tarjeta (Visa, Mastercard, etc.) del header
+  - "bank": banco emisor del header
+  - "person": primer nombre del titular del header
 
 ── FECHAS DE CIERRE DEL RESUMEN ─────────────────────────────────────────
 También debés extraer las fechas de cierre del resumen bancario:

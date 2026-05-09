@@ -112,15 +112,17 @@ def _normalize_santander_dates(text: str) -> str:
     return "\n".join(result_lines)
 
 
+_tarjeta_re = re.compile(r'TARJETA\s+TERMINADA\s+EN\s+(\d{4})', re.IGNORECASE)
+_socio_re = re.compile(r'SOCIO\s*N[°]?\s*(\d+)', re.IGNORECASE)
+_cuenta_re = re.compile(r'CUENTA\s*N[°]?\s*(\d+)', re.IGNORECASE)
+
 def _inject_card_markers(text: str) -> str:
-    _tarjeta_re = re.compile(r'\bTarjeta\s+(\d{4})\b', re.IGNORECASE)
-    _socio_re = re.compile(r'(?:N[°º\xba]?\s*(?:°|º)?\s*)?(?:de\s+)?socio\s*:\s*([0-9][0-9\-]+[0-9])', re.IGNORECASE)
-    _cuenta_re = re.compile(r'(?:N[°º\xba]?\s*(?:°|º)?\s*)?(?:de\s+)?[Cc]uenta\s*:\s*([0-9][0-9\-]+[0-9])')
-
-    has_tarjeta_lines = bool(_tarjeta_re.search(text))
-
+    """Inyecta marcadores temporales de last4 para el parsing del LLM.
+    Estos marcadores se usan SOLO durante el parseo y NO se guardan en la DB."""
     lines = text.split('\n')
     out = []
+    has_tarjeta_lines = bool(_tarjeta_re.search(text))
+
     for line in lines:
         out.append(line)
         s = line.strip()
@@ -143,32 +145,5 @@ def _inject_card_markers(text: str) -> str:
 
 
 def _inject_csv_card_markers(text: str) -> str:
-    _card_re = re.compile(r'terminada\s+en\s+(\d{4})', re.IGNORECASE)
-    lines = text.split('\n')
-    out = []
-    current_last4 = None
-    for line in lines:
-        s = line.strip()
-        m = _card_re.search(s)
-        if m:
-            current_last4 = m.group(1)
-            out.append(line)
-            out.append(f'[TARJETA_LAST4: {current_last4}]')
-            continue
-        marker_match = re.search(r'\[TARJETA_LAST4:\s*(\d{4})\]', s)
-        if marker_match:
-            current_last4 = marker_match.group(1)
-            out.append(line)
-            continue
-        is_header = (
-            not s
-            or s == 'NaN'
-            or 'NaN' in s and len(s) < 50
-            or re.match(r'^(Fecha|Description|Monto|Tarjeta|Subtotal|Total Últimos|Total de|Total Pago|Unnamed)', s, re.IGNORECASE)
-            or re.match(r'^(Unnamed:|\s)*$', s)
-        )
-        if current_last4 and not is_header:
-            out.append(f'[CARD:{current_last4}] {line}')
-        else:
-            out.append(line)
-    return '\n'.join(out)
+    """Eliminado - markers de ultimos 4 digitos ya no necesarios"""
+    return text
