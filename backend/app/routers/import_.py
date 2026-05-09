@@ -493,7 +493,6 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
     cats = db.query(Category).all()
 
     user_cards = db.query(Card).filter(Card.user_id == current_user.id).all()
-    card_bank_map = {c.last4_digits: _normalize_bank(c.bank) for c in user_cards if c.last4_digits}
 
     parsed = []
     for r in rows_raw:
@@ -528,14 +527,6 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
         row_card   = str(r.get("card",   "") or "").strip() or fallback_card
         row_bank   = str(r.get("bank",   "") or "").strip() or fallback_bank
         row_person = str(r.get("person", "") or "").strip() or fallback_person
-        row_last4  = (str(r.get("card_last4") or "").strip()[:4]
-                      or closing_info["card_last_digits"][:4]
-                      or _pdf_last4_fallback)
-        llm_bank = str(r.get("bank", "") or "").strip() or fallback_bank
-        if row_last4 and row_last4 in card_bank_map:
-            row_bank = card_bank_map[row_last4]
-        else:
-            row_bank = llm_bank
         parsed.append({
             "date": raw_date,
             "_date_obj": row_date,
@@ -545,7 +536,6 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
             "card": row_card,
             "bank": row_bank,
             "person": row_person,
-            "card_last4": row_last4,
             "transaction_id": txn_id,
             "installment_number": inst_num,
             "installment_total": inst_total,
@@ -617,7 +607,6 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
 def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     cats = db.query(Category).all()
     user_cards = db.query(Card).filter(Card.user_id == current_user.id).all()
-    card_bank_map = {c.last4_digits: _normalize_bank(c.bank) for c in user_cards if c.last4_digits}
     imported = 0
     skipped = 0
 
@@ -654,8 +643,7 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
                 inst_num = inst_total = None
 
             txn_id = str(r.get("transaction_id") or "").strip() or None
-            row_last4 = str(r.get("card_last4") or "").strip()[:4] or None
-            if _is_duplicate(db, parsed_date, amount, desc, txn_id, inst_num, inst_total, row_last4):
+            if _is_duplicate(db, parsed_date, amount, desc, txn_id, inst_num, inst_total, None):
                 skipped += 1
                 continue
 
@@ -663,8 +651,6 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
             currency = "USD" if raw_currency == "USD" else "ARS"
             category_id = _resolve_category(db, amount, desc, cats)
             norm_bank = _normalize_bank(str(r.get("bank", "") or ""))
-            if row_last4 and row_last4 in card_bank_map:
-                norm_bank = card_bank_map[row_last4]
             norm_person = _normalize_person(str(r.get("person", "") or ""), db)
 
             db.add(Expense(
@@ -676,7 +662,6 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
                 card=str(r.get("card", "") or ""),
                 bank=norm_bank,
                 person=norm_person,
-                card_last4=row_last4,
                 transaction_id=txn_id,
                 installment_number=inst_num,
                 installment_total=inst_total,
@@ -684,22 +669,28 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
                 user_id=current_user.id,
             ))
 
-            # Auto-create card if not exists
+            # Auto-create card if not exists (deduplicate by bank + name + holder)
             row_card_name = str(r.get("card", "") or "").strip()
-            if row_last4 and row_card_name:
+            if row_card_name:
                 existing_card = next(
-                    (c for c in user_cards if c.last4_digits == row_last4 and c.name.lower() == row_card_name.lower()), None
+                    (c for c in user_cards 
+                     if c.name.lower() == row_card_name.lower() 
+                     and c.bank.lower() == norm_bank.lower()
+                     and c.holder.lower() == norm_person.lower()), None
                 )
-                if not existing_card:
+                if existing_card:
+                    if existing_card.name.lower() != row_card_name.lower():
+                        existing_card.name = row_card_name
+                else:
                     new_card = Card(
                         name=row_card_name,
                         bank=norm_bank,
-                        last4_digits=row_last4,
-                        card_type="credito",  # default a credito
+                        holder=norm_person,
+                        card_type="credito",
                         user_id=current_user.id,
                     )
                     db.add(new_card)
-                    user_cards.append(new_card)  # agregar a la lista para próximos gastos
+                    user_cards.append(new_card)
 
             imported += 1
         except Exception:

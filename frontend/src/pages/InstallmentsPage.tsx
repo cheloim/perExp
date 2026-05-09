@@ -74,7 +74,6 @@ const CARD_GRADIENTS = [
 interface CardEntry {
   key: string
   card: string
-  card_last4: string
   bank: string
   person: string
   pendingTotal: number
@@ -145,12 +144,12 @@ export default function InstallmentsPage() {
     return g.next_date.startsWith(currentMonth) && g.remaining_installments === 1
   }).length
 
-  // Build card entries — group by last4+bank+person only (card name varies by import)
+  // Build card entries — group by bank+person only (card name varies by import)
   const cardMap = new Map<string, CardEntry>()
   for (const g of activeGroups) {
-    const key = `${g.card_last4}|${g.bank}|${g.person}`
+    const key = `${g.bank}|${g.person}`
     if (!cardMap.has(key)) {
-      cardMap.set(key, { key, card: g.card, card_last4: g.card_last4, bank: g.bank, person: g.person, pendingTotal: 0, currency: g.currency })
+      cardMap.set(key, { key, card: g.card, bank: g.bank, person: g.person, pendingTotal: 0, currency: g.currency })
     }
     cardMap.get(key)!.pendingTotal += g.installment_amount * g.remaining_installments
   }
@@ -166,7 +165,7 @@ export default function InstallmentsPage() {
   const filtered = groups.filter(g => {
     if (!showCompleted && g.remaining_installments === 0) return false
     if (bankFilter && g.bank !== bankFilter) return false
-    if (activeCard && (`${g.card_last4}|${g.bank}|${g.person}`) !== activeCard.key) return false
+    if (activeCard && (`${g.bank}|${g.person}`) !== activeCard.key) return false
     return true
   })
 

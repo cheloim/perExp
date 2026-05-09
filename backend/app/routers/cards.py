@@ -13,14 +13,14 @@ router = APIRouter(prefix="/cards", tags=["cards"])
 class CardCreate(BaseModel):
     name: str
     bank: str = ""
-    last4_digits: str | None = None
+    holder: str = ""
     card_type: str = "credito"  # credito, debito
 
 
 class CardUpdate(BaseModel):
     name: str | None = None
     bank: str | None = None
-    last4_digits: str | None = None
+    holder: str | None = None
     card_type: str | None = None
 
 
@@ -28,7 +28,7 @@ class CardResponse(BaseModel):
     id: int
     name: str
     bank: str
-    last4_digits: str | None
+    holder: str
     card_type: str
     user_id: int
     created_at: datetime
@@ -82,7 +82,7 @@ def create_card(
     db_card = Card(
         name=name,
         bank=bank,
-        last4_digits=card.last4_digits,
+        holder=card.holder or "",
         card_type=card.card_type,
         user_id=current_user.id,
     )

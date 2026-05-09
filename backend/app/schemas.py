@@ -86,7 +86,7 @@ class CardSimple(BaseModel):
     id: int
     name: str
     bank: str
-    last4_digits: Optional[str] = None
+    holder: str = ""
     card_type: str
     model_config = {"from_attributes": True}
 
@@ -106,7 +106,6 @@ class ExpenseCreate(BaseModel):
     installment_number: Optional[int] = None
     installment_total: Optional[int] = None
     installment_group_id: Optional[str] = None
-    card_last4: Optional[str] = None
     # New structured fields
     account_id: Optional[int] = None
     card_id: Optional[int] = None
@@ -140,7 +139,6 @@ class ExpenseUpdate(BaseModel):
     installment_number: Optional[int] = None
     installment_total: Optional[int] = None
     installment_group_id: Optional[str] = None
-    card_last4: Optional[str] = None
     # New structured fields
     account_id: Optional[int] = None
     card_id: Optional[int] = None
@@ -162,7 +160,6 @@ class ExpenseResponse(BaseModel):
     installment_number: Optional[int] = None
     installment_total: Optional[int] = None
     installment_group_id: Optional[str] = None
-    card_last4: str = ""
     # Relations
     category: Optional[CategoryResponse] = None
     account_id: Optional[int] = None
@@ -171,7 +168,7 @@ class ExpenseResponse(BaseModel):
     card_rel: Optional[CardSimple] = None
     model_config = {"from_attributes": True}
 
-    @field_validator("card", "bank", "person", "notes", "currency", "card_last4", mode="before")
+    @field_validator("card", "bank", "person", "notes", "currency", mode="before")
     @classmethod
     def coerce_none(cls, v: object) -> str:
         return v if v is not None else ""

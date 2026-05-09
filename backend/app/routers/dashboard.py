@@ -20,7 +20,7 @@ from app.routers.groups import get_group_user_ids
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
-def _apply_filters(q, month_val, search_val, person_val, cat_id_val, last4_val=None, bank_val=None):
+def _apply_filters(q, month_val, search_val, person_val, cat_id_val, bank_val=None):
     if month_val:
         try:
             if '-' in month_val:
@@ -40,8 +40,6 @@ def _apply_filters(q, month_val, search_val, person_val, cat_id_val, last4_val=N
         q = q.filter(Expense.person.ilike(f"%{person_val}%"))
     if cat_id_val is not None:
         q = q.filter(Expense.category_id == cat_id_val)
-    if last4_val:
-        q = q.filter(Expense.card_last4 == last4_val)
     if bank_val:
         q = q.filter(Expense.bank.ilike(f"%{bank_val}%"))
     return q
@@ -54,14 +52,13 @@ def get_summary(
     search: Optional[str] = None,
     person: Optional[str] = None,
     category_id: Optional[int] = None,
-    card_last4: Optional[str] = None,
     bank: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     uid_list = get_group_user_ids(current_user.id, db)
     base_q = db.query(Expense).filter(Expense.user_id.in_(uid_list))
-    expenses = _apply_filters(base_q, month, search, person, category_id, card_last4, bank).order_by(desc(Expense.date)).all()
+    expenses = _apply_filters(base_q, month, search, person, category_id, bank).order_by(desc(Expense.date)).all()
     categories = db.query(Category).all()
     cat_map = {c.id: c for c in categories}
     total = sum(e.amount for e in expenses)
@@ -92,7 +89,7 @@ def get_summary(
             y, m = int(month[:4]), int(month[5:7])
             pm = m - 1 if m > 1 else 12
             py = y if m > 1 else y - 1
-            prev_expenses = _apply_filters(base_q, f"{py}-{pm:02d}", search, None, category_id, card_last4, bank).all()
+            prev_expenses = _apply_filters(base_q, f"{py}-{pm:02d}", search, None, category_id, bank).all()
             for e in prev_expenses:
                 cname = cat_map[e.category_id].name if e.category_id in cat_map else "Sin categoría"
                 if cname in by_category:
@@ -222,7 +219,6 @@ def get_installments_dashboard(db: Session = Depends(get_db), current_user: User
                 "bank": e.bank or "",
                 "person": e.person or "",
                 "currency": e.currency or "ARS",
-                "card_last4": e.card_last4 or "",
                 "card": e.card or "",
             }
         groups[gid]["installments_paid"] += 1
@@ -251,7 +247,6 @@ def get_installments_dashboard(db: Session = Depends(get_db), current_user: User
             "bank": g["bank"],
             "person": g["person"],
             "currency": g["currency"],
-            "card_last4": g["card_last4"],
             "card": g["card"],
         })
 
@@ -320,7 +315,6 @@ def get_top_merchants(
     month: Optional[str] = None,
     person: Optional[str] = None,
     bank: Optional[str] = None,
-    card_last4: Optional[str] = None,
     limit: int = 20,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -337,8 +331,6 @@ def get_top_merchants(
         q = q.filter(Expense.person.ilike(f"%{person}%"))
     if bank:
         q = q.filter(Expense.bank.ilike(f"%{bank}%"))
-    if card_last4:
-        q = q.filter(Expense.card_last4 == card_last4)
 
     expenses = q.filter(Expense.amount > 0).all()
     cat_list = db.query(Category).all()
@@ -395,17 +387,13 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
         card_str = (e.card or "").strip()
         network = _card_network(card_str)
         holder = _norm_holder(e.person)
-        last4 = (e.card_last4 or "").strip()
-        if not last4:
-            m4 = re.search(r'\d{4}$', card_str)
-            last4 = m4.group() if m4 else ""
-        key = f"{bank}|{network}|last4:{last4}" if last4 else f"{bank}|{network}|holder:{holder}"
+        key = f"{bank}|{network}|holder:{holder}" if holder else f"{bank}|{network}|card:{card_str}"
         month_key = e.date.strftime('%Y-%m') if e.date else "1970-01"
 
         if key not in by_card:
             by_card[key] = {
                 "bank": bank, "network": network,
-                "card_names": {}, "holders": {}, "last4s": {},
+                "card_names": {}, "holders": {},
                 "total_amount": 0.0, "count": 0,
                 "currency": e.currency or "ARS", "last_used": None,
             }
@@ -417,8 +405,6 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
         g["card_names"][card_str] = g["card_names"].get(card_str, 0) + 1
         if holder:
             g["holders"][holder] = g["holders"].get(holder, 0) + 1
-        if last4:
-            g["last4s"][last4] = g["last4s"].get(last4, 0) + 1
         if not g["last_used"] or e.date > g["last_used"]:
             g["last_used"] = e.date
         by_card_monthly[key][month_key] = by_card_monthly[key].get(month_key, 0.0) + e.amount
@@ -475,8 +461,6 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
                     gr["card_names"][cn] = gr["card_names"].get(cn, 0) + c
                 for h, c in gm["holders"].items():
                     gr["holders"][h] = gr["holders"].get(h, 0) + c
-                for l4, c in gm["last4s"].items():
-                    gr["last4s"][l4] = gr["last4s"].get(l4, 0) + c
                 if gm["last_used"] and (not gr["last_used"] or gm["last_used"] > gr["last_used"]):
                     gr["last_used"] = gm["last_used"]
                 for mk, v in by_card_monthly.get(m, {}).items():
@@ -488,7 +472,6 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
     for key, g in by_card.items():
         card_name = max(g["card_names"], key=lambda n: (g["card_names"][n], len(n))) if g["card_names"] else g["network"].title()
         holder = max(g["holders"], key=g["holders"].get) if g["holders"] else ""
-        last4 = max(g["last4s"], key=g["last4s"].get) if g["last4s"] else ""
 
         monthly = by_card_monthly.get(key, {})
         months_list = sorted(monthly.keys(), reverse=True)[:12]
@@ -498,7 +481,7 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
 
         result.append({
             "holder": holder, "bank": g["bank"],
-            "last4": last4, "card_name": card_name,
+            "card_name": card_name,
             "card_type": card_type,
             "total_amount": g["total_amount"], "count": g["count"],
             "currency": g["currency"],
@@ -512,7 +495,6 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
 @router.get("/card-category-breakdown")
 def get_card_category_breakdown(
     month: Optional[str] = None,
-    card_last4: Optional[str] = None,
     bank: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -538,8 +520,6 @@ def get_card_category_breakdown(
             )
         except (ValueError, IndexError):
             pass
-    if card_last4:
-        q = q.filter(Expense.card_last4 == card_last4)
     if bank:
         q = q.filter(Expense.bank.ilike(f"%{bank}%"))
 

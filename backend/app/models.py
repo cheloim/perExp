@@ -81,7 +81,7 @@ class Card(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)  # Visa, Mastercard, etc
     bank = Column(String, default="")
-    last4_digits = Column(String(4), nullable=True)
+    holder = Column(String, default="")  # Nombre del titular
     card_type = Column(String, default="credito")  # credito, debito
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -104,7 +104,6 @@ class Expense(Base):
     installment_number = Column(Integer, nullable=True)
     installment_total = Column(Integer, nullable=True)
     installment_group_id = Column(String, nullable=True, index=True)
-    card_last4 = Column(String(4), nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
     # New structured fields
@@ -176,7 +175,6 @@ with engine.connect() as _conn:
         ("installment_number", "INTEGER"),
         ("installment_total", "INTEGER"),
         ("installment_group_id", "VARCHAR"),
-        ("card_last4", "VARCHAR(4)"),
         ("user_id", "INTEGER REFERENCES users(id)"),
         ("group_id", "INTEGER REFERENCES groups(id)"),
         ("account_id", "INTEGER REFERENCES accounts(id)"),
@@ -224,4 +222,7 @@ with engine.connect() as _conn:
     ]:
         if _col not in _user_cols:
             _conn.execute(sa_text(f"ALTER TABLE users ADD COLUMN {_col} {_type}"))
+    _card_cols = [c["name"] for c in inspect(engine).get_columns("cards")]
+    if "holder" not in _card_cols:
+        _conn.execute(sa_text("ALTER TABLE cards ADD COLUMN holder VARCHAR DEFAULT ''"))
     _conn.commit()

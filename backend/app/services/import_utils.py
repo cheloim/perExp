@@ -41,11 +41,7 @@ def _is_duplicate(
     transaction_id: Optional[str] = None,
     installment_number: Optional[int] = None,
     installment_total: Optional[int] = None,
-    card_last4: Optional[str] = None,
 ) -> bool:
-    # When a comprobante is present, use it as the authoritative key.
-    # Argentine statements share the same transaction_id across all installments of a purchase,
-    # so for installment rows the composite (txn_id, inst_num, inst_total) is the unique key.
     if transaction_id:
         if installment_number and installment_total and installment_total >= 2:
             return db.query(Expense).filter(
@@ -55,7 +51,6 @@ def _is_duplicate(
             ).first() is not None
         return db.query(Expense).filter(Expense.transaction_id == transaction_id).first() is not None
 
-    # No transaction_id: fall back to installment-slot check then date/amount/desc.
     if installment_number and installment_total and installment_total >= 2:
         month_start = exp_date.replace(day=1)
         next_month = month_start.replace(day=28) + timedelta(days=4)
@@ -67,8 +62,6 @@ def _is_duplicate(
             Expense.date >= month_start,
             Expense.date <= month_end,
         )
-        if card_last4:
-            q = q.filter(Expense.card_last4 == card_last4)
         if q.first():
             return True
 
@@ -79,8 +72,6 @@ def _is_duplicate(
     )
     if installment_number is not None:
         q = q.filter(Expense.installment_number == installment_number)
-    if card_last4:
-        q = q.filter(Expense.card_last4 == card_last4)
     return q.first() is not None
 
 
@@ -102,7 +93,7 @@ def _expand_installments(parsed: list, db: Session) -> list:
         if txn_id:
             key = (r["description"].lower(), inst_total, txn_id)
         else:
-            key = (r["description"].lower(), inst_total, base_date.strftime("%Y-%m"), r.get("card_last4") or "")
+            key = (r["description"].lower(), inst_total, base_date.strftime("%Y-%m"), r.get("person") or "")
         groups[key].append((r, base_date))
 
     extra: list = []
@@ -114,7 +105,6 @@ def _expand_installments(parsed: list, db: Session) -> list:
         desc_lower = template["description"].lower()
         inst_total = template.get("installment_total")
         txn_id = template.get("transaction_id") or ""
-        card_last4 = template.get("card_last4") or ""
 
         group_id = hashlib.md5("|".join(str(k) for k in key).encode()).hexdigest()[:12]
 
@@ -138,8 +128,7 @@ def _expand_installments(parsed: list, db: Session) -> list:
                 continue
             if _is_duplicate(db, charge_date, template["amount"], template["description"],
                              transaction_id=txn_id or None,
-                             installment_number=i, installment_total=inst_total,
-                             card_last4=card_last4 or None):
+                             installment_number=i, installment_total=inst_total):
                 continue
             generated.add(gen_key)
             extra.append({
@@ -151,7 +140,6 @@ def _expand_installments(parsed: list, db: Session) -> list:
                 "card": template.get("card", ""),
                 "bank": template.get("bank", ""),
                 "person": template.get("person", ""),
-                "card_last4": card_last4,
                 "transaction_id": txn_id or None,
                 "installment_number": i,
                 "installment_total": inst_total,
@@ -170,8 +158,7 @@ def _expand_installments(parsed: list, db: Session) -> list:
                 continue
             if _is_duplicate(db, charge_date, template["amount"], template["description"],
                              transaction_id=txn_id or None,
-                             installment_number=i, installment_total=inst_total,
-                             card_last4=card_last4 or None):
+                             installment_number=i, installment_total=inst_total):
                 continue
             generated.add(gen_key)
             extra.append({
@@ -183,7 +170,6 @@ def _expand_installments(parsed: list, db: Session) -> list:
                 "card": template.get("card", ""),
                 "bank": template.get("bank", ""),
                 "person": template.get("person", ""),
-                "card_last4": card_last4,
                 "transaction_id": txn_id or None,
                 "installment_number": i,
                 "installment_total": inst_total,

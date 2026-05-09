@@ -34,11 +34,21 @@ def main():
     expenses_n      = count(cur, "expenses")
     history_n       = count(cur, "analysis_history")
     categories_n    = count(cur, "categories")
+    cards_n         = count(cur, "cards")
+    accounts_n      = count(cur, "accounts")
+    card_closings_n = count(cur, "card_closings")
+    investments_n   = count(cur, "investments")
+    notifications_n = count(cur, "notifications")
 
     print("─" * 40)
     print(f"  expenses:         {expenses_n:>6} filas")
     print(f"  analysis_history: {history_n:>6} filas")
     print(f"  categories:       {categories_n:>6} filas {'← se borrará' if delete_categories else '← se conserva'}")
+    print(f"  cards:           {cards_n:>6} filas")
+    print(f"  accounts:        {accounts_n:>6} filas")
+    print(f"  card_closings:   {card_closings_n:>6} filas")
+    print(f"  investments:     {investments_n:>6} filas")
+    print(f"  notifications:   {notifications_n:>6} filas")
     print("─" * 40)
 
     if dry_run:
@@ -54,6 +64,11 @@ def main():
 
     cur.execute("DELETE FROM expenses")
     cur.execute("DELETE FROM analysis_history")
+    cur.execute("DELETE FROM cards")
+    cur.execute("DELETE FROM accounts")
+    cur.execute("DELETE FROM card_closings")
+    cur.execute("DELETE FROM investments")
+    cur.execute("DELETE FROM notifications")
     if delete_categories:
         cur.execute("DELETE FROM categories")
 
@@ -63,6 +78,11 @@ def main():
     print("Listo.")
     print(f"  expenses borrados:         {expenses_n}")
     print(f"  analysis_history borrados: {history_n}")
+    print(f"  cards borradas:           {cards_n}")
+    print(f"  accounts borrados:        {accounts_n}")
+    print(f"  card_closings borrados:   {card_closings_n}")
+    print(f"  investments borrados:     {investments_n}")
+    print(f"  notifications borradas:   {notifications_n}")
     if delete_categories:
         print(f"  categories borradas:       {categories_n}")
 

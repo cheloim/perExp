@@ -60,7 +60,7 @@ export interface Card {
   id: number
   name: string
   bank: string
-  last4_digits: string | null
+  holder: string
   card_type: string
   user_id: number
   created_at: string
@@ -84,7 +84,6 @@ export interface Expense {
   installment_number?: number | null
   installment_total?: number | null
   installment_group_id?: string | null
-  card_last4?: string
   // New structured fields
   account_id?: number | null
   card_id?: number | null
@@ -107,7 +106,6 @@ export interface ExpenseCreate {
   installment_number?: number | null
   installment_total?: number | null
   installment_group_id?: string | null
-  card_last4?: string
   // New structured fields
   account_id?: number | null
   card_id?: number | null
@@ -183,15 +181,14 @@ export interface InstallmentGroup {
   bank: string
   person: string
   currency: string
-  card_last4: string
   card: string
 }
 
 export interface CardSummary {
   holder: string
   bank: string
-  last4: string
   card_name: string
+  card_type: string
   total_amount: number
   count: number
   currency: string
@@ -235,7 +232,6 @@ export interface SmartImportRow {
   card: string
   bank: string
   person: string
-  card_last4?: string
   transaction_id: string | null
   installment_number: number | null
   installment_total: number | null
@@ -246,7 +242,6 @@ export interface SmartImportRow {
 }
 
 export interface ImportSummary {
-  card_last4: string
   card_type: string
   bank: string
   closing_date: string | null
