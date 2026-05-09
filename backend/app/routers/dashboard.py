@@ -64,11 +64,20 @@ def get_summary(
     total = sum(e.amount for e in expenses)
 
     # Calcular total_by_account (excluir gastos con tarjetas de credito)
-    credit_card_ids = {c.id for c in db.query(Card).filter(Card.user_id.in_(uid_list), Card.card_type == "credito").all()}
-    total_by_account = sum(
-        e.amount for e in expenses
-        if not (e.card_id and e.card_id in credit_card_ids)
-    )
+    credit_cards = db.query(Card).filter(Card.user_id.in_(uid_list), Card.card_type == "credito").all()
+    credit_card_ids = {c.id for c in credit_cards}
+    credit_card_names = {c.name.lower() for c in credit_cards}
+    
+    def is_credit_card_expense(e: Expense) -> bool:
+        if e.card_id and e.card_id in credit_card_ids:
+            return True
+        if e.card:
+            card_lower = e.card.lower()
+            if any(cn in card_lower for cn in credit_card_names):
+                return True
+        return False
+    
+    total_by_account = sum(e.amount for e in expenses if not is_credit_card_expense(e))
 
     by_category: dict = {}
     for e in expenses:
@@ -196,6 +205,61 @@ def get_summary(
             "future_installments": trend_future,
         },
     }
+
+
+@router.get("/account-expenses")
+def get_account_expenses(
+    month: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    uid_list = get_group_user_ids(current_user.id, db)
+    base_q = db.query(Expense).filter(Expense.user_id.in_(uid_list))
+    
+    if month:
+        try:
+            y, m = int(month[:4]), int(month[5:7])
+            base_q = base_q.filter(Expense.date >= date(y, m, 1), Expense.date <= date(y, m, monthrange(y, m)[1]))
+        except (ValueError, IndexError):
+            pass
+    
+    expenses = base_q.order_by(Expense.date).all()
+    
+    credit_cards = db.query(Card).filter(Card.user_id.in_(uid_list), Card.card_type == "credito").all()
+    credit_card_ids = {c.id for c in credit_cards}
+    credit_card_names = {c.name.lower() for c in credit_cards}
+    
+    def is_credit_card_expense(e: Expense) -> bool:
+        if e.card_id and e.card_id in credit_card_ids:
+            return True
+        if e.card:
+            card_lower = e.card.lower()
+            if any(cn in card_lower for cn in credit_card_names):
+                return True
+        return False
+    
+    cat_map = {c.id: c for c in db.query(Category).all()}
+    
+    result = []
+    for e in expenses:
+        if is_credit_card_expense(e):
+            continue
+        cat = cat_map.get(e.category_id) if e.category_id else None
+        result.append({
+            "id": e.id,
+            "date": e.date.isoformat(),
+            "description": e.description,
+            "amount": e.amount,
+            "currency": e.currency or "ARS",
+            "category_id": e.category_id,
+            "category_name": cat.name if cat else None,
+            "category_color": cat.color if cat else None,
+            "card": e.card or "",
+            "bank": e.bank or "",
+            "person": e.person or "",
+        })
+    
+    return result
 
 
 @router.get("/installments")

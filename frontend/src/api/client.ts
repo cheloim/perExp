@@ -176,6 +176,21 @@ export const getScheduledSummary = () =>
     }[]
   }>('/dashboard/scheduled-summary').then((r) => r.data)
 
+export const getAccountExpenses = (month?: string) =>
+  api.get<{
+    id: number
+    date: string
+    description: string
+    amount: number
+    currency: string
+    category_id: number | null
+    category_name: string | null
+    category_color: string | null
+    card: string
+    bank: string
+    person: string
+  }[]>('/dashboard/account-expenses', { params: month ? { month } : undefined }).then((r) => r.data)
+
 export const getScheduledExpenses = async (params?: {
   status?: string
   installment_group_id?: string

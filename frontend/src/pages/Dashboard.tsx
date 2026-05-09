@@ -5,7 +5,7 @@ import {
   AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
-import { getDashboard, getCardSummary, getExpenses, getScheduledSummary } from '../api/client'
+import { getDashboard, getCardSummary, getExpenses, getScheduledSummary, getAccountExpenses } from '../api/client'
 
 const MONTHS_ES_LONG = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
@@ -164,8 +164,8 @@ export default function Dashboard() {
 
   // Expenses for the full selected month (used for balance evolution chart)
   const { data: areaExpenses = [] } = useQuery({
-    queryKey: ['expenses-month-chart', month],
-    queryFn: () => getExpenses({ month, limit: 1000 }),
+    queryKey: ['account-expenses-chart', month],
+    queryFn: () => getAccountExpenses(month),
   })
 
   // Expenses for 7-day transaction list
