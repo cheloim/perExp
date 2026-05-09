@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getInvestments } from '../api/client'
 import { usePanelWidth } from '../context/PanelWidthContext'
 import type { Investment } from '../types'
+import { ConfirmDialog } from './ConfirmDialog'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -241,7 +242,7 @@ function SessionCard({
           <p className="text-xs text-[var(--text-tertiary)]">{dateStr} · {userMsgs.length} preguntas</p>
         </div>
         <div className="flex items-center gap-2 ml-2 flex-shrink-0">
-          <button onClick={e => { e.stopPropagation(); if (confirm('¿Eliminar sesión?')) onDelete() }}
+          <button onClick={e => { e.stopPropagation(); onDelete() }}
             className="text-[var(--text-tertiary)] hover:text-[var(--color-danger)] text-sm transition-colors"><TrashIcon /></button>
           <span className="text-[var(--text-tertiary)] text-xs">{expanded ? '▲' : '▼'}</span>
         </div>
@@ -294,6 +295,7 @@ export default function InvestmentsAssistant() {
   const [summarizing, setSummarizing] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [expandedId, setExpandedId]   = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [floatingOpen, setFloatingOpen] = useState(false)
 
   const { panelWidth: contextWidth, isCollapsed: contextCollapsed, setPanelWidth, setIsCollapsed } = usePanelWidth()
@@ -442,7 +444,13 @@ export default function InvestmentsAssistant() {
     setShowHistory(false)
   }
 
-  const deleteSession = (id: string) => {
+  const confirmDelete = (id: string) => {
+    setDeleteConfirm(id)
+  }
+
+  const deleteSession = () => {
+    const id = deleteConfirm
+    if (!id) return
     setSessions(prev => {
       const next = prev.filter(s => s.id !== id)
       saveSessions(next)
@@ -457,6 +465,7 @@ export default function InvestmentsAssistant() {
         startNewSession()
       }
     }
+    setDeleteConfirm(null)
   }
 
   // ── Shared JSX fragments ────────────────────────────────────────────────────
@@ -518,7 +527,7 @@ export default function InvestmentsAssistant() {
             session={s}
             expanded={expandedId === s.id}
             onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)}
-            onDelete={() => deleteSession(s.id)}
+            onDelete={() => confirmDelete(s.id)}
             />
         ))
       )}
@@ -605,6 +614,17 @@ export default function InvestmentsAssistant() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteConfirm !== null}
+        title="Eliminar sesión"
+        message="¿Estás seguro de que quieres eliminar esta sesión? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        onConfirm={deleteSession}
+        onCancel={() => setDeleteConfirm(null)}
+        variant="danger"
+      />
     </>
   )
 }

@@ -118,6 +118,7 @@ def _expand_installments(parsed: list, db: Session) -> list:
 
         group_id = hashlib.md5("|".join(str(k) for k in key).encode()).hexdigest()[:12]
 
+        inst_num = template.get("installment_number")
         present_nums: set = set()
         for r, _ in entries:
             r["installment_group_id"] = group_id
@@ -126,7 +127,40 @@ def _expand_installments(parsed: list, db: Session) -> list:
                 else (desc_lower, r["installment_number"], inst_total, r.get("_date_obj").strftime("%Y-%m") if r.get("_date_obj") else "")
             generated.add(gen_key)
 
-        for i in range(1, inst_total + 1):
+        # Generate past installments (retrasados)
+        for i in range(1, inst_num):
+            if i in present_nums:
+                continue
+            charge_date = add_months(base_date, i - 1)
+            gen_key = (desc_lower, i, inst_total, txn_id) if txn_id \
+                else (desc_lower, i, inst_total, charge_date.strftime("%Y-%m"))
+            if gen_key in generated:
+                continue
+            if _is_duplicate(db, charge_date, template["amount"], template["description"],
+                             transaction_id=txn_id or None,
+                             installment_number=i, installment_total=inst_total,
+                             card_last4=card_last4 or None):
+                continue
+            generated.add(gen_key)
+            extra.append({
+                "date": charge_date.strftime("%d-%m-%Y"),
+                "_date_obj": charge_date,
+                "description": template["description"],
+                "amount": template["amount"],
+                "currency": template.get("currency", "ARS"),
+                "card": template.get("card", ""),
+                "bank": template.get("bank", ""),
+                "person": template.get("person", ""),
+                "card_last4": card_last4,
+                "transaction_id": txn_id or None,
+                "installment_number": i,
+                "installment_total": inst_total,
+                "installment_group_id": group_id,
+                "_auto_generated": True,
+            })
+
+        # Generate future installments (already existing behavior)
+        for i in range(inst_num + 1, inst_total + 1):
             if i in present_nums:
                 continue
             charge_date = add_months(base_date, i - 1)

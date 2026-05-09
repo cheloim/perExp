@@ -179,8 +179,8 @@ function CardNetworkLogo({ network }: { network: CardNetwork }) {
 }
 
 
-function CreditCardViz({ cardName, bank, monthly, active, onClick, index, filterMonth }: {
-  cardName: string; bank: string; monthly?: { month: string; total: number }[];
+function CreditCardViz({ cardName, holder, bank, monthly, active, onClick, index, filterMonth }: {
+  cardName: string; holder?: string; bank: string; monthly?: { month: string; total: number }[];
   active: boolean; onClick: () => void; index: number; filterMonth: string;
 }) {
   const network = detectNetwork(cardName)
@@ -189,14 +189,15 @@ function CreditCardViz({ cardName, bank, monthly, active, onClick, index, filter
   const [dispY, dispM] = filterMonth.split('-')
   const monthLabel = `${MONTHS_ES[parseInt(dispM) - 1]} ${dispY}`
   const gradientColors = [
-    'from-gnomeBlue4 to-gnomePurple4',
-    'from-gnomeGreen4 to-gnomeBlue4',
-    'from-gnomeOrange4 to-gnomeRed4',
-    'from-gnomePurple4 to-gnomeRed4',
-    'from-gnomeBlue5 to-gnomeBlue3',
-    'from-gnomeYellow5 to-gnomeOrange3',
+    'from-gnomeBlue5 to-gnomeBlue4',
+    'from-gnomeGreen5 to-gnomeGreen4',
+    'from-gnomePurple5 to-gnomePurple4',
+    'from-gnomeOrange5 to-gnomeOrange4',
+    'from-gnomeDark2 to-gnomeDark3',
+    'from-gnomeBlue4 to-gnomeBlue3',
   ]
   const color = gradientColors[index % gradientColors.length]
+  const firstName = holder ? holder.split(' ')[0] : ''
 
   return (
     <div
@@ -206,8 +207,8 @@ function CreditCardViz({ cardName, bank, monthly, active, onClick, index, filter
       {/* Top row: left = bank + card type, right = logo */}
       <div className="flex justify-between items-start gap-3">
         <div className="min-w-0">
-          <p className="text-primary/55 text-[11px] font-semibold tracking-widest uppercase">{bank || 'Banco'}</p>
-          <p className="text-primary text-sm font-bold tracking-wide mt-0.5 truncate">{cardName}</p>
+          <p className="text-white/60 text-[11px] font-semibold tracking-widest uppercase">{bank || 'Banco'}</p>
+          <p className="text-white text-sm font-bold tracking-wide mt-0.5 truncate">{firstName || cardName}</p>
         </div>
         <div className="flex-shrink-0">
           <CardNetworkLogo network={network} />
@@ -217,8 +218,8 @@ function CreditCardViz({ cardName, bank, monthly, active, onClick, index, filter
       {/* Month total */}
       <div className="mt-4 pt-3 border-t border-white/15 flex items-end justify-between">
         <div>
-          <p className="text-primary/50 text-[11px]">{monthLabel}</p>
-          <p className="text-primary font-bold text-xl leading-tight mt-0.5">{formatCurrency(monthTotal)}</p>
+          <p className="text-white/50 text-[11px]">{monthLabel}</p>
+          <p className="text-white font-bold text-xl leading-tight mt-0.5">{formatCurrency(monthTotal)}</p>
         </div>
         {/* Sparkline */}
         {monthly && monthly.length > 0 && (
@@ -590,6 +591,7 @@ export default function AccountsPage() {
                     key={ckey}
                     index={idx}
                     cardName={card.card_name}
+                    holder={card.holder}
                     bank={card.bank}
                     monthly={card.monthly}
                     active={activeCard === ckey}
@@ -1051,12 +1053,15 @@ export default function AccountsPage() {
                           </td>
                           {!selectMode && (
                             <td className="py-2 text-right">
-                              <div className="flex items-center justify-end gap-2">
+                              <div className="flex items-center justify-end gap-1">
                                 <button
                                   onClick={() => setEditing(exp)}
-                                  className="text-xs text-primary hover:brightness-110"
+                                  className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-primary hover:bg-[var(--color-base-alt)] transition"
+                                  title="Editar"
                                 >
-                                  Editar
+                                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                    <path d="M10.5 1.5l2 2-8 8H2.5v-2l8-8z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+                                  </svg>
                                 </button>
                                 <button
                                   onClick={() => {
@@ -1064,9 +1069,12 @@ export default function AccountsPage() {
                                       deleteMut.mutate(exp.id)
                                     }
                                   }}
-                                  className="text-xs text-danger hover:brightness-110"
+                                  className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-danger hover:bg-[var(--color-base-alt)] transition"
+                                  title="Eliminar"
                                 >
-                                  Eliminar
+                                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                    <path d="M3 4h8M5 4V3a1 1 0 011-1h2a1 1 0 011 1v1M4.5 4v7a1 1 0 001 1h3a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </svg>
                                 </button>
                               </div>
                             </td>

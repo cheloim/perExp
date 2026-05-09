@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import AIAssistant from './components/AIAssistant'
@@ -65,6 +65,18 @@ export default function App() {
     refetchInterval: 30000,
   })
   const unreadCount = unreadData?.count ?? 0
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (aiDrawerOpen) setAiDrawerOpen(false)
+        if (userPanelOpen) setUserPanelOpen(false)
+        if (notifOpen) setNotifOpen(false)
+      }
+    }
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [aiDrawerOpen, userPanelOpen, notifOpen])
 
   const toggleDrawer = (open: boolean) => {
     setAiDrawerOpen(open)

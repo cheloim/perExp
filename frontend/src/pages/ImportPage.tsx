@@ -371,12 +371,13 @@ export default function ImportPage() {
                     <th className="px-4 py-3 text-left">Fecha</th>
                     <th className="px-4 py-3 text-left">Descripción</th>
                     <th className="px-4 py-3 text-right">Monto</th>
-                    <th className="px-4 py-3 text-left">Categoría</th>
-                    <th className="px-4 py-3 text-left">Moneda</th>
-                    <th className="px-4 py-3 text-left">Comprobante</th>
                     <th className="px-4 py-3 text-left">Banco</th>
                     <th className="px-4 py-3 text-left">Tarjeta</th>
-                    <th className="px-4 py-3 text-left">Últimos 4</th>
+                    <th className="px-4 py-3 text-left">Titular</th>
+                    <th className="px-4 py-3 text-left">Moneda</th>
+                    <th className="px-4 py-3 text-left">Comprobante</th>
+                    <th className="px-4 py-3 text-left">Cuotas</th>
+                    <th className="px-4 py-3 text-left">Categoría</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-color">
@@ -398,28 +399,29 @@ export default function ImportPage() {
                           <span className="ml-1 text-primary text-xs">prev</span>
                         )}
                       </td>
-                      <td className="px-4 py-2 text-primary">
-                        <span className="flex items-center gap-1.5 flex-wrap">
-                          {row.description}
-                          {row.installment_number && row.installment_total && (
-                            <span className="text-xs bg-primary-subtle text-primary px-1.5 py-0.5 rounded whitespace-nowrap">
-                              {row.installment_number}/{row.installment_total}
-                            </span>
-                          )}
-                        </span>
+                      <td className="px-4 py-2 text-primary max-w-[200px] truncate" title={row.description}>
+                        {row.description}
                       </td>
                       <td className={`px-4 py-2 text-right font-medium ${row.amount < 0 ? 'text-success' : ''}`}>
                         {formatCurrency(row.amount, row.currency)}
                       </td>
-                      <td className="px-4 py-2 text-secondary">{row.suggested_category ?? <span className="text-tertiary">—</span>}</td>
+                      <td className="px-4 py-2 text-secondary">{row.bank || '—'}</td>
+                      <td className="px-4 py-2 text-secondary">{row.card || '—'}</td>
+                      <td className="px-4 py-2 text-primary font-medium">{row.person || '—'}</td>
                       <td className="px-4 py-2">
                         {row.currency === 'USD'
                           ? <span className="badge-success">USD</span>
                           : <span className="text-xs text-tertiary">ARS</span>}
                       </td>
                       <td className="px-4 py-2 text-tertiary font-mono text-xs">{row.transaction_id || '—'}</td>
-                      <td className="px-4 py-2 text-secondary">{row.bank || '—'}</td>
-                      <td className="px-4 py-2 text-secondary">{row.card || '—'}</td>
+                      <td className="px-4 py-2">
+                        {row.installment_number && row.installment_total ? (
+                          <span className="text-xs bg-primary-subtle text-primary px-1.5 py-0.5 rounded">
+                            {row.installment_number}/{row.installment_total}
+                          </span>
+                        ) : <span className="text-tertiary">—</span>}
+                      </td>
+                      <td className="px-4 py-2 text-secondary">{row.suggested_category ?? <span className="text-tertiary">—</span>}</td>
                     </tr>
                   ))}
                 </tbody>

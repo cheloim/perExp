@@ -452,20 +452,28 @@ export default function ExpensesPage() {
                       </td>
                       {!selectMode && (
                         <td className="px-4 py-3 text-center">
-                          <button
-                            onClick={() => { setEditingIsIncome(exp.amount < 0); setEditing(exp) }}
-                            className="text-[var(--color-primary)] hover:brightness-110 mr-3"
-                          >
-                            ✏️
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (confirm('¿Eliminar este gasto?')) deleteMut.mutate(exp.id)
-                            }}
-                            className="text-[var(--color-danger)] hover:brightness-110"
-                          >
-                            🗑️
-                          </button>
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => { setEditingIsIncome(exp.amount < 0); setEditing(exp) }}
+                              className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-primary hover:bg-[var(--color-base-alt)] transition"
+                              title="Editar"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                <path d="M10.5 1.5l2 2-8 8H2.5v-2l8-8z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (confirm('¿Eliminar este gasto?')) deleteMut.mutate(exp.id)
+                              }}
+                              className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-danger hover:bg-[var(--color-base-alt)] transition"
+                              title="Eliminar"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                <path d="M3 4h8M5 4V3a1 1 0 011-1h2a1 1 0 011 1v1M4.5 4v7a1 1 0 001 1h3a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            </button>
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -645,6 +653,14 @@ function DatePickerInput({ value, onChange }: { value: string; onChange: (d: str
 function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }: ExpenseModalProps) {
   const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: getCategories })
   const { data: cards = [] } = useQuery({ queryKey: ['cards'], queryFn: getCards })
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [onClose])
 
   const isCash = (card: string) => !card || card === 'Efectivo'
 

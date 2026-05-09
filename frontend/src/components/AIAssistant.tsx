@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getDashboardAITrends } from '../api/client'
 import type { AITrendsResponse } from '../types'
+import { ConfirmDialog } from './ConfirmDialog'
 
 interface ChatMessage {
   role: 'user' | 'assistant'
@@ -146,6 +147,7 @@ function SessionCard({
   const userMsgs = session.messages.filter(m => m.role === 'user')
   const preview  = userMsgs[0]?.text ?? '(sin mensajes)'
   const dateStr  = new Date(session.ts).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
 
   return (
     <div className={`rounded-md border overflow-hidden relative ${isActive ? 'border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5' : 'border-[var(--border-color)] bg-[var(--color-base-alt)]'}`}>
@@ -160,7 +162,7 @@ function SessionCard({
           <p className="text-xs text-[var(--text-tertiary)]">{dateStr} · {userMsgs.length} preguntas</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <button onClick={e => { e.stopPropagation(); if (confirm('¿Eliminar sesión?')) onDelete() }}
+          <button onClick={e => { e.stopPropagation(); setDeleteConfirm(true) }}
             className="text-[var(--text-tertiary)] hover:text-[var(--color-danger)] text-sm transition-colors"><TrashIcon /></button>
           <span className="text-[var(--text-tertiary)] text-xs">{expanded ? '▲' : '▼'}</span>
         </div>
@@ -184,6 +186,16 @@ function SessionCard({
           </div>
         </div>
       )}
+      <ConfirmDialog
+        isOpen={deleteConfirm}
+        title="Eliminar sesión"
+        message="¿Estás seguro de que quieres eliminar esta sesión? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        onConfirm={() => { setDeleteConfirm(false); onDelete() }}
+        onCancel={() => setDeleteConfirm(false)}
+        variant="danger"
+      />
     </div>
   )
 }

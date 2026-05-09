@@ -78,14 +78,16 @@ Por cada transacción devolvé un objeto JSON con exactamente estos campos:
 - "card": tipo de tarjeta del HEADER del extracto (ej: "Visa", "Mastercard", "Mastercard Black"). Poné el mismo valor en TODAS las transacciones del extracto. Si no figura, "".
 - "bank": banco emisor del HEADER (ej: "Galicia", "Santander", "Macro"). Poné el mismo valor en TODAS las transacciones. Si no figura, "".
   Para CSV/XLSX: buscá el nombre del banco en el nombre del archivo, en filas de cierre ("Fecha de cierre:", "Fecha de vencimiento:"), o en cualquier encabezado. Bancos esperados: "Santander", "Galicia", "Macro", "BBVA", "HSBC", "Ciudad", "ICBC", "Patagonia", "Supervielle". Si no lo identificás con certeza, "" (el backend lo resuelve desde la DB por card_last4).
-- "person": nombre del titular para esta transacción específica.
+- "person": SOLO el primer nombre del titular (sin apellido).
   • Los extractos pueden tener secciones separadas para tarjetas adicionales (ej: un bloque
     encabezado por "TARJETA ADICIONAL", "ADICIONAL", o directamente el nombre de otro titular).
     En ese caso, usá el nombre de ESA sección para las transacciones de ese bloque.
   • Para las transacciones sin sección adicional, usá el titular principal del HEADER.
-  • Devolvé el nombre EXACTAMENTE tal como figura en el PDF, sin modificarlo, completarlo ni expandirlo.
-    Si el PDF muestra "ZANONI, NATALIA LI", devolvé "ZANONI, NATALIA LI" — NO intentes completar el nombre.
-  • Si no figura ningún nombre, "".
+  • SOLO extraé el PRIMER NOMBRE, ignorá el apellido.
+    Ej: "ZANONI, NATALIA LI" → "NATALIA"
+    Ej: "PEREZ, JUAN" → "JUAN"
+    Ej: "Juan Perez" → "Juan"
+  • Si no hay nombre, "".
 - "transaction_id": código único de la operación. En el patrón "DD NNNNNN K/*/# descripcion monto", el NNNNNN ES el comprobante → ponerlo aquí siempre. También puede ser un nro de operación, referencia o auth que figure explícitamente. Si genuinamente no hay ningún código, null.
 - "installment_number": número de cuota si es un pago en cuotas (ej: "1/3" → 1), sino null
 - "installment_total": total de cuotas si es un pago en cuotas (ej: "1/3" → 3), sino null

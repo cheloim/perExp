@@ -83,7 +83,7 @@ function StatCard({
   )
 }
 
-function CardRow({ cardName, bank, total }: { cardName: string; bank: string; total: number }) {
+function CardRow({ cardName, bank, total, cardType, holder }: { cardName: string; bank: string; total: number; cardType?: string; holder?: string }) {
   const isAccount = !bank || cardName.toLowerCase().includes('efectivo') || cardName.toLowerCase().includes('cuenta')
 
   const renderIcon = () => {
@@ -95,6 +95,23 @@ function CardRow({ cardName, bank, total }: { cardName: string; bank: string; to
     return '💳'
   }
 
+  const getNetwork = (name: string): string => {
+    const n = name.toLowerCase()
+    if (n.includes('visa')) return 'Visa'
+    if (n.includes('mastercard') || n.includes('master card')) return 'Mastercard'
+    if (n.includes('amex') || n.includes('american express')) return 'Amex'
+    return name.split(' ')[0]
+  }
+
+  const getFirstName = (fullName: string): string => {
+    if (!fullName) return ''
+    return fullName.split(' ')[0]
+  }
+
+  const network = getNetwork(cardName)
+  const displayName = cardType === 'debito' ? 'Débito' : network
+  const firstName = holder ? getFirstName(holder) : ''
+
   return (
     <div className="flex items-center justify-between py-2.5 px-1">
       <div className="flex items-center gap-3">
@@ -102,8 +119,9 @@ function CardRow({ cardName, bank, total }: { cardName: string; bank: string; to
           {renderIcon()}
         </div>
         <div>
-          <p className="text-sm font-medium text-primary leading-tight">{cardName}</p>
-          {bank && <p className="text-xs text-tertiary">{bank}</p>}
+          <p className="text-sm font-medium text-primary leading-tight">
+            {firstName || displayName}{bank ? ` | ${bank}` : ''}
+          </p>
         </div>
       </div>
       <span className="text-sm font-semibold text-primary">{formatCurrency(total)}</span>
@@ -263,6 +281,8 @@ export default function Dashboard() {
                       cardName={card.card_name}
                       bank={card.bank}
                       total={monthEntry?.total ?? 0}
+                      cardType={card.card_type}
+                      holder={card.holder}
                     />
                   )
                 })}

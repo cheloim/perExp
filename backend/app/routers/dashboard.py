@@ -11,7 +11,7 @@ from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Category, Expense, User
+from app.models import Card, Category, Expense, User
 from app.services.auth import get_current_user
 from app.services.date_utils import add_months
 from app.services.normalizers import _norm_bank, _norm_holder
@@ -262,6 +262,7 @@ def get_installments_dashboard(db: Session = Depends(get_db), current_user: User
 def get_installments_monthly_load(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     today = date.today()
     current_month = today.strftime("%Y-%m")
+    uid_list = [current_user.id]
 
     # Build window: 3 months back to 3 months forward
     window_start = add_months(today, -3)
@@ -372,6 +373,8 @@ def get_top_merchants(
 @router.get("/card-summary")
 def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     uid_list = get_group_user_ids(current_user.id, db)
+
+    user_cards = {c.name: c.card_type for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
     def _card_network(card_str: str) -> str:
         s = (card_str or "").strip().lower()
         if "visa" in s:
@@ -491,9 +494,12 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
         months_list = sorted(monthly.keys(), reverse=True)[:12]
         monthly_data = [{"month": m, "total": monthly[m]} for m in reversed(months_list)]
 
+        card_type = user_cards.get(card_name) or user_cards.get(g["network"].title()) or "credito"
+
         result.append({
             "holder": holder, "bank": g["bank"],
             "last4": last4, "card_name": card_name,
+            "card_type": card_type,
             "total_amount": g["total_amount"], "count": g["count"],
             "currency": g["currency"],
             "last_used": g["last_used"].isoformat() if g["last_used"] else None,

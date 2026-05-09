@@ -22,6 +22,7 @@
   --color-on-sidebar:      #3d3846;
   --color-primary:        #3584e4;
   --color-on-primary:      #ffffff;
+  --color-danger:         #e01b24;
   --color-sidebar-icon:     #77767b;
   --color-sidebar-icon-active: #1c71d8;
   --color-sidebar-indicator: #3584e4;
@@ -61,6 +62,7 @@
   --color-on-sidebar:     #ffffff;
   --color-primary:        #62a0ea;
   --color-on-primary:     #ffffff;
+  --color-danger:         #ed333b;
   --color-sidebar-icon:   #9a9996;
   --color-sidebar-icon-active: #62a0ea;
   --color-sidebar-indicator: #62a0ea;
