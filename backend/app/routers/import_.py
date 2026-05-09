@@ -598,7 +598,15 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
         "future_charges_ars": closing_info["future_charges_ars"],
         "future_charges_usd": closing_info["future_charges_usd"],
     }
-    return {"rows": rows, "raw_count": len(rows_raw), "summary": summary}
+
+    has_missing_data = any(
+        not (r.get("bank") or "").strip() or 
+        not (r.get("card") or "").strip() or 
+        not (r.get("person") or "").strip()
+        for r in rows
+    )
+
+    return {"rows": rows, "raw_count": len(rows_raw), "summary": summary, "has_missing_data": has_missing_data}
 
 
 @router.post("/rows-confirm")

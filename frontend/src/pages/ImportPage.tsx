@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { importSmart, importRowsConfirm } from '../api/client'
-import type { SmartImportRow, ImportSummary } from '../types'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { importSmart, importRowsConfirm, getCards } from '../api/client'
+import type { SmartImportRow, FileImportResult, Card } from '../types'
 
 function formatCurrency(amount: number, currency: string = 'ARS') {
   if (currency === 'USD') {
@@ -12,10 +12,6 @@ function formatCurrency(amount: number, currency: string = 'ARS') {
 
 type Step = 'upload' | 'preview' | 'done'
 
-// Deduplicates accumulated rows from multiple PDF imports.
-// When a comprobante is present, uses (txn_id, inst_num, inst_total) as the unique key —
-// Argentine statements share the same transaction_id across all installments of a purchase.
-// Keeps the non-auto-generated (real) row when both versions exist for the same slot.
 function deduplicateInstallments(rows: SmartImportRow[]): SmartImportRow[] {
   const key = (r: SmartImportRow) => {
     if (!r.installment_number || !r.installment_total || r.installment_total < 2) return null
@@ -23,16 +19,14 @@ function deduplicateInstallments(rows: SmartImportRow[]): SmartImportRow[] {
     if (r.transaction_id) {
       return `txn:${r.transaction_id}|${r.installment_number}|${r.installment_total}`
     }
-    // No comprobante: fall back to description + slot + billing month.
-    // Dates arrive as DD-MM-YYYY from the backend; parse year-month accordingly.
     const d = r.date ?? ''
     const month = /^\d{2}-\d{2}-\d{4}$/.test(d)
-      ? `${d.slice(6)}-${d.slice(3, 5)}`   // YYYY-MM from DD-MM-YYYY
-      : d.slice(0, 7)                        // YYYY-MM from YYYY-MM-DD
+      ? `${d.slice(6)}-${d.slice(3, 5)}`
+      : d.slice(0, 7)
     return `${desc}|${r.installment_number}|${r.installment_total}|${month}`
   }
 
-  const seen = new Map<string, number>() // key → index in result
+  const seen = new Map<string, number>()
   const result: SmartImportRow[] = []
 
   for (const row of rows) {
@@ -43,7 +37,6 @@ function deduplicateInstallments(rows: SmartImportRow[]): SmartImportRow[] {
     }
     if (seen.has(k)) {
       const existingIdx = seen.get(k)!
-      // Prefer the non-auto-generated (real) row
       if (result[existingIdx].is_auto_generated && !row.is_auto_generated) {
         result[existingIdx] = row
       }
@@ -56,34 +49,75 @@ function deduplicateInstallments(rows: SmartImportRow[]): SmartImportRow[] {
   return result
 }
 
+function applyBulkEdit(rows: SmartImportRow[], bank: string, card: string, person: string, onlyEmpty: boolean): SmartImportRow[] {
+  return rows.map(r => ({
+    ...r,
+    bank: onlyEmpty && r.bank ? r.bank : bank,
+    card: onlyEmpty && r.card ? r.card : card,
+    person: onlyEmpty && r.person ? r.person : person,
+  }))
+}
+
+function validateRows(rows: SmartImportRow[]): { valid: boolean; missingCount: number } {
+  const missing = rows.filter(r => !r.bank || !r.card || !r.person).length
+  return { valid: missing === 0, missingCount: missing }
+}
+
+function isFileDataComplete(rows: SmartImportRow[]): boolean {
+  const nonDupes = rows.filter(r => !r.is_duplicate)
+  if (nonDupes.length === 0) return false
+  return nonDupes.every(r => r.bank && r.card && r.person)
+}
+
+function extractUniqueBanks(cards: Card[]): string[] {
+  const banks = new Set(cards.map(c => c.bank).filter(Boolean))
+  return Array.from(banks).sort()
+}
+
+function extractUniqueHolders(rows: SmartImportRow[]): string[] {
+  const holders = new Set(rows.map(r => r.person).filter(Boolean))
+  return Array.from(holders).sort()
+}
+
 export default function ImportPage() {
   const qc = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [step, setStep]               = useState<Step>('upload')
-  const [smartRows, setSmartRows]     = useState<SmartImportRow[]>([])
-  const [smartRawCount, setSmartRawCount] = useState(0)
+  const [fileResults, setFileResults] = useState<FileImportResult[]>([])
   const [result, setResult]           = useState<{ imported: number; skipped: number } | null>(null)
   const [errors, setErrors]           = useState<string[]>([])
-  const [currentFile, setCurrentFile] = useState<string | null>(null)  // file being processed right now
-  const [queued, setQueued]           = useState(0)                    // files waiting in queue
+  const [currentFile, setCurrentFile] = useState<string | null>(null)
+  const [queued, setQueued]           = useState(0)
 
-  // Mutable refs — shared between renders without causing re-renders
+  const [editModalFile, setEditModalFile] = useState<string | null>(null)
+  const [editBank, setEditBank] = useState('')
+  const [editCard, setEditCard] = useState('')
+  const [editPerson, setEditPerson] = useState('')
+  const [onlyEmpty, setOnlyEmpty] = useState(true)
+  const [importingSingle, setImportingSingle] = useState<string | null>(null)
+
   const fileQueueRef  = useRef<File[]>([])
   const processingRef = useRef(false)
-  const accRowsRef    = useRef<SmartImportRow[]>([])
-  const accRawRef     = useRef(0)
   const accErrsRef    = useRef<string[]>([])
-  const accSummaries  = useRef<ImportSummary[]>([])
-
-  const [summaries, setSummaries] = useState<ImportSummary[]>([])
 
   const isProcessing = currentFile !== null
+
+  const { data: existingCards = [] } = useQuery({
+    queryKey: ['cards'],
+    queryFn: getCards,
+  })
+
+  const existingBanks = extractUniqueBanks(existingCards)
+  const existingHolders = extractUniqueHolders(
+    fileResults.flatMap(f => f.rows)
+  )
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['expenses'] })
     qc.invalidateQueries({ queryKey: ['dashboard'] })
     qc.invalidateQueries({ queryKey: ['installments'] })
+    qc.invalidateQueries({ queryKey: ['installments-monthly-load'] })
     qc.invalidateQueries({ queryKey: ['card-summary'] })
   }
 
@@ -98,10 +132,10 @@ export default function ImportPage() {
     },
   })
 
-  // Drains the file queue one by one; safe to call multiple times (semaphore via processingRef).
   const processQueue = async () => {
     if (processingRef.current) return
     processingRef.current = true
+    let hasResults = fileResults.length > 0
 
     while (fileQueueRef.current.length > 0) {
       const file = fileQueueRef.current.shift()!
@@ -109,45 +143,44 @@ export default function ImportPage() {
       setQueued(fileQueueRef.current.length)
       try {
         const data = await smartMut.mutateAsync(file)
-        accRowsRef.current.push(...data.rows)
-        accRawRef.current += data.raw_count
-        if (data.summary) accSummaries.current.push(data.summary)
+        const newResult: FileImportResult = {
+          filename: file.name,
+          rows: deduplicateInstallments(data.rows),
+          raw_count: data.raw_count,
+          summary: data.summary,
+          has_missing_data: data.has_missing_data,
+        }
+        setFileResults(prev => [...prev, newResult])
+        hasResults = true
       } catch (err: any) {
         accErrsRef.current.push(err?.response?.data?.detail ?? `Error al procesar ${file.name}`)
+        setErrors([...accErrsRef.current])
       }
     }
 
     processingRef.current = false
     setCurrentFile(null)
     setQueued(0)
-    setErrors([...accErrsRef.current])
-    setSmartRows(deduplicateInstallments(accRowsRef.current))
-    setSmartRawCount(accRawRef.current)
-    setSummaries([...accSummaries.current])
-    if (accRowsRef.current.length > 0) setStep('preview')
+    if (hasResults || fileQueueRef.current.length === 0) {
+      setStep('preview')
+    }
   }
 
-  // Entry point for all file additions (drag, click, or "add more" button).
   const addFiles = (fileList: FileList | File[]) => {
     const files = Array.from(fileList)
     if (files.length === 0) return
 
-    // Reset accumulators when starting fresh (not mid-processing and not already in preview)
     if (!processingRef.current && step !== 'preview') {
-      accRowsRef.current   = []
-      accRawRef.current    = 0
-      accErrsRef.current   = []
-      accSummaries.current = []
-      setSmartRows([])
-      setSmartRawCount(0)
+      accErrsRef.current = []
       setErrors([])
-      setSummaries([])
+      setFileResults([])
     }
 
     if (step === 'done') setStep('upload')
 
     fileQueueRef.current.push(...files)
     setQueued(fileQueueRef.current.length)
+    if (step !== 'preview') setStep('preview')
     processQueue()
   }
 
@@ -156,31 +189,88 @@ export default function ImportPage() {
     if (e.dataTransfer.files.length > 0) addFiles(e.dataTransfer.files)
   }
 
+  const handleOpenEditModal = (filename: string) => {
+    const fileResult = fileResults.find(f => f.filename === filename)
+    if (!fileResult) return
+    
+    setEditModalFile(filename)
+    setEditBank(fileResult.summary.bank || '')
+    setEditCard(fileResult.summary.card_type || '')
+    setEditPerson(fileResult.rows[0]?.person || '')
+    setOnlyEmpty(true)
+  }
+
+  const handleApplyEdit = () => {
+    if (!editModalFile) return
+    
+    if (!editBank || !editCard || !editPerson) {
+      alert('Todos los campos son obligatorios')
+      return
+    }
+
+    setFileResults(prev => prev.map(f => {
+      if (f.filename !== editModalFile) return f
+      return {
+        ...f,
+        rows: applyBulkEdit(f.rows, editBank, editCard, editPerson, onlyEmpty),
+        has_missing_data: false,
+      }
+    }))
+    setEditModalFile(null)
+  }
+
+  const handleRemoveFile = (filename: string) => {
+    setFileResults(prev => prev.filter(f => f.filename !== filename))
+  }
+
+  const handleImportSingle = async (fileResult: FileImportResult) => {
+    const valid = validateRows(fileResult.rows)
+    if (!valid.valid) {
+      alert('Completá los datos faltantes primero')
+      return
+    }
+
+    setImportingSingle(fileResult.filename)
+    
+    try {
+      await importRowsConfirm(fileResult.rows)
+      setFileResults(prev => prev.filter(f => f.filename !== fileResult.filename))
+    } catch (err: any) {
+      alert(err?.response?.data?.detail ?? 'Error al importar')
+    } finally {
+      setImportingSingle(null)
+    }
+  }
+
   const handleConfirmImport = () => {
-    confirmSmartMut.mutate(smartRows)
+    const allRows = fileResults.flatMap(f => f.rows)
+    const validation = validateRows(allRows)
+    if (!validation.valid) {
+      alert(`Faltan datos en ${validation.missingCount} fila(s). Completalos antes de importar.`)
+      return
+    }
+    confirmSmartMut.mutate(allRows)
   }
 
   const reset = () => {
-    fileQueueRef.current  = []
+    fileQueueRef.current = []
     processingRef.current = false
-    accRowsRef.current    = []
-    accRawRef.current     = 0
-    accErrsRef.current    = []
     setStep('upload')
-    setSmartRows([])
-    setSmartRawCount(0)
+    setFileResults([])
     setResult(null)
     setErrors([])
     setCurrentFile(null)
     setQueued(0)
+    setEditModalFile(null)
     smartMut.reset()
     confirmSmartMut.reset()
     if (fileRef.current) fileRef.current.value = ''
   }
 
-  const previewCount  = smartRows.length
-  const dupeCount     = smartRows.filter((r) => r.is_duplicate).length
-  const autoGenCount  = smartRows.filter((r) => r.is_auto_generated && !r.is_duplicate).length
+  const totalRows = fileResults.reduce((acc, f) => acc + f.rows.length, 0)
+  const totalDupes = fileResults.reduce((acc, f) => acc + f.rows.filter(r => r.is_duplicate).length, 0)
+  const totalAutoGen = fileResults.reduce((acc, f) => acc + f.rows.filter(r => r.is_auto_generated && !r.is_duplicate).length, 0)
+  const missingDataFiles = fileResults.filter(f => f.has_missing_data).length
 
   if (step === 'done' && result) {
     return (
@@ -199,8 +289,7 @@ export default function ImportPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      {/* Steps indicator */}
+    <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center gap-2 text-sm">
         {(['upload', 'preview'] as Step[]).map((s, i) => (
           <span key={s} className="flex items-center gap-2">
@@ -213,10 +302,9 @@ export default function ImportPage() {
       </div>
 
       <p className="text-xs text-secondary">
-        ✨ La IA detecta automáticamente las columnas. Soporta CSV, Excel y <strong>PDF</strong>. Podés agregar más archivos en cualquier momento, incluso mientras se procesan otros.
+        ✨ La IA detecta automáticamente las columnas. Soporta CSV, Excel y <strong>PDF</strong>. Podés agregar más archivos en cualquier momento.
       </p>
 
-      {/* Hidden file input — always mounted */}
       <input
         ref={fileRef}
         type="file"
@@ -226,14 +314,12 @@ export default function ImportPage() {
         onChange={(e) => {
           if (e.target.files && e.target.files.length > 0) {
             addFiles(e.target.files)
-            // Reset the input so the same file can be re-added if needed
             e.target.value = ''
           }
         }}
       />
 
-      {/* Dropzone — always visible and active */}
-      {step !== 'preview' && (
+      {step === 'upload' && (
         <div
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
@@ -269,71 +355,27 @@ export default function ImportPage() {
         </div>
       )}
 
-      {/* Step: preview */}
-      {step === 'preview' && smartRows.length > 0 && (
+      {step === 'preview' && fileResults.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-sm text-primary bg-primary-subtle border border-border-color rounded-lg px-4 py-2">
             <span>✨</span>
-            <span>La IA detectó <strong>{smartRawCount}</strong> transacciones en los archivos.</span>
+            <span>La IA detectó <strong>{fileResults.reduce((a, f) => a + f.raw_count, 0)}</strong> transacciones en {fileResults.length} archivo{fileResults.length > 1 ? 's' : ''}.</span>
+            {missingDataFiles > 0 && (
+              <span className="ml-2 text-warning font-medium">
+                ({missingDataFiles} archivo{missingDataFiles > 1 ? 's' : ''} sin datos de banco/tarjeta)
+              </span>
+            )}
           </div>
 
-          {/* Per-file summary cards */}
-          {summaries.length > 0 && (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {summaries.map((s, i) => (
-                <div key={i} className="card p-4 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs bg-base-alt text-secondary px-2 py-0.5 rounded">💳</span>
-                    <span className="text-sm font-semibold text-primary">{s.card_type || '—'}</span>
-                    {s.bank && <span className="text-xs text-tertiary">{s.bank}</span>}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <p className="text-tertiary">Consumos ARS</p>
-                      <p className="text-primary font-semibold">
-                        {s.total_ars != null ? formatCurrency(s.total_ars) : '—'}
-                      </p>
-                    </div>
-                    {s.total_usd != null && (
-                      <div>
-                        <p className="text-tertiary">Consumos USD</p>
-                        <p className="text-primary font-semibold">{formatCurrency(s.total_usd, 'USD')}</p>
-                      </div>
-                    )}
-                    {s.future_charges_ars != null && (
-                      <div>
-                        <p className="text-tertiary">Consumos futuros ARS</p>
-                        <p className="text-warning font-semibold">{formatCurrency(s.future_charges_ars)}</p>
-                      </div>
-                    )}
-                    {s.future_charges_usd != null && (
-                      <div>
-                        <p className="text-tertiary">Consumos futuros USD</p>
-                        <p className="text-warning font-semibold">{formatCurrency(s.future_charges_usd, 'USD')}</p>
-                      </div>
-                    )}
-                    {s.due_date && (
-                      <div>
-                        <p className="text-tertiary">Vencimiento</p>
-                        <p className="text-primary font-semibold">{s.due_date}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {dupeCount > 0 && (
+          {totalDupes > 0 && (
             <div className="flex items-center gap-2 text-sm text-warning bg-warning/5 border border-warning/20 rounded-lg px-4 py-2">
               <span>⚠️</span>
               <span>
-                <strong>{dupeCount}</strong> fila{dupeCount > 1 ? 's' : ''} ya exist{dupeCount > 1 ? 'en' : 'e'} y {dupeCount > 1 ? 'serán omitidas' : 'será omitida'}.
+                <strong>{totalDupes}</strong> fila{totalDupes > 1 ? 's' : ''} ya exist{totalDupes > 1 ? 'en' : 'e'} y {totalDupes > 1 ? 'serán omitidas' : 'será omitida'}.
               </span>
             </div>
           )}
 
-          {/* Add more files while in preview */}
           <div
             onDrop={handleDrop}
             onDragOver={(e) => e.preventDefault()}
@@ -356,95 +398,231 @@ export default function ImportPage() {
             )}
           </div>
 
-          <div className="card overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border-color">
-              <h2 className="font-semibold text-primary">
-                Preview — {previewCount} filas
-                {dupeCount > 0 && <span className="ml-2 text-xs font-normal text-warning">({dupeCount} duplicadas)</span>}
-                {autoGenCount > 0 && <span className="ml-2 text-xs font-normal text-primary">({autoGenCount} cuotas prev. auto-generadas)</span>}
-              </h2>
-            </div>
-            <div className="overflow-x-auto max-h-80">
-              <table className="w-full text-sm">
-                <thead className="bg-base-alt text-secondary text-xs uppercase tracking-wider sticky top-0">
-                  <tr>
-                    <th className="px-4 py-3 text-left">Fecha</th>
-                    <th className="px-4 py-3 text-left">Descripción</th>
-                    <th className="px-4 py-3 text-right">Monto</th>
-                    <th className="px-4 py-3 text-left">Banco</th>
-                    <th className="px-4 py-3 text-left">Tarjeta</th>
-                    <th className="px-4 py-3 text-left">Titular</th>
-                    <th className="px-4 py-3 text-left">Moneda</th>
-                    <th className="px-4 py-3 text-left">Comprobante</th>
-                    <th className="px-4 py-3 text-left">Cuotas</th>
-                    <th className="px-4 py-3 text-left">Categoría</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-color">
-                  {smartRows.slice(0, 50).map((row, i) => (
-                    <tr
-                      key={i}
-                      className={
-                        row.is_duplicate
-                          ? 'bg-warning/10 opacity-60'
-                          : row.is_auto_generated
-                          ? 'bg-primary-subtle hover:bg-primary-subtle'
-                          : 'hover:bg-base-alt'
-                      }
+          {fileResults.map((fileResult, idx) => {
+            const fileReady = isFileDataComplete(fileResult.rows)
+            const nonDupeCount = fileResult.rows.filter(r => !r.is_duplicate).length
+            const isImporting = importingSingle === fileResult.filename
+            
+            return (
+            <div key={idx} className="card overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border-color bg-base-alt">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleRemoveFile(fileResult.filename)}
+                    className="text-tertiary hover:text-danger text-sm p-1 rounded hover:bg-danger/10 transition"
+                    title="Eliminar archivo"
+                  >
+                    ✕
+                  </button>
+                  <span className="text-lg">📄</span>
+                  <h3 className="font-semibold text-primary">{fileResult.filename}</h3>
+                  {fileResult.has_missing_data && (
+                    <span className="badge-warning">
+                      ⚠️ Datos incompletos
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-tertiary">
+                    {nonDupeCount} filas
+                    {fileResult.rows.filter(r => r.is_duplicate).length > 0 && (
+                      <span className="text-warning"> · {fileResult.rows.filter(r => r.is_duplicate).length} dup</span>
+                    )}
+                  </span>
+                  {fileResult.has_missing_data ? (
+                    <button
+                      onClick={() => handleOpenEditModal(fileResult.filename)}
+                      className="px-3 py-1 text-xs font-medium bg-warning text-white rounded-md hover:brightness-110 transition"
                     >
-                      <td className="px-4 py-2 text-secondary whitespace-nowrap">
-                        {row.date}
-                        {row.is_duplicate && <span className="ml-1 text-warning text-xs">dup</span>}
-                        {row.is_auto_generated && !row.is_duplicate && (
-                          <span className="ml-1 text-primary text-xs">prev</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2 text-primary max-w-[200px] truncate" title={row.description}>
-                        {row.description}
-                      </td>
-                      <td className={`px-4 py-2 text-right font-medium ${row.amount < 0 ? 'text-success' : ''}`}>
-                        {formatCurrency(row.amount, row.currency)}
-                      </td>
-                      <td className="px-4 py-2 text-secondary">{row.bank || '—'}</td>
-                      <td className="px-4 py-2 text-secondary">{row.card || '—'}</td>
-                      <td className="px-4 py-2 text-primary font-medium">{row.person || '—'}</td>
-                      <td className="px-4 py-2">
-                        {row.currency === 'USD'
-                          ? <span className="badge-success">USD</span>
-                          : <span className="text-xs text-tertiary">ARS</span>}
-                      </td>
-                      <td className="px-4 py-2 text-tertiary font-mono text-xs">{row.transaction_id || '—'}</td>
-                      <td className="px-4 py-2">
-                        {row.installment_number && row.installment_total ? (
-                          <span className="text-xs bg-primary-subtle text-primary px-1.5 py-0.5 rounded">
-                            {row.installment_number}/{row.installment_total}
-                          </span>
-                        ) : <span className="text-tertiary">—</span>}
-                      </td>
-                      <td className="px-4 py-2 text-secondary">{row.suggested_category ?? <span className="text-tertiary">—</span>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {previewCount > 50 && (
-              <p className="text-xs text-tertiary px-5 py-2 border-t border-border-color">Mostrando 50 de {previewCount} filas</p>
-            )}
-          </div>
+                      Completar datos
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleImportSingle(fileResult)}
+                      disabled={isImporting || !fileReady}
+                      className={`px-3 py-1 text-xs font-medium rounded-md transition ${
+                        fileReady 
+                          ? 'bg-success text-white hover:brightness-110' 
+                          : 'bg-tertiary/30 text-tertiary cursor-not-allowed'
+                      }`}
+                    >
+                      {isImporting ? 'Importando...' : `Importar ${nonDupeCount}`}
+                    </button>
+                  )}
+                </div>
+              </div>
 
-          <div className="flex justify-between">
+              {fileResult.summary.bank && (
+                <div className="px-5 py-2 text-xs text-secondary border-b border-border-color bg-primary-subtle/30">
+                  <span className="font-medium">{fileResult.summary.card_type}</span>
+                  {fileResult.summary.bank && <span> · {fileResult.summary.bank}</span>}
+                  {fileResult.summary.due_date && <span> · Vence: {fileResult.summary.due_date}</span>}
+                </div>
+              )}
+
+              <div className="overflow-x-auto max-h-60">
+                <table className="w-full text-sm">
+                  <thead className="bg-base-alt text-secondary text-xs uppercase tracking-wider sticky top-0">
+                    <tr>
+                      <th className="px-4 py-2 text-left">Fecha</th>
+                      <th className="px-4 py-2 text-left">Descripción</th>
+                      <th className="px-4 py-2 text-right">Monto</th>
+                      <th className="px-4 py-2 text-left">Banco</th>
+                      <th className="px-4 py-2 text-left">Tarjeta</th>
+                      <th className="px-4 py-2 text-left">Titular</th>
+                      <th className="px-4 py-2 text-left">Moneda</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-color">
+                    {fileResult.rows.slice(0, 10).map((row, i) => (
+                      <tr
+                        key={i}
+                        className={
+                          row.is_duplicate
+                            ? 'bg-warning/10 opacity-60'
+                            : row.is_auto_generated
+                            ? 'bg-primary-subtle hover:bg-primary-subtle'
+                            : 'hover:bg-base-alt'
+                        }
+                      >
+                        <td className="px-4 py-2 text-secondary whitespace-nowrap">
+                          {row.date}
+                          {row.is_duplicate && <span className="ml-1 text-warning text-xs">dup</span>}
+                        </td>
+                        <td className="px-4 py-2 text-primary max-w-[180px] truncate" title={row.description}>
+                          {row.description}
+                        </td>
+                        <td className={`px-4 py-2 text-right font-medium ${row.amount < 0 ? 'text-success' : ''}`}>
+                          {formatCurrency(row.amount, row.currency)}
+                        </td>
+                        <td className="px-4 py-2 text-secondary">{row.bank || <span className="text-tertiary">—</span>}</td>
+                        <td className="px-4 py-2 text-secondary">{row.card || <span className="text-tertiary">—</span>}</td>
+                        <td className="px-4 py-2 text-primary font-medium">{row.person || <span className="text-tertiary">—</span>}</td>
+                        <td className="px-4 py-2">
+                          {row.currency === 'USD'
+                            ? <span className="badge-success">USD</span>
+                            : <span className="text-xs text-tertiary">ARS</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {fileResult.rows.length > 10 && (
+                <p className="text-xs text-tertiary px-5 py-2 border-t border-border-color">
+                  Mostrando 10 de {fileResult.rows.length} filas
+                </p>
+              )}
+            </div>
+            )
+          })}
+
+          <div className="flex justify-between items-center pt-4 border-t border-border-color">
             <button onClick={reset} className="btn-secondary">← Volver</button>
-            <button
-              onClick={handleConfirmImport}
-              disabled={confirmSmartMut.isPending || isProcessing}
-              className="btn-primary bg-success hover:brightness-110 disabled:opacity-50"
-            >
-              {confirmSmartMut.isPending
-                ? 'Importando...'
-                : isProcessing
-                ? 'Esperando archivos...'
-                : `Importar ${previewCount - dupeCount} gastos`}
-            </button>
+            <div className="text-right">
+              <p className="text-xs text-tertiary mb-2">
+                {totalRows - totalDupes} gastos a importar
+                {totalAutoGen > 0 && ` (${totalAutoGen} cuotas auto-generadas)`}
+              </p>
+              <button
+                onClick={handleConfirmImport}
+                disabled={confirmSmartMut.isPending || isProcessing || missingDataFiles > 0}
+                className="btn-primary bg-success hover:brightness-110 disabled:opacity-50 disabled:bg-tertiary"
+              >
+                {confirmSmartMut.isPending
+                  ? 'Importando...'
+                  : isProcessing
+                  ? 'Esperando archivos...'
+                  : missingDataFiles > 0
+                  ? `Completar datos primero (${missingDataFiles} archivo${missingDataFiles > 1 ? 's' : ''})`
+                  : `Importar ${totalRows - totalDupes} gastos`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editModalFile && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setEditModalFile(null)}>
+          <div className="bg-[var(--color-base-container)] rounded-xl p-6 w-full max-w-md shadow-xl border border-border-color" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-primary">
+                Completar datos faltantes
+              </h2>
+              <button onClick={() => setEditModalFile(null)} className="text-tertiary hover:text-primary text-xl">×</button>
+            </div>
+            
+            <p className="text-sm text-secondary mb-4">
+              Archivo: <span className="font-medium text-primary">{editModalFile}</span>
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-secondary block mb-1">🏦 Banco</label>
+                <input
+                  list="bank-options"
+                  value={editBank}
+                  onChange={e => setEditBank(e.target.value)}
+                  placeholder="Ej: Galicia"
+                  className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                />
+                <datalist id="bank-options">
+                  {existingBanks.map(b => <option key={b} value={b} />)}
+                </datalist>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-secondary block mb-1">💳 Tarjeta</label>
+                <input
+                  list="card-options"
+                  value={editCard}
+                  onChange={e => setEditCard(e.target.value)}
+                  placeholder="Ej: Visa"
+                  className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                />
+                <datalist id="card-options">
+                  {existingCards
+                    .filter(c => !editBank || c.bank.toLowerCase().includes(editBank.toLowerCase()))
+                    .map(c => <option key={c.id} value={c.name} />)}
+                </datalist>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-secondary block mb-1">👤 Titular</label>
+                <input
+                  list="holder-options"
+                  value={editPerson}
+                  onChange={e => setEditPerson(e.target.value)}
+                  placeholder="Ej: Natalia"
+                  className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                />
+                <datalist id="holder-options">
+                  {existingHolders.map(h => <option key={h} value={h} />)}
+                </datalist>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="only-empty"
+                  checked={onlyEmpty}
+                  onChange={e => setOnlyEmpty(e.target.checked)}
+                  className="w-4 h-4 rounded border-border-color text-primary focus:ring-primary/30"
+                />
+                <label htmlFor="only-empty" className="text-sm text-secondary">
+                  Aplicar solo a campos vacíos (recomendado)
+                </label>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-border-color">
+              <button onClick={() => setEditModalFile(null)} className="btn-secondary">
+                Cancelar
+              </button>
+              <button onClick={handleApplyEdit} className="btn-primary">
+                ✓ Aplicar datos
+              </button>
+            </div>
           </div>
         </div>
       )}

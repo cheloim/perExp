@@ -121,11 +121,12 @@ function InstallmentCard({
 export default function InstallmentsPage() {
   const [bankFilter, setBankFilter] = useState<string | null>(null)
   const [activeCardKey, setActiveCardKey] = useState<string | null>(null)
-  const [showCompleted, setShowCompleted] = useState(false)
+  const [showCompleted, setShowCompleted] = useState(true)
 
   const { data: groups = [], isLoading } = useQuery({
     queryKey: ['installments'],
     queryFn: getInstallmentsDashboard,
+    staleTime: 60_000,
   })
 
   const { data: monthlyLoad = [] } = useQuery({
@@ -135,14 +136,18 @@ export default function InstallmentsPage() {
   })
 
   // Summary stats
-  const activeGroups = groups.filter(g => g.remaining_installments > 0)
-  const totalPending = activeGroups.reduce((s, g) => s + g.installment_amount * g.remaining_installments, 0)
   const now = new Date()
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const finishingThisMonth = activeGroups.filter(g => {
+
+  const activeGroups = groups.filter(g => g.remaining_installments > 0)
+
+  const currentMonthGroups = activeGroups.filter(g => {
     if (!g.next_date) return false
-    return g.next_date.startsWith(currentMonth) && g.remaining_installments === 1
-  }).length
+    return g.next_date.startsWith(currentMonth)
+  })
+
+  const totalPending = activeGroups.reduce((s, g) => s + g.installment_amount * g.remaining_installments, 0)
+  const currentMonthTotal = currentMonthGroups.reduce((s, g) => s + g.installment_amount, 0)
 
   // Build card entries — group by bank+person only (card name varies by import)
   const cardMap = new Map<string, CardEntry>()
@@ -190,18 +195,16 @@ export default function InstallmentsPage() {
   return (
     <div className="space-y-6">
       {/* Summary stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <div className="card p-4">
-          <p className="text-xs text-tertiary mb-1">Deuda total pendiente</p>
+          <p className="text-xs text-tertiary mb-1">Este mes</p>
+          <p className="text-2xl font-bold text-success">{currentMonthGroups.length}</p>
+          <p className="text-xs text-tertiary">{formatCurrency(currentMonthTotal)}</p>
+        </div>
+        <div className="card p-4">
+          <p className="text-xs text-tertiary mb-1">Total pendiente</p>
           <p className="text-2xl font-bold text-primary">{formatCurrency(totalPending)}</p>
-        </div>
-        <div className="card p-4">
-          <p className="text-xs text-tertiary mb-1">Cuotas activas</p>
-          <p className="text-2xl font-bold text-primary">{activeGroups.length}</p>
-        </div>
-        <div className="card p-4">
-          <p className="text-xs text-tertiary mb-1">Terminan este mes</p>
-          <p className="text-2xl font-bold text-success">{finishingThisMonth}</p>
+          <p className="text-xs text-tertiary">{activeGroups.length} grupos</p>
         </div>
       </div>
 
@@ -286,7 +289,7 @@ export default function InstallmentsPage() {
               </h2>
               <button
                 onClick={() => setShowCompleted(v => !v)}
-                className={`text-xs px-2.5 py-1 rounded-full border transition-all ${showCompleted ? 'bg-primary text-on-primary' : 'border-border-color text-tertiary hover:text-secondary'}`}
+                className={`text-xs px-2.5 py-1.5 rounded-lg border transition-all ${showCompleted ? 'bg-primary text-on-primary' : 'border-border-color text-tertiary hover:text-secondary'}`}
               >
                 {showCompleted ? 'Ocultar completadas' : 'Mostrar completadas'}
               </button>

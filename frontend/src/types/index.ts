@@ -256,6 +256,15 @@ export interface SmartImportPreview {
   rows: SmartImportRow[]
   raw_count: number
   summary: ImportSummary
+  has_missing_data: boolean
+}
+
+export interface FileImportResult {
+  filename: string
+  rows: SmartImportRow[]
+  raw_count: number
+  summary: ImportSummary
+  has_missing_data: boolean
 }
 
 export interface AnalysisHistory {
