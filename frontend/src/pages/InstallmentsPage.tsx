@@ -12,12 +12,7 @@ import {
 } from '../api/client'
 import type { InstallmentGroup } from '../types'
 import { ConfirmDialog } from '../components/ConfirmDialog'
-
-function formatCurrency(amount: number, currency = 'ARS') {
-  if (currency === 'USD')
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(amount)
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(amount)
-}
+import { formatCurrency } from '../utils/format'
 
 function formatDate(dateStr: string | null) {
   if (!dateStr) return '—'

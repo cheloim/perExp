@@ -4,7 +4,7 @@ import { DayPicker } from 'react-day-picker'
 import { es } from 'date-fns/locale'
 import { getCategories, getAccounts, getCards } from '../api/client'
 import type { Expense, ExpenseCreate, Card } from '../types'
-import { Select } from './Select'
+import { Select } from './ui/Select'
 
 // Helper function to get today's date in DD-MM-YYYY format
 export function todayDDMMYYYY() {

@@ -14,7 +14,7 @@ from app.database import get_db
 from app.models import Card, Category, Expense, User
 from app.services.auth import get_current_user
 from app.services.date_utils import add_months
-from app.services.normalizers import _norm_bank, _norm_holder
+from app.services.normalizers import normalize_bank, _norm_holder
 from app.routers.groups import get_group_user_ids
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -666,7 +666,7 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
     by_card_monthly: dict = {}
 
     for e in exps:
-        bank = _norm_bank(e.bank)
+        bank = normalize_bank(e.bank)
         card_str = (e.card or "").strip()
         network = _card_network(card_str)
         holder = _norm_holder(e.person)
@@ -836,7 +836,7 @@ def get_card_category_breakdown(
     cat_colors: dict = {}
 
     for e in exps:
-        bank_norm = _norm_bank(e.bank) or "Efectivo"
+        bank_norm = normalize_bank(e.bank) or "Efectivo"
         network = _card_network_local(e.card or "")
         card_key = f"{bank_norm} {network}" if bank_norm != "Efectivo" else "Efectivo/Transferencia"
 

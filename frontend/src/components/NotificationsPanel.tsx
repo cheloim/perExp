@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getNotifications, rejectGroupInvitation, markNotificationRead, deleteNotification, deleteImportJob } from '../api/client'
+import { getNotifications, rejectGroupInvitation, markNotificationRead, deleteImportJob } from '../api/client'
 import type { Notification } from '../types'
 import InvitationDisclaimer from './InvitationDisclaimer'
 import { useUploadProgress } from '../context/UploadProgressContext'
@@ -68,14 +68,6 @@ export default function NotificationsPanel({ onClose }: Props) {
 
   const markRead = useMutation({
     mutationFn: markNotificationRead,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications-count'] })
-    },
-  })
-
-  const deleteNotif = useMutation({
-    mutationFn: deleteNotification,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] })
       queryClient.invalidateQueries({ queryKey: ['notifications-count'] })

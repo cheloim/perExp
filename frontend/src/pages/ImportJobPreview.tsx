@@ -111,6 +111,15 @@ export default function ImportJobPreview() {
     }
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteImportJob(Number(jobId)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['import-jobs'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      navigate('/expenses')
+    }
+  })
+
   // Validation
   const rows = editedRows.length > 0 ? editedRows : (job?.preview_data?.rows || [])
   const validation = validateRows(rows)

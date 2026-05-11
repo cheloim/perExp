@@ -2,13 +2,7 @@ import { useState, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { importSmart, importRowsConfirm, getCards } from '../api/client'
 import type { SmartImportRow, FileImportResult, Card } from '../types'
-
-function formatCurrency(amount: number, currency: string = 'ARS') {
-  if (currency === 'USD') {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(amount)
-  }
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(amount)
-}
+import { formatCurrency } from '../utils/format'
 
 type Step = 'upload' | 'preview' | 'done'
 

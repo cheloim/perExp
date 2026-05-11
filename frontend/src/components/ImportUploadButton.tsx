@@ -1,22 +1,11 @@
 import { useRef } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createImportJob } from '../api/client'
 import { sidebarIcons } from './SidebarIcons'
 import { useUploadProgress } from '../context/UploadProgressContext'
 
 export default function ImportUploadButton() {
   const inputRef = useRef<HTMLInputElement>(null)
-  const queryClient = useQueryClient()
   const { addUpload, updateUpload } = useUploadProgress()
-
-  const uploadMutation = useMutation({
-    mutationFn: (file: File) => createImportJob(file),
-    onSuccess: () => {
-      // Invalidar notificaciones para que se actualice el contador
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications-count'] })
-    }
-  })
 
   const handleClick = () => {
     inputRef.current?.click()

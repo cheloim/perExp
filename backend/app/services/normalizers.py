@@ -3,8 +3,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-# Used in smart import / rows-confirm
-_BANK_NORM_MAP: dict[str, str] = {
+BANK_NORM_MAP: dict[str, str] = {
     "santander río": "Santander",
     "santander rio": "Santander",
     "banco santander río": "Santander",
@@ -20,14 +19,22 @@ _BANK_NORM_MAP: dict[str, str] = {
     "banco provincia": "Provincia",
     "banco macro": "Macro",
     "hsbc bank": "HSBC",
+    "icbc argentina": "ICBC",
     "banco icbc": "ICBC",
     "banco ciudad": "Ciudad",
     "banco patagonia": "Patagonia",
+    "banco supervielle": "Supervielle",
+    "banco credicoop": "Credicoop",
 }
 
 
-def _normalize_bank(bank: str) -> str:
-    return _BANK_NORM_MAP.get(bank.strip().lower(), bank.strip())
+def normalize_bank(name: str) -> str:
+    raw = (name or "").strip()
+    key = raw.lower()
+    if key in BANK_NORM_MAP:
+        return BANK_NORM_MAP[key]
+    cleaned = re.sub(r'(?i)^banco\s+', '', raw).strip()
+    return cleaned.title() if cleaned else "Banco"
 
 
 def _normalize_person(person: str, db: Session) -> str:
@@ -49,34 +56,6 @@ def _normalize_person(person: str, db: Session) -> str:
     if not candidates:
         return val
     return max(candidates, key=lambda x: (x[1], len(x[0])))[0]
-
-
-# Used in dashboard card-summary / card-options / card-category-breakdown
-_BANK_ALIASES: dict[str, str] = {
-    "santander río": "Santander",
-    "santander rio": "Santander",
-    "bbva francés": "BBVA",
-    "bbva frances": "BBVA",
-    "hsbc bank": "HSBC",
-    "icbc argentina": "ICBC",
-    "banco nación": "Nación",
-    "banco nacion": "Nación",
-    "banco provincia": "Provincia",
-    "banco ciudad": "Ciudad",
-    "banco macro": "Macro",
-    "banco supervielle": "Supervielle",
-    "banco patagonia": "Patagonia",
-    "banco credicoop": "Credicoop",
-}
-
-
-def _norm_bank(name: str) -> str:
-    raw = (name or "").strip()
-    key = raw.lower()
-    if key in _BANK_ALIASES:
-        return _BANK_ALIASES[key]
-    cleaned = re.sub(r'(?i)^banco\s+', '', raw).strip()
-    return cleaned.title() if cleaned else "Banco"
 
 
 def _norm_holder(name: str) -> str:

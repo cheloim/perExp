@@ -11,23 +11,9 @@ import {
   bulkUpdateCategory,
 } from '../api/client'
 import type { Expense, ExpenseCreate } from '../types'
-import { Select } from '../components/Select'
+import { Select } from '../components/ui/Select'
 import { IncomeModal, ExpenseModal } from '../components/ExpenseModals'
-
-function formatCurrency(amount: number, currency: string = 'ARS') {
-  if (currency === 'USD') {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(amount)
-  }
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    minimumFractionDigits: 2,
-  }).format(amount)
-}
+import { formatCurrency } from '../utils/format'
 
 function formatDate(dateStr: string) {
   if (!dateStr) return ''

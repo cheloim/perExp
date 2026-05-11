@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCards, createCard, updateCard, deleteCard, createAccount, getCardSummary } from '../api/client'
 import { useQuery as useCardDataQuery } from '@tanstack/react-query'
 import type { Card } from '../types'
-import { Select } from './Select'
+import { Select } from './ui/Select'
 
 const ACCOUNT_TYPES = [
   { value: 'efectivo', label: 'Efectivo' },

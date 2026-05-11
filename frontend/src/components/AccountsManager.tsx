@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getAccounts, createAccount, updateAccount, deleteAccount, createCard } from '../api/client'
 import type { Account } from '../types'
-import { Select } from './Select'
+import { Select } from './ui/Select'
 
 const ACCOUNT_TYPES = [
   { value: 'efectivo', label: 'Efectivo', color: 'badge-success' },

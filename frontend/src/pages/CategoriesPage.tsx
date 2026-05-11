@@ -5,16 +5,13 @@ import {
   getExpenses, recategorizeExpenses, applyBaseHierarchy,
 } from '../api/client'
 import type { Category } from '../types'
-import { CustomSelect } from '../components/CustomSelect'
+import { Select } from '../components/ui/Select'
+import { formatCurrency } from '../utils/format'
 
 const COLORS = [
   '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
   '#3b82f6', '#8b5cf6', '#ec4899', '#64748b', '#78716c',
 ]
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(amount)
-}
 
 function formatDate(dateStr: string) {
   if (!dateStr) return ''
@@ -61,12 +58,12 @@ function CategoryForm({ initial, isParentForm, parentCategories, onClose, onSave
           {!isParentForm && (
             <div>
               <label className="block text-xs font-medium text-tertiary mb-1.5">Categoría padre</label>
-              <CustomSelect
-                value={form.parent_id ?? ''}
-                onChange={(value) => setForm(p => ({ ...p, parent_id: value ? parseInt(value.toString()) : null }))}
+              <Select
+                value={form.parent_id?.toString() ?? ''}
+                onChange={(value) => setForm(p => ({ ...p, parent_id: value ? parseInt(value) : null }))}
                 options={[
                   { value: '', label: '— Sin padre (independiente) —' },
-                  ...parentCategories.map(p => ({ value: p.id, label: p.name }))
+                  ...parentCategories.map(p => ({ value: p.id.toString(), label: p.name }))
                 ]}
                 placeholder="Seleccionar categoría padre"
               />

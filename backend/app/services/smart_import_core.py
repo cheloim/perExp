@@ -18,7 +18,7 @@ from app.prompts import SMART_IMPORT_PROMPT
 from app.services.categorization import _resolve_category, _should_skip
 from app.services.date_utils import _normalize_date_str
 from app.services.import_utils import _expand_installments, _is_duplicate, _load_dataframe, _normalize_persons_llm
-from app.services.normalizers import _normalize_bank, _normalize_person
+from app.services.normalizers import normalize_bank, _normalize_person
 from app.services.pdf import _extract_pdf_text, _inject_card_markers, _inject_csv_card_markers, _normalize_santander_dates
 
 

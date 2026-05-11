@@ -1,8 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { DayPicker } from 'react-day-picker'
-import { es } from 'date-fns/locale'
 import {
   PieChart, Pie, Cell,
   LineChart, Line,
@@ -19,20 +17,14 @@ import {
   getDistinctValues,
   bulkUpdateCategory
 } from '../api/client'
-import type { CategorySummary, Expense, ExpenseCreate, Category, CardSummary } from '../types'
-import { Select } from '../components/Select'
+import type { CategorySummary, Expense, ExpenseCreate } from '../types'
+import { Select } from '../components/ui/Select'
 import { IncomeModal, ExpenseModal } from '../components/ExpenseModals'
+import { formatCurrency } from '../utils/format'
 
 type GroupBy = 'month' | 'year'
 type SortField = 'date' | 'description' | 'category' | 'bank' | 'person' | 'amount'
 type SortDir = 'asc' | 'desc'
-
-function formatCurrency(amount: number, currency: string = 'ARS') {
-  if (currency === 'USD') {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(amount)
-  }
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(amount)
-}
 
 function formatDate(dateStr: string) {
   if (!dateStr) return ''
@@ -382,11 +374,6 @@ export default function AccountsPage() {
     queryKey: ['distinct-values'],
     queryFn: getDistinctValues,
     staleTime: 60_000
-  })
-
-  const { data: cardSummary = [] } = useQuery({
-    queryKey: ['card-summary'],
-    queryFn: getCardSummary
   })
 
   const activeCardKey = activeCard

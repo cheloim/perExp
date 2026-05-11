@@ -5,12 +5,7 @@ import {
 } from 'recharts'
 import { getDashboard, getExpenses, getCategoryTrend, getTopMerchants } from '../api/client'
 import type { TopMerchant, CategorySummary } from '../types'
-
-function formatCurrency(amount: number, currency = 'ARS') {
-  if (currency === 'USD')
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(amount)
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(amount)
-}
+import { formatCurrency } from '../utils/format'
 
 function formatDate(dateStr: string) {
   if (!dateStr) return ''

@@ -16,7 +16,7 @@ from app.routers.groups import get_group_user_ids
 from app.services.categorization import auto_categorize, _resolve_category
 from app.services.date_utils import _normalize_date_str
 from app.services.import_utils import _is_duplicate
-from app.services.normalizers import _norm_bank, _norm_holder
+from app.services.normalizers import normalize_bank, _norm_holder
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
@@ -92,7 +92,7 @@ def get_card_options(db: Session = Depends(get_db), current_user: User = Depends
     data: list[tuple[str, str, str]] = []
     for person, bank, card in rows:
         nh = _norm_holder(person)
-        nb = _norm_bank(bank)
+        nb = normalize_bank(bank)
         if nh and nb and card:
             data.append((nh, nb, card.strip()))
 
