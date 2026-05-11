@@ -177,6 +177,23 @@ export const getScheduledSummary = () =>
     }[]
   }>('/dashboard/scheduled-summary').then((r) => r.data)
 
+export const getCreditCardPasivos = () =>
+  api.get<{
+    total_pasivos: number
+    count: number
+    pasivos: {
+      id: number
+      description: string
+      amount: number
+      currency: string
+      scheduled_date: string
+      installment_number: number
+      installment_total: number
+      card: string
+      bank: string
+    }[]
+  }>('/dashboard/credit-card-pasivos').then((r) => r.data)
+
 export const getAccountExpenses = (month?: string) =>
   api.get<{
     id: number

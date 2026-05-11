@@ -5,7 +5,7 @@ import {
   AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
-import { getDashboard, getCardSummary, getExpenses, getScheduledSummary, getAccountExpenses } from '../api/client'
+import { getDashboard, getCardSummary, getExpenses, getScheduledSummary, getAccountExpenses, getCreditCardPasivos } from '../api/client'
 
 const MONTHS_ES_LONG = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
@@ -180,6 +180,12 @@ export default function Dashboard() {
     queryFn: () => getScheduledSummary(),
   })
 
+  // Credit card pasivos (future commitments)
+  const { data: pasivosData } = useQuery({
+    queryKey: ['credit-card-pasivos'],
+    queryFn: () => getCreditCardPasivos(),
+  })
+
   // Compute balance/ingresos/gastos from selected month (excluir tarjetas de credito)
   const gastos = dashData?.total_by_account ?? 0
   const ingresos = dashData?.by_income?.reduce((acc, c) => acc + c.total, 0) ?? 0
@@ -251,12 +257,17 @@ export default function Dashboard() {
           sub="Acreditaciones del período"
           accent="green"
         />
-        <StatCard
-          label="Gastos"
-          value={formatCurrency(gastos)}
-          sub={`${dashData?.total_expenses ?? 0} transacciones`}
-          accent="red"
-        />
+        <div className="card p-5 border-l-4 border-danger">
+          <p className="text-xs font-medium text-secondary uppercase tracking-wide mb-1">Gastos</p>
+          <p className="text-2xl font-bold text-primary leading-tight">{formatCurrency(gastos)}</p>
+          <p className="text-xs text-tertiary mt-1">{dashData?.total_expenses ?? 0} transacciones</p>
+          {pasivosData && pasivosData.total_pasivos > 0 && (
+            <div className="mt-3 pt-3 border-t border-border-color">
+              <p className="text-xs text-tertiary">Pasivos (compromisos TC)</p>
+              <p className="text-sm font-semibold text-primary">{formatCurrency(pasivosData.total_pasivos)}</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Middle section: left (cards + scheduled), right (area chart + budgets) */}

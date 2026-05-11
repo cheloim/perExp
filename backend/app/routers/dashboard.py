@@ -77,7 +77,7 @@ def get_summary(
                 return True
         return False
     
-    total_by_account = sum(e.amount for e in expenses if not is_credit_card_expense(e))
+    total_by_account = sum(e.amount for e in expenses if not is_credit_card_expense(e) and not e.is_income)
 
     by_category: dict = {}
     for e in expenses:
@@ -533,6 +533,60 @@ def get_scheduled_summary(db: Session = Depends(get_db), current_user: User = De
     return result
 
 
+@router.get("/credit-card-pasivos")
+def get_credit_card_pasivos(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from app.models import ScheduledExpense
+    uid_list = get_group_user_ids(current_user.id, db)
+    today = date.today()
+
+    credit_cards = db.query(Card).filter(Card.user_id.in_(uid_list), Card.card_type == "credito").all()
+    credit_card_ids = {c.id for c in credit_cards}
+
+    pending_pasivos = (
+        db.query(ScheduledExpense)
+        .filter(
+            ScheduledExpense.user_id.in_(uid_list),
+            ScheduledExpense.status == "PENDING",
+            ScheduledExpense.scheduled_date >= today,
+        )
+        .all()
+    )
+
+    total_pasivos = 0.0
+    pasivos_detail = []
+
+    for s in pending_pasivos:
+        is_credit_card = False
+        if s.card_id and s.card_id in credit_card_ids:
+            is_credit_card = True
+        if not is_credit_card and s.card:
+            s_card_lower = s.card.lower()
+            for cc in credit_cards:
+                if cc.name.lower() in s_card_lower:
+                    is_credit_card = True
+                    break
+        
+        if is_credit_card:
+            total_pasivos += s.amount
+            pasivos_detail.append({
+                "id": s.id,
+                "description": s.description,
+                "amount": s.amount,
+                "currency": s.currency or "ARS",
+                "scheduled_date": s.scheduled_date.isoformat(),
+                "installment_number": s.installment_number,
+                "installment_total": s.installment_total,
+                "card": s.card or "",
+                "bank": s.bank or "",
+            })
+
+    return {
+        "total_pasivos": total_pasivos,
+        "count": len(pasivos_detail),
+        "pasivos": pasivos_detail,
+    }
+
+
 @router.get("/top-merchants")
 def get_top_merchants(
     month: Optional[str] = None,
@@ -587,11 +641,15 @@ def get_top_merchants(
 
 @router.get("/card-summary")
 def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from app.models import Account
     uid_list = get_group_user_ids(current_user.id, db)
 
     # Build card lookup with both name and id
     user_cards_by_name = {c.name: c.card_type for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
     user_cards_by_id = {c.id: c.card_type for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
+    
+    # Build account lookup - accounts are always "debito" type
+    user_accounts_by_id = {a.id: a.type for a in db.query(Account).filter(Account.user_id.in_(uid_list)).all()}
     def _card_network(card_str: str) -> str:
         s = (card_str or "").strip().lower()
         if "visa" in s:
@@ -622,6 +680,7 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
                 "total_amount": 0.0, "count": 0,
                 "currency": e.currency or "ARS", "last_used": None,
                 "card_ids": {},
+                "account_ids": {},
             }
             by_card_monthly[key] = {}
 
@@ -635,6 +694,8 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
             g["last_used"] = e.date
         if e.card_id:
             g["card_ids"][e.card_id] = g["card_ids"].get(e.card_id, 0) + 1
+        if e.account_id:
+            g["account_ids"][e.account_id] = g["account_ids"].get(e.account_id, 0) + 1
         by_card_monthly[key][month_key] = by_card_monthly[key].get(month_key, 0.0) + e.amount
 
     def _sig_tokens(name: str) -> set:
@@ -707,9 +768,15 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
         months_list = sorted(monthly.keys(), reverse=True)[:12]
         monthly_data = [{"month": m, "total": monthly[m]} for m in reversed(months_list)]
 
-        # Determine card_type: prioritize card_id lookup, then name lookup
+        # Determine card_type: check account_ids first (has account_id = debito/cuenta)
         card_type = None
-        if g.get("card_ids"):
+        if g.get("account_ids"):
+            most_used_account_id = max(g["account_ids"], key=g["account_ids"].get)
+            account_type = user_accounts_by_id.get(most_used_account_id)
+            if account_type:
+                card_type = "debito"
+        # If no account, check card_id lookup, then name lookup
+        if not card_type and g.get("card_ids"):
             most_used_card_id = max(g["card_ids"], key=g["card_ids"].get)
             card_type = user_cards_by_id.get(most_used_card_id)
         if not card_type:

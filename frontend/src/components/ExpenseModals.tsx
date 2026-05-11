@@ -297,6 +297,7 @@ interface ExpenseModalProps {
 export function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }: ExpenseModalProps) {
   const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: getCategories })
   const { data: cards = [] } = useQuery({ queryKey: ['cards'], queryFn: getCards })
+  const { data: accounts = [] } = useQuery({ queryKey: ['accounts'], queryFn: getAccounts })
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -328,6 +329,8 @@ export function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveE
           installment_number: initial.installment_number ?? null,
           installment_total: initial.installment_total ?? null,
           installment_group_id: initial.installment_group_id ?? null,
+          account_id: initial.account_id ?? null,
+          card_id: initial.card_id ?? null,
         }
       : EMPTY_FORM,
   )
@@ -362,9 +365,9 @@ export function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveE
   const switchPayMethod = (method: 'card' | 'cash') => {
     setPayMethod(method)
     if (method === 'cash') {
-      setForm((prev) => ({ ...prev, card: 'Efectivo', bank: '', person: prev.person }))
+      setForm((prev) => ({ ...prev, card: '', bank: '', card_id: null, account_id: null }))
     } else {
-      setForm((prev) => ({ ...prev, card: '', bank: '' }))
+      setForm((prev) => ({ ...prev, card: '', bank: '', account_id: null }))
     }
   }
 
@@ -528,6 +531,26 @@ export function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveE
                 disabled={payMethod === 'cash'}
               />
             </div>
+          </div>
+        </div>
+
+        {/* Account selector for cash/transfer payments */}
+        <div className={`space-y-3 ${payMethod === 'card' ? 'opacity-40 pointer-events-none' : ''}`}>
+          <div>
+            <label className="text-xs font-medium text-[var(--text-secondary)]">Cuenta / Medio de pago</label>
+            <Select
+              value={String(form.account_id || '')}
+              onChange={(v) => set('account_id', v ? Number(v) : null)}
+              options={accounts.filter(a => a.type !== 'credito').map(a => ({
+                value: String(a.id),
+                label: a.name
+              }))}
+              placeholder="Seleccionar cuenta"
+              disabled={payMethod === 'card'}
+            />
+            <p className="text-xs text-[var(--text-tertiary)] mt-1">
+              Caja de ahorro, cuenta corriente, MercadoPago, efectivo
+            </p>
           </div>
         </div>
 

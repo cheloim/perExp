@@ -501,7 +501,7 @@ export default function AccountsPage() {
     category_name: c.category_name,
     category_color: c.category_color,
     total: Math.abs(c.total),
-  }))
+  })).filter(c => c.total > 0)
 
 
 
@@ -523,7 +523,7 @@ export default function AccountsPage() {
       {cardData.length > 0 && (
         <div className="card p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-primary">Tarjetas</h2>
+            <h2 className="text-sm font-semibold text-primary">Accounts</h2>
             <div className="flex items-center gap-2">
               {(() => {
                 const banks = [...new Set(cardData.map(c => c.bank))].sort()
@@ -620,7 +620,7 @@ export default function AccountsPage() {
                           />
                         ))}
                       </Pie>
-                      <Tooltip contentStyle={{ backgroundColor: 'var(--chart-tooltip-bg)', borderColor: 'var(--chart-tooltip-border)', color: 'var(--chart-tooltip-text)', borderRadius: 8, fontSize: 12 }} itemStyle={{ color: 'var(--chart-tooltip-text)' }} formatter={(v: number, name: string) => [formatCurrency(v), name]} />
+                      <Tooltip contentStyle={{ backgroundColor: 'var(--chart-tooltip-bg)', borderColor: 'var(--chart-tooltip-border)', color: 'var(--chart-tooltip-text)', borderRadius: 8, fontSize: 12 }} itemStyle={{ color: 'var(--chart-tooltip-text)' }} formatter={(v: number, name: string) => v > 0 ? [formatCurrency(v), name] : [formatCurrency(v), name]} />
                     </PieChart>
                   </ResponsiveContainer>
 
@@ -655,10 +655,10 @@ export default function AccountsPage() {
             </div>
 
             <div className="card p-5">
-              <h2 className="text-base font-semibold text-primary mb-4">Evolución por Tarjeta</h2>
+              <h2 className="text-base font-semibold text-primary mb-4">Evolución por Account</h2>
               {(() => {
                 const filteredCards = cardData
-                  .filter(card => card.card_type?.toLowerCase() === 'credito')
+                  .filter(card => card.card_type === 'credito')
                   .filter(card => !bankFilter || card.bank === bankFilter)
 
                 const now = new Date()
