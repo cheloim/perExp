@@ -76,6 +76,12 @@ BASE_HIERARCHY = [
             {"name": "Devolución Impuestos", "color": "#86efac", "keywords": "percepcion,percepción,iibb,ingresos brutos,devolucion imp,reintegro imp,imp iva,impuesto"},
         ],
     },
+    {
+        "parent": {"name": "Ingresos", "color": "#10b981"},
+        "children": [
+            {"name": "Haberes", "color": "#34d399", "keywords": "sueldo,salario,cobro,nómina,nomina,haberes,pago,ingreso,salary"},
+        ],
+    },
 ]
 
 

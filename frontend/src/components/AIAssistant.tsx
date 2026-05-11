@@ -220,6 +220,10 @@ export default function AIAssistant({ open, onToggle }: { open: boolean; onToggl
   const [summarizing, setSummarizing] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [expandedId, setExpandedId]   = useState<string | null>(null)
+  const [debugMode, setDebugMode]     = useState(false)
+
+  // Detect localhost for debug mode
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
 
   const chatEndRef = useRef<HTMLDivElement>(null)
   const inputRef   = useRef<HTMLInputElement>(null)
@@ -271,7 +275,7 @@ export default function AIAssistant({ open, onToggle }: { open: boolean; onToggl
     setMessages(prev => [...prev, { role: 'user', text }, { role: 'assistant', text: '' }])
     setStreaming(true)
     try {
-      await streamTo('/api/analysis/stream', { month: currentMonth, question: text }, full =>
+      await streamTo('/api/analysis/stream', { month: currentMonth, question: text, debug_mode: debugMode }, full =>
         setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', text: full }; return u })
       )
     } catch {
@@ -337,6 +341,19 @@ export default function AIAssistant({ open, onToggle }: { open: boolean; onToggl
               {summarizing ? '...' : 'Resumir'}
             </button>
           )}
+          {isLocalhost && (
+            <button
+              onClick={() => setDebugMode(!debugMode)}
+              className={`text-xs px-2 py-1 rounded border transition-colors ${
+                debugMode
+                  ? 'border-orange-500/50 bg-orange-500/20 text-orange-600 font-medium'
+                  : 'border-[var(--border-color)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+              }`}
+              title={debugMode ? "Debug mode ON - Sin filtros LLM" : "Activar debug mode"}
+            >
+              {debugMode ? '🔓 Debug' : '🔒 Debug'}
+            </button>
+          )}
           <button onClick={onToggle}
             className="flex items-center justify-center w-9 h-9 bg-[var(--color-primary)] hover:brightness-110 text-white rounded-full shadow-gnome transition-all">
             ✕
@@ -367,6 +384,16 @@ export default function AIAssistant({ open, onToggle }: { open: boolean; onToggl
             </button>
           )}
         </div>
+
+        {debugMode && (
+          <div className="px-4 py-2 bg-orange-500/10 border-b border-orange-500/30 flex-shrink-0">
+            <p className="text-xs text-orange-600 flex items-center gap-2">
+              <span>🔓</span>
+              <span className="font-medium">Debug Mode:</span>
+              <span>Sin restricciones de dominio. Solo para desarrollo local.</span>
+            </p>
+          </div>
+        )}
 
         {showHistory ? (
           <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2 min-h-0">

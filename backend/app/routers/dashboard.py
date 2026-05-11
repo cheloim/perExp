@@ -81,6 +81,10 @@ def get_summary(
 
     by_category: dict = {}
     for e in expenses:
+        # Skip income from expense category aggregation
+        if e.is_income:
+            continue
+
         if e.category_id and e.category_id in cat_map:
             cat = cat_map[e.category_id]
             cid, cname, ccolor = cat.id, cat.name, cat.color
@@ -107,11 +111,41 @@ def get_summary(
             py = y if m > 1 else y - 1
             prev_expenses = _apply_filters(base_q, f"{py}-{pm:02d}", search, None, category_id, bank).all()
             for e in prev_expenses:
+                # Skip income from previous month calculation
+                if e.is_income:
+                    continue
                 cname = cat_map[e.category_id].name if e.category_id in cat_map else "Sin categoría"
                 if cname in by_category:
                     by_category[cname]["previous_total"] += e.amount
         except (ValueError, IndexError):
             pass
+
+    # Income breakdown
+    by_income: dict = {}
+    for e in expenses:
+        # Only process income
+        if not e.is_income:
+            continue
+
+        if e.category_id and e.category_id in cat_map:
+            cat = cat_map[e.category_id]
+            cid, cname, ccolor = cat.id, cat.name, cat.color
+            parent = cat_map.get(cat.parent_id) if cat.parent_id else None
+            pid = parent.id if parent else None
+            pname = parent.name if parent else None
+            pcolor = parent.color if parent else None
+        else:
+            cid, cname, ccolor = None, "Sin categoría", "#6b7280"
+            pid, pname, pcolor = None, None, None
+
+        if cname not in by_income:
+            by_income[cname] = {
+                "category_id": cid, "category_name": cname, "category_color": ccolor,
+                "parent_id": pid, "parent_name": pname, "parent_color": pcolor,
+                "total": 0.0, "count": 0,
+            }
+        by_income[cname]["total"] += e.amount  # Already positive
+        by_income[cname]["count"] += 1
 
     by_period: dict = {}
     for e in expenses:
@@ -196,6 +230,7 @@ def get_summary(
         "total_by_account": total_by_account,
         "total_expenses": len(expenses),
         "by_category": sorted(by_category.values(), key=lambda x: x["total"], reverse=True),
+        "by_income": sorted(by_income.values(), key=lambda x: x["total"], reverse=True),
         "by_period": sorted(by_period.values(), key=lambda x: x["period"]),
         "by_currency": sorted(by_currency.values(), key=lambda x: x["total"], reverse=True),
         "by_card": sorted(by_card.values(), key=lambda x: x["total"], reverse=True),
@@ -244,6 +279,9 @@ def get_account_expenses(
     for e in expenses:
         if is_credit_card_expense(e):
             continue
+        # Skip income
+        if e.is_income:
+            continue
         cat = cat_map.get(e.category_id) if e.category_id else None
         result.append({
             "id": e.id,
@@ -258,7 +296,7 @@ def get_account_expenses(
             "bank": e.bank or "",
             "person": e.person or "",
         })
-    
+
     return result
 
 
@@ -551,7 +589,9 @@ def get_top_merchants(
 def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     uid_list = get_group_user_ids(current_user.id, db)
 
-    user_cards = {c.name: c.card_type for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
+    # Build card lookup with both name and id
+    user_cards_by_name = {c.name: c.card_type for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
+    user_cards_by_id = {c.id: c.card_type for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
     def _card_network(card_str: str) -> str:
         s = (card_str or "").strip().lower()
         if "visa" in s:
@@ -581,6 +621,7 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
                 "card_names": {}, "holders": {},
                 "total_amount": 0.0, "count": 0,
                 "currency": e.currency or "ARS", "last_used": None,
+                "card_ids": {},
             }
             by_card_monthly[key] = {}
 
@@ -592,6 +633,8 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
             g["holders"][holder] = g["holders"].get(holder, 0) + 1
         if not g["last_used"] or e.date > g["last_used"]:
             g["last_used"] = e.date
+        if e.card_id:
+            g["card_ids"][e.card_id] = g["card_ids"].get(e.card_id, 0) + 1
         by_card_monthly[key][month_key] = by_card_monthly[key].get(month_key, 0.0) + e.amount
 
     def _sig_tokens(name: str) -> set:
@@ -646,6 +689,8 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
                     gr["card_names"][cn] = gr["card_names"].get(cn, 0) + c
                 for h, c in gm["holders"].items():
                     gr["holders"][h] = gr["holders"].get(h, 0) + c
+                for cid, c in gm.get("card_ids", {}).items():
+                    gr["card_ids"][cid] = gr["card_ids"].get(cid, 0) + c
                 if gm["last_used"] and (not gr["last_used"] or gm["last_used"] > gr["last_used"]):
                     gr["last_used"] = gm["last_used"]
                 for mk, v in by_card_monthly.get(m, {}).items():
@@ -662,7 +707,15 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
         months_list = sorted(monthly.keys(), reverse=True)[:12]
         monthly_data = [{"month": m, "total": monthly[m]} for m in reversed(months_list)]
 
-        card_type = user_cards.get(card_name) or user_cards.get(g["network"].title()) or "credito"
+        # Determine card_type: prioritize card_id lookup, then name lookup
+        card_type = None
+        if g.get("card_ids"):
+            most_used_card_id = max(g["card_ids"], key=g["card_ids"].get)
+            card_type = user_cards_by_id.get(most_used_card_id)
+        if not card_type:
+            card_type = user_cards_by_name.get(card_name) or user_cards_by_name.get(g["network"].title())
+        if not card_type:
+            card_type = "credito"
 
         result.append({
             "holder": holder, "bank": g["bank"],

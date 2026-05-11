@@ -10,6 +10,10 @@ TAX_REFUND_KEYWORDS = [
     "percepcion", "percepción", "iibb", "ingresos brutos",
     "devolucion imp", "reintegro imp", "imp. ", "imp iva", "impuesto",
 ]
+BONIFICATION_KEYWORDS = [
+    "bonif", "bonificacion", "bonificación", "descuento", "reintegro",
+    "cashback", "devolucion", "devolución", "promocion", "promoción",
+]
 
 
 def _leaf_cats(cats: list) -> list:
@@ -33,12 +37,46 @@ def _should_skip(description: str) -> bool:
     return any(kw in desc_lower for kw in PAYMENT_SKIP_KEYWORDS)
 
 
+def is_income_category(category_id: Optional[int], db: Session) -> bool:
+    """Check if category or its parent is 'Ingresos'"""
+    if not category_id:
+        return False
+
+    cat = db.query(Category).filter(Category.id == category_id).first()
+    if not cat:
+        return False
+
+    # Check if category itself is "Ingresos"
+    if cat.name == "Ingresos":
+        return True
+
+    # Check parent
+    if cat.parent_id:
+        parent = db.query(Category).filter(Category.id == cat.parent_id).first()
+        if parent and parent.name == "Ingresos":
+            return True
+
+    return False
+
+
 def _resolve_category(db: Session, amount: float, description: str, cats: list) -> Optional[int]:
     desc_lower = description.lower()
     if amount < 0:
+        # Tax refunds
         if any(kw in desc_lower for kw in TAX_REFUND_KEYWORDS):
             cat = next((c for c in cats if c.name == "Devolución Impuestos"), None)
-        else:
+            if cat:
+                return cat.id
+
+        # Bonifications/cashback
+        if any(kw in desc_lower for kw in BONIFICATION_KEYWORDS):
             cat = next((c for c in cats if c.name == "Bonificación"), None)
-        return cat.id if cat else None
+            if cat:
+                return cat.id
+
+        # Generic income → Haberes
+        cat = next((c for c in cats if c.name == "Haberes"), None)
+        if cat:
+            return cat.id
+
     return auto_categorize(description, cats)

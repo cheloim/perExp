@@ -106,7 +106,7 @@ TOP 10 GASTOS MÁS ALTOS:
                 model="gemini-flash-latest",
                 contents=user_message,
                 config=genai_types.GenerateContentConfig(
-                    system_instruction=ANALYSIS_SYSTEM_PROMPT,
+                    system_instruction=(None if req.debug_mode else ANALYSIS_SYSTEM_PROMPT),
                 ),
             ):
                 if chunk.text:

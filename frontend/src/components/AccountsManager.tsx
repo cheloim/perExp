@@ -159,6 +159,22 @@ export default function AccountsManager() {
                   {error && <p className="text-xs text-red-500">{error}</p>}
                 </div>
 
+                {/* Tipo de cuenta */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">Tipo de cuenta</label>
+                  <select
+                    value={type}
+                    onChange={(e) => setType(e.target.value)}
+                    className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+                  >
+                    <option value="efectivo">💵 Efectivo</option>
+                    <option value="cuenta_corriente">🏦 Cuenta Corriente</option>
+                    <option value="caja_ahorro">💳 Caja de Ahorro</option>
+                    <option value="mercadopago">📱 MercadoPago</option>
+                    <option value="tarjeta">💰 Tarjeta</option>
+                  </select>
+                </div>
+
                 {/* Campos de Tarjeta */}
                 {type === 'tarjeta' && (
                   <div className="space-y-3 pt-2 border-t border-[var(--border-color)]">
@@ -251,16 +267,16 @@ export default function AccountsManager() {
       })}
 
       {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-surface rounded-xl shadow-xl p-6 max-w-sm w-full">
-            <h3 className="text-lg font-semibold text-primary mb-2">Confirmar eliminación</h3>
-            <p className="text-sm text-secondary mb-6">
-              ¿Estás seguro de eliminar <span className="font-medium text-primary">"{deleteConfirm.name}"</span>? Esta acción no se puede deshacer.
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
+          <div className="bg-[var(--color-surface)] rounded-xl shadow-gnome-lg p-6 max-w-sm w-full border border-[var(--border-color)]">
+            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Confirmar eliminación</h3>
+            <p className="text-sm text-[var(--text-secondary)] mb-6">
+              ¿Estás seguro de eliminar <span className="font-medium text-[var(--color-primary)]">"{deleteConfirm.name}"</span>? Esta acción no se puede deshacer.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setDeleteConfirm(null)}
-                className="flex-1 btn-secondary"
+                className="flex-1 px-4 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
               >
                 Cancelar
               </button>
@@ -270,7 +286,7 @@ export default function AccountsManager() {
                   setDeleteConfirm(null)
                 }}
                 disabled={deleteMut.isPending}
-                className="flex-1 btn-danger"
+                className="flex-1 px-4 py-2 rounded-md bg-[var(--color-danger)] text-white text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"
               >
                 Eliminar
               </button>
@@ -280,11 +296,11 @@ export default function AccountsManager() {
       )}
 
       {duplicateFound && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-surface rounded-xl shadow-xl p-6 max-w-sm w-full">
-            <h3 className="text-lg font-semibold text-primary mb-2">Cuenta existente</h3>
-            <p className="text-sm text-secondary mb-6">
-              Ya existe una cuenta con estos datos: <span className="font-medium text-primary">"{duplicateFound.name}"</span> ({duplicateFound.type})
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
+          <div className="bg-[var(--color-surface)] rounded-xl shadow-gnome-lg p-6 max-w-sm w-full border border-[var(--border-color)]">
+            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Cuenta existente</h3>
+            <p className="text-sm text-[var(--text-secondary)] mb-6">
+              Ya existe una cuenta con estos datos: <span className="font-medium text-[var(--color-primary)]">"{duplicateFound.name}"</span> ({duplicateFound.type})
             </p>
             <div className="flex gap-3">
               <button

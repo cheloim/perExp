@@ -122,6 +122,7 @@ class Expense(Base):
     # New structured fields
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
     card_id = Column(Integer, ForeignKey("cards.id"), nullable=True)
+    is_income = Column(Boolean, default=False, nullable=False)
     category = relationship("Category", back_populates="expenses")
     account_rel = relationship("Account")
     card_rel = relationship("Card")
@@ -237,6 +238,7 @@ with engine.connect() as _conn:
         ("group_id", "INTEGER REFERENCES groups(id)"),
         ("account_id", "INTEGER REFERENCES accounts(id)"),
         ("card_id", "INTEGER REFERENCES cards(id)"),
+        ("is_income", "BOOLEAN DEFAULT FALSE NOT NULL"),
     ]:
         if _col not in _cols:
             _conn.execute(sa_text(f"ALTER TABLE expenses ADD COLUMN {_col} {_type}"))

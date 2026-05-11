@@ -166,13 +166,37 @@ def check_duplicate(
 
 @router.post("", response_model=ExpenseResponse)
 def create_expense(expense: ExpenseCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from app.services.categorization import is_income_category
+
     if _is_duplicate(db, expense.date, expense.amount, expense.description, expense.transaction_id):
         raise HTTPException(409, "Ya existe un gasto con la misma fecha, monto y descripción.")
 
-    # Validate account/card requirement for cash/transfer payments
-    if not expense.account_id and not expense.card_id:
-        # Check if it's a cash/transfer payment using legacy field
-        card_lower = expense.card.lower()
+    data = expense.model_dump()
+
+    # Auto-categorize if needed
+    if data.get("category_id") is None:
+        cats = db.query(Category).all()
+        data["category_id"] = auto_categorize(data["description"], cats)
+
+    # Detect if this is income based on category parent
+    data["is_income"] = is_income_category(data.get("category_id"), db)
+
+    # Always store amount as positive (no sign convention)
+    data["amount"] = abs(data["amount"])
+
+    # Validate: income must have account_id
+    if data["is_income"] and not data.get("account_id"):
+        raise HTTPException(
+            400,
+            detail={
+                "error": "account_required",
+                "message": "Los ingresos requieren una cuenta destino."
+            }
+        )
+
+    # Validate: non-income cash/transfer payments also need account
+    if not data["is_income"] and not data.get("account_id") and not data.get("card_id"):
+        card_lower = data.get("card", "").lower()
         if any(kw in card_lower for kw in ["efectivo", "transferencia", "cash"]):
             raise HTTPException(
                 400,
@@ -182,10 +206,6 @@ def create_expense(expense: ExpenseCreate, db: Session = Depends(get_db), curren
                 }
             )
 
-    data = expense.model_dump()
-    if data.get("category_id") is None:
-        cats = db.query(Category).all()
-        data["category_id"] = auto_categorize(data["description"], cats)
     db_exp = Expense(**data, user_id=current_user.id)
     db.add(db_exp)
     db.commit()

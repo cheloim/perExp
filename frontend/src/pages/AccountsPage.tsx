@@ -21,6 +21,7 @@ import {
 } from '../api/client'
 import type { CategorySummary, Expense, ExpenseCreate, Category, CardSummary } from '../types'
 import { Select } from '../components/Select'
+import { IncomeModal, ExpenseModal } from '../components/ExpenseModals'
 
 type GroupBy = 'month' | 'year'
 type SortField = 'date' | 'description' | 'category' | 'bank' | 'person' | 'amount'
@@ -338,6 +339,7 @@ export default function AccountsPage() {
 
   // Modal states
   const [editing, setEditing] = useState<Expense | null | undefined>(undefined)
+  const [editingIsIncome, setEditingIsIncome] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
   
@@ -517,34 +519,6 @@ export default function AccountsPage() {
 
   return (
     <div className="space-y-6">
-      <div className={`grid grid-cols-1 gap-4 ${data.by_currency.length > 1 ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3'}`}>
-        {data.by_currency.length <= 1 ? (
-          <div className="card p-5">
-            <p className="text-sm text-secondary">Total Gastos</p>
-            <p className="text-3xl font-bold text-primary mt-1">
-              {formatCurrency(data.total_amount, data.by_currency[0]?.currency ?? 'ARS')}
-            </p>
-          </div>
-        ) : (
-          data.by_currency.map((bc) => (
-            <div key={bc.currency} className="card p-5">
-              <p className="text-sm text-secondary">
-                Total Gastos{' '}
-                <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${bc.currency === 'USD' ? 'badge-success' : 'badge-primary'}`}>
-                  {bc.currency}
-                </span>
-              </p>
-              <p className="text-3xl font-bold text-primary mt-1">{formatCurrency(bc.total, bc.currency)}</p>
-              <p className="text-xs text-tertiary mt-0.5">{bc.count} transacciones</p>
-            </div>
-          ))
-        )}
-        <div className="card p-5">
-          <p className="text-sm text-secondary">Transacciones</p>
-          <p className="text-3xl font-bold text-primary mt-1">{data.total_expenses}</p>
-        </div>
-      </div>
-
       {/* Cards panel — horizontal scroll row */}
       {cardData.length > 0 && (
         <div className="card p-4 space-y-3">
@@ -683,10 +657,9 @@ export default function AccountsPage() {
             <div className="card p-5">
               <h2 className="text-base font-semibold text-primary mb-4">Evolución por Tarjeta</h2>
               {(() => {
-                const filteredCards = cardData.filter(card => !bankFilter || card.bank === bankFilter)
-                if (filteredCards.length === 0) {
-                  return <p className="text-secondary text-sm text-center py-12">Sin datos</p>
-                }
+                const filteredCards = cardData
+                  .filter(card => card.card_type?.toLowerCase() === 'credito')
+                  .filter(card => !bankFilter || card.bank === bankFilter)
 
                 const now = new Date()
                 const currentYear = now.getFullYear()
@@ -1055,7 +1028,7 @@ export default function AccountsPage() {
                             <td className="py-2 text-right">
                               <div className="flex items-center justify-end gap-1">
                                 <button
-                                  onClick={() => setEditing(exp)}
+                                  onClick={() => { setEditingIsIncome(exp.is_income); setEditing(exp) }}
                                   className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-primary hover:bg-[var(--color-base-alt)] transition"
                                   title="Editar"
                                 >
@@ -1088,15 +1061,11 @@ export default function AccountsPage() {
           </div>
       </div>
 
-      {/* Expense Modal */}
-      {editing !== undefined && (
-        <ExpenseModal
-          expense={editing}
-          isIncome={false}
-          onClose={() => {
-            setEditing(undefined)
-            setSaveError(null)
-          }}
+      {/* Unified Modal Rendering */}
+      {editing && editingIsIncome ? (
+        <IncomeModal
+          initial={editing === undefined ? null : editing}
+          onClose={() => { setEditing(undefined); setEditingIsIncome(false); setSaveError(null) }}
           onSave={(data) => {
             if (editing) {
               updateMut.mutate({ id: editing.id, data })
@@ -1104,12 +1073,23 @@ export default function AccountsPage() {
               createMut.mutate(data)
             }
           }}
-          onDelete={(id) => deleteMut.mutate(id)}
-          categories={categories}
-          cardSummary={cardSummary}
           saveError={saveError}
         />
-      )}
+      ) : editing !== undefined ? (
+        <ExpenseModal
+          initial={editing === undefined ? null : editing}
+          isIncome={false}
+          onClose={() => { setEditing(undefined); setSaveError(null) }}
+          onSave={(data) => {
+            if (editing) {
+              updateMut.mutate({ id: editing.id, data })
+            } else {
+              createMut.mutate(data)
+            }
+          }}
+          saveError={saveError}
+        />
+      ) : null}
 
       {/* Bulk Actions Floating Bar */}
       {selectMode && selectedIds.size > 0 && (
@@ -1169,388 +1149,6 @@ export default function AccountsPage() {
           </button>
         </div>
       )}
-    </div>
-  )
-}
-
-// Helper functions and components
-function todayDDMMYYYY() {
-  const now = new Date()
-  const d = String(now.getDate()).padStart(2, '0')
-  const m = String(now.getMonth() + 1).padStart(2, '0')
-  const y = now.getFullYear()
-  return `${d}-${m}-${y}`
-}
-
-const EMPTY_FORM: ExpenseCreate = {
-  date: todayDDMMYYYY(),
-  description: '',
-  amount: 0,
-  currency: 'ARS',
-  category_id: null,
-  card: '',
-  bank: '',
-  person: '',
-  notes: '',
-  transaction_id: '',
-  installment_number: null,
-  installment_total: null,
-  installment_group_id: null,
-}
-
-function DatePickerInput({ value, onChange }: { value: string; onChange: (d: string) => void }) {
-  const [isOpen, setIsOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  const getValidDate = (val: string): Date => {
-    if (!val || typeof val !== 'string') return new Date()
-    const parts = val.split('-')
-    if (parts.length !== 3) return new Date()
-    const d = parseInt(parts[0])
-    const m = parseInt(parts[1])
-    const y = parseInt(parts[2])
-    if (isNaN(d) || isNaN(m) || isNaN(y)) return new Date()
-    if (d < 1 || d > 31 || m < 1 || m > 12 || y < 2000 || y > 2100) return new Date()
-    return new Date(y, m - 1, d)
-  }
-
-  const selectedDate = getValidDate(value)
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setIsOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
-
-  return (
-    <div ref={ref} className="relative">
-      <input
-        type="text"
-        readOnly
-        value={value}
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-3 py-2 border border-border-color rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition cursor-pointer"
-        placeholder="DD-MM-YYYY"
-      />
-      {isOpen && (
-        <div className="absolute z-50 mt-2 p-3 bg-surface border border-border-color rounded-xl shadow-xl">
-          <DayPicker
-            mode="single"
-            selected={selectedDate}
-            onSelect={(d) => {
-              if (d) {
-                const nd = String(d.getDate()).padStart(2, '0')
-                const nm = String(d.getMonth() + 1).padStart(2, '0')
-                const ny = d.getFullYear()
-                onChange(`${nd}-${nm}-${ny}`)
-                setIsOpen(false)
-              }
-            }}
-            locale={es}
-            className=""
-          />
-        </div>
-      )}
-    </div>
-  )
-}
-
-function ExpenseModal({
-  expense,
-  isIncome = false,
-  onClose,
-  onSave,
-  onDelete: _onDelete,
-  categories,
-  cardSummary,
-  saveError
-}: {
-  expense?: Expense | null
-  isIncome: boolean
-  onClose: () => void
-  onSave: (data: ExpenseCreate) => void
-  onDelete?: (id: number) => void
-  categories: Category[]
-  cardSummary: CardSummary[]
-  saveError?: string | null
-}) {
-  const isCash = (card: string) => !card || card === 'Efectivo'
-
-  const [payMethod, setPayMethod] = useState<'card' | 'cash'>(
-    expense ? (isCash(expense.card ?? '') ? 'cash' : 'card') : isIncome ? 'cash' : 'card'
-  )
-
-  const [form, setForm] = useState<ExpenseCreate>(
-    expense
-      ? {
-          date: expense.date,
-          description: expense.description,
-          amount: Math.abs(expense.amount),
-          currency: expense.currency || 'ARS',
-          category_id: expense.category_id,
-          card: expense.card ?? '',
-          bank: expense.bank ?? '',
-          person: expense.person ?? '',
-          notes: expense.notes ?? '',
-          transaction_id: expense.transaction_id ?? '',
-          installment_number: expense.installment_number ?? null,
-          installment_total: expense.installment_total ?? null,
-          installment_group_id: expense.installment_group_id ?? null,
-        }
-      : EMPTY_FORM,
-  )
-
-  const [cuotasEnabled, setCuotasEnabled] = useState(
-    !!(expense?.installment_total && expense.installment_total > 1)
-  )
-
-  const toggleCuotas = (enabled: boolean) => {
-    setCuotasEnabled(enabled)
-    if (enabled) {
-      const gid = form.installment_group_id || crypto.randomUUID()
-      setForm((prev) => ({ ...prev, installment_number: 1, installment_total: 1, installment_group_id: gid }))
-    } else {
-      setForm((prev) => ({ ...prev, installment_number: null, installment_total: null, installment_group_id: null }))
-    }
-  }
-
-  const set = (field: keyof ExpenseCreate, value: unknown) =>
-    setForm((prev) => ({ ...prev, [field]: value }))
-
-  const switchPayMethod = (method: 'card' | 'cash') => {
-    setPayMethod(method)
-    if (method === 'cash') {
-      setForm((prev) => ({ ...prev, card: 'Efectivo', bank: '', person: prev.person }))
-    } else {
-      setForm((prev) => ({ ...prev, card: '', bank: '' }))
-    }
-  }
-
-  // Cascading selectors: bank → card (sin persona)
-  const availableBanks = [...new Set(cardSummary.map(c => c.bank))].filter(Boolean).sort()
-
-  const selectedBank = form.bank ?? ''
-  const availableCards = cardSummary.filter(c => !selectedBank || c.bank === selectedBank)
-
-  const cardLabel = (c: CardSummary) => c.card_name
-
-  const handleBankChange = (b: string) => {
-    setForm((prev) => ({ ...prev, bank: b, card: '' }))
-  }
-
-  const handleCardSelect = (c: CardSummary) => {
-    setForm((prev) => ({
-      ...prev,
-      card: c.card_name,
-      bank: c.bank,
-    }))
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative card w-full max-w-lg max-h-[90vh] overflow-auto p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-primary">
-            {expense
-              ? (isIncome ? 'Editar ingreso' : 'Editar gasto')
-              : (isIncome ? 'Nuevo ingreso' : 'Nuevo gasto')}
-          </h2>
-          <button onClick={onClose} className="text-tertiary hover:text-primary">✕</button>
-        </div>
-        {isIncome && (
-          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-700">
-            <span>↓</span>
-            <span>El monto se registrará como ingreso (acreditación)</span>
-          </div>
-        )}
-
-        {saveError && (
-          <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">
-            <span className="mt-0.5">✕</span>
-            <span>{saveError}</span>
-          </div>
-        )}
-
-        {/* Payment method toggle */}
-        <div>
-          <label className="block text-sm font-medium text-secondary mb-2">Medio de pago</label>
-          <div className="flex rounded-md border border-[var(--border-color)] overflow-hidden">
-            <button
-              type="button"
-              onClick={() => switchPayMethod('card')}
-              className={`flex-1 px-3 py-2 text-sm font-medium transition ${
-                payMethod === 'card' 
-                  ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)]' 
-                  : 'bg-[var(--color-base-container)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]'
-              }`}
-            >
-              💳 Tarjeta
-            </button>
-            <button
-              type="button"
-              onClick={() => switchPayMethod('cash')}
-              className={`flex-1 px-3 py-2 text-sm font-medium transition ${
-                payMethod === 'cash' 
-                  ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)]' 
-                  : 'bg-[var(--color-base-container)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]'
-              }`}
-            >
-              💵 Efectivo / Transferencia
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <label className="text-xs font-medium text-[var(--text-secondary)]">Fecha</label>
-          <DatePickerInput value={form.date} onChange={(d) => set('date', d)} />
-        </div>
-
-        <div>
-          <label className="text-xs font-medium text-[var(--text-secondary)]">Descripción</label>
-          <input
-            type="text"
-            value={form.description}
-            onChange={(e) => set('description', e.target.value)}
-            placeholder="Ej: Supermercado Coto"
-            className="w-full input"
-          />
-        </div>
-
-        <div className="grid grid-cols-3 gap-3">
-          <div className="col-span-2">
-            <label className="text-xs font-medium text-[var(--text-secondary)]">Monto</label>
-            <input
-              type="number"
-              value={form.amount}
-              onChange={(e) => set('amount', parseFloat(e.target.value) || 0)}
-              className="w-full input"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-[var(--text-secondary)]">Moneda</label>
-            <select value={form.currency ?? 'ARS'} onChange={(e) => set('currency', e.target.value)} className="w-full input">
-              <option value="ARS">ARS $</option>
-              <option value="USD">USD $</option>
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label className="text-xs font-medium text-[var(--text-secondary)]">Categoría</label>
-          <Select
-            value={form.category_id ? String(form.category_id) : ''}
-            onChange={v => set('category_id', v ? parseInt(v) : null)}
-            groups={(() => {
-              const parentIds = new Set(categories.filter(c => c.parent_id).map(c => c.parent_id!))
-              const parents = categories.filter(c => !c.parent_id && parentIds.has(c.id))
-              const orphans = categories.filter(c => !c.parent_id && !parentIds.has(c.id))
-              return [
-                ...parents.map(parent => ({
-                  label: parent.name,
-                  options: categories.filter(c => c.parent_id === parent.id).map(c => ({ value: String(c.id), label: c.name }))
-                })),
-                ...(orphans.length > 0 ? [{ label: '—', options: orphans.map(c => ({ value: String(c.id), label: c.name })) }] : [])
-              ]
-            })()}
-            placeholder="Sin categoría"
-          />
-        </div>
-
-        {/* Cascading: Banco → Tarjeta */}
-        <div className={`space-y-3 transition-opacity ${payMethod === 'cash' ? 'opacity-40 pointer-events-none' : ''}`}>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
-              <select
-                value={form.bank ?? ''}
-                onChange={(e) => handleBankChange(e.target.value)}
-                disabled={payMethod === 'cash'}
-                className="w-full input disabled:opacity-50"
-              >
-                <option value="">— Banco —</option>
-                {availableBanks.map(b => <option key={b} value={b}>{b}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-[var(--text-secondary)]">Tarjeta</label>
-              <select
-                value={form.card ?? ''}
-                onChange={(e) => {
-                  const selected = availableCards.find(c => c.card_name === e.target.value)
-                  if (selected) handleCardSelect(selected)
-                  else set('card', e.target.value)
-                }}
-                disabled={payMethod === 'cash'}
-                className="w-full input disabled:opacity-50"
-              >
-                <option value="">— Tarjeta —</option>
-                {availableCards.map(c => (
-                  <option key={c.card_name} value={c.card_name}>{cardLabel(c)}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {payMethod === 'card' && !isIncome && (
-          <div className="border border-[var(--border-color)] rounded-md p-3 space-y-3">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={cuotasEnabled}
-                onChange={(e) => toggleCuotas(e.target.checked)}
-                className="accent-[var(--color-primary)]"
-              />
-              <span className="text-sm font-medium text-[var(--text-secondary)]">Compra en cuotas</span>
-            </label>
-            {cuotasEnabled && (
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <label className="text-xs font-medium text-[var(--text-secondary)]">Cuota N°</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={form.installment_number ?? 1}
-                    onChange={(e) => set('installment_number', parseInt(e.target.value) || 1)}
-                    className="w-full input text-center"
-                  />
-                </div>
-                <span className="text-[var(--text-tertiary)] mt-4">de</span>
-                <div className="flex-1">
-                  <label className="text-xs font-medium text-[var(--text-secondary)]">Total cuotas</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={form.installment_total ?? 1}
-                    onChange={(e) => set('installment_total', parseInt(e.target.value) || 1)}
-                    className="w-full input text-center"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div>
-          <label className="text-xs font-medium text-[var(--text-secondary)]">Notas</label>
-          <textarea value={form.notes ?? ''} onChange={(e) => set('notes', e.target.value)} className="w-full input" rows={2} />
-        </div>
-
-        <div className="flex gap-2 pt-2">
-          <button onClick={onClose} className="flex-1 btn-secondary">Cancelar</button>
-          <button
-            onClick={() => onSave({ ...form, amount: isIncome ? -Math.abs(form.amount) : Math.abs(form.amount) })}
-            className="flex-1 btn-primary"
-          >
-            Guardar
-          </button>
-        </div>
-      </div>
     </div>
   )
 }

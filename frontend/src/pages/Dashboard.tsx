@@ -182,7 +182,7 @@ export default function Dashboard() {
 
   // Compute balance/ingresos/gastos from selected month (excluir tarjetas de credito)
   const gastos = dashData?.total_by_account ?? 0
-  const ingresos = dashData?.by_category.reduce((acc, c) => c.total < 0 ? acc + Math.abs(c.total) : acc, 0) ?? 0
+  const ingresos = dashData?.by_income?.reduce((acc, c) => acc + c.total, 0) ?? 0
   const balance = ingresos - gastos
 
   // Normalize API date (DD-MM-YYYY or YYYY-MM-DD) → YYYY-MM-DD for comparison
@@ -438,6 +438,44 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Income breakdown */}
+      {dashData?.by_income && dashData.by_income.length > 0 && (
+        <div className="card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-primary">Ingresos del Mes</h2>
+            <span className="text-xs text-success font-medium">
+              {formatCurrency(ingresos)}
+            </span>
+          </div>
+          <div className="space-y-3">
+            {dashData.by_income.map((inc, i) => {
+              const maxIncTotal = dashData.by_income[0]?.total ?? 1
+              const pct = (inc.total / maxIncTotal) * 100
+              return (
+                <div key={i}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: inc.category_color || '#34d399' }} />
+                      <span className="text-xs text-secondary font-medium">{inc.category_name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-tertiary">{inc.count} {inc.count === 1 ? 'ingreso' : 'ingresos'}</span>
+                      <span className="text-xs font-semibold text-success">{formatCurrency(inc.total)}</span>
+                    </div>
+                  </div>
+                  <div className="h-1.5 bg-base-alt rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500 bg-success"
+                      style={{ width: `${pct}%`, backgroundColor: inc.category_color || '#34d399' }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Recent transactions */}
       <div className="card">

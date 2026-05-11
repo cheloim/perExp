@@ -109,6 +109,7 @@ class ExpenseCreate(BaseModel):
     # New structured fields
     account_id: Optional[int] = None
     card_id: Optional[int] = None
+    is_income: Optional[bool] = None  # Set by backend based on category
 
     @field_validator("date", mode="before")
     @classmethod
@@ -142,6 +143,7 @@ class ExpenseUpdate(BaseModel):
     # New structured fields
     account_id: Optional[int] = None
     card_id: Optional[int] = None
+    is_income: Optional[bool] = None
 
 
 class ExpenseResponse(BaseModel):
@@ -164,6 +166,7 @@ class ExpenseResponse(BaseModel):
     category: Optional[CategoryResponse] = None
     account_id: Optional[int] = None
     card_id: Optional[int] = None
+    is_income: bool = False
     account_rel: Optional[AccountSimple] = None
     card_rel: Optional[CardSimple] = None
     model_config = {"from_attributes": True}
@@ -191,6 +194,7 @@ class ExpenseResponse(BaseModel):
 class AnalysisRequest(BaseModel):
     month: Optional[str] = None
     question: Optional[str] = None
+    debug_mode: bool = False
 
 
 class AnalysisHistoryResponse(BaseModel):
