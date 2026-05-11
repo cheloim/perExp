@@ -31,6 +31,7 @@ from app.routers import (
     expenses,
     groups,
     import_,
+    import_jobs,
     investments,
     notifications,
     scheduled_expenses,
@@ -71,14 +72,16 @@ async def lifespan(application: FastAPI):
     else:
         logging.getLogger(__name__).warning("TELEGRAM_BOT_TOKEN not set — bot disabled")
 
-    # Scheduled expenses job
+    # Scheduled jobs
     from apscheduler.schedulers.background import BackgroundScheduler
     from app.tasks.scheduled_expenses import execute_due_installments
+    from app.tasks.cleanup_import_jobs import cleanup_expired_import_jobs
 
     scheduler = BackgroundScheduler()
-    scheduler.add_job(execute_due_installments, 'cron', hour=2, minute=0)  # 2 AM diario
+    scheduler.add_job(execute_due_installments, 'cron', hour=2, minute=0)  # 2:00 AM diario
+    scheduler.add_job(cleanup_expired_import_jobs, 'cron', hour=3, minute=30)  # 3:30 AM diario
     scheduler.start()
-    logging.getLogger(__name__).info("Scheduler started for scheduled expenses")
+    logging.getLogger(__name__).info("Scheduler started (scheduled expenses + import cleanup)")
 
     yield
 
@@ -109,6 +112,7 @@ app.include_router(card_closings.router)
 app.include_router(expenses.router)
 app.include_router(investments.router)
 app.include_router(import_.router)
+app.include_router(import_jobs.router)
 app.include_router(dashboard.router)
 app.include_router(analysis.router)
 app.include_router(groups.router)

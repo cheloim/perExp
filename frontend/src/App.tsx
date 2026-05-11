@@ -5,12 +5,15 @@ import AIAssistant from './components/AIAssistant'
 import InvestmentsAssistant from './components/InvestmentsAssistant'
 import UserPanel from './components/UserPanel'
 import NotificationsPanel from './components/NotificationsPanel'
+import ImportUploadButton from './components/ImportUploadButton'
 import { usePanelWidth } from './context/PanelWidthContext'
+import { UploadProgressProvider } from './context/UploadProgressContext'
 import { sidebarIcons } from './components/SidebarIcons'
 import Dashboard from './pages/Dashboard'
 import AccountsPage from './pages/AccountsPage'
 import ExpensesPage from './pages/ExpensesPage'
 import ImportPage from './pages/ImportPage'
+import ImportJobPreview from './pages/ImportJobPreview'
 import CategoriesPage from './pages/CategoriesPage'
 import CategoryDashboard from './pages/CategoryDashboard'
 import InstallmentsPage from './pages/InstallmentsPage'
@@ -26,7 +29,6 @@ const TABS = [
   { path: '/cat-dashboard',  label: 'Por Categoría',        icon: 'catDashboard', exact: false },
   { path: '/installments',   label: 'Gasto en cuotas',      icon: 'installments', exact: false },
   { path: '/investments',    label: 'Inversiones',         icon: 'investments', exact: false },
-  { path: '/import',         label: 'Importar',            icon: 'import',      exact: false },
   { path: '/categories',    label: 'Config. Categorías',  icon: 'settings',    exact: false },
 ]
 
@@ -88,9 +90,10 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-base">
-      {/* Sidebar — GNOME Adwaita style, expand/collapse on hover */}
-      <aside className="group flex-shrink-0 bg-sidebar border-r border-[var(--border-color)] hidden md:flex flex-col w-16 hover:w-[220px] transition-all duration-300 overflow-hidden">
+    <UploadProgressProvider>
+      <div className="flex h-screen overflow-hidden bg-base">
+        {/* Sidebar — GNOME Adwaita style, expand/collapse on hover */}
+        <aside className="group flex-shrink-0 bg-sidebar border-r border-[var(--border-color)] hidden md:flex flex-col w-16 hover:w-[220px] transition-all duration-300 overflow-hidden">
         {/* Header */}
         <div className="h-14 flex items-center border-b border-[var(--border-color)] px-3 gap-3">
           <div className="w-8 h-8 flex-shrink-0 rounded-md bg-primary flex items-center justify-center text-white font-bold text-xs font-semibold">
@@ -157,6 +160,9 @@ export default function App() {
             </button>
           </div>
 
+          {/* Import Upload Button */}
+          <ImportUploadButton />
+
           {/* User */}
           <button
             onClick={() => setUserPanelOpen(true)}
@@ -197,6 +203,7 @@ export default function App() {
               <Route path="/cat-dashboard"  element={<RequireAuth><CategoryDashboard /></RequireAuth>} />
               <Route path="/installments"   element={<RequireAuth><InstallmentsPage /></RequireAuth>} />
               <Route path="/investments"    element={<RequireAuth><InvestmentsPage /></RequireAuth>} />
+              <Route path="/import-jobs/:jobId" element={<RequireAuth><ImportJobPreview /></RequireAuth>} />
               <Route path="/import"         element={<RequireAuth><ImportPage /></RequireAuth>} />
               <Route path="/categories"     element={<RequireAuth><CategoriesPage /></RequireAuth>} />
               <Route path="/categories/:id" element={<RequireAuth><CategoriesPage /></RequireAuth>} />
@@ -240,8 +247,9 @@ export default function App() {
         {isInvestments && <InvestmentsAssistant />}
       </div>
 
-      <UserPanel open={userPanelOpen} onClose={() => setUserPanelOpen(false)} />
-      {notifOpen && <NotificationsPanel onClose={() => setNotifOpen(false)} />}
-    </div>
+        <UserPanel open={userPanelOpen} onClose={() => setUserPanelOpen(false)} />
+        {notifOpen && <NotificationsPanel onClose={() => setNotifOpen(false)} />}
+      </div>
+    </UploadProgressProvider>
   )
 }

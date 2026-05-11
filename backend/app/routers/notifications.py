@@ -110,3 +110,27 @@ def reject_invitation(notif_id: int, current_user: User = Depends(get_current_us
     notif.read = True
     db.commit()
     return {"ok": True}
+
+
+@router.delete("/{notification_id}")
+def delete_notification(
+    notification_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Delete a notification.
+    Only the owner can delete their notifications.
+    """
+    notification = db.query(Notification).filter(
+        Notification.id == notification_id,
+        Notification.user_id == current_user.id  # SECURITY: Only owner
+    ).first()
+
+    if not notification:
+        raise HTTPException(404, "Notification not found")
+
+    db.delete(notification)
+    db.commit()
+
+    return {"deleted": True}

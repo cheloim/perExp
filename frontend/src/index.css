@@ -12,6 +12,23 @@
   }
 }
 
+@keyframes progress-indeterminate {
+  0% {
+    transform: translateX(-100%) scaleX(0.3);
+  }
+  50% {
+    transform: translateX(0%) scaleX(0.5);
+  }
+  100% {
+    transform: translateX(100%) scaleX(0.3);
+  }
+}
+
+.animate-progress-indeterminate {
+  animation: progress-indeterminate 1.5s infinite ease-in-out;
+  transform-origin: left;
+}
+
 :root {
   --color-base:           #f6f5f4;
   --color-base-alt:       #deddda;

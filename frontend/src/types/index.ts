@@ -262,6 +262,7 @@ export interface SmartImportRow {
 export interface ImportSummary {
   card_type: string
   bank: string
+  person: string
   closing_date: string | null
   due_date: string | null
   total_ars: number | null
@@ -358,4 +359,23 @@ export interface AITrendsResponse {
   recommendation: string
   monthly_history: AIMonthlyHistory[]
   future_installments: Record<string, number>
+}
+
+export interface ImportJob {
+  id: number
+  filename: string
+  status: 'PROCESSING' | 'READY_PREVIEW' | 'COMPLETED' | 'FAILED'
+  created_at: string
+  completed_at: string | null
+  error_message: string | null
+  preview_data: SmartImportPreview | null
+}
+
+export interface UploadProgress {
+  id: string  // UUID generado localmente
+  filename: string
+  status: 'uploading' | 'processing' | 'ready' | 'failed'
+  jobId?: number  // Solo disponible después del upload
+  error?: string
+  abortController?: AbortController  // Para cancelar upload
 }

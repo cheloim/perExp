@@ -217,3 +217,14 @@ class CardClosingResponse(BaseModel):
     next_closing_date: Optional[date] = None
     due_date: Optional[date] = None
     model_config = {"from_attributes": True}
+
+
+class ImportJobResponse(BaseModel):
+    id: int
+    filename: str
+    status: str
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+    error_message: Optional[str] = None
+    preview_data: Optional[dict] = None
+    model_config = {"from_attributes": True}

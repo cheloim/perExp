@@ -22,6 +22,7 @@ import type {
   Notification,
   FamilyGroup,
   ScheduledExpense,
+  ImportJob,
 } from '../types'
 
 const TOKEN_KEY = 'auth_token'
@@ -354,6 +355,8 @@ export const acceptGroupInvitation = (id: number) =>
   api.post(`/notifications/${id}/accept`).then((r) => r.data)
 export const rejectGroupInvitation = (id: number) =>
   api.post(`/notifications/${id}/reject`).then((r) => r.data)
+export const deleteNotification = (id: number) =>
+  api.delete(`/notifications/${id}`).then((r) => r.data)
 
 // Family Group
 export const getMyGroup = () =>
@@ -386,3 +389,37 @@ export const updateCard = (id: number, data: { name?: string; bank?: string; car
   api.put<Card>(`/cards/${id}`, data).then((r) => r.data)
 export const deleteCard = (id: number) =>
   api.delete(`/cards/${id}`).then((r) => r.data)
+
+// Import Jobs
+export async function createImportJob(file: File, signal?: AbortSignal): Promise<ImportJob> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await api.post('/import-jobs', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    signal  // Pass abort signal to axios
+  })
+  return res.data
+}
+
+export async function listImportJobs(status?: string): Promise<ImportJob[]> {
+  const res = await api.get('/import-jobs', { params: { status } })
+  return res.data
+}
+
+export async function getImportJob(jobId: number): Promise<ImportJob> {
+  const res = await api.get(`/import-jobs/${jobId}`)
+  return res.data
+}
+
+export async function confirmImportJob(jobId: number, rows: SmartImportRow[]): Promise<{ imported: number; skipped: number; scheduled: number }> {
+  const res = await api.post(`/import-jobs/${jobId}/confirm`, { rows })
+  return res.data
+}
+
+export async function deleteImportJob(jobId: number): Promise<void> {
+  await api.delete(`/import-jobs/${jobId}`)
+}
+
+export async function updateImportPreview(jobId: number, previewData: any): Promise<void> {
+  await api.put(`/import-jobs/${jobId}/preview`, previewData)
+}

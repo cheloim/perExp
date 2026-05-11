@@ -358,278 +358,42 @@ async def csv_parser_debug(file: UploadFile = File(...), db: Session = Depends(g
 
 @router.post("/smart")
 async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    api_key = os.getenv("GOOGLE_API_KEY")
+    """
+    Smart import endpoint (synchronous, legacy).
+    New async import is available at POST /import-jobs.
+    """
+    from app.services.smart_import_core import run_smart_import
+
     content = await file.read()
-    filename = (file.filename or "").lower()
-
-    is_csv = filename.endswith((".csv", ".xls", ".xlsx"))
-
-    if not api_key:
-        raise HTTPException(500, "GOOGLE_API_KEY no está configurada.")
+    filename = file.filename or "unknown"
 
     try:
-        if filename.endswith(".pdf"):
-            raw_text = _extract_pdf_text(content)
-            raw_text = _normalize_santander_dates(raw_text)
-            raw_text = _inject_card_markers(raw_text)
-            _marker_re = re.compile(r'\[TARJETA_LAST4:\s*(\d{4})\]')
-            _injected_lines = raw_text.splitlines()
-            _marker_map: list[tuple[int, str]] = []
-            for _i, _ln in enumerate(_injected_lines):
-                _m = _marker_re.search(_ln)
-                if _m:
-                    _marker_map.append((_i, _m.group(1)))
-            
-        elif is_csv:
-            if filename.endswith(".csv"):
-                raw_text = content.decode("utf-8", errors="replace")
-                raw_text = _inject_csv_card_markers(raw_text)
-            else:
-                df = _load_dataframe(content, filename)
-                raw_text = df.to_string(index=False, max_rows=1000)
-                raw_text = _inject_csv_card_markers(raw_text)
-            
-        else:
-            raise HTTPException(415, f"Formato no soportado: {filename}. Usá PDF, CSV o Excel.")
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(400, f"No se pudo leer el archivo: {e}")
-
-    if not raw_text.strip():
-        raise HTTPException(400, "No se pudo extraer contenido del archivo.")
-
-    closing_info = {
-        "closing_date": None, "next_closing_date": None, "due_date": None,
-        "bank": "", "card_type": "",
-        "total_ars": None, "total_usd": None,
-        "future_charges_ars": None, "future_charges_usd": None,
-    }
-
-    client = genai.Client(api_key=api_key)
-    try:
-        response = await client.aio.models.generate_content(
-            model="gemini-flash-latest",
-            contents=f"Extracto bancario:\n\n{raw_text[:20000]}",
-            config=genai_types.GenerateContentConfig(
-                system_instruction=SMART_IMPORT_PROMPT,
-                response_mime_type="application/json",
-            ),
+        result = await run_smart_import(
+            file_content=content,
+            filename=filename,
+            db=db,
+            user_id=current_user.id
         )
-        raw_response = (response.text or "").strip()
-        if not raw_response:
-            raise HTTPException(500, "El modelo no devolvió contenido. Intentá de nuevo.")
-        try:
-            rows_raw = json.loads(raw_response)
-        except json.JSONDecodeError:
-            raise HTTPException(500, f"Respuesta inválida del modelo (no es JSON): {raw_response[:300]}")
-        if not isinstance(rows_raw, list):
-            raise ValueError("Response is not a list")
-
-        for field in ["closing_date", "next_closing_date", "due_date", "bank"]:
-            for r in rows_raw:
-                if r and r.get(field):
-                    val = str(r.get(field, "")).strip()
-                    if val:
-                        try:
-                            normalized = _normalize_date_str(val)
-                            if re.match(r'^\d{4}-\d{2}-\d{2}$', normalized):
-                                parsed_date = date.fromisoformat(normalized)
-                            else:
-                                parsed_date = pd.to_datetime(normalized, dayfirst=True).date()
-                            closing_info[field] = parsed_date
-                            break
-                        except Exception:
-                            pass
-            if field == "bank":
-                for r in rows_raw:
-                    if r and r.get("bank"):
-                        val = str(r.get("bank", "")).strip()
-                        if val:
-                            closing_info["bank"] = val
-                            break
-
-        def _parse_amount(v) -> Optional[float]:
-            if v is None:
-                return None
-            try:
-                return float(str(v).replace(",", "."))
-            except (ValueError, TypeError):
-                return None
-
-        for r in rows_raw:
-            if r:
-                if r.get("card_type") and not closing_info["card_type"]:
-                    closing_info["card_type"] = str(r.get("card_type", "")).strip()
-                if r.get("total_ars") is not None and closing_info["total_ars"] is None:
-                    closing_info["total_ars"] = _parse_amount(r["total_ars"])
-                if r.get("total_usd") is not None and closing_info["total_usd"] is None:
-                    closing_info["total_usd"] = _parse_amount(r["total_usd"])
-                if r.get("future_charges_ars") is not None and closing_info["future_charges_ars"] is None:
-                    closing_info["future_charges_ars"] = _parse_amount(r["future_charges_ars"])
-                if r.get("future_charges_usd") is not None and closing_info["future_charges_usd"] is None:
-                    closing_info["future_charges_usd"] = _parse_amount(r["future_charges_usd"])
-
-        fallback_card   = closing_info["card_type"]
-        fallback_bank   = closing_info["bank"]
-        fallback_person = ""
-        for r in rows_raw:
-            if r:
-                if not fallback_card   and r.get("card"):   fallback_card   = str(r["card"]).strip()
-                if not fallback_bank   and r.get("bank"):   fallback_bank   = str(r["bank"]).strip()
-                if not fallback_person and r.get("person"): fallback_person = str(r["person"]).strip()
-            if fallback_card and fallback_bank and fallback_person:
-                break
-
-    except json.JSONDecodeError as e:
-        raise HTTPException(422, f"La IA no pudo parsear las transacciones. Intentá con importación manual. ({e})")
+        return result
+    except ValueError as e:
+        # Map ValueError to appropriate HTTP error
+        error_msg = str(e)
+        if "GOOGLE_API_KEY" in error_msg:
+            raise HTTPException(500, error_msg)
+        elif "Formato no soportado" in error_msg or "no pudo leer" in error_msg:
+            raise HTTPException(400, error_msg)
+        elif "no pudo extraer" in error_msg:
+            raise HTTPException(400, error_msg)
+        elif "no pudo parsear" in error_msg:
+            raise HTTPException(422, error_msg)
+        elif "No se encontraron transacciones" in error_msg:
+            raise HTTPException(422, error_msg)
+        else:
+            raise HTTPException(500, f"Error: {error_msg}")
     except Exception as e:
         import traceback
         traceback.print_exc()
         raise HTTPException(500, f"Error interno: {type(e).__name__}: {e}")
-
-    cats = db.query(Category).all()
-
-    user_cards = db.query(Card).filter(Card.user_id == current_user.id).all()
-
-    parsed = []
-    for r in rows_raw:
-        desc = str(r.get("description", "")).strip()
-        if not desc or _should_skip(desc):
-            continue
-        try:
-            amount = float(r.get("amount", 0) or 0)
-        except (ValueError, TypeError):
-            amount = 0.0
-        if amount == 0:
-            continue
-        txn_id = str(r.get("transaction_id") or "").strip() or None
-        raw_date = str(r.get("date", "")).strip()
-        try:
-            normalized = _normalize_date_str(raw_date)
-            if re.match(r'^\d{4}-\d{2}-\d{2}$', normalized):
-                row_date = date.fromisoformat(normalized)
-            else:
-                row_date = pd.to_datetime(normalized, dayfirst=True).date()
-        except Exception:
-            row_date = None
-        inst_num = r.get("installment_number")
-        inst_total = r.get("installment_total")
-        try:
-            inst_num = int(inst_num) if inst_num else None
-            inst_total = int(inst_total) if inst_total else None
-        except (ValueError, TypeError):
-            inst_num = inst_total = None
-        raw_currency = str(r.get("currency", "") or "").strip().upper()
-        currency = "USD" if raw_currency == "USD" else "ARS"
-        row_card   = str(r.get("card",   "") or "").strip() or fallback_card
-        row_bank   = str(r.get("bank",   "") or "").strip() or fallback_bank
-        row_person = str(r.get("person", "") or "").strip() or fallback_person
-        parsed.append({
-            "date": raw_date,
-            "_date_obj": row_date,
-            "description": desc,
-            "amount": amount,
-            "currency": currency,
-            "card": row_card,
-            "bank": row_bank,
-            "person": row_person,
-            "transaction_id": txn_id,
-            "installment_number": inst_num,
-            "installment_total": inst_total,
-            "installment_group_id": None,
-        })
-
-    unique_persons = list({r["person"] for r in parsed if r.get("person", "").strip()})
-    if len(unique_persons) >= 1:
-        norm_map = await _normalize_persons_llm(unique_persons, client)
-        for r in parsed:
-            raw_p = r.get("person", "")
-            if raw_p in norm_map:
-                r["person"] = norm_map[raw_p]
-
-    last_known_date: Optional[date] = None
-    last_known_raw: str = ""
-    for p in parsed:
-        if p["_date_obj"] is not None:
-            last_known_date = p["_date_obj"]
-            last_known_raw = p["date"]
-        elif last_known_date is not None:
-            p["_date_obj"] = last_known_date
-            p["date"] = last_known_raw
-
-    expenses_list, scheduled_list = _expand_installments(parsed, db, current_user.id)
-    parsed = expenses_list  # Mantener compatibilidad con código siguiente
-
-    rows = []
-    for p in parsed:
-        cat_id = _resolve_category(db, p["amount"], p["description"], cats)
-        cat_name = next((c.name for c in cats if c.id == cat_id), None)
-        row_date = p["_date_obj"]
-        rows.append({
-            "date": p["date"],
-            "description": p["description"],
-            "amount": p["amount"],
-            "currency": p["currency"],
-            "card": p["card"],
-            "bank": p["bank"],
-            "person": p["person"],
-
-            "transaction_id": p["transaction_id"],
-            "installment_number": p["installment_number"],
-            "installment_total": p["installment_total"],
-            "installment_group_id": p["installment_group_id"],
-            "suggested_category": cat_name,
-            "is_duplicate": _is_duplicate(db, row_date, p["amount"], p["description"], p["transaction_id"], p["installment_number"], p["installment_total"]) if row_date else False,
-            "is_auto_generated": p.get("_auto_generated", False),
-        })
-
-    # Agregar scheduled_expenses a rows con flag especial
-    for s in scheduled_list:
-        cat_id = _resolve_category(db, s["amount"], s["description"], cats)
-        cat_name = next((c.name for c in cats if c.id == cat_id), None)
-        rows.append({
-            "date": s["scheduled_date"].strftime("%d-%m-%Y"),
-            "description": s["description"],
-            "amount": s["amount"],
-            "currency": s["currency"],
-            "card": s["card"],
-            "bank": s["bank"],
-            "person": s["person"],
-            "transaction_id": s["transaction_id"],
-            "installment_number": s["installment_number"],
-            "installment_total": s["installment_total"],
-            "installment_group_id": s["installment_group_id"],
-            "suggested_category": cat_name,
-            "is_duplicate": False,
-            "is_auto_generated": True,
-            "is_scheduled": True,  # NUEVO flag
-        })
-
-    non_auto = [r for r in rows if not r.get("is_auto_generated")]
-    if not non_auto:
-        raise HTTPException(422, "No se encontraron transacciones en el archivo. El resumen puede estar vacío o sin consumos.")
-
-    summary = {
-        
-        "card_type":          closing_info["card_type"] or "",
-        "bank":               closing_info["bank"] or "",
-        "closing_date":       closing_info["closing_date"].isoformat() if closing_info["closing_date"] else None,
-        "due_date":           closing_info["due_date"].isoformat() if closing_info["due_date"] else None,
-        "total_ars":          closing_info["total_ars"],
-        "total_usd":          closing_info["total_usd"],
-        "future_charges_ars": closing_info["future_charges_ars"],
-        "future_charges_usd": closing_info["future_charges_usd"],
-    }
-
-    has_missing_data = any(
-        not (r.get("bank") or "").strip() or 
-        not (r.get("card") or "").strip() or 
-        not (r.get("person") or "").strip()
-        for r in rows
-    )
-
-    return {"rows": rows, "raw_count": len(rows_raw), "summary": summary, "has_missing_data": has_missing_data}
 
 
 @router.post("/rows-confirm")

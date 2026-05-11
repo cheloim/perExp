@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    Column, Integer, String, Float, Date, ForeignKey, Text, DateTime, Boolean, inspect,
+    Column, Integer, String, Float, Date, ForeignKey, Text, DateTime, Boolean, LargeBinary, inspect,
     text as sa_text,
 )
 from sqlalchemy.orm import relationship
@@ -54,6 +54,19 @@ class Notification(Base):
     data = Column(Text, default="{}")  # JSON
     read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ImportJob(Base):
+    __tablename__ = "import_jobs"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    filename = Column(String, nullable=False)
+    status = Column(String, default="PROCESSING")  # PROCESSING | READY_PREVIEW | COMPLETED | FAILED
+    file_content = Column(LargeBinary)
+    preview_data = Column(Text)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
 
 
 class Category(Base):
@@ -281,6 +294,14 @@ with engine.connect() as _conn:
         ))
         _conn.execute(sa_text(
             "CREATE INDEX IF NOT EXISTS idx_scheduled_user_status ON scheduled_expenses(user_id, status)"
+        ))
+
+    # Crear tabla import_jobs si no existe
+    if "import_jobs" not in inspector.get_table_names():
+        Base.metadata.tables["import_jobs"].create(bind=engine)
+        # Crear índices
+        _conn.execute(sa_text(
+            "CREATE INDEX IF NOT EXISTS idx_import_jobs_user_status ON import_jobs(user_id, status)"
         ))
 
     _conn.commit()
