@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getImportJob, confirmImportJob, deleteImportJob, updateImportPreview, getDistinctValues } from '../api/client'
 import { useState } from 'react'
 import type { SmartImportRow, ImportSummary } from '../types'
+import { titleCase } from '../utils/format'
 
 // Validation helpers (copied from ImportPage)
 function validateRows(rows: SmartImportRow[]): { valid: boolean; missingCount: number } {
@@ -388,7 +389,7 @@ export default function ImportJobPreview() {
                   } ${row.is_auto_generated ? 'bg-blue-500/5' : ''}`}
                 >
                   <td className="py-2 px-4 whitespace-nowrap">{row.date}</td>
-                  <td className="py-2 px-4">{row.description}</td>
+                  <td className="py-2 px-4">{titleCase(row.description)}</td>
                   <td className="py-2 px-4 whitespace-nowrap">
                     {row.amount} {row.currency}
                   </td>

@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 import { getDashboard, getExpenses, getCategoryTrend, getTopMerchants } from '../api/client'
 import type { TopMerchant, CategorySummary } from '../types'
-import { formatCurrency } from '../utils/format'
+import { formatCurrency, titleCase } from '../utils/format'
 
 function formatDate(dateStr: string) {
   if (!dateStr) return ''
@@ -376,7 +376,7 @@ export default function CategoryDashboard() {
               return (
                 <div key={i} className="flex items-center gap-2 group">
                   <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: m.category_color || '#6366f1' }} />
-                  <span className="text-xs text-secondary w-40 truncate flex-shrink-0" title={m.description}>{m.description}</span>
+                  <span className="text-xs text-secondary w-40 truncate flex-shrink-0" title={m.description}>{titleCase(m.description)}</span>
                   <div className="flex-1 h-1.5 bg-base-alt rounded-full overflow-hidden">
                     <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: m.category_color || '#6366f1' }} />
                   </div>
@@ -412,11 +412,11 @@ export default function CategoryDashboard() {
               {sortedExpenses.map((exp) => (
                 <div key={exp.id} className="flex items-center justify-between px-5 py-3 hover:bg-base-alt/50">
                   <div>
-                    <p className="text-sm font-medium text-primary">{exp.description}</p>
+                    <p className="text-sm font-medium text-primary">{titleCase(exp.description)}</p>
                     <p className="text-xs text-secondary">
                       {formatDate(exp.date)}
-                      {exp.person ? ` · ${exp.person}` : ''}
-                      {exp.bank ? ` · ${exp.bank}` : ''}
+                      {exp.person ? ` · ${titleCase(exp.person)}` : ''}
+                      {exp.bank ? ` · ${titleCase(exp.bank)}` : ''}
                     </p>
                   </div>
                   <span className={`text-sm font-semibold ml-4 whitespace-nowrap ${exp.amount < 0 ? 'text-success' : 'text-primary'}`}>

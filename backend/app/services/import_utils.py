@@ -12,6 +12,10 @@ from app.models import Expense
 from app.services.date_utils import add_months, _normalize_date_str
 
 
+def _normalize_text(text: Optional[str]) -> str:
+    return text.strip().lower() if text else ""
+
+
 def _load_dataframe(content: bytes, filename: str) -> "pd.DataFrame":
     if filename.lower().endswith(".csv"):
         for sep in [",", ";", "\t"]:

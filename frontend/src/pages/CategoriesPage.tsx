@@ -6,7 +6,7 @@ import {
 } from '../api/client'
 import type { Category } from '../types'
 import { Select } from '../components/ui/Select'
-import { formatCurrency } from '../utils/format'
+import { formatCurrency, titleCase } from '../utils/format'
 
 const COLORS = [
   '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
@@ -177,7 +177,7 @@ function CategoryDetail({ cat, onClose }: { cat: Category; onClose: () => void }
                 <div key={exp.id} className="flex items-center justify-between px-5 py-3 hover:bg-base-alt/50">
                   <div>
                     <p className="text-sm font-medium text-primary">
-                      {exp.description}
+                      {titleCase(exp.description)}
                       {exp.installment_number && exp.installment_total && (
                         <span className="ml-1.5 text-xs bg-primary-subtle text-primary px-1.5 py-0.5 rounded">
                           {exp.installment_number}/{exp.installment_total}

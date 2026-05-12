@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { importSmart, importRowsConfirm, getCards } from '../api/client'
 import type { SmartImportRow, FileImportResult, Card } from '../types'
-import { formatCurrency } from '../utils/format'
+import { formatCurrency, titleCase } from '../utils/format'
 
 type Step = 'upload' | 'preview' | 'done'
 
@@ -493,12 +493,12 @@ export default function ImportPage() {
                           {row.is_duplicate && <span className="ml-1 text-warning text-xs">dup</span>}
                         </td>
                         <td className="px-4 py-2 text-primary max-w-[180px] truncate" title={row.description}>
-                          {row.description}
+                          {titleCase(row.description)}
                         </td>
                         <td className={`px-4 py-2 text-right font-medium ${row.amount < 0 ? 'text-success' : ''}`}>
                           {formatCurrency(row.amount, row.currency)}
                         </td>
-                        <td className="px-4 py-2 text-secondary">{row.bank || <span className="text-tertiary">—</span>}</td>
+                        <td className="px-4 py-2 text-secondary">{row.bank ? titleCase(row.bank) : <span className="text-tertiary">—</span>}</td>
                         <td className="px-4 py-2 text-secondary">{row.card || <span className="text-tertiary">—</span>}</td>
                         <td className="px-4 py-2 text-primary font-medium">{row.person || <span className="text-tertiary">—</span>}</td>
                         <td className="px-4 py-2">

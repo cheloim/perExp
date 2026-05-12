@@ -156,14 +156,14 @@ async def confirm_import(
                 skipped += 1
                 continue
 
-            card   = str(row.get(card_col,   "")).strip() if card_col   else ""
-            bank   = str(row.get(bank_col,   "")).strip() if bank_col   else ""
-            person = str(row.get(person_col, "")).strip() if person_col else ""
+            card   = _normalize_text(str(row.get(card_col,   ""))) if card_col   else ""
+            bank   = _normalize_text(str(row.get(bank_col,   ""))) if bank_col   else ""
+            person = _normalize_text(str(row.get(person_col, ""))) if person_col else ""
 
             category_id = _resolve_category(db, amount, description, cats)
             db.add(Expense(
                 date=parsed_date,
-                description=description,
+                description=_normalize_text(description),
                 amount=amount,
                 category_id=category_id,
                 card=card,
@@ -461,11 +461,11 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
             try:
                 db.add(ScheduledExpense(
                     scheduled_date=parsed_date,
-                    description=desc,
+                    description=_normalize_text(desc),
                     amount=amount,
                     currency=currency,
                     category_id=category_id,
-                    card=str(r.get("card", "") or ""),
+                    card=_normalize_text(str(r.get("card", "") or "")),
                     bank=norm_bank,
                     person=norm_person,
                     transaction_id=txn_id,
@@ -483,11 +483,11 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
             try:
                 db.add(Expense(
                     date=parsed_date,
-                    description=desc,
+                    description=_normalize_text(desc),
                     amount=amount,
                     currency=currency,
                     category_id=category_id,
-                    card=str(r.get("card", "") or ""),
+                    card=_normalize_text(str(r.get("card", "") or "")),
                     bank=norm_bank,
                     person=norm_person,
                     transaction_id=txn_id,

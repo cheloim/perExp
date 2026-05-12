@@ -5,6 +5,7 @@ from app.database import get_db
 from app.models import ScheduledExpense, Expense, User, Category
 from app.services.auth import get_current_user
 from app.routers.groups import get_group_user_ids
+from app.services.import_utils import _normalize_text
 
 router = APIRouter(prefix="/scheduled-expenses", tags=["scheduled-expenses"])
 

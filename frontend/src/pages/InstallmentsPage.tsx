@@ -12,7 +12,7 @@ import {
 } from '../api/client'
 import type { InstallmentGroup } from '../types'
 import { ConfirmDialog } from '../components/ConfirmDialog'
-import { formatCurrency } from '../utils/format'
+import { formatCurrency, titleCase } from '../utils/format'
 
 function formatDate(dateStr: string | null) {
   if (!dateStr) return '—'
@@ -468,7 +468,7 @@ export default function InstallmentsPage() {
           <div className="card p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-primary">
-                Cuotas programadas: {selectedGroup.description}
+                Cuotas programadas: {titleCase(selectedGroup.description)}
               </h2>
               <button onClick={() => setShowScheduledModal(false)} className="text-secondary hover:text-primary">✕</button>
             </div>

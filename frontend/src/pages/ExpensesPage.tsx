@@ -13,7 +13,7 @@ import {
 import type { Expense, ExpenseCreate } from '../types'
 import { Select } from '../components/ui/Select'
 import { ExpenseModal } from '../components/ExpenseModals'
-import { formatCurrency } from '../utils/format'
+import { formatCurrency, titleCase } from '../utils/format'
 
 function formatDate(dateStr: string) {
   if (!dateStr) return ''
@@ -398,7 +398,7 @@ export default function ExpensesPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-[var(--text-primary)]">{exp.description}</span>
+                          <span className="text-[var(--text-primary)]">{titleCase(exp.description)}</span>
                           {exp.installment_number && exp.installment_total && (
                             <span className="text-xs bg-[var(--color-primary)] text-[var(--color-on-primary)] px-1.5 py-0.5 rounded">
                               {exp.installment_number}/{exp.installment_total}
@@ -406,9 +406,9 @@ export default function ExpensesPage() {
                           )}
                         </div>
                         <div className="text-xs text-[var(--text-tertiary)] flex gap-2">
-                          {exp.card && <span>{exp.card}</span>}
-                          {exp.bank && <span>{exp.bank}</span>}
-                          {exp.person && <span>{exp.person}</span>}
+                          {exp.card && <span>{titleCase(exp.card)}</span>}
+                          {exp.bank && <span>{titleCase(exp.bank)}</span>}
+                          {exp.person && <span>{titleCase(exp.person)}</span>}
                         </div>
                       </td>
                       <td className="px-4 py-3">

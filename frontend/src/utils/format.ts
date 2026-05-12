@@ -26,3 +26,8 @@ export function formatMonthYear(dateStr: string): string {
   if (isNaN(date.getTime())) return dateStr
   return new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(date)
 }
+
+export function titleCase(str: string): string {
+  if (!str) return ''
+  return str.replace(/\b\w/g, c => c.toUpperCase())
+}
