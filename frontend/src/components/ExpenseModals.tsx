@@ -94,207 +94,15 @@ export function DatePickerInput({ value, onChange }: { value: string; onChange: 
   )
 }
 
-// IncomeModal - Dedicated modal for income transactions
-export function IncomeModal({
-  initial,
-  onClose,
-  onSave,
-  saveError
-}: {
-  initial?: Expense | null
-  onClose: () => void
-  onSave: (data: ExpenseCreate) => void
-  saveError?: string | null
-}) {
-  const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: getCategories })
-  const { data: accounts = [] } = useQuery({ queryKey: ['accounts'], queryFn: getAccounts })
-
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', handleEscape)
-    return () => document.removeEventListener('keydown', handleEscape)
-  }, [onClose])
-
-  // Find "Ingresos" parent and its children
-  const ingresosParent = categories.find(c => c.name === 'Ingresos' && !c.parent_id)
-  const incomeCategories = categories.filter(c => c.parent_id === ingresosParent?.id)
-
-  // Build category options with parent name
-  const categoryOptions = incomeCategories.map(c => ({
-    value: String(c.id),
-    label: ingresosParent ? `${ingresosParent.name} → ${c.name}` : c.name
-  }))
-
-  // If editing and current category is not in income categories, add it to options
-  if (initial?.category_id) {
-    const currentCat = categories.find(c => c.id === initial.category_id)
-    if (currentCat && !categoryOptions.some(opt => opt.value === String(currentCat.id))) {
-      const parent = currentCat.parent_id
-        ? categories.find(c => c.id === currentCat.parent_id)
-        : null
-      categoryOptions.unshift({
-        value: String(currentCat.id),
-        label: parent ? `${parent.name} → ${currentCat.name}` : currentCat.name
-      })
-    }
-  }
-
-  const [form, setForm] = useState<ExpenseCreate>(
-    initial
-      ? {
-          date: initial.date,
-          description: initial.description,
-          amount: Math.abs(initial.amount),
-          currency: initial.currency || 'ARS',
-          category_id: initial.category_id,
-          account_id: initial.account_id,
-          notes: initial.notes ?? '',
-          card: '',
-          bank: '',
-          person: '',
-        }
-      : {
-          ...EMPTY_FORM,
-          category_id: incomeCategories.find(c => c.name === 'Haberes')?.id ?? null,
-        },
-  )
-
-  const set = (field: keyof ExpenseCreate, value: unknown) =>
-    setForm((prev) => ({ ...prev, [field]: value }))
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Fixed backdrop - covers entire viewport */}
-      <div className="fixed inset-0 bg-black/60" onClick={onClose} />
-
-      <div className="relative card w-full max-w-lg max-h-[90vh] overflow-auto p-6 space-y-4">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-            {initial ? 'Editar ingreso' : 'Nuevo ingreso'}
-          </h2>
-          <button onClick={onClose} className="text-[var(--text-tertiary)] hover:text-[var(--color-primary)]">
-            ✕
-          </button>
-        </div>
-
-        {/* Income banner */}
-        <div className="flex items-center gap-2 bg-success/10 border border-success/30 rounded-lg px-3 py-2 text-xs text-success">
-          <span>↓</span>
-          <span>El monto se registrará como ingreso (acreditación)</span>
-        </div>
-
-        {saveError && (
-          <div className="bg-danger/10 border border-danger/30 text-danger rounded-lg px-3 py-2 text-sm">
-            {saveError}
-          </div>
-        )}
-
-        {/* Date */}
-        <div>
-          <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Fecha</label>
-          <DatePickerInput value={form.date} onChange={(v) => set('date', v)} />
-        </div>
-
-        {/* Description */}
-        <div>
-          <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Descripción</label>
-          <input
-            type="text"
-            value={form.description}
-            onChange={(e) => set('description', e.target.value)}
-            className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-            placeholder="Ej: Cobro de sueldo Mayo"
-          />
-        </div>
-
-        {/* Amount */}
-        <div>
-          <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Monto</label>
-          <input
-            type="number"
-            value={form.amount || ''}
-            onChange={(e) => set('amount', parseFloat(e.target.value) || 0)}
-            className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-            placeholder="0.00"
-            step="0.01"
-          />
-        </div>
-
-        {/* Category selector - ONLY income categories */}
-        <div>
-          <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Categoría de ingreso</label>
-          <Select
-            value={String(form.category_id || '')}
-            onChange={(v) => set('category_id', Number(v))}
-            options={categoryOptions}
-            placeholder="Seleccionar categoría"
-          />
-        </div>
-
-        {/* Account selector (required) - NO "Medio de pago" */}
-        <div>
-          <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
-            Cuenta destino <span className="text-danger">*</span>
-          </label>
-          <Select
-            value={String(form.account_id || '')}
-            onChange={(v) => set('account_id', Number(v))}
-            options={accounts.map(a => ({
-              value: String(a.id),
-              label: a.name
-            }))}
-            placeholder="Seleccionar cuenta"
-          />
-          <p className="text-xs text-[var(--text-tertiary)] mt-1">
-            Seleccioná la cuenta donde se acreditará el ingreso
-          </p>
-        </div>
-
-        {/* Notes */}
-        <div>
-          <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Notas (opcional)</label>
-          <textarea
-            value={form.notes || ''}
-            onChange={(e) => set('notes', e.target.value)}
-            className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition resize-none"
-            rows={3}
-            placeholder="Observaciones adicionales..."
-          />
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-2 pt-2">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={() => onSave(form)}
-            className="flex-1 px-4 py-2 rounded-md bg-[var(--color-success)] text-white text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"
-          >
-            Guardar
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ExpenseModal - Full modal for expense transactions with payment method selector
 interface ExpenseModalProps {
   initial?: Expense | null
-  isIncome?: boolean
   onClose: () => void
   onSave: (data: ExpenseCreate) => void
   saveError?: string | null
 }
 
-export function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveError }: ExpenseModalProps) {
+export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseModalProps) {
   const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: getCategories })
   const { data: cards = [] } = useQuery({ queryKey: ['cards'], queryFn: getCards })
   const { data: accounts = [] } = useQuery({ queryKey: ['accounts'], queryFn: getAccounts })
@@ -310,7 +118,7 @@ export function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveE
   const isCash = (card: string) => !card || card === 'Efectivo'
 
   const [payMethod, setPayMethod] = useState<'card' | 'cash'>(
-    initial ? (isCash(initial.card ?? '') ? 'cash' : 'card') : isIncome ? 'cash' : 'card'
+    initial ? (isCash(initial.card ?? '') ? 'cash' : 'card') : 'card'
   )
 
   const [form, setForm] = useState<ExpenseCreate>(
@@ -334,16 +142,6 @@ export function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveE
         }
       : EMPTY_FORM,
   )
-
-  // Pre-select Haberes category for new income entries
-  useEffect(() => {
-    if (!initial && isIncome && categories.length > 0) {
-      const haberesCategory = categories.find(c => c.name === 'Haberes')
-      if (haberesCategory && !form.category_id) {
-        setForm((prev) => ({ ...prev, category_id: haberesCategory.id }))
-      }
-    }
-  }, [initial, isIncome, categories, form.category_id])
 
   const [cuotasEnabled, setCuotasEnabled] = useState(
     !!(initial?.installment_total && initial.installment_total > 1)
@@ -395,18 +193,10 @@ export function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveE
       <div className="relative card w-full max-w-lg max-h-[90vh] overflow-auto p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-            {initial
-              ? (isIncome ? 'Editar ingreso' : 'Editar gasto')
-              : (isIncome ? 'Nuevo ingreso' : 'Nuevo gasto')}
+            {initial ? 'Editar gasto' : 'Nuevo gasto'}
           </h2>
           <button onClick={onClose} className="text-[var(--text-tertiary)] hover:text-[var(--color-primary)]">✕</button>
         </div>
-        {isIncome && (
-          <div className="flex items-center gap-2 bg-success/10 border border-success/30 rounded-lg px-3 py-2 text-xs text-success">
-            <span>↓</span>
-            <span>El monto se registrará como ingreso (acreditación)</span>
-          </div>
-        )}
 
         {saveError && (
           <div className="flex items-start gap-2 bg-danger/10 border border-danger/30 rounded-lg px-3 py-2 text-xs text-danger">
@@ -554,7 +344,7 @@ export function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveE
           </div>
         </div>
 
-        {payMethod === 'card' && !isIncome && (
+        {payMethod === 'card' && (
           <div className="border border-[var(--border-color)] rounded-md p-3 space-y-3">
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
@@ -611,7 +401,7 @@ export function ExpenseModal({ initial, isIncome = false, onClose, onSave, saveE
             Cancelar
           </button>
           <button
-            onClick={() => onSave({ ...form, amount: isIncome ? -Math.abs(form.amount) : Math.abs(form.amount) })}
+            onClick={() => onSave({ ...form, amount: Math.abs(form.amount) })}
             className="flex-1 px-4 py-2 rounded-md bg-[var(--color-primary)] text-white text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"
           >
             Guardar

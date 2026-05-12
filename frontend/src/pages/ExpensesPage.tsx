@@ -12,7 +12,7 @@ import {
 } from '../api/client'
 import type { Expense, ExpenseCreate } from '../types'
 import { Select } from '../components/ui/Select'
-import { IncomeModal, ExpenseModal } from '../components/ExpenseModals'
+import { ExpenseModal } from '../components/ExpenseModals'
 import { formatCurrency } from '../utils/format'
 
 function formatDate(dateStr: string) {
@@ -91,7 +91,6 @@ export default function ExpensesPage() {
   const { data: distinctValues } = useQuery({ queryKey: ['distinct-values'], queryFn: getDistinctValues, staleTime: 60_000 })
 
   const [editing, setEditing] = useState<Expense | null | undefined>(undefined)
-  const [editingIsIncome, setEditingIsIncome] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({ field: 'date', dir: 'desc' })
   const [selectMode, setSelectMode] = useState(false)
@@ -181,17 +180,7 @@ export default function ExpensesPage() {
             {selectMode ? 'Cancelar' : 'Seleccionar'}
           </button>
           <button
-            onClick={() => {
-              setEditingIsIncome(true)
-              setEditing(null)
-            }}
-            className="btn-secondary flex items-center gap-2 text-sm"
-          >
-            <span className="text-base leading-none">↓</span>
-            Ingreso
-          </button>
-          <button
-            onClick={() => { setEditingIsIncome(false); setEditing(null) }}
+            onClick={() => { setEditing(null) }}
             className="btn-primary flex items-center gap-2 text-sm"
           >
             <span className="text-lg leading-none">+</span>
@@ -438,7 +427,7 @@ export default function ExpensesPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <span className={exp.is_income ? 'text-[var(--color-success)] font-medium' : 'text-[var(--text-primary)]'}>
+                        <span className="text-[var(--text-primary)]">
                           {formatCurrency(exp.amount, exp.currency)}
                         </span>
                       </td>
@@ -446,7 +435,7 @@ export default function ExpensesPage() {
                         <td className="px-4 py-3 text-center">
                           <div className="flex items-center justify-end gap-1">
                             <button
-                              onClick={() => { setEditingIsIncome(exp.is_income); setEditing(exp) }}
+                              onClick={() => { setEditing(exp) }}
                               className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-primary hover:bg-[var(--color-base-alt)] transition"
                               title="Editar"
                             >
@@ -533,22 +522,14 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      {editing !== undefined && editingIsIncome ? (
-        <IncomeModal
-          initial={editing}
-          onClose={() => { setEditing(undefined); setEditingIsIncome(false); setSaveError(null) }}
-          onSave={handleSave}
-          saveError={saveError}
-        />
-      ) : editing !== undefined ? (
+      {editing !== undefined && (
         <ExpenseModal
           initial={editing}
-          isIncome={false}
           onClose={() => { setEditing(undefined); setSaveError(null) }}
           onSave={handleSave}
           saveError={saveError}
         />
-      ) : null}
+      )}
 
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">

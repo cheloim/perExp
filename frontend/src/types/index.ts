@@ -87,7 +87,6 @@ export interface Expense {
   // New structured fields
   account_id?: number | null
   card_id?: number | null
-  is_income: boolean
   account_rel?: Account | null
   card_rel?: Card | null
 }
@@ -110,8 +109,7 @@ export interface ExpenseCreate {
   // New structured fields
   account_id?: number | null
   card_id?: number | null
-  is_income?: boolean  // Optional, backend sets it
-}
+  }
 
 export interface CategorySummary {
   category_id: number | null

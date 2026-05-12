@@ -19,7 +19,7 @@ import {
 } from '../api/client'
 import type { CategorySummary, Expense, ExpenseCreate } from '../types'
 import { Select } from '../components/ui/Select'
-import { IncomeModal, ExpenseModal } from '../components/ExpenseModals'
+import { ExpenseModal } from '../components/ExpenseModals'
 import { formatCurrency } from '../utils/format'
 
 type GroupBy = 'month' | 'year'
@@ -331,7 +331,6 @@ export default function AccountsPage() {
 
   // Modal states
   const [editing, setEditing] = useState<Expense | null | undefined>(undefined)
-  const [editingIsIncome, setEditingIsIncome] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
   
@@ -1015,7 +1014,7 @@ export default function AccountsPage() {
                             <td className="py-2 text-right">
                               <div className="flex items-center justify-end gap-1">
                                 <button
-                                  onClick={() => { setEditingIsIncome(exp.is_income); setEditing(exp) }}
+                                  onClick={() => { setEditing(exp) }}
                                   className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-primary hover:bg-[var(--color-base-alt)] transition"
                                   title="Editar"
                                 >
@@ -1049,23 +1048,9 @@ export default function AccountsPage() {
       </div>
 
       {/* Unified Modal Rendering */}
-      {editing && editingIsIncome ? (
-        <IncomeModal
-          initial={editing === undefined ? null : editing}
-          onClose={() => { setEditing(undefined); setEditingIsIncome(false); setSaveError(null) }}
-          onSave={(data) => {
-            if (editing) {
-              updateMut.mutate({ id: editing.id, data })
-            } else {
-              createMut.mutate(data)
-            }
-          }}
-          saveError={saveError}
-        />
-      ) : editing !== undefined ? (
+      {editing !== undefined && (
         <ExpenseModal
           initial={editing === undefined ? null : editing}
-          isIncome={false}
           onClose={() => { setEditing(undefined); setSaveError(null) }}
           onSave={(data) => {
             if (editing) {
@@ -1076,7 +1061,7 @@ export default function AccountsPage() {
           }}
           saveError={saveError}
         />
-      ) : null}
+      )}
 
       {/* Bulk Actions Floating Bar */}
       {selectMode && selectedIds.size > 0 && (
