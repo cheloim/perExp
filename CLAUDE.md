@@ -181,17 +181,14 @@ New columns are added via `ALTER TABLE … ADD COLUMN` in `models.py` startup bl
 1. **Installment false duplicates**: `_is_duplicate` treats C.01/03 and C.02/03 as same row if same (date, amount, cleaned_description). Fix: include `installment_number` + `installment_total` in uniqueness check.
 2. **Spanish month PDF dates**: LLM may not always convert "15-ENE" → "2025-01-15". Fix: add Spanish→number month map to `SMART_IMPORT_PROMPT` and/or fallback parser in `smart_import`.
 
-## Pending Features (as of 2026-05-09)
+## Pending Features (as of 2026-05-11)
 
 - Dashboard: trend indicators (alcista/bajista) per category
-- Replace bar chart with line chart (Recharts `LineChart`)
-- Category dashboard with per-category filter
 - Description search filter on dashboard
 - Time range selector (week / month / year) on charts
 - Right-side cards info panel (last 4 digits, cardholder, bank, total per card)
 - Multiple file upload for LLM import (`multiple` on `<input>`, loop in handler)
 - Disable manual import mode (LLM-only UI)
-- Scheduled expenses widget in dashboard (integrate `/scheduled-expenses` data)
 
 ## API Endpoints Reference
 
@@ -262,6 +259,8 @@ New columns are added via `ALTER TABLE … ADD COLUMN` in `models.py` startup bl
 | GET | /dashboard/category-trend | Category trend over N months |
 | GET | /dashboard/ai-trends | AI-generated trends & projections |
 | GET | /dashboard/top-merchants | Top merchants by spending |
+| GET | /dashboard/account-expenses | Expenses by account (for variation calculation) |
+| GET | /dashboard/credit-card-pasivos | Credit card future commitments (pending cuotas) |
 
 ### Scheduled Expenses
 

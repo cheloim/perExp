@@ -48,6 +48,8 @@ npm run dev  # http://localhost:5173
 
 - **Smart Import**: PDF and CSV with LLM (Gemini) analysis
 - **Card Management**: Credit/debit card CRUD
+- **Account Management**: Cash and bank accounts for tracking transfers
+- **Payment Methods**: Select account (cash/transfer) or card per expense
 - **Auto-categorization**: By keywords and transaction type
 - **Installments**: Track installment purchases
 - **Investments**: Sync with IOL and Portfolio Personal
