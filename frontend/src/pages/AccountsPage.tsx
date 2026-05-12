@@ -20,7 +20,7 @@ import {
 import type { CategorySummary, Expense, ExpenseCreate } from '../types'
 import { Select } from '../components/ui/Select'
 import { ExpenseModal } from '../components/ExpenseModals'
-import { formatCurrency, titleCase } from '../utils/format'
+import { formatCurrency, toUpperCase, titleCase } from '../utils/format'
 
 type GroupBy = 'month' | 'year'
 type SortField = 'date' | 'description' | 'category' | 'bank' | 'person' | 'amount'
@@ -114,7 +114,7 @@ function CategoryDrilldown({ category, month, onClose }: { category: CategorySum
           expenses.map((exp) => (
             <div key={exp.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-base-alt">
               <div>
-                <p className="text-sm text-primary">{titleCase(exp.description)}</p>
+                <p className="text-sm text-primary">{toUpperCase(exp.description)}</p>
                 <p className="text-xs text-tertiary">{formatDate(exp.date)}{exp.person ? ` · ${titleCase(exp.person)}` : ''}</p>
               </div>
               <span className={`text-sm font-semibold ${exp.amount < 0 ? 'text-success' : 'text-primary'}`}>
@@ -979,7 +979,7 @@ export default function AccountsPage() {
                           <td className="py-2 text-primary">{formatDate(exp.date)}</td>
                           <td className="py-2">
                             <div className="text-primary font-medium">
-                              {titleCase(exp.description)}
+                              {toUpperCase(exp.description)}
                               {exp.installment_total && (
                                 <span className="ml-2 text-[10px] bg-base-alt text-secondary px-1.5 py-0.5 rounded-full">
                                   {exp.installment_number}/{exp.installment_total}

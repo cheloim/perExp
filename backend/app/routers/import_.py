@@ -23,6 +23,8 @@ from app.services.import_utils import (
     _is_duplicate,
     _load_dataframe,
     _normalize_persons_llm,
+    _normalize_text,
+    _title_case,
 )
 from app.services.normalizers import normalize_bank, _normalize_person
 from app.services.pdf import _extract_pdf_text, _inject_card_markers, _inject_csv_card_markers, _normalize_santander_dates
@@ -465,7 +467,7 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
                     amount=amount,
                     currency=currency,
                     category_id=category_id,
-                    card=_normalize_text(str(r.get("card", "") or "")),
+                    card=_title_case(str(r.get("card", "") or "")),
                     bank=norm_bank,
                     person=norm_person,
                     transaction_id=txn_id,
@@ -487,7 +489,7 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
                     amount=amount,
                     currency=currency,
                     category_id=category_id,
-                    card=_normalize_text(str(r.get("card", "") or "")),
+                    card=_title_case(str(r.get("card", "") or "")),
                     bank=norm_bank,
                     person=norm_person,
                     transaction_id=txn_id,

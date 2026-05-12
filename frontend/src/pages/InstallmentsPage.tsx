@@ -12,7 +12,7 @@ import {
 } from '../api/client'
 import type { InstallmentGroup } from '../types'
 import { ConfirmDialog } from '../components/ConfirmDialog'
-import { formatCurrency, titleCase } from '../utils/format'
+import { formatCurrency, toUpperCase } from '../utils/format'
 
 function formatDate(dateStr: string | null) {
   if (!dateStr) return '—'
@@ -343,7 +343,7 @@ export default function InstallmentsPage() {
                           />
                           <div className="min-w-0">
                             <p className={`text-sm font-medium ${done ? 'text-secondary' : 'text-primary'} truncate`}>
-                              {g.description}
+                              {toUpperCase(g.description)}
                               {g.remaining_installments > 0 && (
                                 <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
                                   {g.remaining_installments} programada{g.remaining_installments > 1 ? 's' : ''}
@@ -468,7 +468,7 @@ export default function InstallmentsPage() {
           <div className="card p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-primary">
-                Cuotas programadas: {titleCase(selectedGroup.description)}
+                Cuotas programadas: {toUpperCase(selectedGroup.description)}
               </h2>
               <button onClick={() => setShowScheduledModal(false)} className="text-secondary hover:text-primary">✕</button>
             </div>

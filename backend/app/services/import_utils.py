@@ -13,7 +13,18 @@ from app.services.date_utils import add_months, _normalize_date_str
 
 
 def _normalize_text(text: Optional[str]) -> str:
-    return text.strip().lower() if text else ""
+    result = text.strip().upper() if text else ""
+    if result:
+        print(f"[DEBUG NORMALIZE] '{text}' -> '{result}'")
+    return result
+
+
+def _title_case(text: Optional[str]) -> str:
+    if not text:
+        return ""
+    result = text.strip().title()
+    print(f"[DEBUG TITLE_CASE] '{text}' -> '{result}'")
+    return result
 
 
 def _load_dataframe(content: bytes, filename: str) -> "pd.DataFrame":

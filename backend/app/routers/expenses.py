@@ -15,8 +15,8 @@ from app.services.auth import get_current_user
 from app.routers.groups import get_group_user_ids
 from app.services.categorization import auto_categorize, _resolve_category
 from app.services.date_utils import _normalize_date_str
-from app.services.import_utils import _is_duplicate, _normalize_text
-from app.services.normalizers import normalize_bank, _norm_holder
+from app.services.import_utils import _is_duplicate, _normalize_text, _title_case
+from app.services.normalizers import normalize_bank, _norm_holder, _normalize_person
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
@@ -181,15 +181,19 @@ def create_expense(expense: ExpenseCreate, db: Session = Depends(get_db), curren
     # Detect if this is income based on category parent
     data["is_income"] = is_income_category(data.get("category_id"), db)
 
-    # Normalize text fields to lowercase
+    # Normalize text fields
+    # description: UPPERCASE
     if data.get("description"):
         data["description"] = _normalize_text(data["description"])
+    # card: Title Case
     if data.get("card"):
-        data["card"] = _normalize_text(data["card"])
+        data["card"] = _title_case(data["card"])
+    # bank: Title Case
     if data.get("bank"):
-        data["bank"] = _normalize_text(data["bank"])
+        data["bank"] = normalize_bank(data["bank"])
+    # person: Title Case (from DB matching or title)
     if data.get("person"):
-        data["person"] = _normalize_text(data["person"])
+        data["person"] = _normalize_person(data["person"], db)
 
     # Always store amount as positive (no sign convention)
     data["amount"] = abs(data["amount"])

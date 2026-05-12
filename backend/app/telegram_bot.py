@@ -22,7 +22,8 @@ from app.database import SessionLocal
 from app.models import Account, Card, Category, Expense, User
 from app.prompts import EXPENSE_PARSE_PROMPT
 from app.services.categorization import auto_categorize
-from app.services.import_utils import _normalize_text
+from app.services.import_utils import _normalize_text, _title_case
+from app.services.normalizers import normalize_bank, _normalize_person
 
 logger = logging.getLogger(__name__)
 
@@ -135,9 +136,9 @@ def _save_expense(
             amount=float(parsed.get("amount") or 0),
             currency=parsed.get("currency", "ARS"),
             category_id=category_id,
-            card=_normalize_text(card if card else payment),
-            bank=_normalize_text(bank),
-            person=_normalize_text(person),
+            card=_title_case(card if card else payment),
+            bank=normalize_bank(bank),
+            person=_normalize_person(person, db),
             card_last4=card_last4 or None,
             user_id=user_id,
             installment_number=1 if installment_total else None,

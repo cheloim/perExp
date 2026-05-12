@@ -6,7 +6,7 @@ import {
   ComposedChart, Line, Legend,
 } from 'recharts'
 import { getDashboard, getCardSummary, getExpenses, getScheduledSummary, getCategoryTrend, getAccountExpenses, getInvestments } from '../api/client'
-import { formatCurrency, titleCase } from '../utils/format'
+import { formatCurrency, toUpperCase } from '../utils/format'
 
 const MONTHS_ES_LONG = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 const MONTHS_ES_SHORT = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
@@ -354,7 +354,7 @@ export default function Dashboard() {
                     <div className="flex items-center gap-2">
                       <span className="text-base">📦</span>
                       <div>
-                        <p className="text-sm font-medium text-primary">{titleCase(inst.description)}</p>
+                        <p className="text-sm font-medium text-primary">{toUpperCase(inst.description)}</p>
                         <p className="text-xs text-tertiary">
                           {formatDate(inst.scheduled_date)} · {inst.installment_number}/{inst.installment_total}
                         </p>
@@ -368,7 +368,7 @@ export default function Dashboard() {
                     <div className="flex items-center gap-2">
                       <span className="text-base">📅</span>
                       <div>
-                        <p className="text-sm font-medium text-primary">{titleCase(man.description)}</p>
+                        <p className="text-sm font-medium text-primary">{toUpperCase(man.description)}</p>
                         <p className="text-xs text-tertiary">{formatDate(man.scheduled_date)}</p>
                       </div>
                     </div>
@@ -516,11 +516,11 @@ export default function Dashboard() {
                 <div className="flex items-center gap-3">
                   <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: exp.category_color || '#9a9996' }} />
                   <div>
-                    <p className="text-sm font-medium text-primary">{titleCase(exp.description)}</p>
+                    <p className="text-sm font-medium text-primary">{toUpperCase(exp.description)}</p>
                     <p className="text-xs text-tertiary">
                       {formatDate(exp.date)}
                       {exp.category_name ? ` · ${exp.category_name}` : ''}
-                      {exp.card ? ` · ${titleCase(exp.card)}` : ''}
+                      {exp.card ? ` · ${exp.card}` : ''}
                     </p>
                   </div>
                 </div>
