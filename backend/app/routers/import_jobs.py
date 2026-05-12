@@ -12,6 +12,8 @@ from app.database import get_db
 from app.models import ImportJob, User
 from app.schemas import ImportJobResponse, RowsConfirmBody
 from app.services.auth import get_current_user
+from app.services.categorization import _resolve_category
+from app.services.import_utils import _normalize_text
 from app.tasks.import_processor import sync_process_import_job
 
 router = APIRouter(prefix="/import-jobs", tags=["import-jobs"])
