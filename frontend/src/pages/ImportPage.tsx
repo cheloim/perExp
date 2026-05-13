@@ -77,15 +77,22 @@ function getCardKey(bank: string, card: string, holder: string): string {
   return `${bank}|${card}|${titleCase(holder)}`
 }
 
-function generateCardsMapping(detectedCards: DetectedCard[], edits: Record<string, string>): CardsMapping {
+function generateCardsMapping(detectedCards: DetectedCard[], edits: Record<string, string>, existingCards: Card[] = []): CardsMapping {
   const mapping: CardsMapping = {}
   for (const dc of detectedCards) {
     if (dc.card_type) {
-      mapping[`_card_type_${dc.bank}_${dc.card}`] = dc.card_type
+      mapping[`_card_type_${dc.bank}_${dc.card}`] = { custom_naming: dc.card_type }
     }
     for (const holder of dc.holders) {
       const key = getCardKey(dc.bank, dc.card, holder)
-      mapping[key] = edits[key] || dc.suggested_custom_naming
+      const customName = edits[key] || dc.suggested_custom_naming
+      // Find if customName matches an existing card
+      const matchedCard = existingCards.find(c => c.custom_naming === customName)
+      mapping[key] = {
+        custom_naming: customName,
+        bank: matchedCard?.bank || dc.bank,
+        card_name: matchedCard?.name || dc.card,
+      }
     }
   }
   return mapping
@@ -168,7 +175,7 @@ export default function ImportPage() {
           summary: data.summary,
           has_missing_data: data.has_missing_data,
           detected_cards: detectedCards,
-          cards_mapping: generateCardsMapping(detectedCards, {}),
+          cards_mapping: generateCardsMapping(detectedCards, {}, existingCards),
         }
         setFileResults(prev => [...prev, newResult])
         hasResults = true
@@ -230,7 +237,8 @@ export default function ImportPage() {
     for (const dc of fileResult.detected_cards) {
       for (const holder of dc.holders) {
         const key = getCardKey(dc.bank, dc.card, holder)
-        initialEdits[key] = fileResult.cards_mapping?.[key] || dc.suggested_custom_naming
+        const entry = fileResult.cards_mapping?.[key]
+        initialEdits[key] = (typeof entry === 'object' ? entry.custom_naming : entry) || dc.suggested_custom_naming
       }
     }
     setCustomNamingEdits(initialEdits)
@@ -271,9 +279,21 @@ export default function ImportPage() {
 
     setFileResults(prev => prev.map(f => {
       if (f.filename !== customNamingModalFile) return f
+      // Merge customNamingEdits into existing cards_mapping, preserving bank/card_name
+      const updatedMapping: CardsMapping = { ...f.cards_mapping }
+      for (const [key, customName] of Object.entries(customNamingEdits)) {
+        const existingEntry = updatedMapping[key] || { custom_naming: customName }
+        // Check if customName matches an existing card
+        const matchedCard = existingCards.find(c => c.custom_naming === customName)
+        updatedMapping[key] = {
+          custom_naming: customName,
+          bank: matchedCard?.bank || existingEntry.bank,
+          card_name: matchedCard?.name || existingEntry.card_name,
+        }
+      }
       return {
         ...f,
-        cards_mapping: { ...customNamingEdits },
+        cards_mapping: updatedMapping,
         customNamingSaved: true,
       }
     }))

@@ -1,6 +1,7 @@
 import hashlib
 import io
 import json
+import re
 from datetime import date, timedelta
 from typing import Optional
 
@@ -13,7 +14,10 @@ from app.services.date_utils import add_months, _normalize_date_str
 
 
 def _normalize_text(text: Optional[str]) -> str:
-    result = text.strip().upper() if text else ""
+    if not text:
+        return ""
+    cleaned = re.sub(r'\s*-\s*Pendiente\s*$', '', text.strip(), flags=re.IGNORECASE)
+    result = cleaned.upper()
     if result:
         print(f"[DEBUG NORMALIZE] '{text}' -> '{result}'")
     return result

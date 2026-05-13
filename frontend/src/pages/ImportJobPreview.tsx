@@ -1,8 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getImportJob, confirmImportJob, deleteImportJob, updateImportPreview, getDistinctValues } from '../api/client'
+import { getImportJob, confirmImportJob, deleteImportJob, updateImportPreview, getDistinctValues, getCards } from '../api/client'
 import { useState, useEffect } from 'react'
-import type { SmartImportRow, ImportSummary, DetectedCard, CardsMapping } from '../types'
+import type { SmartImportRow, ImportSummary, DetectedCard, CardsMapping, Card } from '../types'
 import { toUpperCase, titleCase } from '../utils/format'
 
 // Helper functions (copied from ImportPage)
@@ -10,15 +10,22 @@ function getCardKey(bank: string, card: string, holder: string): string {
   return `${bank}|${card}|${titleCase(holder)}`
 }
 
-function generateCardsMapping(detectedCards: DetectedCard[], edits: Record<string, string>): CardsMapping {
+function generateCardsMapping(detectedCards: DetectedCard[], edits: Record<string, string>, existingCards: Card[] = []): CardsMapping {
   const mapping: CardsMapping = {}
   for (const dc of detectedCards) {
     if (dc.card_type) {
-      mapping[`_card_type_${dc.bank}_${dc.card}`] = dc.card_type
+      mapping[`_card_type_${dc.bank}_${dc.card}`] = { custom_naming: dc.card_type }
     }
     for (const holder of dc.holders) {
       const key = getCardKey(dc.bank, dc.card, holder)
-      mapping[key] = edits[key] || dc.suggested_custom_naming
+      const customName = edits[key] || dc.suggested_custom_naming
+      // Find if customName matches an existing card
+      const matchedCard = existingCards.find(c => c.custom_naming === customName)
+      mapping[key] = {
+        custom_naming: customName,
+        bank: matchedCard?.bank || dc.bank,
+        card_name: matchedCard?.name || dc.card,
+      }
     }
   }
   return mapping
@@ -135,6 +142,21 @@ export default function ImportJobPreview() {
     queryFn: getDistinctValues,
   })
 
+  const { data: existingCards = [] } = useQuery({
+    queryKey: ['cards'],
+    queryFn: getCards,
+  })
+
+  const getCardSuggestions = (_bank: string, _card: string, holder: string): string[] => {
+    const normalizedHolder = holder.toLowerCase().trim()
+    return existingCards
+      .filter(c =>
+        c.holder.toLowerCase().trim() === normalizedHolder
+      )
+      .map(c => c.custom_naming)
+      .filter(n => n && n.trim())
+  }
+
   const confirmMutation = useMutation({
     mutationFn: ({ rows, cardsMapping }: { rows: SmartImportRow[], cardsMapping?: CardsMapping }) =>
       confirmImportJob(Number(jobId), rows, cardsMapping),
@@ -188,7 +210,7 @@ export default function ImportJobPreview() {
   const detectedCards: DetectedCard[] = job?.preview_data?.detected_cards || []
 
   // Cards mapping derived from custom naming edits
-  const cardsMapping: CardsMapping = generateCardsMapping(detectedCards, customNamingEdits)
+  const cardsMapping: CardsMapping = generateCardsMapping(detectedCards, customNamingEdits, existingCards)
 
   // Compute current summary (use edited summary if available, otherwise job summary)
   const currentSummary = editedSummary || job?.preview_data?.summary
@@ -219,7 +241,8 @@ export default function ImportJobPreview() {
     for (const dc of detectedCards) {
       for (const holder of dc.holders) {
         const key = getCardKey(dc.bank, dc.card, holder)
-        initialEdits[key] = cardsMapping[key] || dc.suggested_custom_naming
+        const entry = cardsMapping[key]
+        initialEdits[key] = (typeof entry === 'object' ? entry.custom_naming : entry) || dc.suggested_custom_naming
       }
     }
     setCustomNamingEdits(initialEdits)
@@ -803,10 +826,20 @@ export default function ImportJobPreview() {
                     <label className="text-xs font-medium text-[var(--text-secondary)] block mb-1">Nombre personalizado</label>
                     {dc.holders.map((holder, hIdx) => {
                       const key = getCardKey(dc.bank, dc.card, holder)
+                      const suggestions = getCardSuggestions(dc.bank, dc.card, holder)
+                      const datalistId = `custom-naming-suggestions-${idx}-${hIdx}`
                       return (
                         <div key={hIdx} className="mb-2">
+                          {suggestions.length > 0 && (
+                            <datalist id={datalistId}>
+                              {suggestions.map((s, i) => (
+                                <option key={i} value={s} />
+                              ))}
+                            </datalist>
+                          )}
                           <input
                             type="text"
+                            list={datalistId}
                             value={customNamingEdits[key] || ''}
                             onChange={e => setCustomNamingEdits(prev => ({ ...prev, [key]: e.target.value }))}
                             placeholder={dc.suggested_custom_naming}

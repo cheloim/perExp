@@ -294,8 +294,14 @@ async def confirm_import_job(
         print(f"[IMPORT CONFIRM] Looking up card_key: bank={norm_bank}, card={norm_card}, person={norm_person}")
         print(f"[IMPORT CONFIRM] Expected card_key: {card_key}")
         print(f"[IMPORT CONFIRM] cards_mapping.get result: {cards_mapping.get(card_key, 'NOT_FOUND')}")
-        custom_naming = cards_mapping.get(card_key, f"{norm_card} {norm_bank}".strip())
-        card_type = cards_mapping.get(f"_card_type_{norm_bank}_{norm_card}", "credito")
+        mapping_entry = cards_mapping.get(card_key, {})
+        custom_naming = mapping_entry.get("custom_naming") if isinstance(mapping_entry, dict) else mapping_entry
+        if not custom_naming:
+            custom_naming = f"{norm_card} {norm_bank}".strip()
+        # Override bank/card if provided in mapping
+        final_bank = mapping_entry.get("bank") if isinstance(mapping_entry, dict) and mapping_entry.get("bank") else norm_bank
+        final_card = mapping_entry.get("card_name") if isinstance(mapping_entry, dict) and mapping_entry.get("card_name") else norm_card
+        card_type = cards_mapping.get(f"_card_type_{norm_bank}_{norm_card}", "credito") if isinstance(cards_mapping.get(f"_card_type_{norm_bank}_{norm_card}"), str) else "credito"
 
         if is_scheduled:
             # Create ScheduledExpense
@@ -305,8 +311,8 @@ async def confirm_import_job(
                     description=_normalize_text(r.get("description", "")),
                     amount=amount_value,
                     currency=r.get("currency", "ARS"),
-                    card=norm_card,
-                    bank=norm_bank,
+                    card=final_card,
+                    bank=final_bank,
                     person=norm_person,
                     category_id=category_id,
                     transaction_id=r.get("transaction_id"),
@@ -322,15 +328,15 @@ async def confirm_import_job(
                 raise HTTPException(500, f"Error al crear gasto programado '{r.get('description', 'N/A')}': {str(e)}")
         else:
             # Create Expense with card
-            card_obj, _ = find_or_create_card(norm_bank, row_card, norm_person, custom_naming, card_type)
+            card_obj, _ = find_or_create_card(final_bank, row_card, norm_person, custom_naming, card_type)
             try:
                 expense = Expense(
                     date=row_date,
                     description=_normalize_text(r.get("description", "")),
                     amount=amount_value,
                     currency=r.get("currency", "ARS"),
-                    card=norm_card,
-                    bank=norm_bank,
+                    card=final_card,
+                    bank=final_bank,
                     person=norm_person,
                     category_id=category_id,
                     transaction_id=r.get("transaction_id"),

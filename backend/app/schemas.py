@@ -208,9 +208,15 @@ class AnalysisHistoryResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CardsMappingEntry(BaseModel):
+    custom_naming: str
+    bank: Optional[str] = None
+    card_name: Optional[str] = None
+
+
 class RowsConfirmBody(BaseModel):
     rows: List[Any]
-    cards_mapping: Optional[dict[str, str]] = None  # key: "bank|card|holder" -> value: custom_naming
+    cards_mapping: Optional[dict[str, dict[str, Any]]] = None  # key: "bank|card|holder" -> value: { custom_naming, bank?, card_name? }
 
 
 class CardClosingResponse(BaseModel):

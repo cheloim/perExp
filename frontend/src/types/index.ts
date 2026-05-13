@@ -271,8 +271,14 @@ export interface DetectedCard {
   transaction_count: number
 }
 
+export interface CardsMappingEntry {
+  custom_naming: string
+  bank?: string
+  card_name?: string
+}
+
 export interface CardsMapping {
-  [key: string]: string  // key: "bank|card|holder" -> value: custom_naming
+  [key: string]: CardsMappingEntry  // key: "bank|card|holder" -> value: { custom_naming, bank?, card_name? }
 }
 
 export interface ImportSummary {

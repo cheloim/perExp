@@ -270,7 +270,7 @@ export const importSmart = (file: File) => {
   return api.post<SmartImportPreview>('/import/smart', formData).then((r) => r.data)
 }
 
-export const importRowsConfirm = (rows: SmartImportRow[], cardsMapping?: Record<string, string>) =>
+export const importRowsConfirm = (rows: SmartImportRow[], cardsMapping?: CardsMapping) =>
   api
     .post<{ imported: number; skipped: number }>('/import/rows-confirm', { rows, cards_mapping: cardsMapping })
     .then((r) => r.data)

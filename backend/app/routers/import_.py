@@ -494,8 +494,14 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
         category_id = _resolve_category(db, amount, desc, cats)
 
         card_key = get_card_key(norm_bank, norm_card, norm_person)
-        custom_naming = cards_mapping.get(card_key, f"{norm_card} {norm_bank}".strip())
-        card_type = cards_mapping.get(f"_card_type_{norm_bank}_{norm_card}", "credito")
+        mapping_entry = cards_mapping.get(card_key, {})
+        custom_naming = mapping_entry.get("custom_naming") if isinstance(mapping_entry, dict) else mapping_entry
+        if not custom_naming:
+            custom_naming = f"{norm_card} {norm_bank}".strip()
+        # Override bank/card if provided in mapping
+        final_bank = mapping_entry.get("bank") if isinstance(mapping_entry, dict) and mapping_entry.get("bank") else norm_bank
+        final_card = mapping_entry.get("card_name") if isinstance(mapping_entry, dict) and mapping_entry.get("card_name") else norm_card
+        card_type = cards_mapping.get(f"_card_type_{norm_bank}_{norm_card}", "credito") if isinstance(cards_mapping.get(f"_card_type_{norm_bank}_{norm_card}"), str) else "credito"
 
         is_scheduled = r.get("is_scheduled", False)
 
@@ -507,8 +513,8 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
                     amount=amount,
                     currency=currency,
                     category_id=category_id,
-                    card=norm_card,
-                    bank=norm_bank,
+                    card=final_card,
+                    bank=final_bank,
                     person=norm_person,
                     transaction_id=txn_id,
                     installment_number=inst_num,
@@ -521,7 +527,7 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
             except Exception:
                 skipped += 1
         else:
-            card_obj, _ = find_or_create_card(norm_bank, row_card, norm_person, custom_naming, card_type)
+            card_obj, _ = find_or_create_card(final_bank, row_card, norm_person, custom_naming, card_type)
 
             try:
                 db.add(Expense(
@@ -530,8 +536,8 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
                     amount=amount,
                     currency=currency,
                     category_id=category_id,
-                    card=norm_card,
-                    bank=norm_bank,
+                    card=final_card,
+                    bank=final_bank,
                     person=norm_person,
                     transaction_id=txn_id,
                     installment_number=inst_num,
