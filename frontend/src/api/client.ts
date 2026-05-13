@@ -23,6 +23,7 @@ import type {
   FamilyGroup,
   ScheduledExpense,
   ImportJob,
+  CardsMapping,
 } from '../types'
 
 const TOKEN_KEY = 'auth_token'
@@ -269,9 +270,9 @@ export const importSmart = (file: File) => {
   return api.post<SmartImportPreview>('/import/smart', formData).then((r) => r.data)
 }
 
-export const importRowsConfirm = (rows: SmartImportRow[]) =>
+export const importRowsConfirm = (rows: SmartImportRow[], cardsMapping?: Record<string, string>) =>
   api
-    .post<{ imported: number; skipped: number }>('/import/rows-confirm', { rows })
+    .post<{ imported: number; skipped: number }>('/import/rows-confirm', { rows, cards_mapping: cardsMapping })
     .then((r) => r.data)
 
 // Analysis history
@@ -400,9 +401,9 @@ export const deleteAccount = (id: number) =>
 // Cards
 export const getCards = () =>
   api.get<Card[]>('/cards').then((r) => r.data)
-export const createCard = (data: { name: string; bank?: string; card_type?: string }) =>
+export const createCard = (data: { custom_naming: string; name: string; bank?: string; holder?: string; card_type?: string }) =>
   api.post<Card>('/cards', data).then((r) => r.data)
-export const updateCard = (id: number, data: { name?: string; bank?: string; card_type?: string }) =>
+export const updateCard = (id: number, data: { custom_naming?: string; name?: string; bank?: string; holder?: string; card_type?: string }) =>
   api.put<Card>(`/cards/${id}`, data).then((r) => r.data)
 export const deleteCard = (id: number) =>
   api.delete(`/cards/${id}`).then((r) => r.data)
@@ -428,8 +429,8 @@ export async function getImportJob(jobId: number): Promise<ImportJob> {
   return res.data
 }
 
-export async function confirmImportJob(jobId: number, rows: SmartImportRow[]): Promise<{ imported: number; skipped: number; scheduled: number }> {
-  const res = await api.post(`/import-jobs/${jobId}/confirm`, { rows })
+export async function confirmImportJob(jobId: number, rows: SmartImportRow[], cardsMapping?: CardsMapping): Promise<{ imported: number; skipped: number; scheduled: number }> {
+  const res = await api.post(`/import-jobs/${jobId}/confirm`, { rows, cards_mapping: cardsMapping })
   return res.data
 }
 

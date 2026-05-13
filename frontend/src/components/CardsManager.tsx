@@ -18,8 +18,9 @@ export default function CardsManager() {
   const [editId, setEditId] = useState<number | null>(null)
   const [menuOpen, setMenuOpen] = useState<number | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'card' | 'account'; id: number; name: string } | null>(null)
-  const [duplicateFound, setDuplicateFound] = useState<{ id: number; name: string; bank: string; card_type: string } | null>(null)
-  const [errors, setErrors] = useState<{ name?: string; bank?: string }>({})
+  const [duplicateFound, setDuplicateFound] = useState<{ id: number; custom_naming: string; name: string; bank: string; card_type: string } | null>(null)
+  const [errors, setErrors] = useState<{ custom_naming?: string; name?: string; bank?: string }>({})
+  const [customNaming, setCustomNaming] = useState('')
   const [name, setName] = useState('')
   const [bank, setBank] = useState('')
   const [holder, setHolder] = useState('')
@@ -43,6 +44,7 @@ export default function CardsManager() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards'] })
       setEditId(null)
+      setCustomNaming('')
       setName('')
       setBank('')
       setHolder('')
@@ -53,9 +55,10 @@ export default function CardsManager() {
         const detail = error.response.data.detail
         setDuplicateFound({
           id: detail.existing_id,
-          name: detail.existing_name,
-          bank: detail.existing_bank,
-          card_type: detail.existing_card_type,
+          custom_naming: detail.existing_custom_naming || detail.existing_name,
+          name: detail.existing_name || '',
+          bank: detail.existing_bank || '',
+          card_type: detail.existing_card_type || 'credito',
         })
       }
     },
@@ -66,6 +69,7 @@ export default function CardsManager() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards'] })
       setEditId(null)
+      setCustomNaming('')
       setName('')
       setBank('')
       setHolder('')
@@ -95,24 +99,28 @@ export default function CardsManager() {
 
   const handleEdit = (card: Card) => {
     setEditId(card.id)
+    setCustomNaming(card.custom_naming || '')
     setName(card.name)
     setBank(card.bank || '')
     setHolder(card.holder || '')
     setCardType(card.card_type)
+    setAccountType('tarjeta')
     setMenuOpen(null)
   }
 
   const handleCancel = () => {
     setEditId(null)
+    setCustomNaming('')
     setName('')
     setBank('')
     setHolder('')
     setCardType('credito')
-    setAccountType('efectivo')
+    setAccountType('tarjeta')
   }
 
   const handleAdd = () => {
     setEditId(-1)
+    setCustomNaming('')
     setName('')
     setBank('')
     setHolder('')
@@ -123,11 +131,16 @@ export default function CardsManager() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    
-    const newErrors: { name?: string; bank?: string } = {}
-    if (!name.trim()) newErrors.name = 'El nombre es obligatorio'
-    if (accountType === 'tarjeta' && !bank.trim()) newErrors.bank = 'El banco es obligatorio'
-    
+
+    const newErrors: { custom_naming?: string; name?: string; bank?: string } = {}
+    if (accountType === 'tarjeta') {
+      if (!customNaming.trim()) newErrors.custom_naming = 'El nombre personalizado es obligatorio'
+      if (!name.trim()) newErrors.name = 'El nombre es obligatorio'
+      if (!bank.trim()) newErrors.bank = 'El banco es obligatorio'
+    } else {
+      if (!name.trim()) newErrors.name = 'El nombre es obligatorio'
+    }
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
       return
@@ -136,6 +149,7 @@ export default function CardsManager() {
 
     if (accountType === 'tarjeta') {
       const data = {
+        custom_naming: customNaming.trim(),
         name: name.trim(),
         bank: bank.trim(),
         holder: holder.trim(),
@@ -166,14 +180,25 @@ export default function CardsManager() {
             {isEditing ? (
               <form onSubmit={handleSubmit} className="p-4 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-[var(--text-secondary)]">Nombre</label>
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">Nombre personalizado</label>
+                  <input
+                    type="text"
+                    value={customNaming}
+                    onChange={(e) => { setCustomNaming(e.target.value); setErrors(prev => ({ ...prev, custom_naming: undefined })) }}
+                    className={`w-full px-3 py-2 rounded-md border text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 transition ${errors.custom_naming ? 'border-red-500 focus:ring-red-300 focus:border-red-500' : 'border-[var(--border-color)] focus:border-primary'}`}
+                    placeholder="Ej: Visa Galicia - Juan"
+                    autoFocus
+                  />
+                  {errors.custom_naming && <p className="text-xs text-red-500">{errors.custom_naming}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">Tarjeta</label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => { setName(e.target.value); setErrors(prev => ({ ...prev, name: undefined })) }}
                     className={`w-full px-3 py-2 rounded-md border text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 transition ${errors.name ? 'border-red-500 focus:ring-red-300 focus:border-red-500' : 'border-[var(--border-color)] focus:border-primary'}`}
-                    placeholder="Ej: Visa Galicia"
-                    autoFocus
+                    placeholder="Ej: Visa"
                   />
                   {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
                 </div>
@@ -232,14 +257,13 @@ export default function CardsManager() {
                   💳
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-primary truncate">
-                    {card.name}
-                    {card.bank && <span className="text-tertiary font-normal"> — {card.bank}</span>}
+                  <div className="text-sm font-semibold text-primary truncate" title={card.custom_naming || card.name}>
+                    {card.custom_naming || card.name}
                   </div>
                   <div className="text-xs text-secondary capitalize">
-                    {card.card_type}
+                    {card.card_type === 'credito' ? 'Crédito' : card.card_type === 'debito' ? 'Débito' : card.card_type} — {card.bank}
                   </div>
-                  {card.holder && <div className="text-xs text-tertiary mt-0.5">{card.holder}</div>}
+                  <div className="text-xs text-tertiary mt-0.5">Titular: {card.holder || '—'}</div>
                 </div>
                 <div className="relative">
                   <button
@@ -398,12 +422,13 @@ export default function CardsManager() {
           <div className="bg-surface rounded-xl shadow-xl p-6 max-w-sm w-full">
             <h3 className="text-lg font-semibold text-primary mb-2">Tarjeta existente</h3>
             <p className="text-sm text-secondary mb-6">
-              Ya existe una tarjeta con estos datos: <span className="font-medium text-primary">"{duplicateFound.name}"</span> ({duplicateFound.bank} - {duplicateFound.card_type})
+              Ya existe una tarjeta con estos datos: <span className="font-medium text-primary">"{duplicateFound.custom_naming}"</span>
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => {
                   setDuplicateFound(null)
+                  setCustomNaming('')
                   setName('')
                   setBank('')
                   setCardType('credito')
@@ -418,9 +443,10 @@ export default function CardsManager() {
                   const cardToEdit = cards.find(c => c.id === duplicateFound.id)
                   if (cardToEdit) {
                     setEditId(duplicateFound.id)
-                    setName(duplicateFound.name)
-                    setBank(duplicateFound.bank)
-                    setCardType(duplicateFound.card_type)
+                    setCustomNaming(cardToEdit.custom_naming || '')
+                    setName(cardToEdit.name)
+                    setBank(cardToEdit.bank || '')
+                    setCardType(cardToEdit.card_type)
                   }
                   setDuplicateFound(null)
                 }}

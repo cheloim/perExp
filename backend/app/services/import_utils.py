@@ -71,6 +71,7 @@ def _is_duplicate(
         next_month = month_start.replace(day=28) + timedelta(days=4)
         month_end = next_month.replace(day=1) - timedelta(days=1)
         q = db.query(Expense).filter(
+            Expense.amount == amount,
             func.lower(Expense.description) == description.lower(),
             Expense.installment_number == installment_number,
             Expense.installment_total == installment_total,

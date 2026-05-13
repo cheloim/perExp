@@ -29,7 +29,7 @@ export function formatMonthYear(dateStr: string): string {
 
 export function titleCase(str: string): string {
   if (!str) return ''
-  return str.replace(/\b\w/g, c => c.toUpperCase())
+  return str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 }
 
 export function toUpperCase(str: string): string {

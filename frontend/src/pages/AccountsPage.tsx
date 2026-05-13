@@ -172,8 +172,8 @@ function CardNetworkLogo({ network }: { network: CardNetwork }) {
 }
 
 
-function CreditCardViz({ cardName, holder, bank, monthly, active, onClick, index, filterMonth }: {
-  cardName: string; holder?: string; bank: string; monthly?: { month: string; total: number }[];
+function CreditCardViz({ cardName, customNaming, holder, bank, monthly, active, onClick, index, filterMonth }: {
+  cardName: string; customNaming?: string; holder?: string; bank: string; monthly?: { month: string; total: number }[];
   active: boolean; onClick: () => void; index: number; filterMonth: string;
 }) {
   const network = detectNetwork(cardName)
@@ -190,7 +190,7 @@ function CreditCardViz({ cardName, holder, bank, monthly, active, onClick, index
     'from-gnomeBlue4 to-gnomeBlue3',
   ]
   const color = gradientColors[index % gradientColors.length]
-  const firstName = holder ? holder.split(' ')[0] : ''
+  const displayName = customNaming || (holder ? holder.split(' ')[0] : cardName)
 
   return (
     <div
@@ -201,7 +201,7 @@ function CreditCardViz({ cardName, holder, bank, monthly, active, onClick, index
       <div className="flex justify-between items-start gap-3">
         <div className="min-w-0">
           <p className="text-white/60 text-[11px] font-semibold tracking-widest uppercase">{bank || 'Banco'}</p>
-          <p className="text-white text-sm font-bold tracking-wide mt-0.5 truncate">{firstName || cardName}</p>
+          <p className="text-white text-sm font-bold tracking-wide mt-0.5 truncate">{displayName}</p>
         </div>
         <div className="flex-shrink-0">
           <CardNetworkLogo network={network} />
@@ -551,6 +551,7 @@ export default function AccountsPage() {
                     key={ckey}
                     index={idx}
                     cardName={card.card_name}
+                    customNaming={card.custom_naming}
                     holder={card.holder}
                     bank={card.bank}
                     monthly={card.monthly}

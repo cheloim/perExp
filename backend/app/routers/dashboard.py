@@ -646,8 +646,9 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
 
     # Build card lookup with both name and id
     user_cards_by_name = {c.name: c.card_type for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
-    user_cards_by_id = {c.id: c.card_type for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
-    
+    user_cards_by_id = {c.id: c for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
+    user_cards_custom_naming = {c.id: c.custom_naming for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
+
     # Build account lookup - accounts are always "debito" type
     user_accounts_by_id = {a.id: a.type for a in db.query(Account).filter(Account.user_id.in_(uid_list)).all()}
     def _card_network(card_str: str) -> str:
@@ -778,15 +779,22 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
         # If no account, check card_id lookup, then name lookup
         if not card_type and g.get("card_ids"):
             most_used_card_id = max(g["card_ids"], key=g["card_ids"].get)
-            card_type = user_cards_by_id.get(most_used_card_id)
+            card_type = user_cards_by_id.get(most_used_card_id).card_type if user_cards_by_id.get(most_used_card_id) else "credito"
         if not card_type:
             card_type = user_cards_by_name.get(card_name) or user_cards_by_name.get(g["network"].title())
         if not card_type:
             card_type = "credito"
 
+        # Get custom_naming from most used card_id
+        custom_naming = None
+        if g.get("card_ids"):
+            most_used_card_id = max(g["card_ids"], key=g["card_ids"].get)
+            custom_naming = user_cards_custom_naming.get(most_used_card_id)
+
         result.append({
             "holder": holder, "bank": g["bank"],
             "card_name": card_name,
+            "custom_naming": custom_naming,
             "card_type": card_type,
             "total_amount": g["total_amount"], "count": g["count"],
             "currency": g["currency"],

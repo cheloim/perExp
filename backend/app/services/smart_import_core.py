@@ -18,7 +18,7 @@ from app.prompts import SMART_IMPORT_PROMPT
 from app.services.categorization import _resolve_category, _should_skip
 from app.services.date_utils import _normalize_date_str
 from app.services.import_utils import _expand_installments, _is_duplicate, _load_dataframe, _normalize_persons_llm
-from app.services.normalizers import normalize_bank, _normalize_person
+from app.services.normalizers import normalize_bank, _normalize_person, first_card_word, title_case_single
 from app.services.pdf import _extract_pdf_text, _inject_card_markers, _inject_csv_card_markers, _normalize_santander_dates
 
 
@@ -215,6 +215,10 @@ async def run_smart_import(
         row_bank = str(r.get("bank", "") or "").strip() or fallback_bank
         row_person = str(r.get("person", "") or "").strip() or fallback_person
 
+        row_card = first_card_word(row_card)
+        row_bank = normalize_bank(row_bank)
+        row_person = title_case_single(row_person)
+
         parsed.append({
             "date": raw_date,
             "_date_obj": row_date,
@@ -254,7 +258,33 @@ async def run_smart_import(
     expenses_list, scheduled_list = _expand_installments(parsed, db, user_id)
     parsed = expenses_list
 
-    # Step 7: Build response rows with duplicate detection
+    # Step 7: Detect unique cards and generate suggested custom_naming
+    from collections import defaultdict
+    card_groups: dict = defaultdict(list)
+    for p in parsed:
+        key = (p.get("bank") or "", p.get("card") or "", p.get("person") or "")
+        if key[1]:
+            card_groups[key].append(p)
+
+    detected_cards = []
+    card_type = closing_info.get("card_type") or "credito"
+    for (bank, card, person), txns in card_groups.items():
+        if bank and card:
+            unique_persons = list({p.get("person") or "" for p in txns if p.get("person")})
+            if len(unique_persons) == 1:
+                suggested = f"{card} {bank}".strip()
+            else:
+                suggested = f"{card} {bank} - {person}".strip()
+            detected_cards.append({
+                "bank": bank,
+                "card": card,
+                "card_type": card_type,
+                "holders": unique_persons,
+                "suggested_custom_naming": suggested,
+                "transaction_count": len(txns),
+            })
+
+    # Step 8: Build response rows with duplicate detection
     rows = []
     for p in parsed:
         cat_id = _resolve_category(db, p["amount"], p["description"], cats)
@@ -340,5 +370,6 @@ async def run_smart_import(
         "rows": rows,
         "raw_count": len(rows_raw),
         "summary": summary,
-        "has_missing_data": has_missing_data
+        "has_missing_data": has_missing_data,
+        "detected_cards": detected_cards,
     }

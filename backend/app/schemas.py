@@ -210,6 +210,7 @@ class AnalysisHistoryResponse(BaseModel):
 
 class RowsConfirmBody(BaseModel):
     rows: List[Any]
+    cards_mapping: Optional[dict[str, str]] = None  # key: "bank|card|holder" -> value: custom_naming
 
 
 class CardClosingResponse(BaseModel):

@@ -173,9 +173,11 @@ async def confirm_import_job(
 ):
     """
     Confirm import job - saves rows to database.
-    Reuses the logic from POST /import/rows-confirm.
+    Uses the same logic as POST /import/rows-confirm.
     """
     from app.models import Card, Category, Expense, ScheduledExpense
+    from app.services.normalizers import normalize_bank, first_card_word, title_case_single
+    from app.services.import_utils import _normalize_text, _is_duplicate
 
     print(f"[IMPORT CONFIRM] User {user.id} confirming job {job_id} with {len(body.rows)} rows")
 
@@ -202,32 +204,50 @@ async def confirm_import_job(
         sample = body.rows[0]
         print(f"[IMPORT CONFIRM] Sample row keys: {list(sample.keys())}")
 
+    cards_mapping = body.cards_mapping or {}
+    print(f"[IMPORT CONFIRM] Received cards_mapping: {cards_mapping}")
+    print(f"[IMPORT CONFIRM] cards_mapping length: {len(cards_mapping)}")
+
+    def get_card_key(bank: str, card: str, holder: str) -> str:
+        return f"{bank}|{card}|{holder}"
+
+    def find_or_create_card(bank: str, card: str, holder: str, custom_naming: str, card_type: str = "credito") -> tuple:
+        norm_bank = normalize_bank(bank)
+        norm_card = first_card_word(card)
+        norm_holder = title_case_single(holder)
+
+        print(f"[FIND_OR_CREATE_CARD] bank={norm_bank}, card={norm_card}, holder={norm_holder}, custom_naming={custom_naming}, card_type={card_type}")
+        print(f"[FIND_OR_CREATE_CARD] user_cards count={len(user_cards)}, names: {[c.custom_naming for c in user_cards]}")
+
+        existing = next(
+            (c for c in user_cards
+             if c.custom_naming.lower() == custom_naming.lower()), None
+        )
+        if existing:
+            print(f"[FIND_OR_CREATE_CARD] Found existing card: {existing.custom_naming}")
+            if existing.holder.lower() != norm_holder.lower():
+                existing.holder = norm_holder
+            if existing.card_type != card_type:
+                existing.card_type = card_type
+            return existing, False
+
+        new_card = Card(
+            custom_naming=custom_naming,
+            name=norm_card,
+            bank=norm_bank,
+            holder=norm_holder,
+            card_type=card_type,
+            user_id=user.id
+        )
+        db.add(new_card)
+        db.flush()
+        user_cards.append(new_card)
+        print(f"[FIND_OR_CREATE_CARD] Created new card: custom_naming={custom_naming}, name={norm_card}, bank={norm_bank}, holder={norm_holder}")
+        return new_card, True
+
     # Reuse rows-confirm logic
     cats = db.query(Category).all()
-
-    # Extract unique (card, bank) combinations and auto-create missing cards
-    unique_cards = set()
-    for r in body.rows:
-        card_name = r.get("card", "").strip()
-        bank_name = r.get("bank", "").strip()
-        if card_name and bank_name:
-            unique_cards.add((card_name, bank_name))
-
-    for card_name, bank_name in unique_cards:
-        existing_card = db.query(Card).filter(
-            Card.user_id == user.id,
-            Card.name == card_name,
-            Card.bank == bank_name
-        ).first()
-        if not existing_card:
-            new_card = Card(
-                name=card_name,
-                bank=bank_name,
-                holder="",
-                card_type="",
-                user_id=user.id
-            )
-            db.add(new_card)
+    user_cards = db.query(Card).filter(Card.user_id == user.id).all()
 
     imported_count = 0
     skipped_count = 0
@@ -265,43 +285,34 @@ async def confirm_import_job(
         except (ValueError, TypeError):
             raise HTTPException(400, f"Monto inválido: '{r.get('amount')}' en '{r.get('description', 'N/A')}'")
 
+        norm_bank = normalize_bank(str(r.get("bank", "") or ""))
+        row_card = str(r.get("card", "") or "").strip()
+        norm_card = first_card_word(row_card)
+        norm_person = title_case_single(str(r.get("person", "") or "").strip())
+
+        card_key = get_card_key(norm_bank, norm_card, norm_person)
+        print(f"[IMPORT CONFIRM] Looking up card_key: bank={norm_bank}, card={norm_card}, person={norm_person}")
+        print(f"[IMPORT CONFIRM] Expected card_key: {card_key}")
+        print(f"[IMPORT CONFIRM] cards_mapping.get result: {cards_mapping.get(card_key, 'NOT_FOUND')}")
+        custom_naming = cards_mapping.get(card_key, f"{norm_card} {norm_bank}".strip())
+        card_type = cards_mapping.get(f"_card_type_{norm_bank}_{norm_card}", "credito")
+
         if is_scheduled:
-            # Validate required NOT NULL fields for ScheduledExpense
-            installment_number = r.get("installment_number")
-            installment_total = r.get("installment_total")
-            installment_group_id = r.get("installment_group_id")
-
-            if installment_number is None or installment_total is None or not installment_group_id:
-                print(f"[WARN] Skipping scheduled expense with missing installment fields: {r.get('description')}")
-                print(f"[WARN]   installment_number={installment_number}, installment_total={installment_total}, installment_group_id={installment_group_id}")
-                skipped_count += 1
-                continue
-
-            # Validate types
-            try:
-                installment_number = int(installment_number)
-                installment_total = int(installment_total)
-                installment_group_id = str(installment_group_id)
-            except (ValueError, TypeError) as e:
-                print(f"[WARN] Invalid installment field types: {e}")
-                skipped_count += 1
-                continue
-
             # Create ScheduledExpense
             try:
                 scheduled = ScheduledExpense(
                     scheduled_date=row_date,
-                    description=r.get("description", ""),
+                    description=_normalize_text(r.get("description", "")),
                     amount=amount_value,
                     currency=r.get("currency", "ARS"),
-                    card=card_name,
-                    bank=bank_name,
-                    person=r.get("person", ""),
+                    card=norm_card,
+                    bank=norm_bank,
+                    person=norm_person,
                     category_id=category_id,
                     transaction_id=r.get("transaction_id"),
-                    installment_number=installment_number,
-                    installment_total=installment_total,
-                    installment_group_id=installment_group_id,
+                    installment_number=r.get("installment_number"),
+                    installment_total=r.get("installment_total"),
+                    installment_group_id=r.get("installment_group_id"),
                     status="PENDING",
                     user_id=user.id
                 )
@@ -310,22 +321,24 @@ async def confirm_import_job(
             except Exception as e:
                 raise HTTPException(500, f"Error al crear gasto programado '{r.get('description', 'N/A')}': {str(e)}")
         else:
-            # Create Expense
+            # Create Expense with card
+            card_obj, _ = find_or_create_card(norm_bank, row_card, norm_person, custom_naming, card_type)
             try:
                 expense = Expense(
                     date=row_date,
-                    description=r.get("description", ""),
+                    description=_normalize_text(r.get("description", "")),
                     amount=amount_value,
                     currency=r.get("currency", "ARS"),
-                    card=card_name,
-                    bank=bank_name,
-                    person=r.get("person", ""),
+                    card=norm_card,
+                    bank=norm_bank,
+                    person=norm_person,
                     category_id=category_id,
                     transaction_id=r.get("transaction_id"),
                     installment_number=r.get("installment_number"),
                     installment_total=r.get("installment_total"),
                     installment_group_id=r.get("installment_group_id"),
-                    user_id=user.id
+                    user_id=user.id,
+                    card_id=card_obj.id
                 )
                 db.add(expense)
                 imported_count += 1

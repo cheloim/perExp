@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { importSmart, importRowsConfirm, getCards } from '../api/client'
-import type { SmartImportRow, FileImportResult, Card } from '../types'
+import type { SmartImportRow, FileImportResult, Card, DetectedCard, CardsMapping } from '../types'
 import { formatCurrency, toUpperCase, titleCase } from '../utils/format'
 
 type Step = 'upload' | 'preview' | 'done'
@@ -73,6 +73,24 @@ function extractUniqueHolders(rows: SmartImportRow[]): string[] {
   return Array.from(holders).sort()
 }
 
+function getCardKey(bank: string, card: string, holder: string): string {
+  return `${bank}|${card}|${titleCase(holder)}`
+}
+
+function generateCardsMapping(detectedCards: DetectedCard[], edits: Record<string, string>): CardsMapping {
+  const mapping: CardsMapping = {}
+  for (const dc of detectedCards) {
+    if (dc.card_type) {
+      mapping[`_card_type_${dc.bank}_${dc.card}`] = dc.card_type
+    }
+    for (const holder of dc.holders) {
+      const key = getCardKey(dc.bank, dc.card, holder)
+      mapping[key] = edits[key] || dc.suggested_custom_naming
+    }
+  }
+  return mapping
+}
+
 export default function ImportPage() {
   const qc = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -90,6 +108,10 @@ export default function ImportPage() {
   const [editPerson, setEditPerson] = useState('')
   const [onlyEmpty, setOnlyEmpty] = useState(true)
   const [importingSingle, setImportingSingle] = useState<string | null>(null)
+
+  // Custom naming modal state
+  const [customNamingModalFile, setCustomNamingModalFile] = useState<string | null>(null)
+  const [customNamingEdits, setCustomNamingEdits] = useState<Record<string, string>>({})  // cardKey -> custom_naming
 
   const fileQueueRef  = useRef<File[]>([])
   const processingRef = useRef(false)
@@ -113,12 +135,13 @@ export default function ImportPage() {
     qc.invalidateQueries({ queryKey: ['installments'] })
     qc.invalidateQueries({ queryKey: ['installments-monthly-load'] })
     qc.invalidateQueries({ queryKey: ['card-summary'] })
+    qc.invalidateQueries({ queryKey: ['cards'] })
   }
 
   const smartMut = useMutation({ mutationFn: (f: File) => importSmart(f) })
 
   const confirmSmartMut = useMutation({
-    mutationFn: (rows: SmartImportRow[]) => importRowsConfirm(rows),
+    mutationFn: (args: [SmartImportRow[], CardsMapping?]) => importRowsConfirm(args[0], args[1]),
     onSuccess: (data) => {
       setResult(data)
       setStep('done')
@@ -137,12 +160,15 @@ export default function ImportPage() {
       setQueued(fileQueueRef.current.length)
       try {
         const data = await smartMut.mutateAsync(file)
+        const detectedCards = data.detected_cards || []
         const newResult: FileImportResult = {
           filename: file.name,
           rows: deduplicateInstallments(data.rows),
           raw_count: data.raw_count,
           summary: data.summary,
           has_missing_data: data.has_missing_data,
+          detected_cards: detectedCards,
+          cards_mapping: generateCardsMapping(detectedCards, {}),
         }
         setFileResults(prev => [...prev, newResult])
         hasResults = true
@@ -186,12 +212,28 @@ export default function ImportPage() {
   const handleOpenEditModal = (filename: string) => {
     const fileResult = fileResults.find(f => f.filename === filename)
     if (!fileResult) return
-    
+
     setEditModalFile(filename)
     setEditBank(fileResult.summary.bank || '')
     setEditCard(fileResult.summary.card_type || '')
     setEditPerson(fileResult.rows[0]?.person || '')
     setOnlyEmpty(true)
+  }
+
+  const handleOpenCustomNamingModal = (filename: string) => {
+    const fileResult = fileResults.find(f => f.filename === filename)
+    if (!fileResult || !fileResult.detected_cards) return
+
+    setCustomNamingModalFile(filename)
+    // Initialize edits with current mapping or suggested
+    const initialEdits: Record<string, string> = {}
+    for (const dc of fileResult.detected_cards) {
+      for (const holder of dc.holders) {
+        const key = getCardKey(dc.bank, dc.card, holder)
+        initialEdits[key] = fileResult.cards_mapping?.[key] || dc.suggested_custom_naming
+      }
+    }
+    setCustomNamingEdits(initialEdits)
   }
 
   const handleApplyEdit = () => {
@@ -217,6 +259,27 @@ export default function ImportPage() {
     setFileResults(prev => prev.filter(f => f.filename !== filename))
   }
 
+  const handleApplyCustomNaming = () => {
+    if (!customNamingModalFile) return
+
+    // Validate all custom namings are filled
+    const emptyOnes = Object.entries(customNamingEdits).filter(([, v]) => !v.trim())
+    if (emptyOnes.length > 0) {
+      alert('Todos los nombres personalizados son obligatorios')
+      return
+    }
+
+    setFileResults(prev => prev.map(f => {
+      if (f.filename !== customNamingModalFile) return f
+      return {
+        ...f,
+        cards_mapping: { ...customNamingEdits },
+        customNamingSaved: true,
+      }
+    }))
+    setCustomNamingModalFile(null)
+  }
+
   const handleImportSingle = async (fileResult: FileImportResult) => {
     const valid = validateRows(fileResult.rows)
     if (!valid.valid) {
@@ -227,7 +290,8 @@ export default function ImportPage() {
     setImportingSingle(fileResult.filename)
 
     try {
-      const data = await importRowsConfirm(fileResult.rows)
+      const cardsMapping = fileResult.cards_mapping
+      const data = await importRowsConfirm(fileResult.rows, cardsMapping)
       const remainingFiles = fileResults.filter(f => f.filename !== fileResult.filename)
 
       if (remainingFiles.length === 0) {
@@ -252,7 +316,14 @@ export default function ImportPage() {
       alert(`Faltan datos en ${validation.missingCount} fila(s). Completalos antes de importar.`)
       return
     }
-    confirmSmartMut.mutate(allRows)
+    // Merge all cards_mapping from all files
+    const mergedCardsMapping: CardsMapping = {}
+    for (const fr of fileResults) {
+      if (fr.cards_mapping) {
+        Object.assign(mergedCardsMapping, fr.cards_mapping)
+      }
+    }
+    confirmSmartMut.mutate([allRows, mergedCardsMapping] as any)
   }
 
   const reset = () => {
@@ -274,6 +345,7 @@ export default function ImportPage() {
   const totalDupes = fileResults.reduce((acc, f) => acc + f.rows.filter(r => r.is_duplicate).length, 0)
   const totalAutoGen = fileResults.reduce((acc, f) => acc + f.rows.filter(r => r.is_auto_generated && !r.is_duplicate).length, 0)
   const missingDataFiles = fileResults.filter(f => f.has_missing_data).length
+  const unsavedCustomNamingFiles = fileResults.filter(f => f.detected_cards?.length && !f.customNamingSaved).length
 
   if (step === 'done' && result) {
     return (
@@ -431,7 +503,22 @@ export default function ImportPage() {
                     {fileResult.rows.filter(r => r.is_duplicate).length > 0 && (
                       <span className="text-warning"> · {fileResult.rows.filter(r => r.is_duplicate).length} dup</span>
                     )}
+                    {fileResult.detected_cards && fileResult.detected_cards.length > 0 && (
+                      <span className="ml-2 badge-primary">{fileResult.detected_cards.length} tarjeta{fileResult.detected_cards.length > 1 ? 's' : ''}</span>
+                    )}
                   </span>
+                  {fileResult.detected_cards && fileResult.detected_cards.length > 0 && (
+                    <button
+                      onClick={() => handleOpenCustomNamingModal(fileResult.filename)}
+                      className={`px-3 py-1 text-xs font-medium rounded-md hover:brightness-110 transition ${
+                        fileResult.customNamingSaved
+                          ? 'bg-success text-white'
+                          : 'bg-warning text-white'
+                      }`}
+                    >
+                      {fileResult.customNamingSaved ? '✓ Nombres guardados' : '⚠️ Nombres de tarjetas'}
+                    </button>
+                  )}
                   {fileResult.has_missing_data ? (
                     <button
                       onClick={() => handleOpenEditModal(fileResult.filename)}
@@ -442,10 +529,10 @@ export default function ImportPage() {
                   ) : (
                     <button
                       onClick={() => handleImportSingle(fileResult)}
-                      disabled={isImporting || !fileReady}
+                      disabled={isImporting || !fileReady || (!!fileResult.detected_cards?.length && !fileResult.customNamingSaved)}
                       className={`px-3 py-1 text-xs font-medium rounded-md transition ${
-                        fileReady 
-                          ? 'bg-success text-white hover:brightness-110' 
+                        fileReady && (!fileResult.detected_cards?.length || fileResult.customNamingSaved)
+                          ? 'bg-success text-white hover:brightness-110'
                           : 'bg-tertiary/30 text-tertiary cursor-not-allowed'
                       }`}
                     >
@@ -529,7 +616,7 @@ export default function ImportPage() {
               </p>
               <button
                 onClick={handleConfirmImport}
-                disabled={confirmSmartMut.isPending || isProcessing || missingDataFiles > 0}
+                disabled={confirmSmartMut.isPending || isProcessing || missingDataFiles > 0 || unsavedCustomNamingFiles > 0}
                 className="btn-primary bg-success hover:brightness-110 disabled:opacity-50 disabled:bg-tertiary"
               >
                 {confirmSmartMut.isPending
@@ -538,6 +625,8 @@ export default function ImportPage() {
                   ? 'Esperando archivos...'
                   : missingDataFiles > 0
                   ? `Completar datos primero (${missingDataFiles} archivo${missingDataFiles > 1 ? 's' : ''})`
+                  : unsavedCustomNamingFiles > 0
+                  ? `Guardar nombres de tarjetas (${unsavedCustomNamingFiles} archivo${unsavedCustomNamingFiles > 1 ? 's' : ''})`
                   : `Importar ${totalRows - totalDupes} gastos`}
               </button>
             </div>
@@ -624,6 +713,67 @@ export default function ImportPage() {
               </button>
               <button onClick={handleApplyEdit} className="btn-primary">
                 ✓ Aplicar datos
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {customNamingModalFile && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setCustomNamingModalFile(null)}>
+          <div className="bg-[var(--color-base-container)] rounded-xl p-6 w-full max-w-lg shadow-xl border border-border-color max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-primary">
+                Nombres de tarjetas
+              </h2>
+              <button onClick={() => setCustomNamingModalFile(null)} className="text-tertiary hover:text-primary text-xl">×</button>
+            </div>
+
+            <p className="text-sm text-secondary mb-4">
+              Archivo: <span className="font-medium text-primary">{customNamingModalFile}</span>
+            </p>
+
+            <div className="space-y-4">
+              {fileResults.find(f => f.filename === customNamingModalFile)?.detected_cards?.map((dc, idx) => (
+                <div key={idx} className="border border-border-color rounded-lg p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="font-medium text-primary">{dc.card}</span>
+                    <span className="text-secondary">·</span>
+                    <span className="text-secondary">{dc.bank}</span>
+                    <span className="text-secondary">·</span>
+                    <span className="text-secondary">{dc.holders.join(', ')}</span>
+                    <span className="badge-primary ml-auto">{dc.transaction_count} gastos</span>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-secondary block mb-1">Nombre personalizado</label>
+                    {dc.holders.map((holder, hIdx) => {
+                      const key = getCardKey(dc.bank, dc.card, holder)
+                      return (
+                        <div key={hIdx} className="mb-2">
+                          <input
+                            type="text"
+                            value={customNamingEdits[key] || ''}
+                            onChange={e => setCustomNamingEdits(prev => ({ ...prev, [key]: e.target.value }))}
+                            placeholder={dc.suggested_custom_naming}
+                            className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                          />
+                          <p className="text-xs text-tertiary mt-1">
+                            Titular: <span className="font-medium">{holder}</span>
+                          </p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-border-color">
+              <button onClick={() => setCustomNamingModalFile(null)} className="btn-secondary">
+                Cancelar
+              </button>
+              <button onClick={handleApplyCustomNaming} className="btn-primary">
+                ✓ Guardar nombres
               </button>
             </div>
           </div>

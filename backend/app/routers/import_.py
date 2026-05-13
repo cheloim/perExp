@@ -26,7 +26,7 @@ from app.services.import_utils import (
     _normalize_text,
     _title_case,
 )
-from app.services.normalizers import normalize_bank, _normalize_person
+from app.services.normalizers import normalize_bank, _normalize_person, first_card_word, title_case_single
 from app.services.pdf import _extract_pdf_text, _inject_card_markers, _inject_csv_card_markers, _normalize_santander_dates
 from app.services.categorization import auto_categorize
 
@@ -407,10 +407,45 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
     scheduled_count = 0
     skipped = 0
 
-    print(f"[DEBUG] rows-confirm: received {len(body.rows)} rows")
-    if body.rows:
-        print(f"[DEBUG] first row keys: {list(body.rows[0].keys())}")
-        print(f"[DEBUG] first row: {body.rows[0]}")
+    cards_mapping = body.cards_mapping or {}
+    print(f"[ROWS_CONFIRM] Received cards_mapping: {cards_mapping}")
+
+    def get_card_key(bank: str, card: str, holder: str) -> str:
+        return f"{bank}|{card}|{holder}"
+
+    def find_or_create_card(bank: str, card: str, holder: str, custom_naming: str, card_type: str = "credito") -> tuple[Card, bool]:
+        norm_bank = normalize_bank(bank)
+        norm_card = first_card_word(card)
+        norm_holder = title_case_single(holder)
+
+        print(f"[FIND_OR_CREATE_CARD] bank={norm_bank}, card={norm_card}, holder={norm_holder}, custom_naming={custom_naming}, card_type={card_type}")
+        print(f"[FIND_OR_CREATE_CARD] user_cards count={len(user_cards)}, names: {[c.custom_naming for c in user_cards]}")
+
+        existing = next(
+            (c for c in user_cards
+             if c.custom_naming.lower() == custom_naming.lower()), None
+        )
+        if existing:
+            print(f"[FIND_OR_CREATE_CARD] Found existing card: {existing.custom_naming}")
+            if existing.holder.lower() != norm_holder.lower():
+                existing.holder = norm_holder
+            if existing.card_type != card_type:
+                existing.card_type = card_type
+            return existing, False
+
+        new_card = Card(
+            custom_naming=custom_naming,
+            name=norm_card,
+            bank=norm_bank,
+            holder=norm_holder,
+            card_type=card_type,
+            user_id=current_user.id,
+        )
+        db.add(new_card)
+        db.flush()
+        user_cards.append(new_card)
+        print(f"[FIND_OR_CREATE_CARD] Created new card: custom_naming={custom_naming}, name={norm_card}, bank={norm_bank}, holder={norm_holder}")
+        return new_card, True
 
     for r in body.rows:
         desc = str(r.get("description", "")).strip()
@@ -450,16 +485,21 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
             continue
 
         norm_bank = normalize_bank(str(r.get("bank", "") or ""))
-        norm_person = _normalize_person(str(r.get("person", "") or ""), db)
+        row_card = str(r.get("card", "") or "").strip()
+        norm_card = first_card_word(row_card)
+        norm_person = title_case_single(str(r.get("person", "") or "").strip())
+
         raw_currency = str(r.get("currency", "") or "").strip().upper()
         currency = "USD" if raw_currency == "USD" else "ARS"
         category_id = _resolve_category(db, amount, desc, cats)
 
-        # Determinar si es scheduled
+        card_key = get_card_key(norm_bank, norm_card, norm_person)
+        custom_naming = cards_mapping.get(card_key, f"{norm_card} {norm_bank}".strip())
+        card_type = cards_mapping.get(f"_card_type_{norm_bank}_{norm_card}", "credito")
+
         is_scheduled = r.get("is_scheduled", False)
 
         if is_scheduled:
-            # Crear scheduled_expense
             try:
                 db.add(ScheduledExpense(
                     scheduled_date=parsed_date,
@@ -467,7 +507,7 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
                     amount=amount,
                     currency=currency,
                     category_id=category_id,
-                    card=_title_case(str(r.get("card", "") or "")),
+                    card=norm_card,
                     bank=norm_bank,
                     person=norm_person,
                     transaction_id=txn_id,
@@ -481,7 +521,8 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
             except Exception:
                 skipped += 1
         else:
-            # Crear expense normal
+            card_obj, _ = find_or_create_card(norm_bank, row_card, norm_person, custom_naming, card_type)
+
             try:
                 db.add(Expense(
                     date=parsed_date,
@@ -489,7 +530,7 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
                     amount=amount,
                     currency=currency,
                     category_id=category_id,
-                    card=_title_case(str(r.get("card", "") or "")),
+                    card=norm_card,
                     bank=norm_bank,
                     person=norm_person,
                     transaction_id=txn_id,
@@ -497,29 +538,8 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
                     installment_total=inst_total,
                     installment_group_id=str(r.get("installment_group_id") or "") or None,
                     user_id=current_user.id,
+                    card_id=card_obj.id,
                 ))
-
-                row_card_name = str(r.get("card", "") or "").strip()
-                if row_card_name:
-                    existing_card = next(
-                        (c for c in user_cards
-                         if c.name.lower() == row_card_name.lower()
-                         and c.bank.lower() == norm_bank.lower()
-                         and c.holder.lower() == norm_person.lower()), None
-                    )
-                    if existing_card:
-                        if existing_card.name.lower() != row_card_name.lower():
-                            existing_card.name = row_card_name
-                    else:
-                        new_card = Card(
-                            name=row_card_name,
-                            bank=norm_bank,
-                            holder=norm_person,
-                            card_type="credito",
-                            user_id=current_user.id,
-                        )
-                        db.add(new_card)
-                        user_cards.append(new_card)
 
                 imported += 1
             except Exception:

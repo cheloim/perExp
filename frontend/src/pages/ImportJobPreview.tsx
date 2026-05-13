@@ -1,9 +1,28 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getImportJob, confirmImportJob, deleteImportJob, updateImportPreview, getDistinctValues } from '../api/client'
-import { useState } from 'react'
-import type { SmartImportRow, ImportSummary } from '../types'
-import { toUpperCase } from '../utils/format'
+import { useState, useEffect } from 'react'
+import type { SmartImportRow, ImportSummary, DetectedCard, CardsMapping } from '../types'
+import { toUpperCase, titleCase } from '../utils/format'
+
+// Helper functions (copied from ImportPage)
+function getCardKey(bank: string, card: string, holder: string): string {
+  return `${bank}|${card}|${titleCase(holder)}`
+}
+
+function generateCardsMapping(detectedCards: DetectedCard[], edits: Record<string, string>): CardsMapping {
+  const mapping: CardsMapping = {}
+  for (const dc of detectedCards) {
+    if (dc.card_type) {
+      mapping[`_card_type_${dc.bank}_${dc.card}`] = dc.card_type
+    }
+    for (const holder of dc.holders) {
+      const key = getCardKey(dc.bank, dc.card, holder)
+      mapping[key] = edits[key] || dc.suggested_custom_naming
+    }
+  }
+  return mapping
+}
 
 // Validation helpers (copied from ImportPage)
 function validateRows(rows: SmartImportRow[]): { valid: boolean; missingCount: number } {
@@ -74,6 +93,36 @@ export default function ImportJobPreview() {
   const [importResult, setImportResult] = useState<{ imported: number; scheduled: number; skipped: number } | null>(null)
   const [editForm, setEditForm] = useState({ bank: '', card: '', person: '', onlyEmpty: true })
 
+  const [showCustomNamingModal, setShowCustomNamingModal] = useState(false)
+  const [customNamingEdits, setCustomNamingEdits] = useState<Record<string, string>>({})
+  const [customNamingSaved, setCustomNamingSaved] = useState(false)
+
+  // Persist custom naming edits to localStorage
+  useEffect(() => {
+    if (!jobId) return
+    try {
+      const stored = localStorage.getItem(`import_job_${jobId}_custom_naming`)
+      const storedEdits = stored ? JSON.parse(stored) : {}
+      const storedSaved = localStorage.getItem(`import_job_${jobId}_custom_naming_saved`)
+      if (Object.keys(storedEdits).length > 0) {
+        setCustomNamingEdits(storedEdits)
+        setCustomNamingSaved(storedSaved === 'true')
+      }
+    } catch {
+      // ignore
+    }
+  }, [jobId])
+
+  useEffect(() => {
+    if (!jobId || Object.keys(customNamingEdits).length === 0) return
+    try {
+      localStorage.setItem(`import_job_${jobId}_custom_naming`, JSON.stringify(customNamingEdits))
+      localStorage.setItem(`import_job_${jobId}_custom_naming_saved`, String(customNamingSaved))
+    } catch {
+      // ignore
+    }
+  }, [customNamingEdits, customNamingSaved, jobId])
+
   const { data: job, isLoading, error } = useQuery({
     queryKey: ['import-job', jobId],
     queryFn: () => getImportJob(Number(jobId)),
@@ -87,12 +136,21 @@ export default function ImportJobPreview() {
   })
 
   const confirmMutation = useMutation({
-    mutationFn: (rows: SmartImportRow[]) => confirmImportJob(Number(jobId), rows),
+    mutationFn: ({ rows, cardsMapping }: { rows: SmartImportRow[], cardsMapping?: CardsMapping }) =>
+      confirmImportJob(Number(jobId), rows, cardsMapping),
     onSuccess: (result: { imported: number; scheduled: number; skipped: number }) => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['cards'] })
       setImportResult(result)
       setShowResultModal(true)
+      // Clean up localStorage after successful import
+      try {
+        localStorage.removeItem(`import_job_${jobId}_custom_naming`)
+        localStorage.removeItem(`import_job_${jobId}_custom_naming_saved`)
+      } catch {
+        // ignore
+      }
     }
   })
 
@@ -126,8 +184,18 @@ export default function ImportJobPreview() {
   const validation = validateRows(rows)
   const dataComplete = validation.valid
 
+  // Detected cards from job preview
+  const detectedCards: DetectedCard[] = job?.preview_data?.detected_cards || []
+
+  // Cards mapping derived from custom naming edits
+  const cardsMapping: CardsMapping = generateCardsMapping(detectedCards, customNamingEdits)
+
   // Compute current summary (use edited summary if available, otherwise job summary)
   const currentSummary = editedSummary || job?.preview_data?.summary
+
+  // Check if custom naming is required and if it's saved
+  const customNamingRequired = detectedCards.length > 0
+  const canImport = dataComplete && (!customNamingRequired || customNamingSaved)
 
   const handleConfirm = () => {
     const finalValidation = validateRows(rows)
@@ -137,7 +205,37 @@ export default function ImportJobPreview() {
       return
     }
 
-    confirmMutation.mutate(rows)
+    if (customNamingRequired && !customNamingSaved) {
+      alert('Tenés que guardar los nombres de las tarjetas antes de importar.')
+      return
+    }
+
+    confirmMutation.mutate({ rows, cardsMapping: customNamingSaved ? cardsMapping : undefined })
+  }
+
+  const handleOpenCustomNamingModal = () => {
+    // Initialize edits with current mapping or suggested
+    const initialEdits: Record<string, string> = {}
+    for (const dc of detectedCards) {
+      for (const holder of dc.holders) {
+        const key = getCardKey(dc.bank, dc.card, holder)
+        initialEdits[key] = cardsMapping[key] || dc.suggested_custom_naming
+      }
+    }
+    setCustomNamingEdits(initialEdits)
+    setShowCustomNamingModal(true)
+  }
+
+  const handleApplyCustomNaming = () => {
+    // Validate all custom namings are filled
+    const emptyOnes = Object.entries(customNamingEdits).filter(([, v]) => !v.trim())
+    if (emptyOnes.length > 0) {
+      alert('Todos los nombres personalizados son obligatorios')
+      return
+    }
+
+    setCustomNamingSaved(true)
+    setShowCustomNamingModal(false)
   }
 
   const handleDiscard = () => {
@@ -289,14 +387,16 @@ export default function ImportJobPreview() {
           </button>
           <button
             onClick={handleConfirm}
-            disabled={confirmMutation.isPending || !dataComplete}
+            disabled={confirmMutation.isPending || !canImport}
             className="px-4 py-2 rounded-md bg-[var(--color-primary)] text-[var(--color-on-primary)] text-sm font-medium hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed transition"
           >
             {confirmMutation.isPending
               ? 'Confirmando...'
-              : dataComplete
+              : canImport
                 ? 'Confirmar importación'
-                : 'Completar datos primero'}
+                : customNamingRequired && !customNamingSaved
+                  ? 'Guardar nombres de tarjetas'
+                  : 'Completar datos primero'}
           </button>
         </div>
       </div>
@@ -323,23 +423,64 @@ export default function ImportJobPreview() {
         </div>
       )}
 
+      {/* Warning si falta custom naming */}
+      {customNamingRequired && !customNamingSaved && (
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 flex items-start gap-3">
+          <span className="text-yellow-600 text-xl">⚠️</span>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-yellow-700">
+              Nombres de tarjetas requeridos
+            </p>
+            <p className="text-xs text-yellow-600 mt-1">
+              Necesitás definir el nombre personalizado para cada tarjeta antes de importar.
+            </p>
+            <button
+              onClick={handleOpenCustomNamingModal}
+              className="mt-2 text-xs px-3 py-1.5 rounded-md bg-yellow-500 hover:bg-yellow-600 text-white font-medium transition"
+            >
+              Completar nombres
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Summary card */}
       {currentSummary && (
-        <div className="bg-[var(--color-base-container)] rounded-lg p-4 border border-[var(--border-color)] space-y-2">
+        <div className="bg-[var(--color-base-container)] rounded-lg p-4 border border-[var(--border-color)] space-y-3">
           <h2 className="text-sm font-medium text-[var(--text-primary)]">Resumen</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <span className="text-[var(--text-secondary)]">Banco:</span>
-              <span className="ml-2 text-[var(--text-primary)] font-medium">{currentSummary.bank || '-'}</span>
+
+          {/* Tarjetas a crear */}
+          {detectedCards.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-medium text-[var(--text-secondary)]">Tarjetas a crear</h3>
+              <div className="space-y-2">
+                {detectedCards.map((dc, idx) => {
+                  const key = getCardKey(dc.bank, dc.card, dc.holders[0] || '')
+                  return (
+                    <div key={idx} className="flex items-center gap-3 p-2 bg-[var(--color-surface)] rounded-md border border-[var(--border-color)]">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold bg-[var(--color-primary)] text-[var(--color-on-primary)]">
+                        💳
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                          {customNamingEdits[key] || dc.suggested_custom_naming}
+                        </div>
+                        <div className="text-xs text-[var(--text-secondary)]">
+                          {dc.card} · {dc.bank} · {dc.holders.map(h => titleCase(h)).join(', ')}
+                        </div>
+                      </div>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--color-base-alt)] text-[var(--text-secondary)]">
+                        {dc.transaction_count} gastos
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-            <div>
-              <span className="text-[var(--text-secondary)]">Tarjeta:</span>
-              <span className="ml-2 text-[var(--text-primary)] font-medium">{currentSummary.card_type || '-'}</span>
-            </div>
-            <div>
-              <span className="text-[var(--text-secondary)]">Titular:</span>
-              <span className="ml-2 text-[var(--text-primary)] font-medium">{currentSummary.person || '-'}</span>
-            </div>
+          )}
+
+          {/* Info adicional */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm pt-2 border-t border-[var(--border-color)]">
             <div>
               <span className="text-[var(--text-secondary)]">Cierre:</span>
               <span className="ml-2 text-[var(--text-primary)] font-medium">{currentSummary.closing_date || '-'}</span>
@@ -395,7 +536,7 @@ export default function ImportJobPreview() {
                   </td>
                   <td className="py-2 px-4">{row.card || '-'}</td>
                   <td className="py-2 px-4">{row.bank || '-'}</td>
-                  <td className="py-2 px-4">{row.person || '-'}</td>
+                  <td className="py-2 px-4">{titleCase(row.person) || '-'}</td>
                   <td className="py-2 px-4">{row.suggested_category || '-'}</td>
                   <td className="py-2 px-4 whitespace-nowrap">
                     {row.installment_number && row.installment_total
@@ -474,7 +615,7 @@ export default function ImportJobPreview() {
               />
               <datalist id="persons-list">
                 {distinctValues?.persons.map(person => (
-                  <option key={person} value={person} />
+                  <option key={person} value={titleCase(person)} />
                 ))}
               </datalist>
             </div>
@@ -626,6 +767,68 @@ export default function ImportJobPreview() {
                 className="px-4 py-2 rounded-md bg-[var(--color-primary)] text-[var(--color-on-primary)] text-sm font-medium hover:brightness-110 transition-colors"
               >
                 Ver gastos
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de nombres de tarjetas */}
+      {showCustomNamingModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCustomNamingModal(false)}>
+          <div className="bg-[var(--color-base-container)] rounded-xl p-6 w-full max-w-lg shadow-xl border border-[var(--border-color)] max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+                Nombres de tarjetas
+              </h2>
+              <button onClick={() => setShowCustomNamingModal(false)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xl">×</button>
+            </div>
+
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
+              Definí el nombre personalizado para cada tarjeta detectada en la importación.
+            </p>
+
+            <div className="space-y-4">
+              {detectedCards.map((dc, idx) => (
+                <div key={idx} className="border border-[var(--border-color)] rounded-lg p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="font-medium text-[var(--text-primary)]">{dc.card}</span>
+                    <span className="text-[var(--text-secondary)]">·</span>
+                    <span className="text-[var(--text-secondary)]">{dc.bank}</span>
+                    <span className="text-[var(--text-secondary)]">·</span>
+                    <span className="text-[var(--text-secondary)]">{dc.holders.map(h => titleCase(h)).join(', ')}</span>
+                    <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-[var(--color-primary)] text-[var(--color-on-primary)]">{dc.transaction_count} gastos</span>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-[var(--text-secondary)] block mb-1">Nombre personalizado</label>
+                    {dc.holders.map((holder, hIdx) => {
+                      const key = getCardKey(dc.bank, dc.card, holder)
+                      return (
+                        <div key={hIdx} className="mb-2">
+                          <input
+                            type="text"
+                            value={customNamingEdits[key] || ''}
+                            onChange={e => setCustomNamingEdits(prev => ({ ...prev, [key]: e.target.value }))}
+                            placeholder={dc.suggested_custom_naming}
+                            className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+                          />
+                          <p className="text-xs text-[var(--text-secondary)] mt-1">
+                            Titular: <span className="font-medium">{titleCase(holder)}</span>
+                          </p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-[var(--border-color)]">
+              <button onClick={() => setShowCustomNamingModal(false)} className="px-4 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition">
+                Cancelar
+              </button>
+              <button onClick={handleApplyCustomNaming} className="px-4 py-2 rounded-md bg-[var(--color-primary)] text-[var(--color-on-primary)] text-sm font-medium hover:brightness-110 transition">
+                ✓ Guardar nombres
               </button>
             </div>
           </div>

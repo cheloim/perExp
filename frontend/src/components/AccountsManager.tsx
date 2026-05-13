@@ -24,6 +24,7 @@ export default function AccountsManager() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'account'; id: number; name: string } | null>(null)
   const [duplicateFound, setDuplicateFound] = useState<{ id: number; name: string; type: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [customNaming, setCustomNaming] = useState('')
   const [name, setName] = useState('')
   const [type, setType] = useState('efectivo')
   const [bank, setBank] = useState('')
@@ -74,10 +75,11 @@ export default function AccountsManager() {
   })
 
   const createCardMut = useMutation({
-    mutationFn: (data: { name: string; bank: string; card_type: string }) => createCard(data),
+    mutationFn: (data: { custom_naming: string; name: string; bank: string; card_type: string }) => createCard(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards'] })
       setEditId(null)
+      setCustomNaming('')
       setName('')
       setType('efectivo')
       setBank('')
@@ -94,6 +96,7 @@ export default function AccountsManager() {
 
   const handleCancel = () => {
     setEditId(null)
+    setCustomNaming('')
     setName('')
     setType('efectivo')
     setBank('')
@@ -113,11 +116,16 @@ export default function AccountsManager() {
         alert('La edición de tarjetas se puede hacer desde la sección de Tarjetas')
         return
       }
+      if (!customNaming.trim()) {
+        setError('El nombre personalizado es obligatorio')
+        return
+      }
       if (!bank.trim()) {
         setError('El banco es obligatorio')
         return
       }
       createCardMut.mutate({
+        custom_naming: customNaming.trim(),
         name: name.trim(),
         bank: bank.trim(),
         card_type: cardType,
@@ -185,6 +193,18 @@ export default function AccountsManager() {
                         value={cardType}
                         onChange={v => setCardType(v)}
                         options={CARD_TYPES.map(t => ({ value: t.value, label: t.label }))}
+                      />
+                    </div>
+
+                    {/* Nombre personalizado */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-[var(--text-secondary)]">Nombre personalizado</label>
+                      <input
+                        type="text"
+                        value={customNaming}
+                        onChange={(e) => { setCustomNaming(e.target.value); setError(null) }}
+                        className={`w-full px-3 py-2 rounded-md border text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 transition ${error && type === 'tarjeta' && !customNaming.trim() ? 'border-red-500 focus:ring-red-300 focus:border-red-500' : 'border-[var(--border-color)] focus:border-primary'}`}
+                        placeholder="Ej: Visa Galicia - Juan"
                       />
                     </div>
 

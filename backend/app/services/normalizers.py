@@ -63,3 +63,20 @@ def _norm_holder(name: str) -> str:
     name = re.sub(r',\s*', ', ', name)
     name = re.sub(r'\s+', ' ', name)
     return name
+
+
+def first_card_word(card: str) -> str:
+    """Extract first word from card name: 'Visa Galicia' -> 'Visa', 'Mastercard HSBC' -> 'Mastercard'"""
+    raw = (card or "").strip()
+    if not raw:
+        return ""
+    return raw.split()[0]
+
+
+def title_case_single(text: str) -> str:
+    """Title case: first letter of each word uppercase: 'JUAN PEREZ' -> 'Juan Perez', 'maria' -> 'Maria'"""
+    raw = (text or "").strip()
+    if not raw:
+        return ""
+    words = raw.split()
+    return " ".join(w[0].upper() + w[1:].lower() if len(w) > 1 else w.upper() for w in words)

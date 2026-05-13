@@ -28,10 +28,16 @@ def _normalize_date_str(raw: str) -> str:
             raw_upper = raw_upper.replace(es, _SPANISH_MONTHS[es])
             break
 
-    m = re.match(r'^(\d{2})[\s\-/](\d{2})[\s\-/](\d{1,2})$', raw_upper.strip())
+    m = re.match(r'^(\d{2})[\s\-/](\d{2})[\s\-/](\d{1,4})$', raw_upper.strip())
     if m:
-        yy, mm, dd = m.group(1), m.group(2), m.group(3).zfill(2)
-        return f"20{yy}-{mm}-{dd}"
+        first, second, third = m.group(1), m.group(2), m.group(3)
+        if len(third) == 4:
+            if int(first) > 12:
+                return f"{third}-{second.zfill(2)}-{first.zfill(2)}"
+            return f"{first}-{second}-{third}"
+        if int(first) > 12:
+            return f"20{third}-{second.zfill(2)}-{first.zfill(2)}"
+        return f"20{third}-{first.zfill(2)}-{second.zfill(2)}"
 
     m_ddmm = re.match(r'^(\d{1,2})[\s\-/](\d{1,2})[\s\-/](\d{4})$', raw_upper.strip())
     if m_ddmm:

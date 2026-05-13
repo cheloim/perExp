@@ -96,6 +96,7 @@ class Card(Base):
     bank = Column(String, default="")
     holder = Column(String, default="")  # Nombre del titular
     card_type = Column(String, default="credito")  # credito, debito
+    custom_naming = Column(String, nullable=False, default="")  # Identificador único por usuario
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -285,6 +286,8 @@ with engine.connect() as _conn:
     _card_cols = [c["name"] for c in inspect(engine).get_columns("cards")]
     if "holder" not in _card_cols:
         _conn.execute(sa_text("ALTER TABLE cards ADD COLUMN holder VARCHAR DEFAULT ''"))
+    if "custom_naming" not in _card_cols:
+        _conn.execute(sa_text("ALTER TABLE cards ADD COLUMN custom_naming VARCHAR NOT NULL DEFAULT ''"))
 
     # Crear tabla scheduled_expenses si no existe
     inspector = inspect(engine)

@@ -58,6 +58,7 @@ export interface Account {
 
 export interface Card {
   id: number
+  custom_naming: string
   name: string
   bank: string
   holder: string
@@ -207,6 +208,7 @@ export interface CardSummary {
   holder: string
   bank: string
   card_name: string
+  custom_naming?: string
   card_type: string
   total_amount: number
   count: number
@@ -260,6 +262,19 @@ export interface SmartImportRow {
   is_auto_generated?: boolean
 }
 
+export interface DetectedCard {
+  bank: string
+  card: string
+  card_type: string
+  holders: string[]
+  suggested_custom_naming: string
+  transaction_count: number
+}
+
+export interface CardsMapping {
+  [key: string]: string  // key: "bank|card|holder" -> value: custom_naming
+}
+
 export interface ImportSummary {
   card_type: string
   bank: string
@@ -277,6 +292,7 @@ export interface SmartImportPreview {
   raw_count: number
   summary: ImportSummary
   has_missing_data: boolean
+  detected_cards?: DetectedCard[]
 }
 
 export interface FileImportResult {
@@ -285,6 +301,9 @@ export interface FileImportResult {
   raw_count: number
   summary: ImportSummary
   has_missing_data: boolean
+  detected_cards?: DetectedCard[]
+  cards_mapping?: CardsMapping
+  customNamingSaved?: boolean
 }
 
 export interface AnalysisHistory {
