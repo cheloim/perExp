@@ -175,6 +175,7 @@ New columns are added via `ALTER TABLE … ADD COLUMN` in `models.py` startup bl
 - **URL-synced filters**: `useSearchParams()` in ExpensesPage for category_id, bank, person, search params
 - **Currency init guard**: use `|| 'ARS'` (not `?? 'ARS'`) when initializing currency from API response — `coerce_none` returns `""` for null, and `"" ?? 'ARS'` = `""` (wrong)
 - **ExpenseCreate type**: includes `installment_number`, `installment_total`, `installment_group_id` fields — modal preserves them on edit.
+- **UI titles**: All visible section/box headings use **CamelCase** (e.g. `Carga Mensual En Cuotas`, `Compras En Cuotas`). Sentence case is only for body copy, hints, and placeholders. This rule applies to all `.tsx` page/component headings.
 
 ## Known Bugs (unresolved as of 2026-05-08)
 

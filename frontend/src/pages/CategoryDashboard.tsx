@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 import { getDashboard, getExpenses, getCategoryTrend, getTopMerchants } from '../api/client'
 import type { TopMerchant, CategorySummary } from '../types'
-import { formatCurrency, toUpperCase, titleCase } from '../utils/format'
+import { formatCurrency, toUpperCase, titleCase, getContrastTextColor } from '../utils/format'
 
 function formatDate(dateStr: string) {
   if (!dateStr) return ''
@@ -233,7 +233,7 @@ export default function CategoryDashboard() {
                     <span className="text-sm font-semibold text-primary w-32 text-right flex-shrink-0">{formatCurrency(group.total)}</span>
                     {grandTotal > 0 && (
                       <span className="text-xs text-secondary w-10 text-right flex-shrink-0">
-                        {((group.total / grandTotal) * 100).toFixed(0)}%
+                        {((group.total / grandTotal) * 100).toFixed(2)}%
                       </span>
                     )}
                     {group.isParent && (
@@ -262,7 +262,7 @@ export default function CategoryDashboard() {
                             <span className="text-xs font-medium text-secondary w-32 text-right flex-shrink-0">{formatCurrency(child.total)}</span>
                             {grandTotal > 0 && (
                               <span className="text-xs text-secondary w-10 text-right flex-shrink-0">
-                                {((child.total / grandTotal) * 100).toFixed(0)}%
+                                {((child.total / grandTotal) * 100).toFixed(2)}%
                               </span>
                             )}
                             <span className="w-4 flex-shrink-0" />
@@ -398,7 +398,7 @@ export default function CategoryDashboard() {
           <div className="px-5 py-4 border-b border-border-color flex items-center justify-between">
             <h2 className="text-base font-semibold text-primary">
               {activeCat
-                ? <><span style={{ color: activeCat.category_color }}>{activeCat.category_name}</span> — mayor a menor</>
+                ? <><span style={{ color: getContrastTextColor(activeCat.category_color) }}>{activeCat.category_name}</span> — mayor a menor</>
                 : 'Gastos'}
             </h2>
             <span className="text-xs text-secondary">{sortedExpenses.length} registros</span>

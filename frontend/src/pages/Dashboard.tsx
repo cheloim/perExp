@@ -266,7 +266,7 @@ export default function Dashboard() {
                   <p className="text-xs font-medium text-primary truncate" title={acc.name}>{acc.name}</p>
                   <p className="text-sm font-bold text-primary mt-1">{formatCurrency(acc.total)}</p>
                   <p className={`text-xs mt-1 ${acc.variation > 0 ? 'text-success' : acc.variation < 0 ? 'text-danger' : 'text-tertiary'}`}>
-                    {acc.variation > 0 ? '↑' : acc.variation < 0 ? '↓' : '→'} {Math.abs(acc.variation).toFixed(0)}%
+                    {acc.variation > 0 ? '↑' : acc.variation < 0 ? '↓' : '→'} {Math.abs(acc.variation).toFixed(2)}%
                   </p>
                 </div>
               ))}
@@ -284,7 +284,7 @@ export default function Dashboard() {
                   <p className="text-xs font-medium text-primary truncate" title={card.name}>{card.name}</p>
                   <p className="text-sm font-bold text-primary mt-1">{formatCurrency(card.total)}</p>
                   <p className={`text-xs mt-1 ${card.variation > 0 ? 'text-success' : card.variation < 0 ? 'text-danger' : 'text-tertiary'}`}>
-                    {card.variation > 0 ? '↑' : card.variation < 0 ? '↓' : '→'} {Math.abs(card.variation).toFixed(0)}%
+                    {card.variation > 0 ? '↑' : card.variation < 0 ? '↓' : '→'} {Math.abs(card.variation).toFixed(2)}%
                   </p>
                 </div>
               ))}
@@ -312,7 +312,7 @@ export default function Dashboard() {
               <h2 className="text-sm font-semibold text-primary">Tarjetas de Crédito</h2>
               <button
                 onClick={() => navigate('/accounts')}
-                className="text-xs text-primary hover:brightness-110 transition-colors"
+                className="text-xs text-secondary hover:text-primary transition-colors"
               >
                 Ver detalle →
               </button>
@@ -350,7 +350,7 @@ export default function Dashboard() {
             ) : (
               <div className="space-y-2">
                 {scheduledData.installments.map((inst) => (
-                  <div key={`inst-${inst.id}`} className="flex items-center justify-between py-2 px-1 rounded hover:bg-base-alt transition-colors">
+                  <div key={`inst-${inst.id}`} className="flex items-start justify-between py-2 px-1 rounded hover:bg-base-alt transition-colors">
                     <div className="flex items-center gap-2">
                       <span className="text-base">📦</span>
                       <div>
@@ -364,7 +364,7 @@ export default function Dashboard() {
                   </div>
                 ))}
                 {scheduledData.manual.map((man) => (
-                  <div key={`man-${man.id}`} className="flex items-center justify-between py-2 px-1 rounded hover:bg-base-alt transition-colors">
+                  <div key={`man-${man.id}`} className="flex items-start justify-between py-2 px-1 rounded hover:bg-base-alt transition-colors">
                     <div className="flex items-center gap-2">
                       <span className="text-base">📅</span>
                       <div>
@@ -459,7 +459,7 @@ export default function Dashboard() {
               <h2 className="text-sm font-semibold text-primary">Gasto por Categoría</h2>
               <button
                 onClick={() => navigate('/cat-dashboard')}
-                className="text-xs text-primary hover:brightness-110 transition-colors"
+                className="text-xs text-secondary hover:text-primary transition-colors"
               >
                 Ver todo →
               </button>
@@ -502,7 +502,7 @@ export default function Dashboard() {
           </h2>
           <button
             onClick={() => navigate('/expenses')}
-            className="text-xs text-primary hover:brightness-110 transition-colors"
+            className="text-xs text-secondary hover:text-primary transition-colors"
           >
             Ver todos →
           </button>

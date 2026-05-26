@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
@@ -76,7 +76,8 @@ const CARD_GRADIENTS = [
 
 interface CardEntry {
   key: string
-  card: string
+  card_id: number | null
+  custom_naming: string | null
   bank: string
   person: string
   pendingTotal: number
@@ -88,7 +89,7 @@ function InstallmentCard({
 }: {
   entry: CardEntry; active: boolean; onClick: () => void; index: number
 }) {
-  const network = detectNetwork(entry.card)
+  const network = detectNetwork(entry.custom_naming || entry.bank)
   const color = CARD_GRADIENTS[index % CARD_GRADIENTS.length]
 
   return (
@@ -100,7 +101,7 @@ function InstallmentCard({
       <div className="flex justify-between items-start">
         <div>
           <p className="text-white/70 text-[10px] font-medium tracking-widest uppercase">{entry.bank || 'Banco'}</p>
-          <p className="text-white text-xs font-bold tracking-wide">{entry.card}</p>
+          <p className="text-white text-xs font-bold tracking-wide">{entry.custom_naming || entry.bank}</p>
         </div>
         <CardNetworkLogo network={network} />
       </div>
@@ -125,7 +126,7 @@ export default function InstallmentsPage() {
   const queryClient = useQueryClient()
   const [bankFilter, setBankFilter] = useState<string | null>(null)
   const [activeCardKey, setActiveCardKey] = useState<string | null>(null)
-  const [showCompleted, setShowCompleted] = useState(true)
+  const [showCompleted, setShowCompleted] = useState(false)
   const [selectedGroup, setSelectedGroup] = useState<InstallmentGroup | null>(null)
   const [showScheduledModal, setShowScheduledModal] = useState(false)
   const [cancelConfirm, setCancelConfirm] = useState<number | null>(null)
@@ -159,6 +160,13 @@ export default function InstallmentsPage() {
     }
   })
 
+  useEffect(() => {
+    if (!showScheduledModal) return
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowScheduledModal(false) }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [showScheduledModal])
+
   const cancelMutation = useMutation({
     mutationFn: cancelScheduledExpense,
     onSuccess: () => {
@@ -180,12 +188,12 @@ export default function InstallmentsPage() {
   const currentMonthTotal = currentMonthData?.total ?? 0
   const currentMonthCount = currentMonthData?.count ?? 0
 
-  // Build card entries — group by bank+person only (card name varies by import)
+  // Build card entries — group by card_id (or custom_naming fallback)
   const cardMap = new Map<string, CardEntry>()
   for (const g of activeGroups) {
-    const key = `${g.bank}|${g.person}`
+    const key = g.card_id ? `card_${g.card_id}` : `bank_person_${g.bank}|${g.person}`
     if (!cardMap.has(key)) {
-      cardMap.set(key, { key, card: g.card, bank: g.bank, person: g.person, pendingTotal: 0, currency: g.currency })
+      cardMap.set(key, { key, card_id: g.card_id, custom_naming: g.custom_naming, bank: g.bank, person: g.person, pendingTotal: 0, currency: g.currency })
     }
     cardMap.get(key)!.pendingTotal += g.installment_amount * g.remaining_installments
   }
@@ -201,14 +209,17 @@ export default function InstallmentsPage() {
   const filtered = groups.filter(g => {
     if (!showCompleted && g.remaining_installments === 0) return false
     if (bankFilter && g.bank !== bankFilter) return false
-    if (activeCard && (`${g.bank}|${g.person}`) !== activeCard.key) return false
+    if (activeCard) {
+      const groupKey = g.card_id ? `card_${g.card_id}` : `bank_person_${g.bank}|${g.person}`
+      if (groupKey !== activeCard.key) return false
+    }
     return true
   })
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-[var(--color-primary)] border-t-transparent" />
       </div>
     )
   }
@@ -217,7 +228,7 @@ export default function InstallmentsPage() {
     return (
       <div className="text-center py-20">
         <p className="text-4xl mb-4">💳</p>
-        <h2 className="text-lg font-semibold text-primary">Sin compras en cuotas</h2>
+        <h2 className="text-lg font-semibold installments-title">Sin compras en cuotas</h2>
         <p className="text-sm text-tertiary mt-1">Importá extractos con cuotas para ver la proyección.</p>
       </div>
     )
@@ -228,14 +239,14 @@ export default function InstallmentsPage() {
       {/* Summary stats */}
       <div className="grid grid-cols-2 gap-4">
         <div className="card p-4">
-          <p className="text-xs text-tertiary mb-1">Este mes</p>
-          <p className="text-2xl font-bold text-success">{currentMonthCount}</p>
-          <p className="text-xs text-tertiary">{formatCurrency(currentMonthTotal)}</p>
+          <p className="text-xs text-[var(--text-tertiary)] mb-1">Este mes</p>
+          <p className="text-2xl font-bold text-[var(--color-success)]">{currentMonthCount}</p>
+          <p className="text-xs text-[var(--text-tertiary)]">{formatCurrency(currentMonthTotal)}</p>
         </div>
         <div className="card p-4">
-          <p className="text-xs text-tertiary mb-1">Total pendiente</p>
+          <p className="text-xs text-[var(--text-tertiary)] mb-1">Total pendiente</p>
           <p className="text-2xl font-bold text-primary">{formatCurrency(totalPending)}</p>
-          <p className="text-xs text-tertiary">{activeGroups.length} grupos</p>
+          <p className="text-xs text-[var(--text-tertiary)]">{activeGroups.length} grupos</p>
         </div>
       </div>
 
@@ -244,8 +255,7 @@ export default function InstallmentsPage() {
         <div className="xl:col-span-2 space-y-5">
           {/* Monthly load chart */}
           <div className="card p-5">
-            <h2 className="text-base font-semibold text-primary mb-1">Carga mensual en cuotas</h2>
-            <p className="text-xs text-tertiary mb-4">Últimos 3 meses (real) + próximos 3 meses (proyección)</p>
+            <h2 className="text-base font-semibold installments-title mb-1">Carga Mensual En Cuotas</h2>
             {(() => {
               const currentEntry = monthlyLoad.find(e => e.is_current)
               const currentTotal = currentEntry?.total ?? 0
@@ -278,7 +288,7 @@ export default function InstallmentsPage() {
                           const sign = pct > 0 ? '+' : ''
                           const color = pct > 0 ? '#ef4444' : '#22c55e'
                           return [
-                            <span style={{ color: '#18181b' }}>{formatCurrency(v)} <span style={{ color, fontWeight: 700 }}>({sign}{pct.toFixed(0)}%)</span></span>,
+                            <span style={{ color: '#18181b' }}>{formatCurrency(v)} <span style={{ color, fontWeight: 700 }}>({sign}{pct.toFixed(2)}%)</span></span>,
                             kind,
                           ]
                         }
@@ -302,39 +312,32 @@ export default function InstallmentsPage() {
                 </ResponsiveContainer>
               )
             })()}
-            <div className="flex items-center gap-4 mt-3 justify-center">
-              <span className="flex items-center gap-1.5 text-[10px] text-tertiary"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#f59e0b' }} />Real pagado</span>
-              <span className="flex items-center gap-1.5 text-[10px] text-tertiary"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#22c55e' }} />Mes actual</span>
-              <span className="flex items-center gap-1.5 text-[10px] text-tertiary"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#6366f1' }} />Proyectado</span>
-              <span className="flex items-center gap-1.5 text-[10px] text-tertiary"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#ef4444' }} />Mayor gasto</span>
-              <span className="flex items-center gap-1.5 text-[10px] text-tertiary"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#4ade80' }} />Menor gasto</span>
             </div>
-          </div>
 
           {/* Groups list */}
           <div className="card overflow-hidden">
             <div className="px-5 py-3 border-b border-border-color flex items-center justify-between">
-              <h2 className="text-base font-semibold text-primary">
-                Compras en cuotas
-                <span className="ml-2 text-xs text-secondary">{filtered.length} registros</span>
+              <h2 className="text-base font-semibold installments-title">
+                Compras En Cuotas
+                <span className="ml-2 text-xs text-[var(--text-secondary)]">{filtered.length} registros</span>
               </h2>
               <button
                 onClick={() => setShowCompleted(v => !v)}
-                className={`text-xs px-2.5 py-1.5 rounded-lg border transition-all ${showCompleted ? 'bg-primary text-on-primary' : 'border-border-color text-tertiary hover:text-secondary'}`}
+                className={`text-xs px-2.5 py-1.5 rounded-lg border transition-all ${showCompleted ? 'bg-primary text-on-primary' : 'border-border-color text-tertiary hover:text-[var(--text-primary)]'}`}
               >
                 {showCompleted ? 'Ocultar completadas' : 'Mostrar completadas'}
               </button>
             </div>
 
             {filtered.length === 0 ? (
-              <p className="text-secondary text-sm text-center py-10">Sin resultados para los filtros seleccionados</p>
+              <p className="text-[var(--text-secondary)] text-sm text-center py-10">Sin resultados para los filtros seleccionados</p>
             ) : (
               <div className="divide-y divide-border-color">
                 {filtered.map((g) => {
                   const pct = g.installment_total > 0 ? (g.installments_paid / g.installment_total) * 100 : 0
                   const done = g.remaining_installments === 0
                   return (
-                    <div key={g.installment_group_id} className="px-5 py-3 hover:bg-primary/5">
+                    <div key={g.installment_group_id} className="px-5 py-3 hover:bg-[var(--color-base-alt)] transition-colors cursor-pointer" onClick={() => { if (g.remaining_installments > 0) { setSelectedGroup(g); setShowScheduledModal(true) } }}>
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-2.5 min-w-0 flex-1">
                           <span
@@ -342,15 +345,15 @@ export default function InstallmentsPage() {
                             style={{ backgroundColor: g.category_color || '#6366f1' }}
                           />
                           <div className="min-w-0">
-                            <p className={`text-sm font-medium ${done ? 'text-secondary' : 'text-primary'} truncate`}>
+                            <p className="text-sm font-medium text-[var(--text-secondary)] hover:font-bold hover:text-[var(--text-primary)] truncate">
                               {toUpperCase(g.description)}
                               {g.remaining_installments > 0 && (
-                                <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                                <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                                   {g.remaining_installments} programada{g.remaining_installments > 1 ? 's' : ''}
                                 </span>
                               )}
                             </p>
-                            <p className="text-xs text-secondary mt-0.5">
+                            <p className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] mt-0.5">
                               {g.bank}{g.card ? ` · ${g.card}` : ''}
                               {g.next_date && !done && <> · próxima: {formatDate(g.next_date)}</>}
                             </p>
@@ -358,23 +361,20 @@ export default function InstallmentsPage() {
                         </div>
                         <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
                           <div>
-                            <p className={`text-sm font-semibold ${done ? 'text-secondary' : 'text-primary'}`}>
+                            <p className="text-sm font-medium text-[var(--text-secondary)] hover:font-bold hover:text-[var(--text-primary)]">
                               {formatCurrency(g.installment_amount, g.currency)}
                             </p>
                             <p className="text-xs text-secondary">
                               {done
-                                ? <span className="text-success">✓ Completada</span>
+                                ? <span className="text-[var(--color-success)]">✓ Completada</span>
                                 : <>{g.remaining_installments} restante{g.remaining_installments !== 1 ? 's' : ''}</>
                               }
                             </p>
                           </div>
                           {g.remaining_installments > 0 && (
                             <button
-                              onClick={() => {
-                                setSelectedGroup(g)
-                                setShowScheduledModal(true)
-                              }}
-                              className="text-xs text-secondary hover:text-primary underline"
+                              onClick={e => { e.stopPropagation(); setSelectedGroup(g); setShowScheduledModal(true) }}
+                              className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] underline"
                             >
                               Gestionar
                             </button>
@@ -393,7 +393,7 @@ export default function InstallmentsPage() {
                             }}
                           />
                         </div>
-                        <span className="text-[10px] text-secondary flex-shrink-0">
+                        <span className="text-[10px] text-[var(--text-secondary)] flex-shrink-0">
                           {g.installments_paid}/{g.installment_total}
                         </span>
                       </div>
@@ -409,11 +409,11 @@ export default function InstallmentsPage() {
         <div className="xl:col-span-1">
           <div className="card p-5 sticky top-24 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-primary">Tarjetas</h2>
+              <h2 className="text-base font-semibold installments-title">Tarjetas</h2>
               {(bankFilter || activeCardKey) && (
                 <button
                   onClick={() => { setBankFilter(null); setActiveCardKey(null) }}
-                  className="text-xs text-secondary hover:text-tertiary"
+                  className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 >
                   Limpiar
                 </button>
@@ -423,11 +423,11 @@ export default function InstallmentsPage() {
             {/* Bank filter */}
             {banks.length > 1 && (
               <div>
-                <p className="text-[10px] text-secondary uppercase tracking-wide mb-1.5">Banco</p>
+                <p className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wide mb-1.5">Banco</p>
                 <div className="flex flex-wrap gap-1.5">
                   <button
                     onClick={() => setBankFilter(null)}
-                    className={`text-xs px-2.5 py-1 rounded-full border transition-all ${!bankFilter ? 'bg-primary text-on-primary' : 'border-border-color text-tertiary hover:text-secondary'}`}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-all ${!bankFilter ? 'bg-primary text-on-primary' : 'border-border-color text-tertiary hover:text-[var(--text-primary)]'}`}
                   >
                     Todos
                   </button>
@@ -435,7 +435,7 @@ export default function InstallmentsPage() {
                     <button
                       key={b}
                       onClick={() => setBankFilter(bankFilter === b ? null : b)}
-                      className={`text-xs px-2.5 py-1 rounded-full border transition-all ${bankFilter === b ? 'bg-primary text-on-primary' : 'border-border-color text-tertiary hover:text-secondary'}`}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-all ${bankFilter === b ? 'bg-primary text-on-primary' : 'border-border-color text-tertiary hover:text-[var(--text-primary)]'}`}
                     >
                       {b}
                     </button>
@@ -466,24 +466,24 @@ export default function InstallmentsPage() {
       {showScheduledModal && selectedGroup && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowScheduledModal(false)}>
           <div className="card p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-primary">
-                Cuotas programadas: {toUpperCase(selectedGroup.description)}
+            <div className="flex items-center justify-between mb-4 hover:bg-[var(--color-base-alt)] -mx-6 px-6 py-3 -mt-6 rounded-t-xl">
+              <h2 className="text-lg font-semibold installments-title">
+                Cuotas Programadas: {toUpperCase(selectedGroup.description)}
               </h2>
-              <button onClick={() => setShowScheduledModal(false)} className="text-secondary hover:text-primary">✕</button>
+              <button onClick={() => setShowScheduledModal(false)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">✕</button>
             </div>
 
             <div className="space-y-2">
               {scheduledForGroup.length === 0 ? (
-                <p className="text-secondary text-sm text-center py-4">No hay cuotas programadas</p>
+                <p className="text-[var(--text-secondary)] text-sm text-center py-4">No hay cuotas programadas</p>
               ) : (
                 scheduledForGroup.map(s => (
-                  <div key={s.id} className="flex items-center justify-between p-3 border border-border-color rounded">
+                  <div key={s.id} className="flex items-center justify-between p-3 border border-border-color rounded hover:bg-[var(--color-base-alt)] transition-colors">
                     <div>
-                      <p className="font-medium text-primary">
+                      <p className="font-medium text-[var(--text-secondary)]">
                         Cuota {s.installment_number}/{s.installment_total}
                       </p>
-                      <p className="text-xs text-secondary">
+                      <p className="text-xs text-[var(--text-secondary)]">
                         {formatDate(s.scheduled_date)} · {formatCurrency(s.amount, s.currency)}
                       </p>
                     </div>
@@ -497,7 +497,7 @@ export default function InstallmentsPage() {
                       </button>
                       <button
                         onClick={() => setCancelConfirm(s.id)}
-                        className="px-3 py-1.5 text-xs rounded border border-border-color text-secondary hover:bg-base-alt"
+                        className="px-3 py-1.5 text-xs rounded border border-border-color text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition-colors"
                         disabled={cancelMutation.isPending}
                       >
                         Cancelar

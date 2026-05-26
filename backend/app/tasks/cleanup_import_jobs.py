@@ -5,6 +5,8 @@ import json
 from datetime import datetime, timedelta
 
 from app.database import SessionLocal
+
+_log = lambda msg: print(f"{datetime.now().isoformat()} {msg}")
 from app.models import ImportJob, Notification
 
 
@@ -41,12 +43,12 @@ def cleanup_expired_import_jobs():
             count += 1
 
         db.commit()
-        print(f"[CLEANUP] Eliminados {count} import jobs expirados (TTL: 24h)")
+        _log(f"[CLEANUP] Eliminados {count} import jobs expirados (TTL: 24h)")
         return count
 
     except Exception as e:
         db.rollback()
-        print(f"[CLEANUP ERROR] {e}")
+        _log(f"[CLEANUP ERROR] {e}")
         raise
     finally:
         db.close()

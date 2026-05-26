@@ -57,6 +57,32 @@ function validateRows(rows: SmartImportRow[]): { valid: boolean; missingCount: n
   return { valid: missing === 0, missingCount: missing }
 }
 
+function updateRowField(
+  fileIdx: number,
+  rowIdx: number,
+  field: 'bank' | 'card' | 'person',
+  value: string,
+  fileResults: FileImportResult[]
+): FileImportResult[] {
+  return fileResults.map((f, fi) => {
+    if (fi !== fileIdx) return f
+    return {
+      ...f,
+      rows: f.rows.map((r, ri) => ri === rowIdx ? { ...r, [field]: value } : r),
+    }
+  })
+}
+
+function revertCell(
+  fileIdx: number,
+  rowIdx: number,
+  field: 'bank' | 'card' | 'person',
+  originalValue: string,
+  fileResults: FileImportResult[]
+): FileImportResult[] {
+  return updateRowField(fileIdx, rowIdx, field, originalValue, fileResults)
+}
+
 function isFileDataComplete(rows: SmartImportRow[]): boolean {
   const nonDupes = rows.filter(r => !r.is_duplicate)
   if (nonDupes.length === 0) return false
@@ -115,6 +141,7 @@ export default function ImportPage() {
   const [editPerson, setEditPerson] = useState('')
   const [onlyEmpty, setOnlyEmpty] = useState(true)
   const [importingSingle, setImportingSingle] = useState<string | null>(null)
+  const [editingCell, setEditingCell] = useState<{ fileIdx: number; rowIdx: number; field: 'bank' | 'card' | 'person'; originalValue: string } | null>(null)
 
   // Custom naming modal state
   const [customNamingModalFile, setCustomNamingModalFile] = useState<string | null>(null)
@@ -605,9 +632,69 @@ export default function ImportPage() {
                         <td className={`px-4 py-2 text-right font-medium ${row.amount < 0 ? 'text-success' : ''}`}>
                           {formatCurrency(row.amount, row.currency)}
                         </td>
-                        <td className="px-4 py-2 text-secondary">{row.bank ? titleCase(row.bank) : <span className="text-tertiary">—</span>}</td>
-                        <td className="px-4 py-2 text-secondary">{row.card || <span className="text-tertiary">—</span>}</td>
-                        <td className="px-4 py-2 text-primary font-medium">{row.person || <span className="text-tertiary">—</span>}</td>
+                        <td className="px-4 py-2 text-secondary">
+                          {editingCell?.fileIdx === idx && editingCell?.rowIdx === i && editingCell?.field === 'bank' ? (
+                            <input
+                              list="bank-options"
+                              value={row.bank}
+                              onChange={e => setFileResults(prev => updateRowField(idx, i, 'bank', e.target.value, prev))}
+                              onBlur={() => setEditingCell(null)}
+                              onKeyDown={e => { if (e.key === 'Enter') setEditingCell(null); if (e.key === 'Escape') { setFileResults(prev => revertCell(idx, i, 'bank', editingCell?.originalValue || '', prev)); setEditingCell(null); } }}
+                              className="w-full px-1 py-0.5 border border-primary rounded text-sm bg-[var(--color-base_container)]"
+                              autoFocus
+                            />
+                          ) : (
+                            <span
+                              className="cursor-pointer hover:text-[var(--text-primary)] rounded px-1"
+                              onClick={() => setEditingCell({ fileIdx: idx, rowIdx: i, field: 'bank', originalValue: row.bank || '' })}
+                              title="Click para editar"
+                            >
+                              {row.bank ? titleCase(row.bank) : <span className="text-tertiary">—</span>}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-secondary">
+                          {editingCell?.fileIdx === idx && editingCell?.rowIdx === i && editingCell?.field === 'card' ? (
+                            <input
+                              list="card-options"
+                              value={row.card}
+                              onChange={e => setFileResults(prev => updateRowField(idx, i, 'card', e.target.value, prev))}
+                              onBlur={() => setEditingCell(null)}
+                              onKeyDown={e => { if (e.key === 'Enter') setEditingCell(null); if (e.key === 'Escape') { setFileResults(prev => revertCell(idx, i, 'bank', editingCell?.originalValue || '', prev)); setEditingCell(null); } }}
+                              className="w-full px-1 py-0.5 border border-primary rounded text-sm bg-[var(--color-base_container)]"
+                              autoFocus
+                            />
+                          ) : (
+                            <span
+                              className="cursor-pointer hover:text-[var(--text-primary)] rounded px-1"
+                              onClick={() => setEditingCell({ fileIdx: idx, rowIdx: i, field: 'card', originalValue: row.card || '' })}
+                              title="Click para editar"
+                            >
+                              {row.card || <span className="text-tertiary">—</span>}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-primary font-medium">
+                          {editingCell?.fileIdx === idx && editingCell?.rowIdx === i && editingCell?.field === 'person' ? (
+                            <input
+                              list="holder-options"
+                              value={row.person}
+                              onChange={e => setFileResults(prev => updateRowField(idx, i, 'person', e.target.value, prev))}
+                              onBlur={() => setEditingCell(null)}
+                              onKeyDown={e => { if (e.key === 'Enter') setEditingCell(null); if (e.key === 'Escape') { setFileResults(prev => revertCell(idx, i, 'bank', editingCell?.originalValue || '', prev)); setEditingCell(null); } }}
+                              className="w-full px-1 py-0.5 border border-primary rounded text-sm bg-[var(--color-base_container)]"
+                              autoFocus
+                            />
+                          ) : (
+                            <span
+                              className="cursor-pointer hover:text-[var(--text-primary)] rounded px-1"
+                              onClick={() => setEditingCell({ fileIdx: idx, rowIdx: i, field: 'person', originalValue: row.person || '' })}
+                              title="Click para editar"
+                            >
+                              {row.person || <span className="text-tertiary">—</span>}
+                            </span>
+                          )}
+                        </td>
                         <td className="px-4 py-2">
                           {row.currency === 'USD'
                             ? <span className="badge-success">USD</span>

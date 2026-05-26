@@ -408,7 +408,7 @@ export default function CardsManager() {
                   setDeleteConfirm(null)
                 }}
                 disabled={deleteMut.isPending}
-                className="flex-1 px-4 py-2 rounded-md bg-[var(--red-3,#e01b24)] text-white text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"
+                className="flex-1 px-4 py-2 rounded-md bg-[var(--color-danger)] text-white text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"
               >
                 {deleteMut.isPending ? 'Eliminando...' : 'Eliminar'}
               </button>

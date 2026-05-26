@@ -156,7 +156,7 @@ def refresh_ppi_prices(db: Session) -> int:
 
 def refresh_manual_prices(db: Session, user_id: int = None) -> int:
     """Refresh current_price for investments NOT synced from IOL/PPI portfolios.
-    Tries IOL individual quote endpoint first, falls back to PPI market data.
+    Tries IOL first, then PPI, then Yahoo Finance (always available).
     """
     import requests as _req
 
@@ -233,9 +233,15 @@ def refresh_manual_prices(db: Session, user_id: int = None) -> int:
         except Exception as e:
             logger.warning(f"PPI auth failed for manual price refresh: {e}")
 
+    # ── Yahoo Finance (always available, free) ────────────────────────────────
+    yf_prices: dict[str, float] = {}
+    remaining = [t for t in tickers if t not in iol_prices and t not in ppi_prices]
+    if remaining:
+        _fetch_yf_prices(remaining, yf_prices, _req)
+
     # ── Update rows ────────────────────────────────────────────────────────────
     updated = 0
-    combined = {**ppi_prices, **iol_prices}  # IOL wins if both have it
+    combined = {**ppi_prices, **iol_prices, **yf_prices}  # priority: IOL > PPI > YF
     for inv in manual_invs:
         price = combined.get(inv.ticker)
         if price is not None:
@@ -245,3 +251,22 @@ def refresh_manual_prices(db: Session, user_id: int = None) -> int:
 
     db.commit()
     return updated
+
+
+def _fetch_yf_prices(tickers: list[str], prices: dict[str, float], _req):
+    """Fetch prices from Yahoo Finance. Handles BCBA (.BA) and NYSE tickers."""
+    headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"}
+    for ticker in tickers:
+        symbol = ticker if "." in ticker else f"{ticker}.BA"
+        url = f"https://query2.finance.yahoo.com/v8/finance/chart/{symbol}"
+        try:
+            resp = _req.get(url, params={"interval": "1d", "range": "1d"}, headers=headers, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                result = data.get("chart", {}).get("result", [])
+                if result:
+                    price = result[0]["meta"].get("regularMarketPrice")
+                    if price is not None:
+                        prices[ticker] = float(price)
+        except Exception:
+            pass

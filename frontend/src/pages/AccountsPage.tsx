@@ -20,7 +20,8 @@ import {
 import type { CategorySummary, Expense, ExpenseCreate } from '../types'
 import { Select } from '../components/ui/Select'
 import { ExpenseModal } from '../components/ExpenseModals'
-import { formatCurrency, toUpperCase, titleCase } from '../utils/format'
+import { formatCurrency, toUpperCase, titleCase, getContrastTextColor } from '../utils/format'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 
 type GroupBy = 'month' | 'year'
 type SortField = 'date' | 'description' | 'category' | 'bank' | 'person' | 'amount'
@@ -67,7 +68,7 @@ function PieLabel({ cx, cy, midAngle, outerRadius, percent, category_name }: any
   const y = cy + r * Math.sin(-midAngle * RADIAN)
   return (
     <text x={x} y={y} textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={11} fill="#374151">
-      {category_name} {(percent * 100).toFixed(0)}%
+      {category_name} {(percent * 100).toFixed(2)}%
     </text>
   )
 }
@@ -76,8 +77,8 @@ function TrendIcon({ current, previous }: { current: number; previous: number })
   if (!previous || previous === 0) return null
   const pct = ((current - previous) / Math.abs(previous)) * 100
   if (Math.abs(pct) < 5) return <span className="text-tertiary text-xs">→</span>
-  if (pct > 0) return <span className="text-red-500 text-xs font-bold">▲{pct.toFixed(0)}%</span>
-  return <span className="text-green-500 text-xs font-bold">▼{Math.abs(pct).toFixed(0)}%</span>
+  if (pct > 0) return <span className="text-red-500 text-xs font-bold">▲{pct.toFixed(2)}%</span>
+  return <span className="text-green-500 text-xs font-bold">▼{Math.abs(pct).toFixed(2)}%</span>
 }
 
 function SortIcon({ field, sort }: { field: SortField; sort: { field: SortField; dir: SortDir } }) {
@@ -332,6 +333,8 @@ export default function AccountsPage() {
   // Modal states
   const [editing, setEditing] = useState<Expense | null | undefined>(undefined)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
 
   
 
@@ -504,7 +507,8 @@ export default function AccountsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6">
       {/* Cards panel — horizontal scroll row */}
       {cardData.length > 0 && (
         <div className="card p-4 space-y-3">
@@ -545,7 +549,7 @@ export default function AccountsPage() {
             {cardData
               .filter(card => !bankFilter || card.bank === bankFilter)
               .map((card, idx) => {
-                const ckey = `${card.card_name}|${card.bank}`
+                const ckey = `${card.card_name}|${card.bank}|${card.holder}`
                 return (
                   <CreditCardViz
                     key={ckey}
@@ -717,7 +721,7 @@ export default function AccountsPage() {
                             let tooltip = `${MONTHS_ES[parseInt(m) - 1]} ${y}`
                             if (prevMonth && typeof prevMonth.total === 'number') {
                               const diff = currentTotal - prevMonth.total
-                              const pct = prevMonth.total > 0 ? ((diff / prevMonth.total) * 100).toFixed(1) : '0'
+                              const pct = prevMonth.total > 0 ? ((diff / prevMonth.total) * 100).toFixed(2) : '0.00'
                               const diffSign = diff >= 0 ? '+' : ''
                               tooltip += `\nvs mes anterior: ${diffSign}${formatCurrency(diff)} (${diffSign}${pct}%)`
                             }
@@ -997,7 +1001,7 @@ export default function AccountsPage() {
                                 className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full"
                                 style={{
                                   backgroundColor: `${exp.category_color || '#9a9996'}20`,
-                                  color: exp.category_color || '#9a9996'
+                                  color: getContrastTextColor(exp.category_color || '#9a9996'),
                                 }}
                               >
                                 <span
@@ -1024,11 +1028,7 @@ export default function AccountsPage() {
                                   </svg>
                                 </button>
                                 <button
-                                  onClick={() => {
-                                    if (confirm('¿Eliminar este gasto?')) {
-                                      deleteMut.mutate(exp.id)
-                                    }
-                                  }}
+                                  onClick={() => setDeleteConfirmId(exp.id)}
                                   className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-danger hover:bg-[var(--color-base-alt)] transition"
                                   title="Eliminar"
                                 >
@@ -1103,11 +1103,7 @@ export default function AccountsPage() {
           </button>
 
           <button
-            onClick={() => {
-              if (confirm(`¿Eliminar ${selectedIds.size} gasto(s)?`)) {
-                bulkDeleteMut.mutate(Array.from(selectedIds))
-              }
-            }}
+            onClick={() => setBulkDeleteConfirm(true)}
             disabled={bulkDeleteMut.isPending}
             className="text-sm px-3 py-1.5 bg-danger/10 text-danger rounded-lg hover:bg-danger/20 disabled:opacity-50 transition-all"
           >
@@ -1123,5 +1119,35 @@ export default function AccountsPage() {
         </div>
       )}
     </div>
+
+    {deleteConfirmId !== null && (
+      <ConfirmDialog
+        isOpen={true}
+        title="Eliminar gasto"
+        message="¿Estás seguro de eliminar este gasto? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={() => {
+          deleteMut.mutate(deleteConfirmId)
+          setDeleteConfirmId(null)
+        }}
+        onCancel={() => setDeleteConfirmId(null)}
+      />
+    )}
+
+    {bulkDeleteConfirm && (
+      <ConfirmDialog
+        isOpen={true}
+        title="Eliminar gastos"
+        message={`¿Eliminar ${selectedIds.size} gasto(s)? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        onConfirm={() => {
+          bulkDeleteMut.mutate(Array.from(selectedIds))
+          setBulkDeleteConfirm(false)
+          setSelectedIds(new Set())
+        }}
+        onCancel={() => setBulkDeleteConfirm(false)}
+      />
+    )}
+    </>
   )
 }

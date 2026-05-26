@@ -302,3 +302,13 @@ def bulk_update_category(
     )
     db.commit()
     return {"updated": len(ids)}
+
+
+@router.post("/detect-installments")
+def detect_installments(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.services.import_utils import fix_missing_installments
+    result = fix_missing_installments(db, current_user.id)
+    return result

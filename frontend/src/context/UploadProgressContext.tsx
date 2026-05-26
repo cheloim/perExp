@@ -15,7 +15,7 @@ export function UploadProgressProvider({ children }: { children: ReactNode }) {
   const [uploads, setUploads] = useState<UploadProgress[]>([])
 
   const addUpload = (filename: string): string => {
-    const id = crypto.randomUUID()
+    const id = Date.now().toString(36) + Math.random().toString(36).substr(2)
     setUploads(prev => [...prev, { id, filename, status: 'uploading' }])
     return id
   }

@@ -18,6 +18,7 @@ interface SelectProps {
   placeholder?: string
   className?: string
   disabled?: boolean
+  direction?: 'down' | 'up'
 }
 
 export function Select({
@@ -28,6 +29,7 @@ export function Select({
   placeholder = '',
   className = '',
   disabled = false,
+  direction = 'down',
 }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -98,7 +100,7 @@ export function Select({
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-md shadow-lg overflow-hidden max-h-60 flex flex-col">
+        <div className={`absolute z-50 w-full ${direction === 'up' ? 'bottom-full mb-1' : 'mt-1'} bg-[var(--color-surface)] border border-[var(--border-color)] rounded-md shadow-lg overflow-hidden max-h-60 flex flex-col`}>
           <div className="p-2 border-b border-[var(--border-color)]">
             <input
               ref={inputRef}

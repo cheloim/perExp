@@ -239,6 +239,8 @@ def parse_csv_expenses(content: bytes, filename: str, db, user_id: int):
         txn_id: Optional[str] = None
         if re.match(r"^\d{4,}$", comprob_raw) and comprob_raw not in ("", "-"):
             txn_id = comprob_raw
+            if txn_id:
+                txn_id = txn_id.lstrip("0") or "0"
 
         cuotas_idx = header_col_idx.get("cuotas")
         inst_num, inst_total = None, None

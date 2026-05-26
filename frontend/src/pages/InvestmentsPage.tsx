@@ -17,6 +17,7 @@ import {
   putSetting,
 } from '../api/client'
 import type { Investment, InvestmentCreate } from '../types'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 
 // Parses "1.234,56" or "1234,56" or "1234.56" → 1234.56
 function parseCurrency(s: string): number | null {
@@ -556,6 +557,7 @@ export default function InvestmentsPage() {
   const [typeFilter, setTypeFilter] = useState<string | null>(null)
   const [editing, setEditing] = useState<Investment | null | undefined>(undefined)
   const [sort, setSort] = useState<{ field: SortField; dir: 'asc' | 'desc' }>({ field: 'current_value', dir: 'desc' })
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
   const [showCreds, setShowCreds] = useState(false)
   const [syncMsg, setSyncMsg] = useState<{ text: string; ok: boolean } | null>(null)
   const [showInUsd, setShowInUsd] = useState(false)
@@ -885,7 +887,7 @@ export default function InvestmentsPage() {
           <div className="flex items-center justify-between mb-4">
             <p className="text-xs text-tertiary font-medium uppercase tracking-wider">Composición por tipo</p>
             {typeFilter && (
-              <button onClick={() => setTypeFilter(null)} className="text-xs text-indigo-500 hover:text-indigo-700">
+              <button onClick={() => setTypeFilter(null)} className="text-xs text-secondary hover:text-primary">
                 × {typeFilter}
               </button>
             )}
@@ -1005,7 +1007,7 @@ export default function InvestmentsPage() {
                     <td className="px-4 py-3 text-center">
                       <button onClick={() => setEditing(inv)} className="text-primary hover:brightness-110 mr-3">✏️</button>
                       <button
-                        onClick={() => { if (confirm('¿Eliminar esta inversión?')) deleteMut.mutate(inv.id) }}
+                        onClick={() => setDeleteConfirmId(inv.id)}
                         className="text-danger hover:brightness-110"
                       >
                         🗑️
@@ -1039,6 +1041,20 @@ export default function InvestmentsPage() {
           settings={settings}
           onClose={() => setShowCreds(false)}
           onSaved={() => queryClient.invalidateQueries({ queryKey: ['settings'] })}
+        />
+      )}
+
+      {deleteConfirmId !== null && (
+        <ConfirmDialog
+          isOpen={true}
+          title="Eliminar inversión"
+          message="¿Estás seguro de eliminar esta inversión? Esta acción no se puede deshacer."
+          confirmLabel="Eliminar"
+          onConfirm={() => {
+            deleteMut.mutate(deleteConfirmId)
+            setDeleteConfirmId(null)
+          }}
+          onCancel={() => setDeleteConfirmId(null)}
         />
       )}
     </div>

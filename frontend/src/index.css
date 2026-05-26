@@ -366,6 +366,7 @@
   .text-secondary { color: var(--text-secondary); }
   .text-tertiary  { color: var(--text-tertiary); }
   .text-panel-title { color: var(--text-secondary) !important; }
+  .installments-title { color: var(--text-secondary) !important; }
   .text-success   { color: var(--gnome-green-5); }
   .text-danger    { color: var(--gnome-red-3); }
   .text-warning   { color: var(--gnome-yellow-5); }

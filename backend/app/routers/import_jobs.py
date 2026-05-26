@@ -9,6 +9,8 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Up
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+
+_log = lambda msg: print(f"{datetime.now().isoformat()} {msg}")
 from app.models import ImportJob, User
 from app.schemas import ImportJobResponse, RowsConfirmBody
 from app.services.auth import get_current_user
@@ -179,7 +181,7 @@ async def confirm_import_job(
     from app.services.normalizers import normalize_bank, first_card_word, title_case_single
     from app.services.import_utils import _normalize_text, _is_duplicate
 
-    print(f"[IMPORT CONFIRM] User {user.id} confirming job {job_id} with {len(body.rows)} rows")
+    _log(f"[IMPORT CONFIRM] User {user.id} confirming job {job_id} with {len(body.rows)} rows")
 
     # SECURITY: Only user's own jobs
     job = db.query(ImportJob).filter(
@@ -202,11 +204,11 @@ async def confirm_import_job(
     # Log sample row for debugging
     if body.rows:
         sample = body.rows[0]
-        print(f"[IMPORT CONFIRM] Sample row keys: {list(sample.keys())}")
+        _log(f"[IMPORT CONFIRM] Sample row keys: {list(sample.keys())}")
 
     cards_mapping = body.cards_mapping or {}
-    print(f"[IMPORT CONFIRM] Received cards_mapping: {cards_mapping}")
-    print(f"[IMPORT CONFIRM] cards_mapping length: {len(cards_mapping)}")
+    _log(f"[IMPORT CONFIRM] Received cards_mapping: {cards_mapping}")
+    _log(f"[IMPORT CONFIRM] cards_mapping length: {len(cards_mapping)}")
 
     def get_card_key(bank: str, card: str, holder: str) -> str:
         return f"{bank}|{card}|{holder}"
@@ -216,15 +218,15 @@ async def confirm_import_job(
         norm_card = first_card_word(card)
         norm_holder = title_case_single(holder)
 
-        print(f"[FIND_OR_CREATE_CARD] bank={norm_bank}, card={norm_card}, holder={norm_holder}, custom_naming={custom_naming}, card_type={card_type}")
-        print(f"[FIND_OR_CREATE_CARD] user_cards count={len(user_cards)}, names: {[c.custom_naming for c in user_cards]}")
+        _log(f"[FIND_OR_CREATE_CARD] bank={norm_bank}, card={norm_card}, holder={norm_holder}, custom_naming={custom_naming}, card_type={card_type}")
+        _log(f"[FIND_OR_CREATE_CARD] user_cards count={len(user_cards)}, names: {[c.custom_naming for c in user_cards]}")
 
         existing = next(
             (c for c in user_cards
              if c.custom_naming.lower() == custom_naming.lower()), None
         )
         if existing:
-            print(f"[FIND_OR_CREATE_CARD] Found existing card: {existing.custom_naming}")
+            _log(f"[FIND_OR_CREATE_CARD] Found existing card: {existing.custom_naming}")
             if existing.holder.lower() != norm_holder.lower():
                 existing.holder = norm_holder
             if existing.card_type != card_type:
@@ -242,7 +244,7 @@ async def confirm_import_job(
         db.add(new_card)
         db.flush()
         user_cards.append(new_card)
-        print(f"[FIND_OR_CREATE_CARD] Created new card: custom_naming={custom_naming}, name={norm_card}, bank={norm_bank}, holder={norm_holder}")
+        _log(f"[FIND_OR_CREATE_CARD] Created new card: custom_naming={custom_naming}, name={norm_card}, bank={norm_bank}, holder={norm_holder}")
         return new_card, True
 
     # Reuse rows-confirm logic
@@ -291,9 +293,9 @@ async def confirm_import_job(
         norm_person = title_case_single(str(r.get("person", "") or "").strip())
 
         card_key = get_card_key(norm_bank, norm_card, norm_person)
-        print(f"[IMPORT CONFIRM] Looking up card_key: bank={norm_bank}, card={norm_card}, person={norm_person}")
-        print(f"[IMPORT CONFIRM] Expected card_key: {card_key}")
-        print(f"[IMPORT CONFIRM] cards_mapping.get result: {cards_mapping.get(card_key, 'NOT_FOUND')}")
+        _log(f"[IMPORT CONFIRM] Looking up card_key: bank={norm_bank}, card={norm_card}, person={norm_person}")
+        _log(f"[IMPORT CONFIRM] Expected card_key: {card_key}")
+        _log(f"[IMPORT CONFIRM] cards_mapping.get result: {cards_mapping.get(card_key, 'NOT_FOUND')}")
         mapping_entry = cards_mapping.get(card_key, {})
         custom_naming = mapping_entry.get("custom_naming") if isinstance(mapping_entry, dict) else mapping_entry
         if not custom_naming:
@@ -302,6 +304,11 @@ async def confirm_import_job(
         final_bank = mapping_entry.get("bank") if isinstance(mapping_entry, dict) and mapping_entry.get("bank") else norm_bank
         final_card = mapping_entry.get("card_name") if isinstance(mapping_entry, dict) and mapping_entry.get("card_name") else norm_card
         card_type = cards_mapping.get(f"_card_type_{norm_bank}_{norm_card}", "credito") if isinstance(cards_mapping.get(f"_card_type_{norm_bank}_{norm_card}"), str) else "credito"
+
+        raw_txn_id = r.get("transaction_id")
+        txn_id = str(raw_txn_id).strip() if raw_txn_id else None
+        if txn_id:
+            txn_id = txn_id.lstrip("0") or "0"
 
         if is_scheduled:
             # Create ScheduledExpense
@@ -315,7 +322,7 @@ async def confirm_import_job(
                     bank=final_bank,
                     person=norm_person,
                     category_id=category_id,
-                    transaction_id=r.get("transaction_id"),
+                    transaction_id=txn_id,
                     installment_number=r.get("installment_number"),
                     installment_total=r.get("installment_total"),
                     installment_group_id=r.get("installment_group_id"),
@@ -339,7 +346,7 @@ async def confirm_import_job(
                     bank=final_bank,
                     person=norm_person,
                     category_id=category_id,
-                    transaction_id=r.get("transaction_id"),
+                    transaction_id=txn_id,
                     installment_number=r.get("installment_number"),
                     installment_total=r.get("installment_total"),
                     installment_group_id=r.get("installment_group_id"),
@@ -374,11 +381,11 @@ async def confirm_import_job(
     except Exception as e:
         db.rollback()
         import traceback
-        print(f"[ERROR] Failed to commit import: {e}")
-        print(traceback.format_exc())
+        _log(f"[ERROR] Failed to commit import: {e}")
+        _log(traceback.format_exc())
         raise HTTPException(500, f"Database error: {str(e)}")
 
-    print(f"[IMPORT CONFIRM] Success: imported={imported_count}, scheduled={scheduled_count}, skipped={skipped_count}")
+    _log(f"[IMPORT CONFIRM] Success: imported={imported_count}, scheduled={scheduled_count}, skipped={skipped_count}")
 
     return {
         "imported": imported_count,
@@ -416,9 +423,9 @@ def delete_import_job(
             data = json.loads(notif.data)
             if data.get('job_id') == job_id:
                 db.delete(notif)
-                print(f"[DELETE JOB] Deleted associated notification {notif.id}")
+                _log(f"[DELETE JOB] Deleted associated notification {notif.id}")
         except Exception as e:
-            print(f"[DELETE JOB] Error checking notification: {e}")
+            _log(f"[DELETE JOB] Error checking notification: {e}")
 
     db.delete(job)
     db.commit()

@@ -7,6 +7,7 @@ import {
 import type { Category } from '../types'
 import { Select } from '../components/ui/Select'
 import { formatCurrency, toUpperCase } from '../utils/format'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 
 const COLORS = [
   '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
@@ -212,6 +213,7 @@ export default function CategoriesPage() {
   const [tab, setTab] = useState<Tab>('parents')
   const [editing, setEditing] = useState<{ cat: Category | null; isParent: boolean } | undefined>(undefined)
   const [browsing, setBrowsing] = useState<Category | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<Category | null>(null)
 
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ['categories'],
@@ -276,7 +278,7 @@ export default function CategoriesPage() {
   }
 
   const handleDelete = (cat: Category) => {
-    if (confirm(`¿Eliminar "${cat.name}"?`)) deleteMut.mutate(cat.id)
+    setDeleteConfirm(cat)
   }
 
   /* ─── Subcategory card ─── */
@@ -554,6 +556,20 @@ export default function CategoriesPage() {
 
       {browsing && (
         <CategoryDetail cat={browsing} onClose={() => setBrowsing(null)} />
+      )}
+
+      {deleteConfirm && (
+        <ConfirmDialog
+          isOpen={true}
+          title="Eliminar categoría"
+          message={`¿Eliminar "${deleteConfirm.name}"? Esta acción no se puede deshacer.`}
+          confirmLabel="Eliminar"
+          onConfirm={() => {
+            deleteMut.mutate(deleteConfirm.id)
+            setDeleteConfirm(null)
+          }}
+          onCancel={() => setDeleteConfirm(null)}
+        />
       )}
     </div>
   )

@@ -13,7 +13,8 @@ import {
 import type { Expense, ExpenseCreate } from '../types'
 import { Select } from '../components/ui/Select'
 import { ExpenseModal } from '../components/ExpenseModals'
-import { formatCurrency, toUpperCase, titleCase } from '../utils/format'
+import { formatCurrency, toUpperCase, titleCase, getContrastTextColor } from '../utils/format'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 
 function formatDate(dateStr: string) {
   if (!dateStr) return ''
@@ -97,6 +98,7 @@ export default function ExpensesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [bulkCategoryId, setBulkCategoryId] = useState<string>('')
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; description: string } | null>(null)
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
 
   const toggleSelect = (id: number) =>
     setSelectedIds(prev => {
@@ -220,6 +222,7 @@ export default function ExpensesPage() {
               <Select
                 value={filterUncategorized ? '__none__' : (filterCategory ? String(filterCategory) : '')}
                 onChange={v => handleCategoryFilter(v)}
+                options={[{ value: '__none__', label: 'Sin categoría' }]}
                 groups={groups}
                 placeholder="Categoría"
               />
@@ -394,16 +397,28 @@ export default function ExpensesPage() {
                         </td>
                       )}
                       <td className="px-4 py-3 text-[var(--text-tertiary)] whitespace-nowrap">
-                        {formatDate(exp.date)}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setEditing(exp) }}
+                          className="text-left hover:text-primary transition"
+                        >
+                          {formatDate(exp.date)}
+                        </button>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-[var(--text-primary)]">{toUpperCase(exp.description)}</span>
-                          {exp.installment_number && exp.installment_total && (
-                            <span className="text-xs bg-[var(--color-primary)] text-[var(--color-on-primary)] px-1.5 py-0.5 rounded">
-                              {exp.installment_number}/{exp.installment_total}
-                            </span>
-                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setEditing(exp) }}
+                            className="text-left hover:text-primary transition"
+                          >
+                            <span className="text-[var(--text-primary)]">{toUpperCase(exp.description)}</span>
+                            {exp.installment_number && exp.installment_total && (
+                              <span className="text-xs bg-[var(--color-primary)] text-[var(--color-on-primary)] px-1.5 py-0.5 rounded ml-1">
+                                {exp.installment_number}/{exp.installment_total}
+                              </span>
+                            )}
+                          </button>
                         </div>
                         <div className="text-xs text-[var(--text-tertiary)] flex gap-2">
                           {exp.card && <span>{titleCase(exp.card)}</span>}
@@ -412,24 +427,36 @@ export default function ExpensesPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        {exp.category_name ? (
-                          <span
-                            className="px-2 py-1 rounded text-xs font-medium"
-                            style={{
-                              backgroundColor: (exp.category_color || '#9a9996') + '20',
-                              color: exp.category_color || '#9a9996',
-                            }}
-                          >
-                            {exp.category_name}
-                          </span>
-                        ) : (
-                          <span className="text-[var(--text-tertiary)]">—</span>
-                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setEditing(exp) }}
+                          className="text-left"
+                        >
+                          {exp.category_name ? (
+                            <span
+                              className="px-2 py-1 rounded text-xs font-medium"
+                              style={{
+                                backgroundColor: (exp.category_color || '#9a9996') + '20',
+                                color: getContrastTextColor(exp.category_color || '#9a9996'),
+                              }}
+                            >
+                              {exp.category_name}
+                            </span>
+                          ) : (
+                            <span className="text-[var(--text-tertiary)]">—</span>
+                          )}
+                        </button>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <span className="text-[var(--text-primary)]">
-                          {formatCurrency(exp.amount, exp.currency)}
-                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setEditing(exp) }}
+                          className="text-right hover:text-primary transition"
+                        >
+                          <span className="text-[var(--text-primary)]">
+                            {formatCurrency(exp.amount, exp.currency)}
+                          </span>
+                        </button>
                       </td>
                       {!selectMode && (
                         <td className="px-4 py-3 text-center">
@@ -472,28 +499,31 @@ export default function ExpensesPage() {
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-xl bg-[var(--color-surface)] border border-[var(--border-color)] shadow-gnome-xl">
           <span className="text-sm text-[var(--text-primary)] font-medium">{selectedIds.size} seleccionados</span>
           <span className="text-[var(--text-tertiary)]">|</span>
-          <select
-            value={bulkCategoryId}
-            onChange={e => setBulkCategoryId(e.target.value)}
-            className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-          >
-            <option value="">Sin categoría</option>
-            {(() => {
-              const parentIds = new Set(categories.filter(c => c.parent_id).map(c => c.parent_id!))
-              const parents = categories.filter(c => !c.parent_id && parentIds.has(c.id))
-              const orphans = categories.filter(c => !c.parent_id && !parentIds.has(c.id))
-              return <>
-                {parents.map(parent => (
-                  <optgroup key={parent.id} label={parent.name}>
-                    {categories.filter(c => c.parent_id === parent.id).map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </optgroup>
-                ))}
-                {orphans.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </>
-            })()}
-          </select>
+          {(() => {
+            const parentIds = new Set(categories.filter(c => c.parent_id).map(c => c.parent_id!))
+            const parents = categories.filter(c => !c.parent_id && parentIds.has(c.id))
+            const orphans = categories.filter(c => !c.parent_id && !parentIds.has(c.id))
+            const groups = parents.map(parent => ({
+              label: parent.name,
+              options: categories.filter(c => c.parent_id === parent.id).map(c => ({ value: String(c.id), label: c.name }))
+            }))
+            if (orphans.length > 0) {
+              groups.push({
+                label: '—',
+                options: orphans.map(c => ({ value: String(c.id), label: c.name }))
+              })
+            }
+            return (
+              <Select
+                value={bulkCategoryId}
+                onChange={v => setBulkCategoryId(v)}
+                options={[{ value: '', label: 'Sin categoría' }]}
+                groups={groups}
+                placeholder="Sin categoría"
+                direction="up"
+              />
+            )
+          })()}
           <button
             onClick={handleBulkApply}
             disabled={bulkMut.isPending || bulkDeleteMut.isPending}
@@ -503,11 +533,7 @@ export default function ExpensesPage() {
           </button>
           <span className="text-[var(--text-tertiary)]">|</span>
           <button
-            onClick={() => {
-              if (confirm(`¿Eliminar ${selectedIds.size} gasto${selectedIds.size !== 1 ? 's' : ''}?`)) {
-                bulkDeleteMut.mutate(Array.from(selectedIds))
-              }
-            }}
+            onClick={() => setBulkDeleteConfirm(true)}
             disabled={bulkMut.isPending || bulkDeleteMut.isPending}
             className="btn-danger text-sm px-4 py-1.5"
           >
@@ -532,32 +558,31 @@ export default function ExpensesPage() {
       )}
 
       {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
-          <div className="bg-[var(--color-surface)] rounded-xl shadow-gnome-lg p-6 max-w-sm w-full border border-[var(--border-color)]">
-            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Confirmar eliminación</h3>
-            <p className="text-sm text-[var(--text-secondary)] mb-6">
-              ¿Estás seguro de eliminar <span className="font-medium text-[var(--color-primary)]">"{deleteConfirm.description}"</span>? Esta acción no se puede deshacer.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setDeleteConfirm(null)}
-                className="flex-1 px-4 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => {
-                  deleteMut.mutate(deleteConfirm.id)
-                  setDeleteConfirm(null)
-                }}
-                disabled={deleteMut.isPending}
-                className="flex-1 px-4 py-2 rounded-md bg-[var(--color-danger)] text-white text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"
-              >
-                Eliminar
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          isOpen={true}
+          title="Confirmar eliminación"
+          message={`¿Estás seguro de eliminar "${deleteConfirm.description}"? Esta acción no se puede deshacer.`}
+          confirmLabel="Eliminar"
+          onConfirm={() => {
+            deleteMut.mutate(deleteConfirm.id)
+            setDeleteConfirm(null)
+          }}
+          onCancel={() => setDeleteConfirm(null)}
+        />
+      )}
+
+      {bulkDeleteConfirm && (
+        <ConfirmDialog
+          isOpen={true}
+          title="Eliminar gastos"
+          message={`¿Eliminar ${selectedIds.size} gasto${selectedIds.size !== 1 ? 's' : ''}? Esta acción no se puede deshacer.`}
+          confirmLabel="Eliminar"
+          onConfirm={() => {
+            bulkDeleteMut.mutate(Array.from(selectedIds))
+            setBulkDeleteConfirm(false)
+          }}
+          onCancel={() => setBulkDeleteConfirm(false)}
+        />
       )}
     </div>
   )

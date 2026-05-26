@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getAnalysisHistory, deleteAnalysisHistory } from '../api/client'
 import type { AnalysisHistory } from '../types'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 
 const SAVED_QUERIES_KEY = 'analysis_saved_queries'
 const MAX_SAVED = 20
@@ -49,18 +50,12 @@ function formatDate(iso: string) {
   })
 }
 
-function HistorySection() {
-  const qc = useQueryClient()
+function HistorySection({ onDelete }: { onDelete: (id: number) => void }) {
   const [expanded, setExpanded] = useState<number | null>(null)
 
   const { data: history = [] } = useQuery({
     queryKey: ['analysis-history'],
     queryFn: getAnalysisHistory,
-  })
-
-  const deleteMut = useMutation({
-    mutationFn: deleteAnalysisHistory,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['analysis-history'] }),
   })
 
   if (history.length === 0) return null
@@ -96,9 +91,7 @@ function HistorySection() {
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  if (confirm('¿Eliminar este análisis del historial?')) {
-                    deleteMut.mutate(h.id)
-                  }
+                  onDelete(h.id)
                 }}
                 className="text-secondary hover:text-danger text-base leading-none"
               >
@@ -126,9 +119,15 @@ export default function AnalysisPage() {
   const [output, setOutput] = useState('')
   const [error, setError] = useState('')
   const [savedQueries, setSavedQueries] = useState<string[]>(loadSavedQueries)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
   const outputRef = useRef<HTMLDivElement>(null)
 
   const refreshSaved = useCallback(() => setSavedQueries(loadSavedQueries()), [])
+
+const deleteMut = useMutation({
+    mutationFn: deleteAnalysisHistory,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['analysis-history'] }),
+  })
 
   useEffect(() => {
     if (outputRef.current) {
@@ -304,7 +303,21 @@ export default function AnalysisPage() {
         </div>
       )}
 
-      <HistorySection />
+      <HistorySection onDelete={(id) => setDeleteConfirmId(id)} />
+
+      {deleteConfirmId !== null && (
+        <ConfirmDialog
+          isOpen={true}
+          title="Eliminar análisis"
+          message="¿Estás seguro de eliminar este análisis del historial? Esta acción no se puede deshacer."
+          confirmLabel="Eliminar"
+          onConfirm={() => {
+            deleteMut.mutate(deleteConfirmId)
+            setDeleteConfirmId(null)
+          }}
+          onCancel={() => setDeleteConfirmId(null)}
+        />
+      )}
     </div>
   )
 }

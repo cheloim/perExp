@@ -319,6 +319,7 @@ def get_installments_dashboard(db: Session = Depends(get_db), current_user: User
     ).all()
 
     cat_map = {c.id: c for c in db.query(Category).all()}
+    user_cards_custom_naming = {c.id: c.custom_naming for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
     groups: dict = {}
 
     # Procesar cuotas pagadas
@@ -342,6 +343,8 @@ def get_installments_dashboard(db: Session = Depends(get_db), current_user: User
                 "person": e.person or "",
                 "currency": e.currency or "ARS",
                 "card": e.card or "",
+                "card_id": e.card_id,
+                "custom_naming": user_cards_custom_naming.get(e.card_id) if e.card_id else None,
             }
         groups[gid]["installments_paid"] += 1
         groups[gid]["total_amount"] += e.amount
@@ -368,6 +371,8 @@ def get_installments_dashboard(db: Session = Depends(get_db), current_user: User
                 "person": s.person or "",
                 "currency": s.currency or "ARS",
                 "card": s.card or "",
+                "card_id": s.card_id,
+                "custom_naming": user_cards_custom_naming.get(s.card_id) if s.card_id else None,
             }
         groups[gid]["remaining_installments"] += 1
         groups[gid]["next_dates"].append(s.scheduled_date.isoformat())
@@ -395,6 +400,8 @@ def get_installments_dashboard(db: Session = Depends(get_db), current_user: User
             "person": g["person"],
             "currency": g["currency"],
             "card": g["card"],
+            "card_id": g["card_id"],
+            "custom_naming": g["custom_naming"],
         })
 
     return sorted(result, key=lambda x: (x["remaining_installments"] == 0, x["next_date"] or "9999-99"))
@@ -438,15 +445,16 @@ def get_installments_monthly_load(db: Session = Depends(get_db), current_user: U
     for e in exps:
         gid = e.installment_group_id
         if gid not in groups:
-            groups[gid] = {"installment_total": e.installment_total or 0, "amount": abs(e.amount), "dates": []}
-        groups[gid]["dates"].append(e.date)
+            groups[gid] = {"installment_total": e.installment_total or 0, "amount": abs(e.amount), "paid": []}
+        groups[gid]["paid"].append((e.installment_number or 0, e.date))
 
     for g in groups.values():
-        paid = len(g["dates"])
+        paid = len(g["paid"])
         remaining = max(0, g["installment_total"] - paid)
-        if remaining == 0 or not g["dates"]:
+        if remaining == 0 or not g["paid"]:
             continue
-        next_date = add_months(max(g["dates"]), 1)
+        max_num, max_date = max(g["paid"], key=lambda x: x[0])
+        next_date = add_months(max_date, 1)
         for i in range(remaining):
             charge_date = add_months(next_date, i)
             key = charge_date.strftime("%Y-%m")

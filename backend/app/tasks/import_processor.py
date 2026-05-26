@@ -7,6 +7,8 @@ import json
 from datetime import datetime
 
 from app.database import SessionLocal
+
+_log = lambda msg: print(f"{datetime.now().isoformat()} {msg}")
 from app.models import ImportJob, Notification
 from app.services.smart_import_core import run_smart_import
 
@@ -23,10 +25,10 @@ async def process_import_job(job_id: int):
     try:
         job = db.query(ImportJob).filter(ImportJob.id == job_id).first()
         if not job:
-            print(f"[IMPORT JOB] Job {job_id} not found")
+            _log(f"[IMPORT JOB] Job {job_id} not found")
             return
 
-        print(f"[IMPORT JOB] Processing job {job_id}: {job.filename}")
+        _log(f"[IMPORT JOB] Processing job {job_id}: {job.filename}")
 
         # Run smart import
         preview = await run_smart_import(
@@ -57,10 +59,10 @@ async def process_import_job(job_id: int):
         db.add(notification)
         db.commit()
 
-        print(f"[IMPORT JOB] Job {job_id} completed successfully: {len(preview['rows'])} rows")
+        _log(f"[IMPORT JOB] Job {job_id} completed successfully: {len(preview['rows'])} rows")
 
     except Exception as e:
-        print(f"[IMPORT JOB] Job {job_id} failed: {e}")
+        _log(f"[IMPORT JOB] Job {job_id} failed: {e}")
         import traceback
         traceback.print_exc()
 

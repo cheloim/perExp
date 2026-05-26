@@ -1,8 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getImportJob, confirmImportJob, deleteImportJob, updateImportPreview, getDistinctValues, getCards } from '../api/client'
+import { getImportJob, confirmImportJob, deleteImportJob, updateImportPreview, getDistinctValues } from '../api/client'
 import { useState, useEffect } from 'react'
-import type { SmartImportRow, ImportSummary, DetectedCard, CardsMapping, Card } from '../types'
+import type { SmartImportRow, ImportSummary, DetectedCard, CardsMapping } from '../types'
 import { toUpperCase, titleCase } from '../utils/format'
 
 // Helper functions (copied from ImportPage)
@@ -10,7 +10,9 @@ function getCardKey(bank: string, card: string, holder: string): string {
   return `${bank}|${card}|${titleCase(holder)}`
 }
 
-function generateCardsMapping(detectedCards: DetectedCard[], edits: Record<string, string>, existingCards: Card[] = []): CardsMapping {
+type CardNamingEdit = { custom_naming: string; bank?: string; card_name?: string }
+
+function generateCardsMapping(detectedCards: DetectedCard[], edits: Record<string, CardNamingEdit>): CardsMapping {
   const mapping: CardsMapping = {}
   for (const dc of detectedCards) {
     if (dc.card_type) {
@@ -18,13 +20,12 @@ function generateCardsMapping(detectedCards: DetectedCard[], edits: Record<strin
     }
     for (const holder of dc.holders) {
       const key = getCardKey(dc.bank, dc.card, holder)
-      const customName = edits[key] || dc.suggested_custom_naming
-      // Find if customName matches an existing card
-      const matchedCard = existingCards.find(c => c.custom_naming === customName)
+      const entry = edits[key] || { custom_naming: dc.suggested_custom_naming, bank: dc.bank, card_name: dc.card }
+      const customName = entry.custom_naming || dc.suggested_custom_naming
       mapping[key] = {
         custom_naming: customName,
-        bank: matchedCard?.bank || dc.bank,
-        card_name: matchedCard?.name || dc.card,
+        bank: entry.bank || dc.bank,
+        card_name: entry.card_name || dc.card,
       }
     }
   }
@@ -50,6 +51,24 @@ function applyBulkEdit(
     card: onlyEmpty && r.card ? r.card : card,
     person: onlyEmpty && r.person ? r.person : person,
   }))
+}
+
+function updateRowField(
+  rowIdx: number,
+  field: 'bank' | 'card' | 'person',
+  value: string,
+  rows: SmartImportRow[]
+): SmartImportRow[] {
+  return rows.map((r, ri) => ri === rowIdx ? { ...r, [field]: value } : r)
+}
+
+function revertCell(
+  rowIdx: number,
+  field: 'bank' | 'card' | 'person',
+  originalValue: string,
+  rows: SmartImportRow[]
+): SmartImportRow[] {
+  return updateRowField(rowIdx, field, originalValue, rows)
 }
 
 function deriveSummaryFromRows(rows: SmartImportRow[]): Partial<ImportSummary> {
@@ -99,10 +118,13 @@ export default function ImportJobPreview() {
   const [showResultModal, setShowResultModal] = useState(false)
   const [importResult, setImportResult] = useState<{ imported: number; scheduled: number; skipped: number } | null>(null)
   const [editForm, setEditForm] = useState({ bank: '', card: '', person: '', onlyEmpty: true })
+  const [editingCell, setEditingCell] = useState<{ rowIdx: number; field: 'bank' | 'card' | 'person'; originalValue: string } | null>(null)
 
   const [showCustomNamingModal, setShowCustomNamingModal] = useState(false)
-  const [customNamingEdits, setCustomNamingEdits] = useState<Record<string, string>>({})
+  type CardNamingEdit = { custom_naming: string; bank?: string; card_name?: string }
+  const [customNamingEdits, setCustomNamingEdits] = useState<Record<string, CardNamingEdit>>({})
   const [customNamingSaved, setCustomNamingSaved] = useState(false)
+  const [editingNamingCell, setEditingNamingCell] = useState<{ key: string; field: 'custom_naming' | 'bank' | 'card_name'; originalValue: string } | null>(null)
 
   // Persist custom naming edits to localStorage
   useEffect(() => {
@@ -142,19 +164,25 @@ export default function ImportJobPreview() {
     queryFn: getDistinctValues,
   })
 
-  const { data: existingCards = [] } = useQuery({
-    queryKey: ['cards'],
-    queryFn: getCards,
-  })
+  function updateCustomNamingField(
+    key: string,
+    field: 'custom_naming' | 'bank' | 'card_name',
+    value: string,
+    edits: Record<string, CardNamingEdit>
+  ): Record<string, CardNamingEdit> {
+    return {
+      ...edits,
+      [key]: { ...edits[key], [field]: value },
+    }
+  }
 
-  const getCardSuggestions = (_bank: string, _card: string, holder: string): string[] => {
-    const normalizedHolder = holder.toLowerCase().trim()
-    return existingCards
-      .filter(c =>
-        c.holder.toLowerCase().trim() === normalizedHolder
-      )
-      .map(c => c.custom_naming)
-      .filter(n => n && n.trim())
+  function revertCustomNamingField(
+    key: string,
+    field: 'custom_naming' | 'bank' | 'card_name',
+    originalValue: string,
+    edits: Record<string, CardNamingEdit>
+  ): Record<string, CardNamingEdit> {
+    return updateCustomNamingField(key, field, originalValue, edits)
   }
 
   const confirmMutation = useMutation({
@@ -210,7 +238,7 @@ export default function ImportJobPreview() {
   const detectedCards: DetectedCard[] = job?.preview_data?.detected_cards || []
 
   // Cards mapping derived from custom naming edits
-  const cardsMapping: CardsMapping = generateCardsMapping(detectedCards, customNamingEdits, existingCards)
+  const cardsMapping: CardsMapping = generateCardsMapping(detectedCards, customNamingEdits)
 
   // Compute current summary (use edited summary if available, otherwise job summary)
   const currentSummary = editedSummary || job?.preview_data?.summary
@@ -218,6 +246,22 @@ export default function ImportJobPreview() {
   // Check if custom naming is required and if it's saved
   const customNamingRequired = detectedCards.length > 0
   const canImport = dataComplete && (!customNamingRequired || customNamingSaved)
+
+  const persistRowEdits = (updated: SmartImportRow[]) => {
+    setEditedRows(updated)
+    const derivedSummary = deriveSummaryFromRows(updated)
+    const newSummary = {
+      ...currentSummary,
+      ...derivedSummary
+    } as ImportSummary
+    setEditedSummary(newSummary)
+    updatePreviewMutation.mutate({
+      rows: updated,
+      summary: newSummary,
+      raw_count: job?.preview_data?.raw_count || updated.length,
+      has_missing_data: updated.some(r => !r.bank || !r.card || !r.person)
+    })
+  }
 
   const handleConfirm = () => {
     const finalValidation = validateRows(rows)
@@ -237,12 +281,19 @@ export default function ImportJobPreview() {
 
   const handleOpenCustomNamingModal = () => {
     // Initialize edits with current mapping or suggested
-    const initialEdits: Record<string, string> = {}
+    const initialEdits: Record<string, CardNamingEdit> = {}
     for (const dc of detectedCards) {
       for (const holder of dc.holders) {
         const key = getCardKey(dc.bank, dc.card, holder)
         const entry = cardsMapping[key]
-        initialEdits[key] = (typeof entry === 'object' ? entry.custom_naming : entry) || dc.suggested_custom_naming
+        const customNaming = typeof entry === 'object' ? entry.custom_naming : entry
+        const bank = typeof entry === 'object' ? entry.bank : undefined
+        const card_name = typeof entry === 'object' ? entry.card_name : undefined
+        initialEdits[key] = {
+          custom_naming: customNaming || dc.suggested_custom_naming,
+          bank: bank || dc.bank,
+          card_name: card_name || dc.card,
+        }
       }
     }
     setCustomNamingEdits(initialEdits)
@@ -251,7 +302,7 @@ export default function ImportJobPreview() {
 
   const handleApplyCustomNaming = () => {
     // Validate all custom namings are filled
-    const emptyOnes = Object.entries(customNamingEdits).filter(([, v]) => !v.trim())
+    const emptyOnes = Object.entries(customNamingEdits).filter(([, v]) => !v.custom_naming.trim())
     if (emptyOnes.length > 0) {
       alert('Todos los nombres personalizados son obligatorios')
       return
@@ -486,7 +537,7 @@ export default function ImportJobPreview() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-semibold text-[var(--text-primary)] truncate">
-                          {customNamingEdits[key] || dc.suggested_custom_naming}
+                          {customNamingEdits[key]?.custom_naming || dc.suggested_custom_naming}
                         </div>
                         <div className="text-xs text-[var(--text-secondary)]">
                           {dc.card} · {dc.bank} · {dc.holders.map(h => titleCase(h)).join(', ')}
@@ -557,9 +608,99 @@ export default function ImportJobPreview() {
                   <td className="py-2 px-4 whitespace-nowrap">
                     {row.amount} {row.currency}
                   </td>
-                  <td className="py-2 px-4">{row.card || '-'}</td>
-                  <td className="py-2 px-4">{row.bank || '-'}</td>
-                  <td className="py-2 px-4">{titleCase(row.person) || '-'}</td>
+                  <td className="py-2 px-4">
+                    {editingCell?.rowIdx === idx && editingCell?.field === 'card' ? (
+                      <input
+                        list="cards-list"
+                        value={row.card}
+                        onChange={e => {
+                          const updated = updateRowField(idx, 'card', e.target.value, rows)
+                          persistRowEdits(updated)
+                        }}
+                        onBlur={() => setEditingCell(null)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') setEditingCell(null)
+                          if (e.key === 'Escape') {
+                            const reverted = revertCell(idx, 'card', editingCell?.originalValue || '', rows)
+                            persistRowEdits(reverted)
+                            setEditingCell(null)
+                          }
+                        }}
+                        className="w-full px-1 py-0.5 border border-primary rounded text-sm bg-[var(--color-base-container)]"
+                        autoFocus
+                      />
+                    ) : (
+                      <span
+                        className="cursor-pointer hover:text-[var(--text-primary)] rounded px-1"
+                        onClick={() => setEditingCell({ rowIdx: idx, field: 'card', originalValue: row.card || '' })}
+                        title="Click para editar"
+                      >
+                        {row.card || '-'}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 px-4">
+                    {editingCell?.rowIdx === idx && editingCell?.field === 'bank' ? (
+                      <input
+                        list="banks-list"
+                        value={row.bank}
+                        onChange={e => {
+                          const updated = updateRowField(idx, 'bank', e.target.value, rows)
+                          persistRowEdits(updated)
+                        }}
+                        onBlur={() => setEditingCell(null)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') setEditingCell(null)
+                          if (e.key === 'Escape') {
+                            const reverted = revertCell(idx, 'bank', editingCell?.originalValue || '', rows)
+                            persistRowEdits(reverted)
+                            setEditingCell(null)
+                          }
+                        }}
+                        className="w-full px-1 py-0.5 border border-primary rounded text-sm bg-[var(--color-base-container)]"
+                        autoFocus
+                      />
+                    ) : (
+                      <span
+                        className="cursor-pointer hover:text-[var(--text-primary)] rounded px-1"
+                        onClick={() => setEditingCell({ rowIdx: idx, field: 'bank', originalValue: row.bank || '' })}
+                        title="Click para editar"
+                      >
+                        {row.bank || '-'}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 px-4">
+                    {editingCell?.rowIdx === idx && editingCell?.field === 'person' ? (
+                      <input
+                        list="persons-list"
+                        value={row.person}
+                        onChange={e => {
+                          const updated = updateRowField(idx, 'person', e.target.value, rows)
+                          persistRowEdits(updated)
+                        }}
+                        onBlur={() => setEditingCell(null)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') setEditingCell(null)
+                          if (e.key === 'Escape') {
+                            const reverted = revertCell(idx, 'person', editingCell?.originalValue || '', rows)
+                            persistRowEdits(reverted)
+                            setEditingCell(null)
+                          }
+                        }}
+                        className="w-full px-1 py-0.5 border border-primary rounded text-sm bg-[var(--color-base-container)]"
+                        autoFocus
+                      />
+                    ) : (
+                      <span
+                        className="cursor-pointer hover:text-[var(--text-primary)] rounded px-1"
+                        onClick={() => setEditingCell({ rowIdx: idx, field: 'person', originalValue: row.person || '' })}
+                        title="Click para editar"
+                      >
+                        {titleCase(row.person) || '-'}
+                      </span>
+                    )}
+                  </td>
                   <td className="py-2 px-4">{row.suggested_category || '-'}</td>
                   <td className="py-2 px-4 whitespace-nowrap">
                     {row.installment_number && row.installment_total
@@ -822,32 +963,107 @@ export default function ImportJobPreview() {
                     <span className="text-[var(--text-secondary)]">{dc.holders.map(h => titleCase(h)).join(', ')}</span>
                     <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-[var(--color-primary)] text-[var(--color-on-primary)]">{dc.transaction_count} gastos</span>
                   </div>
-                  <div>
+                  <div className="space-y-3">
                     <label className="text-xs font-medium text-[var(--text-secondary)] block mb-1">Nombre personalizado</label>
                     {dc.holders.map((holder, hIdx) => {
-                      const key = getCardKey(dc.bank, dc.card, holder)
-                      const suggestions = getCardSuggestions(dc.bank, dc.card, holder)
+const key = getCardKey(dc.bank, dc.card, holder)
                       const datalistId = `custom-naming-suggestions-${idx}-${hIdx}`
+                      const entry = customNamingEdits[key] || { custom_naming: '', bank: dc.bank, card_name: dc.card }
                       return (
-                        <div key={hIdx} className="mb-2">
-                          {suggestions.length > 0 && (
-                            <datalist id={datalistId}>
-                              {suggestions.map((s, i) => (
-                                <option key={i} value={s} />
-                              ))}
-                            </datalist>
-                          )}
-                          <input
-                            type="text"
-                            list={datalistId}
-                            value={customNamingEdits[key] || ''}
-                            onChange={e => setCustomNamingEdits(prev => ({ ...prev, [key]: e.target.value }))}
-                            placeholder={dc.suggested_custom_naming}
-                            className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-                          />
-                          <p className="text-xs text-[var(--text-secondary)] mt-1">
+                        <div key={hIdx} className="mb-3 border border-[var(--border-color)] rounded-md p-3 space-y-2">
+                          <p className="text-xs text-[var(--text-secondary)]">
                             Titular: <span className="font-medium">{titleCase(holder)}</span>
                           </p>
+
+                          {/* Nombre personalizado */}
+                          <div>
+                            <label className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase mb-0.5 block">Nombre</label>
+                            {editingNamingCell?.key === key && editingNamingCell?.field === 'custom_naming' ? (
+                              <input
+                                list={datalistId}
+                                value={entry.custom_naming}
+                                onChange={e => setCustomNamingEdits(prev => updateCustomNamingField(key, 'custom_naming', e.target.value, prev))}
+                                onBlur={() => setEditingNamingCell(null)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') setEditingNamingCell(null)
+                                  if (e.key === 'Escape') {
+                                    setCustomNamingEdits(prev => revertCustomNamingField(key, 'custom_naming', editingNamingCell?.originalValue || '', prev))
+                                    setEditingNamingCell(null)
+                                  }
+                                }}
+                                className="w-full px-2 py-1 border border-primary rounded text-sm bg-[var(--color-base-container)]"
+                                autoFocus
+                              />
+                            ) : (
+                              <span
+                                className="cursor-pointer hover:text-[var(--text-primary)] rounded px-1 text-sm"
+                                onClick={() => setEditingNamingCell({ key, field: 'custom_naming', originalValue: entry.custom_naming || '' })}
+                                title="Click para editar"
+                              >
+                                {entry.custom_naming || <span className="text-tertiary italic">{dc.suggested_custom_naming}</span>}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Banco */}
+                          <div>
+                            <label className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase mb-0.5 block">Banco</label>
+                            {editingNamingCell?.key === key && editingNamingCell?.field === 'bank' ? (
+                              <input
+                                list="banks-list"
+                                value={entry.bank || ''}
+                                onChange={e => setCustomNamingEdits(prev => updateCustomNamingField(key, 'bank', e.target.value, prev))}
+                                onBlur={() => setEditingNamingCell(null)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') setEditingNamingCell(null)
+                                  if (e.key === 'Escape') {
+                                    setCustomNamingEdits(prev => revertCustomNamingField(key, 'bank', editingNamingCell?.originalValue || dc.bank, prev))
+                                    setEditingNamingCell(null)
+                                  }
+                                }}
+                                className="w-full px-2 py-1 border border-primary rounded text-sm bg-[var(--color-base-container)]"
+                                autoFocus
+                              />
+                            ) : (
+                              <span
+                                className="cursor-pointer hover:text-[var(--text-primary)] rounded px-1 text-sm"
+                                onClick={() => setEditingNamingCell({ key, field: 'bank', originalValue: entry.bank || dc.bank })}
+                                title="Click para editar"
+                              >
+                                {entry.bank || dc.bank}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Tarjeta */}
+                          <div>
+                            <label className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase mb-0.5 block">Tarjeta</label>
+                            {editingNamingCell?.key === key && editingNamingCell?.field === 'card_name' ? (
+                              <input
+                                list="cards-list"
+                                value={entry.card_name || ''}
+                                onChange={e => setCustomNamingEdits(prev => updateCustomNamingField(key, 'card_name', e.target.value, prev))}
+                                onBlur={() => setEditingNamingCell(null)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') setEditingNamingCell(null)
+                                  if (e.key === 'Escape') {
+                                    setCustomNamingEdits(prev => revertCustomNamingField(key, 'card_name', editingNamingCell?.originalValue || dc.card, prev))
+                                    setEditingNamingCell(null)
+                                  }
+                                }}
+                                className="w-full px-2 py-1 border border-primary rounded text-sm bg-[var(--color-base-container)]"
+                                autoFocus
+                              />
+                            ) : (
+                              <span
+                                className="cursor-pointer hover:text-[var(--text-primary)] rounded px-1 text-sm"
+                                onClick={() => setEditingNamingCell({ key, field: 'card_name', originalValue: entry.card_name || dc.card })}
+                                title="Click para editar"
+                              >
+                                {entry.card_name || dc.card}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       )
                     })}

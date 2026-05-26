@@ -186,6 +186,8 @@ export interface InstallmentGroup {
   person: string
   currency: string
   card: string
+  card_id: number | null
+  custom_naming: string | null
 }
 
 export interface ScheduledExpense {

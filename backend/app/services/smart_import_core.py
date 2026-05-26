@@ -191,6 +191,8 @@ async def run_smart_import(
             continue
 
         txn_id = str(r.get("transaction_id") or "").strip() or None
+        if txn_id:
+            txn_id = txn_id.lstrip("0") or "0"
         raw_date = str(r.get("date", "")).strip()
         try:
             normalized = _normalize_date_str(raw_date)

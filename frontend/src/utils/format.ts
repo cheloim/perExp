@@ -1,7 +1,7 @@
 export function formatCurrency(amount: number, currency: string = 'ARS') {
   if (currency === 'USD')
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(amount)
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(amount)
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
 }
 
 export function formatDate(dateStr: string, format: 'short' | 'long' | 'iso' = 'short'): string {
@@ -35,4 +35,15 @@ export function titleCase(str: string): string {
 export function toUpperCase(str: string): string {
   if (!str) return ''
   return str.toUpperCase()
+}
+
+export function getContrastTextColor(hexColor: string): string {
+  if (!hexColor) return '#1c1b1f'
+  const hex = hexColor.replace('#', '')
+  if (hex.length < 6) return hexColor
+  const r = parseInt(hex.slice(0, 2), 16)
+  const g = parseInt(hex.slice(2, 4), 16)
+  const b = parseInt(hex.slice(4, 6), 16)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return luminance > 0.5 ? hexColor : '#ffffff'
 }

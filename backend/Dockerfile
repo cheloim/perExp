@@ -2,9 +2,15 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
+# Install system dependencies for compiled libs
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+COPY app/ ./app/
 COPY main.py .
 
 EXPOSE 8000
