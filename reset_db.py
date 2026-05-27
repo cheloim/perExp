@@ -7,6 +7,8 @@ Uso:
     python reset_db.py              # limpia gastos + historial
     python reset_db.py --all        # limpia todo incluyendo categorías
     python reset_db.py --dry-run    # muestra qué borraría sin ejecutar
+    python reset_db.py --force      # limpia sin pedir confirmación
+    python reset_db.py --vacuum      # ejecuta VACUUM tras borrar (reclama espacio)
 """
 
 import sqlite3
@@ -15,14 +17,54 @@ import os
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "backend", "expenses.db")
 
-def count(cur, table):
-    cur.execute(f"SELECT COUNT(*) FROM {table}")
-    return cur.fetchone()[0]
+TABLES = [
+    "expenses",
+    "analysis_history",
+    "scheduled_expenses",
+    "notifications",
+    "card_closings",
+    "cards",
+    "accounts",
+    "investments",
+    "groups",
+    "group_members",
+    "users",
+]
+
+TABLE_STRUCT = {t: ["id", "name"] for t in TABLES}
+TABLE_STRUCT["users"] += ["email", "full_name"]
+TABLE_STRUCT["groups"] += ["name"]
+if "--all" in sys.argv[1:]:
+    TABLES.append("categories")
+
+
+def get_counts(cur):
+    return {t: cur.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in TABLES}
+
+
+def print_report(counts, delete_categories):
+    print("─" * 40)
+    for t, n in counts.items():
+        marker = "" if t not in ("categories",) else f" {'← se borrará' if delete_categories else '← se conserva'}"
+        print(f"  {t:<26} {n:>6} filas{marker}")
+    print("─" * 40)
+
+
+def delete_all(cur, dry_run=False):
+    for t in TABLES:
+        cur.execute(f"DELETE FROM {t}")
+    if "--vacuum" in sys.argv[1:]:
+        cur.execute("VACUUM")
+
 
 def main():
     args = sys.argv[1:]
     delete_categories = "--all" in args
     dry_run = "--dry-run" in args
+    force = "--force" in args
+
+    if delete_categories and "categories" not in TABLES:
+        TABLES.append("categories")
 
     if not os.path.exists(DB_PATH):
         print(f"No se encontró la base de datos en: {DB_PATH}")
@@ -31,64 +73,36 @@ def main():
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
 
-    expenses_n           = count(cur, "expenses")
-    history_n            = count(cur, "analysis_history")
-    categories_n         = count(cur, "categories")
-    cards_n              = count(cur, "cards")
-    accounts_n           = count(cur, "accounts")
-    card_closings_n      = count(cur, "card_closings")
-    investments_n        = count(cur, "investments")
-    notifications_n      = count(cur, "notifications")
-    scheduled_expenses_n = count(cur, "scheduled_expenses")
-
-    print("─" * 40)
-    print(f"  expenses:            {expenses_n:>6} filas")
-    print(f"  analysis_history:    {history_n:>6} filas")
-    print(f"  categories:          {categories_n:>6} filas {'← se borrará' if delete_categories else '← se conserva'}")
-    print(f"  cards:              {cards_n:>6} filas")
-    print(f"  accounts:           {accounts_n:>6} filas")
-    print(f"  card_closings:      {card_closings_n:>6} filas")
-    print(f"  investments:        {investments_n:>6} filas")
-    print(f"  notifications:      {notifications_n:>6} filas")
-    print(f"  scheduled_expenses: {scheduled_expenses_n:>6} filas")
-    print("─" * 40)
+    counts = get_counts(cur)
+    print_report(counts, delete_categories)
 
     if dry_run:
-        print("Modo dry-run: no se realizó ningún cambio.")
+        print("Modo dry-run: no se realizado ningún cambio.")
         conn.close()
         return
 
-    confirm = input("¿Confirmar limpieza? [s/N] ").strip().lower()
-    if confirm != "s":
-        print("Cancelado.")
+    if not force:
+        confirm = input("¿Confirmar limpieza? [s/N] ").strip().lower()
+        if confirm != "s":
+            print("Cancelado.")
+            conn.close()
+            return
+
+    try:
+        delete_all(cur)
+        conn.commit()
+    except sqlite3.Error as e:
+        conn.rollback()
+        print(f"Error durante la limpieza: {e}")
         conn.close()
-        return
+        sys.exit(1)
 
-    cur.execute("DELETE FROM expenses")
-    cur.execute("DELETE FROM analysis_history")
-    cur.execute("DELETE FROM cards")
-    cur.execute("DELETE FROM accounts")
-    cur.execute("DELETE FROM card_closings")
-    cur.execute("DELETE FROM investments")
-    cur.execute("DELETE FROM notifications")
-    cur.execute("DELETE FROM scheduled_expenses")
-    if delete_categories:
-        cur.execute("DELETE FROM categories")
-
-    conn.commit()
     conn.close()
 
     print("Listo.")
-    print(f"  expenses borrados:         {expenses_n}")
-    print(f"  analysis_history borrados: {history_n}")
-    print(f"  cards borradas:            {cards_n}")
-    print(f"  accounts borrados:         {accounts_n}")
-    print(f"  card_closings borrados:    {card_closings_n}")
-    print(f"  investments borrados:      {investments_n}")
-    print(f"  notifications borradas:   {notifications_n}")
-    print(f"  scheduled_expenses borrados: {scheduled_expenses_n}")
-    if delete_categories:
-        print(f"  categories borradas:       {categories_n}")
+    for t, n in counts.items():
+        print(f"  {t:<26} {n:>6} borrados")
+
 
 if __name__ == "__main__":
     main()

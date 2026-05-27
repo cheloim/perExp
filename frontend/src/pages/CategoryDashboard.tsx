@@ -5,35 +5,7 @@ import {
 } from 'recharts'
 import { getDashboard, getExpenses, getCategoryTrend, getTopMerchants } from '../api/client'
 import type { TopMerchant, CategorySummary } from '../types'
-import { formatCurrency, toUpperCase, titleCase, getContrastTextColor } from '../utils/format'
-
-function formatDate(dateStr: string) {
-  if (!dateStr) return ''
-  if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    const [y, m, d] = dateStr.split('-')
-    return `${d}-${m}-${y}`
-  }
-  return dateStr
-}
-
-const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
-
-function MonthSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [y, m] = value.split('-').map(Number)
-  const shift = (delta: number) => {
-    const d = new Date(y, m - 1 + delta, 1)
-    onChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
-  }
-  return (
-    <div className="flex items-center gap-0.5 bg-base-alt border border-border-color rounded-lg px-1 py-1">
-      <button onClick={() => shift(-1)} className="px-2 py-0.5 text-tertiary hover:text-primary rounded transition-colors">◀</button>
-      <span className="text-primary text-sm font-medium px-3 min-w-[130px] text-center select-none">
-        {MONTHS_ES[m - 1]} {y}
-      </span>
-      <button onClick={() => shift(1)} className="px-2 py-0.5 text-tertiary hover:text-primary rounded transition-colors">▶</button>
-    </div>
-  )
-}
+import { formatCurrency, toUpperCase, titleCase, getContrastTextColor, formatDateDMY, MonthSelector } from '../utils/format'
 
 interface GroupedCategory {
   name: string
@@ -414,7 +386,7 @@ export default function CategoryDashboard() {
                   <div>
                     <p className="text-sm font-medium text-primary">{toUpperCase(exp.description)}</p>
                     <p className="text-xs text-secondary">
-                      {formatDate(exp.date)}
+                      {formatDateDMY(exp.date)}
                       {exp.person ? ` · ${titleCase(exp.person)}` : ''}
                       {exp.bank ? ` · ${titleCase(exp.bank)}` : ''}
                     </p>

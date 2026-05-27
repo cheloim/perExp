@@ -6,57 +6,12 @@ import {
   ComposedChart, Line, Legend,
 } from 'recharts'
 import { getDashboard, getCardSummary, getExpenses, getScheduledSummary, getCategoryTrend, getAccountExpenses, getInvestments } from '../api/client'
-import { formatCurrency, toUpperCase } from '../utils/format'
+import { formatCurrency, toUpperCase, formatDateDMYSlash, MonthSelector } from '../utils/format'
 
-const MONTHS_ES_LONG = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 const MONTHS_ES_SHORT = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
 function toYMD(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function formatDate(dateStr: string) {
-  if (!dateStr) return ''
-  if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    const [y, m, d] = dateStr.split('-')
-    return `${d}/${m}/${y}`
-  }
-  return dateStr
-}
-
-function MonthSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [y, m] = value.split('-').map(Number)
-  const now = new Date()
-  const currentY = now.getFullYear()
-  const currentM = now.getMonth() + 1
-  const isCurrentMonth = y === currentY && m === currentM
-  const sixMonthsAgo = new Date(currentY, currentM - 1 - 6, 1)
-  const isSixMonthsAgo = y < sixMonthsAgo.getFullYear() || (y === sixMonthsAgo.getFullYear() && m <= sixMonthsAgo.getMonth() + 1)
-  const shift = (delta: number) => {
-    const d = new Date(y, m - 1 + delta, 1)
-    const newY = d.getFullYear()
-    const newM = d.getMonth() + 1
-    if (newY > currentY || (newY === currentY && newM > currentM)) return
-    if (newY < currentY - 1 || (newY === currentY - 1 && newM < currentM - 5)) return
-    onChange(`${newY}-${String(newM).padStart(2, '0')}`)
-  }
-  return (
-    <div className="flex items-center gap-0.5 bg-base-alt border border-border-color rounded-lg px-1 py-1">
-      <button
-        onClick={() => shift(-1)}
-        disabled={isSixMonthsAgo}
-        className="px-2 py-0.5 text-tertiary hover:text-primary rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-      >◀</button>
-      <span className="text-primary text-sm font-medium px-3 min-w-[140px] text-center select-none">
-        {MONTHS_ES_LONG[m - 1]} {y}
-      </span>
-      <button
-        onClick={() => shift(1)}
-        disabled={isCurrentMonth}
-        className="px-2 py-0.5 text-tertiary hover:text-primary rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-      >▶</button>
-    </div>
-  )
 }
 
 function CardRow({ cardName, bank, total, cardType, holder }: { cardName: string; bank: string; total: number; cardType?: string; holder?: string }) {
@@ -356,7 +311,7 @@ export default function Dashboard() {
                       <div>
                         <p className="text-sm font-medium text-primary">{toUpperCase(inst.description)}</p>
                         <p className="text-xs text-tertiary">
-                          {formatDate(inst.scheduled_date)} · {inst.installment_number}/{inst.installment_total}
+                          {formatDateDMYSlash(inst.scheduled_date)} · {inst.installment_number}/{inst.installment_total}
                         </p>
                       </div>
                     </div>
@@ -369,7 +324,7 @@ export default function Dashboard() {
                       <span className="text-base">📅</span>
                       <div>
                         <p className="text-sm font-medium text-primary">{toUpperCase(man.description)}</p>
-                        <p className="text-xs text-tertiary">{formatDate(man.scheduled_date)}</p>
+                        <p className="text-xs text-tertiary">{formatDateDMYSlash(man.scheduled_date)}</p>
                       </div>
                     </div>
                     <span className="text-sm font-semibold text-primary">{formatCurrency(man.amount, man.currency)}</span>
@@ -498,7 +453,7 @@ export default function Dashboard() {
       <div className="card">
         <div className="px-5 py-4 border-b border-border-color flex items-center justify-between">
           <h2 className="text-sm font-semibold text-primary">
-            Transacciones — Últimos 7 días{!isCurrentMonth && ` (al ${formatDate(toYMD(toDate))})`}
+            Transacciones — Últimos 7 días{!isCurrentMonth && ` (al ${formatDateDMYSlash(toYMD(toDate))})`}
           </h2>
           <button
             onClick={() => navigate('/expenses')}
@@ -518,7 +473,7 @@ export default function Dashboard() {
                   <div>
                     <p className="text-sm font-medium text-primary">{toUpperCase(exp.description)}</p>
                     <p className="text-xs text-tertiary">
-                      {formatDate(exp.date)}
+                      {formatDateDMYSlash(exp.date)}
                       {exp.category_name ? ` · ${exp.category_name}` : ''}
                       {exp.card ? ` · ${exp.card}` : ''}
                     </p>

@@ -258,8 +258,8 @@ async def confirm_import_job(
     for r in body.rows:
         is_scheduled = r.get("is_scheduled", False)
 
-        # Skip duplicates
-        if r.get("is_duplicate") and not is_scheduled:
+        # Skip duplicates (both regular expenses and scheduled installments)
+        if r.get("is_duplicate"):
             skipped_count += 1
             continue
 

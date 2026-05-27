@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getNotifications, rejectGroupInvitation, markNotificationRead, deleteImportJob } from '../api/client'
+import { useMutation } from '@tanstack/react-query'
+import { rejectGroupInvitation, getStoredToken } from '../api/client'
 import type { Notification } from '../types'
 import InvitationDisclaimer from './InvitationDisclaimer'
 import { useUploadProgress } from '../context/UploadProgressContext'
+import { useNotifications } from '../context/NotificationsContext'
 
 interface Props {
   onClose: () => void
@@ -21,37 +22,27 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function NotificationsPanel({ onClose }: Props) {
-  const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [disclaimer, setDisclaimer] = useState<{ notifId: number; inviterName: string } | null>(null)
   const { uploads, removeUpload, cancelUpload } = useUploadProgress()
+  const { notifications, markRead, refresh } = useNotifications()
   const [, forceUpdate] = useState({})
 
-  const { data: notifications = [], isLoading } = useQuery({
-    queryKey: ['notifications'],
-    queryFn: getNotifications,
-  })
-
-  // Auto-refresh timestamps every minute
   useEffect(() => {
     const interval = setInterval(() => {
-      forceUpdate({})  // Force re-render to update timestamps
-    }, 60000)  // 60 seconds
-
+      forceUpdate({})
+    }, 60000)
     return () => clearInterval(interval)
   }, [])
 
-  // Auto-cleanup uploads when notification appears
   useEffect(() => {
     uploads.forEach(upload => {
       if (upload.status === 'processing' && upload.jobId) {
-        // Check if notification exists for this job
         const hasNotification = notifications.some(n =>
           (n.type === 'import_ready' || n.type === 'import_failed') &&
           n.data.job_id === upload.jobId
         )
         if (hasNotification) {
-          // Remove upload immediately
           removeUpload(upload.id)
         }
       }
@@ -61,24 +52,7 @@ export default function NotificationsPanel({ onClose }: Props) {
   const reject = useMutation({
     mutationFn: rejectGroupInvitation,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications-count'] })
-    },
-  })
-
-  const markRead = useMutation({
-    mutationFn: markNotificationRead,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications-count'] })
-    },
-  })
-
-  const deleteJob = useMutation({
-    mutationFn: deleteImportJob,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications-count'] })
+      refresh()
     },
   })
 
@@ -87,11 +61,29 @@ export default function NotificationsPanel({ onClose }: Props) {
     setDisclaimer({ notifId: n.id, inviterName })
   }
 
+  const handleMarkRead = async (id: number) => {
+    await markRead(id)
+  }
+
+  const handleDeleteJob = async (jobId: number) => {
+    const token = getStoredToken()
+    if (!token) return
+    try {
+      await fetch(`/api/import-jobs/${jobId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      refresh()
+    } catch (err) {
+      console.error('[NotificationsPanel] deleteJob failed', err)
+    }
+  }
+
   const handleNotificationClick = (n: Notification) => {
     if (n.type === 'import_ready' || n.type === 'import_failed') {
       const jobId = n.data.job_id as number
       if (jobId) {
-        markRead.mutate(n.id)
+        handleMarkRead(n.id)
         navigate(`/import-jobs/${jobId}`)
         onClose()
       }
@@ -116,7 +108,6 @@ export default function NotificationsPanel({ onClose }: Props) {
         </div>
 
         <div className="overflow-y-auto flex-1">
-          {/* Upload progress indicators */}
           {uploads.map(upload => (
             <div key={upload.id} className="px-4 py-3 border-b border-[var(--border-color)] bg-[var(--color-primary)]/5">
               <div className="flex items-center gap-2 mb-1.5">
@@ -147,10 +138,7 @@ export default function NotificationsPanel({ onClose }: Props) {
             </div>
           ))}
 
-          {isLoading && (
-            <p className="text-[var(--text-tertiary)] text-sm text-center py-8">Cargando…</p>
-          )}
-          {!isLoading && notifications.length === 0 && uploads.length === 0 && (
+          {notifications.length === 0 && uploads.length === 0 && (
             <p className="text-[var(--text-tertiary)] text-sm text-center py-8">Sin notificaciones</p>
           )}
           {notifications.map((n) => {
@@ -168,10 +156,10 @@ export default function NotificationsPanel({ onClose }: Props) {
                     {isImportNotif && (
                       <button
                         onClick={(e) => {
-                          e.stopPropagation()  // Prevent navigation to preview
+                          e.stopPropagation()
                           const jobId = n.data.job_id as number
                           if (jobId) {
-                            deleteJob.mutate(jobId)  // Delete job (also deletes notification)
+                            handleDeleteJob(jobId)
                           }
                         }}
                         className="text-[var(--text-tertiary)] hover:text-red-500 transition-colors"

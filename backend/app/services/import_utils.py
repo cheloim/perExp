@@ -84,7 +84,10 @@ def _is_duplicate(
     transaction_id: Optional[str] = None,
     installment_number: Optional[int] = None,
     installment_total: Optional[int] = None,
+    installment_group_id: Optional[str] = None,
 ) -> bool:
+    from app.models import ScheduledExpense
+
     if transaction_id:
         if installment_number and installment_total and installment_total >= 2:
             existing = db.query(Expense).filter(
@@ -129,6 +132,18 @@ def _is_duplicate(
     if existing:
         _log(f"[DUP by triple] date={exp_date} amt={amount} desc={description} matched id={existing.id}")
         return True
+
+    if installment_group_id:
+        existing_scheduled = db.query(ScheduledExpense).filter(
+            ScheduledExpense.installment_group_id == installment_group_id,
+            ScheduledExpense.installment_number == installment_number,
+            ScheduledExpense.installment_total == installment_total,
+            ScheduledExpense.status == "PENDING"
+        ).first()
+        if existing_scheduled:
+            _log(f"[DUP by installment_group_id in ScheduledExpense] group_id={installment_group_id} inst={installment_number}/{installment_total} matched id={existing_scheduled.id}")
+            return True
+
     return False
 
 
@@ -140,18 +155,22 @@ def _is_scheduled_duplicate(
     installment_number: int,
     installment_total: int,
     user_id: int,
+    installment_group_id: Optional[str] = None,
 ) -> bool:
     """Verificar si ya existe una cuota programada duplicada"""
     from app.models import ScheduledExpense
 
-    return db.query(ScheduledExpense).filter(
+    q = db.query(ScheduledExpense).filter(
         ScheduledExpense.user_id == user_id,
         ScheduledExpense.scheduled_date == scheduled_date,
         ScheduledExpense.installment_number == installment_number,
         ScheduledExpense.installment_total == installment_total,
         func.lower(ScheduledExpense.description) == description.lower(),
         ScheduledExpense.status == "PENDING"
-    ).first() is not None
+    )
+    if installment_group_id:
+        q = q.filter(ScheduledExpense.installment_group_id == installment_group_id)
+    return q.first() is not None
 
 
 def _expand_installments(parsed: list, db: Session, user_id: int) -> tuple[list, list]:

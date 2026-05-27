@@ -6,22 +6,13 @@ import {
 } from '../api/client'
 import type { Category } from '../types'
 import { Select } from '../components/ui/Select'
-import { formatCurrency, toUpperCase } from '../utils/format'
+import { formatCurrency, toUpperCase, formatDateDMY } from '../utils/format'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 
 const COLORS = [
   '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
   '#3b82f6', '#8b5cf6', '#ec4899', '#64748b', '#78716c',
 ]
-
-function formatDate(dateStr: string) {
-  if (!dateStr) return ''
-  if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    const [y, m, d] = dateStr.split('-')
-    return `${d}-${m}-${y}`
-  }
-  return dateStr
-}
 
 /* ─── Category Form modal ─── */
 interface CategoryFormProps {
@@ -186,7 +177,7 @@ function CategoryDetail({ cat, onClose }: { cat: Category; onClose: () => void }
                       )}
                     </p>
                     <p className="text-xs text-tertiary mt-0.5">
-                      {formatDate(exp.date)}{exp.bank && ` · ${exp.bank}`}{exp.person && ` · ${exp.person}`}
+                      {formatDateDMY(exp.date)}{exp.bank && ` · ${exp.bank}`}{exp.person && ` · ${exp.person}`}
                     </p>
                   </div>
                   <span className={`text-sm font-semibold ml-4 whitespace-nowrap ${exp.amount < 0 ? 'text-success' : 'text-primary'}`}>

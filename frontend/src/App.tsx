@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
 import AIAssistant from './components/AIAssistant'
 import InvestmentsAssistant from './components/InvestmentsAssistant'
 import UserPanel from './components/UserPanel'
@@ -8,6 +7,7 @@ import NotificationsPanel from './components/NotificationsPanel'
 import ImportUploadButton from './components/ImportUploadButton'
 import { usePanelWidth } from './context/PanelWidthContext'
 import { UploadProgressProvider } from './context/UploadProgressContext'
+import { NotificationsProvider, useNotifications } from './context/NotificationsContext'
 import { sidebarIcons } from './components/SidebarIcons'
 import Dashboard from './pages/Dashboard'
 import AccountsPage from './pages/AccountsPage'
@@ -20,7 +20,7 @@ import InstallmentsPage from './pages/InstallmentsPage'
 import InvestmentsPage from './pages/InvestmentsPage'
 import LoginPage from './pages/LoginPage'
 import OAuthCallback from './pages/OAuthCallback'
-import { getStoredToken, getUnreadCount } from './api/client'
+import { getStoredToken } from './api/client'
 
 const TABS = [
   { path: '/',               label: 'Inicio',              icon: 'home',        exact: true },
@@ -55,18 +55,21 @@ export default function App() {
 
   if (!getStoredToken()) return <Navigate to="/login" replace />
 
+  return (
+    <NotificationsProvider>
+      <MainLayout />
+    </NotificationsProvider>
+  )
+}
+
+function MainLayout() {
+  const location = useLocation()
   const isInvestments = location.pathname === '/investments'
   const [aiDrawerOpen, setAiDrawerOpen] = useState(getInitialDrawerState)
   const [userPanelOpen, setUserPanelOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const { panelWidth, isCollapsed } = usePanelWidth()
-
-  const { data: unreadData } = useQuery({
-    queryKey: ['notifications-count'],
-    queryFn: getUnreadCount,
-    refetchInterval: 30000,
-  })
-  const unreadCount = unreadData?.count ?? 0
+  const { unreadCount } = useNotifications()
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {

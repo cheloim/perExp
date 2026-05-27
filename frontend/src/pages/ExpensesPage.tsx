@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router-dom'
 import {
   getExpenses,
   getCategories,
@@ -13,46 +12,25 @@ import {
 import type { Expense, ExpenseCreate } from '../types'
 import { Select } from '../components/ui/Select'
 import { ExpenseModal } from '../components/ExpenseModals'
-import { formatCurrency, toUpperCase, titleCase, getContrastTextColor } from '../utils/format'
+import { formatCurrency, toUpperCase, titleCase, getContrastTextColor, SortIcon, categoryGroupOptions, formatDateDMY } from '../utils/format'
+import { useExpenseFilters } from '../hooks/useExpenseFilters'
 import { ConfirmDialog } from '../components/ConfirmDialog'
-
-function formatDate(dateStr: string) {
-  if (!dateStr) return ''
-  if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    const [y, m, d] = dateStr.split('-')
-    return `${d}-${m}-${y}`
-  }
-  return dateStr
-}
 
 type SortField = 'date' | 'description' | 'category' | 'bank' | 'person' | 'amount'
 type SortDir = 'asc' | 'desc'
 
-function SortIcon({ field, sort }: { field: SortField; sort: { field: SortField; dir: SortDir } }) {
-  if (sort.field !== field) return <span className="ml-1 text-[var(--text-tertiary)]">↕</span>
-  return <span className="ml-1 text-[var(--color-primary)]">{sort.dir === 'asc' ? '↑' : '↓'}</span>
-}
-
 export default function ExpensesPage() {
   const queryClient = useQueryClient()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const { filters, setFilter, clearFilters, searchParams, setSearchParams } = useExpenseFilters()
 
-  // URL-synced filters
-  const filterCategory     = searchParams.get('category_id') ? parseInt(searchParams.get('category_id')!) : undefined
-  const filterUncategorized = searchParams.get('uncategorized') === '1'
-  const filterBank          = searchParams.get('bank')     || undefined
-  const filterPerson        = searchParams.get('person')   || undefined
-  const filterCard          = searchParams.get('card')     || undefined
-  const filterDateFrom      = searchParams.get('date_from') || undefined
-  const filterDateTo        = searchParams.get('date_to')   || undefined
-  const filterSearch        = searchParams.get('search')   || undefined
-
-  const setFilter = (key: string, value: string | undefined) => {
-    const next = new URLSearchParams(searchParams)
-    if (value) next.set(key, value); else next.delete(key)
-    setSearchParams(next)
-  }
-  const clearFilters = () => setSearchParams(new URLSearchParams())
+  const filterCategory     = filters.categoryId
+  const filterUncategorized = filters.uncategorized
+  const filterBank          = filters.bank
+  const filterPerson        = filters.person
+  const filterCard          = filters.card
+  const filterDateFrom      = filters.dateFrom
+  const filterDateTo        = filters.dateTo
+  const filterSearch        = filters.search
 
   const handleCategoryFilter = (value: string) => {
     const next = new URLSearchParams(searchParams)
@@ -205,19 +183,7 @@ export default function ExpensesPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
           {/* Categoría */}
           {(() => {
-            const parentIds = new Set(categories.filter(c => c.parent_id).map(c => c.parent_id!))
-            const parents = categories.filter(c => !c.parent_id && parentIds.has(c.id))
-            const orphans = categories.filter(c => !c.parent_id && !parentIds.has(c.id))
-            const groups = parents.map(parent => ({
-              label: parent.name,
-              options: categories.filter(c => c.parent_id === parent.id).map(c => ({ value: String(c.id), label: c.name }))
-            }))
-            if (orphans.length > 0) {
-              groups.push({
-                label: '—',
-                options: orphans.map(c => ({ value: String(c.id), label: c.name }))
-              })
-            }
+            const groups = categoryGroupOptions(categories)
             return (
               <Select
                 value={filterUncategorized ? '__none__' : (filterCategory ? String(filterCategory) : '')}
@@ -402,7 +368,7 @@ export default function ExpensesPage() {
                           onClick={(e) => { e.stopPropagation(); setEditing(exp) }}
                           className="text-left hover:text-primary transition"
                         >
-                          {formatDate(exp.date)}
+                          {formatDateDMY(exp.date)}
                         </button>
                       </td>
                       <td className="px-4 py-3">
@@ -500,19 +466,7 @@ export default function ExpensesPage() {
           <span className="text-sm text-[var(--text-primary)] font-medium">{selectedIds.size} seleccionados</span>
           <span className="text-[var(--text-tertiary)]">|</span>
           {(() => {
-            const parentIds = new Set(categories.filter(c => c.parent_id).map(c => c.parent_id!))
-            const parents = categories.filter(c => !c.parent_id && parentIds.has(c.id))
-            const orphans = categories.filter(c => !c.parent_id && !parentIds.has(c.id))
-            const groups = parents.map(parent => ({
-              label: parent.name,
-              options: categories.filter(c => c.parent_id === parent.id).map(c => ({ value: String(c.id), label: c.name }))
-            }))
-            if (orphans.length > 0) {
-              groups.push({
-                label: '—',
-                options: orphans.map(c => ({ value: String(c.id), label: c.name }))
-              })
-            }
+            const groups = categoryGroupOptions(categories)
             return (
               <Select
                 value={bulkCategoryId}

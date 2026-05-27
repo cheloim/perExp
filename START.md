@@ -1,4 +1,4 @@
-# Credit Card Analyzer — CLAUDE.md
+# Credit Card Analyzer — START.md
 
 ## Stack
 
@@ -64,6 +64,11 @@ El frontend sigue el **GNOME Human Interface Guidelines** para una experiencia d
 ## Running
 
 ```bash
+# Script de inicio — ambos servidores + wait-for-ready (from project root/)
+./start.sh              # Backend: http://localhost:8000 | Frontend: http://localhost:5173
+
+# O manual:
+
 # Backend  (from backend/)
 source .venv/bin/activate && uvicorn main:app --reload   # http://localhost:8000
 
@@ -74,6 +79,10 @@ npm run dev   # http://localhost:5173
 ## Key Files
 
 ```
+project root/
+  start.sh                           # Start both servers (backend + frontend)
+
+backend/
 backend/
   main.py                          # FastAPI app entry, lifespan, CORS, router includes
   app/
@@ -93,7 +102,7 @@ backend/
       investments.py                # /investments — CRUD, sync IOL/PPI, cash balances, chat stream
       analysis.py                   # /analysis — stream, summarize, history
       groups.py                     # /groups — invite, leave, /me
-      notifications.py             # /notifications — list, read, accept, reject
+      notifications.py             # /notifications — list, read, accept, reject, stream
 
   app/tasks/
     scheduled_expenses.py          # Background task to execute due installments
@@ -117,12 +126,10 @@ frontend/src/
   components/
     AIAssistant.tsx           # Floating chat drawer (Dashboard/Expenses)
     InvestmentsAssistant.tsx  # Side panel chat (Investments page)
-    NotificationsPanel.tsx    # Bell notifications drawer
+    NotificationsPanel.tsx     # Bell notifications drawer
     UserPanel.tsx              # User account drawer
     CustomSelect.tsx          # Custom styled select component
-```
-
-## Database Schema (`expenses.db`)
+```## Database Schema (`expenses.db`)
 
 ```sql
 categories (id, name, color, keywords, parent_id)
@@ -199,6 +206,7 @@ New columns are added via `ALTER TABLE … ADD COLUMN` in `models.py` startup bl
 |---|---|---|
 | POST | /auth/register | Register new user |
 | POST | /auth/login | Login (returns JWT) |
+| POST | /auth/refresh | Refresh JWT token |
 | GET | /auth/me | Get current user info |
 | PUT | /auth/password | Change password |
 | GET | /auth/me/telegram-key | Get Telegram key |
@@ -329,10 +337,12 @@ New columns are added via `ALTER TABLE … ADD COLUMN` in `models.py` startup bl
 | Method | Path | Description |
 |---|---|---|
 | GET | /notifications | List notifications |
+| GET | /notifications/stream | SSE stream for real-time notifications |
 | GET | /notifications/unread-count | Unread count |
 | PUT | /notifications/{id}/read | Mark as read |
 | POST | /notifications/{id}/accept | Accept group invitation |
 | POST | /notifications/{id}/reject | Reject group invitation |
+| DELETE | /notifications/{id} | Delete notification |
 
 ### Card Closings
 

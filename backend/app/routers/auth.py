@@ -218,3 +218,8 @@ def regenerate_telegram_key(
     db.commit()
     db.refresh(current_user)
     return TelegramKeyResponse(telegram_key=current_user.telegram_key)
+
+
+@router.post("/refresh", response_model=Token)
+def refresh_token(current_user: User = Depends(get_current_user)):
+    return Token(access_token=create_access_token(current_user.id), token_type="bearer")

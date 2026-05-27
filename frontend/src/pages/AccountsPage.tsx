@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router-dom'
 import {
   PieChart, Pie, Cell,
   LineChart, Line,
@@ -20,21 +19,13 @@ import {
 import type { CategorySummary, Expense, ExpenseCreate } from '../types'
 import { Select } from '../components/ui/Select'
 import { ExpenseModal } from '../components/ExpenseModals'
-import { formatCurrency, toUpperCase, titleCase, getContrastTextColor } from '../utils/format'
+import { formatCurrency, toUpperCase, titleCase, getContrastTextColor, SortIcon, formatDateDMY } from '../utils/format'
+import { useExpenseFilters } from '../hooks/useExpenseFilters'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 
 type GroupBy = 'month' | 'year'
 type SortField = 'date' | 'description' | 'category' | 'bank' | 'person' | 'amount'
 type SortDir = 'asc' | 'desc'
-
-function formatDate(dateStr: string) {
-  if (!dateStr) return ''
-  if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    const [y, m, d] = dateStr.split('-')
-    return `${d}-${m}-${y}`
-  }
-  return dateStr
-}
 
 function groupSmallSlices(data: CategorySummary[], thresholdPct = 3) {
   if (data.length === 0) return data
@@ -81,11 +72,6 @@ function TrendIcon({ current, previous }: { current: number; previous: number })
   return <span className="text-green-500 text-xs font-bold">▼{Math.abs(pct).toFixed(2)}%</span>
 }
 
-function SortIcon({ field, sort }: { field: SortField; sort: { field: SortField; dir: SortDir } }) {
-  if (sort.field !== field) return <span className="ml-1 text-tertiary">↕</span>
-  return <span className="ml-1 text-primary">{sort.dir === 'asc' ? '↑' : '↓'}</span>
-}
-
 function CategoryDrilldown({ category, month, onClose }: { category: CategorySummary; month: string; onClose: () => void }) {
   const { data: expenses = [], isLoading } = useQuery({
     queryKey: ['expenses', 'drill', category.category_id, month],
@@ -116,7 +102,7 @@ function CategoryDrilldown({ category, month, onClose }: { category: CategorySum
             <div key={exp.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-base-alt">
               <div>
                 <p className="text-sm text-primary">{toUpperCase(exp.description)}</p>
-                <p className="text-xs text-tertiary">{formatDate(exp.date)}{exp.person ? ` · ${titleCase(exp.person)}` : ''}</p>
+                <p className="text-xs text-tertiary">{formatDateDMY(exp.date)}{exp.person ? ` · ${titleCase(exp.person)}` : ''}</p>
               </div>
               <span className={`text-sm font-semibold ${exp.amount < 0 ? 'text-success' : 'text-primary'}`}>
                 {formatCurrency(exp.amount, exp.currency)}
@@ -311,17 +297,16 @@ export default function AccountsPage() {
   const [activeCard, setActiveCard] = useState<string | null>(null)
   const [bankFilter, setBankFilter] = useState<string | null>(null)
   const queryClient = useQueryClient()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const { filters, setFilter, clearFilters } = useExpenseFilters()
 
-  // URL-synced filters
-  const filterCategory = searchParams.get('category_id') ? parseInt(searchParams.get('category_id')!) : undefined
-  const filterUncategorized = searchParams.get('uncategorized') === '1'
-  const filterBank = searchParams.get('bank') || undefined
-  const filterPerson = searchParams.get('person') || undefined
-  const filterCard = searchParams.get('card') || undefined
-  const filterDateFrom = searchParams.get('date_from') || undefined
-  const filterDateTo = searchParams.get('date_to') || undefined
-  const filterSearch = searchParams.get('search') || undefined
+  const filterCategory = filters.categoryId
+  const filterUncategorized = filters.uncategorized
+  const filterBank = filters.bank
+  const filterPerson = filters.person
+  const filterCard = filters.card
+  const filterDateFrom = filters.dateFrom
+  const filterDateTo = filters.dateTo
+  const filterSearch = filters.search
 
   // UI states
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -337,17 +322,6 @@ export default function AccountsPage() {
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
 
   
-
-  // Helper functions
-  const setFilter = (key: string, value: string | undefined) => {
-    const next = new URLSearchParams(searchParams)
-    if (value) next.set(key, value); else next.delete(key)
-    setSearchParams(next)
-  }
-
-  const clearFilters = () => {
-    setSearchParams(new URLSearchParams())
-  }
 
   const activeFiltersCount = [
     filterCategory, filterUncategorized || undefined, filterBank,
@@ -981,7 +955,7 @@ export default function AccountsPage() {
                               />
                             </td>
                           )}
-                          <td className="py-2 text-primary">{formatDate(exp.date)}</td>
+                          <td className="py-2 text-primary">{formatDateDMY(exp.date)}</td>
                           <td className="py-2">
                             <div className="text-primary font-medium">
                               {toUpperCase(exp.description)}

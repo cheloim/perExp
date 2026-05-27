@@ -17,7 +17,7 @@ from app.models import Category, Card
 from app.prompts import SMART_IMPORT_PROMPT
 from app.services.categorization import _resolve_category, _should_skip
 from app.services.date_utils import _normalize_date_str
-from app.services.import_utils import _expand_installments, _is_duplicate, _load_dataframe, _normalize_persons_llm
+from app.services.import_utils import _expand_installments, _is_duplicate, _is_scheduled_duplicate, _load_dataframe, _normalize_persons_llm
 from app.services.normalizers import normalize_bank, _normalize_person, first_card_word, title_case_single
 from app.services.pdf import _extract_pdf_text, _inject_card_markers, _inject_csv_card_markers, _normalize_santander_dates
 
@@ -273,10 +273,7 @@ async def run_smart_import(
     for (bank, card, person), txns in card_groups.items():
         if bank and card:
             unique_persons = list({p.get("person") or "" for p in txns if p.get("person")})
-            if len(unique_persons) == 1:
-                suggested = f"{card} {bank}".strip()
-            else:
-                suggested = f"{card} {bank} - {person}".strip()
+            suggested = ""
             detected_cards.append({
                 "bank": bank,
                 "card": card,
@@ -312,7 +309,8 @@ async def run_smart_import(
                 p["description"],
                 p["transaction_id"],
                 p["installment_number"],
-                p["installment_total"]
+                p["installment_total"],
+                p.get("installment_group_id")
             ) if row_date else False,
             "is_auto_generated": p.get("_auto_generated", False),
         })
@@ -334,7 +332,16 @@ async def run_smart_import(
             "installment_total": s["installment_total"],
             "installment_group_id": s["installment_group_id"],
             "suggested_category": cat_name,
-            "is_duplicate": False,
+            "is_duplicate": _is_scheduled_duplicate(
+                db,
+                s["scheduled_date"],
+                s["amount"],
+                s["description"],
+                s["installment_number"],
+                s["installment_total"],
+                user_id,
+                s.get("installment_group_id")
+            ),
             "is_auto_generated": True,
             "is_scheduled": True,
         })

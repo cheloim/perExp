@@ -12,13 +12,7 @@ import {
 } from '../api/client'
 import type { InstallmentGroup } from '../types'
 import { ConfirmDialog } from '../components/ConfirmDialog'
-import { formatCurrency, toUpperCase } from '../utils/format'
-
-function formatDate(dateStr: string | null) {
-  if (!dateStr) return '—'
-  const [y, m, d] = dateStr.split('-')
-  return `${d}-${m}-${y}`
-}
+import { formatCurrency, toUpperCase, formatDateDMY } from '../utils/format'
 
 const MONTHS_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
@@ -355,7 +349,7 @@ export default function InstallmentsPage() {
                             </p>
                             <p className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] mt-0.5">
                               {g.bank}{g.card ? ` · ${g.card}` : ''}
-                              {g.next_date && !done && <> · próxima: {formatDate(g.next_date)}</>}
+                              {g.next_date && !done && <> · próxima: {formatDateDMY(g.next_date, '—')}</>}
                             </p>
                           </div>
                         </div>
@@ -484,7 +478,7 @@ export default function InstallmentsPage() {
                         Cuota {s.installment_number}/{s.installment_total}
                       </p>
                       <p className="text-xs text-[var(--text-secondary)]">
-                        {formatDate(s.scheduled_date)} · {formatCurrency(s.amount, s.currency)}
+                        {formatDateDMY(s.scheduled_date)} · {formatCurrency(s.amount, s.currency)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
