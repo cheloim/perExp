@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getInvestments } from '../api/client'
-import { usePanelWidth } from '../context/PanelWidthContext'
 import type { Investment } from '../types'
 import { ConfirmDialog } from './ConfirmDialog'
 
@@ -154,14 +153,6 @@ function SendIcon() {
   )
 }
 
-function ChevronRightIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="9 18 15 12 9 6" />
-    </svg>
-  )
-}
-
 function TrashIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -202,18 +193,18 @@ function MessageList({
   return (
     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
       {messages.length === 0 && (
-        <div className="flex flex-col items-center justify-center h-full text-center space-y-2">
-          <span className="text-secondary"><ChatBubbleIcon /></span>
+        <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
+          <span className="text-tertiary"><ChatBubbleIcon /></span>
           <p className="text-sm text-secondary">Preguntame sobre tus inversiones</p>
           <p className="text-xs text-tertiary">Ej: ¿Cómo están mis CEDEARs? ¿Qué bonos convienen hoy?</p>
         </div>
       )}
       {messages.map((msg, i) => (
         <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-          <div className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
+          <div className={`max-w-[80%] px-3 py-2 rounded-xl text-sm leading-relaxed whitespace-pre-wrap ${
             msg.role === 'user'
-              ? 'bg-primary text-on-primary rounded-br-sm'
-              : 'bg-base-alt text-primary rounded-bl-sm'
+              ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)]'
+              : 'bg-[var(--color-base-alt)] text-primary'
           }`}>
             {msg.text || (streaming && i === messages.length - 1 ? <ThinkingDots /> : '')}
           </div>
@@ -238,13 +229,13 @@ function SessionCard({
         onClick={onToggle}
       >
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-[var(--text-primary)] truncate">{preview}</p>
-          <p className="text-xs text-[var(--text-tertiary)]">{dateStr} · {userMsgs.length} preguntas</p>
+          <p className="text-sm text-primary truncate">{preview}</p>
+          <p className="text-xs text-tertiary">{dateStr} · {userMsgs.length} preguntas</p>
         </div>
         <div className="flex items-center gap-2 ml-2 flex-shrink-0">
           <button onClick={e => { e.stopPropagation(); onDelete() }}
-            className="text-[var(--text-tertiary)] hover:text-[var(--color-danger)] text-sm transition-colors"><TrashIcon /></button>
-          <span className="text-[var(--text-tertiary)] text-xs">{expanded ? '▲' : '▼'}</span>
+            className="text-tertiary hover:text-[var(--color-danger)] text-sm transition-colors"><TrashIcon /></button>
+          <span className="text-tertiary text-xs">{expanded ? '▲' : '▼'}</span>
         </div>
       </div>
       {expanded && (
@@ -254,14 +245,14 @@ function SessionCard({
               <p className="text-[10px] font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-1 flex items-center gap-1">
                 <SummaryIcon /> Resumen
               </p>
-              <p className="text-xs text-[var(--text-primary)] leading-relaxed">{session.summary}</p>
+              <p className="text-xs text-primary leading-relaxed">{session.summary}</p>
             </div>
           )}
           <div className="px-3 py-2 space-y-2 max-h-64 overflow-y-auto">
             {session.messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[90%] px-2 py-1.5 rounded-md text-xs leading-relaxed whitespace-pre-wrap ${
-                  m.role === 'user' ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)]' : 'bg-[var(--color-base-alt)] text-[var(--text-primary)]'
+                  m.role === 'user' ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)]' : 'bg-[var(--color-base-alt)] text-primary'
                 }`}>{m.text}</div>
               </div>
             ))}
@@ -273,10 +264,6 @@ function SessionCard({
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-
-const PANEL_MIN_WIDTH = 180
-const PANEL_DEFAULT_WIDTH = 360
-const COLLAPSE_THRESHOLD = 200
 
 export default function InvestmentsAssistant() {
   const [sessions, setSessions] = useState<Session[]>(loadSessions)
@@ -296,25 +283,11 @@ export default function InvestmentsAssistant() {
   const [showHistory, setShowHistory] = useState(false)
   const [expandedId, setExpandedId]   = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
-  const [floatingOpen, setFloatingOpen] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(true)
   const [isExpanded, setIsExpanded] = useState(false)
 
-  const { panelWidth: contextWidth, isCollapsed: contextCollapsed, setPanelWidth, setIsCollapsed } = usePanelWidth()
-  const [panelWidth, setPanelWidthLocal] = useState(PANEL_DEFAULT_WIDTH)
-  const [isCollapsed, setIsCollapsedLocal] = useState(true)
-  const [isDragging, setIsDragging] = useState(false)
-
-  useEffect(() => {
-    if (contextWidth !== panelWidth) setPanelWidthLocal(contextWidth)
-  }, [contextWidth])
-  useEffect(() => {
-    if (contextCollapsed !== isCollapsed) setIsCollapsedLocal(contextCollapsed)
-  }, [contextCollapsed])
-
   const chatEndRef  = useRef<HTMLDivElement>(null)
-  const floatEndRef = useRef<HTMLDivElement>(null)
   const inputRef    = useRef<HTMLInputElement>(null)
-  const floatInputRef = useRef<HTMLInputElement>(null)
 
   const { data: investments = [] } = useQuery({
     queryKey: ['investments'],
@@ -338,81 +311,20 @@ export default function InvestmentsAssistant() {
   }
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
-  useEffect(() => { floatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, floatingOpen])
-  useEffect(() => { if (floatingOpen) setTimeout(() => floatInputRef.current?.focus(), 100) }, [floatingOpen])
+  useEffect(() => { if (!isCollapsed) setTimeout(() => inputRef.current?.focus(), 100) }, [isCollapsed])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       if (isExpanded) {
         setIsExpanded(false)
-        if (!isCollapsed) return
-        setFloatingOpen(false)
       } else if (!isCollapsed) {
-        setIsCollapsedLocal(true)
         setIsCollapsed(true)
-        setFloatingOpen(false)
-      } else if (floatingOpen) {
-        setFloatingOpen(false)
       }
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isCollapsed, isExpanded, floatingOpen])
-
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
-
-  const startDrag = useRef<number | null>(null)
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (isCollapsed) return
-    e.preventDefault()
-    setIsDragging(true)
-    startDrag.current = e.clientX
-  }
-
-  useEffect(() => {
-    if (!isDragging) return
-    const handleMouseMove = (e: MouseEvent) => {
-      if (startDrag.current === null) return
-      const delta = startDrag.current - e.clientX
-      const newWidth = Math.max(PANEL_MIN_WIDTH, Math.min(window.innerWidth - 100, panelWidth + delta))
-      setPanelWidthLocal(newWidth)
-      setPanelWidth(newWidth)
-      startDrag.current = e.clientX
-      if (newWidth < COLLAPSE_THRESHOLD) {
-        setIsCollapsedLocal(true)
-        setIsCollapsed(true)
-        setIsDragging(false)
-      }
-    }
-    const handleMouseUp = () => {
-      setIsDragging(false)
-      startDrag.current = null
-    }
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [isDragging, panelWidth])
-
-  const expandPanel = () => {
-    setIsCollapsedLocal(false)
-    setIsCollapsed(false)
-    setPanelWidthLocal(PANEL_DEFAULT_WIDTH)
-    setPanelWidth(PANEL_DEFAULT_WIDTH)
-    setIsExpanded(false)
-  }
-
-  const handleExpand = () => {
-    if (isMobile) {
-      setFloatingOpen(true)
-    } else {
-      setIsExpanded(true)
-    }
-  }
+  }, [isCollapsed, isExpanded])
 
   const sendMessage = async () => {
     const text = input.trim()
@@ -501,61 +413,72 @@ export default function InvestmentsAssistant() {
 
   // ── Shared JSX fragments ────────────────────────────────────────────────────
 
-  const headerJsx = (onExpand?: () => void) => (
-  <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)] flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="text-[var(--text-secondary)]"><ChartIcon /></span>
-          <span className="text-sm font-semibold text-[var(--text-primary)]">Asistente Inversiones</span>
-        </div>
+  const headerJsx = (
+    <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)] flex-shrink-0">
       <div className="flex items-center gap-2">
+        <span className="text-secondary"><ChartIcon /></span>
+        <span className="text-base font-semibold text-primary">Asistente</span>
+      </div>
+      <div className="flex items-center gap-1.5">
         {messages.length > 0 && (
           <button
             onClick={() => summarizeSession(activeId, messages)}
             disabled={summarizing}
-            className="text-xs px-2 py-1 rounded border border-border-color bg-base-alt text-secondary hover:bg-base-container disabled:opacity-50 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             title="Generar resumen de la sesión"
           >
-            {summarizing ? '...' : 'Resumir'}
+            {summarizing ? <span className="animate-spin inline-block">↻</span> : 'Resumir'}
           </button>
         )}
-        {onExpand && (
-          <button onClick={onExpand} className="text-tertiary hover:text-primary transition-colors p-1 rounded" title="Expandir">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" /></svg>
+        {!isExpanded && (
+          <button onClick={() => setIsExpanded(true)} className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)] transition-all" title="Expandir a modal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" /></svg>
           </button>
         )}
         {isExpanded && (
-          <button onClick={() => setIsExpanded(false)} className="text-tertiary hover:text-primary transition-colors p-1 rounded" title="Cerrar">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12" /></svg>
+          <button onClick={() => setIsExpanded(false)} className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)] transition-all" title="Contraer">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" /></svg>
           </button>
         )}
+        <button onClick={() => { setIsCollapsed(true); setIsExpanded(false) }} className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)] transition-all" title="Cerrar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12" /></svg>
+        </button>
       </div>
     </div>
   )
 
   const toolbarJsx = (
     <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border-color)] flex-shrink-0">
-      <div className="flex gap-4">
+      <div className="flex gap-2">
         <button onClick={() => setShowHistory(false)}
-          className={`text-xs font-medium transition-colors ${!showHistory ? 'text-[var(--color-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--color-primary)]'}`}>
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+            !showHistory
+              ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)]'
+              : 'bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)]'
+          }`}>
           Chat
         </button>
         <button onClick={() => setShowHistory(true)}
-          className={`text-xs font-medium transition-colors ${showHistory ? 'text-[var(--color-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--color-primary)]'}`}>
-          Historial {sessions.filter(s => s.id !== activeId).length > 0 && <span className="ml-1 text-[var(--text-tertiary)]">({sessions.filter(s => s.id !== activeId).length})</span>}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+            showHistory
+              ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)]'
+              : 'bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)]'
+          }`}>
+          Historial {sessions.filter(s => s.id !== activeId).length > 0 && <span className="ml-1 opacity-70">({sessions.filter(s => s.id !== activeId).length})</span>}
         </button>
       </div>
       {!showHistory && (
-        <button onClick={startNewSession} className="text-xs text-[var(--text-tertiary)] hover:text-[var(--color-primary)] transition-colors flex items-center gap-1">
-          <NewChatIcon /> Nueva sesión
+        <button onClick={startNewSession} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)] transition-all">
+          <NewChatIcon /> Nueva
         </button>
       )}
     </div>
   )
 
   const historyJsx = (
-    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 min-h-0">
+    <div className="px-4 py-3 space-y-2">
       {sessions.length === 0 ? (
-        <p className="text-sm text-[var(--text-secondary)] text-center py-8">Sin historial aún</p>
+        <p className="text-sm text-secondary text-center py-8">Sin historial aún</p>
       ) : (
         [...sessions].reverse().filter(s => s.id !== activeId).map(s => (
           <SessionCard
@@ -571,11 +494,11 @@ export default function InvestmentsAssistant() {
   )
 
   const inputBarJsx = (iRef: React.RefObject<HTMLInputElement>) => (
-    <div className="px-4 py-3 border-t border-[var(--border-color)] flex-shrink-0">
+    <div className="px-4 py-3 border-t border-[var(--border-color)] flex-shrink-0 bg-[var(--color-surface)]">
       {activeSession?.summary && (
         <div className="mb-2 px-3 py-2 bg-[var(--color-primary)]/10 border border-[var(--border-color)] rounded-lg">
-          <p className="text-[10px] font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-0.5 flex items-center gap-1"><SummaryIcon /> Resumen de sesión</p>
-          <p className="text-xs text-[var(--text-primary)] leading-relaxed line-clamp-3">{activeSession.summary}</p>
+          <p className="text-[10px] font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-0.5 flex items-center gap-1"><SummaryIcon /> Resumen</p>
+          <p className="text-xs text-primary leading-relaxed line-clamp-3">{activeSession.summary}</p>
         </div>
       )}
       <div className="flex items-center gap-2">
@@ -586,7 +509,7 @@ export default function InvestmentsAssistant() {
           className="flex-1 input text-sm"
         />
         <button onClick={sendMessage} disabled={!input.trim() || streaming}
-          className="w-9 h-9 bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 rounded-xl flex items-center justify-center disabled:opacity-40 transition-colors flex-shrink-0">
+          className="flex items-center justify-center w-9 h-9 rounded-full bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 active:scale-95 disabled:opacity-40 transition-all flex-shrink-0">
           <SendIcon />
         </button>
       </div>
@@ -595,58 +518,40 @@ export default function InvestmentsAssistant() {
 
   return (
     <>
-      {/* Fixed side panel */}
-      {!isCollapsed ? (
-        <div
-          className={`fixed top-0 right-0 h-full bg-surface border-l border-border-color shadow-lg z-30 flex flex-col transition-all duration-200 ease-out ${isDragging ? '' : 'will-change-[width]'}`}
-          style={{ width: panelWidth }}
-        >
-          {/* Drag handle - left edge */}
-          <div
-            className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-primary/20 transition-colors flex items-center justify-center"
-            onMouseDown={handleMouseDown}
-          >
-            <div className="w-0.5 h-12 bg-border-color rounded-full hover:bg-primary transition-colors" />
-          </div>
-
-          {/* Collapse button */}
-          <button
-            onClick={() => { setIsCollapsedLocal(true); setIsCollapsed(true) }}
-            className="absolute -left-3 top-1/2 -translate-y-1/2 w-5 h-12 bg-surface border border-border-color rounded-l-md flex items-center justify-center text-tertiary hover:text-primary hover:bg-base-alt transition-all z-30"
-            title="Contraer panel"
-          >
-            <ChevronRightIcon />
-          </button>
-
-          {headerJsx(handleExpand)}
-          {toolbarJsx}
-          {showHistory ? historyJsx : <MessageList messages={messages} streaming={streaming} endRef={chatEndRef} />}
-          {!showHistory && inputBarJsx(inputRef)}
-        </div>
-      ) : (
-        /* Collapsed state - floating button */
+      {/* Assistant button - right side, bottom */}
+      {isCollapsed && (
         <button
-          onClick={expandPanel}
-          className="fixed right-0 top-1/2 -translate-y-1/2 w-10 h-20 bg-primary hover:brightness-110 rounded-l-xl shadow-lg flex items-center justify-center text-on-primary transition-all duration-300 ease-out hover:w-12 z-40 group"
-          title="Abrir Asistente de Inversiones"
+          onClick={() => setIsCollapsed(false)}
+          className="fixed right-4 bottom-6 z-50 w-10 h-10 bg-[var(--color-primary)] hover:brightness-110 rounded-full shadow-lg flex items-center justify-center text-[var(--color-on-primary)] transition-all duration-200"
+          title="Abrir Asistente"
         >
-          <div className="flex flex-col items-center gap-1">
-            <BoltIcon />
-            <span className="text-[8px] font-medium uppercase tracking-wider opacity-80">Inv</span>
-          </div>
-          <div className="absolute -left-1 w-1 h-4 bg-white/30 rounded-full group-hover:h-6 transition-all" />
+          <BoltIcon />
         </button>
       )}
 
-      {/* Floating modal */}
-      {floatingOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setFloatingOpen(false)} />
-          <div className="relative bg-surface rounded-xl shadow-2xl flex flex-col w-full max-w-2xl" style={{ height: '80vh' }}>
-            {headerJsx()}
+      {/* Side panel - floating above content */}
+      {!isCollapsed && !isExpanded && (
+        <div className="fixed right-0 top-0 h-full bg-[var(--color-surface)] border-l border-[var(--border-color)] shadow-lg z-50 flex flex-col w-full sm:w-96 overflow-hidden">
+          {headerJsx}
+          {toolbarJsx}
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {showHistory ? historyJsx : <MessageList messages={messages} streaming={streaming} endRef={chatEndRef} />}
+          </div>
+          {!showHistory && inputBarJsx(inputRef)}
+        </div>
+      )}
+
+      {/* Modal overlay - expanded mode, GNOME 50 bottom-sheet on mobile */}
+      {isExpanded && (
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setIsExpanded(false)} />
+          <div className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-t-lg sm:rounded-lg shadow-xl flex flex-col w-full sm:max-w-2xl max-h-[90dvh] sm:max-h-[85vh] overflow-hidden">
+            {headerJsx}
             {toolbarJsx}
-            {showHistory ? historyJsx : <MessageList messages={messages} streaming={streaming} endRef={floatEndRef} />}
-            {!showHistory && inputBarJsx(floatInputRef)}
+            <div className="flex-1 overflow-y-auto min-h-0">
+              {showHistory ? historyJsx : <MessageList messages={messages} streaming={streaming} endRef={chatEndRef} />}
+            </div>
+            {!showHistory && inputBarJsx(inputRef)}
           </div>
         </div>
       )}

@@ -133,13 +133,15 @@ function fmtPct(pct: number) {
   return `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`
 }
 
-function PnlChip({ pnl, pnl_pct, currency }: { pnl: number | null; pnl_pct: number | null; currency: string }) {
+function PnlChip({ pnl, pnl_pct, currency, showInUsd, usdRate }: { pnl: number | null; pnl_pct: number | null; currency: string; showInUsd?: boolean; usdRate?: { rate: number; date: string } }) {
   if (pnl === null) return <span className="text-tertiary text-xs">—</span>
   const pos = pnl >= 0
+  const displayPnl = (showInUsd && usdRate && currency === 'ARS') ? pnl / usdRate.rate : pnl
+  const displayCurrency = (showInUsd && usdRate && currency === 'ARS') ? 'USD' : currency
   return (
     <div className={`flex flex-col items-end gap-0.5`}>
       <span className={`text-sm font-semibold ${pos ? 'text-success' : 'text-danger'}`}>
-        {pos ? '+' : ''}{fmt(pnl, currency)}
+        {pos ? '+' : ''}{fmt(displayPnl, displayCurrency)}
       </span>
       {pnl_pct !== null && (
         <span className={`text-xs ${pos ? 'text-success' : 'text-danger'}`}>
@@ -612,6 +614,7 @@ export default function InvestmentsPage() {
   const [showInUsd, setShowInUsd] = useState(false)
   const [usdRate, setUsdRate] = useState<{ rate: number; date: string } | null>(null)
   const [usdLoading, setUsdLoading] = useState(false)
+  const [lastUsdRateFetch, setLastUsdRateFetch] = useState<number | null>(null)
   const [brokerDropdownOpen, setBrokerDropdownOpen] = useState<string | null>(null)
   const [yahooPrices, setYahooPrices] = useState<Record<string, { price: number; currency: string }>>({})
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -665,12 +668,32 @@ export default function InvestmentsPage() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['investments'] })
 
+  const isBusinessHoursARG = () => {
+    const now = new Date()
+    const argTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }))
+    const hours = argTime.getHours()
+    return hours >= 8 && hours < 19
+  }
+
+  const fetchUsdRateIfNeeded = async () => {
+    if (!usdRate || Date.now() - (lastUsdRateFetch || 0) > 30 * 60 * 1000) {
+      if (isBusinessHoursARG()) {
+        try {
+          const r = await getUsdRate()
+          setUsdRate(r)
+          setLastUsdRateFetch(Date.now())
+        } catch { /* silent fail for auto-fetch */ }
+      }
+    }
+  }
+
   const handleToggleUsd = async () => {
     if (showInUsd) { setShowInUsd(false); return }
     setUsdLoading(true)
     try {
       const r = await getUsdRate()
       setUsdRate(r)
+      setLastUsdRateFetch(Date.now())
       setShowInUsd(true)
       showSync(`USD: $${r.rate.toLocaleString('es-AR', { minimumFractionDigits: 2 })} · ${r.date}`, true)
     } catch {
@@ -679,6 +702,14 @@ export default function InvestmentsPage() {
       setUsdLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (isBusinessHoursARG()) {
+      fetchUsdRateIfNeeded()
+    }
+    const timer = setInterval(fetchUsdRateIfNeeded, 60 * 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   const { data: investments = [], isLoading } = useQuery({
     queryKey: ['investments'],
@@ -892,7 +923,7 @@ export default function InvestmentsPage() {
             onClick={() => syncAllMut.mutate()}
             disabled={syncAllMut.isPending || (!settings.iol_configured && !settings.ppi_configured)}
             title={(!settings.iol_configured && !settings.ppi_configured) ? 'Configurá las credenciales primero' : 'Sincronizar brokers y actualizar precios'}
-            className="pill-btn-secondary disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:bg-[var(--color-base)] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {syncAllMut.isPending ? <span className="animate-spin inline-block">↻</span> : '↻'}
             <span>Sincronizar</span>
@@ -902,7 +933,11 @@ export default function InvestmentsPage() {
           <button
             onClick={handleToggleUsd}
             disabled={usdLoading}
-            className={`pill-btn-toggle font-medium ${showInUsd ? 'active' : ''}`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+              showInUsd
+                ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)]'
+                : 'bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:bg-[var(--color-base)]'
+            }`}
             title="Convertir valores ARS a USD"
           >
             {usdLoading ? <span className="animate-spin inline-block">↻</span> : null}
@@ -911,13 +946,14 @@ export default function InvestmentsPage() {
 
           <button
             onClick={() => setShowCreds(true)}
-            className="pill-btn-icon"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:bg-[var(--color-base)] transition-all"
             title="Configurar credenciales"
           >
-            ⚙
+            <span className="text-base leading-none">⚙</span>
+            <span>Config</span>
           </button>
 
-          <button onClick={() => setEditing(null)} className="pill-btn-secondary font-medium">
+          <button onClick={() => setEditing(null)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 active:scale-95 transition-all">
             <span className="text-base leading-none">+</span>
             <span>Nueva</span>
           </button>
@@ -928,7 +964,7 @@ export default function InvestmentsPage() {
       <div className="card p-4">
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs text-[var(--text-secondary)] font-medium uppercase tracking-wider">Resumen de cartera</p>
-          {showInUsd && usdRate && (
+          {usdRate && (
             <p className="text-xs text-[var(--text-tertiary)]">USD: {usdRate.rate.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
           )}
         </div>
@@ -1134,9 +1170,9 @@ export default function InvestmentsPage() {
 
       {/* Holdings table */}
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 320px)' }}>
           <table className="w-full text-sm">
-            <thead className="bg-surface border-b border-border-color">
+            <thead className="bg-surface border-b border-border-color sticky top-0 z-10">
               <tr>
                 <th className="px-3 py-3 text-left text-secondary font-medium cursor-pointer hover:text-[var(--text-primary)] whitespace-nowrap" onClick={() => toggleSort('name')}>
                   Activo <SortIcon field="name" />
@@ -1196,13 +1232,13 @@ export default function InvestmentsPage() {
                       </div>
                     </td>
                     <td className="px-2 py-3 text-right text-secondary text-sm">
-                      {inv.current_price !== null ? fmt(inv.current_price, inv.currency) : '—'}
+                      {inv.current_price !== null ? toDisplay(inv.current_price, inv.currency) : '—'}
                     </td>
                     <td className="px-2 py-3 text-right font-semibold text-[var(--text-primary)]">
                       {inv.current_value !== null ? toDisplay(inv.current_value, inv.currency) : <span className="text-tertiary font-normal">—</span>}
                     </td>
                     <td className="px-2 py-3 text-right">
-                      <PnlChip pnl={inv.pnl} pnl_pct={inv.pnl_pct} currency={inv.currency} />
+                      <PnlChip pnl={inv.pnl} pnl_pct={inv.pnl_pct} currency={inv.currency} showInUsd={showInUsd} usdRate={usdRate ?? undefined} />
                     </td>
                     <td className="px-1 py-3">
                       <div className="flex items-center justify-center gap-1">
