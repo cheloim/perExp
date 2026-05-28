@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getInvestments,
@@ -15,9 +15,12 @@ import {
   putManualCashBalance,
   deleteManualCashBalance,
   putSetting,
+  lookupSymbol,
+  lookupSymbols,
 } from '../api/client'
 import type { Investment, InvestmentCreate } from '../types'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { InvestmentDetailModal } from '../components/InvestmentDetailModal'
 
 // Parses "1.234,56" or "1234,56" or "1234.56" → 1234.56
 function parseCurrency(s: string): number | null {
@@ -171,7 +174,7 @@ function InlinePriceEdit({ inv, onSave }: { inv: Investment; onSave: (price: num
         onChange={e => setVal(e.target.value)}
         onBlur={commit}
         onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false) }}
-        className="w-28 bg-base-alt border border-primary text-primary text-sm rounded px-2 py-1 focus:outline-none"
+        className="w-28 bg-base-alt border border-primary text-[var(--text-primary)] text-sm rounded px-2 py-1 focus:outline-none"
       />
     )
   }
@@ -179,7 +182,7 @@ function InlinePriceEdit({ inv, onSave }: { inv: Investment; onSave: (price: num
   return (
     <button
       onClick={() => { setVal(inv.current_price !== null ? String(inv.current_price) : ''); setEditing(true) }}
-      className="group flex items-center gap-1 text-sm text-secondary hover:text-primary transition-colors"
+      className="group flex items-center gap-1 text-sm text-secondary hover:text-[var(--text-primary)] transition-colors"
       title="Clic para editar precio"
     >
       {inv.current_price !== null ? fmt(inv.current_price, inv.currency) : <span className="text-tertiary">— sin precio</span>}
@@ -219,6 +222,37 @@ function InvestmentModal({
       : emptyForm,
   )
 
+  const [symbolSearchError, setSymbolSearchError] = useState(false)
+  const [isLookingUpSymbol, setIsLookingUpSymbol] = useState(false)
+
+  useEffect(() => {
+    const symbol = form.ticker?.trim() || ''
+    if (symbol.length < 1) {
+      setSymbolSearchError(false)
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      setIsLookingUpSymbol(true)
+      setSymbolSearchError(false)
+      try {
+        const result = await lookupSymbol(symbol)
+        if (result) {
+          if (!form.name) set('name', result.name)
+          if (result.price) set('current_price', result.price)
+        } else {
+          setSymbolSearchError(true)
+        }
+      } catch {
+        setSymbolSearchError(true)
+      } finally {
+        setIsLookingUpSymbol(false)
+      }
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [form.ticker])
+
   const set = (k: keyof InvestmentCreate, v: unknown) =>
     setForm(prev => ({ ...prev, [k]: v }))
 
@@ -227,8 +261,8 @@ function InvestmentModal({
       <div className="fixed inset-0 bg-black/60" onClick={onClose} />
       <div className="relative card w-full max-w-lg max-h-[90vh] overflow-auto p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-primary">{initial ? 'Editar inversión' : 'Nueva inversión'}</h2>
-          <button onClick={onClose} className="text-tertiary hover:text-primary">✕</button>
+          <h2 className="text-lg font-semibold text-[var(--text-[var(--text-primary)])]">{initial ? 'Editar inversión' : 'Nueva inversión'}</h2>
+          <button onClick={onClose} className="text-tertiary hover:text-[var(--text-primary)]">✕</button>
         </div>
 
         {/* Broker + Type */}
@@ -262,17 +296,24 @@ function InvestmentModal({
           </div>
         </div>
 
-        {/* Ticker + Name */}
+        {/* Symbol + Name */}
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <label className="block text-sm font-medium text-secondary mb-1">Ticker</label>
-            <input
-              type="text"
-              value={form.ticker}
-              onChange={e => set('ticker', e.target.value.toUpperCase())}
-              placeholder="GGAL"
-              className="w-full input uppercase"
-            />
+            <label className="block text-sm font-medium text-secondary mb-1">Symbol</label>
+            <div className="relative">
+              <input
+                type="text"
+                value={form.ticker}
+                onChange={e => set('ticker', e.target.value.toUpperCase())}
+                placeholder="GGAL"
+                className="w-full input uppercase pr-8"
+              />
+              {isLookingUpSymbol && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <span className="spinner" />
+                </span>
+              )}
+            </div>
           </div>
           <div className="col-span-2">
             <label className="block text-sm font-medium text-secondary mb-1">Nombre</label>
@@ -331,6 +372,12 @@ function InvestmentModal({
           <textarea value={form.notes} onChange={e => set('notes', e.target.value)} className="w-full input" rows={2} />
         </div>
 
+        {symbolSearchError && (
+          <p className="text-xs text-warning">
+            ⚠️ No se encontró el symbol. No se podrá actualizar el precio automáticamente.
+          </p>
+        )}
+
         <div className="flex gap-3 pt-2">
           <button onClick={onClose} className="btn-secondary flex-1">Cancelar</button>
           <button onClick={() => onSave(form)} className="btn-primary flex-1">Guardar</button>
@@ -383,8 +430,8 @@ function CredentialsModal({ settings, onClose, onSaved }: {
       <div className="fixed inset-0 bg-black/60" onClick={onClose} />
       <div className="relative card w-full max-w-md p-6 space-y-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-primary">Configuración de brokers</h2>
-          <button onClick={onClose} className="text-tertiary hover:text-primary">✕</button>
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Configuración de brokers</h2>
+          <button onClick={onClose} className="text-tertiary hover:text-[var(--text-primary)]">✕</button>
         </div>
 
         {saved && (
@@ -502,7 +549,7 @@ function ManualCashSection({
             <p className="text-[10px] font-semibold text-tertiary uppercase tracking-wide">{broker}</p>
             {editing === broker
               ? <button onClick={() => commitEdit(broker)} className="text-[10px] text-success hover:text-success/70">✓</button>
-              : <button onClick={() => startEdit(broker)} className="text-[10px] text-tertiary hover:text-primary">✏</button>
+              : <button onClick={() => startEdit(broker)} className="text-[10px] text-tertiary hover:text-[var(--text-primary)]">✏</button>
             }
             <button onClick={() => onDelete(broker)} className="text-[10px] text-danger hover:text-danger/70">✕</button>
           </div>
@@ -516,7 +563,7 @@ function ManualCashSection({
                   onChange={e => setEditArs(e.target.value)}
                   placeholder="0"
                   autoFocus
-                  className="w-28 bg-base-alt border border-primary text-primary text-xs rounded px-2 py-1 focus:outline-none"
+                  className="w-28 bg-base-alt border border-primary text-[var(--text-primary)] text-xs rounded px-2 py-1 focus:outline-none"
                 />
               </div>
               <div>
@@ -526,7 +573,7 @@ function ManualCashSection({
                   value={editUsd}
                   onChange={e => setEditUsd(e.target.value)}
                   placeholder="0"
-                  className="w-24 bg-base-alt border border-primary text-primary text-xs rounded px-2 py-1 focus:outline-none"
+                  className="w-24 bg-base-alt border border-primary text-[var(--text-primary)] text-xs rounded px-2 py-1 focus:outline-none"
                   onKeyDown={e => { if (e.key === 'Enter') commitEdit(broker) }}
                 />
               </div>
@@ -535,11 +582,11 @@ function ManualCashSection({
             <div className="flex gap-3">
               <div>
                 <p className="text-[10px] text-tertiary">ARS</p>
-                <p className="text-sm font-semibold text-primary">{manualCash[broker]?.ars !== null && manualCash[broker]?.ars !== undefined ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(manualCash[broker].ars!) : '—'}</p>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">{manualCash[broker]?.ars !== null && manualCash[broker]?.ars !== undefined ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(manualCash[broker].ars!) : '—'}</p>
               </div>
               <div>
                 <p className="text-[10px] text-tertiary">USD</p>
-                <p className="text-sm font-semibold text-primary">{manualCash[broker]?.usd !== null && manualCash[broker]?.usd !== undefined ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(manualCash[broker].usd!) : '—'}</p>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">{manualCash[broker]?.usd !== null && manualCash[broker]?.usd !== undefined ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(manualCash[broker].usd!) : '—'}</p>
               </div>
             </div>
           )}
@@ -556,6 +603,8 @@ export default function InvestmentsPage() {
   const [brokerFilter, setBrokerFilter] = useState<string | null>(null)
   const [typeFilter, setTypeFilter] = useState<string | null>(null)
   const [editing, setEditing] = useState<Investment | null | undefined>(undefined)
+  const [viewing, setViewing] = useState<Investment | null>(null)
+  const [viewingAggregated, setViewingAggregated] = useState<(Investment & { brokers: string[]; investments: Investment[] }) | null>(null)
   const [sort, setSort] = useState<{ field: SortField; dir: 'asc' | 'desc' }>({ field: 'current_value', dir: 'desc' })
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
   const [showCreds, setShowCreds] = useState(false)
@@ -563,6 +612,8 @@ export default function InvestmentsPage() {
   const [showInUsd, setShowInUsd] = useState(false)
   const [usdRate, setUsdRate] = useState<{ rate: number; date: string } | null>(null)
   const [usdLoading, setUsdLoading] = useState(false)
+  const [brokerDropdownOpen, setBrokerDropdownOpen] = useState<string | null>(null)
+  const [yahooPrices, setYahooPrices] = useState<Record<string, { price: number; currency: string }>>({})
   const scrollRef = useRef<HTMLDivElement>(null)
   const scrollIntervalRef = useRef<number | null>(null)
 
@@ -582,6 +633,22 @@ export default function InvestmentsPage() {
   useEffect(() => {
     return () => { if (scrollIntervalRef.current) clearInterval(scrollIntervalRef.current) }
   }, [])
+
+  // ── Filter by broker (defined early for use in useEffect) ───────────────────────
+  // brokerFiltered se calcula dentro del useEffect para evitar ReferenceError
+
+  // Close broker dropdown when clicking outside
+  useEffect(() => {
+    if (!brokerDropdownOpen) return
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('[data-broker-dropdown]')) {
+        setBrokerDropdownOpen(null)
+      }
+    }
+    document.addEventListener('click', handleClick)
+    return () => document.removeEventListener('click', handleClick)
+  }, [brokerDropdownOpen])
 
   const { data: settings = {} } = useQuery({ queryKey: ['settings'], queryFn: getSettings, staleTime: 60_000 })
   const { data: cashBalances } = useQuery({ queryKey: ['cash-balances'], queryFn: getCashBalances, staleTime: 15 * 60_000 })
@@ -617,6 +684,25 @@ export default function InvestmentsPage() {
     queryKey: ['investments'],
     queryFn: () => getInvestments(),
   })
+
+  // ── Filter by broker (useMemo to avoid initialization order issues) ────────────
+  const brokerFiltered = useMemo(() =>
+    investments.filter(i => !brokerFilter || i.broker === brokerFilter),
+    [investments, brokerFilter]
+  )
+
+  // Fetch Yahoo prices for tickers with multiple brokers
+  useEffect(() => {
+    if (!investments || investments.length === 0) return
+    const tickers = [...new Set(brokerFiltered.map(i => i.ticker).filter(Boolean))] as string[]
+    if (tickers.length === 0) return
+
+    lookupSymbols(tickers).then(prices => {
+      if (prices) {
+        setYahooPrices(prev => ({ ...prev, ...prices }))
+      }
+    })
+  }, [brokerFiltered])
 
   const showSync = (text: string, ok: boolean) => {
     setSyncMsg({ text, ok })
@@ -662,9 +748,62 @@ export default function InvestmentsPage() {
     else createMut.mutate(data)
   }
 
-  const visible = investments
-    .filter(i => !brokerFilter || i.broker === brokerFilter)
+  // ── Aggregate by ticker ───────────────────────────────────────────────────────
+  type AggregatedInv = Investment & { brokers: string[]; investments: Investment[] }
+  const tickerMap = new Map<string, AggregatedInv>()
+
+  for (const inv of brokerFiltered) {
+    const key = inv.ticker || inv.name || `__${inv.id}__`
+    const existing = tickerMap.get(key)
+    if (existing) {
+      // Agregar al ticker existente
+      const newQty = existing.quantity + inv.quantity
+      if (newQty > 0) {
+        existing.avg_cost = ((existing.avg_cost ?? 0) * existing.quantity + (inv.avg_cost ?? 0) * inv.quantity) / newQty
+      }
+      existing.quantity = newQty
+      existing.cost_basis = (existing.cost_basis ?? 0) + (inv.cost_basis ?? 0)
+      const currVal = inv.current_value ?? inv.cost_basis ?? 0
+      const existVal = existing.current_value ?? existing.cost_basis ?? 0
+      existing.current_value = existVal + currVal
+      existing.pnl = (existing.current_value ?? 0) - (existing.cost_basis ?? 0)
+      existing.pnl_pct = existing.cost_basis ? ((existing.pnl ?? 0) / existing.cost_basis) * 100 : 0
+      // Usar current_price más reciente
+      if (inv.current_price && (!existing.current_price || (inv.updated_at && existing.updated_at && inv.updated_at > existing.updated_at))) {
+        existing.current_price = inv.current_price
+      }
+      if (!existing.brokers.includes(inv.broker)) {
+        existing.brokers.push(inv.broker)
+      }
+      existing.investments.push(inv)
+    } else {
+      tickerMap.set(key, {
+        ...inv,
+        brokers: [inv.broker],
+        investments: [inv],
+      })
+    }
+  }
+
+  const visible = Array.from(tickerMap.values())
     .filter(i => !typeFilter || (i.type || 'Otro') === typeFilter)
+    .map(inv => {
+      // Si tenemos precio de Yahoo para este ticker, usarlo
+      if (inv.ticker && yahooPrices[inv.ticker]?.price) {
+        const yf = yahooPrices[inv.ticker]
+        const newCurrentValue = inv.quantity * yf.price
+        const newPnl = newCurrentValue - inv.cost_basis
+        const newPnlPct = inv.cost_basis ? (newPnl / inv.cost_basis) * 100 : 0
+        return {
+          ...inv,
+          current_price: yf.price,
+          current_value: newCurrentValue,
+          pnl: newPnl,
+          pnl_pct: newPnlPct,
+        }
+      }
+      return inv
+    })
 
   const sorted = [...visible].sort((a, b) => {
     const av = a[sort.field as keyof Investment] ?? 0
@@ -693,6 +832,16 @@ export default function InvestmentsPage() {
   const arsPnl    = arsValue - arsCost
   const usdPnl    = usdValue - usdCost
 
+  // ── Full portfolio aggregates (unfiltered) for TOTAL ─────────────────────────
+  const allArsHoldings = investments.filter(i => i.currency === 'ARS')
+  const allUsdHoldings = investments.filter(i => i.currency === 'USD')
+  const totalArsValue  = allArsHoldings.reduce((s, i) => s + (i.current_value ?? i.cost_basis), 0)
+  const totalUsdValue  = allUsdHoldings.reduce((s, i) => s + (i.current_value ?? i.cost_basis), 0)
+  const totalArsCost   = allArsHoldings.reduce((s, i) => s + i.cost_basis, 0)
+  const totalUsdCost   = allUsdHoldings.reduce((s, i) => s + i.cost_basis, 0)
+  const totalArsPnl    = totalArsValue - totalArsCost
+  const totalUsdPnl    = totalUsdValue - totalUsdCost
+
   // Allocation by type — uses broker-filtered only, ignores typeFilter so the chart stays stable
   const visibleForChart = investments.filter(i => !brokerFilter || i.broker === brokerFilter)
   const byType: Record<string, number> = {}
@@ -705,16 +854,31 @@ export default function InvestmentsPage() {
 
   const brokers = [...new Set(investments.map(i => i.broker).filter(Boolean))]
 
+  // ── Per-broker aggregates ────────────────────────────────────────────────────
+  const allBrokers = ['InvertirOnline', 'Portfolio Personal', ...brokers.filter(b => b !== 'InvertirOnline' && b !== 'Portfolio Personal')]
+  const brokerData = allBrokers.map(broker => {
+    const bInv = investments.filter(i => i.broker === broker)
+    const bArs = bInv.filter(i => i.currency === 'ARS')
+    const bUsd = bInv.filter(i => i.currency === 'USD')
+    const bArsValue = bArs.reduce((s, i) => s + (i.current_value ?? i.cost_basis), 0)
+    const bUsdValue = bUsd.reduce((s, i) => s + (i.current_value ?? i.cost_basis), 0)
+    const bArsCost  = bArs.reduce((s, i) => s + i.cost_basis, 0)
+    const bUsdCost  = bUsd.reduce((s, i) => s + i.cost_basis, 0)
+    const bArsPnl   = bArsValue - bArsCost
+    const bUsdPnl   = bUsdValue - bUsdCost
+    return { broker, arsValue: bArsValue, usdValue: bUsdValue, arsPnl: bArsPnl, usdPnl: bUsdPnl, count: bInv.length }
+  }).filter(b => b.count > 0 || b.broker === 'InvertirOnline' || b.broker === 'Portfolio Personal')
+
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sort.field !== field) return <span className="ml-1 text-tertiary">↕</span>
-    return <span className="ml-1 text-primary">{sort.dir === 'asc' ? '↑' : '↓'}</span>
+    return <span className="ml-1 text-[var(--text-primary)]">{sort.dir === 'asc' ? '↑' : '↓'}</span>
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-primary">Inversiones</h1>
+        <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Inversiones</h1>
         <div className="flex flex-wrap items-center gap-2">
           {/* Sync status toast */}
           {syncMsg && (
@@ -729,7 +893,7 @@ export default function InvestmentsPage() {
               onClick={() => syncAllMut.mutate()}
               disabled={syncAllMut.isPending || (!settings.iol_configured && !settings.ppi_configured)}
               title={(!settings.iol_configured && !settings.ppi_configured) ? 'Configurá las credenciales primero' : 'Sincronizar brokers y actualizar precios'}
-              className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-border-color text-secondary hover:text-primary hover:border-border-color transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-border-color text-secondary hover:text-[var(--text-primary)] hover:border-border-color transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {syncAllMut.isPending ? <span className="animate-spin inline-block">↻</span> : '↻'}
               Sincronizar
@@ -743,7 +907,7 @@ export default function InvestmentsPage() {
             className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 ${
               showInUsd
                 ? 'bg-success/20 border-success text-success font-medium'
-                : 'border-border-color text-tertiary hover:text-primary hover:border-border-color'
+                : 'border-border-color text-tertiary hover:text-[var(--text-primary)] hover:border-border-color'
             }`}
             title="Convertir valores ARS a USD oficial (BCRA)"
           >
@@ -753,7 +917,7 @@ export default function InvestmentsPage() {
 
           <button
             onClick={() => setShowCreds(true)}
-            className="text-sm px-3 py-1.5 rounded-lg border border-border-color text-tertiary hover:text-primary hover:border-border-color transition-all"
+            className="text-sm px-3 py-1.5 rounded-lg border border-border-color text-tertiary hover:text-[var(--text-primary)] hover:border-border-color transition-all"
             title="Configurar credenciales"
           >
             ⚙
@@ -766,119 +930,161 @@ export default function InvestmentsPage() {
         </div>
       </div>
 
-      {/* Broker tabs */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <button
-          onClick={() => setBrokerFilter(null)}
-          className={`text-sm px-4 py-1.5 rounded-lg border transition-all ${!brokerFilter ? 'bg-primary text-on-primary border-primary' : 'border-border-color text-tertiary hover:text-primary'}`}
-        >
-          Todos
-        </button>
-        {brokers.map(b => (
-          <button
-            key={b}
-            onClick={() => setBrokerFilter(brokerFilter === b ? null : b)}
-            className={`text-sm px-4 py-1.5 rounded-lg border transition-all ${brokerFilter === b ? 'bg-primary text-on-primary border-primary' : 'border-border-color text-tertiary hover:text-primary'}`}
-          >
-            {b}
-          </button>
-        ))}
-        <button
-          onClick={() => setEditing(null)}
-          className="text-sm px-3 py-1.5 rounded-lg border border-dashed border-border-color text-tertiary hover:text-primary hover:border-border-color transition-all"
-          title="Agregar posición con broker personalizado"
-        >
-          + broker
-        </button>
-      </div>
-
-      {/* Resumen de cartera */}
+      {/* Resumen de cartera - GNOME 50 style */}
       <div className="card p-4">
-        <p className="text-xs text-tertiary font-medium uppercase tracking-wider mb-3">Resumen de cartera</p>
-        <div className="flex flex-wrap items-stretch gap-3">
-          {/* Valor ARS */}
-          <div className="card p-2 w-36 h-28 flex flex-col justify-center">
-            <p className="text-xs text-tertiary uppercase tracking-wider mb-0.5">Valor ARS</p>
-            <p className="text-base font-bold text-primary">{toDisplay(arsValue, 'ARS')}</p>
-            <p className={`text-xs mt-0.5 font-medium ${arsPnl >= 0 ? 'text-success' : 'text-danger'}`}>
-              {arsPnl >= 0 ? '+' : ''}{toDisplay(arsPnl, 'ARS')} P&L
-            </p>
-            <p className="text-[10px] text-tertiary mt-0.5">
-              {arsHoldings.length} pos · {arsValue + usdValue > 0 ? ((arsValue / (arsValue + usdValue)) * 100).toFixed(0) : 0}%
-            </p>
-          </div>
-          {/* Valor USD */}
-          <div className="card p-2 w-36 h-28 flex flex-col justify-center">
-            <p className="text-xs text-tertiary uppercase tracking-wider mb-0.5">Valor USD</p>
-            <p className="text-base font-bold text-primary">{fmt(usdValue, 'USD')}</p>
-            <p className={`text-xs mt-0.5 font-medium ${usdPnl >= 0 ? 'text-success' : 'text-danger'}`}>
-              {usdPnl >= 0 ? '+' : ''}{fmt(usdPnl, 'USD')} P&L
-            </p>
-            <p className="text-[10px] text-tertiary mt-0.5">
-              {usdHoldings.length} pos · {arsValue + usdValue > 0 ? ((usdValue / (arsValue + usdValue)) * 100).toFixed(0) : 0}%
-            </p>
+        <p className="text-xs text-[var(--text-secondary)] font-medium uppercase tracking-wider mb-3">Resumen de cartera</p>
+
+        {/* Broker pills + TOTAL */}
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          {/* Broker pills */}
+          <div className="flex flex-wrap items-center gap-1">
+            {brokerData.map((b) => {
+              const isSelected = brokerFilter === b.broker
+              const isOpen = brokerDropdownOpen === b.broker
+              const arsCost = b.arsValue - b.arsPnl
+              const arsPnlPct = arsCost > 0 ? (b.arsPnl / arsCost) * 100 : 0
+              return (
+                <div key={b.broker} className="relative" data-broker-dropdown>
+                  <button
+                    onClick={() => {
+                      if (isSelected) {
+                        setBrokerFilter(null)
+                      } else {
+                        setBrokerFilter(b.broker)
+                      }
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                      isSelected
+                        ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)]'
+                        : 'bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:bg-[var(--color-base)]'
+                    }`}
+                  >
+                    <span>{isSelected ? '●' : '○'}</span>
+                    <span>{b.broker}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setBrokerDropdownOpen(isOpen ? null : b.broker)
+                      }}
+                      onPointerDown={(e) => {
+                        if (e.pointerType === 'touch') {
+                          e.preventDefault()
+                          const timer = setTimeout(() => {
+                            if (!isOpen) {
+                              setBrokerDropdownOpen(b.broker)
+                            }
+                          }, 500)
+                          ;(e.currentTarget as HTMLElement).dataset.pressTimer = String(timer)
+                        }
+                      }}
+                      onPointerUp={(e) => {
+                        if (e.pointerType === 'touch') {
+                          const timer = (e.currentTarget as HTMLElement).dataset.pressTimer
+                          if (timer) {
+                            clearTimeout(parseInt(timer))
+                            delete (e.currentTarget as HTMLElement).dataset.pressTimer
+                          }
+                        }
+                      }}
+                      className="ml-0.5 text-xs hover:opacity-70"
+                    >
+                      ▼
+                    </button>
+                  </button>
+                  {/* Dropdown */}
+                  {isOpen && isSelected && (
+                    <div className="absolute top-full left-0 mt-1 w-48 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-lg py-1 z-20">
+                      <button
+                        onClick={() => { setBrokerDropdownOpen(null); setEditing(null) }}
+                        className="w-full px-3 py-2 text-sm text-left text-[var(--text-primary)] hover:bg-[var(--color-base-alt)] flex items-center gap-2"
+                      >
+                        <span className="text-[var(--text-tertiary)]">+</span> Agregar inversión
+                      </button>
+                      {(b.broker === 'InvertirOnline' || b.broker === 'Portfolio Personal') && (
+                        <button
+                          onClick={() => { setBrokerDropdownOpen(null); setShowCreds(true) }}
+                          className="w-full px-3 py-2 text-sm text-left text-[var(--text-primary)] hover:bg-[var(--color-base-alt)] flex items-center gap-2"
+                        >
+                          <span className="text-[var(--text-tertiary)]">⚙</span> Configurar
+                        </button>
+                      )}
+                      <button
+                        onClick={() => { setBrokerDropdownOpen(null); syncAllMut.mutate() }}
+                        className="w-full px-3 py-2 text-sm text-left text-[var(--text-primary)] hover:bg-[var(--color-base-alt)] flex items-center gap-2"
+                      >
+                        <span className="text-[var(--text-tertiary)]">↻</span> Sincronizar
+                      </button>
+                      <div className="border-t border-[var(--border-color)] my-1" />
+                      <div className="px-3 py-2 text-xs text-[var(--text-tertiary)]">
+                        <p className="font-medium text-[var(--text-secondary)] mb-1">Saldo disponible</p>
+                        {cashBalances?.iol.configured && b.broker === 'InvertirOnline' && (
+                          <p>ARS: {cashBalances.iol.ars !== null ? fmt(cashBalances.iol.ars) : '—'} | USD: {cashBalances.iol.usd !== null ? fmt(cashBalances.iol.usd) : '—'}</p>
+                        )}
+                        {cashBalances?.ppi.configured && b.broker === 'Portfolio Personal' && (
+                          <p>ARS: {cashBalances.ppi.ars !== null ? fmt(cashBalances.ppi.ars) : '—'} | USD: {cashBalances.ppi.usd !== null ? fmt(cashBalances.ppi.usd) : '—'}</p>
+                        )}
+                        {b.broker !== 'InvertirOnline' && b.broker !== 'Portfolio Personal' && (
+                          <p className="text-[var(--text-tertiary)]">No disponible</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
 
-          {/* Saldos disponibles */}
-          <div className="card p-2 flex-1 min-w-[280px] h-28 overflow-hidden relative group flex flex-col justify-center">
-            <p className="text-xs text-tertiary uppercase tracking-wider mb-0.5">Saldos disponibles</p>
-            <div className="overflow-x-auto scrollbar-none h-[calc(100%-1.5rem)]" ref={scrollRef}>
-              <div className="flex items-start gap-x-6">
-                {/* IOL — auto from API */}
-                {cashBalances?.iol.configured && (
-                  <div className="flex-shrink-0">
-                    <p className="text-[10px] font-semibold text-tertiary uppercase tracking-wide mb-1">InvertirOnline</p>
-                    {cashBalances.iol.error
-                      ? <p className="text-xs text-danger">{cashBalances.iol.error}</p>
-                      : <div className="flex gap-3">
-                          <div><p className="text-[10px] text-tertiary">ARS</p><p className="text-sm font-semibold text-primary">{cashBalances.iol.ars !== null ? toDisplay(cashBalances.iol.ars, 'ARS') : '—'}</p></div>
-                          <div><p className="text-[10px] text-tertiary">USD</p><p className="text-sm font-semibold text-primary">{cashBalances.iol.usd !== null ? fmt(cashBalances.iol.usd, 'USD') : '—'}</p></div>
-                        </div>
-                    }
-                  </div>
-                )}
-                {/* PPI — auto from API */}
-                {cashBalances?.ppi.configured && (
-                  <div className="flex-shrink-0">
-                    <p className="text-[10px] font-semibold text-tertiary uppercase tracking-wide mb-1">Portfolio Personal</p>
-                    {cashBalances.ppi.error
-                      ? <p className="text-xs text-danger">{cashBalances.ppi.error}</p>
-                      : <div className="flex gap-3">
-                          <div><p className="text-[10px] text-tertiary">ARS</p><p className="text-sm font-semibold text-primary">{cashBalances.ppi.ars !== null ? toDisplay(cashBalances.ppi.ars, 'ARS') : '—'}</p></div>
-                          <div><p className="text-[10px] text-tertiary">USD</p><p className="text-sm font-semibold text-primary">{cashBalances.ppi.usd !== null ? fmt(cashBalances.ppi.usd, 'USD') : '—'}</p></div>
-                        </div>
-                    }
-                  </div>
-                )}
-                {/* Manual brokers — editable, horizontal */}
-                <ManualCashSection
-                  knownBrokers={brokers.filter(b => b !== 'InvertirOnline' && b !== 'Portfolio Personal')}
-                  manualCash={manualCash}
-                  onSave={(broker, ars, usd) => manualCashMut.mutate({ broker, ars, usd })}
-                  onDelete={(broker) => manualCashDelMut.mutate(broker)}
-                />
-                {!cashBalances?.iol.configured && !cashBalances?.ppi.configured && Object.keys(manualCash).length === 0 && (
-                  <p className="text-xs text-tertiary">Configurá las credenciales de IOL o PPI, o agregá un broker manual</p>
-                )}
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* TOTAL - clickeable */}
+          <button
+            onClick={() => { setBrokerFilter(null); setBrokerDropdownOpen(null) }}
+            className={`flex flex-col items-end px-3 py-1.5 rounded-lg transition-all ${brokerFilter === null ? 'bg-transparent' : 'hover:bg-[var(--color-base-alt)]'}`}
+          >
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-[var(--text-tertiary)] uppercase">Total</span>
+              {brokerFilter !== null && (
+                <span className="text-[10px] text-[var(--color-primary)]">●</span>
+              )}
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-lg font-bold text-[var(--text-primary)]">{toDisplay(totalArsValue, 'ARS')}</span>
+              <span className="text-xs text-[var(--text-tertiary)]">ARS</span>
+            </div>
+            <div className={`text-xs font-medium ${(totalArsPnl + totalUsdPnl) >= 0 ? 'text-success' : 'text-danger'}`}>
+              {(totalArsPnl + totalUsdPnl) >= 0 ? '+' : ''}{toDisplay(totalArsPnl, 'ARS')} + {fmt(totalUsdPnl, 'USD')} P&L
+            </div>
+          </button>
+        </div>
+
+        {/* Info del broker seleccionado debajo */}
+        {brokerFilter && (() => {
+          const b = brokerData.find(x => x.broker === brokerFilter)
+          if (!b) return null
+          const arsCost = b.arsValue - b.arsPnl
+          const arsPnlPct = arsCost > 0 ? (b.arsPnl / arsCost) * 100 : 0
+          return (
+            <div className="flex items-center gap-4 px-2 py-2 bg-[var(--color-base-alt)] rounded-lg">
+              <div>
+                <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Valor ARS</p>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">{toDisplay(b.arsValue, 'ARS')}</p>
+              </div>
+              {b.usdValue > 0 && (
+                <div>
+                  <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Valor USD</p>
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">{fmt(b.usdValue, 'USD')}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-[10px] text-[var(--text-tertiary)] uppercase">P&L</p>
+                <p className={`text-sm font-semibold ${b.arsPnl >= 0 ? 'text-success' : 'text-danger'}`}>
+                  {b.arsPnl >= 0 ? '+' : ''}{toDisplay(b.arsPnl, 'ARS')} ({arsPnlPct >= 0 ? '+' : ''}{arsPnlPct.toFixed(1)}%)
+                </p>
               </div>
             </div>
-            {/* Scroll indicators - hover to scroll */}
-            <div
-              className="absolute left-0 top-0 w-12 h-full cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-start"
-              onMouseEnter={() => startScroll('left')}
-              onMouseLeave={stopScroll}
-            >
-              <div className="w-full h-full bg-gradient-to-r from-zinc-300/40 to-transparent hover:from-zinc-300/60 transition-all" />
-            </div>
-            <div
-              className="absolute right-0 top-0 w-12 h-full cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-end"
-              onMouseEnter={() => startScroll('right')}
-              onMouseLeave={stopScroll}
-            >
-              <div className="w-full h-full bg-gradient-to-l from-zinc-300/40 to-transparent hover:from-zinc-300/60 transition-all" />
-            </div>
-          </div>
-        </div>
+          )
+        })()}
       </div>
 
       {/* Composición — bar chart */}
@@ -887,7 +1093,7 @@ export default function InvestmentsPage() {
           <div className="flex items-center justify-between mb-4">
             <p className="text-xs text-tertiary font-medium uppercase tracking-wider">Composición por tipo</p>
             {typeFilter && (
-              <button onClick={() => setTypeFilter(null)} className="text-xs text-secondary hover:text-primary">
+              <button onClick={() => setTypeFilter(null)} className="text-xs text-secondary hover:text-[var(--text-primary)]">
                 × {typeFilter}
               </button>
             )}
@@ -931,50 +1137,44 @@ export default function InvestmentsPage() {
           <table className="w-full text-sm">
             <thead className="bg-surface border-b border-border-color">
               <tr>
-                <th className="px-4 py-3 text-left text-secondary font-medium cursor-pointer hover:text-primary whitespace-nowrap" onClick={() => toggleSort('name')}>
+                <th className="px-3 py-3 text-left text-secondary font-medium cursor-pointer hover:text-[var(--text-primary)] whitespace-nowrap" onClick={() => toggleSort('name')}>
                   Activo <SortIcon field="name" />
                 </th>
-                <th className="px-4 py-3 text-left text-secondary font-medium cursor-pointer hover:text-primary" onClick={() => toggleSort('type')}>
+                <th className="px-2 py-3 text-left text-secondary font-medium cursor-pointer hover:text-[var(--text-primary)]" onClick={() => toggleSort('type')}>
                   Tipo <SortIcon field="type" />
                 </th>
-                <th className="px-4 py-3 text-left text-secondary font-medium cursor-pointer hover:text-primary" onClick={() => toggleSort('broker')}>
+                <th className="px-2 py-3 text-left text-secondary font-medium cursor-pointer hover:text-[var(--text-primary)]" onClick={() => toggleSort('broker')}>
                   Broker <SortIcon field="broker" />
                 </th>
-                <th className="px-4 py-3 text-right text-secondary font-medium cursor-pointer hover:text-primary whitespace-nowrap" onClick={() => toggleSort('cost_basis')}>
-                  Costo total <SortIcon field="cost_basis" />
-                </th>
-                <th className="px-4 py-3 text-right text-secondary font-medium whitespace-nowrap">
+                <th className="px-2 py-3 text-right text-secondary font-medium whitespace-nowrap">
                   Precio actual
                 </th>
-                <th className="px-4 py-3 text-right text-secondary font-medium cursor-pointer hover:text-primary whitespace-nowrap" onClick={() => toggleSort('current_value')}>
+                <th className="px-2 py-3 text-right text-secondary font-medium cursor-pointer hover:text-[var(--text-primary)] whitespace-nowrap" onClick={() => toggleSort('current_value')}>
                   Valor actual <SortIcon field="current_value" />
                 </th>
-                <th className="px-4 py-3 text-right text-secondary font-medium cursor-pointer hover:text-primary" onClick={() => toggleSort('pnl')}>
+                <th className="px-2 py-3 text-right text-secondary font-medium cursor-pointer hover:text-[var(--text-primary)]" onClick={() => toggleSort('pnl')}>
                   P&L <SortIcon field="pnl" />
                 </th>
-                <th className="px-4 py-3 text-center text-secondary font-medium">Acc.</th>
+                <th className="px-1 py-3 text-center text-secondary font-medium w-16">Acc.</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-color">
               {isLoading ? (
-                <tr><td colSpan={8} className="py-10 text-center text-tertiary">Cargando...</td></tr>
+                <tr><td colSpan={7} className="py-10 text-center text-tertiary">Cargando...</td></tr>
               ) : sorted.length === 0 ? (
-                <tr><td colSpan={8} className="py-10 text-center text-tertiary">Sin inversiones registradas</td></tr>
+                <tr><td colSpan={7} className="py-10 text-center text-tertiary">Sin inversiones registradas</td></tr>
               ) : (
-                sorted.map(inv => (
-                  <tr key={inv.id} className="hover:bg-base-alt/30 transition-colors">
-                    <td className="px-4 py-3">
+                sorted.map((inv, idx) => (
+                  <tr key={inv.ticker || inv.name || idx} className="hover:bg-base-alt/30 transition-colors">
+                    <td className="px-3 py-3 cursor-pointer" onClick={() => { setViewing(inv.investments[0]); setViewingAggregated(inv) }}>
                       <div>
                         {inv.ticker && (
-                          <span className="text-xs font-bold font-mono text-primary mr-2">{inv.ticker}</span>
+                          <span className="text-xs font-bold font-mono text-[var(--text-primary)] mr-2">{inv.ticker}</span>
                         )}
-                        <span className="text-primary font-medium">{inv.name || '—'}</span>
-                      </div>
-                      <div className="text-xs text-tertiary mt-0.5">
-                        {inv.quantity} unidades · P.avg {fmt(inv.avg_cost, inv.currency)}
+                        <span className="text-[var(--text-primary)] font-medium">{inv.name || '—'}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-2 py-3">
                       <span
                         className="px-2 py-0.5 rounded text-xs font-medium"
                         style={{
@@ -985,33 +1185,37 @@ export default function InvestmentsPage() {
                         {inv.type || '—'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-tertiary text-xs">{inv.broker || '—'}</td>
-                    <td className="px-4 py-3 text-right text-secondary">{toDisplay(inv.cost_basis, inv.currency)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <InlinePriceEdit
-                        inv={inv}
-                        onSave={price => priceMut.mutate({ id: inv.id, price })}
-                      />
-                      {inv.updated_at && inv.current_price !== null && (
-                        <div className="text-[10px] text-secondary mt-0.5">
-                          {new Date(inv.updated_at).toLocaleDateString('es-AR')}
-                        </div>
-                      )}
+                    <td className="px-2 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {inv.brokers.map(b => (
+                          <span key={b} className="inline-block px-1.5 py-0.5 rounded text-xs bg-base-alt text-tertiary">
+                            {b}
+                          </span>
+                        ))}
+                      </div>
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-primary">
+                    <td className="px-2 py-3 text-right text-secondary text-sm">
+                      {inv.current_price !== null ? fmt(inv.current_price, inv.currency) : '—'}
+                    </td>
+                    <td className="px-2 py-3 text-right font-semibold text-[var(--text-primary)]">
                       {inv.current_value !== null ? toDisplay(inv.current_value, inv.currency) : <span className="text-tertiary font-normal">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-2 py-3 text-right">
                       <PnlChip pnl={inv.pnl} pnl_pct={inv.pnl_pct} currency={inv.currency} />
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      <button onClick={() => setEditing(inv)} className="text-primary hover:brightness-110 mr-3">✏️</button>
-                      <button
-                        onClick={() => setDeleteConfirmId(inv.id)}
-                        className="text-danger hover:brightness-110"
-                      >
-                        🗑️
-                      </button>
+                    <td className="px-1 py-3">
+                      <div className="flex items-center justify-center gap-1">
+                        <button onClick={() => setEditing(inv.investments[0])} className="text-[var(--text-primary)] hover:brightness-110 p-1">✏️</button>
+                        <button
+                          onClick={() => setDeleteConfirmId(inv.investments[0].id)}
+                          className="text-danger hover:brightness-110 p-1"
+                        >
+                          🗑️
+                        </button>
+                        {inv.investments.length > 1 && (
+                          <button onClick={() => { setViewing(inv.investments[0]); setViewingAggregated(inv) }} className="text-xs text-tertiary hover:text-[var(--text-primary)]" title="Ver detalle">👁</button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -1035,6 +1239,14 @@ export default function InvestmentsPage() {
           knownBrokers={brokers}
         />
       )}
+
+      <InvestmentDetailModal
+        isOpen={viewing !== null}
+        investment={viewing}
+        allInvestments={viewingAggregated?.investments}
+        onClose={() => { setViewing(null); setViewingAggregated(null) }}
+        onEdit={(inv) => { setViewing(null); setViewingAggregated(null); setEditing(inv) }}
+      />
 
       {showCreds && (
         <CredentialsModal

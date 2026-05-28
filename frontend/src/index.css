@@ -29,7 +29,22 @@
   transform-origin: left;
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-base-alt);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
 :root {
+  --font-family: 'Inter', 'Cantarell', 'Ubuntu', system-ui, -apple-system, sans-serif;
+
   --color-base:           #f6f5f4;
   --color-base-alt:       #deddda;
   --color-base-container: #ffffff;
@@ -51,14 +66,66 @@
   --text-tertiary:  #9a9996;
   --border-color:   rgba(0,0,0,0.1);
 
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+  --focus-ring: rgba(53,132,228,0.2);
+
+  --gnome-red-1:    #ff7b63;
+  --gnome-red-2:    #ed333b;
   --gnome-red-3:    #e01b24;
   --gnome-red-4:    #c01c28;
+  --gnome-red-5:    #a51d2b;
+  --gnome-red-6:    #8b1e25;
+  --gnome-red-7:    #722022;
+  --gnome-green-1:  #8ff0a4;
+  --gnome-green-2:  #57e389;
   --gnome-green-3:  #33d17a;
-  --gnome-green-5:  #26a269;
+  --gnome-green-4:  #26a269;
+  --gnome-green-5:  #1b7f3e;
+  --gnome-green-6:  #166b37;
+  --gnome-green-7:  #0f5c29;
+  --gnome-yellow-1:  #f9f06b;
+  --gnome-yellow-2:  #f8e45c;
   --gnome-yellow-3: #f6d32d;
-  --gnome-yellow-5: #e5a50a;
+  --gnome-yellow-4: #e5a50a;
+  --gnome-yellow-5: #b78c09;
+  --gnome-yellow-6: #9a6700;
+  --gnome-yellow-7: #7c5300;
+  --gnome-blue-1:   #99c1f1;
+  --gnome-blue-2:   #62a0ea;
   --gnome-blue-3:   #3584e4;
+  --gnome-blue-4:   #1c71d8;
   --gnome-blue-5:   #1a5fb4;
+  --gnome-blue-6:   #184c8a;
+  --gnome-blue-7:   #103f6b;
+  --gnome-purple-1: #c061cb;
+  --gnome-purple-2: #9141ac;
+  --gnome-purple-3: #813d9c;
+  --gnome-purple-4: #613583;
+  --gnome-purple-5: #503b69;
+  --gnome-purple-6: #3d3458;
+  --gnome-purple-7: #2b2644;
+  --gnome-orange-1: #ff7800;
+  --gnome-orange-2: #e66100;
+  --gnome-orange-3: #c64600;
+  --gnome-orange-4: #a35100;
+  --gnome-orange-5: #8c4a00;
+  --gnome-orange-6: #704520;
+  --gnome-orange-7: #5a3e2b;
+  --gnome-brown-1:  #9a6e4e;
+  --gnome-brown-2:  #865e3c;
+  --gnome-brown-3:  #70492c;
+  --gnome-brown-4:  #5c3d21;
+  --gnome-brown-5:  #4c3222;
+  --gnome-brown-6:  #3c291e;
+  --gnome-brown-7:  #2e2018;
+  --gnome-gray-1:  #9a9996;
+  --gnome-gray-2:  #77767b;
+  --gnome-gray-3:  #5e5c64;
+  --gnome-gray-4:  #3d3846;
+  --gnome-gray-5:  #241f31;
+  --gnome-gray-6:  #1c1b1f;
+  --gnome-gray-7:  #000000;
 
   --rdp-accent-color: #3584e4;
   --rdp-bg: rgba(53,132,228,0.1);
@@ -92,14 +159,66 @@
   --text-tertiary:  #858585;
   --border-color:   rgba(255,255,255,0.1);
 
-  --gnome-red-3:    #ed333b;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.2);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+  --focus-ring: rgba(98,160,234,0.3);
+
+  --gnome-red-1:    #ff7b63;
+  --gnome-red-2:    #ed333b;
+  --gnome-red-3:    #e01b24;
   --gnome-red-4:    #c01c28;
+  --gnome-red-5:    #a51d2b;
+  --gnome-red-6:    #8b1e25;
+  --gnome-red-7:    #722022;
+  --gnome-green-1:  #8ff0a4;
+  --gnome-green-2:  #57e389;
   --gnome-green-3:  #33d17a;
-  --gnome-green-5:  #26a269;
+  --gnome-green-4:  #26a269;
+  --gnome-green-5:  #1b7f3e;
+  --gnome-green-6:  #166b37;
+  --gnome-green-7:  #0f5c29;
+  --gnome-yellow-1:  #f9f06b;
+  --gnome-yellow-2:  #f8e45c;
   --gnome-yellow-3: #f8e45c;
-  --gnome-yellow-5: #e5a50a;
-  --gnome-blue-3:   #62a0ea;
+  --gnome-yellow-4: #e5a50a;
+  --gnome-yellow-5: #b78c09;
+  --gnome-yellow-6: #9a6700;
+  --gnome-yellow-7: #7c5300;
+  --gnome-blue-1:   #99c1f1;
+  --gnome-blue-2:   #62a0ea;
+  --gnome-blue-3:   #3584e4;
+  --gnome-blue-4:   #1c71d8;
   --gnome-blue-5:   #1a5fb4;
+  --gnome-blue-6:   #184c8a;
+  --gnome-blue-7:   #103f6b;
+  --gnome-purple-1: #c061cb;
+  --gnome-purple-2: #9141ac;
+  --gnome-purple-3: #813d9c;
+  --gnome-purple-4: #613583;
+  --gnome-purple-5: #503b69;
+  --gnome-purple-6: #3d3458;
+  --gnome-purple-7: #2b2644;
+  --gnome-orange-1: #ff7800;
+  --gnome-orange-2: #e66100;
+  --gnome-orange-3: #c64600;
+  --gnome-orange-4: #a35100;
+  --gnome-orange-5: #8c4a00;
+  --gnome-orange-6: #704520;
+  --gnome-orange-7: #5a3e2b;
+  --gnome-brown-1:  #9a6e4e;
+  --gnome-brown-2:  #865e3c;
+  --gnome-brown-3:  #70492c;
+  --gnome-brown-4:  #5c3d21;
+  --gnome-brown-5:  #4c3222;
+  --gnome-brown-6:  #3c291e;
+  --gnome-brown-7:  #2e2018;
+  --gnome-gray-1:  #9a9996;
+  --gnome-gray-2:  #77767b;
+  --gnome-gray-3:  #5e5c64;
+  --gnome-gray-4:  #3d3846;
+  --gnome-gray-5:  #241f31;
+  --gnome-gray-6:  #ffffff;
+  --gnome-gray-7:  #ffffff;
 
   --rdp-accent-color: #62a0ea;
   --rdp-bg: rgba(98,160,234,0.15);
@@ -114,6 +233,7 @@
 @layer base {
   * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
   body {
+    font-family: var(--font-family);
     background: var(--color-base);
     color: var(--color-on-surface);
     min-height: 100vh;
@@ -138,7 +258,7 @@
   select {
     appearance: none;
     border-radius: inherit;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23808080' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2376767b' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 0.75rem center;
     padding-right: 2rem;
@@ -176,7 +296,7 @@
     background: var(--color-surface);
     border: 1px solid var(--border-color);
     border-radius: 0.5rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    box-shadow: var(--shadow-sm);
   }
 
   .btn-primary {
@@ -242,7 +362,7 @@
     transition: all 0.2s;
   }
   .input::placeholder { color: var(--text-tertiary); }
-  .input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(53,132,228,0.2); }
+  .input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--focus-ring); }
 
   .select-input {
     width: 100% !important;
@@ -255,13 +375,13 @@
     transition: all 0.15s;
     cursor: pointer;
     appearance: none !important;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2371717a' d='M2 4l4 4 4-4'/%3E%3C/svg%3E") !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2377767b' d='M2 4l4 4 4-4'/%3E%3C/svg%3E") !important;
     background-repeat: no-repeat !important;
     background-position: right 0.75rem center !important;
     padding-right: 2rem !important;
   }
   .select-input:hover { border-color: var(--text-secondary) !important; }
-  .select-input:focus { outline: none !important; border-color: var(--color-primary) !important; box-shadow: 0 0 0 2px rgba(53,132,228,0.2) !important; }
+  .select-input:focus { outline: none !important; border-color: var(--color-primary) !important; box-shadow: 0 0 0 2px var(--focus-ring) !important; }
 
   .table-th {
     padding: 0.75rem 1rem;
@@ -281,7 +401,7 @@
   .alert-success {
     background: rgba(38,162,105,0.1);
     border: 1px solid rgba(38,162,105,0.3);
-    color: var(--gnome-green-5);
+    color: var(--gnome-green-4);
     padding: 0.625rem 1rem;
     border-radius: 0.375rem;
     font-size: 0.875rem;
@@ -297,7 +417,7 @@
   .alert-warning {
     background: rgba(229,165,10,0.1);
     border: 1px solid rgba(229,165,10,0.3);
-    color: var(--gnome-yellow-5);
+    color: var(--gnome-yellow-6);
     padding: 0.625rem 1rem;
     border-radius: 0.375rem;
     font-size: 0.875rem;
@@ -325,7 +445,7 @@
     border-radius: 9999px;
     font-size: 0.75rem; font-weight: 500;
     background: rgba(38,162,105,0.12);
-    color: var(--gnome-green-5);
+    color: var(--gnome-green-4);
   }
   .badge-danger {
     display: inline-flex; align-items: center;
@@ -341,7 +461,7 @@
     border-radius: 9999px;
     font-size: 0.75rem; font-weight: 500;
     background: rgba(229,165,10,0.12);
-    color: var(--gnome-yellow-5);
+    color: var(--gnome-yellow-6);
   }
   .badge-neutral {
     display: inline-flex; align-items: center;
@@ -367,9 +487,9 @@
   .text-tertiary  { color: var(--text-tertiary); }
   .text-panel-title { color: var(--text-secondary) !important; }
   .installments-title { color: var(--text-secondary) !important; }
-  .text-success   { color: var(--gnome-green-5); }
+  .text-success   { color: var(--gnome-green-4); }
   .text-danger    { color: var(--gnome-red-3); }
-  .text-warning   { color: var(--gnome-yellow-5); }
+  .text-warning   { color: var(--gnome-yellow-6); }
 
   .bg-surface     { background: var(--color-surface); }
   .bg-base-alt    { background: var(--color-base-alt); }

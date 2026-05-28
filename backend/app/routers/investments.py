@@ -130,11 +130,38 @@ def get_investments(broker: Optional[str] = None, db: Session = Depends(get_db),
 
 @router.post("/investments", status_code=201)
 def create_investment(data: InvestmentCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    inv = Investment(**data.model_dump(), user_id=current_user.id, updated_at=datetime.utcnow())
-    db.add(inv)
-    db.commit()
-    db.refresh(inv)
-    return _inv_response(inv)
+    # Buscar precio de Yahoo Finance automáticamente
+    yf_quote = _fetch_yahoo_quote(data.ticker) if data.ticker else None
+
+    # Buscar si ya existe ticker+broker para este usuario
+    existing = db.query(Investment).filter(
+        Investment.ticker == data.ticker,
+        Investment.broker == data.broker,
+        Investment.user_id == current_user.id,
+    ).first()
+
+    if existing:
+        # Sumar quantities y promediar avg_cost
+        new_qty = existing.quantity + data.quantity
+        if new_qty > 0 and data.avg_cost > 0:
+            existing.avg_cost = (existing.quantity * existing.avg_cost + data.quantity * data.avg_cost) / new_qty
+        existing.quantity = new_qty
+        # Usar precio de Yahoo Finance si está disponible
+        if yf_quote and yf_quote.get("price"):
+            existing.current_price = yf_quote["price"]
+        existing.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(existing)
+        return _inv_response(existing)
+    else:
+        inv = Investment(**data.model_dump(), user_id=current_user.id, updated_at=datetime.utcnow())
+        # Sobrescribir current_price con el de Yahoo si está disponible
+        if yf_quote and yf_quote.get("price"):
+            inv.current_price = yf_quote["price"]
+        db.add(inv)
+        db.commit()
+        db.refresh(inv)
+        return _inv_response(inv)
 
 
 @router.put("/investments/{inv_id}")
@@ -144,6 +171,10 @@ def update_investment(inv_id: int, data: InvestmentCreate, db: Session = Depends
         raise HTTPException(404, "Inversión no encontrada")
     for k, v in data.model_dump().items():
         setattr(inv, k, v)
+    # Obtener precio actualizado de Yahoo Finance
+    yf_quote = _fetch_yahoo_quote(data.ticker) if data.ticker else None
+    if yf_quote and yf_quote.get("price"):
+        inv.current_price = yf_quote["price"]
     inv.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(inv)
@@ -723,3 +754,144 @@ async def investments_chat_stream(body: dict):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ─── Symbol Lookup ─────────────────────────────────────────────────────────────
+
+def _fetch_yahoo_quote(symbol: str) -> dict | None:
+    """Fetch quote from Yahoo Finance for a given symbol."""
+    import requests as _req
+    yf_headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"}
+    yf_symbol = symbol if "." in symbol else f"{symbol}.BA"
+    url = f"https://query2.finance.yahoo.com/v8/finance/chart/{yf_symbol}"
+    try:
+        resp = _req.get(url, params={"interval": "1d", "range": "1d"}, headers=yf_headers, timeout=10)
+        if resp.status_code != 200:
+            return None
+        result = resp.json().get("chart", {}).get("result", [])
+        if not result:
+            return None
+        meta = result[0].get("meta", {})
+        return {
+            "symbol": symbol.upper(),
+            "name": meta.get("shortName", ""),
+            "price": meta.get("regularMarketPrice"),
+            "currency": meta.get("currency", "USD"),
+        }
+    except Exception:
+        return None
+
+
+@router.get("/investments/lookup")
+def lookup_symbol(
+    symbol: str,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Busca un símbolo en Yahoo Finance y retorna nombre y precio actual.
+    """
+    if not symbol or len(symbol.strip()) < 1:
+        return None
+    symbol = symbol.strip().upper()
+    result = _fetch_yahoo_quote(symbol)
+    return result
+
+
+@router.get("/investments/lookup-batch")
+def lookup_symbols(
+    symbols: str,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Busca múltiples símbolos en Yahoo Finance y retorna un dict {symbol: {name, price, currency}}.
+    """
+    if not symbols or len(symbols.strip()) < 1:
+        return {}
+    result = {}
+    for symbol in symbols.split(","):
+        symbol = symbol.strip().upper()
+        if symbol:
+            quote = _fetch_yahoo_quote(symbol)
+            result[symbol] = quote if quote else {"symbol": symbol, "name": "", "price": None, "currency": "USD"}
+    return result
+
+
+# ─── Investment History ─────────────────────────────────────────────────────────
+
+def _get_yahoo_ticker(inv: Investment) -> str | None:
+    """Map internal ticker to Yahoo Finance symbol."""
+    if not inv.ticker:
+        return None
+    ticker = inv.ticker.strip().upper()
+    currency = inv.currency or "ARS"
+    if currency == "USD":
+        return ticker
+    if "." not in ticker:
+        return f"{ticker}.BA"
+    return ticker
+
+
+def _fetch_yahoo_history(ticker: str, range_str: str, interval: str) -> list[dict]:
+    """Fetch historical prices from Yahoo Finance."""
+    import requests as _req
+    yf_headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"}
+    url = f"https://query2.finance.yahoo.com/v8/finance/chart/{ticker}"
+    params = {"interval": interval, "range": range_str}
+    try:
+        resp = _req.get(url, params=params, headers=yf_headers, timeout=10)
+        if resp.status_code != 200:
+            return []
+        result = resp.json().get("chart", {}).get("result", [])
+        if not result:
+            return []
+        quotes = result[0].get("indicators", {}).get("quote", [{}])
+        timestamps = result[0].get("timestamp", [])
+        closes = quotes[0].get("close", []) if quotes else []
+        if not timestamps or not closes:
+            return []
+        from datetime import datetime
+        formatted = []
+        for ts, close in zip(timestamps, closes):
+            if close is None:
+                continue
+            dt = datetime.fromtimestamp(ts)
+            formatted.append({
+                "date": dt.strftime("%Y-%m-%d"),
+                "close": round(float(close), 2),
+            })
+        return formatted[-30:]
+    except Exception:
+        return []
+
+
+@router.get("/investments/{inv_id}/history")
+def get_investment_history(
+    inv_id: int,
+    range: str = "7d",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Returns price history for an investment.
+    range: 1d, 7d, 30d (maps to Yahoo Finance range)
+    Returns current price and array of {date, close} entries.
+    """
+    inv = db.query(Investment).filter(
+        Investment.id == inv_id,
+        Investment.user_id == current_user.id,
+    ).first()
+    if not inv:
+        raise HTTPException(404, "Inversión no encontrada")
+
+    ticker = _get_yahoo_ticker(inv)
+    interval_map = {"1d": "5m", "7d": "15m", "30d": "1h"}
+    interval = interval_map.get(range, "15m")
+
+    history = _fetch_yahoo_history(ticker, range, interval) if ticker else []
+
+    return {
+        "ticker": inv.ticker or "",
+        "currency": inv.currency or "ARS",
+        "current_price": inv.current_price,
+        "history": history,
+    }

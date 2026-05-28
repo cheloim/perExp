@@ -320,6 +320,24 @@ export const updateInvestment = (id: number, data: InvestmentCreate) =>
 export const updateInvestmentPrice = (id: number, current_price: number | null) =>
   api.patch<Investment>(`/investments/${id}/price`, { current_price }).then((r) => r.data)
 
+export const getInvestmentHistory = (id: number, range: '1d' | '7d' | '30d' = '7d') =>
+  api.get<{ ticker: string; currency: string; current_price: number | null; history: { date: string; close: number }[] }>(
+    `/investments/${id}/history`,
+    { params: { range } }
+  ).then((r) => r.data)
+
+export const lookupSymbol = (symbol: string) =>
+  api.get<{ symbol: string; name: string; price: number | null; currency: string } | null>(
+    '/investments/lookup',
+    { params: { symbol } }
+  ).then((r) => r.data)
+
+export const lookupSymbols = (symbols: string[]) =>
+  api.get<Record<string, { symbol: string; name: string; price: number | null; currency: string }>>(
+    '/investments/lookup-batch',
+    { params: { symbols: symbols.join(",") } }
+  ).then((r) => r.data)
+
 export const deleteInvestment = (id: number) =>
   api.delete(`/investments/${id}`).then((r) => r.data)
 

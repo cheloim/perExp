@@ -2,7 +2,7 @@ import { ResponsiveContainer, ComposedChart, CartesianGrid, XAxis, YAxis, Toolti
 import type { CardSummary } from '../types'
 import { formatCurrency } from '../utils/format'
 
-const COLORS = ['#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316']
+const COLORS = ['var(--gnome-yellow-3)', 'var(--gnome-green-3)', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316']
 const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
 function addMonths(base: string, delta: number): string {
@@ -77,16 +77,16 @@ export function CardEvolutionChart({ cardData, activeCard, filterMonth }: Props)
       </h2>
       <ResponsiveContainer width="100%" height={320}>
         <ComposedChart data={fullData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-color)" />
-          <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--color-tertiary)' }} tickFormatter={fmtMonth} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+          <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--chart-text)' }} tickFormatter={fmtMonth} />
           <YAxis
             tickFormatter={(v) => new Intl.NumberFormat('es-AR', { notation: 'compact' } as any).format(v as number)}
-            tick={{ fontSize: 11, fill: 'var(--color-tertiary)' }}
+            tick={{ fontSize: 11, fill: 'var(--chart-text)' }}
             width={55}
           />
           <Tooltip
-            contentStyle={{ backgroundColor: 'var(--color-bg-color)', borderColor: 'var(--color-border-color)', color: 'var(--color-text-color)' }}
-            itemStyle={{ color: 'var(--color-text-color)' }}
+            contentStyle={{ backgroundColor: 'var(--chart-tooltip-bg)', borderColor: 'var(--chart-tooltip-border)', color: 'var(--chart-tooltip-text)' }}
+            itemStyle={{ color: 'var(--chart-tooltip-text)' }}
             formatter={(v: number, name: string) => {
               if (name === 'total') return [formatCurrency(v), 'Total']
               const card = cardData.find(c => ckey(c) === name)
@@ -94,10 +94,10 @@ export function CardEvolutionChart({ cardData, activeCard, filterMonth }: Props)
             }}
             labelFormatter={fmtMonth}
           />
-          <ReferenceLine x={filterMonth} stroke="var(--color-border-color)" strokeDasharray="4 4" label={{ value: 'hoy', fill: 'var(--color-tertiary)', fontSize: 10 }} />
+          <ReferenceLine x={filterMonth} stroke="var(--border-color)" strokeDasharray="4 4" label={{ value: 'hoy', fill: 'var(--text-tertiary)', fontSize: 10 }} />
           <Line
             type="monotone" dataKey="total" name="total"
-            stroke="#6366f1" strokeWidth={activeCard ? 1 : 3}
+            stroke="var(--color-primary)" strokeWidth={activeCard ? 1 : 3}
             strokeDasharray="6 3" dot={{ r: activeCard ? 2 : 4 }} connectNulls
             opacity={activeCard ? 0.2 : 1}
           />
@@ -121,7 +121,7 @@ export function CardEvolutionChart({ cardData, activeCard, filterMonth }: Props)
       </ResponsiveContainer>
       <div className="flex items-center gap-4 mt-3 flex-wrap">
         <span className="flex items-center gap-1.5 text-xs text-secondary">
-          <span className="w-3 h-2 rounded-sm bg-indigo-500 inline-block" /> Total
+          <span className="w-3 h-2 rounded-sm bg-[var(--color-primary)] inline-block" /> Total
         </span>
         {cardData.slice(0, 6).map((card, idx) => (
           <span key={ckey(card)} className="flex items-center gap-1.5 text-xs text-secondary">

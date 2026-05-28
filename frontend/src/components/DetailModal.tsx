@@ -26,7 +26,7 @@ export function DetailModal({ isOpen, onClose, title, subtitle, children }: Deta
       <div className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-t-lg sm:rounded-lg shadow-xl w-full sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-color)]">
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold text-[var(--text-primary)] truncate">{title}</h2>
+            <h2 className="text-base font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{title}</h2>
             {subtitle && (
               <p className="text-xs text-[var(--text-tertiary)]">{subtitle}</p>
             )}

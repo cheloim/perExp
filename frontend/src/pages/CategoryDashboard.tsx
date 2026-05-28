@@ -260,25 +260,25 @@ export default function CategoryDashboard() {
           <p className="text-secondary text-sm text-center py-12">Sin datos</p>
         ) : (
           <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={trendData.rows} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-              <XAxis
-                dataKey="month"
-                tick={{ fontSize: 11, fill: '#a1a1aa' }}
-                tickFormatter={(v: string) => {
-                  const [y, m] = String(v).split('-')
-                  const names = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
-                  return `${names[parseInt(m)-1]} ${y.slice(2)}`
-                }}
-              />
-              <YAxis
-                tickFormatter={(v) => new Intl.NumberFormat('es-AR', { notation: 'compact' } as any).format(v)}
-                tick={{ fontSize: 11, fill: '#a1a1aa' }}
-                width={52}
-              />
-              <Tooltip
-                contentStyle={{ backgroundColor: 'var(--color-chart-tooltip-bg)', borderColor: 'var(--color-chart-tooltip-border)', color: '#f4f4f5' }}
-                itemStyle={{ color: '#f4f4f5' }}
+              <LineChart data={trendData.rows} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
+                <XAxis
+                  dataKey="month"
+                  tick={{ fontSize: 11, fill: 'var(--chart-text)' }}
+                  tickFormatter={(v: string) => {
+                    const [y, m] = String(v).split('-')
+                    const names = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+                    return `${names[parseInt(m)-1]} ${y.slice(2)}`
+                  }}
+                />
+                <YAxis
+                  tickFormatter={(v) => new Intl.NumberFormat('es-AR', { notation: 'compact' } as any).format(v)}
+                  tick={{ fontSize: 11, fill: 'var(--chart-text)' }}
+                  width={52}
+                />
+                <Tooltip
+                  contentStyle={{ backgroundColor: 'var(--chart-tooltip-bg)', borderColor: 'var(--chart-tooltip-border)', color: 'var(--chart-tooltip-text)' }}
+                  itemStyle={{ color: 'var(--chart-tooltip-text)' }}
                 formatter={(v: number, name: string) => [formatCurrency(v), name]}
                 labelFormatter={(l: string) => {
                   const [y, m] = l.split('-')
@@ -302,10 +302,10 @@ export default function CategoryDashboard() {
                   key={cat.name}
                   type="monotone"
                   dataKey={cat.name}
-                  stroke={cat.color || '#94a3b8'}
+                  stroke={cat.color || 'var(--chart-text)'}
                   strokeWidth={selectedCategoryName === cat.name ? 3 : 2}
                   strokeOpacity={selectedCategoryName && selectedCategoryName !== cat.name ? 0.2 : 1}
-                  dot={{ r: 3, fill: cat.color || '#94a3b8' }}
+                  dot={{ r: 3, fill: cat.color || 'var(--chart-text)' }}
                   activeDot={{ r: 5, onClick: () => handleLegendClick(cat.name) }}
                   connectNulls
                 />

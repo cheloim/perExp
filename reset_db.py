@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
 Limpia la base de datos del Credit Card Analyzer.
-Borra todos los gastos e historial de análisis, conserva las categorías.
+Borra todos los gastos e historial de análisis, conserva usuarios, grupos y categorías.
 
 Uso:
     python reset_db.py              # limpia gastos + historial
     python reset_db.py --all        # limpia todo incluyendo categorías
     python reset_db.py --dry-run    # muestra qué borraría sin ejecutar
     python reset_db.py --force      # limpia sin pedir confirmación
-    python reset_db.py --vacuum      # ejecuta VACUUM tras borrar (reclama espacio)
+    python reset_db.py --vacuum     # ejecuta VACUUM tras borrar (reclama espacio)
 """
 
 import sqlite3
@@ -28,11 +28,9 @@ TABLES = [
     "investments",
     "groups",
     "group_members",
-    "users",
 ]
 
 TABLE_STRUCT = {t: ["id", "name"] for t in TABLES}
-TABLE_STRUCT["users"] += ["email", "full_name"]
 TABLE_STRUCT["groups"] += ["name"]
 if "--all" in sys.argv[1:]:
     TABLES.append("categories")

@@ -399,9 +399,9 @@ export default function ImportJobPreview() {
   }
 
   return (
-    <div className="p-6 space-y-4 max-h-screen overflow-y-auto">
+    <div className="h-screen flex flex-col overflow-hidden p-2.5 gap-3">
       {/* Header con botones */}
-      <div className="flex items-center justify-between">
+      <div className="flex-shrink-0 flex items-center justify-between">
         <h1 className="text-xl font-semibold text-[var(--text-primary)]">
           Preview: {job.filename}
         </h1>
@@ -484,48 +484,45 @@ export default function ImportJobPreview() {
           {/* Tarjetas a crear */}
           {detectedCards.length > 0 && (
             <div className="space-y-2">
-              <h3 className="text-xs font-medium text-[var(--text-secondary)]">Tarjetas a crear</h3>
-              <div className="space-y-2">
-                {detectedCards.map((dc, idx) => {
-                  const key = getCardKey(dc.bank, dc.card, dc.holders[0] || '')
-                  const entry = customNamingEdits[key] || { custom_naming: dc.suggested_custom_naming, bank: dc.bank, card_name: dc.card, holder: dc.holders[0] }
-                  return (
-                    <div key={idx} className={`flex items-center gap-3 p-2 bg-[var(--color-surface)] rounded-md border ${spotlightNaming && !entry.custom_naming?.trim() ? 'border-yellow-500 ring-2 ring-yellow-500/50' : 'border-[var(--border-color)]'}`}>
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold bg-[var(--color-primary)] text-[var(--color-on-primary)]">
-                        💳
-                      </div>
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <input
-                          type="text"
-                          value={entry.custom_naming || ''}
-                          onChange={e => setCustomNamingEdits(prev => ({ ...prev, [key]: { ...prev[key], custom_naming: e.target.value } }))}
-                          placeholder="Nombre personalizado"
-                          className={`w-full px-2 py-1 border rounded text-sm bg-[var(--color-base-container)] focus:outline-none focus:ring-2 transition ${
-                            !entry.custom_naming?.trim()
-                              ? 'border-red-500 focus:ring-red-500/30'
-                              : 'border-[var(--border-color)] focus:ring-primary/30'
-                          }`}
-                        />
-                        <div className="text-xs text-[var(--text-secondary)] flex items-center gap-1 flex-wrap">
-                          <span>{entry.card_name || dc.card}</span>
-                          <span className="text-[var(--text-tertiary)]">·</span>
-                          <span>{entry.bank || dc.bank}</span>
-                          <span className="text-[var(--text-tertiary)]">·</span>
-                          <span>{titleCase(entry.holder || dc.holders[0] || '')}</span>
-                        </div>
-                      </div>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--color-base-alt)] text-[var(--text-secondary)]">
-                        {dc.transaction_count} gastos
-                      </span>
+              {detectedCards.map((dc, idx) => {
+                const key = getCardKey(dc.bank, dc.card, dc.holders[0] || '')
+                const entry = customNamingEdits[key] || { custom_naming: dc.suggested_custom_naming, bank: dc.bank, card_name: dc.card, holder: dc.holders[0] }
+                return (
+                  <div key={idx} className={`flex items-center gap-3 p-2 bg-[var(--color-surface)] rounded-md border ${spotlightNaming && !entry.custom_naming?.trim() ? 'border-yellow-500 ring-2 ring-yellow-500/50' : 'border-[var(--border-color)]'}`}>
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold bg-[var(--color-primary)] text-[var(--color-on-primary)]">
+                      💳
                     </div>
-                  )
-                })}
-              </div>
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <input
+                        type="text"
+                        value={entry.custom_naming || ''}
+                        onChange={e => setCustomNamingEdits(prev => ({ ...prev, [key]: { ...prev[key], custom_naming: e.target.value } }))}
+                        placeholder="Nombre personalizado"
+                        className={`w-full px-2 py-1 border rounded text-sm bg-[var(--color-base-container)] focus:outline-none focus:ring-2 transition ${
+                          !entry.custom_naming?.trim()
+                            ? 'border-red-500 focus:ring-red-500/30'
+                            : 'border-[var(--border-color)] focus:ring-primary/30'
+                        }`}
+                      />
+                      <div className="text-xs text-[var(--text-secondary)] flex items-center gap-1 flex-wrap">
+                        <span>{entry.card_name || dc.card}</span>
+                        <span className="text-[var(--text-tertiary)]">·</span>
+                        <span>{entry.bank || dc.bank}</span>
+                        <span className="text-[var(--text-tertiary)]">·</span>
+                        <span>{titleCase(entry.holder || dc.holders[0] || '')}</span>
+                      </div>
+                    </div>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--color-base-alt)] text-[var(--text-secondary)]">
+                      {dc.transaction_count} gastos
+                    </span>
+                  </div>
+                )
+              })}
             </div>
           )}
 
           {/* Info adicional */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm pt-2 border-t border-[var(--border-color)]">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs pt-2 border-t border-[var(--border-color)]">
             <div>
               <span className="text-[var(--text-secondary)]">Cierre:</span>
               <span className="ml-2 text-[var(--text-primary)] font-medium">{currentSummary.closing_date || '-'}</span>
@@ -551,9 +548,10 @@ export default function ImportJobPreview() {
       )}
 
       {/* Transactions table */}
-      <div className="bg-[var(--color-base-container)] rounded-lg border border-[var(--border-color)] overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="bg-[var(--color-base-container)] rounded-lg border border-[var(--border-color)] overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
             <thead className="bg-[var(--color-base-alt)] border-b border-[var(--border-color)]">
               <tr className="text-left text-[var(--text-secondary)]">
                 <th className="py-3 px-4">Fecha</th>
@@ -682,16 +680,17 @@ export default function ImportJobPreview() {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="text-xs text-[var(--text-secondary)] space-y-1">
-        <p>Total de transacciones: {rows.length}</p>
-        <p>Duplicadas: {rows.filter((r: SmartImportRow) => r.is_duplicate).length}</p>
-        <p>Programadas (futuras): {rows.filter((r: SmartImportRow) => (r as any).is_scheduled).length}</p>
-        <p>Generadas automáticamente: {rows.filter((r: SmartImportRow) => r.is_auto_generated).length}</p>
+      <div className="flex-shrink-0 flex items-center gap-4 text-xs text-[var(--text-secondary)]">
+        <span>Total: {rows.length}</span>
+        <span>Duplicadas: {rows.filter((r: SmartImportRow) => r.is_duplicate).length}</span>
+        <span>Programadas: {rows.filter((r: SmartImportRow) => (r as any).is_scheduled).length}</span>
+        <span>Auto-generadas: {rows.filter((r: SmartImportRow) => r.is_auto_generated).length}</span>
       </div>
 
       {/* Modal de bulk edit */}

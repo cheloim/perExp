@@ -98,11 +98,24 @@ def _is_duplicate(
             if existing:
                 _log(f"[DUP by txn_id+installment] txn_id={transaction_id} inst={installment_number}/{installment_total} matched id={existing.id}")
                 return True
-            return False
-        existing = db.query(Expense).filter(Expense.transaction_id == transaction_id).first()
-        if existing:
-            _log(f"[DUP by txn_id] txn_id={transaction_id} matched id={existing.id}")
-            return True
+            # Fall through to check ScheduledExpense and installment_group_id
+        else:
+            existing = db.query(Expense).filter(Expense.transaction_id == transaction_id).first()
+            if existing:
+                _log(f"[DUP by txn_id] txn_id={transaction_id} matched id={existing.id}")
+                return True
+
+        # Always check ScheduledExpense by installment_group_id if provided
+        if installment_group_id:
+            existing_scheduled = db.query(ScheduledExpense).filter(
+                ScheduledExpense.installment_group_id == installment_group_id,
+                ScheduledExpense.installment_number == installment_number,
+                ScheduledExpense.installment_total == installment_total,
+                ScheduledExpense.status == "PENDING"
+            ).first()
+            if existing_scheduled:
+                _log(f"[DUP by txn_id+installment_group_id in ScheduledExpense] txn_id={transaction_id} inst={installment_number}/{installment_total} group_id={installment_group_id} matched id={existing_scheduled.id}")
+                return True
         return False
 
     if installment_number and installment_total and installment_total >= 2:
@@ -237,7 +250,8 @@ def _expand_installments(parsed: list, db: Session, user_id: int) -> tuple[list,
                 continue
             if _is_duplicate(db, charge_date, template["amount"], template["description"],
                              transaction_id=txn_id or None,
-                             installment_number=i, installment_total=inst_total):
+                             installment_number=i, installment_total=inst_total,
+                             installment_group_id=group_id):
                 continue
             generated.add(gen_key)
             expenses_extra.append({
@@ -269,12 +283,14 @@ def _expand_installments(parsed: list, db: Session, user_id: int) -> tuple[list,
             # Verificar duplicados en expenses
             if _is_duplicate(db, charge_date, template["amount"], template["description"],
                              transaction_id=txn_id or None,
-                             installment_number=i, installment_total=inst_total):
+                             installment_number=i, installment_total=inst_total,
+                             installment_group_id=group_id):
                 continue
 
             # Verificar duplicados en scheduled_expenses
             if _is_scheduled_duplicate(db, charge_date, template["amount"],
-                                       template["description"], i, inst_total, user_id):
+                                       template["description"], i, inst_total, user_id,
+                                       installment_group_id=group_id):
                 continue
 
             generated.add(gen_key)

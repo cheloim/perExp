@@ -7,7 +7,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', ...defaultTheme.fontFamily.sans],
+        sans: ['Inter', 'Cantarell', 'Ubuntu', 'system-ui', '-apple-system', ...defaultTheme.fontFamily.sans],
       },
       colors: {
         gnomeBlue1:    '#99c1f1',
@@ -68,10 +68,30 @@ export default {
         'sidebar-icon-active': 'var(--color-sidebar-icon-active)',
         'sidebar-indicator': 'var(--color-sidebar-indicator)',
         'sidebar-text-active': 'var(--color-sidebar-text-active)',
-        success:      'var(--gnome-green-5)',
+        success:      'var(--gnome-green-4)',
         danger:       'var(--gnome-red-3)',
-        warning:      'var(--gnome-yellow-5)',
+        warning:      'var(--gnome-yellow-6)',
         info:         'var(--color-primary)',
+      },
+      textColor: {
+        primary:    'var(--text-primary)',
+        secondary:  'var(--text-secondary)',
+        tertiary:   'var(--text-tertiary)',
+        success:    'var(--gnome-green-4)',
+        danger:     'var(--gnome-red-3)',
+        warning:    'var(--gnome-yellow-6)',
+        info:       'var(--color-primary)',
+      },
+      backgroundColor: {
+        primary:    'var(--color-primary)',
+        secondary:  'var(--color-base-alt)',
+        surface:    'var(--color-surface)',
+        base:       'var(--color-base)',
+        baseAlt:    'var(--color-base-alt)',
+        success:    'var(--gnome-green-4)',
+        danger:     'var(--gnome-red-3)',
+        warning:    'var(--gnome-yellow-6)',
+        info:       'var(--color-primary)',
       },
       borderColor: {
         DEFAULT: 'var(--border-color)',
@@ -90,8 +110,8 @@ export default {
       },
       borderRadius: {
         sm:  '6px',
-        DEFAULT: '8px',
-        md:  '10px',
+        DEFAULT: '6px',
+        md:  '8px',
         lg:  '12px',
         xl:  '16px',
       },

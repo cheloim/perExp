@@ -196,7 +196,7 @@ function MainLayout() {
 
         {/* Scrollable content */}
         <main className="flex-1 overflow-y-auto overflow-x-auto relative z-10">
-          <div className="w-full px-4 sm:px-6 lg:px-8 py-8 md:py-10">
+          <div className={`w-full px-4 sm:px-6 lg:px-8 ${location.pathname.startsWith('/import-jobs') ? 'py-0' : 'py-8 md:py-10'}`}>
             <Routes>
               <Route path="/login"          element={<LoginPage />} />
               <Route path="/oauth/google/callback" element={<OAuthCallback />} />

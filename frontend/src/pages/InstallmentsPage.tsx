@@ -256,10 +256,10 @@ export default function InstallmentsPage() {
               return (
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={monthlyLoad} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                     <XAxis
                       dataKey="month"
-                      tick={{ fontSize: 10, fill: '#71717a' }}
+                      tick={{ fontSize: 10, fill: 'var(--chart-text)' }}
                       tickFormatter={(v: string) => {
                         const [y, m] = v.split('-')
                         return `${MONTHS_ES[parseInt(m) - 1]} ${y.slice(2)}`
@@ -267,22 +267,22 @@ export default function InstallmentsPage() {
                     />
                     <YAxis
                       tickFormatter={(v) => new Intl.NumberFormat('es-AR', { notation: 'compact' } as any).format(v)}
-                      tick={{ fontSize: 11, fill: '#71717a' }}
+                      tick={{ fontSize: 11, fill: 'var(--chart-text)' }}
                       width={52}
                     />
                     <Tooltip
-                      contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e4e4e7', color: '#18181b', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.10)' }}
-                      labelStyle={{ fontWeight: 600, color: '#18181b', marginBottom: 4 }}
-                      itemStyle={{ color: '#3f3f46' }}
+                      contentStyle={{ backgroundColor: 'var(--chart-tooltip-bg)', borderColor: 'var(--chart-tooltip-border)', color: 'var(--chart-tooltip-text)', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.10)' }}
+                      labelStyle={{ fontWeight: 600, marginBottom: 4 }}
+                      itemStyle={{ color: 'var(--chart-tooltip-text)' }}
                       formatter={(v: number, _: string, props: any) => {
                         const entry = props.payload
                         const kind = entry?.is_current ? 'Mes actual' : entry?.is_past ? 'Pagado' : 'Proyectado'
                         if (!entry?.is_current && currentTotal > 0) {
                           const pct = ((v - currentTotal) / currentTotal) * 100
                           const sign = pct > 0 ? '+' : ''
-                          const color = pct > 0 ? '#ef4444' : '#22c55e'
+                          const color = pct > 0 ? 'var(--color-danger)' : 'var(--color-success)'
                           return [
-                            <span style={{ color: '#18181b' }}>{formatCurrency(v)} <span style={{ color, fontWeight: 700 }}>({sign}{pct.toFixed(2)}%)</span></span>,
+                            <span>{formatCurrency(v)} <span style={{ color, fontWeight: 700 }}>({sign}{pct.toFixed(2)}%)</span></span>,
                             kind,
                           ]
                         }
@@ -295,10 +295,10 @@ export default function InstallmentsPage() {
                     />
                     <Bar dataKey="total" radius={[4, 4, 0, 0]}>
                       {monthlyLoad.map((e) => {
-                        let fill = '#3b82f6'
-                        if (e.is_current) fill = '#22c55e'
-                        else if (e.is_past) fill = '#f59e0b'
-                        else if (currentTotal > 0) fill = e.total > currentTotal ? '#ef4444' : '#3b82f6'
+                        let fill = 'var(--color-primary)'
+                        if (e.is_current) fill = 'var(--color-success)'
+                        else if (e.is_past) fill = 'var(--gnome-yellow-3)'
+                        else if (currentTotal > 0) fill = e.total > currentTotal ? 'var(--color-danger)' : 'var(--color-primary)'
                         return <Cell key={e.month} fill={fill} fillOpacity={e.is_past ? 0.75 : 1} />
                       })}
                     </Bar>
@@ -459,12 +459,12 @@ export default function InstallmentsPage() {
       {/* Modal de gestión de cuotas programadas */}
       {showScheduledModal && selectedGroup && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowScheduledModal(false)}>
-          <div className="card p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4 hover:bg-[var(--color-base-alt)] -mx-6 px-6 py-3 -mt-6 rounded-t-xl">
-              <h2 className="text-lg font-semibold installments-title">
+          <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-[var(--border-color)]">
+              <h2 className="text-base font-semibold text-[var(--text-primary)]">
                 Cuotas Programadas: {toUpperCase(selectedGroup.description)}
               </h2>
-              <button onClick={() => setShowScheduledModal(false)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">✕</button>
+              <button onClick={() => setShowScheduledModal(false)} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors text-lg leading-none">✕</button>
             </div>
 
             <div className="space-y-2">
@@ -472,26 +472,26 @@ export default function InstallmentsPage() {
                 <p className="text-[var(--text-secondary)] text-sm text-center py-4">No hay cuotas programadas</p>
               ) : (
                 scheduledForGroup.map(s => (
-                  <div key={s.id} className="flex items-center justify-between p-3 border border-border-color rounded hover:bg-[var(--color-base-alt)] transition-colors">
+                  <div key={s.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors">
                     <div>
-                      <p className="font-medium text-[var(--text-secondary)]">
+                      <p className="font-medium text-[var(--text-primary)]">
                         Cuota {s.installment_number}/{s.installment_total}
                       </p>
-                      <p className="text-xs text-[var(--text-secondary)]">
+                      <p className="text-xs text-[var(--text-tertiary)]">
                         {formatDateDMY(s.scheduled_date)} · {formatCurrency(s.amount, s.currency)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => executeMutation.mutate(s.id)}
-                        className="px-3 py-1.5 text-xs rounded bg-primary text-on-primary hover:brightness-110"
+                        className="px-3 py-1.5 text-xs rounded-lg bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 transition-all"
                         disabled={executeMutation.isPending}
                       >
                         Ejecutar ahora
                       </button>
                       <button
                         onClick={() => setCancelConfirm(s.id)}
-                        className="px-3 py-1.5 text-xs rounded border border-border-color text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition-colors"
+                        className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition-colors"
                         disabled={cancelMutation.isPending}
                       >
                         Cancelar

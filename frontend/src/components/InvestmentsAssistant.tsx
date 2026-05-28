@@ -300,7 +300,7 @@ export default function InvestmentsAssistant() {
 
   const { panelWidth: contextWidth, isCollapsed: contextCollapsed, setPanelWidth, setIsCollapsed } = usePanelWidth()
   const [panelWidth, setPanelWidthLocal] = useState(PANEL_DEFAULT_WIDTH)
-  const [isCollapsed, setIsCollapsedLocal] = useState(false)
+  const [isCollapsed, setIsCollapsedLocal] = useState(true)
   const [isDragging, setIsDragging] = useState(false)
 
   useEffect(() => {
