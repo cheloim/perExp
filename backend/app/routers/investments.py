@@ -426,12 +426,17 @@ def sync_ppi(db: Session = Depends(get_db), current_user: User = Depends(get_cur
                 existing.name          = name or existing.name
                 existing.updated_at    = datetime.utcnow()
                 # avg_cost is NOT provided by PPI API — preserve whatever the user set manually
+                # If avg_cost is 0 but we have current_price, use it as fallback so P&L shows something
+                if (existing.avg_cost or 0) == 0 and price_f is not None and price_f > 0:
+                    existing.avg_cost = price_f
                 updated += 1
             else:
+                # Use current_price as fallback avg_cost so P&L shows >= 0% instead of "--"
+                fallback_avg = price_f if price_f is not None and price_f > 0 else 0
                 db.add(Investment(
                     ticker=ticker, name=name, type=inv_type,
                     broker="Portfolio Personal",
-                    quantity=quantity_f, avg_cost=0,
+                    quantity=quantity_f, avg_cost=fallback_avg,
                     current_price=price_f,
                     currency=currency, notes="", updated_at=datetime.utcnow(),
                     user_id=current_user.id,
@@ -460,15 +465,28 @@ _ADR_TICKERS = list(_BCBA_ADR_MAP.values())
 
 @router.get("/investments/usd-rate")
 def get_usd_rate():
-    """Returns USD/ARS rate. Tries ADR-implied rate (Yahoo Finance) first,
-    then BCRA official, then BNA fallback.
+    """Returns USD/ARS rate. Tries BNA (dolarapi.com) first,
+    then ADR-implied rate (Yahoo Finance), then BCRA official.
 
+    BNA provides the official USD/ARS price from Argentine banks.
     The ADR-implied rate is calculated as: BCBA_price_ARS / NYSE_ADR_price_USD.
     This reflects the market's implicit CCL even if broker is not configured.
     """
     import requests as _req
 
-    # ── Attempt 1: ADR-implied rate via Yahoo Finance ─────────────────────────
+    # ── Attempt 1: BNA (dolarapi.com) ─────────────────────────────────────────
+    try:
+        resp = _req.get("https://dolarapi.com/v1/dolares/oficial", timeout=8)
+        resp.raise_for_status()
+        data = resp.json()
+        rate = data.get("venta") or data.get("compra")
+        if rate:
+            fecha = (data.get("fechaActualizacion") or "")[:10]
+            return {"rate": float(rate), "date": fecha, "source": "BNA"}
+    except Exception:
+        pass
+
+    # ── Attempt 2: ADR-implied rate via Yahoo Finance ─────────────────────────
     yf_headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"}
     for bcba_ticker, adr_ticker in _BCBA_ADR_MAP.items():
         try:
@@ -503,7 +521,7 @@ def get_usd_rate():
         except Exception:
             continue
 
-    # ── Attempt 2: BCRA official ──────────────────────────────────────────────
+    # ── Attempt 3: BCRA official ──────────────────────────────────────────────
     try:
         today = date.today()
         desde = (today - timedelta(days=7)).strftime("%Y-%m-%d")
@@ -522,17 +540,7 @@ def get_usd_rate():
     except Exception:
         pass
 
-    # ── Attempt 3: BNA (dolarapi.com) ─────────────────────────────────────────
-    try:
-        resp = _req.get("https://dolarapi.com/v1/dolares/oficial", timeout=8)
-        resp.raise_for_status()
-        data = resp.json()
-        rate = data.get("venta") or data.get("compra")
-        if rate:
-            fecha = (data.get("fechaActualizacion") or "")[:10]
-            return {"rate": float(rate), "date": fecha, "source": "BNA (dolarapi.com)"}
-    except Exception as e:
-        raise HTTPException(502, f"No se pudo obtener el tipo de cambio (ADR, BCRA y BNA fallaron): {e}")
+    raise HTTPException(502, "No se pudo obtener el tipo de cambio (BNA, ADR y BCRA fallaron)")
 
 
 # ─── Cash Balances ────────────────────────────────────────────────────────────

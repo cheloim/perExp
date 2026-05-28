@@ -672,9 +672,9 @@ export default function InvestmentsPage() {
       const r = await getUsdRate()
       setUsdRate(r)
       setShowInUsd(true)
-      showSync(`USD Oficial: $${r.rate.toLocaleString('es-AR', { minimumFractionDigits: 2 })} · ${r.date}`, true)
+      showSync(`USD: $${r.rate.toLocaleString('es-AR', { minimumFractionDigits: 2 })} · ${r.date}`, true)
     } catch {
-      showSync('No se pudo obtener el tipo de cambio BCRA', false)
+      showSync('No se pudo obtener el tipo de cambio USD', false)
     } finally {
       setUsdLoading(false)
     }
@@ -888,54 +888,53 @@ export default function InvestmentsPage() {
           )}
 
           {/* Sync all brokers + manual prices */}
-          <div className="flex flex-col items-end">
-            <button
-              onClick={() => syncAllMut.mutate()}
-              disabled={syncAllMut.isPending || (!settings.iol_configured && !settings.ppi_configured)}
-              title={(!settings.iol_configured && !settings.ppi_configured) ? 'Configurá las credenciales primero' : 'Sincronizar brokers y actualizar precios'}
-              className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-border-color text-secondary hover:text-[var(--text-primary)] hover:border-border-color transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {syncAllMut.isPending ? <span className="animate-spin inline-block">↻</span> : '↻'}
-              Sincronizar
-            </button>
-          </div>
+          <button
+            onClick={() => syncAllMut.mutate()}
+            disabled={syncAllMut.isPending || (!settings.iol_configured && !settings.ppi_configured)}
+            title={(!settings.iol_configured && !settings.ppi_configured) ? 'Configurá las credenciales primero' : 'Sincronizar brokers y actualizar precios'}
+            className="pill-btn-secondary disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+          >
+            {syncAllMut.isPending ? <span className="animate-spin inline-block">↻</span> : '↻'}
+            <span>Sincronizar</span>
+          </button>
 
           {/* USD Conversion */}
           <button
             onClick={handleToggleUsd}
             disabled={usdLoading}
-            className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 ${
-              showInUsd
-                ? 'bg-success/20 border-success text-success font-medium'
-                : 'border-border-color text-tertiary hover:text-[var(--text-primary)] hover:border-border-color'
-            }`}
-            title="Convertir valores ARS a USD oficial (BCRA)"
+            className={`pill-btn-toggle font-medium ${showInUsd ? 'active' : ''}`}
+            title="Convertir valores ARS a USD"
           >
-            {usdLoading ? <span className="animate-spin inline-block text-xs">↻</span> : null}
-            {showInUsd ? 'USD Oficial ✓' : '$ → USD'}
+            {usdLoading ? <span className="animate-spin inline-block">↻</span> : null}
+            <span>{showInUsd ? 'USD' : 'ARS'}</span>
           </button>
 
           <button
             onClick={() => setShowCreds(true)}
-            className="text-sm px-3 py-1.5 rounded-lg border border-border-color text-tertiary hover:text-[var(--text-primary)] hover:border-border-color transition-all"
+            className="pill-btn-icon"
             title="Configurar credenciales"
           >
             ⚙
           </button>
 
-          <button onClick={() => setEditing(null)} className="btn-primary flex items-center gap-2 text-sm">
-            <span className="text-lg leading-none">+</span>
-            Nueva
+          <button onClick={() => setEditing(null)} className="pill-btn-secondary font-medium">
+            <span className="text-base leading-none">+</span>
+            <span>Nueva</span>
           </button>
         </div>
       </div>
 
       {/* Resumen de cartera - GNOME 50 style */}
       <div className="card p-4">
-        <p className="text-xs text-[var(--text-secondary)] font-medium uppercase tracking-wider mb-3">Resumen de cartera</p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs text-[var(--text-secondary)] font-medium uppercase tracking-wider">Resumen de cartera</p>
+          {showInUsd && usdRate && (
+            <p className="text-xs text-[var(--text-tertiary)]">USD: {usdRate.rate.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
+          )}
+        </div>
 
         {/* Broker pills + TOTAL */}
-        <div className="flex flex-wrap items-center gap-2 mb-3">
+        <div className="flex items-center justify-between gap-2 mb-3">
           {/* Broker pills */}
           <div className="flex flex-wrap items-center gap-1">
             {brokerData.map((b) => {
@@ -945,7 +944,9 @@ export default function InvestmentsPage() {
               const arsPnlPct = arsCost > 0 ? (b.arsPnl / arsCost) * 100 : 0
               return (
                 <div key={b.broker} className="relative" data-broker-dropdown>
-                  <button
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => {
                       if (isSelected) {
                         setBrokerFilter(null)
@@ -953,6 +954,7 @@ export default function InvestmentsPage() {
                         setBrokerFilter(b.broker)
                       }
                     }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { if (isSelected) { setBrokerFilter(null) } else { setBrokerFilter(b.broker) } } }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
                       isSelected
                         ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)]'
@@ -990,7 +992,7 @@ export default function InvestmentsPage() {
                     >
                       ▼
                     </button>
-                  </button>
+                  </div>
                   {/* Dropdown */}
                   {isOpen && isSelected && (
                     <div className="absolute top-full left-0 mt-1 w-48 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-lg py-1 z-20">
@@ -1034,28 +1036,27 @@ export default function InvestmentsPage() {
             })}
           </div>
 
-          {/* Spacer */}
-          <div className="flex-1" />
-
-          {/* TOTAL - clickeable */}
-          <button
-            onClick={() => { setBrokerFilter(null); setBrokerDropdownOpen(null) }}
-            className={`flex flex-col items-end px-3 py-1.5 rounded-lg transition-all ${brokerFilter === null ? 'bg-transparent' : 'hover:bg-[var(--color-base-alt)]'}`}
-          >
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-[var(--text-tertiary)] uppercase">Total</span>
-              {brokerFilter !== null && (
-                <span className="text-[10px] text-[var(--color-primary)]">●</span>
-              )}
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-lg font-bold text-[var(--text-primary)]">{toDisplay(totalArsValue, 'ARS')}</span>
-              <span className="text-xs text-[var(--text-tertiary)]">ARS</span>
-            </div>
-            <div className={`text-xs font-medium ${(totalArsPnl + totalUsdPnl) >= 0 ? 'text-success' : 'text-danger'}`}>
-              {(totalArsPnl + totalUsdPnl) >= 0 ? '+' : ''}{toDisplay(totalArsPnl, 'ARS')} + {fmt(totalUsdPnl, 'USD')} P&L
-            </div>
-          </button>
+          {/* TOTAL - right side, info only, clickeable to clear filter */}
+          <div className="flex-shrink-0">
+            <button
+              onClick={() => { setBrokerFilter(null); setBrokerDropdownOpen(null) }}
+              className={`flex flex-col items-end px-3 py-1.5 rounded-lg transition-all ${brokerFilter === null ? 'bg-transparent' : 'hover:bg-[var(--color-base-alt)]'}`}
+            >
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-[var(--text-tertiary)] uppercase">Total</span>
+                {brokerFilter !== null && (
+                  <span className="text-[10px] text-[var(--color-primary)]">●</span>
+                )}
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-lg font-bold text-[var(--text-primary)]">{toDisplay(totalArsValue, 'ARS')}</span>
+                <span className="text-xs text-[var(--text-tertiary)]">ARS</span>
+              </div>
+              <div className={`text-xs font-medium ${(totalArsPnl + totalUsdPnl) >= 0 ? 'text-success' : 'text-danger'}`}>
+                {(totalArsPnl + totalUsdPnl) >= 0 ? '+' : ''}{toDisplay(totalArsPnl, 'ARS')} + {fmt(totalUsdPnl, 'USD')} P&L
+              </div>
+            </button>
+          </div>
         </div>
 
         {/* Info del broker seleccionado debajo */}
@@ -1212,9 +1213,6 @@ export default function InvestmentsPage() {
                         >
                           🗑️
                         </button>
-                        {inv.investments.length > 1 && (
-                          <button onClick={() => { setViewing(inv.investments[0]); setViewingAggregated(inv) }} className="text-xs text-tertiary hover:text-[var(--text-primary)]" title="Ver detalle">👁</button>
-                        )}
                       </div>
                     </td>
                   </tr>

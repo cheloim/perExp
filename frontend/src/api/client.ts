@@ -332,6 +332,12 @@ export const lookupSymbol = (symbol: string) =>
     { params: { symbol } }
   ).then((r) => r.data)
 
+export const fetchUsdRate = () =>
+  lookupSymbol('USDARS=X').then(data => {
+    if (!data || !data.price) return null
+    return { rate: data.price, date: new Date().toISOString().split('T')[0], source: 'Yahoo' }
+  })
+
 export const lookupSymbols = (symbols: string[]) =>
   api.get<Record<string, { symbol: string; name: string; price: number | null; currency: string }>>(
     '/investments/lookup-batch',

@@ -297,6 +297,7 @@ export default function InvestmentsAssistant() {
   const [expandedId, setExpandedId]   = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [floatingOpen, setFloatingOpen] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
 
   const { panelWidth: contextWidth, isCollapsed: contextCollapsed, setPanelWidth, setIsCollapsed } = usePanelWidth()
   const [panelWidth, setPanelWidthLocal] = useState(PANEL_DEFAULT_WIDTH)
@@ -340,6 +341,27 @@ export default function InvestmentsAssistant() {
   useEffect(() => { floatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, floatingOpen])
   useEffect(() => { if (floatingOpen) setTimeout(() => floatInputRef.current?.focus(), 100) }, [floatingOpen])
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (isExpanded) {
+        setIsExpanded(false)
+        if (!isCollapsed) return
+        setFloatingOpen(false)
+      } else if (!isCollapsed) {
+        setIsCollapsedLocal(true)
+        setIsCollapsed(true)
+        setFloatingOpen(false)
+      } else if (floatingOpen) {
+        setFloatingOpen(false)
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isCollapsed, isExpanded, floatingOpen])
+
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+
   const startDrag = useRef<number | null>(null)
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -381,6 +403,15 @@ export default function InvestmentsAssistant() {
     setIsCollapsed(false)
     setPanelWidthLocal(PANEL_DEFAULT_WIDTH)
     setPanelWidth(PANEL_DEFAULT_WIDTH)
+    setIsExpanded(false)
+  }
+
+  const handleExpand = () => {
+    if (isMobile) {
+      setFloatingOpen(true)
+    } else {
+      setIsExpanded(true)
+    }
   }
 
   const sendMessage = async () => {
@@ -471,7 +502,7 @@ export default function InvestmentsAssistant() {
   // ── Shared JSX fragments ────────────────────────────────────────────────────
 
   const headerJsx = (onExpand?: () => void) => (
-<div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)] flex-shrink-0">
+  <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)] flex-shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-[var(--text-secondary)]"><ChartIcon /></span>
           <span className="text-sm font-semibold text-[var(--text-primary)]">Asistente Inversiones</span>
@@ -490,6 +521,11 @@ export default function InvestmentsAssistant() {
         {onExpand && (
           <button onClick={onExpand} className="text-tertiary hover:text-primary transition-colors p-1 rounded" title="Expandir">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" /></svg>
+          </button>
+        )}
+        {isExpanded && (
+          <button onClick={() => setIsExpanded(false)} className="text-tertiary hover:text-primary transition-colors p-1 rounded" title="Cerrar">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12" /></svg>
           </button>
         )}
       </div>
@@ -582,7 +618,7 @@ export default function InvestmentsAssistant() {
             <ChevronRightIcon />
           </button>
 
-          {headerJsx(() => setFloatingOpen(true))}
+          {headerJsx(handleExpand)}
           {toolbarJsx}
           {showHistory ? historyJsx : <MessageList messages={messages} streaming={streaming} endRef={chatEndRef} />}
           {!showHistory && inputBarJsx(inputRef)}
