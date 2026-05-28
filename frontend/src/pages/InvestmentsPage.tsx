@@ -906,7 +906,7 @@ export default function InvestmentsPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-screen overflow-hidden">
       {/* Fixed header section */}
       <div className="flex-shrink-0 px-6 pt-6 pb-4 space-y-4">
         {/* Header */}
@@ -1172,13 +1172,13 @@ export default function InvestmentsPage() {
       </div>
 
       {/* Scrollable table area */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
+      <div className="flex-1 min-h-[150px] max-h-[55vh] overflow-hidden px-6 pb-6">
 
       {/* Holdings table */}
-      <div className="card overflow-hidden">
-        <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 320px)' }}>
+      <div className="card h-full overflow-hidden flex flex-col">
+        <div className="overflow-y-auto flex-1">
           <table className="w-full text-sm">
-            <thead className="bg-surface border-b border-border-color sticky top-0 z-10">
+            <thead className="bg-surface border-b border-border-color sticky top-0 z-10 flex-none">
               <tr>
                 <th className="px-3 py-3 text-left text-secondary font-medium cursor-pointer hover:text-[var(--text-primary)] whitespace-nowrap" onClick={() => toggleSort('name')}>
                   Activo <SortIcon field="name" />
@@ -1263,12 +1263,12 @@ export default function InvestmentsPage() {
             </tbody>
           </table>
         </div>
-        {sorted.length > 0 && (
-          <div className="px-4 py-2 border-t border-border-color text-xs text-tertiary text-right">
-            {sorted.length} posiciones
-          </div>
-        )}
       </div>
+      {sorted.length > 0 && (
+        <div className="flex-shrink-0 px-4 py-2 border-t border-border-color text-xs text-tertiary text-right">
+          {sorted.length} posiciones
+        </div>
+      )}
       </div>
 
       {editing !== undefined && (
