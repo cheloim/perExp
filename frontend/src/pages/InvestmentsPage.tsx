@@ -906,7 +906,7 @@ export default function InvestmentsPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col h-full">
       {/* Fixed header section */}
       <div className="flex-shrink-0 px-6 pt-6 pb-4 space-y-4">
         {/* Header */}
