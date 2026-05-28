@@ -906,9 +906,11 @@ export default function InvestmentsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="flex flex-col h-screen overflow-hidden">
+      {/* Fixed header section */}
+      <div className="flex-shrink-0 px-6 pt-6 pb-4 space-y-4">
+        {/* Header */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Inversiones</h1>
         <div className="flex flex-wrap items-center gap-2">
           {/* Sync status toast */}
@@ -1167,6 +1169,10 @@ export default function InvestmentsPage() {
           </div>
         </div>
       )}
+      </div>
+
+      {/* Scrollable table area */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
 
       {/* Holdings table */}
       <div className="card overflow-hidden">
@@ -1262,6 +1268,7 @@ export default function InvestmentsPage() {
             {sorted.length} posiciones
           </div>
         )}
+      </div>
       </div>
 
       {editing !== undefined && (
