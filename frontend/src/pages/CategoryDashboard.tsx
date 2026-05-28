@@ -138,9 +138,14 @@ export default function CategoryDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-primary">Por Categoría</h1>
+      {/* Header Bar */}
+      <div className="flex items-center justify-between gap-4 px-1">
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-semibold text-[var(--text-primary)] tracking-tight">Por Categoría</h1>
+          {activeCat && (
+            <span className="text-sm text-[var(--text-tertiary)]">/ {activeCat.category_name}</span>
+          )}
+        </div>
         <MonthSelector value={month} onChange={(v) => { setMonth(v); setSelectedCategoryName(null) }} />
       </div>
 
@@ -322,18 +327,26 @@ export default function CategoryDashboard() {
             Top Comercios
             {activeCat && <span className="ml-2 text-xs text-secondary">— {activeCat.category_name}</span>}
           </h2>
-          <div className="flex rounded-lg overflow-hidden border border-border-color">
+          <div className="flex items-center gap-1">
             <button
               onClick={() => setMerchantTab('amount')}
-              className={`px-3 py-1 text-xs transition-colors ${merchantTab === 'amount' ? 'bg-primary text-on-primary font-medium' : 'text-tertiary hover:text-primary'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                merchantTab === 'amount'
+                  ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 active:scale-95'
+                  : 'bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:brightness-95'
+              }`}
             >
-              Por monto
+              {merchantTab === 'amount' ? '●' : '○'} Por monto
             </button>
             <button
               onClick={() => setMerchantTab('count')}
-              className={`px-3 py-1 text-xs transition-colors border-l border-border-color ${merchantTab === 'count' ? 'bg-primary text-on-primary font-medium' : 'text-tertiary hover:text-primary'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                merchantTab === 'count'
+                  ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 active:scale-95'
+                  : 'bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:brightness-95'
+              }`}
             >
-              Por frecuencia
+              {merchantTab === 'count' ? '●' : '○'} Por frecuencia
             </button>
           </div>
         </div>
@@ -367,31 +380,31 @@ export default function CategoryDashboard() {
       {/* Expense drilldown */}
       {selectedCategoryName !== null && (
         <div className="card overflow-hidden">
-          <div className="px-5 py-4 border-b border-border-color flex items-center justify-between">
-            <h2 className="text-base font-semibold text-primary">
+          <div className="px-4 py-3 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--color-base-alt)]">
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">
               {activeCat
                 ? <><span style={{ color: getContrastTextColor(activeCat.category_color) }}>{activeCat.category_name}</span> — mayor a menor</>
                 : 'Gastos'}
             </h2>
-            <span className="text-xs text-secondary">{sortedExpenses.length} registros</span>
+            <span className="text-xs text-[var(--text-tertiary)]">{sortedExpenses.length} registros</span>
           </div>
           {expLoading ? (
             <div className="flex justify-center py-10"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>
           ) : sortedExpenses.length === 0 ? (
             <p className="text-secondary text-sm text-center py-10">Sin gastos en este período</p>
           ) : (
-            <div className="divide-y divide-border-color max-h-[480px] overflow-y-auto">
+            <div className="flex flex-col gap-1 p-3 max-h-[480px] overflow-y-auto">
               {sortedExpenses.map((exp) => (
-                <div key={exp.id} className="flex items-center justify-between px-5 py-3 hover:bg-base-alt/50">
+                <div key={exp.id} className="group flex items-center justify-between px-4 py-3 bg-[var(--color-base)] hover:bg-[var(--color-base-alt)] rounded-md transition-colors">
                   <div>
-                    <p className="text-sm font-medium text-primary">{toUpperCase(exp.description)}</p>
-                    <p className="text-xs text-secondary">
+                    <p className="text-sm font-medium text-[var(--text-primary)]">{toUpperCase(exp.description)}</p>
+                    <p className="text-xs text-[var(--text-secondary)]">
                       {formatDateDMY(exp.date)}
                       {exp.person ? ` · ${titleCase(exp.person)}` : ''}
                       {exp.bank ? ` · ${titleCase(exp.bank)}` : ''}
                     </p>
                   </div>
-                  <span className={`text-sm font-semibold ml-4 whitespace-nowrap ${exp.amount < 0 ? 'text-success' : 'text-primary'}`}>
+                  <span className={`text-sm font-semibold ml-4 whitespace-nowrap ${exp.amount < 0 ? 'text-success' : 'text-[var(--text-primary)]'}`}>
                     {formatCurrency(exp.amount, exp.currency)}
                   </span>
                 </div>

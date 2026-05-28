@@ -1,8 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getImportJob, confirmImportJob, deleteImportJob, updateImportPreview, getDistinctValues } from '../api/client'
+import { getImportJob, confirmImportJob, deleteImportJob, updateImportPreview, getDistinctValues, getCards } from '../api/client'
 import { useState, useEffect } from 'react'
-import type { SmartImportRow, ImportSummary, DetectedCard, CardsMapping } from '../types'
+import type { SmartImportRow, ImportSummary, DetectedCard, CardsMapping, Card } from '../types'
 import { toUpperCase, titleCase } from '../utils/format'
 import { useModalWithData } from '../hooks/useModal'
 import { TransactionDetailModal } from '../components/TransactionDetailModal'
@@ -10,6 +10,14 @@ import { TransactionDetailModal } from '../components/TransactionDetailModal'
 // Helper functions (copied from ImportPage)
 function getCardKey(bank: string, card: string, holder: string): string {
   return `${bank}|${card}|${titleCase(holder)}`
+}
+
+function getSuggestionsForHolder(cards: Card[], holder: string): string[] {
+  if (!holder) return []
+  return cards
+    .filter(c => c.holder?.toLowerCase() === holder.toLowerCase())
+    .map(c => c.custom_naming)
+    .filter(Boolean) as string[]
 }
 
 type CardNamingEdit = { custom_naming?: string; bank?: string; card_name?: string; holder?: string }
@@ -53,24 +61,6 @@ function applyBulkEdit(
     card: onlyEmpty && r.card ? r.card : card,
     person: onlyEmpty && r.person ? r.person : person,
   }))
-}
-
-function updateRowField(
-  rowIdx: number,
-  field: 'bank' | 'card' | 'person',
-  value: string,
-  rows: SmartImportRow[]
-): SmartImportRow[] {
-  return rows.map((r, ri) => ri === rowIdx ? { ...r, [field]: value } : r)
-}
-
-function revertCell(
-  rowIdx: number,
-  field: 'bank' | 'card' | 'person',
-  originalValue: string,
-  rows: SmartImportRow[]
-): SmartImportRow[] {
-  return updateRowField(rowIdx, field, originalValue, rows)
 }
 
 function deriveSummaryFromRows(rows: SmartImportRow[]): Partial<ImportSummary> {
@@ -120,7 +110,6 @@ export default function ImportJobPreview() {
   const [showResultModal, setShowResultModal] = useState(false)
   const [importResult, setImportResult] = useState<{ imported: number; scheduled: number; skipped: number } | null>(null)
   const [editForm, setEditForm] = useState({ bank: '', card: '', person: '', onlyEmpty: true })
-  const [editingCell, setEditingCell] = useState<{ rowIdx: number; field: 'bank' | 'card' | 'person'; originalValue: string } | null>(null)
 
   const [spotlightNaming, setSpotlightNaming] = useState(false)
   const [customNamingEdits, setCustomNamingEdits] = useState<Record<string, { custom_naming?: string; bank?: string; card_name?: string; holder?: string }>>({})
@@ -159,6 +148,11 @@ export default function ImportJobPreview() {
   const { data: distinctValues } = useQuery({
     queryKey: ['distinct-values'],
     queryFn: getDistinctValues,
+  })
+
+  const { data: cards = [] } = useQuery({
+    queryKey: ['cards'],
+    queryFn: getCards,
   })
 
 
@@ -227,22 +221,6 @@ export default function ImportJobPreview() {
     return customNamingEdits[key]?.custom_naming?.trim()
   })
   const canImport = dataComplete && (!customNamingRequired || customNamingComplete)
-
-  const persistRowEdits = (updated: SmartImportRow[]) => {
-    setEditedRows(updated)
-    const derivedSummary = deriveSummaryFromRows(updated)
-    const newSummary = {
-      ...currentSummary,
-      ...derivedSummary
-    } as ImportSummary
-    setEditedSummary(newSummary)
-    updatePreviewMutation.mutate({
-      rows: updated,
-      summary: newSummary,
-      raw_count: job?.preview_data?.raw_count || updated.length,
-      has_missing_data: updated.some(r => !r.bank || !r.card || !r.person)
-    })
-  }
 
   const handleConfirm = () => {
     const finalValidation = validateRows(rows)
@@ -347,7 +325,7 @@ export default function ImportJobPreview() {
           </p>
           <button
             onClick={() => navigate('/expenses')}
-            className="px-4 py-2 rounded-md bg-[var(--color-primary)] text-white text-sm font-medium hover:brightness-110 transition"
+            className="btn-primary"
           >
             Volver a Gastos
           </button>
@@ -416,7 +394,7 @@ export default function ImportJobPreview() {
           <button
             onClick={() => customNamingRequired && !customNamingComplete ? handleSpotlightNaming() : handleConfirm()}
             disabled={confirmMutation.isPending || !canImport}
-            className="px-4 py-2 rounded-md bg-[var(--color-primary)] text-[var(--color-on-primary)] text-sm font-medium hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed transition"
+            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {confirmMutation.isPending
               ? 'Confirmando...'
@@ -443,7 +421,7 @@ export default function ImportJobPreview() {
             </p>
             <button
               onClick={handleOpenEditModal}
-              className="mt-2 text-xs px-3 py-1.5 rounded-md bg-yellow-500 hover:bg-yellow-600 text-white font-medium transition"
+              className="btn-warning"
             >
               Completar datos
             </button>
@@ -483,38 +461,73 @@ export default function ImportJobPreview() {
 
           {/* Tarjetas a crear */}
           {detectedCards.length > 0 && (
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {detectedCards.map((dc, idx) => {
                 const key = getCardKey(dc.bank, dc.card, dc.holders[0] || '')
                 const entry = customNamingEdits[key] || { custom_naming: dc.suggested_custom_naming, bank: dc.bank, card_name: dc.card, holder: dc.holders[0] }
+                const suggestions = getSuggestionsForHolder(cards, entry.holder || dc.holders[0] || '')
                 return (
-                  <div key={idx} className={`flex items-center gap-3 p-2 bg-[var(--color-surface)] rounded-md border ${spotlightNaming && !entry.custom_naming?.trim() ? 'border-yellow-500 ring-2 ring-yellow-500/50' : 'border-[var(--border-color)]'}`}>
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold bg-[var(--color-primary)] text-[var(--color-on-primary)]">
-                      💳
+                  <div key={idx} className={`p-3 bg-[var(--color-surface)] rounded-md border ${spotlightNaming && !entry.custom_naming?.trim() ? 'border-yellow-500 ring-2 ring-yellow-500/50' : 'border-[var(--border-color)]'}`}>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold bg-[var(--color-primary)] text-[var(--color-on-primary)]">
+                        💳
+                      </div>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--color-base-alt)] text-[var(--text-secondary)]">
+                        {dc.transaction_count} gastos
+                      </span>
                     </div>
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <input
-                        type="text"
-                        value={entry.custom_naming || ''}
-                        onChange={e => setCustomNamingEdits(prev => ({ ...prev, [key]: { ...prev[key], custom_naming: e.target.value } }))}
-                        placeholder="Nombre personalizado"
-                        className={`w-full px-2 py-1 border rounded text-sm bg-[var(--color-base-container)] focus:outline-none focus:ring-2 transition ${
-                          !entry.custom_naming?.trim()
-                            ? 'border-red-500 focus:ring-red-500/30'
-                            : 'border-[var(--border-color)] focus:ring-primary/30'
-                        }`}
-                      />
-                      <div className="text-xs text-[var(--text-secondary)] flex items-center gap-1 flex-wrap">
-                        <span>{entry.card_name || dc.card}</span>
-                        <span className="text-[var(--text-tertiary)]">·</span>
-                        <span>{entry.bank || dc.bank}</span>
-                        <span className="text-[var(--text-tertiary)]">·</span>
-                        <span>{titleCase(entry.holder || dc.holders[0] || '')}</span>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-[var(--text-secondary)] w-16">Nombre:</span>
+                        <input
+                          type="text"
+                          list={`custom-naming-suggestions-${idx}`}
+                          value={entry.custom_naming || ''}
+                          onChange={e => setCustomNamingEdits(prev => ({ ...prev, [key]: { ...prev[key], custom_naming: e.target.value } }))}
+                          placeholder="Nombre personalizado"
+                          className={`flex-1 px-2 py-1 border rounded text-sm bg-[var(--color-base-container)] focus:outline-none focus:ring-2 transition ${
+                            !entry.custom_naming?.trim()
+                              ? 'border-red-500 focus:ring-red-500/30'
+                              : 'border-[var(--border-color)] focus:ring-primary/30'
+                          }`}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-[var(--text-secondary)] w-16">Tarjeta:</span>
+                        <input
+                          type="text"
+                          value={entry.card_name || dc.card}
+                          onChange={e => setCustomNamingEdits(prev => ({ ...prev, [key]: { ...prev[key], card_name: e.target.value } }))}
+                          className="flex-1 px-2 py-1 border border-[var(--border-color)] rounded text-sm bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          placeholder="Tarjeta"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-[var(--text-secondary)] w-16">Banco:</span>
+                        <input
+                          type="text"
+                          value={entry.bank || dc.bank}
+                          onChange={e => setCustomNamingEdits(prev => ({ ...prev, [key]: { ...prev[key], bank: e.target.value } }))}
+                          className="flex-1 px-2 py-1 border border-[var(--border-color)] rounded text-sm bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          placeholder="Banco"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-[var(--text-secondary)] w-16">Titular:</span>
+                        <input
+                          type="text"
+                          value={titleCase(entry.holder || dc.holders[0] || '')}
+                          onChange={e => setCustomNamingEdits(prev => ({ ...prev, [key]: { ...prev[key], holder: e.target.value } }))}
+                          className="flex-1 px-2 py-1 border border-[var(--border-color)] rounded text-sm bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          placeholder="Titular"
+                        />
                       </div>
                     </div>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--color-base-alt)] text-[var(--text-secondary)]">
-                      {dc.transaction_count} gastos
-                    </span>
+                    <datalist id={`custom-naming-suggestions-${idx}`}>
+                      {suggestions.map(name => (
+                        <option key={name} value={name} />
+                      ))}
+                    </datalist>
                   </div>
                 )
               })}
@@ -578,99 +591,9 @@ export default function ImportJobPreview() {
                   <td className="py-2 px-4 whitespace-nowrap">
                     {row.amount} {row.currency}
                   </td>
-                  <td className="py-2 px-4">
-                    {editingCell?.rowIdx === idx && editingCell?.field === 'card' ? (
-                      <input
-                        list="cards-list"
-                        value={row.card}
-                        onChange={e => {
-                          const updated = updateRowField(idx, 'card', e.target.value, rows)
-                          persistRowEdits(updated)
-                        }}
-                        onBlur={() => setEditingCell(null)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') setEditingCell(null)
-                          if (e.key === 'Escape') {
-                            const reverted = revertCell(idx, 'card', editingCell?.originalValue || '', rows)
-                            persistRowEdits(reverted)
-                            setEditingCell(null)
-                          }
-                        }}
-                        className="w-full px-1 py-0.5 border border-primary rounded text-sm bg-[var(--color-base-container)]"
-                        autoFocus
-                      />
-                    ) : (
-                      <span
-                        className="cursor-pointer hover:text-[var(--text-primary)] rounded px-1"
-                        onClick={() => setEditingCell({ rowIdx: idx, field: 'card', originalValue: row.card || '' })}
-                        title="Click para editar"
-                      >
-                        {row.card || '-'}
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-2 px-4">
-                    {editingCell?.rowIdx === idx && editingCell?.field === 'bank' ? (
-                      <input
-                        list="banks-list"
-                        value={row.bank}
-                        onChange={e => {
-                          const updated = updateRowField(idx, 'bank', e.target.value, rows)
-                          persistRowEdits(updated)
-                        }}
-                        onBlur={() => setEditingCell(null)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') setEditingCell(null)
-                          if (e.key === 'Escape') {
-                            const reverted = revertCell(idx, 'bank', editingCell?.originalValue || '', rows)
-                            persistRowEdits(reverted)
-                            setEditingCell(null)
-                          }
-                        }}
-                        className="w-full px-1 py-0.5 border border-primary rounded text-sm bg-[var(--color-base-container)]"
-                        autoFocus
-                      />
-                    ) : (
-                      <span
-                        className="cursor-pointer hover:text-[var(--text-primary)] rounded px-1"
-                        onClick={() => setEditingCell({ rowIdx: idx, field: 'bank', originalValue: row.bank || '' })}
-                        title="Click para editar"
-                      >
-                        {row.bank || '-'}
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-2 px-4">
-                    {editingCell?.rowIdx === idx && editingCell?.field === 'person' ? (
-                      <input
-                        list="persons-list"
-                        value={row.person}
-                        onChange={e => {
-                          const updated = updateRowField(idx, 'person', e.target.value, rows)
-                          persistRowEdits(updated)
-                        }}
-                        onBlur={() => setEditingCell(null)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') setEditingCell(null)
-                          if (e.key === 'Escape') {
-                            const reverted = revertCell(idx, 'person', editingCell?.originalValue || '', rows)
-                            persistRowEdits(reverted)
-                            setEditingCell(null)
-                          }
-                        }}
-                        className="w-full px-1 py-0.5 border border-primary rounded text-sm bg-[var(--color-base-container)]"
-                        autoFocus
-                      />
-                    ) : (
-                      <span
-                        className="cursor-pointer hover:text-[var(--text-primary)] rounded px-1"
-                        onClick={() => setEditingCell({ rowIdx: idx, field: 'person', originalValue: row.person || '' })}
-                        title="Click para editar"
-                      >
-                        {titleCase(row.person) || '-'}
-                      </span>
-                    )}
-                  </td>
+                  <td className="py-2 px-4">{row.card || '-'}</td>
+                  <td className="py-2 px-4">{row.bank || '-'}</td>
+                  <td className="py-2 px-4">{titleCase(row.person) || '-'}</td>
                   <td className="py-2 px-4">{row.suggested_category || '-'}</td>
                   <td className="py-2 px-4 whitespace-nowrap">
                     {row.installment_number && row.installment_total
@@ -771,13 +694,13 @@ export default function ImportJobPreview() {
               <button
                 onClick={handleApplyEdit}
                 disabled={!editForm.bank || !editForm.card || !editForm.person}
-                className="flex-1 px-4 py-2 rounded-md bg-[var(--color-primary)] text-white font-medium hover:brightness-110 disabled:opacity-50 transition"
+                className="btn-primary flex-1"
               >
                 Aplicar
               </button>
               <button
                 onClick={() => setShowEditModal(false)}
-                className="px-4 py-2 rounded-md border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
+                className="btn-secondary"
               >
                 Cancelar
               </button>
@@ -842,7 +765,7 @@ export default function ImportJobPreview() {
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setShowCancelModal(false)}
-                className="px-4 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition-colors"
+                className="btn-secondary"
               >
                 No, continuar
               </button>
@@ -852,7 +775,7 @@ export default function ImportJobPreview() {
                   setShowCancelModal(false)
                 }}
                 disabled={deleteMutation.isPending}
-                className="px-4 py-2 rounded-md bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors"
+                className="btn-danger"
               >
                 {deleteMutation.isPending ? 'Cancelando...' : 'Sí, cancelar'}
               </button>
@@ -899,7 +822,7 @@ export default function ImportJobPreview() {
                   setShowResultModal(false)
                   navigate('/expenses')
                 }}
-                className="px-4 py-2 rounded-md bg-[var(--color-primary)] text-[var(--color-on-primary)] text-sm font-medium hover:brightness-110 transition-colors"
+                className="btn-primary"
               >
                 Ver gastos
               </button>
