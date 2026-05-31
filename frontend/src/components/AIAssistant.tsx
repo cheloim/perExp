@@ -442,8 +442,8 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
       <div className="flex-1 space-y-3 overflow-y-auto min-h-0">
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] px-3 py-2 rounded-md text-sm leading-relaxed ${
-              msg.role === 'user' ? 'bg-[var(--color-primary)] text-white rounded-br-sm' : 'bg-[var(--color-base-alt)] text-[var(--text-primary)] rounded-bl-sm'
+            <div className={`max-w-[85%] px-4 py-3 rounded-lg text-sm leading-relaxed ${
+              msg.role === 'user' ? 'bg-[var(--color-primary)] text-white rounded-br-lg' : 'bg-[var(--color-base-alt)] text-[var(--text-primary)] rounded-bl-lg'
             }`}>
               {msg.role === 'assistant' && msg.text ? formatAIResponse(msg.text) : (msg.text || (streaming && i === messages.length - 1 && msg.role === 'assistant' ? <ThinkingDots /> : ''))}
             </div>
