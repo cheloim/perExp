@@ -9,6 +9,8 @@ Uso:
     python reset_db.py --dry-run    # muestra qué borraría sin ejecutar
     python reset_db.py --force      # limpia sin pedir confirmación
     python reset_db.py --vacuum     # ejecuta VACUUM tras borrar (reclama espacio)
+    python reset_db.py --delete-categories 1 2 3   # elimina categorías específicas por ID
+    python reset_db.py --vacuum --delete-categories 1 2 3  # combo: elimina categorías y vacuum
 """
 
 import sqlite3
@@ -48,10 +50,32 @@ def print_report(counts, delete_categories):
     print("─" * 40)
 
 
-def delete_all(cur, dry_run=False):
+def parse_category_ids(args):
+    """Extrae IDs de categorías de los argumentos."""
+    ids = []
+    try:
+        idx = args.index("--delete-categories")
+        for i in range(idx + 1, len(args)):
+            if args[i].startswith("--"):
+                break
+            ids.append(int(args[i]))
+    except ValueError:
+        pass
+    return ids
+
+
+def delete_categories_by_ids(cur, category_ids):
+    """Elimina categorías específicas por ID."""
+    if not category_ids:
+        return
+    placeholders = ",".join("?" * len(category_ids))
+    cur.execute(f"DELETE FROM categories WHERE id IN ({placeholders})", category_ids)
+
+
+def delete_all(cur, vacuum=False):
     for t in TABLES:
         cur.execute(f"DELETE FROM {t}")
-    if "--vacuum" in sys.argv[1:]:
+    if vacuum:
         cur.execute("VACUUM")
 
 
@@ -60,6 +84,12 @@ def main():
     delete_categories = "--all" in args
     dry_run = "--dry-run" in args
     force = "--force" in args
+    vacuum = "--vacuum" in args
+
+    category_ids = parse_category_ids(args)
+    if category_ids and delete_categories:
+        print("Error: no se puede usar --all junto con --delete-categories")
+        sys.exit(1)
 
     if delete_categories and "categories" not in TABLES:
         TABLES.append("categories")
@@ -72,7 +102,11 @@ def main():
     cur = conn.cursor()
 
     counts = get_counts(cur)
-    print_report(counts, delete_categories)
+    print_report(counts, delete_categories or bool(category_ids))
+
+    if category_ids:
+        print(f"Categorías a eliminar por ID: {category_ids}")
+        print(f"  → {len(category_ids)} categoría(s) serán eliminadas")
 
     if dry_run:
         print("Modo dry-run: no se realizado ningún cambio.")
@@ -87,7 +121,11 @@ def main():
             return
 
     try:
-        delete_all(cur)
+        if category_ids:
+            delete_categories_by_ids(cur, category_ids)
+            print(f"  Categorías eliminadas: {len(category_ids)}")
+        else:
+            delete_all(cur, vacuum=vacuum)
         conn.commit()
     except sqlite3.Error as e:
         conn.rollback()

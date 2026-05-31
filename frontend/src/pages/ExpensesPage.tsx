@@ -77,6 +77,7 @@ export default function ExpensesPage() {
   const [bulkCategoryId, setBulkCategoryId] = useState<string>('')
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; description: string } | null>(null)
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
+  const [bulkMenuOpen, setBulkMenuOpen] = useState(false)
 
   const toggleSelect = (id: number) =>
     setSelectedIds(prev => {
@@ -155,16 +156,20 @@ export default function ExpensesPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => { setSelectMode(v => !v); setSelectedIds(new Set()) }}
-            className={selectMode ? 'btn-primary text-sm' : 'btn-secondary text-sm'}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+              selectMode
+                ? 'bg-primary text-on-primary hover:brightness-110 active:scale-95'
+                : 'bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:bg-[var(--color-base)]'
+            }`}
           >
             {selectMode ? 'Cancelar' : 'Seleccionar'}
           </button>
           <button
             onClick={() => { setEditing(null) }}
-            className="btn-primary flex items-center gap-2 text-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-primary text-on-primary hover:brightness-110 active:scale-95 transition-all"
           >
-            <span className="text-lg leading-none">+</span>
-            Nuevo gasto
+            <span className="text-base leading-none">+</span>
+            <span>Nuevo gasto</span>
           </button>
         </div>
       </div>
@@ -462,40 +467,54 @@ export default function ExpensesPage() {
 
       {/* Bulk action bar */}
       {selectMode && selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-xl bg-[var(--color-surface)] border border-[var(--border-color)] shadow-gnome-xl">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-2.5 rounded-full bg-[var(--color-surface)] border border-[var(--border-color)] shadow-gnome-xl">
           <span className="text-sm text-[var(--text-primary)] font-medium">{selectedIds.size} seleccionados</span>
-          <span className="text-[var(--text-tertiary)]">|</span>
-          {(() => {
-            const groups = categoryGroupOptions(categories)
-            return (
-              <Select
-                value={bulkCategoryId}
-                onChange={v => setBulkCategoryId(v)}
-                options={[{ value: '', label: 'Sin categoría' }]}
-                groups={groups}
-                placeholder="Sin categoría"
-                direction="up"
-              />
-            )
-          })()}
-          <button
-            onClick={handleBulkApply}
-            disabled={bulkMut.isPending || bulkDeleteMut.isPending}
-            className="btn-primary text-sm px-4 py-1.5 disabled:opacity-50"
-          >
-            {bulkMut.isPending ? 'Aplicando...' : 'Aplicar'}
-          </button>
-          <span className="text-[var(--text-tertiary)]">|</span>
-          <button
-            onClick={() => setBulkDeleteConfirm(true)}
-            disabled={bulkMut.isPending || bulkDeleteMut.isPending}
-            className="btn-danger text-sm px-4 py-1.5"
-          >
-            {bulkDeleteMut.isPending ? 'Eliminando...' : 'Eliminar'}
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setBulkMenuOpen(!bulkMenuOpen)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-on-primary text-sm font-medium hover:brightness-110 active:scale-95 transition-all"
+            >
+              Acciones
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className={`transition-transform ${bulkMenuOpen ? 'rotate-180' : ''}`}>
+                <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            {bulkMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setBulkMenuOpen(false)} />
+                <div className="absolute bottom-full left-0 mb-2 z-50 w-48 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl shadow-lg overflow-hidden">
+                  <div className="p-3 border-b border-border-color space-y-2">
+                    <span className="text-xs text-tertiary block">Cambiar categoría</span>
+                    {(() => {
+                      const groups = categoryGroupOptions(categories)
+                      return (
+                        <Select
+                          value={bulkCategoryId}
+                          onChange={v => { setBulkCategoryId(v); setBulkMenuOpen(false); handleBulkApply() }}
+                          options={[{ value: '', label: 'Sin categoría' }]}
+                          groups={groups}
+                          direction="up"
+                        />
+                      )
+                    })()}
+                  </div>
+                  <button
+                    onClick={() => { setBulkMenuOpen(false); setBulkDeleteConfirm(true) }}
+                    disabled={bulkMut.isPending || bulkDeleteMut.isPending}
+                    className="w-full px-4 py-2.5 text-sm text-left text-danger hover:bg-danger/10 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <path d="M3 4h8M5 4V3a1 1 0 011-1h2a1 1 0 011 1v1M4.5 4v7a1 1 0 001 1h3a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    Eliminar {selectedIds.size > 1 ? `(${selectedIds.size})` : ''}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
           <button
             onClick={() => setSelectedIds(new Set())}
-            className="btn-secondary text-sm"
+            className="px-3 py-1.5 rounded-full text-sm font-medium bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:bg-[var(--color-base)] transition-all"
           >
             Limpiar
           </button>

@@ -28,7 +28,7 @@ function detectNetwork(cardName: string): CardNetwork {
 
 function VisaLogo() {
   return (
-    <svg width="52" height="18" viewBox="0 0 52 18" fill="none">
+    <svg width="38" height="14" viewBox="0 0 52 18" fill="none">
       <text x="1" y="15" fontFamily="Arial Black, Arial, sans-serif" fontSize="17" fontWeight="900" fontStyle="italic" fill="white" letterSpacing="2">VISA</text>
     </svg>
   )
@@ -36,7 +36,7 @@ function VisaLogo() {
 
 function MastercardLogo() {
   return (
-    <svg width="42" height="28" viewBox="0 0 42 28" fill="none">
+    <svg width="32" height="22" viewBox="0 0 42 28" fill="none">
       <circle cx="15" cy="14" r="13" fill="#EB001B"/>
       <circle cx="27" cy="14" r="13" fill="#F79E1B" fillOpacity="0.92"/>
     </svg>
@@ -45,7 +45,7 @@ function MastercardLogo() {
 
 function AmexLogo() {
   return (
-    <svg width="46" height="22" viewBox="0 0 46 22" fill="none">
+    <svg width="38" height="18" viewBox="0 0 46 22" fill="none">
       <rect width="46" height="22" rx="3" fill="rgba(255,255,255,0.25)"/>
       <text x="23" y="15.5" textAnchor="middle" fontFamily="Arial, sans-serif" fontSize="10" fontWeight="bold" fill="white" letterSpacing="1.5">AMEX</text>
     </svg>
@@ -60,12 +60,12 @@ function CardNetworkLogo({ network }: { network: CardNetwork }) {
 }
 
 const CARD_GRADIENTS = [
-  'from-indigo-600 to-purple-700',
-  'from-emerald-600 to-teal-700',
-  'from-orange-600 to-red-700',
-  'from-pink-600 to-rose-700',
-  'from-cyan-600 to-blue-700',
-  'from-amber-600 to-yellow-700',
+  'from-[#3584e4] to-[#1c71d8]',
+  'from-[#26a269] to-[#1b7f3e]',
+  'from-[#c64600] to-[#a35100]',
+  'from-[#9141ac] to-[#613583]',
+  'from-[#62a0ea] to-[#3584e4]',
+  'from-[#e5a50a] to-[#b78c09]',
 ]
 
 interface CardEntry {
@@ -89,29 +89,28 @@ function InstallmentCard({
   return (
     <div
       onClick={onClick}
-      className={`relative rounded-2xl p-4 bg-gradient-to-br ${color} cursor-pointer transition-all duration-200 hover:scale-[1.02] shadow-lg ${active ? 'ring-2 ring-white/60 scale-[1.02]' : 'opacity-85 hover:opacity-100'}`}
-      style={{ minHeight: 130 }}
+      className={`relative rounded-xl p-4 bg-gradient-to-br ${color} cursor-pointer transition-all duration-200 hover:scale-[1.02] shadow-md ${active ? 'ring-2 ring-white/60 scale-[1.02]' : 'opacity-90 hover:opacity-100'}`}
+      style={{ minWidth: 200, maxWidth: 280, minHeight: 120 }}
     >
       <div className="flex justify-between items-start">
-        <div>
-          <p className="text-white/70 text-[10px] font-medium tracking-widest uppercase">{entry.bank || 'Banco'}</p>
-          <p className="text-white text-xs font-bold tracking-wide">{entry.custom_naming || entry.bank}</p>
+        <div className="min-w-0 flex-1">
+          <p className="text-white/70 text-[11px] font-medium tracking-widest uppercase truncate">{entry.bank || 'Banco'}</p>
+          <p className="text-white text-sm font-semibold tracking-wide truncate">{entry.custom_naming || entry.bank}</p>
         </div>
-        <CardNetworkLogo network={network} />
+        <div className="flex-shrink-0 ml-2">
+          <CardNetworkLogo network={network} />
+        </div>
       </div>
 
-      <div className="mt-3 mb-1 w-7 h-5 rounded-sm bg-yellow-300/80 border border-yellow-400/60 flex items-center justify-center">
-        <div className="w-5 h-3 rounded-sm border border-yellow-500/50 grid grid-cols-2 gap-px p-px">
+      <div className="mt-3 mb-1 w-6 h-4 rounded-sm bg-yellow-300/80 border border-yellow-400/60 flex items-center justify-center">
+        <div className="w-4 h-2.5 rounded-sm border border-yellow-500/50 grid grid-cols-2 gap-px p-px">
           <div className="bg-yellow-500/30 rounded-sm" /><div className="bg-yellow-500/30 rounded-sm" />
           <div className="bg-yellow-500/30 rounded-sm" /><div className="bg-yellow-500/30 rounded-sm" />
         </div>
       </div>
 
-      <p className="text-white text-sm font-bold">💳 Tarjeta</p>
-      <div className="mt-1">
-        <p className="text-white/60 text-[10px]">Cuotas pendientes</p>
-        <p className="text-white font-bold text-base leading-tight">{formatCurrency(entry.pendingTotal, entry.currency)}</p>
-      </div>
+      <p className="text-white/60 text-[10px] mt-1">Cuotas pendientes</p>
+      <p className="text-white font-bold text-lg leading-tight">{formatCurrency(entry.pendingTotal, entry.currency)}</p>
     </div>
   )
 }
@@ -169,7 +168,6 @@ export default function InstallmentsPage() {
     }
   })
 
-  // Summary stats
   const now = new Date()
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
@@ -177,12 +175,10 @@ export default function InstallmentsPage() {
 
   const totalPending = activeGroups.reduce((s, g) => s + g.installment_amount * g.remaining_installments, 0)
 
-  // Get current month data from monthlyLoad (includes actual paid installments)
   const currentMonthData = monthlyLoad.find(e => e.month === currentMonth)
   const currentMonthTotal = currentMonthData?.total ?? 0
   const currentMonthCount = currentMonthData?.count ?? 0
 
-  // Build card entries — group by card_id (or custom_naming fallback)
   const cardMap = new Map<string, CardEntry>()
   for (const g of activeGroups) {
     const key = g.card_id ? `card_${g.card_id}` : `bank_person_${g.bank}|${g.person}`
@@ -193,13 +189,10 @@ export default function InstallmentsPage() {
   }
   const cardEntries = Array.from(cardMap.values())
 
-  // Filter chips sources
   const banks = [...new Set(groups.map(g => g.bank).filter(Boolean))].sort()
 
-  // Active card for filtering
   const activeCard = activeCardKey ? cardEntries.find(c => c.key === activeCardKey) : null
 
-  // Apply filters to group list
   const filtered = groups.filter(g => {
     if (!showCompleted && g.remaining_installments === 0) return false
     if (bankFilter && g.bank !== bankFilter) return false
@@ -222,34 +215,31 @@ export default function InstallmentsPage() {
     return (
       <div className="text-center py-20">
         <p className="text-4xl mb-4">💳</p>
-        <h2 className="text-lg font-semibold installments-title">Sin compras en cuotas</h2>
-        <p className="text-sm text-tertiary mt-1">Importá extractos con cuotas para ver la proyección.</p>
+        <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Sin compras en cuotas</h2>
+        <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Importá extractos con cuotas para ver la proyección.</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      {/* Summary stats */}
-      <div className="grid grid-cols-2 gap-4">
+    <div className="space-y-6 p-4 md:p-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="card p-4">
-          <p className="text-xs text-[var(--text-tertiary)] mb-1">Este mes</p>
-          <p className="text-2xl font-bold text-[var(--color-success)]">{currentMonthCount}</p>
-          <p className="text-xs text-[var(--text-tertiary)]">{formatCurrency(currentMonthTotal)}</p>
+          <p className="text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>Este mes</p>
+          <p className="text-2xl font-bold" style={{ color: 'var(--color-success)' }}>{currentMonthCount}</p>
+          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{formatCurrency(currentMonthTotal)}</p>
         </div>
         <div className="card p-4">
-          <p className="text-xs text-[var(--text-tertiary)] mb-1">Total pendiente</p>
-          <p className="text-2xl font-bold text-primary">{formatCurrency(totalPending)}</p>
-          <p className="text-xs text-[var(--text-tertiary)]">{activeGroups.length} grupos</p>
+          <p className="text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>Total pendiente</p>
+          <p className="text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>{formatCurrency(totalPending)}</p>
+          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{activeGroups.length} grupos</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Left — chart + list */}
         <div className="xl:col-span-2 space-y-5">
-          {/* Monthly load chart */}
           <div className="card p-5">
-            <h2 className="text-base font-semibold installments-title mb-1">Carga Mensual En Cuotas</h2>
+            <h2 className="text-base font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Carga Mensual En Cuotas</h2>
             {(() => {
               const currentEntry = monthlyLoad.find(e => e.is_current)
               const currentTotal = currentEntry?.total ?? 0
@@ -271,7 +261,7 @@ export default function InstallmentsPage() {
                       width={52}
                     />
                     <Tooltip
-                      contentStyle={{ backgroundColor: 'var(--chart-tooltip-bg)', borderColor: 'var(--chart-tooltip-border)', color: 'var(--chart-tooltip-text)', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.10)' }}
+                      contentStyle={{ backgroundColor: 'var(--chart-tooltip-bg)', borderColor: 'var(--chart-tooltip-border)', color: 'var(--chart-tooltip-text)', borderRadius: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.10)' }}
                       labelStyle={{ fontWeight: 600, marginBottom: 4 }}
                       itemStyle={{ color: 'var(--chart-tooltip-text)' }}
                       formatter={(v: number, _: string, props: any) => {
@@ -306,48 +296,57 @@ export default function InstallmentsPage() {
                 </ResponsiveContainer>
               )
             })()}
-            </div>
+          </div>
 
-          {/* Groups list */}
           <div className="card overflow-hidden">
-            <div className="px-5 py-3 border-b border-border-color flex items-center justify-between">
-              <h2 className="text-base font-semibold installments-title">
+            <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: 'var(--border-color)' }}>
+              <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
                 Compras En Cuotas
-                <span className="ml-2 text-xs text-[var(--text-secondary)]">{filtered.length} registros</span>
+                <span className="ml-2 text-xs" style={{ color: 'var(--text-secondary)' }}>{filtered.length} registros</span>
               </h2>
               <button
                 onClick={() => setShowCompleted(v => !v)}
-                className={`text-xs px-2.5 py-1.5 rounded-lg border transition-all ${showCompleted ? 'bg-primary text-on-primary' : 'border-border-color text-tertiary hover:text-[var(--text-primary)]'}`}
+                className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${showCompleted ? '' : ''}`}
+                style={{
+                  backgroundColor: showCompleted ? 'var(--color-primary)' : 'transparent',
+                  color: showCompleted ? 'var(--color-on-primary)' : 'var(--text-secondary)',
+                  borderColor: showCompleted ? 'var(--color-primary)' : 'var(--border-color)',
+                }}
               >
                 {showCompleted ? 'Ocultar completadas' : 'Mostrar completadas'}
               </button>
             </div>
 
             {filtered.length === 0 ? (
-              <p className="text-[var(--text-secondary)] text-sm text-center py-10">Sin resultados para los filtros seleccionados</p>
+              <p className="text-sm text-center py-10" style={{ color: 'var(--text-secondary)' }}>Sin resultados para los filtros seleccionados</p>
             ) : (
-              <div className="divide-y divide-border-color">
+              <div className="divide-y" style={{ borderColor: 'var(--border-color)' }}>
                 {filtered.map((g) => {
                   const pct = g.installment_total > 0 ? (g.installments_paid / g.installment_total) * 100 : 0
                   const done = g.remaining_installments === 0
                   return (
-                    <div key={g.installment_group_id} className="px-5 py-3 hover:bg-[var(--color-base-alt)] transition-colors cursor-pointer" onClick={() => { if (g.remaining_installments > 0) { setSelectedGroup(g); setShowScheduledModal(true) } }}>
+                    <div
+                      key={g.installment_group_id}
+                      className="px-5 py-3 hover:bg-[var(--color-base-alt)] transition-colors cursor-pointer"
+                      style={{ backgroundColor: 'transparent' }}
+                      onClick={() => { if (g.remaining_installments > 0) { setSelectedGroup(g); setShowScheduledModal(true) } }}
+                    >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-2.5 min-w-0 flex-1">
                           <span
                             className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1"
-                            style={{ backgroundColor: g.category_color || '#6366f1' }}
+                            style={{ backgroundColor: g.category_color || '#3584e4' }}
                           />
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-[var(--text-secondary)] hover:font-bold hover:text-[var(--text-primary)] truncate">
+                            <p className="text-sm font-medium truncate" style={{ color: done ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
                               {toUpperCase(g.description)}
                               {g.remaining_installments > 0 && (
-                                <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                                <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--color-base-alt)', color: 'var(--text-secondary)' }}>
                                   {g.remaining_installments} programada{g.remaining_installments > 1 ? 's' : ''}
                                 </span>
                               )}
                             </p>
-                            <p className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] mt-0.5">
+                            <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                               {g.bank}{g.card ? ` · ${g.card}` : ''}
                               {g.next_date && !done && <> · próxima: {formatDateDMY(g.next_date, '—')}</>}
                             </p>
@@ -355,12 +354,12 @@ export default function InstallmentsPage() {
                         </div>
                         <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
                           <div>
-                            <p className="text-sm font-medium text-[var(--text-secondary)] hover:font-bold hover:text-[var(--text-primary)]">
+                            <p className="text-sm font-medium" style={{ color: done ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
                               {formatCurrency(g.installment_amount, g.currency)}
                             </p>
-                            <p className="text-xs text-secondary">
+                            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                               {done
-                                ? <span className="text-[var(--color-success)]">✓ Completada</span>
+                                ? <span style={{ color: 'var(--color-success)' }}>✓ Completada</span>
                                 : <>{g.remaining_installments} restante{g.remaining_installments !== 1 ? 's' : ''}</>
                               }
                             </p>
@@ -368,7 +367,10 @@ export default function InstallmentsPage() {
                           {g.remaining_installments > 0 && (
                             <button
                               onClick={e => { e.stopPropagation(); setSelectedGroup(g); setShowScheduledModal(true) }}
-                              className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] underline"
+                              className="text-xs underline transition-colors"
+                              style={{ color: 'var(--text-secondary)' }}
+                              onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
+                              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
                             >
                               Gestionar
                             </button>
@@ -376,18 +378,17 @@ export default function InstallmentsPage() {
                         </div>
                       </div>
 
-                      {/* Progress bar */}
                       <div className="mt-2 flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-base-alt rounded-full overflow-hidden">
+                        <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-base-alt)' }}>
                           <div
                             className="h-full rounded-full transition-all"
                             style={{
                               width: `${pct}%`,
-                              backgroundColor: g.category_color || '#6366f1',
+                              backgroundColor: g.category_color || '#3584e4',
                             }}
                           />
                         </div>
-                        <span className="text-[10px] text-[var(--text-secondary)] flex-shrink-0">
+                        <span className="text-[10px] flex-shrink-0" style={{ color: 'var(--text-secondary)' }}>
                           {g.installments_paid}/{g.installment_total}
                         </span>
                       </div>
@@ -399,29 +400,35 @@ export default function InstallmentsPage() {
           </div>
         </div>
 
-        {/* Right — filter chips + cards */}
         <div className="xl:col-span-1">
-          <div className="card p-5 sticky top-24 space-y-4">
+          <div className="card p-5 sticky top-4 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold installments-title">Tarjetas</h2>
+              <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Tarjetas</h2>
               {(bankFilter || activeCardKey) && (
                 <button
                   onClick={() => { setBankFilter(null); setActiveCardKey(null) }}
-                  className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  className="text-xs transition-colors"
+                  style={{ color: 'var(--text-secondary)' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
                 >
                   Limpiar
                 </button>
               )}
             </div>
 
-            {/* Bank filter */}
             {banks.length > 1 && (
               <div>
-                <p className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wide mb-1.5">Banco</p>
-                <div className="flex flex-wrap gap-1.5">
+                <p className="text-[10px] uppercase tracking-wide mb-1.5" style={{ color: 'var(--text-secondary)' }}>Banco</p>
+                <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => setBankFilter(null)}
-                    className={`text-xs px-2.5 py-1 rounded-full border transition-all ${!bankFilter ? 'bg-primary text-on-primary' : 'border-border-color text-tertiary hover:text-[var(--text-primary)]'}`}
+                    className="text-xs px-3 py-1.5 rounded-lg border transition-all"
+                    style={{
+                      backgroundColor: !bankFilter ? 'var(--color-primary)' : 'transparent',
+                      color: !bankFilter ? 'var(--color-on-primary)' : 'var(--text-secondary)',
+                      borderColor: !bankFilter ? 'var(--color-primary)' : 'var(--border-color)',
+                    }}
                   >
                     Todos
                   </button>
@@ -429,7 +436,12 @@ export default function InstallmentsPage() {
                     <button
                       key={b}
                       onClick={() => setBankFilter(bankFilter === b ? null : b)}
-                      className={`text-xs px-2.5 py-1 rounded-full border transition-all ${bankFilter === b ? 'bg-primary text-on-primary' : 'border-border-color text-tertiary hover:text-[var(--text-primary)]'}`}
+                      className="text-xs px-3 py-1.5 rounded-lg border transition-all"
+                      style={{
+                        backgroundColor: bankFilter === b ? 'var(--color-primary)' : 'transparent',
+                        color: bankFilter === b ? 'var(--color-on-primary)' : 'var(--text-secondary)',
+                        borderColor: bankFilter === b ? 'var(--color-primary)' : 'var(--border-color)',
+                      }}
                     >
                       {b}
                     </button>
@@ -438,8 +450,7 @@ export default function InstallmentsPage() {
               </div>
             )}
 
-            {/* Card visualizations */}
-            <div className="space-y-3 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-3">
               {cardEntries
                 .filter(c => !bankFilter || c.bank === bankFilter)
                 .map((entry, idx) => (
@@ -456,42 +467,58 @@ export default function InstallmentsPage() {
         </div>
       </div>
 
-      {/* Modal de gestión de cuotas programadas */}
       {showScheduledModal && selectedGroup && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowScheduledModal(false)}>
-          <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-xl" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-[var(--border-color)]">
-              <h2 className="text-base font-semibold text-[var(--text-primary)]">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowScheduledModal(false)}>
+          <div className="bg-[var(--color-surface)] border rounded-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-xl" style={{ borderColor: 'var(--border-color)' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4 pb-3 border-b" style={{ borderColor: 'var(--border-color)' }}>
+              <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
                 Cuotas Programadas: {toUpperCase(selectedGroup.description)}
               </h2>
-              <button onClick={() => setShowScheduledModal(false)} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors text-lg leading-none">✕</button>
+              <button
+                onClick={() => setShowScheduledModal(false)}
+                className="text-lg leading-none transition-colors"
+                style={{ color: 'var(--text-secondary)' }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
+              >
+                ✕
+              </button>
             </div>
 
             <div className="space-y-2">
               {scheduledForGroup.length === 0 ? (
-                <p className="text-[var(--text-secondary)] text-sm text-center py-4">No hay cuotas programadas</p>
+                <p className="text-sm text-center py-4" style={{ color: 'var(--text-secondary)' }}>No hay cuotas programadas</p>
               ) : (
                 scheduledForGroup.map(s => (
-                  <div key={s.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors">
+                  <div key={s.id} className="flex items-center justify-between p-3 rounded-lg transition-colors" style={{ backgroundColor: 'transparent' }}
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-base-alt)')}
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  >
                     <div>
-                      <p className="font-medium text-[var(--text-primary)]">
+                      <p className="font-medium" style={{ color: 'var(--text-primary)' }}>
                         Cuota {s.installment_number}/{s.installment_total}
                       </p>
-                      <p className="text-xs text-[var(--text-tertiary)]">
+                      <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
                         {formatDateDMY(s.scheduled_date)} · {formatCurrency(s.amount, s.currency)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => executeMutation.mutate(s.id)}
-                        className="px-3 py-1.5 text-xs rounded-lg bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 transition-all"
+                        className="px-3 py-1.5 text-xs rounded-lg transition-all"
+                        style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
+                        onMouseEnter={e => (e.currentTarget.style.filter = 'brightness(1.1)')}
+                        onMouseLeave={e => (e.currentTarget.style.filter = 'brightness(1)')}
                         disabled={executeMutation.isPending}
                       >
                         Ejecutar ahora
                       </button>
                       <button
                         onClick={() => setCancelConfirm(s.id)}
-                        className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition-colors"
+                        className="px-3 py-1.5 text-xs rounded-lg border transition-colors"
+                        style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
+                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-base-alt)')}
+                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                         disabled={cancelMutation.isPending}
                       >
                         Cancelar
@@ -505,7 +532,6 @@ export default function InstallmentsPage() {
         </div>
       )}
 
-      {/* Confirmation dialog for canceling installment */}
       <ConfirmDialog
         isOpen={cancelConfirm !== null}
         title="Cancelar cuota programada"

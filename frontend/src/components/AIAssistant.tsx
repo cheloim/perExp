@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { getDashboardAITrends } from '../api/client'
-import type { AITrendsResponse } from '../types'
 import { ConfirmDialog } from './ConfirmDialog'
+import { formatAIResponse } from '../utils/formatText'
 
 interface ChatMessage {
   role: 'user' | 'assistant'
@@ -40,7 +39,7 @@ async function streamTo(url: string, body: object, onChunk: (full: string) => vo
   const token = localStorage.getItem('auth_token')
   const resp = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify(body),
   })
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
@@ -66,57 +65,17 @@ async function streamTo(url: string, body: object, onChunk: (full: string) => vo
   return full
 }
 
-function TrendsSection() {
-  const now = new Date()
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const [enabled, setEnabled] = useState(false)
-  const { data, isLoading, refetch } = useQuery<AITrendsResponse>({
-    queryKey: ['ai-trends-drawer', currentMonth],
-    queryFn: () => getDashboardAITrends({ month: currentMonth }),
-    enabled,
-    staleTime: 5 * 60 * 1000,
-  })
-
-  const trendColor = data?.trend === 'up' ? 'text-[var(--gnome-red-3)]' : data?.trend === 'down' ? 'text-[var(--gnome-green-5)]' : 'text-[var(--text-tertiary)]'
-  const trendIcon  = data?.trend === 'up' ? '↑' : data?.trend === 'down' ? '↓' : '→'
-  const trendLabel = data?.trend === 'up' ? 'Tendencia alcista' : data?.trend === 'down' ? 'Tendencia bajista' : 'Estable'
-
+function AnalyzeButton({ onClick }: { onClick: () => void }) {
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Resumen del mes</span>
-        {data && <span className={`text-xs font-bold ${trendColor}`}>{trendIcon} {trendLabel}</span>}
-      </div>
-      {!data && !isLoading && (
-        <button
-          onClick={() => { setEnabled(true); refetch() }}
-          className="w-full py-2 text-sm font-medium text-white bg-[var(--color-primary)] hover:brightness-110 rounded-md transition-colors"
-        >
-          ✨ Analizar gastos del mes
-        </button>
-      )}
-      {isLoading && (
-        <div className="flex items-center justify-center py-4">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[var(--color-primary)]" />
-          <span className="ml-2 text-sm text-[var(--text-tertiary)]">Analizando...</span>
-        </div>
-      )}
-      {data && (
-        <div className="space-y-2 text-sm">
-          {data.trend_explanation && <p className="text-[var(--text-secondary)] leading-relaxed">{data.trend_explanation}</p>}
-          {data.top_rising_category  && <p className="text-[var(--gnome-red-3)] text-xs">↑ Subió: {data.top_rising_category}</p>}
-          {data.top_falling_category && <p className="text-[var(--gnome-green-5)] text-xs">↓ Bajó: {data.top_falling_category}</p>}
-          {data.recommendation && (
-            <div className="alert-info text-xs">{data.recommendation}</div>
-          )}
-          {data.alert && (
-            <div className="alert-warning text-xs font-medium">⚠ {data.alert}</div>
-          )}
-          <button onClick={() => refetch()} className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors">
-            Actualizar análisis
-          </button>
-        </div>
-      )}
+    <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
+      <button
+        onClick={onClick}
+        className="flex items-center gap-2 px-6 py-3 bg-[var(--color-primary)] text-white rounded-full hover:brightness-110 shadow-gnome transition-all font-medium"
+      >
+        <span>✨</span>
+        <span>Analizar gastos del mes</span>
+      </button>
+      <p className="text-xs text-tertiary">Obtené un resumen de tus gastos del mes</p>
     </div>
   )
 }
@@ -175,10 +134,10 @@ function SessionCard({
               <p className="text-xs text-[var(--text-primary)] leading-relaxed">{session.summary}</p>
             </div>
           )}
-          <div className="px-3 py-2 space-y-2 max-h-56 overflow-y-auto">
+          <div className="px-3 py-2 space-y-2 overflow-y-auto flex-1 min-h-0">
             {session.messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[90%] px-2.5 py-2 rounded-md text-xs leading-relaxed whitespace-pre-wrap ${
+                <div className={`max-w-[90%] px-2.5 py-2 rounded-md text-xs leading-normal whitespace-pre-wrap ${
                   m.role === 'user' ? 'bg-[var(--color-primary)] text-white' : 'bg-[var(--color-base-alt)] text-[var(--text-primary)]'
                 }`}>{m.text}</div>
               </div>
@@ -200,7 +159,7 @@ function SessionCard({
   )
 }
 
-export default function AIAssistant({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+export default function AIAssistant({ open }: { open: boolean; onToggle?: () => void }) {
   const now = new Date()
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
@@ -221,8 +180,10 @@ export default function AIAssistant({ open, onToggle }: { open: boolean; onToggl
   const [showHistory, setShowHistory] = useState(false)
   const [expandedId, setExpandedId]   = useState<string | null>(null)
   const [debugMode, setDebugMode]     = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(true)
+  const [isExpanded, setIsExpanded]   = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
-  // Detect localhost for debug mode
   const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
 
   const chatEndRef = useRef<HTMLDivElement>(null)
@@ -244,7 +205,20 @@ export default function AIAssistant({ open, onToggle }: { open: boolean; onToggl
   }
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
-  useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 300) }, [open])
+  useEffect(() => { if (!isCollapsed) setTimeout(() => inputRef.current?.focus(), 100) }, [isCollapsed])
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (isExpanded) {
+        setIsExpanded(false)
+      } else if (!isCollapsed) {
+        setIsCollapsed(true)
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isCollapsed, isExpanded])
 
   useEffect(() => {
     const checkInactivity = () => {
@@ -297,6 +271,35 @@ export default function AIAssistant({ open, onToggle }: { open: boolean; onToggl
     }
   }
 
+  const analyzeMonth = async () => {
+    if (streaming) return
+    setMessages(prev => [...prev, { role: 'user', text: '✨ Analizar gastos del mes' }, { role: 'assistant', text: '' }])
+    setStreaming(true)
+    try {
+      console.log('Calling getDashboardAITrends with month:', currentMonth)
+      const data = await getDashboardAITrends({ month: currentMonth })
+      console.log('AI Trends data received:', data)
+
+      const trendIcon = data.trend === 'up' ? '↑' : data.trend === 'down' ? '↓' : '→'
+      const trendLabel = data.trend === 'up' ? 'Tendencia alcista' : data.trend === 'down' ? 'Tendencia bajista' : 'Estable'
+
+      let responseText = `${trendIcon} ${trendLabel}\n\n${data.trend_explanation}`
+      if (data.top_rising_category) responseText += `\n\n↑ Subió: ${data.top_rising_category}`
+      if (data.top_falling_category) responseText += `\n\n↓ Bajó: ${data.top_falling_category}`
+      if (data.recommendation) responseText += `\n\n💡 ${data.recommendation}`
+      if (data.alert) responseText += `\n\n⚠ ${data.alert}`
+
+      console.log('Setting response:', responseText)
+      setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', text: responseText }; return u })
+    } catch (err) {
+      console.error('analyzeMonth error:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', text: `Error al procesar la consulta: ${errorMessage}` }; return u })
+    } finally {
+      setStreaming(false)
+    }
+  }
+
   const startNewSession = () => {
     const curSession = sessions.find(s => s.id === activeId)
     if (curSession && curSession.messages.length > 0 && !curSession.summary) {
@@ -309,162 +312,235 @@ export default function AIAssistant({ open, onToggle }: { open: boolean; onToggl
     setShowHistory(false)
   }
 
-  const deleteSession = (id: string) => {
-    setSessions(prev => { const next = prev.filter(s => s.id !== id); saveSessions(next); return next })
+  const confirmDelete = (id: string) => {
+    setDeleteConfirm(id)
+  }
+
+  const deleteSession = () => {
+    const id = deleteConfirm
+    if (!id) return
+    setSessions(prev => {
+      const next = prev.filter(s => s.id !== id)
+      saveSessions(next)
+      return next
+    })
     if (id === activeId) {
       const remaining = sessions.filter(s => s.id !== id)
       if (remaining.length > 0) {
-        const last = remaining[remaining.length - 1]
-        setActiveId(last.id); saveActiveId(last.id)
+        setActiveId(remaining[remaining.length - 1].id)
+        saveActiveId(remaining[remaining.length - 1].id)
       } else {
         startNewSession()
       }
     }
+    setDeleteConfirm(null)
   }
+
+  // ── Shared JSX fragments ────────────────────────────────────────────────────
+
+  const headerJsx = (
+    <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)] flex-shrink-0">
+      <div className="flex items-center gap-2">
+        <span className="text-secondary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+        <span className="text-base font-semibold text-primary">Asistente Financiero</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        {messages.length > 0 && (
+          <button onClick={() => summarizeSession(activeId, messages)} disabled={summarizing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)] disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+            {summarizing ? <span className="animate-spin inline-block">↻</span> : 'Resumir'}
+          </button>
+        )}
+        {isLocalhost && (
+          <button
+            onClick={() => setDebugMode(!debugMode)}
+            className={`flex items-center justify-center w-8 h-8 rounded-full transition-all ${debugMode ? 'bg-[var(--gnome-orange-1)]/20 text-[var(--gnome-orange-4)]' : 'bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)]'}`}
+            title={debugMode ? "Debug mode ON" : "Activar debug mode"}
+          >
+            {debugMode ? '🔓' : '🔒'}
+          </button>
+        )}
+        {!isExpanded && (
+          <button onClick={() => setIsExpanded(true)} className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)] transition-all" title="Expandir a modal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" /></svg>
+          </button>
+        )}
+        {isExpanded && (
+          <button onClick={() => setIsExpanded(false)} className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)] transition-all" title="Contraer">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" /></svg>
+          </button>
+        )}
+        <button onClick={() => { setIsCollapsed(true); setIsExpanded(false) }} className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)] transition-all" title="Cerrar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+        </button>
+      </div>
+    </div>
+  )
+
+  const toolbarJsx = (
+    <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border-color)] flex-shrink-0">
+      <div className="flex gap-2">
+        <button onClick={() => setShowHistory(false)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+            !showHistory
+              ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)]'
+              : 'bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)]'
+          }`}>
+          Chat
+        </button>
+        <button onClick={() => setShowHistory(true)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+            showHistory
+              ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)]'
+              : 'bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)]'
+          }`}>
+          Historial {sessions.filter(s => s.id !== activeId).length > 0 && <span className="ml-1 opacity-70">({sessions.filter(s => s.id !== activeId).length})</span>}
+        </button>
+      </div>
+      {!showHistory && (
+        <button onClick={startNewSession} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)] transition-all">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nueva
+        </button>
+      )}
+    </div>
+  )
+
+  const historyJsx = (
+    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+      {sessions.length === 0 ? (
+        <p className="text-sm text-secondary text-center py-8">Sin historial aún</p>
+      ) : (
+        [...sessions].reverse().filter(s => s.id !== activeId).map(s => (
+          <SessionCard
+            key={s.id}
+            session={s}
+            expanded={expandedId === s.id}
+            onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)}
+            onDelete={() => confirmDelete(s.id)}
+            isActive={false}
+            />
+        ))
+      )}
+    </div>
+  )
+
+  const messageListJsx = (
+    <div className="flex-1 flex flex-col px-5 py-4 space-y-3 min-h-0 overflow-y-auto">
+      {messages.length === 0 && !streaming && (
+        <AnalyzeButton onClick={analyzeMonth} />
+      )}
+      {messages.length === 0 && streaming && (
+        <div className="flex flex-col items-center justify-center h-full text-center space-y-2">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-[var(--text-tertiary)]">
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+          </svg>
+          <p className="text-sm text-[var(--text-secondary)]">Preguntame sobre tus gastos del mes</p>
+          <p className="text-xs text-[var(--text-tertiary)]">Ej: ¿Dónde gasté más? ¿Cómo reduzco mis gastos en comida?</p>
+        </div>
+      )}
+      <div className="flex-1 space-y-3 overflow-y-auto min-h-0">
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[85%] px-3 py-2 rounded-md text-sm leading-relaxed ${
+              msg.role === 'user' ? 'bg-[var(--color-primary)] text-white rounded-br-sm' : 'bg-[var(--color-base-alt)] text-[var(--text-primary)] rounded-bl-sm'
+            }`}>
+              {msg.role === 'assistant' && msg.text ? formatAIResponse(msg.text) : (msg.text || (streaming && i === messages.length - 1 && msg.role === 'assistant' ? <ThinkingDots /> : ''))}
+            </div>
+          </div>
+        ))}
+        {streaming && (
+          <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)] pl-2">
+            <span className="animate-pulse">●</span>
+            <span>Analizando...</span>
+          </div>
+        )}
+        <div ref={chatEndRef} />
+      </div>
+    </div>
+  )
+
+  const inputBarJsx = (iRef: React.RefObject<HTMLInputElement>) => (
+    <div className="px-4 py-3 border-t border-[var(--border-color)] flex-shrink-0 bg-[var(--color-surface)]">
+      {activeSession?.summary && (
+        <div className="mb-2 px-3 py-2 bg-[var(--color-primary)]/10 border border-[var(--border-color)] rounded-lg">
+          <p className="text-[10px] font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-0.5">Resumen</p>
+          <p className="text-xs text-primary leading-relaxed line-clamp-3">{activeSession.summary}</p>
+        </div>
+      )}
+      <div className="flex items-center gap-2">
+        <input ref={iRef} type="text" value={input} onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && sendMessage()}
+          placeholder="Preguntá sobre tus gastos..."
+          disabled={streaming}
+          className="flex-1 input text-sm"
+        />
+        <button onClick={sendMessage} disabled={!input.trim() || streaming}
+          className="flex items-center justify-center w-9 h-9 rounded-full bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 active:scale-95 disabled:opacity-40 transition-all flex-shrink-0">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M2 8l12-6-3 6 3 6-12-6z" fill="currentColor"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  )
+
+  // ── Render ────────────────────────────────────────────────────────────────────
 
   if (!open) return null
 
   return (
-    <div className="fixed top-0 right-0 h-full w-full sm:w-[380px] bg-[var(--color-surface)] border-l border-[var(--border-color)] shadow-gnome-lg z-30 flex flex-col">
-
-      <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-color)] flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" className="text-[var(--color-primary)]">
-            <path d="M10 2l2.5 5 5.5.8-4 3.9.95 5.5L10 14.75l-4.95 2.45.95-5.5-4-3.9 5.5-.8L10 2z" fill="currentColor"/>
+    <>
+      {/* Floating button - collapsed state */}
+      {isCollapsed && (
+        <button
+          onClick={() => setIsCollapsed(false)}
+          className="fixed right-4 bottom-6 z-50 w-10 h-10 bg-[var(--color-primary)] hover:brightness-110 rounded-full shadow-lg flex items-center justify-center text-[var(--color-on-primary)] transition-all duration-200"
+          title="Abrir Asistente Financiero"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
           </svg>
-          <span className="text-base font-semibold text-[var(--text-primary)]">Asistente IA</span>
-        </div>
-        <div className="flex items-center gap-2">
-          {messages.length > 0 && (
-            <button onClick={() => summarizeSession(activeId, messages)} disabled={summarizing}
-              className="text-xs px-2 py-1 rounded border border-[var(--color-primary)]/30 bg-[var(--color-primary)]/8 text-[var(--color-primary)] hover:bg-[var(--color-primary)]/15 disabled:opacity-50 transition-colors">
-              {summarizing ? '...' : 'Resumir'}
-            </button>
-          )}
-          {isLocalhost && (
-            <button
-              onClick={() => setDebugMode(!debugMode)}
-              className={`text-xs px-2 py-1 rounded border transition-colors ${
-                debugMode
-                  ? 'border-orange-500/50 bg-orange-500/20 text-orange-600 font-medium'
-                  : 'border-[var(--border-color)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
-              }`}
-              title={debugMode ? "Debug mode ON - Sin filtros LLM" : "Activar debug mode"}
-            >
-              {debugMode ? '🔓 Debug' : '🔒 Debug'}
-            </button>
-          )}
-          <button onClick={onToggle}
-            className="flex items-center justify-center w-9 h-9 bg-[var(--color-primary)] hover:brightness-110 text-white rounded-full shadow-gnome transition-all">
-            ✕
-          </button>
-        </div>
-      </div>
+        </button>
+      )}
 
-      <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
-
-        <div className="px-5 py-4 border-b border-[var(--border-color)] flex-shrink-0">
-          <TrendsSection />
-        </div>
-
-        <div className="flex items-center justify-between px-5 py-2 border-b border-[var(--border-color)] flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setShowHistory(false)}
-              className={`text-xs font-medium uppercase tracking-wider transition-colors ${!showHistory ? 'text-[var(--color-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}>
-              Chat
-            </button>
-            <button onClick={() => setShowHistory(true)}
-              className={`text-xs font-medium uppercase tracking-wider transition-colors ${showHistory ? 'text-[var(--color-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}>
-              Historial {sessions.filter(s => s.id !== activeId).length > 0 && <span className="ml-1 text-[var(--text-tertiary)]">({sessions.filter(s => s.id !== activeId).length})</span>}
-            </button>
+      {/* Side panel - floating above content */}
+      {!isCollapsed && !isExpanded && (
+        <div className="fixed right-0 top-0 h-full bg-[var(--color-surface)] border-l border-[var(--border-color)] shadow-lg z-50 flex flex-col w-full sm:w-96 overflow-hidden">
+          {headerJsx}
+          {toolbarJsx}
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {showHistory ? historyJsx : messageListJsx}
           </div>
-          {!showHistory && (
-            <button onClick={startNewSession} className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors">
-              + Nueva sesión
-            </button>
-          )}
+          {!showHistory && inputBarJsx(inputRef)}
         </div>
+      )}
 
-        {debugMode && (
-          <div className="px-4 py-2 bg-orange-500/10 border-b border-orange-500/30 flex-shrink-0">
-            <p className="text-xs text-orange-600 flex items-center gap-2">
-              <span>🔓</span>
-              <span className="font-medium">Debug Mode:</span>
-              <span>Sin restricciones de dominio. Solo para desarrollo local.</span>
-            </p>
-          </div>
-        )}
-
-        {showHistory ? (
-          <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2 min-h-0">
-            {sessions.length === 0 ? (
-              <p className="text-sm text-[var(--text-tertiary)] text-center py-8">Sin historial aún</p>
-            ) : (
-              [...sessions].reverse().filter(s => s.id !== activeId).map(s => (
-                <SessionCard key={s.id} session={s} expanded={expandedId === s.id}
-                  onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)}
-                  onDelete={() => deleteSession(s.id)} isActive={false} />
-              ))
-            )}
-          </div>
-        ) : (
-          <div className="flex-1 flex flex-col px-5 py-4 space-y-3 min-h-0 overflow-y-auto">
-            {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full text-center space-y-2">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-[var(--text-tertiary)]">
-                  <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-                </svg>
-                <p className="text-sm text-[var(--text-secondary)]">Preguntame sobre tus gastos del mes</p>
-                <p className="text-xs text-[var(--text-tertiary)]">Ej: ¿Dónde gasté más? ¿Cómo reduzco mis gastos en comida?</p>
-              </div>
-            )}
-            <div className="flex-1 space-y-3 overflow-y-auto min-h-0">
-              {messages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] px-3 py-2 rounded-md text-sm leading-relaxed ${
-                    msg.role === 'user' ? 'bg-[var(--color-primary)] text-white rounded-br-sm' : 'bg-[var(--color-base-alt)] text-[var(--text-primary)] rounded-bl-sm'
-                  }`}>
-                    {msg.text || (streaming && i === messages.length - 1 ? <ThinkingDots /> : '')}
-                  </div>
-                </div>
-              ))}
-              <div ref={chatEndRef} />
+      {/* Modal overlay - expanded mode, GNOME 50 bottom-sheet on mobile */}
+      {isExpanded && (
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setIsExpanded(false)} />
+          <div className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-t-lg sm:rounded-lg shadow-xl flex flex-col w-full sm:max-w-2xl max-h-[90dvh] sm:max-h-[85vh] overflow-hidden">
+            {headerJsx}
+            {toolbarJsx}
+            <div className="flex-1 overflow-y-auto min-h-0">
+              {showHistory ? historyJsx : messageListJsx}
             </div>
-          </div>
-        )}
-      </div>
-
-      {!showHistory && (
-        <div className="px-4 py-3 border-t border-[var(--border-color)] flex-shrink-0">
-          {activeSession?.summary && (
-            <div className="mb-2 px-3 py-2 bg-[var(--color-primary)]/8 border border-[var(--color-primary)]/20 rounded-md">
-              <p className="text-[10px] font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-0.5">Resumen de sesión</p>
-              <p className="text-xs text-[var(--text-primary)] leading-relaxed line-clamp-3">{activeSession.summary}</p>
-            </div>
-          )}
-          <div className="flex items-center gap-2">
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && sendMessage()}
-              placeholder="Preguntá sobre tus gastos..."
-              disabled={streaming}
-              className="flex-1 border border-[var(--border-color)] bg-[var(--color-base-container)] rounded-md px-4 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 disabled:opacity-50"
-            />
-            <button
-              onClick={sendMessage}
-              disabled={!input.trim() || streaming}
-              className="w-9 h-9 bg-[var(--color-primary)] hover:brightness-110 text-white rounded-md flex items-center justify-center disabled:opacity-40 transition-colors flex-shrink-0"
-            >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <path d="M2 8l12-6-3 6 3 6-12-6z" fill="currentColor"/>
-              </svg>
-            </button>
+            {!showHistory && inputBarJsx(inputRef)}
           </div>
         </div>
       )}
-    </div>
+
+      <ConfirmDialog
+        isOpen={deleteConfirm !== null}
+        title="Eliminar sesión"
+        message="¿Estás seguro de que quieres eliminar esta sesión? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        onConfirm={deleteSession}
+        onCancel={() => setDeleteConfirm(null)}
+        variant="danger"
+      />
+    </>
   )
 }

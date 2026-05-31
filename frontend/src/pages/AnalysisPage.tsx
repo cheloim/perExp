@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getAnalysisHistory, deleteAnalysisHistory } from '../api/client'
 import type { AnalysisHistory } from '../types'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { formatAIResponse } from '../utils/formatText'
 
 const SAVED_QUERIES_KEY = 'analysis_saved_queries'
 const MAX_SAVED = 20
@@ -295,7 +296,7 @@ const deleteMut = useMutation({
             ref={outputRef}
             className="px-5 py-4 text-sm text-secondary whitespace-pre-wrap leading-relaxed max-h-[500px] overflow-y-auto"
           >
-            {output}
+            {formatAIResponse(output)}
             {streaming && (
               <span className="inline-block w-2 h-4 bg-info animate-pulse ml-0.5 align-middle" />
             )}

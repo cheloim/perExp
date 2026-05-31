@@ -183,7 +183,7 @@ function MainLayout() {
       </aside>
 
       {/* Main content */}
-      <div className={`flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ${isInvestments ? (isCollapsed ? 'mr-0' : `mr-0 sm:mr-[${panelWidth}px]`) : aiDrawerOpen ? 'mr-0 sm:mr-[380px]' : 'mr-0'}`} style={isInvestments && !isCollapsed ? { marginRight: panelWidth } : undefined}>
+      <div className={`flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ${isInvestments ? (isCollapsed ? 'mr-0' : `mr-0 sm:mr-[${panelWidth}px]`) : 'mr-0'}`} style={isInvestments && !isCollapsed ? { marginRight: panelWidth } : undefined}>
         {/* Mobile header */}
         <header className="md:hidden h-14 border-b border-[var(--border-color)] bg-sidebar flex items-center px-4 sticky top-0 z-40">
           <div className="flex items-center gap-2">

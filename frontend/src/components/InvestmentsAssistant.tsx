@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getInvestments } from '../api/client'
 import type { Investment } from '../types'
 import { ConfirmDialog } from './ConfirmDialog'
+import { formatAIResponse } from '../utils/formatText'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -201,12 +202,12 @@ function MessageList({
       )}
       {messages.map((msg, i) => (
         <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-          <div className={`max-w-[80%] px-3 py-2 rounded-xl text-sm leading-relaxed whitespace-pre-wrap ${
+          <div className={`max-w-[80%] px-3 py-2 rounded-xl text-sm leading-normal whitespace-pre-wrap ${
             msg.role === 'user'
               ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)]'
               : 'bg-[var(--color-base-alt)] text-primary'
           }`}>
-            {msg.text || (streaming && i === messages.length - 1 ? <ThinkingDots /> : '')}
+            {msg.role === 'assistant' && msg.text ? formatAIResponse(msg.text) : (msg.text || (streaming && i === messages.length - 1 ? <ThinkingDots /> : ''))}
           </div>
         </div>
       ))}
@@ -248,12 +249,12 @@ function SessionCard({
               <p className="text-xs text-primary leading-relaxed">{session.summary}</p>
             </div>
           )}
-          <div className="px-3 py-2 space-y-2 max-h-64 overflow-y-auto">
+          <div className="px-3 py-2 space-y-2 overflow-y-auto flex-1 min-h-0">
             {session.messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[90%] px-2 py-1.5 rounded-md text-xs leading-relaxed whitespace-pre-wrap ${
+                <div className={`max-w-[90%] px-2 py-1.5 rounded-md text-xs leading-normal whitespace-pre-wrap ${
                   m.role === 'user' ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)]' : 'bg-[var(--color-base-alt)] text-primary'
-                }`}>{m.text}</div>
+                }`}>{m.role === 'assistant' && m.text ? formatAIResponse(m.text) : m.text}</div>
               </div>
             ))}
           </div>
@@ -476,7 +477,7 @@ export default function InvestmentsAssistant() {
   )
 
   const historyJsx = (
-    <div className="px-4 py-3 space-y-2">
+    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
       {sessions.length === 0 ? (
         <p className="text-sm text-secondary text-center py-8">Sin historial aún</p>
       ) : (
