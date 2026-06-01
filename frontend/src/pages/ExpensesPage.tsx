@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getExpenses,
@@ -21,6 +22,7 @@ type SortDir = 'asc' | 'desc'
 
 export default function ExpensesPage() {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const { filters, setFilter, clearFilters, searchParams, setSearchParams } = useExpenseFilters()
 
   const filterCategory     = filters.categoryId
@@ -154,19 +156,30 @@ export default function ExpensesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Gastos</h1>
         <div className="flex items-center gap-2">
+          {/* Seleccionar */}
           <button
             onClick={() => { setSelectMode(v => !v); setSelectedIds(new Set()) }}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-              selectMode
-                ? 'bg-primary text-on-primary hover:brightness-110 active:scale-95'
-                : 'bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:bg-[var(--color-base)]'
-            }`}
+            className={`gnome-btn-secondary-round text-sm ${selectMode ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)] border-transparent' : ''}`}
           >
             {selectMode ? 'Cancelar' : 'Seleccionar'}
           </button>
+          {/* Categorías */}
+          <button
+            onClick={() => navigate('/categories')}
+            className="gnome-btn-secondary-round text-sm"
+            title="Ir a configuración de categorías"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="mr-1">
+              <rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+              <rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+              <rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+              <rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+            </svg>
+            Categorías
+          </button>
           <button
             onClick={() => { setEditing(null) }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-primary text-on-primary hover:brightness-110 active:scale-95 transition-all"
+            className="gnome-btn-primary-round text-sm"
           >
             <span className="text-base leading-none">+</span>
             <span>Nuevo gasto</span>
@@ -472,7 +485,7 @@ export default function ExpensesPage() {
           <div className="relative">
             <button
               onClick={() => setBulkMenuOpen(!bulkMenuOpen)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-on-primary text-sm font-medium hover:brightness-110 active:scale-95 transition-all"
+              className="gnome-btn-primary-round text-sm"
             >
               Acciones
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className={`transition-transform ${bulkMenuOpen ? 'rotate-180' : ''}`}>
@@ -514,7 +527,7 @@ export default function ExpensesPage() {
           </div>
           <button
             onClick={() => setSelectedIds(new Set())}
-            className="px-3 py-1.5 rounded-full text-sm font-medium bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:bg-[var(--color-base)] transition-all"
+            className="gnome-btn-secondary-round text-sm"
           >
             Limpiar
           </button>

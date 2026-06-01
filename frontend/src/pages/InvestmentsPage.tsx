@@ -382,8 +382,8 @@ function InvestmentModal({
         )}
 
         <div className="flex gap-3 pt-2">
-          <button onClick={onClose} className="btn-secondary flex-1">Cancelar</button>
-          <button onClick={() => onSave(form)} className="btn-primary flex-1">Guardar</button>
+          <button onClick={onClose} className="gnome-btn-secondary flex-1">Cancelar</button>
+          <button onClick={() => onSave(form)} className="gnome-btn-primary flex-1">Guardar</button>
         </div>
       </div>
     </div>
@@ -501,11 +501,11 @@ function CredentialsModal({ settings, onClose, onSaved }: {
         </div>
 
         <div className="flex gap-3 pt-1">
-          <button onClick={onClose} className="btn-secondary flex-1">Cerrar</button>
+          <button onClick={onClose} className="gnome-btn-secondary flex-1">Cerrar</button>
           <button
             onClick={handleSave}
             disabled={!hasChanges || saving}
-            className="btn-primary flex-1 disabled:opacity-40"
+            className="gnome-btn-primary flex-1 disabled:opacity-40"
           >
             {saving ? 'Guardando...' : 'Guardar'}
           </button>
@@ -944,7 +944,7 @@ export default function InvestmentsPage() {
             onClick={() => syncAllMut.mutate()}
             disabled={syncAllMut.isPending || (!settings.iol_configured && !settings.ppi_configured)}
             title={(!settings.iol_configured && !settings.ppi_configured) ? 'Configurá las credenciales primero' : 'Sincronizar brokers y actualizar precios'}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:bg-[var(--color-base)] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            className={`gnome-btn-secondary-round text-sm ${syncAllMut.isPending ? 'opacity-60' : ''}`}
           >
             {syncAllMut.isPending ? <span className="animate-spin inline-block">↻</span> : '↻'}
             <span>Sincronizar</span>
@@ -954,11 +954,7 @@ export default function InvestmentsPage() {
           <button
             onClick={handleToggleUsd}
             disabled={usdLoading}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-              showInUsd
-                ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)]'
-                : 'bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:bg-[var(--color-base)]'
-            }`}
+            className={`gnome-btn-secondary-round text-sm ${showInUsd ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)] border-transparent' : ''}`}
             title="Convertir valores ARS a USD"
           >
             {usdLoading ? <span className="animate-spin inline-block">↻</span> : null}
@@ -967,14 +963,14 @@ export default function InvestmentsPage() {
 
           <button
             onClick={() => setShowCreds(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:bg-[var(--color-base)] transition-all"
+            className="gnome-btn-secondary-round text-sm"
             title="Configurar credenciales"
           >
             <span className="text-base leading-none">⚙</span>
             <span>Config</span>
           </button>
 
-          <button onClick={() => setEditing(null)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 active:scale-95 transition-all">
+          <button onClick={() => setEditing(null)} className="gnome-btn-primary-round text-sm">
             <span className="text-base leading-none">+</span>
             <span>Nueva</span>
           </button>

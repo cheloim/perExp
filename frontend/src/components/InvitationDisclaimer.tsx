@@ -50,7 +50,7 @@ export default function InvitationDisclaimer({ notificationId, inviterName, onCl
           <button
             onClick={() => mutate()}
             disabled={isPending}
-            className="flex-1 py-2 rounded-lg btn-primary text-sm font-medium transition-colors disabled:opacity-50"
+            className="flex-1 py-2 rounded-lg gnome-btn-primary text-sm font-medium transition-colors disabled:opacity-50"
           >
             {isPending ? 'Confirmando…' : 'Confirmar'}
           </button>

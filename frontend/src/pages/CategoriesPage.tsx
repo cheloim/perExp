@@ -36,7 +36,7 @@ function CategoryForm({ initial, isParentForm, parentCategories, onClose, onSave
   )
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="card w-full max-w-md">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border-color">
           <h2 className="text-base font-semibold text-primary">
@@ -117,13 +117,13 @@ function CategoryForm({ initial, isParentForm, parentCategories, onClose, onSave
           )}
         </div>
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-border-color">
-          <button onClick={onClose} className="btn-secondary">
+          <button onClick={onClose} className="gnome-btn-secondary">
             Cancelar
           </button>
           <button
             onClick={() => onSave({ ...form, keywords: isParentForm ? '' : form.keywords })}
             disabled={!form.name}
-            className="btn-primary"
+            className="gnome-btn-primary"
           >
             Guardar
           </button>
@@ -142,7 +142,7 @@ function CategoryDetail({ cat, onClose }: { cat: Category; onClose: () => void }
   const total = expenses.reduce((s, e) => s + e.amount, 0)
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
       <div className="card w-full sm:max-w-2xl flex flex-col max-h-[90vh]">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-border-color flex-shrink-0">
           <span className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
@@ -189,7 +189,7 @@ function CategoryDetail({ cat, onClose }: { cat: Category; onClose: () => void }
           )}
         </div>
         <div className="px-5 py-3 border-t border-border-color flex-shrink-0 flex justify-end">
-          <button onClick={onClose} className="btn-secondary">Cerrar</button>
+          <button onClick={onClose} className="gnome-btn-secondary">Cerrar</button>
         </div>
       </div>
     </div>
@@ -397,7 +397,7 @@ export default function CategoriesPage() {
           <button
             onClick={() => { setRecatResult(null); recatMut.mutate(true) }}
             disabled={recatMut.isPending}
-            className="btn-secondary text-sm"
+            className="gnome-btn-secondary-round text-sm"
           >
             {recatMut.isPending ? 'Recategorizando...' : '↺ Recategorizar sin categoría'}
           </button>
@@ -409,7 +409,7 @@ export default function CategoriesPage() {
           {tab === 'parents' && (
             <button
               onClick={() => setEditing({ cat: null, isParent: true })}
-              className="btn-primary text-sm"
+              className="gnome-btn-primary-round text-sm"
             >
               + Categoría padre
             </button>
@@ -417,7 +417,7 @@ export default function CategoriesPage() {
           {tab === 'subcategories' && (
             <button
               onClick={() => setEditing({ cat: null, isParent: false })}
-              className="btn-primary text-sm"
+              className="gnome-btn-primary-round text-sm"
             >
               + Subcategoría
             </button>
@@ -437,7 +437,7 @@ export default function CategoriesPage() {
           <button
             onClick={() => hierarchyMut.mutate()}
             disabled={hierarchyMut.isPending}
-            className="flex-shrink-0 btn-primary"
+            className="gnome-btn-primary-round flex-shrink-0"
           >
             {hierarchyMut.isPending ? 'Aplicando...' : 'Aplicar estructura base'}
           </button>
@@ -452,7 +452,7 @@ export default function CategoriesPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-0.5 bg-surface border border-border-color rounded-xl p-1 w-fit">
+      <div className="flex gap-1 p-1 bg-[var(--color-base-alt)] rounded-lg w-fit">
         {([
           { key: 'parents', label: 'Categorías Padre', count: parentCats.length },
           { key: 'subcategories', label: 'Subcategorías', count: childCats.length + standaloneLeaves.length },
@@ -460,14 +460,14 @@ export default function CategoriesPage() {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
               tab === t.key
-                ? 'bg-base-alt text-primary'
-                : 'text-tertiary hover:text-primary'
+                ? 'bg-[var(--color-surface)] text-[var(--text-primary)] shadow-sm'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
             }`}
           >
             {t.label}
-            <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? 'bg-primary-subtle text-primary' : 'bg-base-alt text-secondary'}`}>
+            <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? 'bg-primary-subtle text-[var(--color-primary)]' : 'bg-[var(--color-base)] text-[var(--text-tertiary)]'}`}>
               {t.count}
             </span>
           </button>

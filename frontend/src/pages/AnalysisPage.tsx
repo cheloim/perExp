@@ -263,7 +263,7 @@ const deleteMut = useMutation({
         <button
           onClick={handleAnalyze}
           disabled={streaming}
-          className="w-full py-2.5 text-sm font-medium text-white btn-primary rounded-lg disabled:opacity-50 transition"
+          className="w-full py-2.5 text-sm font-medium text-white gnome-btn-primary rounded-lg disabled:opacity-50 transition"
         >
           {streaming ? (
             <span className="flex items-center justify-center gap-2">

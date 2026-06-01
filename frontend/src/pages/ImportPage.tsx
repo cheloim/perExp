@@ -715,7 +715,7 @@ export default function ImportPage() {
           })}
 
           <div className="flex justify-between items-center pt-4 border-t border-border-color">
-            <button onClick={reset} className="btn-secondary">← Volver</button>
+            <button onClick={reset} className="gnome-btn-secondary">← Volver</button>
             <div className="text-right">
               <p className="text-xs text-tertiary mb-2">
                 {totalRows - totalDupes} gastos a importar
@@ -724,7 +724,7 @@ export default function ImportPage() {
               <button
                 onClick={handleConfirmImport}
                 disabled={confirmSmartMut.isPending || isProcessing || missingDataFiles > 0 || unsavedCustomNamingFiles > 0}
-                className="btn-primary bg-success hover:brightness-110 disabled:opacity-50 disabled:bg-tertiary"
+                className="gnome-btn-primary bg-success hover:brightness-110 disabled:opacity-50 disabled:bg-tertiary"
               >
                 {confirmSmartMut.isPending
                   ? 'Importando...'
@@ -815,10 +815,10 @@ export default function ImportPage() {
             </div>
 
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-border-color">
-              <button onClick={() => setEditModalFile(null)} className="btn-secondary">
+              <button onClick={() => setEditModalFile(null)} className="gnome-btn-secondary">
                 Cancelar
               </button>
-              <button onClick={handleApplyEdit} className="btn-primary">
+              <button onClick={handleApplyEdit} className="gnome-btn-primary">
                 ✓ Aplicar datos
               </button>
             </div>
@@ -876,10 +876,10 @@ export default function ImportPage() {
             </div>
 
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-border-color">
-              <button onClick={() => setCustomNamingModalFile(null)} className="btn-secondary">
+              <button onClick={() => setCustomNamingModalFile(null)} className="gnome-btn-secondary">
                 Cancelar
               </button>
-              <button onClick={handleApplyCustomNaming} className="btn-primary">
+              <button onClick={handleApplyCustomNaming} className="gnome-btn-primary">
                 ✓ Guardar nombres
               </button>
             </div>

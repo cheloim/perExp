@@ -246,7 +246,7 @@ export function InvestmentDetailModal({ isOpen, investment, allInvestments, onCl
             <div className="flex-1 relative" ref={dropdownRef}>
               <button
                 onClick={() => setShowEditDropdown(!showEditDropdown)}
-                className="btn-primary w-full text-sm flex items-center justify-center gap-2"
+                className="gnome-btn-primary w-full text-sm flex items-center justify-center gap-2"
               >
                 <span>Editar</span>
                 <span className="text-xs">{showEditDropdown ? '▲' : '▼'}</span>
@@ -270,11 +270,11 @@ export function InvestmentDetailModal({ isOpen, investment, allInvestments, onCl
               )}
             </div>
           ) : (
-            <button onClick={() => { onClose(); onEdit(investment, investments) }} className="btn-primary flex-1 text-sm">
+            <button onClick={() => { onClose(); onEdit(investment, investments) }} className="gnome-btn-primary flex-1 text-sm">
               Editar
             </button>
           )}
-          <button onClick={onClose} className="btn-secondary flex-1 text-sm">
+          <button onClick={onClose} className="gnome-btn-secondary flex-1 text-sm">
             Cerrar
           </button>
         </div>
