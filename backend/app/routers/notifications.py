@@ -214,7 +214,7 @@ async def notifications_stream(request: Request, db: Session = Depends(get_db)):
     async def generate():
         poll_timeout = 60
         poll_interval = 0.5
-        last_check = time.time()
+        last_check = datetime.now()
         default_page_size = 50
 
         initial_notifs = (
@@ -244,7 +244,8 @@ async def notifications_stream(request: Request, db: Session = Depends(get_db)):
         yield f"data: {json.dumps(initial_payload)}\n\n"
 
         while True:
-            elapsed = time.time() - last_check
+            now = datetime.now()
+            elapsed = (now - last_check).total_seconds()
             if elapsed < poll_timeout:
                 remaining = poll_timeout - elapsed
             else:
@@ -271,11 +272,11 @@ async def notifications_stream(request: Request, db: Session = Depends(get_db)):
                 )
                 pending_count = unread_count
                 yield f"data: {json.dumps({'type': 'counts_update', 'unread_count': unread_count, 'pending_count': pending_count})}\n\n"
-                last_check = time.time()
+                last_check = datetime.now()
 
             if remaining <= 0:
                 yield f"data: {json.dumps({'type': 'ping'})}\n\n"
-                last_check = time.time()
+                last_check = datetime.now()
                 poll_timeout = min(poll_timeout * 1.2, 120)
 
             await asyncio.sleep(poll_interval)
