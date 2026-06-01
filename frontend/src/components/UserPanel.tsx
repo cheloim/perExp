@@ -140,7 +140,7 @@ export default function UserPanel({ open, onClose }: Props) {
 
       {/* Panel */}
       <div
-        className={`fixed bottom-0 left-0 z-50 h-full w-72 bg-[var(--color-surface)] border-r border-[var(--border-color)] shadow-gnome-lg flex flex-col transition-transform duration-300 ease-in-out ${
+        className={`fixed left-0 top-0 z-50 h-full w-full sm:w-80 bg-[var(--color-surface)] border-r border-[var(--border-color)] shadow-gnome-lg flex flex-col transition-transform duration-300 ease-in-out ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

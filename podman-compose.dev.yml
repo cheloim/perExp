@@ -21,6 +21,8 @@ services:
       dockerfile: Dockerfile.dev
     volumes:
       - ./frontend/.env:/app/.env:ro
+      - ./frontend/src:/app/src:Z
+      - ./frontend/index.html:/app/index.html:Z
     ports:
       - "8082:5173"
     environment:
