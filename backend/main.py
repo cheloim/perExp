@@ -40,7 +40,6 @@ from app.routers import (
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
-    # Startup
     db = SessionLocal()
     if db.query(Category).count() == 0:
         _apply_base_hierarchy(db)
@@ -54,7 +53,6 @@ async def lifespan(application: FastAPI):
         )
         db.add(seed_user)
         db.flush()
-        # Assign all existing rows to seed user
         from sqlalchemy import text as _t
         for _tbl in ("expenses", "investments", "analysis_history", "card_closings"):
             db.execute(_t(f"UPDATE {_tbl} SET user_id = :uid WHERE user_id IS NULL"), {"uid": seed_user.id})
@@ -72,22 +70,9 @@ async def lifespan(application: FastAPI):
     else:
         logging.getLogger(__name__).warning("TELEGRAM_BOT_TOKEN not set — bot disabled")
 
-    # Scheduled jobs
-    from apscheduler.schedulers.background import BackgroundScheduler
-    from app.tasks.scheduled_expenses import execute_due_installments
-    from app.tasks.cleanup_import_jobs import cleanup_expired_import_jobs
-
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(execute_due_installments, 'cron', hour=2, minute=0)  # 2:00 AM diario
-    scheduler.add_job(cleanup_expired_import_jobs, 'cron', hour=3, minute=30)  # 3:30 AM diario
-    scheduler.start()
-    logging.getLogger(__name__).info("Scheduler started (scheduled expenses + import cleanup)")
-
     yield
 
-    # Shutdown
     task.cancel()
-    scheduler.shutdown()
     try:
         await task
     except asyncio.CancelledError:

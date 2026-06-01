@@ -8,8 +8,10 @@ from app.database import SessionLocal
 
 _log = lambda msg: print(f"{datetime.now().isoformat()} {msg}")
 from app.models import ImportJob, Notification
+from app.celery_app import celery_app
 
 
+@celery_app.task(name="app.tasks.cleanup_import_jobs.cleanup_expired_import_jobs")
 def cleanup_expired_import_jobs():
     """
     Elimina import jobs con más de 24 horas.

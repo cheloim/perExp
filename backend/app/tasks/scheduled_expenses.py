@@ -2,8 +2,10 @@ from datetime import date, datetime
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models import ScheduledExpense, Expense
+from app.celery_app import celery_app
 
 
+@celery_app.task(name="app.tasks.scheduled_expenses.execute_due_installments")
 def execute_due_installments():
     """
     Ejecuta cuotas programadas con scheduled_date <= hoy

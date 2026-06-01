@@ -1,10 +1,9 @@
 from sqlalchemy import (
-    Column, Integer, String, Float, Date, ForeignKey, Text, DateTime, Boolean, LargeBinary, inspect,
-    text as sa_text,
+    Column, Integer, String, Float, Date, ForeignKey, Text, DateTime, Boolean, LargeBinary,
 )
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from app.database import Base, engine
+from app.database import Base
 
 
 class User(Base):
@@ -220,93 +219,3 @@ class ScheduledExpense(Base):
     executed_expense = relationship("Expense", foreign_keys=[executed_expense_id])
     card_rel = relationship("Card")
     account_rel = relationship("Account")
-
-
-Base.metadata.create_all(bind=engine)
-
-# Add new columns to existing DBs without losing data
-with engine.connect() as _conn:
-    _cols = [c["name"] for c in inspect(engine).get_columns("expenses")]
-    for _col, _type in [
-        ("bank", "VARCHAR DEFAULT ''"),
-        ("person", "VARCHAR DEFAULT ''"),
-        ("transaction_id", "VARCHAR"),
-        ("currency", "VARCHAR DEFAULT 'ARS'"),
-        ("installment_number", "INTEGER"),
-        ("installment_total", "INTEGER"),
-        ("installment_group_id", "VARCHAR"),
-        ("user_id", "INTEGER REFERENCES users(id)"),
-        ("group_id", "INTEGER REFERENCES groups(id)"),
-        ("account_id", "INTEGER REFERENCES accounts(id)"),
-        ("card_id", "INTEGER REFERENCES cards(id)"),
-        ("is_income", "BOOLEAN DEFAULT FALSE NOT NULL"),
-    ]:
-        if _col not in _cols:
-            _conn.execute(sa_text(f"ALTER TABLE expenses ADD COLUMN {_col} {_type}"))
-    _cat_cols = [c["name"] for c in inspect(engine).get_columns("categories")]
-    if "parent_id" not in _cat_cols:
-        _conn.execute(sa_text("ALTER TABLE categories ADD COLUMN parent_id INTEGER REFERENCES categories(id)"))
-    if "user_id" not in _cat_cols:
-        _conn.execute(sa_text("ALTER TABLE categories ADD COLUMN user_id INTEGER REFERENCES users(id)"))
-    try:
-        _conn.execute(sa_text("DROP INDEX IF EXISTS ix_categories_name"))
-    except Exception:
-        pass
-    _gm_cols = [c["name"] for c in inspect(engine).get_columns("group_members")]
-    for _col, _type in [
-        ("status", "VARCHAR DEFAULT 'accepted'"),
-        ("invited_by", "INTEGER REFERENCES users(id)"),
-    ]:
-        if _col not in _gm_cols:
-            _conn.execute(sa_text(f"ALTER TABLE group_members ADD COLUMN {_col} {_type}"))
-    for _tbl, _col, _type in [
-        ("analysis_history", "user_id", "INTEGER REFERENCES users(id)"),
-        ("investments", "user_id", "INTEGER REFERENCES users(id)"),
-        ("card_closings", "user_id", "INTEGER REFERENCES users(id)"),
-    ]:
-        _tbl_cols = [c["name"] for c in inspect(engine).get_columns(_tbl)]
-        if _col not in _tbl_cols:
-            _conn.execute(sa_text(f"ALTER TABLE {_tbl} ADD COLUMN {_col} {_type}"))
-    _user_cols = [c["name"] for c in inspect(engine).get_columns("users")]
-    if "dni" in _user_cols:
-        try:
-            _conn.execute(sa_text("ALTER TABLE users DROP COLUMN dni"))
-        except Exception:
-            pass
-    for _col, _type in [
-        ("telegram_key", "VARCHAR(12)"),
-        ("telegram_chat_id", "VARCHAR"),
-        ("provider", "VARCHAR"),
-        ("provider_id", "VARCHAR"),
-        ("avatar_url", "VARCHAR"),
-        ("invite_code", "VARCHAR(8)"),
-    ]:
-        if _col not in _user_cols:
-            _conn.execute(sa_text(f"ALTER TABLE users ADD COLUMN {_col} {_type}"))
-    _card_cols = [c["name"] for c in inspect(engine).get_columns("cards")]
-    if "holder" not in _card_cols:
-        _conn.execute(sa_text("ALTER TABLE cards ADD COLUMN holder VARCHAR DEFAULT ''"))
-    if "custom_naming" not in _card_cols:
-        _conn.execute(sa_text("ALTER TABLE cards ADD COLUMN custom_naming VARCHAR NOT NULL DEFAULT ''"))
-
-    # Crear tabla scheduled_expenses si no existe
-    inspector = inspect(engine)
-    if "scheduled_expenses" not in inspector.get_table_names():
-        Base.metadata.tables["scheduled_expenses"].create(bind=engine)
-        # Crear índices adicionales
-        _conn.execute(sa_text(
-            "CREATE INDEX IF NOT EXISTS idx_scheduled_status_date ON scheduled_expenses(status, scheduled_date)"
-        ))
-        _conn.execute(sa_text(
-            "CREATE INDEX IF NOT EXISTS idx_scheduled_user_status ON scheduled_expenses(user_id, status)"
-        ))
-
-    # Crear tabla import_jobs si no existe
-    if "import_jobs" not in inspector.get_table_names():
-        Base.metadata.tables["import_jobs"].create(bind=engine)
-        # Crear índices
-        _conn.execute(sa_text(
-            "CREATE INDEX IF NOT EXISTS idx_import_jobs_user_status ON import_jobs(user_id, status)"
-        ))
-
-    _conn.commit()
