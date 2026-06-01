@@ -91,9 +91,9 @@ TOP 10 GASTOS MÁS ALTOS:
     else:
         user_message += "\n\nAnalizá estos gastos en detalle y dame sugerencias concretas para optimizar mis finanzas."
 
-    api_key = os.getenv("GOOGLE_API_KEY")
+    api_key = os.getenv("LLM_API_KEY")
     if not api_key:
-        raise HTTPException(500, "GOOGLE_API_KEY no está configurada. Creá un archivo .env con tu API key.")
+        raise HTTPException(500, "LLM_API_KEY no está configurada. Creá un archivo .env con tu API key.")
 
     expense_count_val = len(expenses)
     total_val = total
@@ -156,10 +156,10 @@ async def summarize_chat(body: dict):
             yield f"data: {_json.dumps({'text': 'Sin mensajes para resumir.'})}\n\ndata: [DONE]\n\n"
         return _SR(_empty(), media_type="text/event-stream")
 
-    api_key = os.getenv("GOOGLE_API_KEY")
+    api_key = os.getenv("LLM_API_KEY")
     if not api_key:
         async def _no_key():
-            yield f"data: {_json.dumps({'text': 'GOOGLE_API_KEY no configurada.'})}\n\ndata: [DONE]\n\n"
+            yield f"data: {_json.dumps({'text': 'LLM_API_KEY no configurada.'})}\n\ndata: [DONE]\n\n"
         return _SR(_no_key(), media_type="text/event-stream")
 
     convo = "\n".join(

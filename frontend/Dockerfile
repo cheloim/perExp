@@ -2,11 +2,12 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
-# Copy dep files first — layer caches when only source changes
+ARG VITE_GOOGLE_CLIENT_ID
+ENV VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+
 COPY package.json package-lock.json ./
 RUN npm ci --prefer-offline
 
-# Now copy source
 COPY . .
 RUN npm run build
 

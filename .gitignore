@@ -23,3 +23,8 @@ Thumbs.db
 
 # Misc
 Plan.md
+
+# Secrets
+secrets/
+backend/secrets/
+frontend/secrets/

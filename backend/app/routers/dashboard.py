@@ -922,9 +922,9 @@ async def get_ai_trends(
     from google import genai
     from google.genai import types as genai_types
 
-    api_key = os.getenv("GOOGLE_API_KEY")
+    api_key = os.getenv("LLM_API_KEY")
     if not api_key:
-        raise HTTPException(500, "GOOGLE_API_KEY no configurada.")
+        raise HTTPException(500, "LLM_API_KEY no configurada.")
 
     today = date.today()
     six_months_ago = add_months(today, -6)

@@ -3,6 +3,13 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
+    secrets:
+      - creditcard_backend_llm_api_key
+      - creditcard_backend_investments_llm_api_key
+      - creditcard_backend_telegram_bot_token
+      - creditcard_backend_google_client_id
+      - creditcard_backend_google_client_secret
+      - creditcard_backend_secret_key
     environment:
       PYTHONPATH: /app
       DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses
@@ -19,22 +26,52 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
+    secrets:
+      - creditcard_frontend_google_client_id
     volumes:
-      - ./frontend/.env:/app/.env:ro
       - ./frontend/src:/app/src:Z
       - ./frontend/index.html:/app/index.html:Z
     ports:
       - "8082:5173"
     environment:
       VITE_API_URL: http://localhost:8000
-      VITE_GOOGLE_CLIENT_ID: 54424907455-9q3vr4snkchrpqltnsm8a24j8qmj2i27.apps.googleusercontent.com
 
   celery_worker:
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
     command: celery -A app.celery_app worker --loglevel=info
+    secrets:
+      - creditcard_backend_llm_api_key
+      - creditcard_backend_investments_llm_api_key
+      - creditcard_backend_telegram_bot_token
+      - creditcard_backend_google_client_id
+      - creditcard_backend_google_client_secret
+      - creditcard_backend_secret_key
     environment:
       PYTHONPATH: /app
       DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses
       REDIS_URL: redis://redis:6379/0
+
+secrets:
+  creditcard_backend_llm_api_key:
+    external: true
+    env: LLM_API_KEY
+  creditcard_backend_investments_llm_api_key:
+    external: true
+    env: INVESTMENTS_LLM_API_KEY
+  creditcard_backend_telegram_bot_token:
+    external: true
+    env: TELEGRAM_BOT_TOKEN
+  creditcard_backend_google_client_id:
+    external: true
+    env: GOOGLE_CLIENT_ID
+  creditcard_backend_google_client_secret:
+    external: true
+    env: GOOGLE_CLIENT_SECRET
+  creditcard_backend_secret_key:
+    external: true
+    env: SECRET_KEY
+  creditcard_frontend_google_client_id:
+    external: true
+    env: VITE_GOOGLE_CLIENT_ID

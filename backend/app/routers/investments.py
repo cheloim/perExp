@@ -717,7 +717,7 @@ RESTRICCIONES ESTRICTAS:
 
 @router.post("/investments/chat/stream")
 async def investments_chat_stream(body: dict):
-    """SSE chat endpoint for the investments assistant. Uses INVESTMENTS_GEMINI_API_KEY if set, else GOOGLE_API_KEY."""
+    """SSE chat endpoint for the investments assistant. Uses INVESTMENTS_LLM_API_KEY if set, else LLM_API_KEY."""
     import json
     from fastapi.responses import StreamingResponse
     from google import genai
@@ -730,10 +730,10 @@ async def investments_chat_stream(body: dict):
             yield f"data: {json.dumps({'text': 'Pregunta vacía.'})}\n\ndata: [DONE]\n\n"
         return StreamingResponse(_err(), media_type="text/event-stream")
 
-    api_key = os.getenv("INVESTMENTS_GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    api_key = os.getenv("INVESTMENTS_LLM_API_KEY") or os.getenv("LLM_API_KEY")
     if not api_key:
         async def _no_key():
-            yield f"data: {json.dumps({'text': 'INVESTMENTS_GEMINI_API_KEY / GOOGLE_API_KEY no configurada.'})}\n\ndata: [DONE]\n\n"
+            yield f"data: {json.dumps({'text': 'INVESTMENTS_LLM_API_KEY / LLM_API_KEY no configurada.'})}\n\ndata: [DONE]\n\n"
         return StreamingResponse(_no_key(), media_type="text/event-stream")
 
     user_message = question

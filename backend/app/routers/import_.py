@@ -382,7 +382,7 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
     except ValueError as e:
         # Map ValueError to appropriate HTTP error
         error_msg = str(e)
-        if "GOOGLE_API_KEY" in error_msg:
+        if "LLM_API_KEY" in error_msg:
             raise HTTPException(500, error_msg)
         elif "Formato no soportado" in error_msg or "no pudo leer" in error_msg:
             raise HTTPException(400, error_msg)
@@ -564,9 +564,9 @@ async def csv_raw_llm_preview(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
 ):
-    api_key = os.getenv("GOOGLE_API_KEY")
+    api_key = os.getenv("LLM_API_KEY")
     if not api_key:
-        raise HTTPException(500, "GOOGLE_API_KEY no está configurada.")
+        raise HTTPException(500, "LLM_API_KEY no está configurada.")
 
     content = await file.read()
     filename = (file.filename or "").lower()

@@ -43,9 +43,9 @@ async def run_smart_import(
     Raises:
         ValueError: If API key missing, file format unsupported, or no transactions found
     """
-    api_key = os.getenv("GOOGLE_API_KEY")
+    api_key = os.getenv("LLM_API_KEY")
     if not api_key:
-        raise ValueError("GOOGLE_API_KEY no está configurada.")
+        raise ValueError("LLM_API_KEY no está configurada.")
 
     filename_lower = filename.lower()
     is_csv = filename_lower.endswith((".csv", ".xls", ".xlsx"))
