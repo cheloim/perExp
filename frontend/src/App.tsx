@@ -96,7 +96,7 @@ function MainLayout() {
     <UploadProgressProvider>
       <div className="flex h-screen overflow-hidden bg-base">
         {/* Sidebar — GNOME Adwaita style, expand/collapse on hover */}
-        <aside className="group flex-shrink-0 bg-sidebar border-r border-[var(--border-color)] hidden md:flex flex-col w-16 hover:w-[220px] transition-all duration-300 overflow-hidden">
+        <aside className="group fixed left-0 top-0 h-full z-30 bg-sidebar border-r border-[var(--border-color)] hidden md:flex flex-col w-16 hover:w-[220px] transition-all duration-300 overflow-hidden">
         {/* Header */}
         <div className="h-14 flex items-center border-b border-[var(--border-color)] px-3 gap-3">
           <div className="w-8 h-8 flex-shrink-0 rounded-md bg-primary flex items-center justify-center text-white font-bold text-xs font-semibold">
@@ -183,7 +183,7 @@ function MainLayout() {
       </aside>
 
       {/* Main content */}
-      <div className={`flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ${isInvestments ? (isCollapsed ? 'mr-0' : `mr-0 sm:mr-[${panelWidth}px]`) : 'mr-0'}`} style={isInvestments && !isCollapsed ? { marginRight: panelWidth } : undefined}>
+      <div className={`pl-16 flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ${isInvestments ? (isCollapsed ? 'mr-0' : `mr-0 sm:mr-[${panelWidth}px]`) : 'mr-0'}`} style={isInvestments && !isCollapsed ? { marginRight: panelWidth } : undefined}>
         {/* Mobile header */}
         <header className="md:hidden h-14 border-b border-[var(--border-color)] bg-sidebar flex items-center px-4 sticky top-0 z-40">
           <div className="flex items-center gap-2">

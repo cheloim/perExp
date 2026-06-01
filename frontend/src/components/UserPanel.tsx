@@ -141,8 +141,9 @@ export default function UserPanel({ open, onClose }: Props) {
       {/* Panel */}
       <div
         className={`fixed left-0 top-0 z-50 h-full w-full sm:w-80 bg-[var(--color-surface)] border-r border-[var(--border-color)] shadow-gnome-lg flex flex-col transition-transform duration-300 ease-in-out ${
-          open ? 'translate-x-0' : '-translate-x-full'
+          open ? 'translate-x-0 pointer-events-auto' : '-translate-x-full pointer-events-none'
         }`}
+        style={{ contain: 'layout' }}
       >
         {/* Header */}
         <div className="border-b border-border-color">
