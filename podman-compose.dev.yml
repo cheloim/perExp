@@ -19,10 +19,13 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend/.env:/app/.env:ro
     ports:
       - "8082:5173"
     environment:
       VITE_API_URL: http://localhost:8000
+      VITE_GOOGLE_CLIENT_ID: 54424907455-9q3vr4snkchrpqltnsm8a24j8qmj2i27.apps.googleusercontent.com
 
   celery_worker:
     build:
