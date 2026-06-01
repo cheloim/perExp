@@ -325,7 +325,7 @@ export default function ImportJobPreview() {
           </p>
           <button
             onClick={() => navigate('/expenses')}
-            className="btn-primary"
+            className="gnome-btn-primary"
           >
             Volver a Gastos
           </button>
@@ -387,22 +387,22 @@ export default function ImportJobPreview() {
           <button
             onClick={handleDiscard}
             disabled={discardMutation.isPending}
-            className="btn-outline-danger"
+            className="gnome-btn-outline-danger"
           >
             {discardMutation.isPending ? 'Descartando...' : 'Descartar'}
           </button>
           <button
             onClick={() => customNamingRequired && !customNamingComplete ? handleSpotlightNaming() : handleConfirm()}
             disabled={confirmMutation.isPending || !canImport}
-            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            className="gnome-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {confirmMutation.isPending
               ? 'Confirmando...'
               : canImport
                 ? 'Confirmar importación'
-                : customNamingRequired && !customNamingComplete
-                  ? 'Completar nombres de tarjetas'
-                  : 'Completar datos primero'}
+                : !dataComplete
+                  ? 'Completar datos'
+                  : 'Completar nombres de tarjetas'}
           </button>
         </div>
       </div>
@@ -421,7 +421,7 @@ export default function ImportJobPreview() {
             </p>
             <button
               onClick={handleOpenEditModal}
-              className="btn-warning"
+              className="gnome-btn-warning"
             >
               Completar datos
             </button>
@@ -694,13 +694,13 @@ export default function ImportJobPreview() {
               <button
                 onClick={handleApplyEdit}
                 disabled={!editForm.bank || !editForm.card || !editForm.person}
-                className="btn-primary flex-1"
+                className="gnome-btn-primary flex-1"
               >
                 Aplicar
               </button>
               <button
                 onClick={() => setShowEditModal(false)}
-                className="btn-secondary"
+                className="gnome-btn-secondary"
               >
                 Cancelar
               </button>
@@ -729,14 +729,14 @@ export default function ImportJobPreview() {
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setShowDiscardModal(false)}
-                className="btn-secondary"
+                className="gnome-btn-secondary"
               >
                 Cancelar
               </button>
               <button
                 onClick={confirmDiscard}
                 disabled={discardMutation.isPending}
-                className="btn-danger"
+                className="gnome-btn-danger"
               >
                 {discardMutation.isPending ? 'Descartando...' : 'Descartar'}
               </button>
@@ -765,7 +765,7 @@ export default function ImportJobPreview() {
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setShowCancelModal(false)}
-                className="btn-secondary"
+                className="gnome-btn-secondary"
               >
                 No, continuar
               </button>
@@ -775,7 +775,7 @@ export default function ImportJobPreview() {
                   setShowCancelModal(false)
                 }}
                 disabled={deleteMutation.isPending}
-                className="btn-danger"
+                className="gnome-btn-danger"
               >
                 {deleteMutation.isPending ? 'Cancelando...' : 'Sí, cancelar'}
               </button>
@@ -822,7 +822,7 @@ export default function ImportJobPreview() {
                   setShowResultModal(false)
                   navigate('/expenses')
                 }}
-                className="btn-primary"
+                className="gnome-btn-primary"
               >
                 Ver gastos
               </button>
