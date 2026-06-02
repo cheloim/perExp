@@ -874,13 +874,23 @@ def get_card_category_breakdown(
 
 
 @router.get("/category-trend")
-def get_category_trend(months: int = 4, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_category_trend(months: int = 4, anchor_month: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     uid_list = get_group_user_ids(current_user.id, db)
-    today = date.today()
+
+    if anchor_month:
+        try:
+            y = int(anchor_month[:4])
+            m = int(anchor_month[5:7])
+            base_date = date(y, m, 1)
+        except (ValueError, IndexError):
+            base_date = date.today()
+    else:
+        base_date = date.today()
+
     month_keys = []
     for i in range(months - 1, -1, -1):
-        m = today.month - i
-        y = today.year
+        m = base_date.month - i
+        y = base_date.year
         while m <= 0:
             m += 12
             y -= 1

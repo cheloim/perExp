@@ -626,12 +626,11 @@ export default function AccountsPage() {
                   .filter(card => card.card_type === 'credito')
                   .filter(card => !bankFilter || card.bank === bankFilter)
 
-                const now = new Date()
-                const currentYear = now.getFullYear()
-                const currentMonthNum = now.getMonth() + 1
+                const [selYear, selMonth] = month.split('-')
+                const selMonthNum = parseInt(selMonth)
                 const monthsRange: string[] = []
                 for (let i = -3; i <= 0; i++) {
-                  const d = new Date(currentYear, currentMonthNum - 1 + i, 1)
+                  const d = new Date(parseInt(selYear), selMonthNum - 1 + i, 1)
                   monthsRange.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
                 }
 

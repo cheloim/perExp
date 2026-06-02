@@ -16,7 +16,9 @@ interface NotificationsContextValue extends NotificationsState {
 const NotificationsContext = createContext<NotificationsContextValue | undefined>(undefined)
 
 const BROADCAST_CHANNEL_NAME = 'notif-sync'
-const WORKER_URL = '/src/workers/notifications.worker.ts'
+const WORKER_URL = import.meta.env.DEV
+  ? '/src/workers/notifications.worker.ts'
+  : '/assets/notifications.worker.js'
 
 interface WorkerMessage {
   type: 'initial' | 'notification' | 'counts_update' | 'token_expired' | 'error' | 'connected'

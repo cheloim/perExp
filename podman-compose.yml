@@ -6,7 +6,6 @@ services:
     environment:
       POSTGRES_DB: expenses
       POSTGRES_USER: expenses_user
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -14,6 +13,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    secrets:
+      - creditcard_backend_postgres_password
 
   redis:
     image: redis:7-alpine
@@ -33,6 +34,7 @@ services:
       redis:
         condition: service_healthy
     secrets:
+      - creditcard_backend_postgres_password
       - creditcard_backend_llm_api_key
       - creditcard_backend_investments_llm_api_key
       - creditcard_backend_telegram_bot_token
@@ -48,10 +50,12 @@ services:
 
   celery_worker:
     build: ./backend
+    command: celery -A app.celery_app worker --loglevel=info
     depends_on:
       - db
       - redis
     secrets:
+      - creditcard_backend_postgres_password
       - creditcard_backend_llm_api_key
       - creditcard_backend_investments_llm_api_key
       - creditcard_backend_telegram_bot_token
@@ -72,7 +76,7 @@ services:
     secrets:
       - creditcard_frontend_google_client_id
     ports:
-      - "8083:80"
+      - "8080:80"
     depends_on:
       - backend
     restart: unless-stopped
@@ -82,6 +86,9 @@ volumes:
   redis_data:
 
 secrets:
+  creditcard_backend_postgres_password:
+    external: true
+    env: POSTGRES_PASSWORD
   creditcard_backend_llm_api_key:
     external: true
     env: LLM_API_KEY

@@ -74,8 +74,8 @@ export default function CategoryDashboard() {
   })
 
   const { data: trendData } = useQuery({
-    queryKey: ['category-trend'],
-    queryFn: () => getCategoryTrend(4),
+    queryKey: ['category-trend', month],
+    queryFn: () => getCategoryTrend(4, month),
     staleTime: 60_000,
   })
 

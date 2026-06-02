@@ -1,77 +1,82 @@
 services:
-  backend:
+  backend_dev:
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
     secrets:
-      - creditcard_backend_llm_api_key
-      - creditcard_backend_investments_llm_api_key
-      - creditcard_backend_telegram_bot_token
-      - creditcard_backend_google_client_id
-      - creditcard_backend_google_client_secret
-      - creditcard_backend_secret_key
+      - creditcard_backend_dev_postgres_password
+      - creditcard_backend_dev_llm_api_key
+      - creditcard_backend_dev_investments_llm_api_key
+      - creditcard_backend_dev_telegram_bot_token
+      - creditcard_backend_dev_google_client_id
+      - creditcard_backend_dev_google_client_secret
+      - creditcard_backend_dev_secret_key
     environment:
       PYTHONPATH: /app
-      DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses
-      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://expenses_dev_user:${POSTGRES_PASSWORD_DEV}@db:5432/expenses_dev
+      REDIS_URL: redis://redis:6379/1
     ports:
-      - "8000:8000"
+      - "8001:8000"
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
 
-  frontend:
+  frontend_dev:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
     secrets:
-      - creditcard_frontend_google_client_id
+      - creditcard_frontend_dev_google_client_id
     volumes:
       - ./frontend/src:/app/src:Z
       - ./frontend/index.html:/app/index.html:Z
     ports:
       - "8082:5173"
     environment:
-      VITE_API_URL: http://localhost:8000
+      VITE_API_URL: http://localhost:8001
 
-  celery_worker:
+  celery_worker_dev:
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
     command: celery -A app.celery_app worker --loglevel=info
     secrets:
-      - creditcard_backend_llm_api_key
-      - creditcard_backend_investments_llm_api_key
-      - creditcard_backend_telegram_bot_token
-      - creditcard_backend_google_client_id
-      - creditcard_backend_google_client_secret
-      - creditcard_backend_secret_key
+      - creditcard_backend_dev_postgres_password
+      - creditcard_backend_dev_llm_api_key
+      - creditcard_backend_dev_investments_llm_api_key
+      - creditcard_backend_dev_telegram_bot_token
+      - creditcard_backend_dev_google_client_id
+      - creditcard_backend_dev_google_client_secret
+      - creditcard_backend_dev_secret_key
     environment:
       PYTHONPATH: /app
-      DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses
-      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://expenses_dev_user:${POSTGRES_PASSWORD_DEV}@db:5432/expenses_dev
+      REDIS_URL: redis://redis:6379/1
 
 secrets:
-  creditcard_backend_llm_api_key:
+  creditcard_backend_dev_postgres_password:
     external: true
-    env: LLM_API_KEY
-  creditcard_backend_investments_llm_api_key:
+    env: POSTGRES_PASSWORD_DEV
+  creditcard_backend_dev_llm_api_key:
     external: true
-    env: INVESTMENTS_LLM_API_KEY
-  creditcard_backend_telegram_bot_token:
+    env: LLM_API_KEY_DEV
+  creditcard_backend_dev_investments_llm_api_key:
     external: true
-    env: TELEGRAM_BOT_TOKEN
-  creditcard_backend_google_client_id:
+    env: INVESTMENTS_LLM_API_KEY_DEV
+  creditcard_backend_dev_telegram_bot_token:
     external: true
-    env: GOOGLE_CLIENT_ID
-  creditcard_backend_google_client_secret:
+    env: TELEGRAM_BOT_TOKEN_DEV
+  creditcard_backend_dev_google_client_id:
     external: true
-    env: GOOGLE_CLIENT_SECRET
-  creditcard_backend_secret_key:
+    env: GOOGLE_CLIENT_ID_DEV
+  creditcard_backend_dev_google_client_secret:
     external: true
-    env: SECRET_KEY
-  creditcard_frontend_google_client_id:
+    env: GOOGLE_CLIENT_SECRET_DEV
+  creditcard_backend_dev_secret_key:
     external: true
-    env: VITE_GOOGLE_CLIENT_ID
+    env: SECRET_KEY_DEV
+  creditcard_frontend_dev_google_client_id:
+    external: true
+    env: VITE_GOOGLE_CLIENT_ID_DEV

@@ -288,9 +288,9 @@ export const getDashboardAITrends = (params?: { month?: string }) =>
 export const deleteAllExpenses = () =>
   api.delete<{ deleted: number }>('/expenses/all').then((r) => r.data)
 
-export const getCategoryTrend = (months = 4) =>
+export const getCategoryTrend = (months = 4, anchorMonth?: string) =>
   api.get<{ rows: Record<string, number | string>[]; categories: { name: string; color: string }[] }>(
-    '/dashboard/category-trend', { params: { months } }
+    '/dashboard/category-trend', { params: { months, anchor_month: anchorMonth } }
   ).then((r) => r.data)
 
 export const getCardCategoryBreakdown = (params?: { month?: string; bank?: string }) =>
