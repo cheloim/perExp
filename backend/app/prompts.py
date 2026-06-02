@@ -101,11 +101,17 @@ Para pagos en cuotas. Formatos reconocidos:
     Ej: "MERPAGO*TIENDA01/12"  → description: "MERPAGO*TIENDA",  installment_number: 1, installment_total: 12
   • Simple: "1/3", "2/6"
 
+  NO es cuota si NN/NN está precedido por un código de referencia largo con guiones,
+  como "-COO0951898-05/06-000-314". En ese caso es PARTE del comprobante, no una cuota.
+    Ej: "LA SEGUNDA COO0951898-05/06-000-314" → installment_number: null, installment_total: null
+    Ej: "SUPERMERCADO 123456-02/03-789" → installment_number: null, installment_total: null
+
 Reglas:
 - Extraé el número de cuota actual (installment_number) y el total de cuotas (installment_total).
 - La descripción limpia NO debe incluir la parte de cuotas ni el separador.
-- Para el formato Galicia, el patrón es exactamente 2 dígitos "/" 2 dígitos al final: NN/NN (ambos entre 01-99).
-  Solo es cuota si installment_total >= 2. "01/01" NO es cuota (cuota única).
+- Solo es cuota si installment_total >= 2. "01/01" NO es cuota (cuota única).
+- NO es cuota si el NN/NN está dentro de un código de referencia largo con guiones (ej: "COO0951898-05/06-000-314").
+  Estos patrones son comprobantes/referencias, no indicadores de cuota.
 - La fecha que aparece en el PDF es la FECHA ORIGINAL DE COMPRA, no la fecha de cobro.
   NO la modifiques: el backend calcula la fecha real de cobro sumando N meses a esa fecha.
   Ej: "24 Noviem. 05 ... MOTOROLA C.12/12" → date: "2024-11-05", installment_number: 12, installment_total: 12
