@@ -112,6 +112,32 @@ export default function Dashboard() {
     queryFn: () => getCategoryTrend(trendMonths),
   })
 
+  // Category trend with current-month progress scaled to fill chart proportionally
+  const adjustedCategoryTrend = useMemo(() => {
+    if (!categoryTrendData?.rows?.length) return null
+    const now = new Date()
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    const dayOfMonth = now.getDate()
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+    const progress = dayOfMonth / daysInMonth
+
+    const rows = categoryTrendData.rows.map((row) => {
+      const isCurrentMonth = row.month === currentMonthKey
+      if (!isCurrentMonth) return row
+
+      const adjusted = { ...row }
+      categoryTrendData.categories.forEach((cat) => {
+        const val = Number(adjusted[cat.name] || 0)
+        if (val > 0) {
+          adjusted[cat.name] = val / progress
+        }
+      })
+      return adjusted
+    })
+
+    return { ...categoryTrendData, rows }
+  }, [categoryTrendData])
+
   // Current month key for calculations
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const prevMonthKey = useMemo(() => {
@@ -357,11 +383,11 @@ export default function Dashboard() {
                 ))}
               </div>
             </div>
-            {(!categoryTrendData || categoryTrendData.rows.length === 0) ? (
+            {(!adjustedCategoryTrend || adjustedCategoryTrend.rows.length === 0) ? (
               <p className="text-sm text-secondary text-center py-10">Sin datos en este período</p>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
-                <ComposedChart data={categoryTrendData.rows} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <ComposedChart data={adjustedCategoryTrend.rows} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                   <XAxis 
                     dataKey="month" 
@@ -388,8 +414,8 @@ export default function Dashboard() {
                     wrapperStyle={{ fontSize: 10, paddingTop: 10 }}
                     formatter={(value) => <span style={{ color: 'var(--text-secondary)' }}>{value}</span>}
                   />
-                  {categoryTrendData.categories.map((cat) => {
-                    const monthHasData = categoryTrendData.rows.some(r => Number(r[cat.name] || 0) > 0)
+                  {adjustedCategoryTrend.categories.map((cat) => {
+                    const monthHasData = adjustedCategoryTrend.rows.some(r => Number(r[cat.name] || 0) > 0)
                     if (!monthHasData) return null
                     return (
                       <Line
@@ -400,6 +426,7 @@ export default function Dashboard() {
                         strokeWidth={2}
                         dot={{ r: 3, fill: cat.color || '#9a9996' }}
                         activeDot={{ r: 4 }}
+                        connectNulls
                       />
                     )
                   })}
