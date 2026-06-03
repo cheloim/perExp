@@ -277,7 +277,10 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
           <label className="text-xs font-medium text-[var(--text-secondary)]">Categoría</label>
           <Select
             value={form.category_id ? String(form.category_id) : ''}
-            onChange={v => set('category_id', v ? parseInt(v) : null)}
+            onChange={v => {
+              const catId = v ? parseInt(v) : null
+              set('category_id', catId)
+            }}
             groups={(() => {
               const parentIds = new Set(categories.filter(c => c.parent_id).map(c => c.parent_id!))
               const parents = categories.filter(c => !c.parent_id && parentIds.has(c.id))

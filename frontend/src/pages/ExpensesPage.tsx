@@ -8,11 +8,13 @@ import {
   createExpense,
   updateExpense,
   deleteExpense,
-  bulkUpdateCategory,
+  bulkUpdateFields,
 } from '../api/client'
 import type { Expense, ExpenseCreate } from '../types'
 import { Select } from '../components/ui/Select'
 import { ExpenseModal } from '../components/ExpenseModals'
+import { BulkSubmenu } from '../components/ui/BulkSubmenu'
+import { AutocompleteInput } from '../components/ui/AutocompleteInput'
 import { formatCurrency, toUpperCase, titleCase, getContrastTextColor, SortIcon, categoryGroupOptions, formatDateDMY } from '../utils/format'
 import { useExpenseFilters } from '../hooks/useExpenseFilters'
 import { ConfirmDialog } from '../components/ConfirmDialog'
@@ -80,6 +82,8 @@ export default function ExpensesPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; description: string } | null>(null)
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
   const [bulkMenuOpen, setBulkMenuOpen] = useState(false)
+  const [bulkSubmenu, setBulkSubmenu] = useState<'category' | 'bank' | 'card' | 'person' | null>(null)
+  const [bulkFieldValue, setBulkFieldValue] = useState('')
 
   const toggleSelect = (id: number) =>
     setSelectedIds(prev => {
@@ -88,15 +92,32 @@ export default function ExpensesPage() {
       return next
     })
 
-  const bulkMut = useMutation({
-    mutationFn: ({ ids, catId }: { ids: number[]; catId: number | null }) =>
-      bulkUpdateCategory(ids, catId),
+  const selectedExpenses = expenses.filter(e => selectedIds.has(e.id))
+  const availableBanks = [...new Set(selectedExpenses.map(e => e.bank).filter(Boolean))]
+  const availableCards = [...new Set(selectedExpenses.map(e => e.card).filter(Boolean))]
+  const availablePersons = [...new Set(selectedExpenses.map(e => e.person).filter(Boolean))]
+
+  const bulkFieldMut = useMutation({
+    mutationFn: ({ ids, field, value }: { ids: number[]; field: 'category_id' | 'bank' | 'card' | 'person'; value: string | number | null }) =>
+      bulkUpdateFields(ids, { [field]: value }),
     onSuccess: () => {
       invalidate()
       setSelectedIds(new Set())
+      setBulkSubmenu(null)
+      setBulkMenuOpen(false)
+      setBulkFieldValue('')
       setBulkCategoryId('')
     },
+    onError: (e: Error) => {
+      console.error('Bulk update failed:', e)
+      setSaveError('Error al actualizar')
+    },
   })
+
+  const handleBulkFieldUpdate = (field: 'category_id' | 'bank' | 'card' | 'person', value: string | number | null) => {
+    if (selectedIds.size === 0) return
+    bulkFieldMut.mutate({ ids: Array.from(selectedIds), field, value })
+  }
 
   const bulkDeleteMut = useMutation({
     mutationFn: (ids: number[]) => Promise.all(ids.map(id => deleteExpense(id))),
@@ -105,12 +126,6 @@ export default function ExpensesPage() {
       setSelectedIds(new Set())
     },
   })
-
-  const handleBulkApply = () => {
-    if (selectedIds.size === 0) return
-    const catId = bulkCategoryId ? parseInt(bulkCategoryId) : null
-    bulkMut.mutate({ ids: Array.from(selectedIds), catId })
-  }
 
   const createMut = useMutation({
     mutationFn: createExpense,
@@ -488,48 +503,133 @@ export default function ExpensesPage() {
               className="gnome-btn-primary-round text-sm"
             >
               Acciones
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className={`transition-transform ${bulkMenuOpen ? 'rotate-180' : ''}`}>
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className={`ml-1 transition-transform ${bulkMenuOpen ? 'rotate-180' : ''}`}>
                 <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
             {bulkMenuOpen && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setBulkMenuOpen(false)} />
-                <div className="absolute bottom-full left-0 mb-2 z-50 w-48 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl shadow-lg overflow-hidden">
-                  <div className="p-3 border-b border-border-color space-y-2">
-                    <span className="text-xs text-tertiary block">Cambiar categoría</span>
-                    {(() => {
-                      const groups = categoryGroupOptions(categories)
-                      return (
+                <div className="fixed inset-0 z-40" onClick={() => { setBulkMenuOpen(false); setBulkSubmenu(null) }} />
+                <div className={`absolute bottom-full left-0 mb-2 z-50 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl shadow-lg overflow-hidden ${
+                    bulkSubmenu === 'category' ? 'min-w-[260px]' :
+                    bulkSubmenu ? 'min-w-[220px]' : 'min-w-[200px]'
+                  }`}>
+                  <div className="p-3">
+
+                    {bulkSubmenu && (
+                      <button
+                        onClick={() => setBulkSubmenu(null)}
+                        className="flex items-center gap-1 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] mb-3 transition-colors"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                          <path d="M7.5 3L4 6L7.5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        Volver
+                      </button>
+                    )}
+
+                    {bulkSubmenu === 'category' && (
+                      <BulkSubmenu label="Categoría" onClear={() => handleBulkFieldUpdate('category_id', null)}>
                         <Select
                           value={bulkCategoryId}
-                          onChange={v => { setBulkCategoryId(v); setBulkMenuOpen(false); handleBulkApply() }}
+                          onChange={v => { setBulkCategoryId(v); if (v) handleBulkFieldUpdate('category_id', parseInt(v)); setBulkSubmenu(null); setBulkMenuOpen(false) }}
                           options={[{ value: '', label: 'Sin categoría' }]}
-                          groups={groups}
+                          groups={categoryGroupOptions(categories)}
                           direction="up"
                         />
-                      )
-                    })()}
+                      </BulkSubmenu>
+                    )}
+
+                    {bulkSubmenu === 'bank' && (
+                      <BulkSubmenu label="Banco">
+                        <AutocompleteInput
+                          value={bulkFieldValue}
+                          onChange={setBulkFieldValue}
+                          onSelect={v => { handleBulkFieldUpdate('bank', v); setBulkFieldValue(''); setBulkSubmenu(null); setBulkMenuOpen(false) }}
+                          options={availableBanks}
+                          placeholder="Seleccionar banco..."
+                        />
+                      </BulkSubmenu>
+                    )}
+
+                    {bulkSubmenu === 'card' && (
+                      <BulkSubmenu label="Tarjeta">
+                        <AutocompleteInput
+                          value={bulkFieldValue}
+                          onChange={setBulkFieldValue}
+                          onSelect={v => { handleBulkFieldUpdate('card', v); setBulkFieldValue(''); setBulkSubmenu(null); setBulkMenuOpen(false) }}
+                          options={availableCards}
+                          placeholder="Seleccionar tarjeta..."
+                        />
+                      </BulkSubmenu>
+                    )}
+
+                    {bulkSubmenu === 'person' && (
+                      <BulkSubmenu label="Titular">
+                        <AutocompleteInput
+                          value={bulkFieldValue}
+                          onChange={setBulkFieldValue}
+                          onSelect={v => { handleBulkFieldUpdate('person', v); setBulkFieldValue(''); setBulkSubmenu(null); setBulkMenuOpen(false) }}
+                          options={availablePersons}
+                          placeholder="Seleccionar titular..."
+                        />
+                      </BulkSubmenu>
+                    )}
+
+                    {!bulkSubmenu && (
+                      <div className="space-y-1">
+                        <button
+                          onClick={() => setBulkSubmenu('category')}
+                          className="w-full px-3 py-2 text-sm text-left flex items-center justify-between rounded-md hover:bg-[var(--color-base-alt)] transition-colors"
+                        >
+                          <span>Categoría</span>
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-[var(--text-tertiary)]">
+                            <path d="M4.5 3L8 6L4.5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => setBulkSubmenu('bank')}
+                          className="w-full px-3 py-2 text-sm text-left flex items-center justify-between rounded-md hover:bg-[var(--color-base-alt)] transition-colors"
+                        >
+                          <span>Banco</span>
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-[var(--text-tertiary)]">
+                            <path d="M4.5 3L8 6L4.5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => setBulkSubmenu('card')}
+                          className="w-full px-3 py-2 text-sm text-left flex items-center justify-between rounded-md hover:bg-[var(--color-base-alt)] transition-colors"
+                        >
+                          <span>Tarjeta</span>
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-[var(--text-tertiary)]">
+                            <path d="M4.5 3L8 6L4.5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => setBulkSubmenu('person')}
+                          className="w-full px-3 py-2 text-sm text-left flex items-center justify-between rounded-md hover:bg-[var(--color-base-alt)] transition-colors"
+                        >
+                          <span>Titular</span>
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-[var(--text-tertiary)]">
+                            <path d="M4.5 3L8 6L4.5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <button
-                    onClick={() => { setBulkMenuOpen(false); setBulkDeleteConfirm(true) }}
-                    disabled={bulkMut.isPending || bulkDeleteMut.isPending}
-                    className="w-full px-4 py-2.5 text-sm text-left text-danger hover:bg-danger/10 transition-colors disabled:opacity-50 flex items-center gap-2"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                      <path d="M3 4h8M5 4V3a1 1 0 011-1h2a1 1 0 011 1v1M4.5 4v7a1 1 0 001 1h3a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    Eliminar {selectedIds.size > 1 ? `(${selectedIds.size})` : ''}
-                  </button>
                 </div>
               </>
             )}
           </div>
           <button
-            onClick={() => setSelectedIds(new Set())}
-            className="gnome-btn-secondary-round text-sm"
+            onClick={() => setBulkDeleteConfirm(true)}
+            disabled={bulkDeleteMut.isPending}
+            className="gnome-btn-danger-round text-sm"
           >
-            Limpiar
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M3 4h8M5 4V3a1 1 0 011-1h2a1 1 0 011 1v1M4.5 4v7a1 1 0 001 1h3a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Eliminar
           </button>
         </div>
       )}

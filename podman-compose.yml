@@ -6,6 +6,7 @@ services:
     environment:
       POSTGRES_DB: expenses
       POSTGRES_USER: expenses_user
+      POSTGRES_PASSWORD: postgres_secret_pass
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -13,8 +14,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    secrets:
-      - creditcard_backend_postgres_password
 
   redis:
     image: redis:7-alpine
@@ -87,6 +86,9 @@ volumes:
 
 secrets:
   creditcard_backend_postgres_password:
+    external: true
+    env: POSTGRES_PASSWORD
+  creditcard_postgres_password:
     external: true
     env: POSTGRES_PASSWORD
   creditcard_backend_llm_api_key:

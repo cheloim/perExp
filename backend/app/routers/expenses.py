@@ -287,6 +287,32 @@ def recategorize_expenses(
     return {"updated": updated, "total": len(expenses)}
 
 
+@router.patch("/bulk-update")
+def bulk_update_expenses(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    ids: list = payload.get("ids", [])
+    if not ids:
+        return {"updated": 0}
+
+    update_data = {}
+    for field in ["category_id", "bank", "card", "person"]:
+        if field in payload and payload[field] is not None:
+            update_data[field] = payload[field]
+
+    if not update_data:
+        return {"updated": 0}
+
+    db.query(Expense).filter(
+        Expense.id.in_(ids),
+        Expense.user_id == current_user.id
+    ).update(update_data, synchronize_session=False)
+    db.commit()
+    return {"updated": len(ids)}
+
+
 @router.post("/bulk-category")
 def bulk_update_category(
     payload: dict,

@@ -121,13 +121,16 @@ export default function Dashboard() {
     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
     const progress = dayOfMonth / daysInMonth
 
+    console.log('[DEBUG] categoryTrendData rows:', categoryTrendData.rows.length, 'progress:', progress.toFixed(3))
+
     const rows = categoryTrendData.rows.map((row) => {
       const isCurrentMonth = row.month === currentMonthKey
       if (!isCurrentMonth) return row
 
       const adjusted = { ...row }
       categoryTrendData.categories.forEach((cat) => {
-        const val = Number(adjusted[cat.name] || 0)
+        const val = Number(row[cat.name] || 0)
+        console.log('[DEBUG] cat:', cat.name, 'val:', val, 'isCurrent:', isCurrentMonth)
         if (val > 0) {
           adjusted[cat.name] = val / progress
         }

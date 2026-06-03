@@ -257,7 +257,7 @@ async def run_smart_import(
             p["date"] = last_known_raw
 
     # Step 6: Expand installments (generates future scheduled expenses)
-    expenses_list, scheduled_list = _expand_installments(parsed, db, user_id)
+    expenses_list, scheduled_list = _expand_installments(parsed, db, user_id, closing_date=closing_info.get("closing_date"))
     parsed = expenses_list
 
     # Step 7: Detect unique cards and generate suggested custom_naming
