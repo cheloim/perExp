@@ -79,4 +79,4 @@ secrets:
     env: SECRET_KEY_DEV
   creditcard_frontend_dev_google_client_id:
     external: true
-    env: VITE_GOOGLE_CLIENT_ID_DEV
+    env: GOOGLE_CLIENT_ID_DEV

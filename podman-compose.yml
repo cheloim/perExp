@@ -71,7 +71,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+        - VITE_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
     secrets:
       - creditcard_frontend_google_client_id
     ports:
@@ -111,4 +111,4 @@ secrets:
     env: SECRET_KEY
   creditcard_frontend_google_client_id:
     external: true
-    env: VITE_GOOGLE_CLIENT_ID
+    env: GOOGLE_CLIENT_ID
