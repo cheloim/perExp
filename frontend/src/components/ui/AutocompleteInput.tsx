@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react'
-import ReactDOM from 'react-dom'
 
 interface AutocompleteInputProps {
   value: string
@@ -14,20 +13,6 @@ export function AutocompleteInput({ value, onChange, onSelect, options, placehol
   const [search, setSearch] = useState('')
   const ref = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const [portalPos, setPortalPos] = useState<{ top: number; left: number; width: number; height: number } | null>(null)
-
-  useEffect(() => {
-    if (isOpen && inputRef.current) {
-      const rect = inputRef.current.getBoundingClientRect()
-      setPortalPos({
-        top: rect.top + window.scrollY,
-        left: rect.left,
-        width: rect.width,
-        height: rect.height,
-      })
-      inputRef.current.focus()
-    }
-  }, [isOpen])
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -36,11 +21,9 @@ export function AutocompleteInput({ value, onChange, onSelect, options, placehol
         setSearch('')
       }
     }
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
+    document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [isOpen])
+  }, [])
 
   const filteredOptions = search
     ? options.filter(o => o.toLowerCase().includes(search.toLowerCase()))
@@ -51,40 +34,6 @@ export function AutocompleteInput({ value, onChange, onSelect, options, placehol
     setIsOpen(false)
     setSearch('')
   }
-
-  const dropdownContent = isOpen && portalPos && (
-    <div
-      className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-md shadow-lg max-h-40 overflow-y-auto"
-      style={{
-        position: 'fixed',
-        top: portalPos.top + portalPos.height,
-        left: portalPos.left,
-        width: portalPos.width,
-        zIndex: 99999,
-      }}
-    >
-      {filteredOptions.length === 0 && !search ? (
-        <div className="px-3 py-2 text-sm text-[var(--text-tertiary)]">
-          No hay valores disponibles
-        </div>
-      ) : filteredOptions.length === 0 ? (
-        <div className="px-3 py-2 text-sm text-[var(--text-tertiary)]">
-          Sin resultados
-        </div>
-      ) : (
-        filteredOptions.map(option => (
-          <button
-            key={option}
-            type="button"
-            onClick={() => handleSelect(option)}
-            className="w-full px-3 py-2 text-sm text-left text-[var(--text-primary)] hover:bg-[var(--color-base-alt)] transition-colors"
-          >
-            {option}
-          </button>
-        ))
-      )}
-    </div>
-  )
 
   return (
     <div ref={ref} className="relative">
@@ -109,7 +58,30 @@ export function AutocompleteInput({ value, onChange, onSelect, options, placehol
         className="w-full px-3 py-2 text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition placeholder:text-[var(--text-tertiary)]"
       />
 
-      {isOpen && portalPos && ReactDOM.createPortal(dropdownContent, document.body)}
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-md shadow-lg max-h-40 overflow-y-auto">
+          {filteredOptions.length === 0 && !search ? (
+            <div className="px-3 py-2 text-sm text-[var(--text-tertiary)]">
+              No hay valores disponibles
+            </div>
+          ) : filteredOptions.length === 0 ? (
+            <div className="px-3 py-2 text-sm text-[var(--text-tertiary)]">
+              Sin resultados
+            </div>
+          ) : (
+            filteredOptions.map(option => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => handleSelect(option)}
+                className="w-full px-3 py-2 text-sm text-left text-[var(--text-primary)] hover:bg-[var(--color-base-alt)] transition-colors"
+              >
+                {option}
+              </button>
+            ))
+          )}
+        </div>
+      )}
     </div>
   )
 }

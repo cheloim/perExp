@@ -92,11 +92,6 @@ export default function ExpensesPage() {
       return next
     })
 
-  const selectedExpenses = expenses.filter(e => selectedIds.has(e.id))
-  const availableBanks = [...new Set(selectedExpenses.map(e => e.bank).filter(Boolean))]
-  const availableCards = [...new Set(selectedExpenses.map(e => e.card).filter(Boolean))]
-  const availablePersons = [...new Set(selectedExpenses.map(e => e.person).filter(Boolean))]
-
   const bulkFieldMut = useMutation({
     mutationFn: ({ ids, field, value }: { ids: number[]; field: 'category_id' | 'bank' | 'card' | 'person'; value: string | number | null }) =>
       bulkUpdateFields(ids, { [field]: value }),
@@ -510,10 +505,11 @@ export default function ExpensesPage() {
             {bulkMenuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => { setBulkMenuOpen(false); setBulkSubmenu(null) }} />
-                <div className={`absolute bottom-full left-0 mb-2 z-50 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl shadow-lg overflow-hidden ${
-                    bulkSubmenu === 'category' ? 'min-w-[260px]' :
-                    bulkSubmenu ? 'min-w-[220px]' : 'min-w-[200px]'
-                  }`}>
+                <div className="absolute bottom-full left-0 mb-2 z-50 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl shadow-lg overflow-y-auto"
+                  style={{
+                    maxHeight: '360px',
+                    width: bulkSubmenu === 'category' ? '280px' : bulkSubmenu ? '240px' : '220px',
+                  }}>
                   <div className="p-3">
 
                     {bulkSubmenu && (
@@ -546,7 +542,7 @@ export default function ExpensesPage() {
                           value={bulkFieldValue}
                           onChange={setBulkFieldValue}
                           onSelect={v => { handleBulkFieldUpdate('bank', v); setBulkFieldValue(''); setBulkSubmenu(null); setBulkMenuOpen(false) }}
-                          options={availableBanks}
+                          options={distinctValues?.banks ?? []}
                           placeholder="Seleccionar banco..."
                         />
                       </BulkSubmenu>
@@ -558,7 +554,7 @@ export default function ExpensesPage() {
                           value={bulkFieldValue}
                           onChange={setBulkFieldValue}
                           onSelect={v => { handleBulkFieldUpdate('card', v); setBulkFieldValue(''); setBulkSubmenu(null); setBulkMenuOpen(false) }}
-                          options={availableCards}
+                          options={distinctValues?.cards ?? []}
                           placeholder="Seleccionar tarjeta..."
                         />
                       </BulkSubmenu>
@@ -570,7 +566,7 @@ export default function ExpensesPage() {
                           value={bulkFieldValue}
                           onChange={setBulkFieldValue}
                           onSelect={v => { handleBulkFieldUpdate('person', v); setBulkFieldValue(''); setBulkSubmenu(null); setBulkMenuOpen(false) }}
-                          options={availablePersons}
+                          options={distinctValues?.persons ?? []}
                           placeholder="Seleccionar titular..."
                         />
                       </BulkSubmenu>
