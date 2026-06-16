@@ -1,41 +1,50 @@
-import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getImportJob, confirmImportJob, deleteImportJob, updateImportPreview, getDistinctValues } from '../api/client'
-import { useState, useEffect } from 'react'
-import type { SmartImportRow, ImportSummary, DetectedCard, CardsMapping } from '../types'
-import { toUpperCase, titleCase } from '../utils/format'
-import { useModalWithData } from '../hooks/useModal'
-import { TransactionDetailModal } from '../components/TransactionDetailModal'
+import { useParams, useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  getImportJob,
+  confirmImportJob,
+  deleteImportJob,
+  updateImportPreview,
+  getDistinctValues,
+} from "../api/client";
+import { useState, useEffect } from "react";
+import type { SmartImportRow, ImportSummary, DetectedCard, CardsMapping } from "../types";
+import { toUpperCase, titleCase } from "../utils/format";
+import { useModalWithData } from "../hooks/useModal";
+import { TransactionDetailModal } from "../components/TransactionDetailModal";
 
 // Helper functions (copied from ImportPage)
 function getCardKey(bank: string, card: string, holder: string): string {
-  return `${bank}|${card}|${titleCase(holder)}`
+  return `${bank}|${card}|${titleCase(holder)}`;
 }
 
-type CardNamingEdit = { bank?: string; card_name?: string; holder?: string }
+type CardNamingEdit = { bank?: string; card_name?: string; holder?: string };
 
-function generateCardsMapping(detectedCards: DetectedCard[], edits: Record<string, CardNamingEdit>): CardsMapping {
-  const mapping: CardsMapping = {}
+function generateCardsMapping(
+  detectedCards: DetectedCard[],
+  edits: Record<string, CardNamingEdit>,
+): CardsMapping {
+  const mapping: CardsMapping = {};
   for (const dc of detectedCards) {
     if (dc.card_type) {
-      mapping[`_card_type_${dc.bank}_${dc.card}`] = { card_name: dc.card_type }
+      mapping[`_card_type_${dc.bank}_${dc.card}`] = { card_name: dc.card_type };
     }
     for (const holder of dc.holders) {
-      const key = getCardKey(dc.bank, dc.card, holder)
-      const entry = edits[key] || { bank: dc.bank, card_name: dc.card }
+      const key = getCardKey(dc.bank, dc.card, holder);
+      const entry = edits[key] || { bank: dc.bank, card_name: dc.card };
       mapping[key] = {
         bank: entry.bank || dc.bank,
         card_name: entry.card_name || dc.card,
-      }
+      };
     }
   }
-  return mapping
+  return mapping;
 }
 
 // Validation helpers (copied from ImportPage)
 function validateRows(rows: SmartImportRow[]): { valid: boolean; missingCount: number } {
-  const missing = rows.filter(r => !r.bank || !r.card || !r.person).length
-  return { valid: missing === 0, missingCount: missing }
+  const missing = rows.filter((r) => !r.bank || !r.card || !r.person).length;
+  return { valid: missing === 0, missingCount: missing };
 }
 
 function applyBulkEdit(
@@ -43,257 +52,275 @@ function applyBulkEdit(
   bank: string,
   card: string,
   person: string,
-  onlyEmpty: boolean
+  onlyEmpty: boolean,
 ): SmartImportRow[] {
-  return rows.map(r => ({
+  return rows.map((r) => ({
     ...r,
     bank: onlyEmpty && r.bank ? r.bank : bank,
     card: onlyEmpty && r.card ? r.card : card,
     person: onlyEmpty && r.person ? r.person : person,
-  }))
+  }));
 }
 
 function deriveSummaryFromRows(rows: SmartImportRow[]): Partial<ImportSummary> {
-  const nonDuplicateRows = rows.filter(r => !r.is_duplicate)
+  const nonDuplicateRows = rows.filter((r) => !r.is_duplicate);
 
-  if (nonDuplicateRows.length === 0) return {}
+  if (nonDuplicateRows.length === 0) return {};
 
   // Get consensus value (most common)
   const getConsensus = (field: keyof SmartImportRow) => {
-    const counts = new Map<string, number>()
-    nonDuplicateRows.forEach(r => {
-      const value = r[field] as string
+    const counts = new Map<string, number>();
+    nonDuplicateRows.forEach((r) => {
+      const value = r[field] as string;
       if (value && value.trim()) {
-        counts.set(value, (counts.get(value) || 0) + 1)
+        counts.set(value, (counts.get(value) || 0) + 1);
       }
-    })
+    });
 
-    let maxCount = 0
-    let consensus = ''
+    let maxCount = 0;
+    let consensus = "";
     counts.forEach((count, value) => {
       if (count > maxCount) {
-        maxCount = count
-        consensus = value
+        maxCount = count;
+        consensus = value;
       }
-    })
+    });
 
-    return consensus
-  }
+    return consensus;
+  };
 
   return {
-    bank: getConsensus('bank'),
-    card_type: getConsensus('card'),  // 'card' in rows maps to 'card_type' in summary
-    person: getConsensus('person')
-  }
+    bank: getConsensus("bank"),
+    card_type: getConsensus("card"), // 'card' in rows maps to 'card_type' in summary
+    person: getConsensus("person"),
+  };
 }
 
 export default function ImportJobPreview() {
-  const { jobId } = useParams<{ jobId: string }>()
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
+  const { jobId } = useParams<{ jobId: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const [editedRows, setEditedRows] = useState<SmartImportRow[]>([])
-  const [editedSummary, setEditedSummary] = useState<ImportSummary | null>(null)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [showDiscardModal, setShowDiscardModal] = useState(false)
-  const [showCancelModal, setShowCancelModal] = useState(false)
-  const [showResultModal, setShowResultModal] = useState(false)
-  const [importResult, setImportResult] = useState<{ imported: number; scheduled: number; skipped: number } | null>(null)
-  const [editForm, setEditForm] = useState({ bank: '', card: '', person: '', onlyEmpty: true })
+  const [editedRows, setEditedRows] = useState<SmartImportRow[]>([]);
+  const [editedSummary, setEditedSummary] = useState<ImportSummary | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    imported: number;
+    scheduled: number;
+    skipped: number;
+  } | null>(null);
+  const [editForm, setEditForm] = useState({ bank: "", card: "", person: "", onlyEmpty: true });
 
-  const [spotlightNaming, setSpotlightNaming] = useState(false)
-  const [customNamingEdits, setCustomNamingEdits] = useState<Record<string, { bank?: string; card_name?: string; holder?: string }>>({})
-  const { data: selectedRow, openWithData: openRowDetail, close: closeRowDetail, isOpen: isRowDetailOpen } = useModalWithData<SmartImportRow>()
+  const [spotlightNaming, setSpotlightNaming] = useState(false);
+  const [customNamingEdits, setCustomNamingEdits] = useState<
+    Record<string, { bank?: string; card_name?: string; holder?: string }>
+  >({});
+  const {
+    data: selectedRow,
+    openWithData: openRowDetail,
+    close: closeRowDetail,
+    isOpen: isRowDetailOpen,
+  } = useModalWithData<SmartImportRow>();
 
   // Persist custom naming edits to localStorage
   useEffect(() => {
-    if (!jobId) return
+    if (!jobId) return;
     try {
-      const stored = localStorage.getItem(`import_job_${jobId}_custom_naming`)
-      const storedEdits = stored ? JSON.parse(stored) : {}
+      const stored = localStorage.getItem(`import_job_${jobId}_custom_naming`);
+      const storedEdits = stored ? JSON.parse(stored) : {};
       if (Object.keys(storedEdits).length > 0) {
-        setCustomNamingEdits(storedEdits)
+        setCustomNamingEdits(storedEdits);
       }
     } catch {
       // ignore
     }
-  }, [jobId])
+  }, [jobId]);
 
   useEffect(() => {
-    if (!jobId || Object.keys(customNamingEdits).length === 0) return
+    if (!jobId || Object.keys(customNamingEdits).length === 0) return;
     try {
-      localStorage.setItem(`import_job_${jobId}_custom_naming`, JSON.stringify(customNamingEdits))
+      localStorage.setItem(`import_job_${jobId}_custom_naming`, JSON.stringify(customNamingEdits));
     } catch {
       // ignore
     }
-  }, [customNamingEdits, jobId])
+  }, [customNamingEdits, jobId]);
 
-  const { data: job, isLoading, error } = useQuery({
-    queryKey: ['import-job', jobId],
+  const {
+    data: job,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["import-job", jobId],
     queryFn: () => getImportJob(Number(jobId)),
     enabled: !!jobId,
-    retry: false
-  })
+    retry: false,
+  });
 
   const { data: distinctValues } = useQuery({
-    queryKey: ['distinct-values'],
+    queryKey: ["distinct-values"],
     queryFn: getDistinctValues,
-  })
-
+  });
 
   const confirmMutation = useMutation({
-    mutationFn: ({ rows, cardsMapping }: { rows: SmartImportRow[], cardsMapping?: CardsMapping }) =>
+    mutationFn: ({ rows, cardsMapping }: { rows: SmartImportRow[]; cardsMapping?: CardsMapping }) =>
       confirmImportJob(Number(jobId), rows, cardsMapping),
     onSuccess: (result: { imported: number; scheduled: number; skipped: number }) => {
-      queryClient.invalidateQueries({ queryKey: ['expenses'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['cards'] })
-      setImportResult(result)
-      setShowResultModal(true)
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["cards"] });
+      setImportResult(result);
+      setShowResultModal(true);
       // Clean up localStorage after successful import
       try {
-        localStorage.removeItem(`import_job_${jobId}_custom_naming`)
-        localStorage.removeItem(`import_job_${jobId}_custom_naming_saved`)
+        localStorage.removeItem(`import_job_${jobId}_custom_naming`);
+        localStorage.removeItem(`import_job_${jobId}_custom_naming_saved`);
       } catch {
         // ignore
       }
-    }
-  })
+    },
+  });
 
   const discardMutation = useMutation({
     mutationFn: () => deleteImportJob(Number(jobId)),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['import-jobs'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      navigate('/expenses')
-    }
-  })
+      queryClient.invalidateQueries({ queryKey: ["import-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      navigate("/expenses");
+    },
+  });
 
   const updatePreviewMutation = useMutation({
     mutationFn: (previewData: any) => updateImportPreview(Number(jobId), previewData),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['import-job', Number(jobId)] })
-    }
-  })
+      queryClient.invalidateQueries({ queryKey: ["import-job", Number(jobId)] });
+    },
+  });
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteImportJob(Number(jobId)),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['import-jobs'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      navigate('/expenses')
-    }
-  })
+      queryClient.invalidateQueries({ queryKey: ["import-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      navigate("/expenses");
+    },
+  });
 
   // Validation
-  const rows = editedRows.length > 0 ? editedRows : (job?.preview_data?.rows || [])
-  const validation = validateRows(rows)
-  const dataComplete = validation.valid
+  const rows = editedRows.length > 0 ? editedRows : job?.preview_data?.rows || [];
+  const validation = validateRows(rows);
+  const dataComplete = validation.valid;
 
   // Detected cards from job preview
-  const detectedCards: DetectedCard[] = job?.preview_data?.detected_cards || []
+  const detectedCards: DetectedCard[] = job?.preview_data?.detected_cards || [];
 
   // Cards mapping derived from custom naming edits
-  const cardsMapping: CardsMapping = generateCardsMapping(detectedCards, customNamingEdits)
+  const cardsMapping: CardsMapping = generateCardsMapping(detectedCards, customNamingEdits);
 
   // Compute current summary (use edited summary if available, otherwise job summary)
-  const currentSummary = editedSummary || job?.preview_data?.summary
+  const currentSummary = editedSummary || job?.preview_data?.summary;
 
   // Check if custom naming is complete
-  const customNamingRequired = detectedCards.length > 0
-  const customNamingComplete = customNamingRequired && detectedCards.every(dc => {
-    const key = getCardKey(dc.bank, dc.card, dc.holders[0] || '')
-    return customNamingEdits[key]?.card_name?.trim()
-  })
-  const canImport = dataComplete && (!customNamingRequired || customNamingComplete)
+  const customNamingRequired = detectedCards.length > 0;
+  const customNamingComplete =
+    customNamingRequired &&
+    detectedCards.every((dc) => {
+      const key = getCardKey(dc.bank, dc.card, dc.holders[0] || "");
+      return customNamingEdits[key]?.card_name?.trim();
+    });
+  const canImport = dataComplete && (!customNamingRequired || customNamingComplete);
 
   const handleConfirm = () => {
-    const finalValidation = validateRows(rows)
+    const finalValidation = validateRows(rows);
 
     if (!finalValidation.valid) {
-      alert(`Faltan datos en ${finalValidation.missingCount} fila(s). Completalos antes de importar.`)
-      return
+      alert(
+        `Faltan datos en ${finalValidation.missingCount} fila(s). Completalos antes de importar.`,
+      );
+      return;
     }
 
     if (customNamingRequired && !customNamingComplete) {
-      alert('Tenés que completar los nombres de las tarjetas antes de importar.')
-      return
+      alert("Tenés que completar los nombres de las tarjetas antes de importar.");
+      return;
     }
 
-    confirmMutation.mutate({ rows, cardsMapping: customNamingComplete ? cardsMapping : undefined })
-  }
+    confirmMutation.mutate({ rows, cardsMapping: customNamingComplete ? cardsMapping : undefined });
+  };
 
   const handleSpotlightNaming = () => {
-    if (customNamingComplete) return
-    setSpotlightNaming(true)
-    setTimeout(() => setSpotlightNaming(false), 3000)
-  }
+    if (customNamingComplete) return;
+    setSpotlightNaming(true);
+    setTimeout(() => setSpotlightNaming(false), 3000);
+  };
 
   const handleDiscard = () => {
-    setShowDiscardModal(true)
-  }
+    setShowDiscardModal(true);
+  };
 
   const confirmDiscard = () => {
-    setShowDiscardModal(false)
-    discardMutation.mutate()
-  }
+    setShowDiscardModal(false);
+    discardMutation.mutate();
+  };
 
   const handleOpenEditModal = () => {
-    const summary = job?.preview_data?.summary
-    const firstRow = rows.find((r: SmartImportRow) => !r.is_duplicate)
+    const summary = job?.preview_data?.summary;
+    const firstRow = rows.find((r: SmartImportRow) => !r.is_duplicate);
 
     setEditForm({
-      bank: summary?.bank || firstRow?.bank || '',
-      card: summary?.card_type || firstRow?.card || '',
-      person: summary?.person || firstRow?.person || '',
-      onlyEmpty: true
-    })
+      bank: summary?.bank || firstRow?.bank || "",
+      card: summary?.card_type || firstRow?.card || "",
+      person: summary?.person || firstRow?.person || "",
+      onlyEmpty: true,
+    });
 
-    setShowEditModal(true)
-  }
+    setShowEditModal(true);
+  };
 
   const handleApplyEdit = () => {
     if (!editForm.bank || !editForm.card || !editForm.person) {
-      alert('Completá todos los campos')
-      return
+      alert("Completá todos los campos");
+      return;
     }
 
-    const currentRows = editedRows.length > 0 ? editedRows : (job?.preview_data?.rows || [])
+    const currentRows = editedRows.length > 0 ? editedRows : job?.preview_data?.rows || [];
     const updated = applyBulkEdit(
       currentRows,
       editForm.bank,
       editForm.card,
       editForm.person,
-      editForm.onlyEmpty
-    )
+      editForm.onlyEmpty,
+    );
 
-    setEditedRows(updated)
+    setEditedRows(updated);
 
     // Update summary derived from edited rows
-    const derivedSummary = deriveSummaryFromRows(updated)
+    const derivedSummary = deriveSummaryFromRows(updated);
     const newSummary = {
       ...currentSummary,
-      ...derivedSummary
-    } as ImportSummary
-    setEditedSummary(newSummary)
+      ...derivedSummary,
+    } as ImportSummary;
+    setEditedSummary(newSummary);
 
     // Persist changes to backend
     updatePreviewMutation.mutate({
       rows: updated,
       summary: newSummary,
       raw_count: job?.preview_data?.raw_count || updated.length,
-      has_missing_data: updated.some(r => !r.bank || !r.card || !r.person)
-    })
+      has_missing_data: updated.some((r) => !r.bank || !r.card || !r.person),
+    });
 
-    setShowEditModal(false)
-  }
+    setShowEditModal(false);
+  };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-[var(--text-secondary)]">Cargando preview...</div>
       </div>
-    )
+    );
   }
 
   // Handle 410 Gone (TTL expired)
@@ -308,15 +335,12 @@ export default function ImportJobPreview() {
           <p className="text-[var(--text-secondary)] text-sm mb-4">
             Este preview expiró después de 24 horas y fue eliminado automáticamente.
           </p>
-          <button
-            onClick={() => navigate('/expenses')}
-            className="gnome-btn-primary"
-          >
+          <button onClick={() => navigate("/expenses")} className="gnome-btn-primary">
             Volver a Gastos
           </button>
         </div>
       </div>
-    )
+    );
   }
 
   if (!job) {
@@ -324,10 +348,10 @@ export default function ImportJobPreview() {
       <div className="flex items-center justify-center h-full">
         <div className="text-[var(--text-secondary)]">Import job no encontrado</div>
       </div>
-    )
+    );
   }
 
-  if (job.status === 'PROCESSING') {
+  if (job.status === "PROCESSING") {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <div className="text-[var(--text-secondary)]">
@@ -340,17 +364,17 @@ export default function ImportJobPreview() {
           Cancelar procesamiento
         </button>
       </div>
-    )
+    );
   }
 
-  if (job.status === 'FAILED') {
+  if (job.status === "FAILED") {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-red-500">
           Error al procesar {job.filename}: {job.error_message}
         </div>
       </div>
-    )
+    );
   }
 
   if (!job.preview_data) {
@@ -358,7 +382,7 @@ export default function ImportJobPreview() {
       <div className="flex items-center justify-center h-full">
         <div className="text-[var(--text-secondary)]">No hay preview disponible</div>
       </div>
-    )
+    );
   }
 
   return (
@@ -374,20 +398,24 @@ export default function ImportJobPreview() {
             disabled={discardMutation.isPending}
             className="gnome-btn-outline-danger"
           >
-            {discardMutation.isPending ? 'Descartando...' : 'Descartar'}
+            {discardMutation.isPending ? "Descartando..." : "Descartar"}
           </button>
           <button
-            onClick={() => customNamingRequired && !customNamingComplete ? handleSpotlightNaming() : handleConfirm()}
+            onClick={() =>
+              customNamingRequired && !customNamingComplete
+                ? handleSpotlightNaming()
+                : handleConfirm()
+            }
             disabled={confirmMutation.isPending || !canImport}
             className="gnome-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {confirmMutation.isPending
-              ? 'Confirmando...'
+              ? "Confirmando..."
               : canImport
-                ? 'Confirmar importación'
-                : !dataComplete
-                  ? 'Completar datos'
-                  : 'Completar nombres de tarjetas'}
+              ? "Confirmar importación"
+              : !dataComplete
+              ? "Completar datos"
+              : "Completar nombres de tarjetas"}
           </button>
         </div>
       </div>
@@ -397,17 +425,12 @@ export default function ImportJobPreview() {
         <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 flex items-start gap-3">
           <span className="text-yellow-600 text-xl">⚠️</span>
           <div className="flex-1">
-            <p className="text-sm font-medium text-yellow-700">
-              Datos incompletos
-            </p>
+            <p className="text-sm font-medium text-yellow-700">Datos incompletos</p>
             <p className="text-xs text-yellow-600 mt-1">
-              Faltan datos en {validation.missingCount} transacción(es).
-              Completá banco, tarjeta y persona antes de confirmar.
+              Faltan datos en {validation.missingCount} transacción(es). Completá banco, tarjeta y
+              persona antes de confirmar.
             </p>
-            <button
-              onClick={handleOpenEditModal}
-              className="gnome-btn-warning"
-            >
+            <button onClick={handleOpenEditModal} className="gnome-btn-warning">
               Completar datos
             </button>
           </div>
@@ -419,20 +442,20 @@ export default function ImportJobPreview() {
         <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 flex items-start gap-3">
           <span className="text-yellow-600 text-xl">⚠️</span>
           <div className="flex-1">
-            <p className="text-sm font-medium text-yellow-700">
-              Nombres de tarjetas requeridos
-            </p>
+            <p className="text-sm font-medium text-yellow-700">Nombres de tarjetas requeridos</p>
             <p className="text-xs text-yellow-600 mt-1">
               Completá el nombre personalizado para las tarjetas listadas abajo.
             </p>
             <ul className="mt-1 text-xs text-yellow-600 list-disc list-inside">
               {detectedCards
-                .filter(dc => {
-                  const key = getCardKey(dc.bank, dc.card, dc.holders[0] || '')
-                  return !customNamingEdits[key]?.card_name?.trim()
+                .filter((dc) => {
+                  const key = getCardKey(dc.bank, dc.card, dc.holders[0] || "");
+                  return !customNamingEdits[key]?.card_name?.trim();
                 })
                 .map((dc, i) => (
-                  <li key={i}>{dc.bank} · {dc.card}</li>
+                  <li key={i}>
+                    {dc.bank} · {dc.card}
+                  </li>
                 ))}
             </ul>
           </div>
@@ -448,10 +471,21 @@ export default function ImportJobPreview() {
           {detectedCards.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {detectedCards.map((dc, idx) => {
-                const key = getCardKey(dc.bank, dc.card, dc.holders[0] || '')
-                const entry = customNamingEdits[key] || { bank: dc.bank, card_name: dc.card, holder: dc.holders[0] }
+                const key = getCardKey(dc.bank, dc.card, dc.holders[0] || "");
+                const entry = customNamingEdits[key] || {
+                  bank: dc.bank,
+                  card_name: dc.card,
+                  holder: dc.holders[0],
+                };
                 return (
-                  <div key={idx} className={`p-3 bg-[var(--color-surface)] rounded-md border ${spotlightNaming && !entry.card_name?.trim() ? 'border-yellow-500 ring-2 ring-yellow-500/50' : 'border-[var(--border-color)]'}`}>
+                  <div
+                    key={idx}
+                    className={`p-3 bg-[var(--color-surface)] rounded-md border ${
+                      spotlightNaming && !entry.card_name?.trim()
+                        ? "border-yellow-500 ring-2 ring-yellow-500/50"
+                        : "border-[var(--border-color)]"
+                    }`}
+                  >
                     <div className="flex items-start justify-between mb-3">
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold bg-[var(--color-primary)] text-[var(--color-on-primary)]">
                         💳
@@ -466,7 +500,12 @@ export default function ImportJobPreview() {
                         <input
                           type="text"
                           value={entry.card_name || dc.card}
-                          onChange={e => setCustomNamingEdits(prev => ({ ...prev, [key]: { ...prev[key], card_name: e.target.value } }))}
+                          onChange={(e) =>
+                            setCustomNamingEdits((prev) => ({
+                              ...prev,
+                              [key]: { ...prev[key], card_name: e.target.value },
+                            }))
+                          }
                           className="flex-1 px-2 py-1 border border-[var(--border-color)] rounded text-sm bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30"
                           placeholder="Tarjeta"
                         />
@@ -476,7 +515,12 @@ export default function ImportJobPreview() {
                         <input
                           type="text"
                           value={entry.bank || dc.bank}
-                          onChange={e => setCustomNamingEdits(prev => ({ ...prev, [key]: { ...prev[key], bank: e.target.value } }))}
+                          onChange={(e) =>
+                            setCustomNamingEdits((prev) => ({
+                              ...prev,
+                              [key]: { ...prev[key], bank: e.target.value },
+                            }))
+                          }
                           className="flex-1 px-2 py-1 border border-[var(--border-color)] rounded text-sm bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30"
                           placeholder="Banco"
                         />
@@ -485,15 +529,20 @@ export default function ImportJobPreview() {
                         <span className="text-xs text-[var(--text-secondary)] w-16">Titular:</span>
                         <input
                           type="text"
-                          value={titleCase(entry.holder || dc.holders[0] || '')}
-                          onChange={e => setCustomNamingEdits(prev => ({ ...prev, [key]: { ...prev[key], holder: e.target.value } }))}
+                          value={titleCase(entry.holder || dc.holders[0] || "")}
+                          onChange={(e) =>
+                            setCustomNamingEdits((prev) => ({
+                              ...prev,
+                              [key]: { ...prev[key], holder: e.target.value },
+                            }))
+                          }
                           className="flex-1 px-2 py-1 border border-[var(--border-color)] rounded text-sm bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30"
                           placeholder="Titular"
                         />
                       </div>
                     </div>
                   </div>
-                )
+                );
               })}
             </div>
           )}
@@ -502,22 +551,30 @@ export default function ImportJobPreview() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs pt-2 border-t border-[var(--border-color)]">
             <div>
               <span className="text-[var(--text-secondary)]">Cierre:</span>
-              <span className="ml-2 text-[var(--text-primary)] font-medium">{currentSummary.closing_date || '-'}</span>
+              <span className="ml-2 text-[var(--text-primary)] font-medium">
+                {currentSummary.closing_date || "-"}
+              </span>
             </div>
             <div>
               <span className="text-[var(--text-secondary)]">Vencimiento:</span>
-              <span className="ml-2 text-[var(--text-primary)] font-medium">{currentSummary.due_date || '-'}</span>
+              <span className="ml-2 text-[var(--text-primary)] font-medium">
+                {currentSummary.due_date || "-"}
+              </span>
             </div>
             {currentSummary.total_ars !== null && (
               <div>
                 <span className="text-[var(--text-secondary)]">Total ARS:</span>
-                <span className="ml-2 text-[var(--text-primary)] font-medium">${currentSummary.total_ars.toFixed(2)}</span>
+                <span className="ml-2 text-[var(--text-primary)] font-medium">
+                  ${currentSummary.total_ars.toFixed(2)}
+                </span>
               </div>
             )}
             {currentSummary.total_usd !== null && (
               <div>
                 <span className="text-[var(--text-secondary)]">Total USD:</span>
-                <span className="ml-2 text-[var(--text-primary)] font-medium">${currentSummary.total_usd.toFixed(2)}</span>
+                <span className="ml-2 text-[var(--text-primary)] font-medium">
+                  ${currentSummary.total_usd.toFixed(2)}
+                </span>
               </div>
             )}
           </div>
@@ -529,44 +586,44 @@ export default function ImportJobPreview() {
         <div className="bg-[var(--color-base-container)] rounded-lg border border-[var(--border-color)] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-            <thead className="bg-[var(--color-base-alt)] border-b border-[var(--border-color)]">
-              <tr className="text-left text-[var(--text-secondary)]">
-                <th className="py-3 px-4">Fecha</th>
-                <th className="py-3 px-4">Descripción</th>
-                <th className="py-3 px-4">Monto</th>
-                <th className="py-3 px-4">Tarjeta</th>
-                <th className="py-3 px-4">Banco</th>
-                <th className="py-3 px-4">Persona</th>
-                <th className="py-3 px-4">Categoría</th>
-                <th className="py-3 px-4">Cuotas</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row: SmartImportRow, idx: number) => (
-                <tr
-                  key={idx}
-                  onClick={() => openRowDetail(row)}
-                  className={`cursor-pointer border-b border-[var(--border-color)] hover:bg-[var(--color-base-alt)] transition ${
-                    row.is_duplicate ? 'opacity-50 bg-yellow-500/10' : ''
-                  } ${row.is_auto_generated ? 'bg-blue-500/5' : ''}`}
-                >
-                  <td className="py-2 px-4 whitespace-nowrap">{row.date}</td>
-                  <td className="py-2 px-4">{toUpperCase(row.description)}</td>
-                  <td className="py-2 px-4 whitespace-nowrap">
-                    {row.amount} {row.currency}
-                  </td>
-                  <td className="py-2 px-4">{row.card || '-'}</td>
-                  <td className="py-2 px-4">{row.bank || '-'}</td>
-                  <td className="py-2 px-4">{titleCase(row.person) || '-'}</td>
-                  <td className="py-2 px-4">{row.suggested_category || '-'}</td>
-                  <td className="py-2 px-4 whitespace-nowrap">
-                    {row.installment_number && row.installment_total
-                      ? `${row.installment_number}/${row.installment_total}`
-                      : '-'}
-                  </td>
+              <thead className="bg-[var(--color-base-alt)] border-b border-[var(--border-color)]">
+                <tr className="text-left text-[var(--text-secondary)]">
+                  <th className="py-3 px-4">Fecha</th>
+                  <th className="py-3 px-4">Descripción</th>
+                  <th className="py-3 px-4">Monto</th>
+                  <th className="py-3 px-4">Tarjeta</th>
+                  <th className="py-3 px-4">Banco</th>
+                  <th className="py-3 px-4">Persona</th>
+                  <th className="py-3 px-4">Categoría</th>
+                  <th className="py-3 px-4">Cuotas</th>
                 </tr>
-              ))}
-            </tbody>
+              </thead>
+              <tbody>
+                {rows.map((row: SmartImportRow, idx: number) => (
+                  <tr
+                    key={idx}
+                    onClick={() => openRowDetail(row)}
+                    className={`cursor-pointer border-b border-[var(--border-color)] hover:bg-[var(--color-base-alt)] transition ${
+                      row.is_duplicate ? "opacity-50 bg-yellow-500/10" : ""
+                    } ${row.is_auto_generated ? "bg-blue-500/5" : ""}`}
+                  >
+                    <td className="py-2 px-4 whitespace-nowrap">{row.date}</td>
+                    <td className="py-2 px-4">{toUpperCase(row.description)}</td>
+                    <td className="py-2 px-4 whitespace-nowrap">
+                      {row.amount} {row.currency}
+                    </td>
+                    <td className="py-2 px-4">{row.card || "-"}</td>
+                    <td className="py-2 px-4">{row.bank || "-"}</td>
+                    <td className="py-2 px-4">{titleCase(row.person) || "-"}</td>
+                    <td className="py-2 px-4">{row.suggested_category || "-"}</td>
+                    <td className="py-2 px-4 whitespace-nowrap">
+                      {row.installment_number && row.installment_total
+                        ? `${row.installment_number}/${row.installment_total}`
+                        : "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
           </div>
         </div>
@@ -576,8 +633,12 @@ export default function ImportJobPreview() {
       <div className="flex-shrink-0 flex items-center gap-4 text-xs text-[var(--text-secondary)]">
         <span>Total: {rows.length}</span>
         <span>Duplicadas: {rows.filter((r: SmartImportRow) => r.is_duplicate).length}</span>
-        <span>Programadas: {rows.filter((r: SmartImportRow) => (r as any).is_scheduled).length}</span>
-        <span>Auto-generadas: {rows.filter((r: SmartImportRow) => r.is_auto_generated).length}</span>
+        <span>
+          Programadas: {rows.filter((r: SmartImportRow) => (r as any).is_scheduled).length}
+        </span>
+        <span>
+          Auto-generadas: {rows.filter((r: SmartImportRow) => r.is_auto_generated).length}
+        </span>
       </div>
 
       {/* Modal de bulk edit */}
@@ -594,13 +655,13 @@ export default function ImportJobPreview() {
               <input
                 type="text"
                 value={editForm.bank}
-                onChange={(e) => setEditForm(prev => ({ ...prev, bank: e.target.value }))}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, bank: e.target.value }))}
                 list="banks-list"
                 className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30"
                 placeholder="Ej: Galicia"
               />
               <datalist id="banks-list">
-                {distinctValues?.banks.map(bank => (
+                {distinctValues?.banks.map((bank) => (
                   <option key={bank} value={bank} />
                 ))}
               </datalist>
@@ -612,13 +673,13 @@ export default function ImportJobPreview() {
               <input
                 type="text"
                 value={editForm.card}
-                onChange={(e) => setEditForm(prev => ({ ...prev, card: e.target.value }))}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, card: e.target.value }))}
                 list="cards-list"
                 className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30"
                 placeholder="Ej: Visa Signature"
               />
               <datalist id="cards-list">
-                {distinctValues?.cards.map(card => (
+                {distinctValues?.cards.map((card) => (
                   <option key={card} value={card} />
                 ))}
               </datalist>
@@ -630,13 +691,13 @@ export default function ImportJobPreview() {
               <input
                 type="text"
                 value={editForm.person}
-                onChange={(e) => setEditForm(prev => ({ ...prev, person: e.target.value }))}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, person: e.target.value }))}
                 list="persons-list"
                 className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30"
                 placeholder="Ej: Marcelo"
               />
               <datalist id="persons-list">
-                {distinctValues?.persons.map(person => (
+                {distinctValues?.persons.map((person) => (
                   <option key={person} value={titleCase(person)} />
                 ))}
               </datalist>
@@ -647,7 +708,7 @@ export default function ImportJobPreview() {
               <input
                 type="checkbox"
                 checked={editForm.onlyEmpty}
-                onChange={(e) => setEditForm(prev => ({ ...prev, onlyEmpty: e.target.checked }))}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, onlyEmpty: e.target.checked }))}
                 className="rounded"
               />
               Aplicar solo a campos vacíos (recomendado)
@@ -662,10 +723,7 @@ export default function ImportJobPreview() {
               >
                 Aplicar
               </button>
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="gnome-btn-secondary"
-              >
+              <button onClick={() => setShowEditModal(false)} className="gnome-btn-secondary">
                 Cancelar
               </button>
             </div>
@@ -675,8 +733,14 @@ export default function ImportJobPreview() {
 
       {/* Modal de confirmación de descarte */}
       {showDiscardModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowDiscardModal(false)}>
-          <div className="bg-[var(--color-surface)] rounded-lg shadow-xl w-full max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setShowDiscardModal(false)}
+        >
+          <div
+            className="bg-[var(--color-surface)] rounded-lg shadow-xl w-full max-w-md mx-4 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-start gap-3 mb-4">
               <span className="text-3xl">⚠️</span>
               <div className="flex-1">
@@ -684,17 +748,14 @@ export default function ImportJobPreview() {
                   ¿Descartar importación?
                 </h3>
                 <p className="text-sm text-[var(--text-secondary)]">
-                  Se descartará el preview de <strong>{job?.filename}</strong>.
-                  Esta acción no se puede deshacer.
+                  Se descartará el preview de <strong>{job?.filename}</strong>. Esta acción no se
+                  puede deshacer.
                 </p>
               </div>
             </div>
 
             <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => setShowDiscardModal(false)}
-                className="gnome-btn-secondary"
-              >
+              <button onClick={() => setShowDiscardModal(false)} className="gnome-btn-secondary">
                 Cancelar
               </button>
               <button
@@ -702,7 +763,7 @@ export default function ImportJobPreview() {
                 disabled={discardMutation.isPending}
                 className="gnome-btn-danger"
               >
-                {discardMutation.isPending ? 'Descartando...' : 'Descartar'}
+                {discardMutation.isPending ? "Descartando..." : "Descartar"}
               </button>
             </div>
           </div>
@@ -711,8 +772,14 @@ export default function ImportJobPreview() {
 
       {/* Modal de cancelar procesamiento */}
       {showCancelModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowCancelModal(false)}>
-          <div className="bg-[var(--color-surface)] rounded-lg shadow-xl w-full max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setShowCancelModal(false)}
+        >
+          <div
+            className="bg-[var(--color-surface)] rounded-lg shadow-xl w-full max-w-md mx-4 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-start gap-3 mb-4">
               <span className="text-3xl">⚠️</span>
               <div className="flex-1">
@@ -720,28 +787,25 @@ export default function ImportJobPreview() {
                   ¿Cancelar procesamiento?
                 </h3>
                 <p className="text-sm text-[var(--text-secondary)]">
-                  Se cancelará el procesamiento de <strong>{job?.filename}</strong> y se descartará el archivo.
-                  Esta acción no se puede deshacer.
+                  Se cancelará el procesamiento de <strong>{job?.filename}</strong> y se descartará
+                  el archivo. Esta acción no se puede deshacer.
                 </p>
               </div>
             </div>
 
             <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => setShowCancelModal(false)}
-                className="gnome-btn-secondary"
-              >
+              <button onClick={() => setShowCancelModal(false)} className="gnome-btn-secondary">
                 No, continuar
               </button>
               <button
                 onClick={() => {
-                  deleteMutation.mutate()
-                  setShowCancelModal(false)
+                  deleteMutation.mutate();
+                  setShowCancelModal(false);
                 }}
                 disabled={deleteMutation.isPending}
                 className="gnome-btn-danger"
               >
-                {deleteMutation.isPending ? 'Cancelando...' : 'Sí, cancelar'}
+                {deleteMutation.isPending ? "Cancelando..." : "Sí, cancelar"}
               </button>
             </div>
           </div>
@@ -750,11 +814,17 @@ export default function ImportJobPreview() {
 
       {/* Modal de resultado de importación */}
       {showResultModal && importResult && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => {
-          setShowResultModal(false)
-          navigate('/expenses')
-        }}>
-          <div className="bg-[var(--color-surface)] rounded-lg shadow-xl w-full max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => {
+            setShowResultModal(false);
+            navigate("/expenses");
+          }}
+        >
+          <div
+            className="bg-[var(--color-surface)] rounded-lg shadow-xl w-full max-w-md mx-4 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-start gap-3 mb-4">
               <span className="text-3xl">✅</span>
               <div className="flex-1">
@@ -764,11 +834,15 @@ export default function ImportJobPreview() {
                 <div className="space-y-2 text-sm text-[var(--text-secondary)]">
                   <div className="flex justify-between">
                     <span>Gastos importados:</span>
-                    <span className="font-semibold text-[var(--text-primary)]">{importResult.imported}</span>
+                    <span className="font-semibold text-[var(--text-primary)]">
+                      {importResult.imported}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Cuotas programadas:</span>
-                    <span className="font-semibold text-[var(--text-primary)]">{importResult.scheduled}</span>
+                    <span className="font-semibold text-[var(--text-primary)]">
+                      {importResult.scheduled}
+                    </span>
                   </div>
                   {importResult.skipped > 0 && (
                     <div className="flex justify-between">
@@ -783,8 +857,8 @@ export default function ImportJobPreview() {
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => {
-                  setShowResultModal(false)
-                  navigate('/expenses')
+                  setShowResultModal(false);
+                  navigate("/expenses");
                 }}
                 className="gnome-btn-primary"
               >
@@ -795,12 +869,7 @@ export default function ImportJobPreview() {
         </div>
       )}
 
-      <TransactionDetailModal
-        isOpen={isRowDetailOpen}
-        row={selectedRow}
-        onClose={closeRowDetail}
-      />
-
+      <TransactionDetailModal isOpen={isRowDetailOpen} row={selectedRow} onClose={closeRowDetail} />
     </div>
-  )
+  );
 }

@@ -1,13 +1,12 @@
 import os
 from datetime import datetime, timedelta
-from typing import Optional
 
 import bcrypt
+import httpx
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
-import httpx
 
 from app.database import get_db
 from app.models import User
@@ -50,7 +49,7 @@ def get_current_user(
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: Optional[str] = payload.get("sub")
+        user_id: str | None = payload.get("sub")
         if user_id is None:
             raise credentials_exc
     except JWTError:
@@ -115,6 +114,7 @@ async def verify_apple_token(code: str) -> dict:
 
 def _generate_apple_client_secret() -> str:
     from jose import jwt as jose_jwt
+
     now = datetime.utcnow()
     payload = {
         "iss": APPLE_TEAM_ID,

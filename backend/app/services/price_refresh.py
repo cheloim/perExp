@@ -3,6 +3,7 @@ Lightweight price-only refresh for IOL and PPI.
 Only updates current_price + updated_at on existing investments.
 Does NOT touch quantities or create new rows.
 """
+
 import logging
 from datetime import datetime
 
@@ -17,22 +18,23 @@ def _get_setting(db: Session, key: str, user_id: int) -> str:
     row = db.query(Setting).filter(Setting.key == f"{user_id}:{key}").first()
     return row.value if row else ""
 
+
 _IOL_TYPE_MAP = {
-    "ACCIONES":                 "Acción",
-    "CEDEARS":                  "Cedear",
-    "BONOS":                    "Bono",
-    "LETRAS":                   "Letra",
+    "ACCIONES": "Acción",
+    "CEDEARS": "Cedear",
+    "BONOS": "Bono",
+    "LETRAS": "Letra",
     "OBLIGACIONES_NEGOCIABLES": "ON",
     "FONDOS_COMUNES_INVERSION": "FCI",
-    "CAUCIONES":                "Caución",
-    "OPCIONES":                 "Otro",
-    "FUTUROS":                  "Otro",
+    "CAUCIONES": "Caución",
+    "OPCIONES": "Otro",
+    "FUTUROS": "Otro",
 }
 
 _IOL_CURRENCY_MAP = {
-    "pesos_argentinos":        "ARS",
+    "pesos_argentinos": "ARS",
     "dolares_estadounidenses": "USD",
-    "dolares_cable":           "USD",
+    "dolares_cable": "USD",
 }
 
 
@@ -70,7 +72,8 @@ def refresh_iol_prices(db: Session) -> int:
             try:
                 resp = _req.get(
                     f"https://api.invertironline.com/api/v2/portafolio/{mercado}",
-                    headers=headers, timeout=20,
+                    headers=headers,
+                    timeout=20,
                 )
                 if resp.status_code != 200:
                     continue
@@ -89,11 +92,15 @@ def refresh_iol_prices(db: Session) -> int:
                     if price is None:
                         continue
 
-                    inv = db.query(Investment).filter(
-                        Investment.ticker == ticker,
-                        Investment.broker == "InvertirOnline",
-                        Investment.user_id == user.id,
-                    ).first()
+                    inv = (
+                        db.query(Investment)
+                        .filter(
+                            Investment.ticker == ticker,
+                            Investment.broker == "InvertirOnline",
+                            Investment.user_id == user.id,
+                        )
+                        .first()
+                    )
                     if inv:
                         inv.current_price = price
                         inv.updated_at = datetime.utcnow()
@@ -118,6 +125,7 @@ def refresh_ppi_prices(db: Session) -> int:
 
         try:
             from ppi_client.ppi import PPI
+
             ppi = PPI(sandbox=False)
             ppi.account.login_api(api_key, api_secret)
             accounts = ppi.account.get_accounts()
@@ -140,11 +148,15 @@ def refresh_ppi_prices(db: Session) -> int:
                 price = instrument.get("price")
                 if not ticker or price is None:
                     continue
-                inv = db.query(Investment).filter(
-                    Investment.ticker == ticker,
-                    Investment.broker == "Portfolio Personal",
-                    Investment.user_id == user.id,
-                ).first()
+                inv = (
+                    db.query(Investment)
+                    .filter(
+                        Investment.ticker == ticker,
+                        Investment.broker == "Portfolio Personal",
+                        Investment.user_id == user.id,
+                    )
+                    .first()
+                )
                 if inv:
                     inv.current_price = float(price)
                     inv.updated_at = datetime.utcnow()
@@ -197,7 +209,8 @@ def refresh_manual_prices(db: Session, user_id: int = None) -> int:
                         try:
                             resp = _req.get(
                                 f"https://api.invertironline.com/api/v2/{mercado}/Titulos/{ticker}/CotizacionDetalle",
-                                headers=hdrs, timeout=10,
+                                headers=hdrs,
+                                timeout=10,
                             )
                             if resp.status_code == 200:
                                 data = resp.json()
@@ -221,6 +234,7 @@ def refresh_manual_prices(db: Session, user_id: int = None) -> int:
     if remaining and api_key and api_secret:
         try:
             from ppi_client.ppi import PPI
+
             ppi = PPI(sandbox=False)
             ppi.account.login_api(api_key, api_secret)
             for ticker in remaining:
@@ -260,7 +274,9 @@ def _fetch_yf_prices(tickers: list[str], prices: dict[str, float], _req):
         symbol = ticker if "." in ticker else f"{ticker}.BA"
         url = f"https://query2.finance.yahoo.com/v8/finance/chart/{symbol}"
         try:
-            resp = _req.get(url, params={"interval": "1d", "range": "1d"}, headers=headers, timeout=10)
+            resp = _req.get(
+                url, params={"interval": "1d", "range": "1d"}, headers=headers, timeout=10
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 result = data.get("chart", {}).get("result", [])

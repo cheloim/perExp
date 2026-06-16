@@ -1,11 +1,12 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from datetime import datetime, date
+
 from app.database import get_db
-from app.models import ScheduledExpense, Expense, User, Category
-from app.services.auth import get_current_user
+from app.models import Expense, ScheduledExpense, User
 from app.routers.groups import get_group_user_ids
-from app.services.import_utils import _normalize_text
+from app.services.auth import get_current_user
 
 router = APIRouter(prefix="/scheduled-expenses", tags=["scheduled-expenses"])
 
@@ -35,10 +36,11 @@ def execute_scheduled_expense(
     current_user: User = Depends(get_current_user),
 ):
     uid_list = get_group_user_ids(current_user.id, db)
-    scheduled = db.query(ScheduledExpense).filter(
-        ScheduledExpense.id == id,
-        ScheduledExpense.user_id.in_(uid_list)
-    ).first()
+    scheduled = (
+        db.query(ScheduledExpense)
+        .filter(ScheduledExpense.id == id, ScheduledExpense.user_id.in_(uid_list))
+        .first()
+    )
 
     if not scheduled:
         raise HTTPException(404, "Cuota programada no encontrada")
@@ -87,10 +89,11 @@ def update_scheduled_expense(
     current_user: User = Depends(get_current_user),
 ):
     uid_list = get_group_user_ids(current_user.id, db)
-    scheduled = db.query(ScheduledExpense).filter(
-        ScheduledExpense.id == id,
-        ScheduledExpense.user_id.in_(uid_list)
-    ).first()
+    scheduled = (
+        db.query(ScheduledExpense)
+        .filter(ScheduledExpense.id == id, ScheduledExpense.user_id.in_(uid_list))
+        .first()
+    )
 
     if not scheduled:
         raise HTTPException(404)
@@ -115,10 +118,11 @@ def cancel_scheduled_expense(
     current_user: User = Depends(get_current_user),
 ):
     uid_list = get_group_user_ids(current_user.id, db)
-    scheduled = db.query(ScheduledExpense).filter(
-        ScheduledExpense.id == id,
-        ScheduledExpense.user_id.in_(uid_list)
-    ).first()
+    scheduled = (
+        db.query(ScheduledExpense)
+        .filter(ScheduledExpense.id == id, ScheduledExpense.user_id.in_(uid_list))
+        .first()
+    )
 
     if not scheduled:
         raise HTTPException(404)

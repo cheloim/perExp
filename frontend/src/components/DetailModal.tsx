@@ -1,24 +1,24 @@
-import { useEffect } from 'react'
+import { useEffect } from "react";
 
 interface DetailModalProps {
-  isOpen: boolean
-  onClose: () => void
-  title: string
-  subtitle?: string
-  children: React.ReactNode
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
 }
 
 export function DetailModal({ isOpen, onClose, title, subtitle, children }: DetailModalProps) {
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen) return;
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', handleEscape)
-    return () => document.removeEventListener('keydown', handleEscape)
-  }, [isOpen, onClose])
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [isOpen, onClose]);
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -26,10 +26,13 @@ export function DetailModal({ isOpen, onClose, title, subtitle, children }: Deta
       <div className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-t-lg sm:rounded-lg shadow-xl w-full sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-color)]">
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{title}</h2>
-            {subtitle && (
-              <p className="text-xs text-[var(--text-tertiary)]">{subtitle}</p>
-            )}
+            <h2
+              className="text-base font-semibold truncate"
+              style={{ color: "var(--text-primary)" }}
+            >
+              {title}
+            </h2>
+            {subtitle && <p className="text-xs text-[var(--text-tertiary)]">{subtitle}</p>}
           </div>
           <button
             onClick={onClose}
@@ -38,10 +41,8 @@ export function DetailModal({ isOpen, onClose, title, subtitle, children }: Deta
             ×
           </button>
         </div>
-        <div className="overflow-y-auto flex-1 p-5">
-          {children}
-        </div>
+        <div className="overflow-y-auto flex-1 p-5">{children}</div>
       </div>
     </div>
-  )
+  );
 }

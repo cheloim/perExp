@@ -1,9 +1,9 @@
 import re
 from datetime import date, datetime
-from typing import Optional, List, Any
+from typing import Any
 
 import pandas as pd
-from pydantic import BaseModel, computed_field, field_validator, field_serializer
+from pydantic import BaseModel, computed_field, field_serializer, field_validator
 
 from app.services.date_utils import _normalize_date_str
 
@@ -25,15 +25,15 @@ class UserResponse(BaseModel):
     email: str
     is_active: bool
     created_at: datetime
-    provider: Optional[str] = None
-    avatar_url: Optional[str] = None
-    invite_code: Optional[str] = None
+    provider: str | None = None
+    avatar_url: str | None = None
+    invite_code: str | None = None
     model_config = {"from_attributes": True}
 
 
 class OAuthRequest(BaseModel):
-    id_token: Optional[str] = None
-    code: Optional[str] = None
+    id_token: str | None = None
+    code: str | None = None
     provider: str
 
 
@@ -54,7 +54,7 @@ class InvestmentCreate(BaseModel):
     broker: str = ""
     quantity: float = 0.0
     avg_cost: float = 0.0
-    current_price: Optional[float] = None
+    current_price: float | None = None
     currency: str = "ARS"
     notes: str = ""
 
@@ -63,7 +63,7 @@ class CategoryBase(BaseModel):
     name: str
     color: str = "#6366f1"
     keywords: str = ""
-    parent_id: Optional[int] = None
+    parent_id: int | None = None
 
 
 class CategoryCreate(CategoryBase):
@@ -95,21 +95,21 @@ class ExpenseCreate(BaseModel):
     date: date
     description: str
     amount: float
-    category_id: Optional[int] = None
+    category_id: int | None = None
     # Legacy fields (deprecated)
     card: str = ""
     bank: str = ""
     person: str = ""
     notes: str = ""
-    transaction_id: Optional[str] = None
+    transaction_id: str | None = None
     currency: str = "ARS"
-    installment_number: Optional[int] = None
-    installment_total: Optional[int] = None
-    installment_group_id: Optional[str] = None
+    installment_number: int | None = None
+    installment_total: int | None = None
+    installment_group_id: str | None = None
     # New structured fields
-    account_id: Optional[int] = None
-    card_id: Optional[int] = None
-    is_income: Optional[bool] = None  # Set by backend based on category
+    account_id: int | None = None
+    card_id: int | None = None
+    is_income: bool | None = None  # Set by backend based on category
 
     @field_validator("date", mode="before")
     @classmethod
@@ -126,24 +126,24 @@ class ExpenseCreate(BaseModel):
 
 
 class ExpenseUpdate(BaseModel):
-    date: Optional[str] = None
-    description: Optional[str] = None
-    amount: Optional[float] = None
-    category_id: Optional[int] = None
+    date: str | None = None
+    description: str | None = None
+    amount: float | None = None
+    category_id: int | None = None
     # Legacy fields
-    card: Optional[str] = None
-    bank: Optional[str] = None
-    person: Optional[str] = None
-    notes: Optional[str] = None
-    transaction_id: Optional[str] = None
-    currency: Optional[str] = None
-    installment_number: Optional[int] = None
-    installment_total: Optional[int] = None
-    installment_group_id: Optional[str] = None
+    card: str | None = None
+    bank: str | None = None
+    person: str | None = None
+    notes: str | None = None
+    transaction_id: str | None = None
+    currency: str | None = None
+    installment_number: int | None = None
+    installment_total: int | None = None
+    installment_group_id: str | None = None
     # New structured fields
-    account_id: Optional[int] = None
-    card_id: Optional[int] = None
-    is_income: Optional[bool] = None
+    account_id: int | None = None
+    card_id: int | None = None
+    is_income: bool | None = None
 
 
 class ExpenseResponse(BaseModel):
@@ -151,24 +151,24 @@ class ExpenseResponse(BaseModel):
     date: date
     description: str
     amount: float
-    category_id: Optional[int] = None
+    category_id: int | None = None
     # Legacy fields
     card: str = ""
     bank: str = ""
     person: str = ""
     notes: str = ""
-    transaction_id: Optional[str] = None
+    transaction_id: str | None = None
     currency: str = "ARS"
-    installment_number: Optional[int] = None
-    installment_total: Optional[int] = None
-    installment_group_id: Optional[str] = None
+    installment_number: int | None = None
+    installment_total: int | None = None
+    installment_group_id: str | None = None
     # Relations
-    category: Optional[CategoryResponse] = None
-    account_id: Optional[int] = None
-    card_id: Optional[int] = None
+    category: CategoryResponse | None = None
+    account_id: int | None = None
+    card_id: int | None = None
     is_income: bool = False
-    account_rel: Optional[AccountSimple] = None
-    card_rel: Optional[CardSimple] = None
+    account_rel: AccountSimple | None = None
+    card_rel: CardSimple | None = None
     model_config = {"from_attributes": True}
 
     @field_validator("card", "bank", "person", "notes", "currency", mode="before")
@@ -182,26 +182,26 @@ class ExpenseResponse(BaseModel):
 
     @computed_field  # type: ignore[misc]
     @property
-    def category_name(self) -> Optional[str]:
+    def category_name(self) -> str | None:
         return self.category.name if self.category else None
 
     @computed_field  # type: ignore[misc]
     @property
-    def category_color(self) -> Optional[str]:
+    def category_color(self) -> str | None:
         return self.category.color if self.category else None
 
 
 class AnalysisRequest(BaseModel):
-    month: Optional[str] = None
-    question: Optional[str] = None
+    month: str | None = None
+    question: str | None = None
     debug_mode: bool = False
 
 
 class AnalysisHistoryResponse(BaseModel):
     id: int
     created_at: datetime
-    month: Optional[str] = None
-    question: Optional[str] = None
+    month: str | None = None
+    question: str | None = None
     result_text: str
     expense_count: int
     total_amount: float
@@ -209,13 +209,15 @@ class AnalysisHistoryResponse(BaseModel):
 
 
 class CardsMappingEntry(BaseModel):
-    bank: Optional[str] = None
-    card_name: Optional[str] = None
+    bank: str | None = None
+    card_name: str | None = None
 
 
 class RowsConfirmBody(BaseModel):
-    rows: List[Any]
-    cards_mapping: Optional[dict[str, dict[str, Any]]] = None  # key: "bank|card|holder" -> value: { bank?, card_name? }
+    rows: list[Any]
+    cards_mapping: dict[str, dict[str, Any]] | None = (
+        None  # key: "bank|card|holder" -> value: { bank?, card_name? }
+    )
 
 
 class CardClosingResponse(BaseModel):
@@ -224,8 +226,8 @@ class CardClosingResponse(BaseModel):
     card_type: str = ""
     bank: str
     closing_date: date
-    next_closing_date: Optional[date] = None
-    due_date: Optional[date] = None
+    next_closing_date: date | None = None
+    due_date: date | None = None
     model_config = {"from_attributes": True}
 
 
@@ -234,7 +236,7 @@ class ImportJobResponse(BaseModel):
     filename: str
     status: str
     created_at: datetime
-    completed_at: Optional[datetime] = None
-    error_message: Optional[str] = None
-    preview_data: Optional[dict] = None
+    completed_at: datetime | None = None
+    error_message: str | None = None
+    preview_data: dict | None = None
     model_config = {"from_attributes": True}

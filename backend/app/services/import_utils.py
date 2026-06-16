@@ -3,7 +3,6 @@ import io
 import json
 import re
 from datetime import date, datetime, timedelta
-from typing import Optional
 
 import pandas as pd
 
@@ -12,7 +11,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models import Expense
-from app.services.date_utils import add_months, _normalize_date_str
+from app.services.date_utils import add_months
 
 
 def _strip_installment_suffix(desc: str) -> str:
@@ -28,26 +27,26 @@ def _strip_installment_suffix(desc: str) -> str:
     produce the same normalized description for proper grouping.
     """
     s = desc.strip()
-    s = re.sub(r'-C\.\d{1,2}/\d{1,2}', '', s, flags=re.IGNORECASE)
-    s = re.sub(r'-\d{2}/\d{2}', '', s)
-    s = re.sub(r'\s+C\.\d{1,2}/\d{1,2}', '', s, flags=re.IGNORECASE)
-    s = re.sub(r'\s+\d{2}/\d{2}', '', s)
-    s = re.sub(r'(?<=[A-Z]{2})\d{2}/\d{2}$', '', s)
-    s = re.sub(r'-\d{3,}(?=-|$)', '', s)
+    s = re.sub(r"-C\.\d{1,2}/\d{1,2}", "", s, flags=re.IGNORECASE)
+    s = re.sub(r"-\d{2}/\d{2}", "", s)
+    s = re.sub(r"\s+C\.\d{1,2}/\d{1,2}", "", s, flags=re.IGNORECASE)
+    s = re.sub(r"\s+\d{2}/\d{2}", "", s)
+    s = re.sub(r"(?<=[A-Z]{2})\d{2}/\d{2}$", "", s)
+    s = re.sub(r"-\d{3,}(?=-|$)", "", s)
     return s.strip()
 
 
-def _normalize_text(text: Optional[str]) -> str:
+def _normalize_text(text: str | None) -> str:
     if not text:
         return ""
-    cleaned = re.sub(r'\s*-\s*Pendiente\s*$', '', text.strip(), flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s*-\s*Pendiente\s*$", "", text.strip(), flags=re.IGNORECASE)
     result = cleaned.upper()
     if result:
         _log(f"[DEBUG NORMALIZE] '{text}' -> '{result}'")
     return result
 
 
-def _title_case(text: Optional[str]) -> str:
+def _title_case(text: str | None) -> str:
     if not text:
         return ""
     result = text.strip().title()
@@ -81,22 +80,28 @@ def _is_duplicate(
     exp_date: date,
     amount: float,
     description: str,
-    transaction_id: Optional[str] = None,
-    installment_number: Optional[int] = None,
-    installment_total: Optional[int] = None,
-    installment_group_id: Optional[str] = None,
+    transaction_id: str | None = None,
+    installment_number: int | None = None,
+    installment_total: int | None = None,
+    installment_group_id: str | None = None,
 ) -> bool:
     from app.models import ScheduledExpense
 
     if transaction_id:
         if installment_number and installment_total and installment_total >= 2:
-            existing = db.query(Expense).filter(
-                Expense.transaction_id == transaction_id,
-                Expense.installment_number == installment_number,
-                Expense.installment_total == installment_total,
-            ).first()
+            existing = (
+                db.query(Expense)
+                .filter(
+                    Expense.transaction_id == transaction_id,
+                    Expense.installment_number == installment_number,
+                    Expense.installment_total == installment_total,
+                )
+                .first()
+            )
             if existing:
-                _log(f"[DUP by txn_id+installment] txn_id={transaction_id} inst={installment_number}/{installment_total} matched id={existing.id}")
+                _log(
+                    f"[DUP by txn_id+installment] txn_id={transaction_id} inst={installment_number}/{installment_total} matched id={existing.id}"
+                )
                 return True
             # Fall through to check ScheduledExpense and installment_group_id
         else:
@@ -107,14 +112,20 @@ def _is_duplicate(
 
         # Always check ScheduledExpense by installment_group_id if provided
         if installment_group_id:
-            existing_scheduled = db.query(ScheduledExpense).filter(
-                ScheduledExpense.installment_group_id == installment_group_id,
-                ScheduledExpense.installment_number == installment_number,
-                ScheduledExpense.installment_total == installment_total,
-                ScheduledExpense.status == "PENDING"
-            ).first()
+            existing_scheduled = (
+                db.query(ScheduledExpense)
+                .filter(
+                    ScheduledExpense.installment_group_id == installment_group_id,
+                    ScheduledExpense.installment_number == installment_number,
+                    ScheduledExpense.installment_total == installment_total,
+                    ScheduledExpense.status == "PENDING",
+                )
+                .first()
+            )
             if existing_scheduled:
-                _log(f"[DUP by txn_id+installment_group_id in ScheduledExpense] txn_id={transaction_id} inst={installment_number}/{installment_total} group_id={installment_group_id} matched id={existing_scheduled.id}")
+                _log(
+                    f"[DUP by txn_id+installment_group_id in ScheduledExpense] txn_id={transaction_id} inst={installment_number}/{installment_total} group_id={installment_group_id} matched id={existing_scheduled.id}"
+                )
                 return True
         return False
 
@@ -122,16 +133,22 @@ def _is_duplicate(
         month_start = exp_date.replace(day=1)
         next_month = month_start.replace(day=28) + timedelta(days=4)
         month_end = next_month.replace(day=1) - timedelta(days=1)
-        existing = db.query(Expense).filter(
-            Expense.amount == amount,
-            func.lower(Expense.description) == description.lower(),
-            Expense.installment_number == installment_number,
-            Expense.installment_total == installment_total,
-            Expense.date >= month_start,
-            Expense.date <= month_end,
-        ).first()
+        existing = (
+            db.query(Expense)
+            .filter(
+                Expense.amount == amount,
+                func.lower(Expense.description) == description.lower(),
+                Expense.installment_number == installment_number,
+                Expense.installment_total == installment_total,
+                Expense.date >= month_start,
+                Expense.date <= month_end,
+            )
+            .first()
+        )
         if existing:
-            _log(f"[DUP by installment] amt={amount} desc={description} inst={installment_number}/{installment_total} month={month_start.strftime('%Y-%m')} matched id={existing.id}")
+            _log(
+                f"[DUP by installment] amt={amount} desc={description} inst={installment_number}/{installment_total} month={month_start.strftime('%Y-%m')} matched id={existing.id}"
+            )
             return True
 
     q = db.query(Expense).filter(
@@ -143,18 +160,26 @@ def _is_duplicate(
         q = q.filter(Expense.installment_number == installment_number)
     existing = q.first()
     if existing:
-        _log(f"[DUP by triple] date={exp_date} amt={amount} desc={description} matched id={existing.id}")
+        _log(
+            f"[DUP by triple] date={exp_date} amt={amount} desc={description} matched id={existing.id}"
+        )
         return True
 
     if installment_group_id:
-        existing_scheduled = db.query(ScheduledExpense).filter(
-            ScheduledExpense.installment_group_id == installment_group_id,
-            ScheduledExpense.installment_number == installment_number,
-            ScheduledExpense.installment_total == installment_total,
-            ScheduledExpense.status == "PENDING"
-        ).first()
+        existing_scheduled = (
+            db.query(ScheduledExpense)
+            .filter(
+                ScheduledExpense.installment_group_id == installment_group_id,
+                ScheduledExpense.installment_number == installment_number,
+                ScheduledExpense.installment_total == installment_total,
+                ScheduledExpense.status == "PENDING",
+            )
+            .first()
+        )
         if existing_scheduled:
-            _log(f"[DUP by installment_group_id in ScheduledExpense] group_id={installment_group_id} inst={installment_number}/{installment_total} matched id={existing_scheduled.id}")
+            _log(
+                f"[DUP by installment_group_id in ScheduledExpense] group_id={installment_group_id} inst={installment_number}/{installment_total} matched id={existing_scheduled.id}"
+            )
             return True
 
     return False
@@ -168,7 +193,7 @@ def _is_scheduled_duplicate(
     installment_number: int,
     installment_total: int,
     user_id: int,
-    installment_group_id: Optional[str] = None,
+    installment_group_id: str | None = None,
 ) -> bool:
     """Verificar si ya existe una cuota programada duplicada"""
     from app.models import ScheduledExpense
@@ -179,14 +204,16 @@ def _is_scheduled_duplicate(
         ScheduledExpense.installment_number == installment_number,
         ScheduledExpense.installment_total == installment_total,
         func.lower(ScheduledExpense.description) == description.lower(),
-        ScheduledExpense.status == "PENDING"
+        ScheduledExpense.status == "PENDING",
     )
     if installment_group_id:
         q = q.filter(ScheduledExpense.installment_group_id == installment_group_id)
     return q.first() is not None
 
 
-def _expand_installments(parsed: list, db: Session, user_id: int, closing_date=None) -> tuple[list, list]:
+def _expand_installments(
+    parsed: list, db: Session, user_id: int, closing_date=None
+) -> tuple[list, list]:
     """
     Retorna: (expenses_to_create, scheduled_expenses_to_create)
     """
@@ -212,7 +239,12 @@ def _expand_installments(parsed: list, db: Session, user_id: int, closing_date=N
         if txn_id:
             key = (_strip_installment_suffix(r["description"].lower()), inst_total, txn_id)
         else:
-            key = (_strip_installment_suffix(r["description"].lower()), inst_total, base_date.strftime("%Y-%m"), r.get("person") or "")
+            key = (
+                _strip_installment_suffix(r["description"].lower()),
+                inst_total,
+                base_date.strftime("%Y-%m"),
+                r.get("person") or "",
+            )
         groups[key].append((r, base_date))
 
     expenses_extra: list = []
@@ -233,8 +265,16 @@ def _expand_installments(parsed: list, db: Session, user_id: int, closing_date=N
         for r, _ in entries:
             r["installment_group_id"] = group_id
             present_nums.add(r["installment_number"])
-            gen_key = (desc_lower, r["installment_number"], inst_total, txn_id) if txn_id \
-                else (desc_lower, r["installment_number"], inst_total, r.get("_date_obj").strftime("%Y-%m") if r.get("_date_obj") else "")
+            gen_key = (
+                (desc_lower, r["installment_number"], inst_total, txn_id)
+                if txn_id
+                else (
+                    desc_lower,
+                    r["installment_number"],
+                    inst_total,
+                    r.get("_date_obj").strftime("%Y-%m") if r.get("_date_obj") else "",
+                )
+            )
             generated.add(gen_key)
 
         # Generate past installments (retrasados) - solo si fecha <= today
@@ -248,61 +288,27 @@ def _expand_installments(parsed: list, db: Session, user_id: int, closing_date=N
             if charge_date > max_date:
                 continue
 
-            gen_key = (desc_lower, i, inst_total, txn_id) if txn_id \
+            gen_key = (
+                (desc_lower, i, inst_total, txn_id)
+                if txn_id
                 else (desc_lower, i, inst_total, charge_date.strftime("%Y-%m"))
+            )
             if gen_key in generated:
                 continue
-            if _is_duplicate(db, charge_date, template["amount"], template["description"],
-                             transaction_id=txn_id or None,
-                             installment_number=i, installment_total=inst_total,
-                             installment_group_id=group_id):
+            if _is_duplicate(
+                db,
+                charge_date,
+                template["amount"],
+                template["description"],
+                transaction_id=txn_id or None,
+                installment_number=i,
+                installment_total=inst_total,
+                installment_group_id=group_id,
+            ):
                 continue
             generated.add(gen_key)
-            expenses_extra.append({
-                "date": charge_date.strftime("%d-%m-%Y"),
-                "_date_obj": charge_date,
-                "description": template["description"],
-                "amount": template["amount"],
-                "currency": template.get("currency", "ARS"),
-                "card": template.get("card", ""),
-                "bank": template.get("bank", ""),
-                "person": template.get("person", ""),
-                "transaction_id": txn_id or None,
-                "installment_number": i,
-                "installment_total": inst_total,
-                "installment_group_id": group_id,
-                "_auto_generated": True,
-            })
-
-        # Generate future installments - separar expenses (<=today) de scheduled (>today)
-        for i in range(inst_num + 1, inst_total + 1):
-            if i in present_nums:
-                continue
-            charge_date = add_months(base_date, i - 1)
-            gen_key = (desc_lower, i, inst_total, txn_id) if txn_id \
-                else (desc_lower, i, inst_total, charge_date.strftime("%Y-%m"))
-            if gen_key in generated:
-                continue
-
-            # Verificar duplicados en expenses
-            if _is_duplicate(db, charge_date, template["amount"], template["description"],
-                             transaction_id=txn_id or None,
-                             installment_number=i, installment_total=inst_total,
-                             installment_group_id=group_id):
-                continue
-
-            # Verificar duplicados en scheduled_expenses
-            if _is_scheduled_duplicate(db, charge_date, template["amount"],
-                                       template["description"], i, inst_total, user_id,
-                                       installment_group_id=group_id):
-                continue
-
-            generated.add(gen_key)
-
-            # DECISIÓN: pasado/presente vs futuro
-            if charge_date <= today:
-                # Crear en expenses
-                expenses_extra.append({
+            expenses_extra.append(
+                {
                     "date": charge_date.strftime("%d-%m-%Y"),
                     "_date_obj": charge_date,
                     "description": template["description"],
@@ -316,26 +322,91 @@ def _expand_installments(parsed: list, db: Session, user_id: int, closing_date=N
                     "installment_total": inst_total,
                     "installment_group_id": group_id,
                     "_auto_generated": True,
-                })
+                }
+            )
+
+        # Generate future installments - separar expenses (<=today) de scheduled (>today)
+        for i in range(inst_num + 1, inst_total + 1):
+            if i in present_nums:
+                continue
+            charge_date = add_months(base_date, i - 1)
+            gen_key = (
+                (desc_lower, i, inst_total, txn_id)
+                if txn_id
+                else (desc_lower, i, inst_total, charge_date.strftime("%Y-%m"))
+            )
+            if gen_key in generated:
+                continue
+
+            # Verificar duplicados en expenses
+            if _is_duplicate(
+                db,
+                charge_date,
+                template["amount"],
+                template["description"],
+                transaction_id=txn_id or None,
+                installment_number=i,
+                installment_total=inst_total,
+                installment_group_id=group_id,
+            ):
+                continue
+
+            # Verificar duplicados en scheduled_expenses
+            if _is_scheduled_duplicate(
+                db,
+                charge_date,
+                template["amount"],
+                template["description"],
+                i,
+                inst_total,
+                user_id,
+                installment_group_id=group_id,
+            ):
+                continue
+
+            generated.add(gen_key)
+
+            # DECISIÓN: pasado/presente vs futuro
+            if charge_date <= today:
+                # Crear en expenses
+                expenses_extra.append(
+                    {
+                        "date": charge_date.strftime("%d-%m-%Y"),
+                        "_date_obj": charge_date,
+                        "description": template["description"],
+                        "amount": template["amount"],
+                        "currency": template.get("currency", "ARS"),
+                        "card": template.get("card", ""),
+                        "bank": template.get("bank", ""),
+                        "person": template.get("person", ""),
+                        "transaction_id": txn_id or None,
+                        "installment_number": i,
+                        "installment_total": inst_total,
+                        "installment_group_id": group_id,
+                        "_auto_generated": True,
+                    }
+                )
             else:
                 # Crear en scheduled_expenses
-                scheduled_extra.append({
-                    "scheduled_date": charge_date,
-                    "description": template["description"],
-                    "amount": template["amount"],
-                    "currency": template.get("currency", "ARS"),
-                    "card": template.get("card", ""),
-                    "bank": template.get("bank", ""),
-                    "person": template.get("person", ""),
-                    "transaction_id": txn_id or None,
-                    "installment_number": i,
-                    "installment_total": inst_total,
-                    "installment_group_id": group_id,
-                    "status": "PENDING",
-                    "category_id": None,
-                    "user_id": user_id,
-                    "_is_scheduled": True,  # Flag para el frontend
-                })
+                scheduled_extra.append(
+                    {
+                        "scheduled_date": charge_date,
+                        "description": template["description"],
+                        "amount": template["amount"],
+                        "currency": template.get("currency", "ARS"),
+                        "card": template.get("card", ""),
+                        "bank": template.get("bank", ""),
+                        "person": template.get("person", ""),
+                        "transaction_id": txn_id or None,
+                        "installment_number": i,
+                        "installment_total": inst_total,
+                        "installment_group_id": group_id,
+                        "status": "PENDING",
+                        "category_id": None,
+                        "user_id": user_id,
+                        "_is_scheduled": True,  # Flag para el frontend
+                    }
+                )
 
     return (parsed + expenses_extra, scheduled_extra)
 
@@ -353,10 +424,11 @@ async def _normalize_persons_llm(persons: list[str], client) -> dict[str, str]:
         "2. Si son personas distintas, devolvé valores distintos.\n"
         "3. El formato normalizado debe ser: APELLIDO, NOMBRE (en MAYÚSCULAS).\n"
         "   Expandí abreviaturas si podés inferirlas (ej: 'IGN' → 'IGNACIO').\n\n"
-        "Devolvé ÚNICAMENTE un JSON válido: {\"nombre_original\": \"NOMBRE_NORMALIZADO\", ...}\n\n"
+        'Devolvé ÚNICAMENTE un JSON válido: {"nombre_original": "NOMBRE_NORMALIZADO", ...}\n\n'
         f"Nombres: {json.dumps(persons, ensure_ascii=False)}"
     )
     from google.genai import types as genai_types
+
     try:
         resp = await client.aio.models.generate_content(
             model="gemini-flash-latest",
@@ -419,15 +491,20 @@ def fix_missing_installments(db: Session, user_id: int) -> dict:
     """
     import hashlib
     from collections import defaultdict
+
     from app.models import Expense, ScheduledExpense
     from app.services.date_utils import add_months
 
     today = date.today()
 
-    candidates = db.query(Expense).filter(
-        Expense.user_id == user_id,
-        (Expense.installment_group_id == None) | (Expense.installment_group_id == "")
-    ).all()
+    candidates = (
+        db.query(Expense)
+        .filter(
+            Expense.user_id == user_id,
+            (Expense.installment_group_id == None) | (Expense.installment_group_id == ""),
+        )
+        .all()
+    )
 
     groups: dict = defaultdict(list)
     for e in candidates:
@@ -464,7 +541,7 @@ def fix_missing_installments(db: Session, user_id: int) -> dict:
         if base_date is None:
             continue
 
-        base_date_obj = base_date.replace(day=1)
+        base_date.replace(day=1)
         generated_keys = set()
         for e, inst_num, inst_total in entries:
             gen_key = (desc_lower, inst_num, inst_total)
@@ -481,21 +558,29 @@ def fix_missing_installments(db: Session, user_id: int) -> dict:
             charge_date = date(base_date.year, base_date.month, min(base_date.day, 28))
             charge_date = add_months(base_date, inst_num - 1)
 
-            existing_exp = db.query(Expense).filter(
-                Expense.user_id == user_id,
-                Expense.installment_group_id == group_id,
-                Expense.installment_number == inst_num,
-            ).first()
+            existing_exp = (
+                db.query(Expense)
+                .filter(
+                    Expense.user_id == user_id,
+                    Expense.installment_group_id == group_id,
+                    Expense.installment_number == inst_num,
+                )
+                .first()
+            )
             if existing_exp:
                 generated_keys.add(gen_key)
                 continue
 
-            existing_sched = db.query(ScheduledExpense).filter(
-                ScheduledExpense.user_id == user_id,
-                ScheduledExpense.installment_group_id == group_id,
-                ScheduledExpense.installment_number == inst_num,
-                ScheduledExpense.status == "PENDING"
-            ).first()
+            existing_sched = (
+                db.query(ScheduledExpense)
+                .filter(
+                    ScheduledExpense.user_id == user_id,
+                    ScheduledExpense.installment_group_id == group_id,
+                    ScheduledExpense.installment_number == inst_num,
+                    ScheduledExpense.status == "PENDING",
+                )
+                .first()
+            )
             if existing_sched:
                 generated_keys.add(gen_key)
                 continue

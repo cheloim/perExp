@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from pydantic import BaseModel
 from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
 from app.database import get_db
 from app.models import Account, User
 from app.services.auth import get_current_user
@@ -49,16 +51,20 @@ def create_account(
 ):
     """Create a new account"""
     name = account.name.strip()
-    
+
     if not name:
         raise HTTPException(status_code=400, detail="El nombre es obligatorio")
-    
-    existing = db.query(Account).filter(
-        Account.user_id == current_user.id,
-        func.lower(func.trim(Account.name)) == name.lower(),
-        Account.type == account.type,
-    ).first()
-    
+
+    existing = (
+        db.query(Account)
+        .filter(
+            Account.user_id == current_user.id,
+            func.lower(func.trim(Account.name)) == name.lower(),
+            Account.type == account.type,
+        )
+        .first()
+    )
+
     if existing:
         raise HTTPException(
             status_code=409,
@@ -67,9 +73,9 @@ def create_account(
                 "existing_id": existing.id,
                 "existing_name": existing.name,
                 "existing_type": existing.type,
-            }
+            },
         )
-    
+
     db_account = Account(
         name=name,
         type=account.type,
@@ -89,10 +95,14 @@ def update_account(
     current_user: User = Depends(get_current_user),
 ):
     """Update an account"""
-    db_account = db.query(Account).filter(
-        Account.id == account_id,
-        Account.user_id == current_user.id,
-    ).first()
+    db_account = (
+        db.query(Account)
+        .filter(
+            Account.id == account_id,
+            Account.user_id == current_user.id,
+        )
+        .first()
+    )
 
     if not db_account:
         raise HTTPException(status_code=404, detail="Account not found")
@@ -113,21 +123,25 @@ def delete_account(
     current_user: User = Depends(get_current_user),
 ):
     """Delete an account"""
-    db_account = db.query(Account).filter(
-        Account.id == account_id,
-        Account.user_id == current_user.id,
-    ).first()
+    db_account = (
+        db.query(Account)
+        .filter(
+            Account.id == account_id,
+            Account.user_id == current_user.id,
+        )
+        .first()
+    )
 
     if not db_account:
         raise HTTPException(status_code=404, detail="Account not found")
 
     # Check if account has expenses
     from app.models import Expense
+
     has_expenses = db.query(Expense).filter(Expense.account_id == account_id).first()
     if has_expenses:
         raise HTTPException(
-            status_code=400,
-            detail="Cannot delete account with associated expenses"
+            status_code=400, detail="Cannot delete account with associated expenses"
         )
 
     db.delete(db_account)

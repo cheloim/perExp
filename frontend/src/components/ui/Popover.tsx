@@ -1,12 +1,12 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef } from "react";
 
 interface PopoverProps {
-  children: React.ReactNode
-  content: React.ReactNode
-  isOpen: boolean
-  onClose: () => void
-  className?: string
-  align?: 'left' | 'center' | 'right'
+  children: React.ReactNode;
+  content: React.ReactNode;
+  isOpen: boolean;
+  onClose: () => void;
+  className?: string;
+  align?: "left" | "center" | "right";
 }
 
 export function Popover({
@@ -14,28 +14,28 @@ export function Popover({
   content,
   isOpen,
   onClose,
-  className = '',
-  align = 'center',
+  className = "",
+  align = "center",
 }: PopoverProps) {
-  const ref = useRef<HTMLDivElement>(null)
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
-        onClose()
+        onClose();
       }
     }
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [isOpen, onClose])
+  }, [isOpen, onClose]);
 
   const alignClass = {
-    left: 'left-0',
-    center: 'left-1/2 -translate-x-1/2',
-    right: 'right-0',
-  }[align]
+    left: "left-0",
+    center: "left-1/2 -translate-x-1/2",
+    right: "right-0",
+  }[align];
 
   return (
     <div ref={ref} className={`relative ${className}`}>
@@ -48,5 +48,5 @@ export function Popover({
         </div>
       )}
     </div>
-  )
+  );
 }

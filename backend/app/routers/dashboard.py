@@ -4,7 +4,6 @@ import re
 from calendar import monthrange
 from collections import Counter, defaultdict
 from datetime import date
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import desc
@@ -12,10 +11,10 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Card, Category, Expense, User
+from app.routers.groups import get_group_user_ids
 from app.services.auth import get_current_user
 from app.services.date_utils import add_months
-from app.services.normalizers import normalize_bank, _norm_holder
-from app.routers.groups import get_group_user_ids
+from app.services.normalizers import _norm_holder, normalize_bank
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -23,15 +22,17 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 def _apply_filters(q, month_val, search_val, person_val, cat_id_val, bank_val=None):
     if month_val:
         try:
-            if '-' in month_val:
-                parts = month_val.split('-')
+            if "-" in month_val:
+                parts = month_val.split("-")
                 if len(parts[0]) == 4:
                     y, m = int(parts[0]), int(parts[1])
                 else:
                     m, y = int(parts[0]), int(parts[1])
             else:
                 y, m = int(month_val[:4]), int(month_val[5:7])
-            q = q.filter(Expense.date >= date(y, m, 1), Expense.date <= date(y, m, monthrange(y, m)[1]))
+            q = q.filter(
+                Expense.date >= date(y, m, 1), Expense.date <= date(y, m, monthrange(y, m)[1])
+            )
         except (ValueError, IndexError):
             pass
     if search_val:
@@ -47,27 +48,33 @@ def _apply_filters(q, month_val, search_val, person_val, cat_id_val, bank_val=No
 
 @router.get("/summary")
 def get_summary(
-    month: Optional[str] = None,
+    month: str | None = None,
     group_by: str = "month",
-    search: Optional[str] = None,
-    person: Optional[str] = None,
-    category_id: Optional[int] = None,
-    bank: Optional[str] = None,
+    search: str | None = None,
+    person: str | None = None,
+    category_id: int | None = None,
+    bank: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     uid_list = get_group_user_ids(current_user.id, db)
     base_q = db.query(Expense).filter(Expense.user_id.in_(uid_list))
-    expenses = _apply_filters(base_q, month, search, person, category_id, bank).order_by(desc(Expense.date)).all()
+    expenses = (
+        _apply_filters(base_q, month, search, person, category_id, bank)
+        .order_by(desc(Expense.date))
+        .all()
+    )
     categories = db.query(Category).all()
     cat_map = {c.id: c for c in categories}
     total = sum(e.amount for e in expenses)
 
     # Calcular total_by_account (excluir gastos con tarjetas de credito)
-    credit_cards = db.query(Card).filter(Card.user_id.in_(uid_list), Card.card_type == "credito").all()
+    credit_cards = (
+        db.query(Card).filter(Card.user_id.in_(uid_list), Card.card_type == "credito").all()
+    )
     credit_card_ids = {c.id for c in credit_cards}
     credit_card_names = {c.card_name.lower() for c in credit_cards}
-    
+
     def is_credit_card_expense(e: Expense) -> bool:
         if e.card_id and e.card_id in credit_card_ids:
             return True
@@ -76,8 +83,10 @@ def get_summary(
             if any(cn in card_lower for cn in credit_card_names):
                 return True
         return False
-    
-    total_by_account = sum(e.amount for e in expenses if not is_credit_card_expense(e) and not e.is_income)
+
+    total_by_account = sum(
+        e.amount for e in expenses if not is_credit_card_expense(e) and not e.is_income
+    )
 
     by_category: dict = {}
     for e in expenses:
@@ -97,9 +106,15 @@ def get_summary(
             pid, pname, pcolor = None, None, None
         if cname not in by_category:
             by_category[cname] = {
-                "category_id": cid, "category_name": cname, "category_color": ccolor,
-                "parent_id": pid, "parent_name": pname, "parent_color": pcolor,
-                "total": 0.0, "count": 0, "previous_total": 0.0,
+                "category_id": cid,
+                "category_name": cname,
+                "category_color": ccolor,
+                "parent_id": pid,
+                "parent_name": pname,
+                "parent_color": pcolor,
+                "total": 0.0,
+                "count": 0,
+                "previous_total": 0.0,
             }
         by_category[cname]["total"] += e.amount
         by_category[cname]["count"] += 1
@@ -109,7 +124,9 @@ def get_summary(
             y, m = int(month[:4]), int(month[5:7])
             pm = m - 1 if m > 1 else 12
             py = y if m > 1 else y - 1
-            prev_expenses = _apply_filters(base_q, f"{py}-{pm:02d}", search, None, category_id, bank).all()
+            prev_expenses = _apply_filters(
+                base_q, f"{py}-{pm:02d}", search, None, category_id, bank
+            ).all()
             for e in prev_expenses:
                 # Skip income from previous month calculation
                 if e.is_income:
@@ -140,9 +157,14 @@ def get_summary(
 
         if cname not in by_income:
             by_income[cname] = {
-                "category_id": cid, "category_name": cname, "category_color": ccolor,
-                "parent_id": pid, "parent_name": pname, "parent_color": pcolor,
-                "total": 0.0, "count": 0,
+                "category_id": cid,
+                "category_name": cname,
+                "category_color": ccolor,
+                "parent_id": pid,
+                "parent_name": pname,
+                "parent_color": pcolor,
+                "total": 0.0,
+                "count": 0,
             }
         by_income[cname]["total"] += e.amount  # Already positive
         by_income[cname]["count"] += 1
@@ -166,7 +188,13 @@ def get_summary(
         if key == "||":
             continue
         if key not in by_card:
-            by_card[key] = {"card": e.card or "", "bank": e.bank or "", "person": e.person or "", "total": 0.0, "count": 0}
+            by_card[key] = {
+                "card": e.card or "",
+                "bank": e.bank or "",
+                "person": e.person or "",
+                "total": 0.0,
+                "count": 0,
+            }
         by_card[key]["total"] += e.amount
         by_card[key]["count"] += 1
 
@@ -181,17 +209,28 @@ def get_summary(
     def expense_to_dict(e: Expense) -> dict:
         cat = cat_map.get(e.category_id) if e.category_id else None
         return {
-            "id": e.id, "date": e.date.isoformat(), "description": e.description,
-            "amount": e.amount, "currency": e.currency or "ARS",
+            "id": e.id,
+            "date": e.date.isoformat(),
+            "description": e.description,
+            "amount": e.amount,
+            "currency": e.currency or "ARS",
             "category_id": e.category_id,
-            "category_name": cat.name if cat else None, "category_color": cat.color if cat else None,
-            "card": e.card or "", "bank": e.bank or "", "person": e.person or "", "notes": e.notes or "",
+            "category_name": cat.name if cat else None,
+            "category_color": cat.color if cat else None,
+            "card": e.card or "",
+            "bank": e.bank or "",
+            "person": e.person or "",
+            "notes": e.notes or "",
         }
 
     today = date.today()
     six_months_ago = add_months(today, -6)
 
-    hist_expenses = db.query(Expense).filter(Expense.user_id.in_(uid_list), Expense.date >= six_months_ago).all()
+    hist_expenses = (
+        db.query(Expense)
+        .filter(Expense.user_id.in_(uid_list), Expense.date >= six_months_ago)
+        .all()
+    )
     trend_history: dict = {}
     for e in hist_expenses:
         k = e.date.strftime("%Y-%m")
@@ -200,7 +239,15 @@ def get_summary(
         trend_history[k]["total"] += e.amount
         trend_history[k]["count"] += 1
 
-    installments_exp = db.query(Expense).filter(Expense.user_id.in_(uid_list), Expense.installment_group_id != None, Expense.installment_group_id != "").all()
+    installments_exp = (
+        db.query(Expense)
+        .filter(
+            Expense.user_id.in_(uid_list),
+            Expense.installment_group_id != None,
+            Expense.installment_group_id != "",
+        )
+        .all()
+    )
     groups: dict = {}
     for e in installments_exp:
         if e.installment_group_id not in groups:
@@ -208,7 +255,7 @@ def get_summary(
         groups[e.installment_group_id].append(e)
 
     trend_future: dict = {}
-    for gid, exps in groups.items():
+    for _gid, exps in groups.items():
         exps_sorted = sorted(exps, key=lambda x: x.installment_number or 0)
         total_inst = exps_sorted[0].installment_total or 0
         paid = len(exps_sorted)
@@ -244,26 +291,30 @@ def get_summary(
 
 @router.get("/account-expenses")
 def get_account_expenses(
-    month: Optional[str] = None,
+    month: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     uid_list = get_group_user_ids(current_user.id, db)
     base_q = db.query(Expense).filter(Expense.user_id.in_(uid_list))
-    
+
     if month:
         try:
             y, m = int(month[:4]), int(month[5:7])
-            base_q = base_q.filter(Expense.date >= date(y, m, 1), Expense.date <= date(y, m, monthrange(y, m)[1]))
+            base_q = base_q.filter(
+                Expense.date >= date(y, m, 1), Expense.date <= date(y, m, monthrange(y, m)[1])
+            )
         except (ValueError, IndexError):
             pass
-    
+
     expenses = base_q.order_by(Expense.date).all()
-    
-    credit_cards = db.query(Card).filter(Card.user_id.in_(uid_list), Card.card_type == "credito").all()
+
+    credit_cards = (
+        db.query(Card).filter(Card.user_id.in_(uid_list), Card.card_type == "credito").all()
+    )
     credit_card_ids = {c.id for c in credit_cards}
     credit_card_names = {c.card_name.lower() for c in credit_cards}
-    
+
     def is_credit_card_expense(e: Expense) -> bool:
         if e.card_id and e.card_id in credit_card_ids:
             return True
@@ -272,9 +323,9 @@ def get_account_expenses(
             if any(cn in card_lower for cn in credit_card_names):
                 return True
         return False
-    
+
     cat_map = {c.id: c for c in db.query(Category).all()}
-    
+
     result = []
     for e in expenses:
         if is_credit_card_expense(e):
@@ -283,40 +334,50 @@ def get_account_expenses(
         if e.is_income:
             continue
         cat = cat_map.get(e.category_id) if e.category_id else None
-        result.append({
-            "id": e.id,
-            "date": e.date.isoformat(),
-            "description": e.description,
-            "amount": e.amount,
-            "currency": e.currency or "ARS",
-            "category_id": e.category_id,
-            "category_name": cat.name if cat else None,
-            "category_color": cat.color if cat else None,
-            "card": e.card or "",
-            "bank": e.bank or "",
-            "person": e.person or "",
-        })
+        result.append(
+            {
+                "id": e.id,
+                "date": e.date.isoformat(),
+                "description": e.description,
+                "amount": e.amount,
+                "currency": e.currency or "ARS",
+                "category_id": e.category_id,
+                "category_name": cat.name if cat else None,
+                "category_color": cat.color if cat else None,
+                "card": e.card or "",
+                "bank": e.bank or "",
+                "person": e.person or "",
+            }
+        )
 
     return result
 
 
 @router.get("/installments")
-def get_installments_dashboard(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_installments_dashboard(
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
     from app.models import ScheduledExpense
+
     uid_list = get_group_user_ids(current_user.id, db)
 
     # Cuotas realizadas (expenses)
-    paid_exps = db.query(Expense).filter(
-        Expense.user_id.in_(uid_list),
-        Expense.installment_group_id != None,
-        Expense.installment_group_id != ""
-    ).all()
+    paid_exps = (
+        db.query(Expense)
+        .filter(
+            Expense.user_id.in_(uid_list),
+            Expense.installment_group_id != None,
+            Expense.installment_group_id != "",
+        )
+        .all()
+    )
 
     # Cuotas programadas (scheduled_expenses)
-    scheduled_exps = db.query(ScheduledExpense).filter(
-        ScheduledExpense.user_id.in_(uid_list),
-        ScheduledExpense.status == "PENDING"
-    ).all()
+    scheduled_exps = (
+        db.query(ScheduledExpense)
+        .filter(ScheduledExpense.user_id.in_(uid_list), ScheduledExpense.status == "PENDING")
+        .all()
+    )
 
     cat_map = {c.id: c for c in db.query(Category).all()}
     groups: dict = {}
@@ -337,7 +398,9 @@ def get_installments_dashboard(db: Session = Depends(get_db), current_user: User
                 "next_dates": [],  # NUEVO
                 "category_id": e.category_id,
                 "category_name": cat_map[e.category_id].name if e.category_id in cat_map else None,
-                "category_color": cat_map[e.category_id].color if e.category_id in cat_map else None,
+                "category_color": cat_map[e.category_id].color
+                if e.category_id in cat_map
+                else None,
                 "bank": e.bank or "",
                 "person": e.person or "",
                 "currency": e.currency or "ARS",
@@ -364,7 +427,9 @@ def get_installments_dashboard(db: Session = Depends(get_db), current_user: User
                 "next_dates": [],
                 "category_id": s.category_id,
                 "category_name": cat_map[s.category_id].name if s.category_id in cat_map else None,
-                "category_color": cat_map[s.category_id].color if s.category_id in cat_map else None,
+                "category_color": cat_map[s.category_id].color
+                if s.category_id in cat_map
+                else None,
                 "bank": s.bank or "",
                 "person": s.person or "",
                 "currency": s.currency or "ARS",
@@ -380,31 +445,37 @@ def get_installments_dashboard(db: Session = Depends(get_db), current_user: User
         next_dates = sorted(g["next_dates"])
         next_date = next_dates[0] if next_dates else None
 
-        result.append({
-            "installment_group_id": g["installment_group_id"],
-            "description": g["description"],
-            "installment_total": g["installment_total"],
-            "installments_paid": g["installments_paid"],
-            "remaining_installments": g["remaining_installments"],
-            "total_amount": g["total_amount"],
-            "installment_amount": g["installment_amount"],
-            "next_date": next_date,
-            "next_dates": next_dates,  # NUEVO: array de todas las fechas
-            "category_id": g["category_id"],
-            "category_name": g["category_name"],
-            "category_color": g["category_color"],
-            "bank": g["bank"],
-            "person": g["person"],
-            "currency": g["currency"],
-            "card": g["card"],
-            "card_id": g["card_id"],
-        })
+        result.append(
+            {
+                "installment_group_id": g["installment_group_id"],
+                "description": g["description"],
+                "installment_total": g["installment_total"],
+                "installments_paid": g["installments_paid"],
+                "remaining_installments": g["remaining_installments"],
+                "total_amount": g["total_amount"],
+                "installment_amount": g["installment_amount"],
+                "next_date": next_date,
+                "next_dates": next_dates,  # NUEVO: array de todas las fechas
+                "category_id": g["category_id"],
+                "category_name": g["category_name"],
+                "category_color": g["category_color"],
+                "bank": g["bank"],
+                "person": g["person"],
+                "currency": g["currency"],
+                "card": g["card"],
+                "card_id": g["card_id"],
+            }
+        )
 
-    return sorted(result, key=lambda x: (x["remaining_installments"] == 0, x["next_date"] or "9999-99"))
+    return sorted(
+        result, key=lambda x: (x["remaining_installments"] == 0, x["next_date"] or "9999-99")
+    )
 
 
 @router.get("/installments/monthly-load")
-def get_installments_monthly_load(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_installments_monthly_load(
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
     today = date.today()
     current_month = today.strftime("%Y-%m")
     uid_list = get_group_user_ids(current_user.id, db)
@@ -412,19 +483,29 @@ def get_installments_monthly_load(db: Session = Depends(get_db), current_user: U
     # Build window: 3 months back to 3 months forward
     window_start = add_months(today, -3)
     window_end = add_months(today, 3)
-    window_start_key = window_start.strftime("%Y-%m")
-    window_end_key = window_end.strftime("%Y-%m")
+    window_start.strftime("%Y-%m")
+    window_end.strftime("%Y-%m")
 
     # Initialize all 7 months in window with zeros
     monthly: dict = {}
     for offset in range(-3, 4):
         m = add_months(today, offset)
         key = m.strftime("%Y-%m")
-        monthly[key] = {"month": key, "total": 0.0, "count": 0, "is_past": key < current_month, "is_current": key == current_month}
+        monthly[key] = {
+            "month": key,
+            "total": 0.0,
+            "count": 0,
+            "is_past": key < current_month,
+            "is_current": key == current_month,
+        }
 
     exps = (
         db.query(Expense)
-        .filter(Expense.user_id.in_(uid_list), Expense.installment_group_id != None, Expense.installment_group_id != "")
+        .filter(
+            Expense.user_id.in_(uid_list),
+            Expense.installment_group_id != None,
+            Expense.installment_group_id != "",
+        )
         .order_by(Expense.installment_number)
         .all()
     )
@@ -441,7 +522,11 @@ def get_installments_monthly_load(db: Session = Depends(get_db), current_user: U
     for e in exps:
         gid = e.installment_group_id
         if gid not in groups:
-            groups[gid] = {"installment_total": e.installment_total or 0, "amount": abs(e.amount), "paid": []}
+            groups[gid] = {
+                "installment_total": e.installment_total or 0,
+                "amount": abs(e.amount),
+                "paid": [],
+            }
         groups[gid]["paid"].append((e.installment_number or 0, e.date))
 
     for g in groups.values():
@@ -462,8 +547,11 @@ def get_installments_monthly_load(db: Session = Depends(get_db), current_user: U
 
 
 @router.get("/scheduled-summary")
-def get_scheduled_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_scheduled_summary(
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
     from app.models import ScheduledExpense
+
     uid_list = get_group_user_ids(current_user.id, db)
     today = date.today()
     current_month_start = date(today.year, today.month, 1)
@@ -506,44 +594,53 @@ def get_scheduled_summary(db: Session = Depends(get_db), current_user: User = De
 
     for s in pending_installments:
         cat = cat_map.get(s.category_id) if s.category_id else None
-        result["installments"].append({
-            "id": s.id,
-            "description": s.description,
-            "amount": s.amount,
-            "currency": s.currency or "ARS",
-            "scheduled_date": s.scheduled_date.isoformat(),
-            "installment_number": s.installment_number,
-            "installment_total": s.installment_total,
-            "category_name": cat.name if cat else None,
-            "category_color": cat.color if cat else None,
-            "card": s.card or "",
-            "bank": s.bank or "",
-        })
+        result["installments"].append(
+            {
+                "id": s.id,
+                "description": s.description,
+                "amount": s.amount,
+                "currency": s.currency or "ARS",
+                "scheduled_date": s.scheduled_date.isoformat(),
+                "installment_number": s.installment_number,
+                "installment_total": s.installment_total,
+                "category_name": cat.name if cat else None,
+                "category_color": cat.color if cat else None,
+                "card": s.card or "",
+                "bank": s.bank or "",
+            }
+        )
 
     for s in pending_manual:
         cat = cat_map.get(s.category_id) if s.category_id else None
-        result["manual"].append({
-            "id": s.id,
-            "description": s.description,
-            "amount": s.amount,
-            "currency": s.currency or "ARS",
-            "scheduled_date": s.scheduled_date.isoformat(),
-            "category_name": cat.name if cat else None,
-            "category_color": cat.color if cat else None,
-            "card": s.card or "",
-            "bank": s.bank or "",
-        })
+        result["manual"].append(
+            {
+                "id": s.id,
+                "description": s.description,
+                "amount": s.amount,
+                "currency": s.currency or "ARS",
+                "scheduled_date": s.scheduled_date.isoformat(),
+                "category_name": cat.name if cat else None,
+                "category_color": cat.color if cat else None,
+                "card": s.card or "",
+                "bank": s.bank or "",
+            }
+        )
 
     return result
 
 
 @router.get("/credit-card-pasivos")
-def get_credit_card_pasivos(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_credit_card_pasivos(
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
     from app.models import ScheduledExpense
+
     uid_list = get_group_user_ids(current_user.id, db)
     today = date.today()
 
-    credit_cards = db.query(Card).filter(Card.user_id.in_(uid_list), Card.card_type == "credito").all()
+    credit_cards = (
+        db.query(Card).filter(Card.user_id.in_(uid_list), Card.card_type == "credito").all()
+    )
     credit_card_ids = {c.id for c in credit_cards}
 
     pending_pasivos = (
@@ -569,20 +666,22 @@ def get_credit_card_pasivos(db: Session = Depends(get_db), current_user: User = 
                 if cc.name.lower() in s_card_lower:
                     is_credit_card = True
                     break
-        
+
         if is_credit_card:
             total_pasivos += s.amount
-            pasivos_detail.append({
-                "id": s.id,
-                "description": s.description,
-                "amount": s.amount,
-                "currency": s.currency or "ARS",
-                "scheduled_date": s.scheduled_date.isoformat(),
-                "installment_number": s.installment_number,
-                "installment_total": s.installment_total,
-                "card": s.card or "",
-                "bank": s.bank or "",
-            })
+            pasivos_detail.append(
+                {
+                    "id": s.id,
+                    "description": s.description,
+                    "amount": s.amount,
+                    "currency": s.currency or "ARS",
+                    "scheduled_date": s.scheduled_date.isoformat(),
+                    "installment_number": s.installment_number,
+                    "installment_total": s.installment_total,
+                    "card": s.card or "",
+                    "bank": s.bank or "",
+                }
+            )
 
     return {
         "total_pasivos": total_pasivos,
@@ -593,9 +692,9 @@ def get_credit_card_pasivos(db: Session = Depends(get_db), current_user: User = 
 
 @router.get("/top-merchants")
 def get_top_merchants(
-    month: Optional[str] = None,
-    person: Optional[str] = None,
-    bank: Optional[str] = None,
+    month: str | None = None,
+    person: str | None = None,
+    bank: str | None = None,
     limit: int = 20,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -605,7 +704,9 @@ def get_top_merchants(
     if month:
         try:
             y, m = int(month[:4]), int(month[5:7])
-            q = q.filter(Expense.date >= date(y, m, 1), Expense.date <= date(y, m, monthrange(y, m)[1]))
+            q = q.filter(
+                Expense.date >= date(y, m, 1), Expense.date <= date(y, m, monthrange(y, m)[1])
+            )
         except (ValueError, IndexError):
             pass
     if person:
@@ -631,13 +732,15 @@ def get_top_merchants(
     for g in groups.values():
         top_cat_id = Counter(g["cats"]).most_common(1)[0][0] if g["cats"] else None
         cat = cat_map.get(top_cat_id) if top_cat_id else None
-        result.append({
-            "description": g["description"],
-            "total_amount": round(g["total"], 2),
-            "count": g["count"],
-            "category_name": cat.name if cat else None,
-            "category_color": cat.color if cat else None,
-        })
+        result.append(
+            {
+                "description": g["description"],
+                "total_amount": round(g["total"], 2),
+                "count": g["count"],
+                "category_name": cat.name if cat else None,
+                "category_color": cat.color if cat else None,
+            }
+        )
 
     result.sort(key=lambda x: x["total_amount"], reverse=True)
     return result[:limit]
@@ -646,14 +749,20 @@ def get_top_merchants(
 @router.get("/card-summary")
 def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     from app.models import Account
+
     uid_list = get_group_user_ids(current_user.id, db)
 
     # Build card lookup with both name and id
-    user_cards_by_name = {c.card_name: c.card_type for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
+    user_cards_by_name = {
+        c.card_name: c.card_type for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()
+    }
     user_cards_by_id = {c.id: c for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
 
     # Build account lookup - accounts are always "debito" type
-    user_accounts_by_id = {a.id: a.type for a in db.query(Account).filter(Account.user_id.in_(uid_list)).all()}
+    user_accounts_by_id = {
+        a.id: a.type for a in db.query(Account).filter(Account.user_id.in_(uid_list)).all()
+    }
+
     def _card_network(card_str: str) -> str:
         s = (card_str or "").strip().lower()
         if "visa" in s:
@@ -675,14 +784,18 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
         network = _card_network(card_str)
         holder = _norm_holder(e.person)
         key = f"{bank}|{network}|holder:{holder}" if holder else f"{bank}|{network}|card:{card_str}"
-        month_key = e.date.strftime('%Y-%m') if e.date else "1970-01"
+        month_key = e.date.strftime("%Y-%m") if e.date else "1970-01"
 
         if key not in by_card:
             by_card[key] = {
-                "bank": bank, "network": network,
-                "card_names": {}, "holders": {},
-                "total_amount": 0.0, "count": 0,
-                "currency": e.currency or "ARS", "last_used": None,
+                "bank": bank,
+                "network": network,
+                "card_names": {},
+                "holders": {},
+                "total_amount": 0.0,
+                "count": 0,
+                "currency": e.currency or "ARS",
+                "last_used": None,
                 "card_ids": {},
                 "account_ids": {},
             }
@@ -703,14 +816,17 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
         by_card_monthly[key][month_key] = by_card_monthly[key].get(month_key, 0.0) + e.amount
 
     def _sig_tokens(name: str) -> set:
-        return {re.sub(r'[^A-Z]', '', t) for t in name.upper().split()
-                if len(re.sub(r'[^A-Z]', '', t)) >= 5}
+        return {
+            re.sub(r"[^A-Z]", "", t)
+            for t in name.upper().split()
+            if len(re.sub(r"[^A-Z]", "", t)) >= 5
+        }
 
     bank_net_map: dict = {}
     for key in list(by_card.keys()):
-        if not key.split('|', 2)[2].startswith("holder:"):
+        if not key.split("|", 2)[2].startswith("holder:"):
             continue
-        parts = key.split('|', 2)
+        parts = key.split("|", 2)
         bn = f"{parts[0]}|{parts[1]}"
         bank_net_map.setdefault(bn, []).append(key)
 
@@ -733,7 +849,7 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
             key_tokens[k] = ts
 
         for i, k1 in enumerate(keys):
-            for k2 in keys[i + 1:]:
+            for k2 in keys[i + 1 :]:
                 if key_tokens[k1] & key_tokens[k2]:
                     r1, r2 = find(k1), find(k2)
                     if r1 != r2:
@@ -765,7 +881,11 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
 
     result = []
     for key, g in by_card.items():
-        card_name = max(g["card_names"], key=lambda n: (g["card_names"][n], len(n))) if g["card_names"] else g["network"].title()
+        card_name = (
+            max(g["card_names"], key=lambda n: (g["card_names"][n], len(n)))
+            if g["card_names"]
+            else g["network"].title()
+        )
         holder = max(g["holders"], key=g["holders"].get) if g["holders"] else ""
 
         monthly = by_card_monthly.get(key, {})
@@ -782,33 +902,44 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
         # If no account, check card_id lookup, then name lookup
         if not card_type and g.get("card_ids"):
             most_used_card_id = max(g["card_ids"], key=g["card_ids"].get)
-            card_type = user_cards_by_id.get(most_used_card_id).card_type if user_cards_by_id.get(most_used_card_id) else "credito"
+            card_type = (
+                user_cards_by_id.get(most_used_card_id).card_type
+                if user_cards_by_id.get(most_used_card_id)
+                else "credito"
+            )
         if not card_type:
-            card_type = user_cards_by_name.get(card_name) or user_cards_by_name.get(g["network"].title())
+            card_type = user_cards_by_name.get(card_name) or user_cards_by_name.get(
+                g["network"].title()
+            )
         if not card_type:
             card_type = "credito"
 
-        result.append({
-            "holder": holder, "bank": g["bank"],
-            "card_name": card_name,
-            "card_type": card_type,
-            "total_amount": g["total_amount"], "count": g["count"],
-            "currency": g["currency"],
-            "last_used": g["last_used"].isoformat() if g["last_used"] else None,
-            "monthly": monthly_data,
-        })
+        result.append(
+            {
+                "holder": holder,
+                "bank": g["bank"],
+                "card_name": card_name,
+                "card_type": card_type,
+                "total_amount": g["total_amount"],
+                "count": g["count"],
+                "currency": g["currency"],
+                "last_used": g["last_used"].isoformat() if g["last_used"] else None,
+                "monthly": monthly_data,
+            }
+        )
 
     return sorted(result, key=lambda x: x["total_amount"], reverse=True)
 
 
 @router.get("/card-category-breakdown")
 def get_card_category_breakdown(
-    month: Optional[str] = None,
-    bank: Optional[str] = None,
+    month: str | None = None,
+    bank: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     uid_list = get_group_user_ids(current_user.id, db)
+
     def _card_network_local(card_str: str) -> str:
         s = (card_str or "").strip().lower()
         if "visa" in s:
@@ -862,7 +993,12 @@ def get_card_category_breakdown(
 
 
 @router.get("/category-trend")
-def get_category_trend(months: int = 4, anchor_month: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_category_trend(
+    months: int = 4,
+    anchor_month: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     uid_list = get_group_user_ids(current_user.id, db)
 
     if anchor_month:
@@ -888,14 +1024,18 @@ def get_category_trend(months: int = 4, anchor_month: Optional[str] = None, db: 
     cats_by_id = {c.id: c for c in cats_list}
 
     start = date.fromisoformat(f"{month_keys[0]}-01")
-    exps = db.query(Expense).filter(Expense.user_id.in_(uid_list), Expense.amount > 0, Expense.date >= start).all()
+    exps = (
+        db.query(Expense)
+        .filter(Expense.user_id.in_(uid_list), Expense.amount > 0, Expense.date >= start)
+        .all()
+    )
 
     data: dict = {mk: {} for mk in month_keys}
     cat_colors: dict = {}
     for e in exps:
         if not e.date:
             continue
-        mk = e.date.strftime('%Y-%m')
+        mk = e.date.strftime("%Y-%m")
         if mk not in data:
             continue
         cat = cats_by_id.get(e.category_id) if e.category_id else None
@@ -911,14 +1051,15 @@ def get_category_trend(months: int = 4, anchor_month: Optional[str] = None, db: 
 
 @router.get("/ai-trends")
 async def get_ai_trends(
-    month: Optional[str] = None,
+    month: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     uid_list = get_group_user_ids(current_user.id, db)
-    from app.prompts import AI_TRENDS_PROMPT
     from google import genai
     from google.genai import types as genai_types
+
+    from app.prompts import AI_TRENDS_PROMPT
 
     api_key = os.getenv("LLM_API_KEY")
     if not api_key:
@@ -941,12 +1082,20 @@ async def get_ai_trends(
         key = e.date.strftime("%Y-%m")
         by_month[key]["total"] += e.amount
         by_month[key]["count"] += 1
-        cat_name = cat_map[e.category_id].name if e.category_id and e.category_id in cat_map else "Sin categoría"
+        cat_name = (
+            cat_map[e.category_id].name
+            if e.category_id and e.category_id in cat_map
+            else "Sin categoría"
+        )
         by_month[key]["by_cat"][cat_name] += e.amount
 
     installments_exp = (
         db.query(Expense)
-        .filter(Expense.user_id.in_(uid_list), Expense.installment_group_id != None, Expense.installment_group_id != "")
+        .filter(
+            Expense.user_id.in_(uid_list),
+            Expense.installment_group_id != None,
+            Expense.installment_group_id != "",
+        )
         .all()
     )
 
@@ -955,7 +1104,7 @@ async def get_ai_trends(
         groups[e.installment_group_id].append(e)
 
     future_installments: dict = defaultdict(float)
-    for gid, exps in groups.items():
+    for _gid, exps in groups.items():
         exps_sorted = sorted(exps, key=lambda x: x.installment_number or 0)
         total_inst = exps_sorted[0].installment_total or 0
         paid = len(exps_sorted)
@@ -976,9 +1125,12 @@ async def get_ai_trends(
     for m_key in sorted_months:
         d = by_month[m_key]
         cat_breakdown = ", ".join(
-            f"{k}: ${v:,.0f}" for k, v in sorted(d["by_cat"].items(), key=lambda x: x[1], reverse=True)[:5]
+            f"{k}: ${v:,.0f}"
+            for k, v in sorted(d["by_cat"].items(), key=lambda x: x[1], reverse=True)[:5]
         )
-        monthly_lines.append(f"  {m_key}: total=${d['total']:,.0f} ({d['count']} transacciones) | {cat_breakdown}")
+        monthly_lines.append(
+            f"  {m_key}: total=${d['total']:,.0f} ({d['count']} transacciones) | {cat_breakdown}"
+        )
 
     future_lines = []
     for i in range(1, 4):
@@ -987,7 +1139,11 @@ async def get_ai_trends(
         inst_amt = future_installments.get(fkey, 0.0)
         future_lines.append(f"  {fkey}: cuotas_pendientes=${inst_amt:,.0f}")
 
-    filter_ctx = f"Mes en foco del usuario: {month}" if month else "Sin filtro de mes específico (usar todos los datos)"
+    filter_ctx = (
+        f"Mes en foco del usuario: {month}"
+        if month
+        else "Sin filtro de mes específico (usar todos los datos)"
+    )
 
     context = f"""DATOS DE GASTOS HISTÓRICOS (últimos 6 meses):
 {chr(10).join(monthly_lines) or "  Sin datos suficientes"}
@@ -1018,7 +1174,9 @@ Fecha actual: {today.isoformat()}
 
     for proj in result.get("projection", []):
         fkey = proj.get("month", "")
-        proj["installments_amount"] = future_installments.get(fkey, proj.get("installments_amount", 0))
+        proj["installments_amount"] = future_installments.get(
+            fkey, proj.get("installments_amount", 0)
+        )
 
     result["monthly_history"] = [
         {

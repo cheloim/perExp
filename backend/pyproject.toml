@@ -1,0 +1,44 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "SIM108", # use ternary operator (readability preference)
+    "B008",   # function call in argument default (FastAPI Depends())
+    "E402",   # module level import not at top (common in FastAPI)
+    "B904",   # raise from e (exception chaining valid in FastAPI)
+    "B023",   # loop variable capture in closures
+    "E731",   # lambda assignment (existing pattern)
+    "E741",   # ambiguous variable name l
+    "E711",   # comparison to None (valid in SQLAlchemy filters)
+    "E712",   # comparison to True/False (valid in SQLAlchemy filters)
+    "B007",   # unused loop control variable
+    "N814",   # constant imported as non-constant
+    "N806",   # variable in function should be lowercase (constants in functions)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+check_untyped_defs = true

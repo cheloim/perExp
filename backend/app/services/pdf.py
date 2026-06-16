@@ -2,24 +2,46 @@ import io
 import re
 
 SPANISH_MONTHS = {
-    "ene": 1, "enero": 1,
-    "feb": 2, "febr": 2, "febrero": 2,
-    "mar": 3, "marzo": 3,
-    "abr": 4, "abril": 4,
-    "may": 5, "mayo": 5,
-    "jun": 6, "junio": 6,
-    "jul": 7, "julio": 7,
-    "ago": 8, "agosto": 8,
-    "set": 9, "seti": 9, "setiem": 9, "setiembre": 9,
-    "sep": 9, "septi": 9, "septiem": 9, "septiembre": 9,
-    "oct": 10, "octubr": 10, "octubre": 10,
-    "nov": 11, "noviem": 11, "noviembre": 11,
-    "dic": 12, "diciem": 12, "diciembre": 12,
+    "ene": 1,
+    "enero": 1,
+    "feb": 2,
+    "febr": 2,
+    "febrero": 2,
+    "mar": 3,
+    "marzo": 3,
+    "abr": 4,
+    "abril": 4,
+    "may": 5,
+    "mayo": 5,
+    "jun": 6,
+    "junio": 6,
+    "jul": 7,
+    "julio": 7,
+    "ago": 8,
+    "agosto": 8,
+    "set": 9,
+    "seti": 9,
+    "setiem": 9,
+    "setiembre": 9,
+    "sep": 9,
+    "septi": 9,
+    "septiem": 9,
+    "septiembre": 9,
+    "oct": 10,
+    "octubr": 10,
+    "octubre": 10,
+    "nov": 11,
+    "noviem": 11,
+    "noviembre": 11,
+    "dic": 12,
+    "diciem": 12,
+    "diciembre": 12,
 }
 
 
 def _extract_pdf_text(content: bytes) -> str:
     import pdfplumber
+
     pages_text = []
     try:
         with pdfplumber.open(io.BytesIO(content)) as pdf:
@@ -34,8 +56,7 @@ def _extract_pdf_text(content: bytes) -> str:
                             row_buckets.setdefault(y_key, []).append(w)
                         for y in sorted(row_buckets):
                             line = " ".join(
-                                w["text"]
-                                for w in sorted(row_buckets[y], key=lambda w: w["x0"])
+                                w["text"] for w in sorted(row_buckets[y], key=lambda w: w["x0"])
                             )
                             if line.strip():
                                 page_lines.append(line)
@@ -51,7 +72,7 @@ def _extract_pdf_text(content: bytes) -> str:
                         pass
 
                 try:
-                    for table in (page.extract_tables() or []):
+                    for table in page.extract_tables() or []:
                         for row in table:
                             if row:
                                 cells = [str(c or "").strip() for c in row if str(c or "").strip()]
@@ -73,7 +94,7 @@ def _normalize_santander_dates(text: str) -> str:
     current_year = None
     current_month = None
 
-    month_header_pattern = re.compile(r'^(\d{2})\s+([a-zA-Záéíóúñ]+)\.?\s+(\d{2})\s+(.*)$')
+    month_header_pattern = re.compile(r"^(\d{2})\s+([a-zA-Záéíóúñ]+)\.?\s+(\d{2})\s+(.*)$")
 
     for line in lines:
         stripped = line.strip()
@@ -112,14 +133,15 @@ def _normalize_santander_dates(text: str) -> str:
     return "\n".join(result_lines)
 
 
-_tarjeta_re = re.compile(r'TARJETA\s+TERMINADA\s+EN\s+(\d{4})', re.IGNORECASE)
-_socio_re = re.compile(r'SOCIO\s*N[°]?\s*(\d+)', re.IGNORECASE)
-_cuenta_re = re.compile(r'CUENTA\s*N[°]?\s*(\d+)', re.IGNORECASE)
+_tarjeta_re = re.compile(r"TARJETA\s+TERMINADA\s+EN\s+(\d{4})", re.IGNORECASE)
+_socio_re = re.compile(r"SOCIO\s*N[°]?\s*(\d+)", re.IGNORECASE)
+_cuenta_re = re.compile(r"CUENTA\s*N[°]?\s*(\d+)", re.IGNORECASE)
+
 
 def _inject_card_markers(text: str) -> str:
     """Inyecta marcadores temporales de last4 para el parsing del LLM.
     Estos marcadores se usan SOLO durante el parseo y NO se guardan en la DB."""
-    lines = text.split('\n')
+    lines = text.split("\n")
     out = []
     has_tarjeta_lines = bool(_tarjeta_re.search(text))
 
@@ -129,7 +151,7 @@ def _inject_card_markers(text: str) -> str:
 
         m = _tarjeta_re.search(s)
         if m:
-            out.append(f'[TARJETA_LAST4: {m.group(1)}]')
+            out.append(f"[TARJETA_LAST4: {m.group(1)}]")
             continue
 
         if not has_tarjeta_lines:
@@ -137,11 +159,11 @@ def _inject_card_markers(text: str) -> str:
             if not m:
                 m = _cuenta_re.search(s)
             if m:
-                digits = re.sub(r'\D', '', m.group(1))
+                digits = re.sub(r"\D", "", m.group(1))
                 if len(digits) >= 4:
-                    out.append(f'[TARJETA_LAST4: {digits[-4:]}]')
+                    out.append(f"[TARJETA_LAST4: {digits[-4:]}]")
 
-    return '\n'.join(out)
+    return "\n".join(out)
 
 
 def _inject_csv_card_markers(text: str) -> str:

@@ -1,18 +1,38 @@
-from typing import Optional
 from sqlalchemy.orm import Session
+
 from app.models import Category
 
 PAYMENT_SKIP_KEYWORDS = [
-    "su pago en pesos", "su pago en usd", "su pago en dolares",
-    "pago en pesos", "pago en usd", "pago minimo", "pago mínimo",
+    "su pago en pesos",
+    "su pago en usd",
+    "su pago en dolares",
+    "pago en pesos",
+    "pago en usd",
+    "pago minimo",
+    "pago mínimo",
 ]
 TAX_REFUND_KEYWORDS = [
-    "percepcion", "percepción", "iibb", "ingresos brutos",
-    "devolucion imp", "reintegro imp", "imp. ", "imp iva", "impuesto",
+    "percepcion",
+    "percepción",
+    "iibb",
+    "ingresos brutos",
+    "devolucion imp",
+    "reintegro imp",
+    "imp. ",
+    "imp iva",
+    "impuesto",
 ]
 BONIFICATION_KEYWORDS = [
-    "bonif", "bonificacion", "bonificación", "descuento", "reintegro",
-    "cashback", "devolucion", "devolución", "promocion", "promoción",
+    "bonif",
+    "bonificacion",
+    "bonificación",
+    "descuento",
+    "reintegro",
+    "cashback",
+    "devolucion",
+    "devolución",
+    "promocion",
+    "promoción",
 ]
 
 
@@ -21,7 +41,7 @@ def _leaf_cats(cats: list) -> list:
     return [c for c in cats if c.id not in parent_ids]
 
 
-def auto_categorize(description: str, categories: list) -> Optional[int]:
+def auto_categorize(description: str, categories: list) -> int | None:
     desc_lower = description.lower()
     for cat in _leaf_cats(categories):
         if cat.keywords:
@@ -37,7 +57,7 @@ def _should_skip(description: str) -> bool:
     return any(kw in desc_lower for kw in PAYMENT_SKIP_KEYWORDS)
 
 
-def is_income_category(category_id: Optional[int], db: Session) -> bool:
+def is_income_category(category_id: int | None, db: Session) -> bool:
     """Check if category or its parent is 'Ingresos'"""
     if not category_id:
         return False
@@ -59,7 +79,7 @@ def is_income_category(category_id: Optional[int], db: Session) -> bool:
     return False
 
 
-def _resolve_category(db: Session, amount: float, description: str, cats: list) -> Optional[int]:
+def _resolve_category(db: Session, amount: float, description: str, cats: list) -> int | None:
     desc_lower = description.lower()
     if amount < 0:
         # Tax refunds

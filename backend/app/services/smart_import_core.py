@@ -2,32 +2,42 @@
 Core logic for smart import (LLM-based PDF/CSV parsing).
 Extracted from routers/import_.py to be reusable by both sync endpoint and background jobs.
 """
+
 import json
 import os
 import re
 from datetime import date
-from typing import Optional
 
 import pandas as pd
 from google import genai
 from google.genai import types as genai_types
 from sqlalchemy.orm import Session
 
-from app.models import Category, Card
+from app.models import Category
 from app.prompts import SMART_IMPORT_PROMPT
 from app.services.categorization import _resolve_category, _should_skip
 from app.services.date_utils import _normalize_date_str
-from app.services.import_utils import _expand_installments, _is_duplicate, _is_scheduled_duplicate, _load_dataframe, _normalize_persons_llm
-from app.services.normalizers import normalize_bank, _normalize_person, first_card_word, title_case_single
-from app.services.pdf import _extract_pdf_text, _inject_card_markers, _inject_csv_card_markers, _normalize_santander_dates
+from app.services.import_utils import (
+    _expand_installments,
+    _is_duplicate,
+    _is_scheduled_duplicate,
+    _load_dataframe,
+    _normalize_persons_llm,
+)
+from app.services.normalizers import (
+    first_card_word,
+    normalize_bank,
+    title_case_single,
+)
+from app.services.pdf import (
+    _extract_pdf_text,
+    _inject_card_markers,
+    _inject_csv_card_markers,
+    _normalize_santander_dates,
+)
 
 
-async def run_smart_import(
-    file_content: bytes,
-    filename: str,
-    db: Session,
-    user_id: int
-) -> dict:
+async def run_smart_import(file_content: bytes, filename: str, db: Session, user_id: int) -> dict:
     """
     Core smart import logic: extracts text, calls LLM, expands installments, detects duplicates.
 
@@ -118,7 +128,7 @@ async def run_smart_import(
                     if val:
                         try:
                             normalized = _normalize_date_str(val)
-                            if re.match(r'^\d{4}-\d{2}-\d{2}$', normalized):
+                            if re.match(r"^\d{4}-\d{2}-\d{2}$", normalized):
                                 parsed_date = date.fromisoformat(normalized)
                             else:
                                 parsed_date = pd.to_datetime(normalized, dayfirst=True).date()
@@ -134,7 +144,7 @@ async def run_smart_import(
                             closing_info["bank"] = val
                             break
 
-        def _parse_amount(v) -> Optional[float]:
+        def _parse_amount(v) -> float | None:
             if v is None:
                 return None
             try:
@@ -150,9 +160,15 @@ async def run_smart_import(
                     closing_info["total_ars"] = _parse_amount(r["total_ars"])
                 if r.get("total_usd") is not None and closing_info["total_usd"] is None:
                     closing_info["total_usd"] = _parse_amount(r["total_usd"])
-                if r.get("future_charges_ars") is not None and closing_info["future_charges_ars"] is None:
+                if (
+                    r.get("future_charges_ars") is not None
+                    and closing_info["future_charges_ars"] is None
+                ):
                     closing_info["future_charges_ars"] = _parse_amount(r["future_charges_ars"])
-                if r.get("future_charges_usd") is not None and closing_info["future_charges_usd"] is None:
+                if (
+                    r.get("future_charges_usd") is not None
+                    and closing_info["future_charges_usd"] is None
+                ):
                     closing_info["future_charges_usd"] = _parse_amount(r["future_charges_usd"])
 
         # Fallback values
@@ -171,7 +187,9 @@ async def run_smart_import(
                 break
 
     except json.JSONDecodeError as e:
-        raise ValueError(f"La IA no pudo parsear las transacciones. Intentá con importación manual. ({e})")
+        raise ValueError(
+            f"La IA no pudo parsear las transacciones. Intentá con importación manual. ({e})"
+        )
     except Exception as e:
         raise ValueError(f"Error interno: {type(e).__name__}: {e}")
 
@@ -196,7 +214,7 @@ async def run_smart_import(
         raw_date = str(r.get("date", "")).strip()
         try:
             normalized = _normalize_date_str(raw_date)
-            if re.match(r'^\d{4}-\d{2}-\d{2}$', normalized):
+            if re.match(r"^\d{4}-\d{2}-\d{2}$", normalized):
                 row_date = date.fromisoformat(normalized)
             else:
                 row_date = pd.to_datetime(normalized, dayfirst=True).date()
@@ -221,20 +239,22 @@ async def run_smart_import(
         row_bank = normalize_bank(row_bank)
         row_person = title_case_single(row_person)
 
-        parsed.append({
-            "date": raw_date,
-            "_date_obj": row_date,
-            "description": desc,
-            "amount": amount,
-            "currency": currency,
-            "card": row_card,
-            "bank": row_bank,
-            "person": row_person,
-            "transaction_id": txn_id,
-            "installment_number": inst_num,
-            "installment_total": inst_total,
-            "installment_group_id": None,
-        })
+        parsed.append(
+            {
+                "date": raw_date,
+                "_date_obj": row_date,
+                "description": desc,
+                "amount": amount,
+                "currency": currency,
+                "card": row_card,
+                "bank": row_bank,
+                "person": row_person,
+                "transaction_id": txn_id,
+                "installment_number": inst_num,
+                "installment_total": inst_total,
+                "installment_group_id": None,
+            }
+        )
 
     # Step 4: Normalize person names with LLM
     unique_persons = list({r["person"] for r in parsed if r.get("person", "").strip()})
@@ -246,7 +266,7 @@ async def run_smart_import(
                 r["person"] = norm_map[raw_p]
 
     # Step 5: Fill missing dates
-    last_known_date: Optional[date] = None
+    last_known_date: date | None = None
     last_known_raw: str = ""
     for p in parsed:
         if p["_date_obj"] is not None:
@@ -257,11 +277,14 @@ async def run_smart_import(
             p["date"] = last_known_raw
 
     # Step 6: Expand installments (generates future scheduled expenses)
-    expenses_list, scheduled_list = _expand_installments(parsed, db, user_id, closing_date=closing_info.get("closing_date"))
+    expenses_list, scheduled_list = _expand_installments(
+        parsed, db, user_id, closing_date=closing_info.get("closing_date")
+    )
     parsed = expenses_list
 
     # Step 7: Detect unique cards and generate suggested custom_naming
     from collections import defaultdict
+
     card_groups: dict = defaultdict(list)
     for p in parsed:
         key = (p.get("bank") or "", p.get("card") or "", p.get("person") or "")
@@ -270,18 +293,20 @@ async def run_smart_import(
 
     detected_cards = []
     card_type = closing_info.get("card_type") or "credito"
-    for (bank, card, person), txns in card_groups.items():
+    for (bank, card, _person), txns in card_groups.items():
         if bank and card:
             unique_persons = list({p.get("person") or "" for p in txns if p.get("person")})
             suggested = ""
-            detected_cards.append({
-                "bank": bank,
-                "card": card,
-                "card_type": card_type,
-                "holders": unique_persons,
-                "suggested_custom_naming": suggested,
-                "transaction_count": len(txns),
-            })
+            detected_cards.append(
+                {
+                    "bank": bank,
+                    "card": card,
+                    "card_type": card_type,
+                    "holders": unique_persons,
+                    "suggested_custom_naming": suggested,
+                    "transaction_count": len(txns),
+                }
+            )
 
     # Step 8: Build response rows with duplicate detection
     rows = []
@@ -289,66 +314,74 @@ async def run_smart_import(
         cat_id = _resolve_category(db, p["amount"], p["description"], cats)
         cat_name = next((c.name for c in cats if c.id == cat_id), None)
         row_date = p["_date_obj"]
-        rows.append({
-            "date": p["date"],
-            "description": p["description"],
-            "amount": p["amount"],
-            "currency": p["currency"],
-            "card": p["card"],
-            "bank": p["bank"],
-            "person": p["person"],
-            "transaction_id": p["transaction_id"],
-            "installment_number": p["installment_number"],
-            "installment_total": p["installment_total"],
-            "installment_group_id": p["installment_group_id"],
-            "suggested_category": cat_name,
-            "is_duplicate": _is_duplicate(
-                db,
-                row_date,
-                p["amount"],
-                p["description"],
-                p["transaction_id"],
-                p["installment_number"],
-                p["installment_total"],
-                p.get("installment_group_id")
-            ) if row_date else False,
-            "is_auto_generated": p.get("_auto_generated", False),
-        })
+        rows.append(
+            {
+                "date": p["date"],
+                "description": p["description"],
+                "amount": p["amount"],
+                "currency": p["currency"],
+                "card": p["card"],
+                "bank": p["bank"],
+                "person": p["person"],
+                "transaction_id": p["transaction_id"],
+                "installment_number": p["installment_number"],
+                "installment_total": p["installment_total"],
+                "installment_group_id": p["installment_group_id"],
+                "suggested_category": cat_name,
+                "is_duplicate": _is_duplicate(
+                    db,
+                    row_date,
+                    p["amount"],
+                    p["description"],
+                    p["transaction_id"],
+                    p["installment_number"],
+                    p["installment_total"],
+                    p.get("installment_group_id"),
+                )
+                if row_date
+                else False,
+                "is_auto_generated": p.get("_auto_generated", False),
+            }
+        )
 
     # Add scheduled expenses to rows
     for s in scheduled_list:
         cat_id = _resolve_category(db, s["amount"], s["description"], cats)
         cat_name = next((c.name for c in cats if c.id == cat_id), None)
-        rows.append({
-            "date": s["scheduled_date"].strftime("%d-%m-%Y"),
-            "description": s["description"],
-            "amount": s["amount"],
-            "currency": s["currency"],
-            "card": s["card"],
-            "bank": s["bank"],
-            "person": s["person"],
-            "transaction_id": s["transaction_id"],
-            "installment_number": s["installment_number"],
-            "installment_total": s["installment_total"],
-            "installment_group_id": s["installment_group_id"],
-            "suggested_category": cat_name,
-            "is_duplicate": _is_scheduled_duplicate(
-                db,
-                s["scheduled_date"],
-                s["amount"],
-                s["description"],
-                s["installment_number"],
-                s["installment_total"],
-                user_id,
-                s.get("installment_group_id")
-            ),
-            "is_auto_generated": True,
-            "is_scheduled": True,
-        })
+        rows.append(
+            {
+                "date": s["scheduled_date"].strftime("%d-%m-%Y"),
+                "description": s["description"],
+                "amount": s["amount"],
+                "currency": s["currency"],
+                "card": s["card"],
+                "bank": s["bank"],
+                "person": s["person"],
+                "transaction_id": s["transaction_id"],
+                "installment_number": s["installment_number"],
+                "installment_total": s["installment_total"],
+                "installment_group_id": s["installment_group_id"],
+                "suggested_category": cat_name,
+                "is_duplicate": _is_scheduled_duplicate(
+                    db,
+                    s["scheduled_date"],
+                    s["amount"],
+                    s["description"],
+                    s["installment_number"],
+                    s["installment_total"],
+                    user_id,
+                    s.get("installment_group_id"),
+                ),
+                "is_auto_generated": True,
+                "is_scheduled": True,
+            }
+        )
 
     non_auto = [r for r in rows if not r.get("is_auto_generated")]
     if not non_auto:
-        raise ValueError("No se encontraron transacciones en el archivo. El resumen puede estar vacío o sin consumos.")
+        raise ValueError(
+            "No se encontraron transacciones en el archivo. El resumen puede estar vacío o sin consumos."
+        )
 
     # Fallback: obtener person de la primera transacción si no está en closing_info
     person_value = closing_info.get("person", "") or ""
@@ -360,7 +393,9 @@ async def run_smart_import(
         "card_type": closing_info["card_type"] or "",
         "bank": closing_info["bank"] or "",
         "person": person_value,
-        "closing_date": closing_info["closing_date"].isoformat() if closing_info["closing_date"] else None,
+        "closing_date": closing_info["closing_date"].isoformat()
+        if closing_info["closing_date"]
+        else None,
         "due_date": closing_info["due_date"].isoformat() if closing_info["due_date"] else None,
         "total_ars": closing_info["total_ars"],
         "total_usd": closing_info["total_usd"],
@@ -369,9 +404,9 @@ async def run_smart_import(
     }
 
     has_missing_data = any(
-        not (r.get("bank") or "").strip() or
-        not (r.get("card") or "").strip() or
-        not (r.get("person") or "").strip()
+        not (r.get("bank") or "").strip()
+        or not (r.get("card") or "").strip()
+        or not (r.get("person") or "").strip()
         for r in rows
     )
 

@@ -1,39 +1,45 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from "react";
 
 interface AutocompleteInputProps {
-  value: string
-  onChange: (value: string) => void
-  onSelect: (value: string) => void
-  options: string[]
-  placeholder?: string
+  value: string;
+  onChange: (value: string) => void;
+  onSelect: (value: string) => void;
+  options: string[];
+  placeholder?: string;
 }
 
-export function AutocompleteInput({ value, onChange, onSelect, options, placeholder }: AutocompleteInputProps) {
-  const [isOpen, setIsOpen] = useState(false)
-  const [search, setSearch] = useState('')
-  const ref = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+export function AutocompleteInput({
+  value,
+  onChange,
+  onSelect,
+  options,
+  placeholder,
+}: AutocompleteInputProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
-        setIsOpen(false)
-        setSearch('')
+        setIsOpen(false);
+        setSearch("");
       }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const filteredOptions = search
-    ? options.filter(o => o.toLowerCase().includes(search.toLowerCase()))
-    : options
+    ? options.filter((o) => o.toLowerCase().includes(search.toLowerCase()))
+    : options;
 
   const handleSelect = (val: string) => {
-    onSelect(val)
-    setIsOpen(false)
-    setSearch('')
-  }
+    onSelect(val);
+    setIsOpen(false);
+    setSearch("");
+  };
 
   return (
     <div ref={ref} className="relative">
@@ -41,20 +47,20 @@ export function AutocompleteInput({ value, onChange, onSelect, options, placehol
         ref={inputRef}
         type="text"
         value={isOpen ? search : value}
-        onChange={e => {
-          setSearch(e.target.value)
-          onChange(e.target.value)
+        onChange={(e) => {
+          setSearch(e.target.value);
+          onChange(e.target.value);
         }}
         onFocus={() => setIsOpen(true)}
         onBlur={() => {
           setTimeout(() => {
             if (!ref.current?.contains(document.activeElement)) {
-              setIsOpen(false)
-              setSearch('')
+              setIsOpen(false);
+              setSearch("");
             }
-          }, 150)
+          }, 150);
         }}
-        placeholder={placeholder || 'Escribir o seleccionar...'}
+        placeholder={placeholder || "Escribir o seleccionar..."}
         className="w-full px-3 py-2 text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition placeholder:text-[var(--text-tertiary)]"
       />
 
@@ -65,11 +71,9 @@ export function AutocompleteInput({ value, onChange, onSelect, options, placehol
               No hay valores disponibles
             </div>
           ) : filteredOptions.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-[var(--text-tertiary)]">
-              Sin resultados
-            </div>
+            <div className="px-3 py-2 text-sm text-[var(--text-tertiary)]">Sin resultados</div>
           ) : (
-            filteredOptions.map(option => (
+            filteredOptions.map((option) => (
               <button
                 key={option}
                 type="button"
@@ -83,5 +87,5 @@ export function AutocompleteInput({ value, onChange, onSelect, options, placehol
         </div>
       )}
     </div>
-  )
+  );
 }

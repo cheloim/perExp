@@ -1,8 +1,8 @@
 from datetime import date, datetime
-from sqlalchemy.orm import Session
-from app.database import SessionLocal
-from app.models import ScheduledExpense, Expense
+
 from app.celery_app import celery_app
+from app.database import SessionLocal
+from app.models import Expense, ScheduledExpense
 
 
 @celery_app.task(name="app.tasks.scheduled_expenses.execute_due_installments")
@@ -15,10 +15,11 @@ def execute_due_installments():
     try:
         today = date.today()
 
-        due_scheduled = db.query(ScheduledExpense).filter(
-            ScheduledExpense.status == "PENDING",
-            ScheduledExpense.scheduled_date <= today
-        ).all()
+        due_scheduled = (
+            db.query(ScheduledExpense)
+            .filter(ScheduledExpense.status == "PENDING", ScheduledExpense.scheduled_date <= today)
+            .all()
+        )
 
         executed_count = 0
         for scheduled in due_scheduled:

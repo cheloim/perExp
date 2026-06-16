@@ -1,0 +1,34 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.14.1
+    hooks:
+      - id: mypy
+        additional_dependencies: []
+        args: [--config-file=backend/pyproject.toml]
+        files: ^backend/
+
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v9.18.0
+    hooks:
+      - id: eslint
+        files: \.(ts|tsx)$
+        additional_dependencies:
+          - eslint@10.5.0
+          - "@eslint/js@10.0.1"
+          - typescript-eslint@8.61.1
+          - eslint-plugin-react-hooks@5.1.0
+        args: [--config, frontend/eslint.config.js]
+
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        files: ^frontend/
+        args: [--config, frontend/.prettierrc]

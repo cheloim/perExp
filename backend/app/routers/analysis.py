@@ -2,7 +2,6 @@ import json
 import os
 from calendar import monthrange
 from datetime import date, datetime
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -21,7 +20,11 @@ router = APIRouter(prefix="/analysis", tags=["analysis"])
 
 
 @router.post("/stream")
-async def stream_analysis(req: AnalysisRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def stream_analysis(
+    req: AnalysisRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     q = db.query(Expense).filter(Expense.user_id == current_user.id)
     if req.month:
         try:
@@ -49,7 +52,11 @@ async def stream_analysis(req: AnalysisRequest, db: Session = Depends(get_db), c
 
     by_cat: dict = {}
     for e in expenses:
-        cat_name = cat_map[e.category_id].name if e.category_id and e.category_id in cat_map else "Sin categoría"
+        cat_name = (
+            cat_map[e.category_id].name
+            if e.category_id and e.category_id in cat_map
+            else "Sin categoría"
+        )
         by_cat[cat_name] = by_cat.get(cat_name, 0.0) + e.amount
 
     by_month: dict = {}
@@ -72,11 +79,11 @@ async def stream_analysis(req: AnalysisRequest, db: Session = Depends(get_db), c
 RESUMEN:
 - Total gastado: ${total:,.2f}
 - Transacciones: {len(expenses)}
-- Promedio por transacción: ${total/len(expenses):,.2f}
-{f'- Meses: {len(by_month)}, promedio mensual: ${total/len(by_month):,.2f}' if len(by_month) > 1 else ''}
+- Promedio por transacción: ${total / len(expenses):,.2f}
+{f"- Meses: {len(by_month)}, promedio mensual: ${total / len(by_month):,.2f}" if len(by_month) > 1 else ""}
 
 GASTOS POR CATEGORÍA:
-{chr(10).join(f"- {k}: ${v:,.2f} ({v/total*100:.1f}%)" for k, v in sorted(by_cat.items(), key=lambda x: x[1], reverse=True))}
+{chr(10).join(f"- {k}: ${v:,.2f} ({v / total * 100:.1f}%)" for k, v in sorted(by_cat.items(), key=lambda x: x[1], reverse=True))}
 
 GASTOS POR MES:
 {chr(10).join(f"- {k}: ${v:,.2f}" for k, v in sorted(by_month.items()))}
@@ -93,7 +100,9 @@ TOP 10 GASTOS MÁS ALTOS:
 
     api_key = os.getenv("LLM_API_KEY")
     if not api_key:
-        raise HTTPException(500, "LLM_API_KEY no está configurada. Creá un archivo .env con tu API key.")
+        raise HTTPException(
+            500, "LLM_API_KEY no está configurada. Creá un archivo .env con tu API key."
+        )
 
     expense_count_val = len(expenses)
     total_val = total
@@ -118,15 +127,17 @@ TOP 10 GASTOS MÁS ALTOS:
         if accumulated_text:
             hist_db = SessionLocal()
             try:
-                hist_db.add(AnalysisHistory(
-                    created_at=datetime.utcnow(),
-                    month=req.month,
-                    question=req.question,
-                    result_text="".join(accumulated_text),
-                    expense_count=expense_count_val,
-                    total_amount=total_val,
-                    user_id=current_user.id,
-                ))
+                hist_db.add(
+                    AnalysisHistory(
+                        created_at=datetime.utcnow(),
+                        month=req.month,
+                        question=req.question,
+                        result_text="".join(accumulated_text),
+                        expense_count=expense_count_val,
+                        total_amount=total_val,
+                        user_id=current_user.id,
+                    )
+                )
                 hist_db.commit()
             except Exception:
                 pass
@@ -146,25 +157,31 @@ TOP 10 GASTOS MÁS ALTOS:
 async def summarize_chat(body: dict):
     """Stream a concise summary of a chat conversation (for session resume)."""
     import json as _json
+
     from fastapi.responses import StreamingResponse as _SR
     from google import genai as _genai
     from google.genai import types as _gtypes
 
     messages = body.get("messages", [])
     if not messages:
+
         async def _empty():
             yield f"data: {_json.dumps({'text': 'Sin mensajes para resumir.'})}\n\ndata: [DONE]\n\n"
+
         return _SR(_empty(), media_type="text/event-stream")
 
     api_key = os.getenv("LLM_API_KEY")
     if not api_key:
+
         async def _no_key():
             yield f"data: {_json.dumps({'text': 'LLM_API_KEY no configurada.'})}\n\ndata: [DONE]\n\n"
+
         return _SR(_no_key(), media_type="text/event-stream")
 
     convo = "\n".join(
         f"{'Usuario' if m.get('role') == 'user' else 'Asistente'}: {m.get('text', '')}"
-        for m in messages if m.get("text")
+        for m in messages
+        if m.get("text")
     )
     prompt = (
         "Resumí la siguiente conversación en un párrafo conciso (máx. 5 oraciones). "
@@ -187,18 +204,35 @@ async def summarize_chat(body: dict):
             yield f"data: {_json.dumps({'text': f'Error: {e}'})}\n\n"
         yield "data: [DONE]\n\n"
 
-    return _SR(generate(), media_type="text/event-stream",
-               headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+    return _SR(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
-@router.get("/history", response_model=List[AnalysisHistoryResponse])
-def get_analysis_history(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return db.query(AnalysisHistory).filter(AnalysisHistory.user_id == current_user.id).order_by(desc(AnalysisHistory.id)).limit(50).all()
+@router.get("/history", response_model=list[AnalysisHistoryResponse])
+def get_analysis_history(
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    return (
+        db.query(AnalysisHistory)
+        .filter(AnalysisHistory.user_id == current_user.id)
+        .order_by(desc(AnalysisHistory.id))
+        .limit(50)
+        .all()
+    )
 
 
 @router.delete("/history/{hist_id}")
-def delete_analysis_history(hist_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    h = db.query(AnalysisHistory).filter(AnalysisHistory.id == hist_id, AnalysisHistory.user_id == current_user.id).first()
+def delete_analysis_history(
+    hist_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    h = (
+        db.query(AnalysisHistory)
+        .filter(AnalysisHistory.id == hist_id, AnalysisHistory.user_id == current_user.id)
+        .first()
+    )
     if not h:
         raise HTTPException(404, "Historial no encontrado")
     db.delete(h)

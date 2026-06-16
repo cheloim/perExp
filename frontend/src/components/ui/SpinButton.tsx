@@ -1,14 +1,14 @@
-import { useState } from 'react'
+import { useState } from "react";
 
 interface SpinButtonProps {
-  value: number
-  onChange: (value: number) => void
-  min?: number
-  max?: number
-  step?: number
-  label?: string
-  className?: string
-  disabled?: boolean
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  label?: string;
+  className?: string;
+  disabled?: boolean;
 }
 
 export function SpinButton({
@@ -18,33 +18,33 @@ export function SpinButton({
   max = 9999,
   step = 1,
   label,
-  className = '',
+  className = "",
   disabled = false,
 }: SpinButtonProps) {
-  const [focused, setFocused] = useState(false)
+  const [focused, setFocused] = useState(false);
 
   const handleDecrement = () => {
-    const newVal = value - step
-    if (newVal >= min) onChange(newVal)
-  }
+    const newVal = value - step;
+    if (newVal >= min) onChange(newVal);
+  };
 
   const handleIncrement = () => {
-    const newVal = value + step
-    if (newVal <= max) onChange(newVal)
-  }
+    const newVal = value + step;
+    if (newVal <= max) onChange(newVal);
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const parsed = parseInt(e.target.value, 10)
+    const parsed = parseInt(e.target.value, 10);
     if (!isNaN(parsed)) {
-      if (parsed >= min && parsed <= max) onChange(parsed)
+      if (parsed >= min && parsed <= max) onChange(parsed);
     }
-  }
+  };
 
   const handleBlur = () => {
-    setFocused(false)
-    if (value < min) onChange(min)
-    if (value > max) onChange(max)
-  }
+    setFocused(false);
+    if (value < min) onChange(min);
+    if (value > max) onChange(max);
+  };
 
   return (
     <div className={`flex items-center gap-1 ${className}`}>
@@ -56,9 +56,9 @@ export function SpinButton({
       <div
         className={`
           flex items-center h-8 border rounded-md overflow-hidden transition-all
-          ${focused ? 'border-[var(--color-primary)]' : 'border-[var(--border-color)]'}
-          ${focused ? '[box-shadow:var(--focus-ring)]' : ''}
-          ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
+          ${focused ? "border-[var(--color-primary)]" : "border-[var(--border-color)]"}
+          ${focused ? "[box-shadow:var(--focus-ring)]" : ""}
+          ${disabled ? "opacity-50 cursor-not-allowed" : ""}
           bg-[var(--color-base-container)]
         `}
       >
@@ -99,5 +99,5 @@ export function SpinButton({
         </button>
       </div>
     </div>
-  )
+  );
 }

@@ -1,65 +1,71 @@
-import { useState, useEffect, useRef } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { DayPicker } from 'react-day-picker'
-import { es } from 'date-fns/locale'
-import { getCategories, getAccounts, getCards } from '../api/client'
-import type { Expense, ExpenseCreate, Card } from '../types'
-import { Select } from './ui/Select'
+import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { DayPicker } from "react-day-picker";
+import { es } from "date-fns/locale";
+import { getCategories, getAccounts, getCards } from "../api/client";
+import type { Expense, ExpenseCreate, Card } from "../types";
+import { Select } from "./ui/Select";
 
 // Helper function to get today's date in DD-MM-YYYY format
 export function todayDDMMYYYY() {
-  const now = new Date()
-  const d = String(now.getDate()).padStart(2, '0')
-  const m = String(now.getMonth() + 1).padStart(2, '0')
-  const y = now.getFullYear()
-  return `${d}-${m}-${y}`
+  const now = new Date();
+  const d = String(now.getDate()).padStart(2, "0");
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const y = now.getFullYear();
+  return `${d}-${m}-${y}`;
 }
 
 // Empty form template
 export const EMPTY_FORM: ExpenseCreate = {
   date: todayDDMMYYYY(),
-  description: '',
+  description: "",
   amount: 0,
-  currency: 'ARS',
+  currency: "ARS",
   category_id: null,
-  card: '',
-  bank: '',
-  person: '',
-  notes: '',
-  transaction_id: '',
+  card: "",
+  bank: "",
+  person: "",
+  notes: "",
+  transaction_id: "",
   installment_number: null,
   installment_total: null,
   installment_group_id: null,
-}
+};
 
 // DatePicker component with calendar
-export function DatePickerInput({ value, onChange }: { value: string; onChange: (d: string) => void }) {
-  const [isOpen, setIsOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+export function DatePickerInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (d: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
   const getValidDate = (val: string): Date => {
-    if (!val || typeof val !== 'string') return new Date()
-    const parts = val.split('-')
-    if (parts.length !== 3) return new Date()
-    const d = parseInt(parts[0])
-    const m = parseInt(parts[1])
-    const y = parseInt(parts[2])
-    if (isNaN(d) || isNaN(m) || isNaN(y)) return new Date()
-    if (d < 1 || d > 31 || m < 1 || m > 12 || y < 2000 || y > 2100) return new Date()
-    return new Date(y, m - 1, d)
-  }
+    if (!val || typeof val !== "string") return new Date();
+    const parts = val.split("-");
+    if (parts.length !== 3) return new Date();
+    const d = parseInt(parts[0]);
+    const m = parseInt(parts[1]);
+    const y = parseInt(parts[2]);
+    if (isNaN(d) || isNaN(m) || isNaN(y)) return new Date();
+    if (d < 1 || d > 31 || m < 1 || m > 12 || y < 2000 || y > 2100) return new Date();
+    return new Date(y, m - 1, d);
+  };
 
-  const selectedDate = getValidDate(value)
+  const selectedDate = getValidDate(value);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
-        setIsOpen(false)
+        setIsOpen(false);
       }
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
     <div ref={ref} className="relative">
@@ -78,11 +84,11 @@ export function DatePickerInput({ value, onChange }: { value: string; onChange: 
             selected={selectedDate}
             onSelect={(d) => {
               if (d) {
-                const nd = String(d.getDate()).padStart(2, '0')
-                const nm = String(d.getMonth() + 1).padStart(2, '0')
-                const ny = d.getFullYear()
-                onChange(`${nd}-${nm}-${ny}`)
-                setIsOpen(false)
+                const nd = String(d.getDate()).padStart(2, "0");
+                const nm = String(d.getMonth() + 1).padStart(2, "0");
+                const ny = d.getFullYear();
+                onChange(`${nd}-${nm}-${ny}`);
+                setIsOpen(false);
               }
             }}
             locale={es}
@@ -91,35 +97,35 @@ export function DatePickerInput({ value, onChange }: { value: string; onChange: 
         </div>
       )}
     </div>
-  )
+  );
 }
 
 // ExpenseModal - Full modal for expense transactions with payment method selector
 interface ExpenseModalProps {
-  initial?: Expense | null
-  onClose: () => void
-  onSave: (data: ExpenseCreate) => void
-  saveError?: string | null
+  initial?: Expense | null;
+  onClose: () => void;
+  onSave: (data: ExpenseCreate) => void;
+  saveError?: string | null;
 }
 
 export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseModalProps) {
-  const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: getCategories })
-  const { data: cards = [] } = useQuery({ queryKey: ['cards'], queryFn: getCards })
-  const { data: accounts = [] } = useQuery({ queryKey: ['accounts'], queryFn: getAccounts })
+  const { data: categories = [] } = useQuery({ queryKey: ["categories"], queryFn: getCategories });
+  const { data: cards = [] } = useQuery({ queryKey: ["cards"], queryFn: getCards });
+  const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: getAccounts });
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', handleEscape)
-    return () => document.removeEventListener('keydown', handleEscape)
-  }, [onClose])
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [onClose]);
 
-  const isCash = (card: string) => !card || card === 'Efectivo'
+  const isCash = (card: string) => !card || card === "Efectivo";
 
-  const [payMethod, setPayMethod] = useState<'card' | 'cash'>(
-    initial ? (isCash(initial.card ?? '') ? 'cash' : 'card') : 'card'
-  )
+  const [payMethod, setPayMethod] = useState<"card" | "cash">(
+    initial ? (isCash(initial.card ?? "") ? "cash" : "card") : "card",
+  );
 
   const [form, setForm] = useState<ExpenseCreate>(
     initial
@@ -127,13 +133,13 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
           date: initial.date,
           description: initial.description,
           amount: Math.abs(initial.amount),
-          currency: initial.currency || 'ARS',
+          currency: initial.currency || "ARS",
           category_id: initial.category_id,
-          card: initial.card ?? '',
-          bank: initial.bank ?? '',
-          person: initial.person ?? '',
-          notes: initial.notes ?? '',
-          transaction_id: initial.transaction_id ?? '',
+          card: initial.card ?? "",
+          bank: initial.bank ?? "",
+          person: initial.person ?? "",
+          notes: initial.notes ?? "",
+          transaction_id: initial.transaction_id ?? "",
           installment_number: initial.installment_number ?? null,
           installment_total: initial.installment_total ?? null,
           installment_group_id: initial.installment_group_id ?? null,
@@ -141,51 +147,61 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
           card_id: initial.card_id ?? null,
         }
       : EMPTY_FORM,
-  )
+  );
 
   const [cuotasEnabled, setCuotasEnabled] = useState(
-    !!(initial?.installment_total && initial.installment_total > 1)
-  )
+    !!(initial?.installment_total && initial.installment_total > 1),
+  );
 
   const toggleCuotas = (enabled: boolean) => {
-    setCuotasEnabled(enabled)
+    setCuotasEnabled(enabled);
     if (enabled) {
-      const gid = form.installment_group_id || crypto.randomUUID()
-      setForm((prev) => ({ ...prev, installment_number: 1, installment_total: 1, installment_group_id: gid }))
+      const gid = form.installment_group_id || crypto.randomUUID();
+      setForm((prev) => ({
+        ...prev,
+        installment_number: 1,
+        installment_total: 1,
+        installment_group_id: gid,
+      }));
     } else {
-      setForm((prev) => ({ ...prev, installment_number: null, installment_total: null, installment_group_id: null }))
+      setForm((prev) => ({
+        ...prev,
+        installment_number: null,
+        installment_total: null,
+        installment_group_id: null,
+      }));
     }
-  }
+  };
 
   const set = (field: keyof ExpenseCreate, value: unknown) =>
-    setForm((prev) => ({ ...prev, [field]: value }))
+    setForm((prev) => ({ ...prev, [field]: value }));
 
-  const switchPayMethod = (method: 'card' | 'cash') => {
-    setPayMethod(method)
-    if (method === 'cash') {
-      setForm((prev) => ({ ...prev, card: '', bank: '', card_id: null, account_id: null }))
+  const switchPayMethod = (method: "card" | "cash") => {
+    setPayMethod(method);
+    if (method === "cash") {
+      setForm((prev) => ({ ...prev, card: "", bank: "", card_id: null, account_id: null }));
     } else {
-      setForm((prev) => ({ ...prev, card: '', bank: '', account_id: null }))
+      setForm((prev) => ({ ...prev, card: "", bank: "", account_id: null }));
     }
-  }
+  };
 
   // Cascading selectors: bank → card
-  const availableBanks = [...new Set(cards.map(c => c.bank).filter(Boolean))].sort()
+  const availableBanks = [...new Set(cards.map((c) => c.bank).filter(Boolean))].sort();
 
-  const selectedBank = form.bank ?? ''
-  const availableCards = cards.filter(c => !selectedBank || c.bank === selectedBank)
+  const selectedBank = form.bank ?? "";
+  const availableCards = cards.filter((c) => !selectedBank || c.bank === selectedBank);
 
   const handleBankChange = (b: string) => {
-    setForm((prev) => ({ ...prev, bank: b, card: '' }))
-  }
+    setForm((prev) => ({ ...prev, bank: b, card: "" }));
+  };
 
   const handleCardSelect = (c: Card) => {
     setForm((prev) => ({
       ...prev,
       card: c.card_name,
-      bank: c.bank || '',
-    }))
-  }
+      bank: c.bank || "",
+    }));
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -193,9 +209,14 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
       <div className="relative card w-full max-w-lg max-h-[90vh] overflow-auto p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-            {initial ? 'Editar gasto' : 'Nuevo gasto'}
+            {initial ? "Editar gasto" : "Nuevo gasto"}
           </h2>
-          <button onClick={onClose} className="text-[var(--text-tertiary)] hover:text-[var(--color-primary)]">✕</button>
+          <button
+            onClick={onClose}
+            className="text-[var(--text-tertiary)] hover:text-[var(--color-primary)]"
+          >
+            ✕
+          </button>
         </div>
 
         {saveError && (
@@ -207,26 +228,28 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
 
         {/* Payment method toggle */}
         <div>
-          <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Medio de pago</label>
+          <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+            Medio de pago
+          </label>
           <div className="flex rounded-md border border-[var(--border-color)] overflow-hidden">
             <button
               type="button"
-              onClick={() => switchPayMethod('card')}
+              onClick={() => switchPayMethod("card")}
               className={`flex-1 px-3 py-2 text-sm font-medium transition ${
-                payMethod === 'card'
-                  ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)]'
-                  : 'bg-[var(--color-base-container)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]'
+                payMethod === "card"
+                  ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
+                  : "bg-[var(--color-base-container)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
               }`}
             >
               💳 Tarjeta
             </button>
             <button
               type="button"
-              onClick={() => switchPayMethod('cash')}
+              onClick={() => switchPayMethod("cash")}
               className={`flex-1 px-3 py-2 text-sm font-medium transition ${
-                payMethod === 'cash'
-                  ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)]'
-                  : 'bg-[var(--color-base-container)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]'
+                payMethod === "cash"
+                  ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
+                  : "bg-[var(--color-base-container)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
               }`}
             >
               💵 Efectivo / Transferencia
@@ -236,7 +259,7 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
 
         <div>
           <label className="text-xs font-medium text-[var(--text-secondary)]">Fecha</label>
-          <DatePickerInput value={form.date} onChange={(d) => set('date', d)} />
+          <DatePickerInput value={form.date} onChange={(d) => set("date", d)} />
         </div>
 
         <div>
@@ -244,7 +267,7 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
           <input
             type="text"
             value={form.description}
-            onChange={(e) => set('description', e.target.value)}
+            onChange={(e) => set("description", e.target.value)}
             placeholder="Ej: Supermercado Coto"
             className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
           />
@@ -256,18 +279,18 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
             <input
               type="number"
               value={form.amount}
-              onChange={(e) => set('amount', parseFloat(e.target.value) || 0)}
+              onChange={(e) => set("amount", parseFloat(e.target.value) || 0)}
               className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
             />
           </div>
           <div>
             <label className="text-xs font-medium text-[var(--text-secondary)]">Moneda</label>
             <Select
-              value={form.currency ?? 'ARS'}
-              onChange={v => set('currency', v)}
+              value={form.currency ?? "ARS"}
+              onChange={(v) => set("currency", v)}
               options={[
-                { value: 'ARS', label: 'ARS $' },
-                { value: 'USD', label: 'USD $' },
+                { value: "ARS", label: "ARS $" },
+                { value: "USD", label: "USD $" },
               ]}
             />
           </div>
@@ -276,67 +299,88 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
         <div>
           <label className="text-xs font-medium text-[var(--text-secondary)]">Categoría</label>
           <Select
-            value={form.category_id ? String(form.category_id) : ''}
-            onChange={v => set('category_id', v ? parseInt(v) : null)}
+            value={form.category_id ? String(form.category_id) : ""}
+            onChange={(v) => set("category_id", v ? parseInt(v) : null)}
             groups={(() => {
-              const parentIds = new Set(categories.filter(c => c.parent_id).map(c => c.parent_id!))
-              const parents = categories.filter(c => !c.parent_id && parentIds.has(c.id))
-              const orphans = categories.filter(c => !c.parent_id && !parentIds.has(c.id))
+              const parentIds = new Set(
+                categories.filter((c) => c.parent_id).map((c) => c.parent_id!),
+              );
+              const parents = categories.filter((c) => !c.parent_id && parentIds.has(c.id));
+              const orphans = categories.filter((c) => !c.parent_id && !parentIds.has(c.id));
               return [
-                ...parents.map(parent => ({
+                ...parents.map((parent) => ({
                   label: parent.name,
-                  options: categories.filter(c => c.parent_id === parent.id).map(c => ({ value: String(c.id), label: c.name }))
+                  options: categories
+                    .filter((c) => c.parent_id === parent.id)
+                    .map((c) => ({ value: String(c.id), label: c.name })),
                 })),
-                ...(orphans.length > 0 ? [{ label: '—', options: orphans.map(c => ({ value: String(c.id), label: c.name })) }] : [])
-              ]
+                ...(orphans.length > 0
+                  ? [
+                      {
+                        label: "—",
+                        options: orphans.map((c) => ({ value: String(c.id), label: c.name })),
+                      },
+                    ]
+                  : []),
+              ];
             })()}
             placeholder="Sin categoría"
           />
         </div>
 
         {/* Cascading: Banco → Tarjeta */}
-        <div className={`space-y-3 transition-opacity ${payMethod === 'cash' ? 'opacity-40 pointer-events-none' : ''}`}>
+        <div
+          className={`space-y-3 transition-opacity ${
+            payMethod === "cash" ? "opacity-40 pointer-events-none" : ""
+          }`}
+        >
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
               <Select
-                value={form.bank ?? ''}
-                onChange={v => handleBankChange(v)}
-                options={availableBanks.map(b => ({ value: b, label: b }))}
+                value={form.bank ?? ""}
+                onChange={(v) => handleBankChange(v)}
+                options={availableBanks.map((b) => ({ value: b, label: b }))}
                 placeholder="— Banco —"
-                disabled={payMethod === 'cash'}
+                disabled={payMethod === "cash"}
               />
             </div>
             <div>
               <label className="text-xs font-medium text-[var(--text-secondary)]">Tarjeta</label>
               <Select
-                value={form.card ?? ''}
-                onChange={v => {
-                  const selected = availableCards.find(c => c.card_name === v)
-                  if (selected) handleCardSelect(selected)
-                  else set('card', v)
+                value={form.card ?? ""}
+                onChange={(v) => {
+                  const selected = availableCards.find((c) => c.card_name === v);
+                  if (selected) handleCardSelect(selected);
+                  else set("card", v);
                 }}
-                options={availableCards.map(c => ({ value: c.card_name, label: c.card_name }))}
+                options={availableCards.map((c) => ({ value: c.card_name, label: c.card_name }))}
                 placeholder="— Tarjeta —"
-                disabled={payMethod === 'cash'}
+                disabled={payMethod === "cash"}
               />
             </div>
           </div>
         </div>
 
         {/* Account selector for cash/transfer payments */}
-        <div className={`space-y-3 ${payMethod === 'card' ? 'opacity-40 pointer-events-none' : ''}`}>
+        <div
+          className={`space-y-3 ${payMethod === "card" ? "opacity-40 pointer-events-none" : ""}`}
+        >
           <div>
-            <label className="text-xs font-medium text-[var(--text-secondary)]">Cuenta / Medio de pago</label>
+            <label className="text-xs font-medium text-[var(--text-secondary)]">
+              Cuenta / Medio de pago
+            </label>
             <Select
-              value={String(form.account_id || '')}
-              onChange={(v) => set('account_id', v ? Number(v) : null)}
-              options={accounts.filter(a => a.type !== 'credito').map(a => ({
-                value: String(a.id),
-                label: a.name
-              }))}
+              value={String(form.account_id || "")}
+              onChange={(v) => set("account_id", v ? Number(v) : null)}
+              options={accounts
+                .filter((a) => a.type !== "credito")
+                .map((a) => ({
+                  value: String(a.id),
+                  label: a.name,
+                }))}
               placeholder="Seleccionar cuenta"
-              disabled={payMethod === 'card'}
+              disabled={payMethod === "card"}
             />
             <p className="text-xs text-[var(--text-tertiary)] mt-1">
               Caja de ahorro, cuenta corriente, MercadoPago, efectivo
@@ -344,7 +388,7 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
           </div>
         </div>
 
-        {payMethod === 'card' && (
+        {payMethod === "card" && (
           <div className="border border-[var(--border-color)] rounded-md p-3 space-y-3">
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
@@ -353,28 +397,34 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
                 onChange={(e) => toggleCuotas(e.target.checked)}
                 className="accent-[var(--color-primary)]"
               />
-              <span className="text-sm font-medium text-[var(--text-secondary)]">Compra en cuotas</span>
+              <span className="text-sm font-medium text-[var(--text-secondary)]">
+                Compra en cuotas
+              </span>
             </label>
             {cuotasEnabled && (
               <div className="flex items-center gap-3">
                 <div className="flex-1">
-                  <label className="text-xs font-medium text-[var(--text-secondary)]">Cuota N°</label>
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">
+                    Cuota N°
+                  </label>
                   <input
                     type="number"
                     min={1}
                     value={form.installment_number ?? 1}
-                    onChange={(e) => set('installment_number', parseInt(e.target.value) || 1)}
+                    onChange={(e) => set("installment_number", parseInt(e.target.value) || 1)}
                     className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition text-center"
                   />
                 </div>
                 <span className="text-[var(--text-tertiary)] mt-4">de</span>
                 <div className="flex-1">
-                  <label className="text-xs font-medium text-[var(--text-secondary)]">Total cuotas</label>
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">
+                    Total cuotas
+                  </label>
                   <input
                     type="number"
                     min={1}
                     value={form.installment_total ?? 1}
-                    onChange={(e) => set('installment_total', parseInt(e.target.value) || 1)}
+                    onChange={(e) => set("installment_total", parseInt(e.target.value) || 1)}
                     className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition text-center"
                   />
                 </div>
@@ -386,8 +436,8 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
         <div>
           <label className="text-xs font-medium text-[var(--text-secondary)]">Notas</label>
           <textarea
-            value={form.notes ?? ''}
-            onChange={(e) => set('notes', e.target.value)}
+            value={form.notes ?? ""}
+            onChange={(e) => set("notes", e.target.value)}
             className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition resize-none"
             rows={2}
           />
@@ -409,5 +459,5 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
         </div>
       </div>
     </div>
-  )
+  );
 }

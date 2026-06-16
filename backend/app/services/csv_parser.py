@@ -1,7 +1,6 @@
 import io
 import re
 from datetime import date
-from typing import Optional
 
 import pandas as pd
 
@@ -29,7 +28,7 @@ def _detect_col(columns: list, hints: list) -> str:
     return ""
 
 
-def _parse_amount(raw: str) -> Optional[float]:
+def _parse_amount(raw: str) -> float | None:
     s = str(raw).strip()
     s = s.replace("$", "").replace("U$S", "").replace("US$", "").replace("U$S", "")
     negative = s.startswith("-")
@@ -37,7 +36,7 @@ def _parse_amount(raw: str) -> Optional[float]:
     if not s or s in ("", "NaN"):
         return None
     comma_idx = s.rfind(",")
-    dot_idx = s.rfind(".")
+    s.rfind(".")
     if comma_idx != -1:
         digits_after_comma = len(s) - comma_idx - 1
         if digits_after_comma >= 3:
@@ -81,19 +80,17 @@ def _is_transaction_row(date_val, comprobante_val, desc_val) -> bool:
     if date_val is not None:
         return True
     comp_str = str(comprobante_val or "").strip()
-    if re.match(r"^\d{4,}$", comp_str) and str(desc_val or "").strip():
-        return True
-    return False
+    return bool(re.match(r"^\d{4,}$", comp_str) and str(desc_val or "").strip())
 
 
-def _extract_card_from_text(text: str) -> Optional[str]:
+def _extract_card_from_text(text: str) -> str | None:
     m = re.search(r"terminada\s+en\s+(\d{4})", text, re.IGNORECASE)
     if m:
         return m.group(1)
     return None
 
 
-def _extract_person_from_text(text: str) -> Optional[str]:
+def _extract_person_from_text(text: str) -> str | None:
     m = re.search(r"Adicional\s+de\s+(.+?)\s*-\s*Visa", text, re.IGNORECASE)
     if m:
         return m.group(1).strip()
@@ -129,7 +126,7 @@ def _to_string_safe(val) -> str:
 
 
 def parse_csv_expenses(content: bytes, filename: str, db, user_id: int):
-    from app.models import Card, CardClosing, Category
+    from app.models import Card, Category
     from app.services.categorization import auto_categorize
 
     if filename.lower().endswith(".csv"):
@@ -157,9 +154,18 @@ def parse_csv_expenses(content: bytes, filename: str, db, user_id: int):
                     header_col_idx["cuotas"] = j
                 elif "comprob" in p_lower:
                     header_col_idx["comprob"] = j
-                elif "monto en pesos" in p_lower or "importe en pesos" in p_lower or (p_lower == "pesos" and "monto" not in ll):
+                elif (
+                    "monto en pesos" in p_lower
+                    or "importe en pesos" in p_lower
+                    or (p_lower == "pesos" and "monto" not in ll)
+                ):
                     header_col_idx["pesos"] = j
-                elif "dólares" in p_lower or "dolares" in p_lower or "us$" in p_lower or "u$s" in p_lower:
+                elif (
+                    "dólares" in p_lower
+                    or "dolares" in p_lower
+                    or "us$" in p_lower
+                    or "u$s" in p_lower
+                ):
                     header_col_idx["dolares"] = j
             break
 
@@ -177,9 +183,9 @@ def parse_csv_expenses(content: bytes, filename: str, db, user_id: int):
         if m:
             due_date = _parse_date(m.group(1))
 
-    current_last4: Optional[str] = None
-    current_person: Optional[str] = None
-    previous_date: Optional[date] = None
+    current_last4: str | None = None
+    current_person: str | None = None
+    previous_date: date | None = None
     previous_date_str: str = ""
 
     raw_rows: list = []
@@ -209,7 +215,11 @@ def parse_csv_expenses(content: bytes, filename: str, db, user_id: int):
         desc_raw = parts[desc_idx].strip() if desc_idx is not None and desc_idx < len(parts) else ""
 
         comprob_idx = header_col_idx.get("comprob")
-        comprob_raw = parts[comprob_idx].strip() if comprob_idx is not None and comprob_idx < len(parts) else ""
+        comprob_raw = (
+            parts[comprob_idx].strip()
+            if comprob_idx is not None and comprob_idx < len(parts)
+            else ""
+        )
 
         if date_obj is None:
             comp_str = str(comprob_raw or "").strip()
@@ -220,10 +230,16 @@ def parse_csv_expenses(content: bytes, filename: str, db, user_id: int):
 
         pesos_idx = header_col_idx.get("pesos")
         dolares_idx = header_col_idx.get("dolares")
-        pesos_raw = parts[pesos_idx].strip() if pesos_idx is not None and pesos_idx < len(parts) else ""
-        dolares_raw = parts[dolares_idx].strip() if dolares_idx is not None and dolares_idx < len(parts) else ""
+        pesos_raw = (
+            parts[pesos_idx].strip() if pesos_idx is not None and pesos_idx < len(parts) else ""
+        )
+        dolares_raw = (
+            parts[dolares_idx].strip()
+            if dolares_idx is not None and dolares_idx < len(parts)
+            else ""
+        )
 
-        amount: Optional[float] = None
+        amount: float | None = None
         currency = "ARS"
         if dolares_raw and dolares_raw not in ("", "-"):
             amount = _parse_amount(dolares_raw)
@@ -236,7 +252,7 @@ def parse_csv_expenses(content: bytes, filename: str, db, user_id: int):
 
         amount = abs(amount)
 
-        txn_id: Optional[str] = None
+        txn_id: str | None = None
         if re.match(r"^\d{4,}$", comprob_raw) and comprob_raw not in ("", "-"):
             txn_id = comprob_raw
             if txn_id:
@@ -250,27 +266,26 @@ def parse_csv_expenses(content: bytes, filename: str, db, user_id: int):
         effective_date = date_obj or previous_date
         effective_date_str = date_raw or previous_date_str
 
-        raw_rows.append({
-            "date": effective_date_str,
-            "_date_obj": effective_date,
-            "description": desc_raw,
-            "amount": amount,
-            "currency": currency,
-            "card_last4": current_last4 or "",
-            "person": current_person or "",
-            "transaction_id": txn_id,
-            "installment_number": inst_num,
-            "installment_total": inst_total,
-            "installment_group_id": None,
-        })
+        raw_rows.append(
+            {
+                "date": effective_date_str,
+                "_date_obj": effective_date,
+                "description": desc_raw,
+                "amount": amount,
+                "currency": currency,
+                "card_last4": current_last4 or "",
+                "person": current_person or "",
+                "transaction_id": txn_id,
+                "installment_number": inst_num,
+                "installment_total": inst_total,
+                "installment_group_id": None,
+            }
+        )
 
     card_lookup: dict[str, dict] = {}
     unique_last4 = {r["card_last4"] for r in raw_rows if r["card_last4"]}
     for last4 in unique_last4:
-        card = db.query(Card).filter(
-            Card.user_id == user_id,
-            Card.last4_digits == last4
-        ).first()
+        card = db.query(Card).filter(Card.user_id == user_id, Card.last4_digits == last4).first()
         if card:
             card_lookup[last4] = {
                 "bank": card.bank or "",
@@ -301,49 +316,62 @@ def parse_csv_expenses(content: bytes, filename: str, db, user_id: int):
         row_date = p["_date_obj"]
 
         from app.services.import_utils import _is_duplicate
-        is_dup = _is_duplicate(
-            db, row_date, p["amount"], p["description"],
-            p.get("transaction_id"), p.get("installment_number"),
-            p.get("installment_total"), p.get("card_last4") or None
-        ) if row_date else False
+
+        is_dup = (
+            _is_duplicate(
+                db,
+                row_date,
+                p["amount"],
+                p["description"],
+                p.get("transaction_id"),
+                p.get("installment_number"),
+                p.get("installment_total"),
+                p.get("card_last4") or None,
+            )
+            if row_date
+            else False
+        )
 
         card_name = p.get("card", "")
         bank_name = p.get("bank", "")
         if not card_name:
             card_name = "Visa" if p.get("card_last4") else ""
 
-        rows.append({
-            "date": p["date"],
-            "description": desc,
-            "amount": p["amount"],
-            "currency": p.get("currency", "ARS"),
-            "card": card_name,
-            "bank": bank_name,
-            "person": p.get("person", ""),
-            
-            "transaction_id": p.get("transaction_id"),
-            "installment_number": p.get("installment_number"),
-            "installment_total": p.get("installment_total"),
-            "installment_group_id": p.get("installment_group_id"),
-            "suggested_category": cat_name,
-            "is_duplicate": is_dup,
-            "is_auto_generated": p.get("_auto_generated", False),
-        })
+        rows.append(
+            {
+                "date": p["date"],
+                "description": desc,
+                "amount": p["amount"],
+                "currency": p.get("currency", "ARS"),
+                "card": card_name,
+                "bank": bank_name,
+                "person": p.get("person", ""),
+                "transaction_id": p.get("transaction_id"),
+                "installment_number": p.get("installment_number"),
+                "installment_total": p.get("installment_total"),
+                "installment_group_id": p.get("installment_group_id"),
+                "suggested_category": cat_name,
+                "is_duplicate": is_dup,
+                "is_auto_generated": p.get("_auto_generated", False),
+            }
+        )
 
     card_closings: list = []
     if closing_date:
         for last4 in unique_last4:
             card_name = card_lookup.get(last4, {}).get("card", "Visa")
             bank_name = card_lookup.get(last4, {}).get("bank", "")
-            card_closings.append({
-                "card": card_name,
-                "card_last_digits": last4,
-                "card_type": "credito",
-                "bank": bank_name,
-                "closing_date": closing_date,
-                "next_closing_date": None,
-                "due_date": due_date,
-            })
+            card_closings.append(
+                {
+                    "card": card_name,
+                    "card_last_digits": last4,
+                    "card_type": "credito",
+                    "bank": bank_name,
+                    "closing_date": closing_date,
+                    "next_closing_date": None,
+                    "due_date": due_date,
+                }
+            )
 
     summary = {
         "card_last4": list(unique_last4)[0] if unique_last4 else "",
@@ -379,87 +407,3 @@ def _csv_split(line: str) -> list[str]:
             current += ch
     result.append(current)
     return result
-
-    for r in raw_rows:
-        l4 = r["card_last4"]
-        if l4 in card_lookup:
-            r["bank"] = card_lookup[l4]["bank"]
-            r["card"] = card_lookup[l4]["card"]
-            r["card_id"] = card_lookup[l4]["card_id"]
-        else:
-            r["bank"] = ""
-            r["card"] = ""
-            r["card_id"] = None
-
-    raw_rows = _expand_installments(raw_rows, db)
-
-    rows = []
-    for p in raw_rows:
-        desc = p["description"]
-        cat_id = auto_categorize(desc, cats)
-        cat_name = next((c.name for c in cats if c.id == cat_id), None)
-        row_date = p["_date_obj"]
-
-        from app.services.import_utils import _is_duplicate
-        is_dup = _is_duplicate(
-            db, row_date, p["amount"], p["description"],
-            p.get("transaction_id"), p.get("installment_number"),
-            p.get("installment_total"), p.get("card_last4") or None
-        ) if row_date else False
-
-        card_name = p.get("card", "")
-        bank_name = p.get("bank", "")
-        if not card_name:
-            card_name = "Visa" if p.get("card_last4") else ""
-
-        rows.append({
-            "date": p["date"],
-            "description": desc,
-            "amount": p["amount"],
-            "currency": p.get("currency", "ARS"),
-            "card": card_name,
-            "bank": bank_name,
-            "person": p.get("person", ""),
-            
-            "transaction_id": p.get("transaction_id"),
-            "installment_number": p.get("installment_number"),
-            "installment_total": p.get("installment_total"),
-            "installment_group_id": p.get("installment_group_id"),
-            "suggested_category": cat_name,
-            "is_duplicate": is_dup,
-            "is_auto_generated": p.get("_auto_generated", False),
-        })
-
-    card_closings: list = []
-    if closing_date:
-        for last4 in unique_last4:
-            card_name = card_lookup.get(last4, {}).get("card", "Visa")
-            bank_name = card_lookup.get(last4, {}).get("bank", "")
-            card_closings.append({
-                "card": card_name,
-                "card_last_digits": last4,
-                "card_type": "credito",
-                "bank": bank_name,
-                "closing_date": closing_date,
-                "next_closing_date": None,
-                "due_date": due_date,
-            })
-
-    summary = {
-        "card_last4": list(unique_last4)[0] if unique_last4 else "",
-        "card_type": "Visa",
-        "bank": card_lookup.get(list(unique_last4)[0], {}).get("bank", "") if unique_last4 else "",
-        "closing_date": closing_date.isoformat() if closing_date else None,
-        "due_date": due_date.isoformat() if due_date else None,
-        "total_ars": None,
-        "total_usd": None,
-        "future_charges_ars": None,
-        "future_charges_usd": None,
-    }
-
-    return {
-        "rows": rows,
-        "raw_count": len(raw_rows),
-        "summary": summary,
-        "card_closings": card_closings,
-    }

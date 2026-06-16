@@ -1,25 +1,25 @@
 interface ConfirmDialogProps {
-  isOpen: boolean
-  title: string
-  message: string
-  confirmLabel?: string
-  cancelLabel?: string
-  onConfirm: () => void
-  onCancel: () => void
-  variant?: 'danger' | 'primary'
+  isOpen: boolean;
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  variant?: "danger" | "primary";
 }
 
 export function ConfirmDialog({
   isOpen,
   title,
   message,
-  confirmLabel = 'Confirmar',
-  cancelLabel = 'Cancelar',
+  confirmLabel = "Confirmar",
+  cancelLabel = "Cancelar",
   onConfirm,
   onCancel,
-  variant = 'danger',
+  variant = "danger",
 }: ConfirmDialogProps) {
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -39,9 +39,9 @@ export function ConfirmDialog({
           <button
             onClick={onConfirm}
             className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-              variant === 'danger'
-                ? 'bg-[var(--color-danger)] text-white hover:brightness-110'
-                : 'bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110'
+              variant === "danger"
+                ? "bg-[var(--color-danger)] text-white hover:brightness-110"
+                : "bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110"
             }`}
           >
             {confirmLabel}
@@ -49,5 +49,5 @@ export function ConfirmDialog({
         </div>
       </div>
     </div>
-  )
+  );
 }
