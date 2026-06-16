@@ -1,8 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getImportJob, confirmImportJob, deleteImportJob, updateImportPreview, getDistinctValues, getCards } from '../api/client'
+import { getImportJob, confirmImportJob, deleteImportJob, updateImportPreview, getDistinctValues } from '../api/client'
 import { useState, useEffect } from 'react'
-import type { SmartImportRow, ImportSummary, DetectedCard, CardsMapping, Card } from '../types'
+import type { SmartImportRow, ImportSummary, DetectedCard, CardsMapping } from '../types'
 import { toUpperCase, titleCase } from '../utils/format'
 import { useModalWithData } from '../hooks/useModal'
 import { TransactionDetailModal } from '../components/TransactionDetailModal'
@@ -12,24 +12,18 @@ function getCardKey(bank: string, card: string, holder: string): string {
   return `${bank}|${card}|${titleCase(holder)}`
 }
 
-function getSuggestionsForHolder(_cards: Card[], _holder: string): string[] {
-  return []
-}
-
-type CardNamingEdit = { custom_naming?: string; bank?: string; card_name?: string; holder?: string }
+type CardNamingEdit = { bank?: string; card_name?: string; holder?: string }
 
 function generateCardsMapping(detectedCards: DetectedCard[], edits: Record<string, CardNamingEdit>): CardsMapping {
   const mapping: CardsMapping = {}
   for (const dc of detectedCards) {
     if (dc.card_type) {
-      mapping[`_card_type_${dc.bank}_${dc.card}`] = { custom_naming: dc.card_type }
+      mapping[`_card_type_${dc.bank}_${dc.card}`] = { card_name: dc.card_type }
     }
     for (const holder of dc.holders) {
       const key = getCardKey(dc.bank, dc.card, holder)
-      const entry = edits[key] || { custom_naming: dc.suggested_custom_naming, bank: dc.bank, card_name: dc.card }
-      const customName = entry.custom_naming || dc.suggested_custom_naming
+      const entry = edits[key] || { bank: dc.bank, card_name: dc.card }
       mapping[key] = {
-        custom_naming: customName,
         bank: entry.bank || dc.bank,
         card_name: entry.card_name || dc.card,
       }
@@ -108,7 +102,7 @@ export default function ImportJobPreview() {
   const [editForm, setEditForm] = useState({ bank: '', card: '', person: '', onlyEmpty: true })
 
   const [spotlightNaming, setSpotlightNaming] = useState(false)
-  const [customNamingEdits, setCustomNamingEdits] = useState<Record<string, { custom_naming?: string; bank?: string; card_name?: string; holder?: string }>>({})
+  const [customNamingEdits, setCustomNamingEdits] = useState<Record<string, { bank?: string; card_name?: string; holder?: string }>>({})
   const { data: selectedRow, openWithData: openRowDetail, close: closeRowDetail, isOpen: isRowDetailOpen } = useModalWithData<SmartImportRow>()
 
   // Persist custom naming edits to localStorage
@@ -144,11 +138,6 @@ export default function ImportJobPreview() {
   const { data: distinctValues } = useQuery({
     queryKey: ['distinct-values'],
     queryFn: getDistinctValues,
-  })
-
-  const { data: cards = [] } = useQuery({
-    queryKey: ['cards'],
-    queryFn: getCards,
   })
 
 
@@ -214,7 +203,7 @@ export default function ImportJobPreview() {
   const customNamingRequired = detectedCards.length > 0
   const customNamingComplete = customNamingRequired && detectedCards.every(dc => {
     const key = getCardKey(dc.bank, dc.card, dc.holders[0] || '')
-    return customNamingEdits[key]?.custom_naming?.trim()
+    return customNamingEdits[key]?.card_name?.trim()
   })
   const canImport = dataComplete && (!customNamingRequired || customNamingComplete)
 
@@ -440,7 +429,7 @@ export default function ImportJobPreview() {
               {detectedCards
                 .filter(dc => {
                   const key = getCardKey(dc.bank, dc.card, dc.holders[0] || '')
-                  return !customNamingEdits[key]?.custom_naming?.trim()
+                  return !customNamingEdits[key]?.card_name?.trim()
                 })
                 .map((dc, i) => (
                   <li key={i}>{dc.bank} · {dc.card}</li>
@@ -460,10 +449,9 @@ export default function ImportJobPreview() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {detectedCards.map((dc, idx) => {
                 const key = getCardKey(dc.bank, dc.card, dc.holders[0] || '')
-                const entry = customNamingEdits[key] || { custom_naming: dc.suggested_custom_naming, bank: dc.bank, card_name: dc.card, holder: dc.holders[0] }
-                const suggestions = getSuggestionsForHolder(cards, entry.holder || dc.holders[0] || '')
+                const entry = customNamingEdits[key] || { bank: dc.bank, card_name: dc.card, holder: dc.holders[0] }
                 return (
-                  <div key={idx} className={`p-3 bg-[var(--color-surface)] rounded-md border ${spotlightNaming && !entry.custom_naming?.trim() ? 'border-yellow-500 ring-2 ring-yellow-500/50' : 'border-[var(--border-color)]'}`}>
+                  <div key={idx} className={`p-3 bg-[var(--color-surface)] rounded-md border ${spotlightNaming && !entry.card_name?.trim() ? 'border-yellow-500 ring-2 ring-yellow-500/50' : 'border-[var(--border-color)]'}`}>
                     <div className="flex items-start justify-between mb-3">
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold bg-[var(--color-primary)] text-[var(--color-on-primary)]">
                         💳
@@ -473,21 +461,6 @@ export default function ImportJobPreview() {
                       </span>
                     </div>
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-[var(--text-secondary)] w-16">Nombre:</span>
-                        <input
-                          type="text"
-                          list={`custom-naming-suggestions-${idx}`}
-                          value={entry.custom_naming || ''}
-                          onChange={e => setCustomNamingEdits(prev => ({ ...prev, [key]: { ...prev[key], custom_naming: e.target.value } }))}
-                          placeholder="Nombre personalizado"
-                          className={`flex-1 px-2 py-1 border rounded text-sm bg-[var(--color-base-container)] focus:outline-none focus:ring-2 transition ${
-                            !entry.custom_naming?.trim()
-                              ? 'border-red-500 focus:ring-red-500/30'
-                              : 'border-[var(--border-color)] focus:ring-primary/30'
-                          }`}
-                        />
-                      </div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-[var(--text-secondary)] w-16">Tarjeta:</span>
                         <input
@@ -519,11 +492,6 @@ export default function ImportJobPreview() {
                         />
                       </div>
                     </div>
-                    <datalist id={`custom-naming-suggestions-${idx}`}>
-                      {suggestions.map(name => (
-                        <option key={name} value={name} />
-                      ))}
-                    </datalist>
                   </div>
                 )
               })}

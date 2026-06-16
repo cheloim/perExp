@@ -12,14 +12,16 @@ router = APIRouter(prefix="/cards", tags=["cards"])
 
 
 class CardCreate(BaseModel):
-    card_name: str  # Marca: Visa, Mastercard, Amex, Cabal, etc
+    card_name: str
     bank: str = ""
+    holder: str = ""
     card_type: str = "credito"  # credito, debito
 
 
 class CardUpdate(BaseModel):
     card_name: str | None = None
     bank: str | None = None
+    holder: str | None = None
     card_type: str | None = None
 
 
@@ -57,41 +59,32 @@ def create_card(
     card_name = card.card_name.strip()
     bank = card.bank.strip() if card.bank else ""
 
-    if not card_name:
-        raise HTTPException(status_code=400, detail="Franquicia (card_name) es obligatoria")
+    if not card_name or not bank:
+        raise HTTPException(status_code=400, detail="Nombre y banco son obligatorios")
 
-    # Extraer primer nombre del usuario para holder (para agrupar en grupo familiar)
-    holder = ""
-    if current_user.full_name:
-        if "," in current_user.full_name:
-            holder = current_user.full_name.split(",")[0].split()[0]
-        else:
-            holder = current_user.full_name.split()[0] if current_user.full_name.split() else ""
-
-    # Validar duplicados por (card_name + bank + card_type)
-    existing = db.query(Card).filter(
+    existing_by_fields = db.query(Card).filter(
         Card.user_id == current_user.id,
         func.lower(func.trim(Card.card_name)) == card_name.lower(),
         func.lower(func.trim(Card.bank)) == bank.lower(),
         Card.card_type == card.card_type,
     ).first()
 
-    if existing:
+    if existing_by_fields:
         raise HTTPException(
             status_code=409,
             detail={
-                "message": "Ya existe una tarjeta con esos datos (misma franquicia, banco y tipo)",
-                "existing_id": existing.id,
-                "existing_name": existing.card_name,
-                "existing_bank": existing.bank,
-                "existing_card_type": existing.card_type,
+                "message": "Ya existe una tarjeta con esos datos",
+                "existing_id": existing_by_fields.id,
+                "existing_card_name": existing_by_fields.card_name,
+                "existing_bank": existing_by_fields.bank,
+                "existing_card_type": existing_by_fields.card_type,
             }
         )
 
     db_card = Card(
         card_name=card_name,
         bank=bank,
-        holder=holder,
+        holder=card.holder or "",
         card_type=card.card_type,
         user_id=current_user.id,
     )
@@ -120,6 +113,8 @@ def update_card(
     update_data = card.model_dump(exclude_none=True)
 
     for key, value in update_data.items():
+        if isinstance(value, str):
+            value = value.strip()
         setattr(db_card, key, value)
 
     db.commit()

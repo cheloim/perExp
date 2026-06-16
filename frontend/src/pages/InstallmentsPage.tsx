@@ -71,7 +71,6 @@ const CARD_GRADIENTS = [
 interface CardEntry {
   key: string
   card_id: number | null
-  card_name: string | null
   bank: string
   person: string
   pendingTotal: number
@@ -83,7 +82,7 @@ function InstallmentCard({
 }: {
   entry: CardEntry; active: boolean; onClick: () => void; index: number
 }) {
-  const network = detectNetwork(entry.card_name || entry.bank)
+  const network = detectNetwork(entry.bank)
   const color = CARD_GRADIENTS[index % CARD_GRADIENTS.length]
 
   return (
@@ -95,7 +94,7 @@ function InstallmentCard({
       <div className="flex justify-between items-start">
         <div className="min-w-0 flex-1">
           <p className="text-white/70 text-[11px] font-medium tracking-widest uppercase truncate">{entry.bank || 'Banco'}</p>
-          <p className="text-white text-sm font-semibold tracking-wide truncate">{entry.card_name || entry.bank}</p>
+          <p className="text-white text-sm font-semibold tracking-wide truncate">{entry.bank}</p>
         </div>
         <div className="flex-shrink-0 ml-2">
           <CardNetworkLogo network={network} />
@@ -183,7 +182,7 @@ export default function InstallmentsPage() {
   for (const g of activeGroups) {
     const key = g.card_id ? `card_${g.card_id}` : `bank_person_${g.bank}|${g.person}`
     if (!cardMap.has(key)) {
-      cardMap.set(key, { key, card_id: g.card_id, card_name: g.card_name_from_id, bank: g.bank, person: g.person, pendingTotal: 0, currency: g.currency })
+      cardMap.set(key, { key, card_id: g.card_id, bank: g.bank, person: g.person, pendingTotal: 0, currency: g.currency })
     }
     cardMap.get(key)!.pendingTotal += g.installment_amount * g.remaining_installments
   }

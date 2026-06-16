@@ -107,17 +107,15 @@ function generateCardsMapping(detectedCards: DetectedCard[], edits: Record<strin
   const mapping: CardsMapping = {}
   for (const dc of detectedCards) {
     if (dc.card_type) {
-      mapping[`_card_type_${dc.bank}_${dc.card}`] = { custom_naming: dc.card_type }
+      mapping[`_card_type_${dc.bank}_${dc.card}`] = { card_name: dc.card_type }
     }
     for (const holder of dc.holders) {
       const key = getCardKey(dc.bank, dc.card, holder)
-      const customName = edits[key] || dc.suggested_custom_naming
-      // Find if customName matches an existing card
-      const matchedCard = existingCards.find(c => c.card_name === customName)
+      const cardName = edits[key] || dc.card
+      const matchedCard = existingCards.find(c => c.card_name === cardName)
       mapping[key] = {
-        custom_naming: customName,
         bank: matchedCard?.bank || dc.bank,
-        card_name: matchedCard?.card_name || dc.card,
+        card_name: matchedCard?.card_name || cardName,
       }
     }
   }
@@ -145,7 +143,7 @@ export default function ImportPage() {
 
   // Custom naming modal state
   const [customNamingModalFile, setCustomNamingModalFile] = useState<string | null>(null)
-  const [customNamingEdits, setCustomNamingEdits] = useState<Record<string, string>>({})  // cardKey -> custom_naming
+  const [customNamingEdits, setCustomNamingEdits] = useState<Record<string, string>>({})  // cardKey -> card_name
 
   const fileQueueRef  = useRef<File[]>([])
   const processingRef = useRef(false)
@@ -265,7 +263,7 @@ export default function ImportPage() {
       for (const holder of dc.holders) {
         const key = getCardKey(dc.bank, dc.card, holder)
         const entry = fileResult.cards_mapping?.[key]
-        initialEdits[key] = (typeof entry === 'object' ? entry.custom_naming : entry) || dc.suggested_custom_naming
+        initialEdits[key] = (typeof entry === 'object' ? entry.card_name : entry) || dc.card
       }
     }
     setCustomNamingEdits(initialEdits)
@@ -306,16 +304,13 @@ export default function ImportPage() {
 
     setFileResults(prev => prev.map(f => {
       if (f.filename !== customNamingModalFile) return f
-      // Merge customNamingEdits into existing cards_mapping, preserving bank/card_name
       const updatedMapping: CardsMapping = { ...f.cards_mapping }
-      for (const [key, customName] of Object.entries(customNamingEdits)) {
-        const existingEntry = updatedMapping[key] || { custom_naming: customName }
-        // Check if customName matches an existing card
-const matchedCard = existingCards.find(c => c.card_name === customName)
+      for (const [key, cardName] of Object.entries(customNamingEdits)) {
+        const existingEntry = updatedMapping[key] || {}
+        const matchedCard = existingCards.find(c => c.card_name === cardName)
         updatedMapping[key] = {
-          custom_naming: customName,
           bank: matchedCard?.bank || existingEntry.bank,
-          card_name: matchedCard?.card_name || existingEntry.card_name,
+          card_name: matchedCard?.card_name || cardName,
         }
       }
       return {
@@ -861,7 +856,7 @@ const matchedCard = existingCards.find(c => c.card_name === customName)
                             type="text"
                             value={customNamingEdits[key] || ''}
                             onChange={e => setCustomNamingEdits(prev => ({ ...prev, [key]: e.target.value }))}
-                            placeholder={dc.suggested_custom_naming}
+                            placeholder={dc.card}
                             className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                           />
                           <p className="text-xs text-tertiary mt-1">

@@ -1,19 +1,35 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getCards, createCard, updateCard, deleteCard, createAccount, getCardSummary, getDistinctValues } from '../api/client'
+import { getCards, createCard, updateCard, deleteCard, createAccount, getCardSummary, getMe } from '../api/client'
 import { useQuery as useCardDataQuery } from '@tanstack/react-query'
-import { Select } from './ui/Select'
 import type { Card } from '../types'
+import { Select } from './ui/Select'
+
+const getFirstName = (fullName: string): string => {
+  if (fullName.includes(',')) {
+    return fullName.split(',')[1].trim().split(' ')[0]
+  }
+  return fullName.split(' ')[0]
+}
+
+const ACCOUNT_TYPES = [
+  { value: 'efectivo', label: 'Efectivo' },
+  { value: 'cuenta_corriente', label: 'Cta. Corriente' },
+  { value: 'caja_ahorro', label: 'Caja de Ahorro' },
+  { value: 'mercadopago', label: 'MercadoPago' },
+  { value: 'tarjeta', label: 'Tarjeta' },
+]
 
 export default function CardsManager() {
   const queryClient = useQueryClient()
   const [editId, setEditId] = useState<number | null>(null)
   const [menuOpen, setMenuOpen] = useState<number | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'card' | 'account'; id: number; name: string } | null>(null)
-  const [duplicateFound, setDuplicateFound] = useState<{ id: number; name: string; bank: string; card_type: string } | null>(null)
-  const [errors, setErrors] = useState<{ name?: string; bank?: string }>({})
-  const [name, setName] = useState('')
+  const [duplicateFound, setDuplicateFound] = useState<{ id: number; card_name: string; bank: string; card_type: string } | null>(null)
+  const [errors, setErrors] = useState<{ card_name?: string; bank?: string }>({})
+  const [cardName, setCardName] = useState('')
   const [bank, setBank] = useState('')
+  const [holder, setHolder] = useState('')
   const [cardType, setCardType] = useState('credito')
   const [accountType, setAccountType] = useState('efectivo')
 
@@ -22,27 +38,26 @@ export default function CardsManager() {
     queryFn: getCards,
   })
 
+  const { data: currentUser } = useQuery({
+    queryKey: ['me'],
+    queryFn: getMe,
+  })
+
+  // Card data from expenses (for future extension - show spending by card)
   useCardDataQuery({
     queryKey: ['card-summary'],
     queryFn: getCardSummary,
-    enabled: false,
+    enabled: false, // Disabled for now - can be enabled for future features
   })
-
-  const { data: distinctValues } = useQuery({
-    queryKey: ['distinct-values'],
-    queryFn: getDistinctValues,
-    staleTime: 60_000,
-  })
-
-  const bankOptions = (distinctValues?.banks ?? []).map(b => ({ value: b, label: b }))
 
   const createMut = useMutation({
     mutationFn: createCard,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards'] })
       setEditId(null)
-      setName('')
+      setCardName('')
       setBank('')
+      setHolder('')
       setCardType('credito')
     },
     onError: (error: any) => {
@@ -50,7 +65,7 @@ export default function CardsManager() {
         const detail = error.response.data.detail
         setDuplicateFound({
           id: detail.existing_id,
-          name: detail.existing_name || '',
+          card_name: detail.existing_card_name || '',
           bank: detail.existing_bank || '',
           card_type: detail.existing_card_type || 'credito',
         })
@@ -63,8 +78,9 @@ export default function CardsManager() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards'] })
       setEditId(null)
-      setName('')
+      setCardName('')
       setBank('')
+      setHolder('')
       setCardType('credito')
     },
   })
@@ -82,7 +98,7 @@ export default function CardsManager() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] })
       setEditId(null)
-      setName('')
+      setCardName('')
       setAccountType('efectivo')
       setBank('')
       setCardType('credito')
@@ -91,8 +107,9 @@ export default function CardsManager() {
 
   const handleEdit = (card: Card) => {
     setEditId(card.id)
-    setName(card.card_name)
+    setCardName(card.card_name)
     setBank(card.bank || '')
+    setHolder(card.holder || '')
     setCardType(card.card_type)
     setAccountType('tarjeta')
     setMenuOpen(null)
@@ -100,16 +117,18 @@ export default function CardsManager() {
 
   const handleCancel = () => {
     setEditId(null)
-    setName('')
+    setCardName('')
     setBank('')
+    setHolder('')
     setCardType('credito')
     setAccountType('tarjeta')
   }
 
   const handleAdd = () => {
     setEditId(-1)
-    setName('')
+    setCardName('')
     setBank('')
+    setHolder(currentUser ? getFirstName(currentUser.full_name) : '')
     setCardType('credito')
     setAccountType('efectivo')
     setMenuOpen(null)
@@ -118,12 +137,12 @@ export default function CardsManager() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    const newErrors: { name?: string; bank?: string } = {}
+    const newErrors: { card_name?: string; bank?: string } = {}
     if (accountType === 'tarjeta') {
-      if (!name.trim()) newErrors.name = 'La marca es obligatoria (Visa, Mastercard, etc.)'
+      if (!cardName.trim()) newErrors.card_name = 'El nombre de la tarjeta es obligatorio'
       if (!bank.trim()) newErrors.bank = 'El banco es obligatorio'
     } else {
-      if (!name.trim()) newErrors.name = 'El nombre es obligatorio'
+      if (!cardName.trim()) newErrors.card_name = 'El nombre es obligatorio'
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -133,18 +152,19 @@ export default function CardsManager() {
     setErrors({})
 
     if (accountType === 'tarjeta') {
-      const data = {
-        card_name: name.trim(),
+      const data: Record<string, string> = {
+        card_name: cardName.trim(),
         bank: bank.trim(),
         card_type: cardType,
       }
       if (editId && editId > 0) {
         updateMut.mutate({ id: editId, data })
       } else {
+        data.holder = holder.trim()
         createMut.mutate(data)
       }
     } else {
-      createAccountMut.mutate({ name: name.trim(), type: accountType })
+      createAccountMut.mutate({ name: cardName.trim(), type: accountType })
     }
   }
 
@@ -163,7 +183,30 @@ export default function CardsManager() {
             {isEditing ? (
               <form onSubmit={handleSubmit} className="p-4 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-[var(--text-secondary)]">Tipo de tarjeta</label>
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">Tarjeta</label>
+                  <input
+                    type="text"
+                    value={cardName}
+                    onChange={(e) => { setCardName(e.target.value); setErrors(prev => ({ ...prev, card_name: undefined })) }}
+                    className={`w-full px-3 py-2 rounded-md border text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 transition ${errors.card_name ? 'border-red-500 focus:ring-red-300 focus:border-red-500' : 'border-[var(--border-color)] focus:border-primary'}`}
+                    placeholder="Ej: Visa"
+                    autoFocus
+                  />
+                  {errors.card_name && <p className="text-xs text-red-500">{errors.card_name}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
+                  <input
+                    type="text"
+                    value={bank}
+                    onChange={(e) => { setBank(e.target.value); setErrors(prev => ({ ...prev, bank: undefined })) }}
+                    className={`w-full px-3 py-2 rounded-md border text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 transition ${errors.bank ? 'border-red-500 focus:ring-red-300 focus:border-red-500' : 'border-[var(--border-color)] focus:border-primary'}`}
+                    placeholder="Ej: Galicia"
+                  />
+                  {errors.bank && <p className="text-xs text-red-500">{errors.bank}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">Tipo</label>
                   <Select
                     value={cardType}
                     onChange={v => setCardType(v)}
@@ -171,30 +214,7 @@ export default function CardsManager() {
                       { value: 'credito', label: 'Crédito' },
                       { value: 'debito', label: 'Débito' },
                     ]}
-                    allowCustomValue={false}
                   />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
-                  <Select
-                    value={bank}
-                    onChange={v => { setBank(v); setErrors(prev => ({ ...prev, bank: undefined })) }}
-                    options={bankOptions}
-                    placeholder="Seleccionar banco"
-                    allowCustomValue={false}
-                  />
-                  {errors.bank && <p className="text-xs text-red-500">{errors.bank}</p>}
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-[var(--text-secondary)]">Marca</label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => { setName(e.target.value); setErrors(prev => ({ ...prev, name: undefined })) }}
-                    className={`w-full px-3 py-2 rounded-md border text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 transition ${errors.name ? 'border-red-500 focus:ring-red-300 focus:border-red-500' : 'border-[var(--border-color)] focus:border-primary'}`}
-                    placeholder="Ej: Visa"
-                  />
-                  {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
                 </div>
                 <div className="flex gap-2 pt-2">
                   <button
@@ -220,11 +240,12 @@ export default function CardsManager() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-primary truncate" title={card.card_name}>
-                    {card.card_name} | {card.bank}
+                    {card.card_name}
                   </div>
                   <div className="text-xs text-secondary capitalize">
-                    {card.card_type === 'credito' ? 'Crédito' : card.card_type === 'debito' ? 'Débito' : card.card_type}
+                    {card.card_type === 'credito' ? 'Crédito' : card.card_type === 'debito' ? 'Débito' : card.card_type} — {card.bank}
                   </div>
+                  <div className="text-xs text-tertiary mt-0.5">Titular: {card.holder || '—'}</div>
                 </div>
                 <div className="relative">
                   <button
@@ -267,21 +288,14 @@ export default function CardsManager() {
             <Select
               value={accountType}
               onChange={v => setAccountType(v)}
-              options={[
-                { value: 'efectivo', label: 'Efectivo' },
-                { value: 'cuenta_corriente', label: 'Cuenta Corriente' },
-                { value: 'caja_ahorro', label: 'Caja de Ahorro' },
-                { value: 'mercadopago', label: 'MercadoPago' },
-                { value: 'tarjeta', label: 'Tarjeta' },
-              ]}
-              allowCustomValue={false}
+              options={ACCOUNT_TYPES.map(t => ({ value: t.value, label: t.label }))}
             />
           </div>
 
           {accountType === 'tarjeta' && (
             <div className="space-y-3 pt-2 border-t border-[var(--border-color)]">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[var(--text-secondary)]">Tipo de tarjeta</label>
+                <label className="text-xs font-medium text-[var(--text-secondary)]">Crédito / Débito</label>
                 <Select
                   value={cardType}
                   onChange={v => setCardType(v)}
@@ -289,17 +303,16 @@ export default function CardsManager() {
                     { value: 'credito', label: 'Crédito' },
                     { value: 'debito', label: 'Débito' },
                   ]}
-                  allowCustomValue={false}
                 />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
-                <Select
+                <input
+                  type="text"
                   value={bank}
-                  onChange={v => { setBank(v); setErrors(prev => ({ ...prev, bank: undefined })) }}
-                  options={bankOptions}
-                  placeholder="Seleccionar banco"
-                  allowCustomValue={false}
+                  onChange={(e) => { setBank(e.target.value); setErrors(prev => ({ ...prev, bank: undefined })) }}
+                  className={`w-full px-3 py-2 rounded-md border text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 transition ${errors.bank ? 'border-red-500 focus:ring-red-300 focus:border-red-500' : 'border-[var(--border-color)] focus:border-primary'}`}
+                  placeholder="Ej: Galicia"
                 />
                 {errors.bank && <p className="text-xs text-red-500">{errors.bank}</p>}
               </div>
@@ -307,18 +320,16 @@ export default function CardsManager() {
           )}
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--text-secondary)]">
-              {accountType === 'tarjeta' ? 'Marca' : 'Nombre'}
-            </label>
+            <label className="text-xs font-medium text-[var(--text-secondary)]">Nombre</label>
             <input
               type="text"
-              value={name}
-              onChange={(e) => { setName(e.target.value); setErrors(prev => ({ ...prev, name: undefined })) }}
-              className={`w-full px-3 py-2 rounded-md border text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 transition ${errors.name ? 'border-red-500 focus:ring-red-300 focus:border-red-500' : 'border-[var(--border-color)] focus:border-primary'}`}
-              placeholder={accountType === 'tarjeta' ? 'Ej: Visa' : 'Ej: Mi Cuenta'}
+              value={cardName}
+              onChange={(e) => { setCardName(e.target.value); setErrors(prev => ({ ...prev, card_name: undefined })) }}
+              className={`w-full px-3 py-2 rounded-md border text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 transition ${errors.card_name ? 'border-red-500 focus:ring-red-300 focus:border-red-500' : 'border-[var(--border-color)] focus:border-primary'}`}
+              placeholder={accountType === 'tarjeta' ? 'Ej: Visa Galicia' : 'Ej: Mi Cuenta'}
               autoFocus
             />
-            {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
+            {errors.card_name && <p className="text-xs text-red-500">{errors.card_name}</p>}
           </div>
 
           <div className="flex gap-2 pt-2">
@@ -383,13 +394,13 @@ export default function CardsManager() {
           <div className="bg-surface rounded-xl shadow-xl p-6 max-w-sm w-full">
             <h3 className="text-lg font-semibold text-primary mb-2">Tarjeta existente</h3>
             <p className="text-sm text-secondary mb-6">
-              Ya existe una tarjeta con estos datos: <span className="font-medium text-primary">"{duplicateFound.name} | {duplicateFound.bank}"</span>
+              Ya existe una tarjeta con estos datos: <span className="font-medium text-primary">"{duplicateFound.card_name}"</span>
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => {
                   setDuplicateFound(null)
-                  setName('')
+                  setCardName('')
                   setBank('')
                   setCardType('credito')
                   setEditId(null)
@@ -403,7 +414,7 @@ export default function CardsManager() {
                   const cardToEdit = cards.find(c => c.id === duplicateFound.id)
                   if (cardToEdit) {
                     setEditId(duplicateFound.id)
-                    setName(cardToEdit.card_name)
+                    setCardName(cardToEdit.card_name)
                     setBank(cardToEdit.bank || '')
                     setCardType(cardToEdit.card_type)
                   }
