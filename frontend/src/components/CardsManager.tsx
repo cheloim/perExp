@@ -169,7 +169,7 @@ export default function CardsManager() {
     setErrors({});
 
     if (accountType === "tarjeta") {
-      const data: Record<string, string> = {
+      const data: { card_name: string; bank?: string; holder?: string; card_type?: string } = {
         card_name: cardName.trim(),
         bank: bank.trim(),
         card_type: cardType,

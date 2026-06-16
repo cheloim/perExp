@@ -4,7 +4,6 @@ import {
   getInvestments,
   createInvestment,
   updateInvestment,
-  updateInvestmentPrice,
   deleteInvestment,
   getSettings,
   syncIOL,
@@ -13,8 +12,6 @@ import {
   getUsdRate,
   getCashBalances,
   getManualCashBalances,
-  putManualCashBalance,
-  deleteManualCashBalance,
   putSetting,
   lookupSymbol,
   lookupSymbols,
@@ -582,7 +579,6 @@ export default function InvestmentsPage() {
   const [yahooPrices, setYahooPrices] = useState<
     Record<string, { price: number; currency: string }>
   >({});
-  const scrollRef = useRef<HTMLDivElement>(null);
   const scrollIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
