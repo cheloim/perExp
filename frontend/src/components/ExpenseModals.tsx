@@ -182,7 +182,8 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
   const handleCardSelect = (c: Card) => {
     setForm((prev) => ({
       ...prev,
-      card: c.name,
+      card: c.card_name,
+      card_id: c.id,
       bank: c.bank || '',
     }))
   }
@@ -315,11 +316,11 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
               <Select
                 value={form.card ?? ''}
                 onChange={v => {
-                  const selected = availableCards.find(c => c.name === v)
+                  const selected = availableCards.find(c => c.card_name === v)
                   if (selected) handleCardSelect(selected)
                   else set('card', v)
                 }}
-                options={availableCards.map(c => ({ value: c.name, label: c.name }))}
+                options={availableCards.map(c => ({ value: c.card_name, label: `${c.card_name} | ${c.bank}` }))}
                 placeholder="— Tarjeta —"
                 disabled={payMethod === 'cash'}
               />

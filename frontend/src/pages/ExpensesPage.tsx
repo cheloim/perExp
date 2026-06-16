@@ -22,6 +22,19 @@ import { ConfirmDialog } from '../components/ConfirmDialog'
 type SortField = 'date' | 'description' | 'category' | 'bank' | 'person' | 'amount'
 type SortDir = 'asc' | 'desc'
 
+function hasMissingData(exp: Expense): boolean {
+  return !exp.category_id || !exp.card || !exp.bank || !exp.person
+}
+
+function getMissingDataFields(exp: Expense): string[] {
+  const missing: string[] = []
+  if (!exp.category_id) missing.push('categoría')
+  if (!exp.card) missing.push('tarjeta')
+  if (!exp.bank) missing.push('banco')
+  if (!exp.person) missing.push('persona')
+  return missing
+}
+
 export default function ExpensesPage() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -374,12 +387,15 @@ export default function ExpensesPage() {
                     const cmp = aStr.localeCompare(bStr)
                     return sort.dir === 'asc' ? cmp : -cmp
                   })
-                  .map((exp) => (
-                    <tr
-                      key={exp.id}
-                      className={`transition-colors ${selectMode ? 'cursor-pointer hover:bg-[var(--color-base-alt)]/50' : 'hover:bg-[var(--color-base-alt)]/30'} ${selectedIds.has(exp.id) ? 'bg-[var(--color-primary)]/10' : ''}`}
-                      onClick={selectMode ? () => toggleSelect(exp.id) : undefined}
-                    >
+                  .map((exp) => {
+                    const missing = hasMissingData(exp)
+                    return (
+                      <tr
+                        key={exp.id}
+                        className={`transition-colors ${selectMode ? 'cursor-pointer hover:bg-[var(--color-base-alt)]/50' : 'hover:bg-[var(--color-base-alt)]/30'} ${selectedIds.has(exp.id) ? 'bg-[var(--color-primary)]/10' : ''}`}
+                        style={missing ? { borderLeft: '3px solid #f6d32d' } : undefined}
+                        onClick={selectMode ? () => toggleSelect(exp.id) : undefined}
+                      >
                       {selectMode && (
                         <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                           <input
@@ -401,6 +417,9 @@ export default function ExpensesPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
+                          {missing && (
+                            <span title={`Faltan: ${getMissingDataFields(exp).join(', ')}`} className="text-[#f6d32d]">⚠️</span>
+                          )}
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); setEditing(exp) }}
@@ -477,7 +496,8 @@ export default function ExpensesPage() {
                         </td>
                       )}
                     </tr>
-                  ))
+                  )
+                  })
               )}
             </tbody>
           </table>

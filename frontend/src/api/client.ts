@@ -70,6 +70,9 @@ export const getMe = () =>
 export const changePassword = (current_password: string, new_password: string) =>
   api.put('/auth/password', { current_password, new_password })
 
+export const resetPassword = (email: string) =>
+  api.post<{ message: string; new_password?: string }>('/auth/reset-password', { email }).then((r) => r.data)
+
 export const getTelegramKey = () =>
   api.get<{ telegram_key: string }>('/auth/me/telegram-key').then((r) => r.data)
 
@@ -433,9 +436,9 @@ export const deleteAccount = (id: number) =>
 // Cards
 export const getCards = () =>
   api.get<Card[]>('/cards').then((r) => r.data)
-export const createCard = (data: { custom_naming: string; name: string; bank?: string; holder?: string; card_type?: string }) =>
+export const createCard = (data: { card_name: string; bank?: string; card_type?: string }) =>
   api.post<Card>('/cards', data).then((r) => r.data)
-export const updateCard = (id: number, data: { custom_naming?: string; name?: string; bank?: string; holder?: string; card_type?: string }) =>
+export const updateCard = (id: number, data: { card_name?: string; bank?: string; card_type?: string }) =>
   api.put<Card>(`/cards/${id}`, data).then((r) => r.data)
 export const deleteCard = (id: number) =>
   api.delete(`/cards/${id}`).then((r) => r.data)

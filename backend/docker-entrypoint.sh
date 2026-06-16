@@ -13,6 +13,12 @@ elif [ -f "/run/secrets/creditcard_backend_investments_llm_api_key" ]; then
     export INVESTMENTS_LLM_API_KEY=$(cat /run/secrets/creditcard_backend_investments_llm_api_key)
 fi
 
+if [ -f "/run/secrets/creditcard_backend_dev_messages_bot_llm_api_key" ]; then
+    export MESSAGES_BOT_LLM_API_KEY=$(cat /run/secrets/creditcard_backend_dev_messages_bot_llm_api_key)
+elif [ -f "/run/secrets/creditcard_backend_messages_bot_llm_api_key" ]; then
+    export MESSAGES_BOT_LLM_API_KEY=$(cat /run/secrets/creditcard_backend_messages_bot_llm_api_key)
+fi
+
 if [ -f "/run/secrets/creditcard_backend_dev_telegram_bot_token" ]; then
     export TELEGRAM_BOT_TOKEN=$(cat /run/secrets/creditcard_backend_dev_telegram_bot_token)
 elif [ -f "/run/secrets/creditcard_backend_telegram_bot_token" ]; then

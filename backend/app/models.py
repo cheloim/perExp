@@ -91,11 +91,10 @@ class Account(Base):
 class Card(Base):
     __tablename__ = "cards"
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)  # Visa, Mastercard, etc
+    card_name = Column(String, nullable=False)  # Visa, Mastercard, etc
     bank = Column(String, default="")
-    holder = Column(String, default="")  # Nombre del titular
+    holder = Column(String, default="")  # Primer nombre del usuario (para agrupar en grupo familiar)
     card_type = Column(String, default="credito")  # credito, debito
-    custom_naming = Column(String, nullable=False, default="")  # Identificador único por usuario
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 

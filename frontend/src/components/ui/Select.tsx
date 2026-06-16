@@ -19,6 +19,7 @@ interface SelectProps {
   className?: string
   disabled?: boolean
   direction?: 'down' | 'up'
+  allowCustomValue?: boolean
 }
 
 export function Select({
@@ -30,6 +31,7 @@ export function Select({
   className = '',
   disabled = false,
   direction = 'down',
+  allowCustomValue = true,
 }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -129,7 +131,7 @@ export function Select({
               </button>
             )}
 
-            {search.trim() && !filteredOptions.some(o => o.label.toLowerCase() === search.toLowerCase()) && (
+            {allowCustomValue && search.trim() && !filteredOptions.some(o => o.label.toLowerCase() === search.toLowerCase()) && (
               <button
                 type="button"
                 onClick={handleCustomValue}

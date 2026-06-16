@@ -84,7 +84,7 @@ class AccountSimple(BaseModel):
 
 class CardSimple(BaseModel):
     id: int
-    name: str
+    card_name: str
     bank: str
     holder: str = ""
     card_type: str

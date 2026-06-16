@@ -114,7 +114,7 @@ def migrate_card_expenses(db, dry_run=False):
             # Check if card already exists
             existing = db.query(Card).filter(
                 Card.user_id == user.id,
-                Card.name == card_name,
+                Card.card_name == card_name,
                 Card.bank == (bank or ""),
             ).first()
 

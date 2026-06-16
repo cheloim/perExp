@@ -36,6 +36,7 @@ services:
       - creditcard_backend_postgres_password
       - creditcard_backend_llm_api_key
       - creditcard_backend_investments_llm_api_key
+      - creditcard_backend_messages_bot_llm_api_key
       - creditcard_backend_telegram_bot_token
       - creditcard_backend_google_client_id
       - creditcard_backend_google_client_secret
@@ -43,6 +44,7 @@ services:
     environment:
       DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses
       REDIS_URL: redis://redis:6379/0
+      PYTHONUNBUFFERED: "1"
     ports:
       - "8000:8000"
     restart: unless-stopped
@@ -57,6 +59,7 @@ services:
       - creditcard_backend_postgres_password
       - creditcard_backend_llm_api_key
       - creditcard_backend_investments_llm_api_key
+      - creditcard_backend_messages_bot_llm_api_key
       - creditcard_backend_telegram_bot_token
       - creditcard_backend_google_client_id
       - creditcard_backend_google_client_secret
@@ -64,16 +67,11 @@ services:
     environment:
       DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses
       REDIS_URL: redis://redis:6379/0
+      PYTHONUNBUFFERED: "1"
     restart: unless-stopped
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        - VITE_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-    secrets:
-      - creditcard_frontend_google_client_id
+    build: ./frontend
     ports:
       - "8080:80"
     depends_on:
@@ -97,6 +95,9 @@ secrets:
   creditcard_backend_investments_llm_api_key:
     external: true
     env: INVESTMENTS_LLM_API_KEY
+  creditcard_backend_messages_bot_llm_api_key:
+    external: true
+    env: MESSAGES_BOT_LLM_API_KEY
   creditcard_backend_telegram_bot_token:
     external: true
     env: TELEGRAM_BOT_TOKEN
@@ -109,6 +110,3 @@ secrets:
   creditcard_backend_secret_key:
     external: true
     env: SECRET_KEY
-  creditcard_frontend_google_client_id:
-    external: true
-    env: GOOGLE_CLIENT_ID

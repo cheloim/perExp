@@ -113,11 +113,11 @@ function generateCardsMapping(detectedCards: DetectedCard[], edits: Record<strin
       const key = getCardKey(dc.bank, dc.card, holder)
       const customName = edits[key] || dc.suggested_custom_naming
       // Find if customName matches an existing card
-      const matchedCard = existingCards.find(c => c.custom_naming === customName)
+      const matchedCard = existingCards.find(c => c.card_name === customName)
       mapping[key] = {
         custom_naming: customName,
         bank: matchedCard?.bank || dc.bank,
-        card_name: matchedCard?.name || dc.card,
+        card_name: matchedCard?.card_name || dc.card,
       }
     }
   }
@@ -311,11 +311,11 @@ export default function ImportPage() {
       for (const [key, customName] of Object.entries(customNamingEdits)) {
         const existingEntry = updatedMapping[key] || { custom_naming: customName }
         // Check if customName matches an existing card
-        const matchedCard = existingCards.find(c => c.custom_naming === customName)
+const matchedCard = existingCards.find(c => c.card_name === customName)
         updatedMapping[key] = {
           custom_naming: customName,
           bank: matchedCard?.bank || existingEntry.bank,
-          card_name: matchedCard?.name || existingEntry.card_name,
+          card_name: matchedCard?.card_name || existingEntry.card_name,
         }
       }
       return {
@@ -782,7 +782,7 @@ export default function ImportPage() {
                 <datalist id="card-options">
                   {existingCards
                     .filter(c => !editBank || c.bank.toLowerCase().includes(editBank.toLowerCase()))
-                    .map(c => <option key={c.id} value={c.name} />)}
+                    .map(c => <option key={c.id} value={c.card_name} />)}
                 </datalist>
               </div>
 

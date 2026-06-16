@@ -238,3 +238,22 @@ El JSON debe tener exactamente esta estructura:
 Usá los datos históricos por mes para proyectar los próximos 3 meses.
 Las cuotas pendientes ya están calculadas: sumá el monto de cuotas de cada mes futuro al gasto proyectado base.
 Sé conservador en las proyecciones: usá el promedio de los últimos 3 meses como base."""
+
+
+CARD_EXTRACT_PROMPT = """Sos un asistente que extrae información de tarjetas de crédito.
+
+Del input del usuario extraé:
+- card_name: la franquicia (Visa, Mastercard, Naranja, etc.)
+- bank: el banco emisor (Galicia, HSBC, etc.) o vacío si no se detecta
+
+Input del usuario: "{raw_input}"
+Tipo de tarjeta: "{card_type}"
+
+Respondé SOLO con JSON válido:
+{{"card_name": "...", "bank": "..."}}
+
+Ejemplos:
+- Input: "Visa Galicia" → {{"card_name": "Visa", "bank": "Galicia"}}
+- Input: "Mastercard HSBC" → {{"card_name": "Mastercard", "bank": "HSBC"}}
+- Input: "Naranja" → {{"card_name": "Naranja", "bank": ""}}
+- Input: "Mi Visa" → {{"card_name": "Visa", "bank": ""}}"""

@@ -159,8 +159,8 @@ function CardNetworkLogo({ network }: { network: CardNetwork }) {
 }
 
 
-function CreditCardViz({ cardName, customNaming, holder, bank, monthly, active, onClick, index, filterMonth }: {
-  cardName: string; customNaming?: string; holder?: string; bank: string; monthly?: { month: string; total: number }[];
+function CreditCardViz({ cardName, holder, bank, monthly, active, onClick, index, filterMonth }: {
+  cardName: string; holder?: string; bank: string; monthly?: { month: string; total: number }[];
   active: boolean; onClick: () => void; index: number; filterMonth: string;
 }) {
   const network = detectNetwork(cardName)
@@ -177,7 +177,7 @@ function CreditCardViz({ cardName, customNaming, holder, bank, monthly, active, 
     'from-gnomeBlue4 to-gnomeBlue3',
   ]
   const color = gradientColors[index % gradientColors.length]
-  const displayName = customNaming || (holder ? holder.split(' ')[0] : cardName)
+  const displayName = holder ? holder.split(' ')[0] : cardName
 
   return (
     <div
@@ -529,7 +529,6 @@ export default function AccountsPage() {
                     key={ckey}
                     index={idx}
                     cardName={card.card_name}
-                    customNaming={card.custom_naming}
                     holder={card.holder}
                     bank={card.bank}
                     monthly={card.monthly}

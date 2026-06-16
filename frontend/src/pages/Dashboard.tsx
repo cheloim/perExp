@@ -14,7 +14,7 @@ function toYMD(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-function CardRow({ cardName, bank, total, cardType, holder }: { cardName: string; bank: string; total: number; cardType?: string; holder?: string }) {
+function CardRow({ cardName, bank, total, cardType }: { cardName: string; bank: string; total: number; cardType?: string }) {
   const isAccount = !bank || cardName.toLowerCase().includes('efectivo') || cardName.toLowerCase().includes('cuenta')
 
   const renderIcon = () => {
@@ -34,14 +34,8 @@ function CardRow({ cardName, bank, total, cardType, holder }: { cardName: string
     return name.split(' ')[0]
   }
 
-  const getFirstName = (fullName: string): string => {
-    if (!fullName) return ''
-    return fullName.split(' ')[0]
-  }
-
   const network = getNetwork(cardName)
   const displayName = cardType === 'debito' ? 'Débito' : network
-  const firstName = holder ? getFirstName(holder) : ''
 
   return (
     <div className="flex items-center justify-between py-2.5 px-1">
@@ -51,7 +45,7 @@ function CardRow({ cardName, bank, total, cardType, holder }: { cardName: string
         </div>
         <div>
           <p className="text-sm font-medium text-primary leading-tight">
-            {firstName || displayName}{bank ? ` | ${bank}` : ''}
+            {displayName}{bank ? ` | ${bank}` : ''}
           </p>
         </div>
       </div>
@@ -314,7 +308,6 @@ export default function Dashboard() {
                       bank={card.bank}
                       total={monthEntry?.total ?? 0}
                       cardType={card.card_type}
-                      holder={card.holder}
                     />
                   )
                 })}

@@ -274,7 +274,7 @@ def parse_csv_expenses(content: bytes, filename: str, db, user_id: int):
         if card:
             card_lookup[last4] = {
                 "bank": card.bank or "",
-                "card": card.name or "",
+                "card": card.card_name or "",
                 "card_id": card.id,
             }
 
