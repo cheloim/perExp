@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getMe, changePassword, clearToken, getMyGroup, inviteToGroup, leaveGroup, getTelegramKey, regenerateTelegramKey, getMyInviteCode, generateInviteCode, resetPassword } from '../api/client'
+import { getMe, changePassword, clearToken, getMyGroup, inviteToGroup, leaveGroup, getTelegramKey, regenerateTelegramKey, getMyInviteCode, generateInviteCode } from '../api/client'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import AccountsManager from './AccountsManager'
@@ -30,11 +30,7 @@ export default function UserPanel({ open, onClose }: Props) {
   const [confirmPw, setConfirmPw] = useState('')
   const [pwError, setPwError] = useState<string | null>(null)
   const [pwSuccess, setPwSuccess] = useState(false)
-  const [resetMode, setResetMode] = useState(false)
-  const [resetEmail, setResetEmail] = useState('')
-  const [resetSuccess, setResetSuccess] = useState<string | null>(null)
-  const [resetError, setResetError] = useState<string | null>(null)
-  const [newResetPassword, setNewResetPassword] = useState<string | null>(null)
+
   const [inviteCode, setInviteCode] = useState('')
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [inviteSuccess, setInviteSuccess] = useState(false)
@@ -119,18 +115,6 @@ export default function UserPanel({ open, onClose }: Props) {
     },
     onError: (e: any) => {
       setPwError(e?.response?.data?.detail ?? 'Error al cambiar contraseña')
-    },
-  })
-
-  const resetPwMut = useMutation({
-    mutationFn: () => resetPassword(resetEmail),
-    onSuccess: (data) => {
-      setResetSuccess(data.message)
-      setResetError(null)
-      setNewResetPassword(data.new_password || null)
-    },
-    onError: (e: any) => {
-      setResetError(e?.response?.data?.detail ?? 'Error al restablecer contraseña')
     },
   })
 
@@ -434,64 +418,6 @@ export default function UserPanel({ open, onClose }: Props) {
               >
                 {changePwMut.isPending ? 'Guardando...' : 'Guardar contraseña'}
               </button>
-
-              {!resetMode && (
-                <button
-                  type="button"
-                  onClick={() => { setResetMode(true); setResetEmail(user?.email || '') }}
-                  className="w-full py-1.5 text-xs text-secondary hover:text-primary transition text-center"
-                >
-                  ¿Olvidaste tu contraseña?
-                </button>
-              )}
-
-              {resetMode && (
-                <div className="pt-3 border-t border-[var(--border-color)] space-y-3">
-                  <p className="text-xs text-[var(--text-tertiary)]">
-                    Ingresá tu email y te enviaremos una nueva contraseña.
-                  </p>
-                  <input
-                    type="email"
-                    value={resetEmail}
-                    onChange={e => { setResetEmail(e.target.value); setResetError(null); setResetSuccess(null) }}
-                    placeholder="tu@email.com"
-                    className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-                  />
-                  {resetError && (
-                    <p className="text-xs text-[var(--red-3,#e01b24)] bg-[var(--color-base)] border border-[var(--border-color)] rounded-md px-3 py-2">{resetError}</p>
-                  )}
-                  {resetSuccess && (
-                    <div>
-                      <p className="text-xs text-[var(--green-5,#26a269)] bg-[var(--color-base)] border border-[var(--border-color)] rounded-md px-3 py-2 mb-2">
-                        {resetSuccess}
-                      </p>
-                      {newResetPassword && (
-                        <div className="bg-[var(--color-base-alt)] rounded-md p-3">
-                          <p className="text-xs text-[var(--text-secondary)] mb-1">Nueva contraseña:</p>
-                          <p className="font-mono text-sm text-primary select-all">{newResetPassword}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => { setResetMode(false); setResetError(null); setResetSuccess(null); setNewResetPassword(null) }}
-                      className="flex-1 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => resetPwMut.mutate()}
-                      disabled={resetPwMut.isPending || !resetEmail.trim()}
-                      className="flex-1 py-2 rounded-md bg-primary hover:brightness-110 disabled:opacity-60 text-[var(--color-on-primary)] font-medium text-sm transition"
-                    >
-                      {resetPwMut.isPending ? 'Enviando...' : 'Restablecer'}
-                    </button>
-                  </div>
-                </div>
-              )}
             </form>
           </div>
           </div>

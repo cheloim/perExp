@@ -301,6 +301,14 @@ export const getCardCategoryBreakdown = (params?: { month?: string; bank?: strin
 export const bulkUpdateCategory = (ids: number[], category_id: number | null) =>
   api.post<{ updated: number }>('/expenses/bulk-category', { ids, category_id }).then((r) => r.data)
 
+export const bulkUpdateFields = (ids: number[], data: {
+  category_id?: number | null;
+  bank?: string;
+  card?: string;
+  person?: string;
+}) =>
+  api.patch<{ updated: number }>('/expenses/bulk-update', { ids, ...data }).then((r) => r.data)
+
 export const recategorizeExpenses = (only_uncategorized = false) =>
   api.post<{ updated: number; total: number }>('/expenses/recategorize', { only_uncategorized }).then((r) => r.data)
 
