@@ -213,7 +213,7 @@ async def confirm_import_job(
     def get_card_key(bank: str, card: str, holder: str) -> str:
         return f"{bank}|{card}|{holder}"
 
-    def find_or_create_card(bank: str, card: str, holder: str, _custom_naming: str, card_type: str = "credito") -> tuple:
+    def find_or_create_card(bank: str, card: str, holder: str, card_type: str = "credito") -> tuple:
         norm_bank = normalize_bank(bank)
         norm_card = first_card_word(card)
         norm_holder = title_case_single(holder)
@@ -223,7 +223,9 @@ async def confirm_import_job(
 
         existing = next(
             (c for c in user_cards
-             if c.card_name.lower() == norm_card.lower() and c.bank.lower() == norm_bank.lower()), None
+             if c.card_name.lower() == norm_card.lower()
+             and c.bank.lower() == norm_bank.lower()
+             and c.holder.lower() == norm_holder.lower()), None
         )
         if existing:
             _log(f"[FIND_OR_CREATE_CARD] Found existing card: {existing.card_name}")
@@ -296,9 +298,6 @@ async def confirm_import_job(
         _log(f"[IMPORT CONFIRM] Expected card_key: {card_key}")
         _log(f"[IMPORT CONFIRM] cards_mapping.get result: {cards_mapping.get(card_key, 'NOT_FOUND')}")
         mapping_entry = cards_mapping.get(card_key, {})
-        custom_naming = mapping_entry.get("custom_naming") if isinstance(mapping_entry, dict) else mapping_entry
-        if not custom_naming:
-            custom_naming = f"{norm_card} {norm_bank}".strip()
         # Override bank/card if provided in mapping
         final_bank = mapping_entry.get("bank") if isinstance(mapping_entry, dict) and mapping_entry.get("bank") else norm_bank
         final_card = mapping_entry.get("card_name") if isinstance(mapping_entry, dict) and mapping_entry.get("card_name") else norm_card
@@ -334,7 +333,7 @@ async def confirm_import_job(
                 raise HTTPException(500, f"Error al crear gasto programado '{r.get('description', 'N/A')}': {str(e)}")
         else:
             # Create Expense with card
-            card_obj, _ = find_or_create_card(final_bank, row_card, norm_person, custom_naming, card_type)
+            card_obj, _ = find_or_create_card(final_bank, row_card, norm_person, card_type)
             try:
                 expense = Expense(
                     date=row_date,

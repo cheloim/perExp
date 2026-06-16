@@ -319,7 +319,6 @@ def get_installments_dashboard(db: Session = Depends(get_db), current_user: User
     ).all()
 
     cat_map = {c.id: c for c in db.query(Category).all()}
-    user_cards_card_name = {c.id: c.card_name for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
     groups: dict = {}
 
     # Procesar cuotas pagadas
@@ -344,7 +343,6 @@ def get_installments_dashboard(db: Session = Depends(get_db), current_user: User
                 "currency": e.currency or "ARS",
                 "card": e.card or "",
                 "card_id": e.card_id,
-                "card_name": user_cards_card_name.get(e.card_id) if e.card_id else None,
             }
         groups[gid]["installments_paid"] += 1
         groups[gid]["total_amount"] += e.amount
@@ -372,7 +370,6 @@ def get_installments_dashboard(db: Session = Depends(get_db), current_user: User
                 "currency": s.currency or "ARS",
                 "card": s.card or "",
                 "card_id": s.card_id,
-                "card_name": user_cards_card_name.get(s.card_id) if s.card_id else None,
             }
         groups[gid]["remaining_installments"] += 1
         groups[gid]["next_dates"].append(s.scheduled_date.isoformat())
@@ -401,7 +398,6 @@ def get_installments_dashboard(db: Session = Depends(get_db), current_user: User
             "currency": g["currency"],
             "card": g["card"],
             "card_id": g["card_id"],
-            "card_name": g["card_name"],
         })
 
     return sorted(result, key=lambda x: (x["remaining_installments"] == 0, x["next_date"] or "9999-99"))
@@ -570,7 +566,7 @@ def get_credit_card_pasivos(db: Session = Depends(get_db), current_user: User = 
         if not is_credit_card and s.card:
             s_card_lower = s.card.lower()
             for cc in credit_cards:
-                if cc.card_name.lower() in s_card_lower:
+                if cc.name.lower() in s_card_lower:
                     is_credit_card = True
                     break
         
@@ -655,7 +651,6 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
     # Build card lookup with both name and id
     user_cards_by_name = {c.card_name: c.card_type for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
     user_cards_by_id = {c.id: c for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
-    user_cards_card_name = {c.id: c.card_name for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
 
     # Build account lookup - accounts are always "debito" type
     user_accounts_by_id = {a.id: a.type for a in db.query(Account).filter(Account.user_id.in_(uid_list)).all()}
@@ -793,16 +788,9 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
         if not card_type:
             card_type = "credito"
 
-        # Get card_name from most used card_id
-        card_name_from_id = None
-        if g.get("card_ids"):
-            most_used_card_id = max(g["card_ids"], key=g["card_ids"].get)
-            card_name_from_id = user_cards_card_name.get(most_used_card_id)
-
         result.append({
             "holder": holder, "bank": g["bank"],
             "card_name": card_name,
-            "card_name_from_id": card_name_from_id,
             "card_type": card_type,
             "total_amount": g["total_amount"], "count": g["count"],
             "currency": g["currency"],

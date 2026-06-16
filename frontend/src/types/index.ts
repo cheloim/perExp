@@ -60,7 +60,7 @@ export interface Card {
   id: number
   card_name: string
   bank: string
-  holder?: string
+  holder: string
   card_type: string
   user_id: number
   created_at: string
@@ -186,7 +186,6 @@ export interface InstallmentGroup {
   currency: string
   card: string
   card_id: number | null
-  card_name_from_id: string | null
 }
 
 export interface ScheduledExpense {
@@ -209,7 +208,6 @@ export interface CardSummary {
   holder: string
   bank: string
   card_name: string
-  card_name_from_id?: string
   card_type: string
   total_amount: number
   count: number
@@ -273,13 +271,12 @@ export interface DetectedCard {
 }
 
 export interface CardsMappingEntry {
-  custom_naming: string
   bank?: string
   card_name?: string
 }
 
 export interface CardsMapping {
-  [key: string]: CardsMappingEntry  // key: "bank|card|holder" -> value: { custom_naming, bank?, card_name? }
+  [key: string]: CardsMappingEntry  // key: "bank|card|holder" -> value: { bank?, card_name? }
 }
 
 export interface ImportSummary {
