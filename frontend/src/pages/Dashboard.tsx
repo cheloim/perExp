@@ -311,8 +311,8 @@ export default function Dashboard() {
                       acc.variation > 0
                         ? "text-success"
                         : acc.variation < 0
-                        ? "text-danger"
-                        : "text-tertiary"
+                          ? "text-danger"
+                          : "text-tertiary"
                     }`}
                   >
                     {acc.variation > 0 ? "↑" : acc.variation < 0 ? "↓" : "→"}{" "}
@@ -344,8 +344,8 @@ export default function Dashboard() {
                       card.variation > 0
                         ? "text-success"
                         : card.variation < 0
-                        ? "text-danger"
-                        : "text-tertiary"
+                          ? "text-danger"
+                          : "text-tertiary"
                     }`}
                   >
                     {card.variation > 0 ? "↑" : card.variation < 0 ? "↓" : "→"}{" "}

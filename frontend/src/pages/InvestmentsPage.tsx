@@ -4,7 +4,6 @@ import {
   getInvestments,
   createInvestment,
   updateInvestment,
-  updateInvestmentPrice,
   deleteInvestment,
   getSettings,
   syncIOL,
@@ -13,8 +12,6 @@ import {
   getUsdRate,
   getCashBalances,
   getManualCashBalances,
-  putManualCashBalance,
-  deleteManualCashBalance,
   putSetting,
   lookupSymbol,
   lookupSymbols,
@@ -179,8 +176,6 @@ function PnlChip({
     </div>
   );
 }
-
-
 
 function InvestmentModal({
   initial,
@@ -558,7 +553,6 @@ function CredentialsModal({
   );
 }
 
-
 type SortField = "name" | "type" | "broker" | "cost_basis" | "current_value" | "pnl" | "pnl_pct";
 
 export default function InvestmentsPage() {
@@ -585,7 +579,6 @@ export default function InvestmentsPage() {
   const [yahooPrices, setYahooPrices] = useState<
     Record<string, { price: number; currency: string }>
   >({});
-  const scrollRef = useRef<HTMLDivElement>(null);
   const scrollIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {

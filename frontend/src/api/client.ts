@@ -108,9 +108,10 @@ export const getDistinctValues = () =>
 
 export const getCardOptions = () =>
   api
-    .get<{ persons: string[]; by_person: Record<string, Record<string, string[]>> }>(
-      "/expenses/card-options",
-    )
+    .get<{
+      persons: string[];
+      by_person: Record<string, Record<string, string[]>>;
+    }>("/expenses/card-options")
     .then((r) => r.data);
 
 export const checkDuplicate = (params: {
@@ -153,9 +154,9 @@ export const getInstallmentsDashboard = () =>
 
 export const getInstallmentsMonthlyLoad = () =>
   api
-    .get<{ month: string; total: number; count: number; is_past: boolean; is_current: boolean }[]>(
-      "/dashboard/installments/monthly-load",
-    )
+    .get<
+      { month: string; total: number; count: number; is_past: boolean; is_current: boolean }[]
+    >("/dashboard/installments/monthly-load")
     .then((r) => r.data);
 
 export const getScheduledSummary = () =>
@@ -373,10 +374,12 @@ export const getInvestmentHistory = (id: number, range: "1d" | "7d" | "30d" = "7
 
 export const lookupSymbol = (symbol: string) =>
   api
-    .get<{ symbol: string; name: string; price: number | null; currency: string } | null>(
-      "/investments/lookup",
-      { params: { symbol } },
-    )
+    .get<{
+      symbol: string;
+      name: string;
+      price: number | null;
+      currency: string;
+    } | null>("/investments/lookup", { params: { symbol } })
     .then((r) => r.data);
 
 export const fetchUsdRate = () =>
@@ -387,10 +390,9 @@ export const fetchUsdRate = () =>
 
 export const lookupSymbols = (symbols: string[]) =>
   api
-    .get<Record<string, { symbol: string; name: string; price: number | null; currency: string }>>(
-      "/investments/lookup-batch",
-      { params: { symbols: symbols.join(",") } },
-    )
+    .get<
+      Record<string, { symbol: string; name: string; price: number | null; currency: string }>
+    >("/investments/lookup-batch", { params: { symbols: symbols.join(",") } })
     .then((r) => r.data);
 
 export const deleteInvestment = (id: number) =>
@@ -403,9 +405,12 @@ export const putSetting = (key: string, value: string) =>
 
 export const syncIOL = () =>
   api
-    .post<{ broker: string; created: number; updated: number; total: number }>(
-      "/investments/sync/iol",
-    )
+    .post<{
+      broker: string;
+      created: number;
+      updated: number;
+      total: number;
+    }>("/investments/sync/iol")
     .then((r) => r.data);
 
 export const syncPPI = () =>
@@ -426,9 +431,9 @@ export const refreshManualPrices = () =>
 
 export const getManualCashBalances = () =>
   api
-    .get<Record<string, { ars: number | null; usd: number | null }>>(
-      "/investments/manual-cash-balances",
-    )
+    .get<
+      Record<string, { ars: number | null; usd: number | null }>
+    >("/investments/manual-cash-balances")
     .then((r) => r.data);
 
 export const putManualCashBalance = (broker: string, ars: number | null, usd: number | null) =>

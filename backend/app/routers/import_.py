@@ -680,5 +680,5 @@ Texto a parsear:
         "filename": file.filename,
         "raw_preview": preview,
         "raw_length": len(raw_text),
-        "llm_response": response.text.strip(),
+        "llm_response": (response.text or "").strip(),
     }

@@ -108,7 +108,7 @@ export default function CategoryDashboard() {
 
   // Resolve selected category to a CategorySummary for drilldown
   const activeCat = selectedCategoryName
-    ? categories.find((c) => c.category_name === selectedCategoryName) ?? null
+    ? (categories.find((c) => c.category_name === selectedCategoryName) ?? null)
     : null;
 
   const merchants: TopMerchant[] = activeCat
@@ -136,8 +136,8 @@ export default function CategoryDashboard() {
     enabled: selectedCategoryName !== null,
   });
 
-  const displayTotal = activeCat ? activeCat.total : summary?.total_amount ?? 0;
-  const displayCount = activeCat ? activeCat.count : summary?.total_expenses ?? 0;
+  const displayTotal = activeCat ? activeCat.total : (summary?.total_amount ?? 0);
+  const displayCount = activeCat ? activeCat.count : (summary?.total_expenses ?? 0);
   const displayAvg = displayCount > 0 ? displayTotal / displayCount : 0;
   const sortedExpenses = [...expenses].sort((a, b) => b.amount - a.amount);
 

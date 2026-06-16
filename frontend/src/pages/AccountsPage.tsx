@@ -1059,8 +1059,8 @@ export default function AccountsPage() {
                           filterUncategorized
                             ? "__none__"
                             : filterCategory
-                            ? String(filterCategory)
-                            : ""
+                              ? String(filterCategory)
+                              : ""
                         }
                         onChange={(v) => handleCategoryFilter(v)}
                         groups={[

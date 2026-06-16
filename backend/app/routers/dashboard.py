@@ -663,7 +663,7 @@ def get_credit_card_pasivos(
         if not is_credit_card and s.card:
             s_card_lower = s.card.lower()
             for cc in credit_cards:
-                if cc.name.lower() in s_card_lower:
+                if cc.card_name.lower() in s_card_lower:
                     is_credit_card = True
                     break
 
@@ -902,11 +902,8 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
         # If no account, check card_id lookup, then name lookup
         if not card_type and g.get("card_ids"):
             most_used_card_id = max(g["card_ids"], key=g["card_ids"].get)
-            card_type = (
-                user_cards_by_id.get(most_used_card_id).card_type
-                if user_cards_by_id.get(most_used_card_id)
-                else "credito"
-            )
+            card_obj = user_cards_by_id.get(most_used_card_id)
+            card_type = card_obj.card_type if card_obj else "credito"
         if not card_type:
             card_type = user_cards_by_name.get(card_name) or user_cards_by_name.get(
                 g["network"].title()
