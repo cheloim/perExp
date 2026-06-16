@@ -176,7 +176,9 @@ function RegisterForm({ onLogin, onSuccess }: { onLogin: () => void; onSuccess: 
             required
             className="input"
           />
-          <span className="text-xs text-[var(--text-tertiary)]">Tu nombre tal como aparece en la tarjeta</span>
+          <span className="text-xs text-[var(--text-tertiary)]">
+            Tu nombre tal como aparece en la tarjeta
+          </span>
         </div>
 
         <div className="flex flex-col gap-1">
@@ -197,10 +199,7 @@ function RegisterForm({ onLogin, onSuccess }: { onLogin: () => void; onSuccess: 
         </div>
 
         <div className="flex flex-col gap-1">
-          <label
-            className="text-sm font-medium text-[var(--text-primary)]"
-            htmlFor="reg-password"
-          >
+          <label className="text-sm font-medium text-[var(--text-primary)]" htmlFor="reg-password">
             Contraseña
           </label>
           <input
