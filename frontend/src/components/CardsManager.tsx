@@ -287,8 +287,8 @@ export default function CardsManager() {
                     {card.card_type === "credito"
                       ? "Crédito"
                       : card.card_type === "debito"
-                      ? "Débito"
-                      : card.card_type}{" "}
+                        ? "Débito"
+                        : card.card_type}{" "}
                     — {card.bank}
                   </div>
                   <div className="text-xs text-tertiary mt-0.5">Titular: {card.holder || "—"}</div>

@@ -412,10 +412,10 @@ export default function ImportJobPreview() {
             {confirmMutation.isPending
               ? "Confirmando..."
               : canImport
-              ? "Confirmar importación"
-              : !dataComplete
-              ? "Completar datos"
-              : "Completar nombres de tarjetas"}
+                ? "Confirmar importación"
+                : !dataComplete
+                  ? "Completar datos"
+                  : "Completar nombres de tarjetas"}
           </button>
         </div>
       </div>

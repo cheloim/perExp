@@ -392,8 +392,8 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
         data.trend === "up"
           ? "Tendencia alcista"
           : data.trend === "down"
-          ? "Tendencia bajista"
-          : "Estable";
+            ? "Tendencia bajista"
+            : "Estable";
 
       let responseText = `${trendIcon} ${trendLabel}\n\n${data.trend_explanation}`;
       if (data.top_rising_category) responseText += `\n\n↑ Subió: ${data.top_rising_category}`;

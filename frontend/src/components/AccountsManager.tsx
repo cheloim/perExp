@@ -274,12 +274,12 @@ export default function AccountsManager() {
                   {account.type === "efectivo"
                     ? "💵"
                     : account.type === "mercadopago"
-                    ? "📱"
-                    : account.type === "cuenta_corriente"
-                    ? "🏦"
-                    : account.type === "caja_ahorro"
-                    ? "💳"
-                    : "💰"}
+                      ? "📱"
+                      : account.type === "cuenta_corriente"
+                        ? "🏦"
+                        : account.type === "caja_ahorro"
+                          ? "💳"
+                          : "💰"}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-primary truncate">{account.name}</div>
