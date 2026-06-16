@@ -28,7 +28,7 @@ jobs:
         run: npm run lint
 
       - name: Prettier
-        run: npm run format:check
+        run: npx prettier --check --config .prettierrc src/
 
       - name: TypeScript
         run: npm run typecheck
