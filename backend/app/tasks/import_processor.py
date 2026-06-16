@@ -2,6 +2,7 @@
 Background task processor for import jobs.
 Processes uploaded files asynchronously and creates notifications when ready.
 """
+
 import asyncio
 import json
 from datetime import datetime
@@ -9,9 +10,9 @@ from datetime import datetime
 from app.database import SessionLocal
 
 _log = lambda msg: print(f"{datetime.now().isoformat()} {msg}")
+from app.celery_app import celery_app
 from app.models import ImportJob, Notification
 from app.services.smart_import_core import run_smart_import
-from app.celery_app import celery_app
 
 
 @celery_app.task(name="app.tasks.import_processor.process_import_job")
@@ -34,12 +35,11 @@ def process_import_job(job_id: int):
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        preview = loop.run_until_complete(run_smart_import(
-            file_content=job.file_content,
-            filename=job.filename,
-            db=db,
-            user_id=job.user_id
-        ))
+        preview = loop.run_until_complete(
+            run_smart_import(
+                file_content=job.file_content, filename=job.filename, db=db, user_id=job.user_id
+            )
+        )
         loop.close()
 
         job.preview_data = json.dumps(preview, default=str)
@@ -51,12 +51,10 @@ def process_import_job(job_id: int):
             type="import_ready",
             title=f"Importación lista: {job.filename}",
             body=f"{len(preview['rows'])} transacciones encontradas",
-            data=json.dumps({
-                "job_id": job.id,
-                "filename": job.filename,
-                "row_count": len(preview['rows'])
-            }),
-            read=False
+            data=json.dumps(
+                {"job_id": job.id, "filename": job.filename, "row_count": len(preview["rows"])}
+            ),
+            read=False,
         )
         db.add(notification)
         db.commit()
@@ -66,6 +64,7 @@ def process_import_job(job_id: int):
     except Exception as e:
         _log(f"[IMPORT JOB] Job {job_id} failed: {e}")
         import traceback
+
         traceback.print_exc()
 
         job.status = "FAILED"
@@ -77,12 +76,8 @@ def process_import_job(job_id: int):
             type="import_failed",
             title=f"Error al importar: {job.filename}",
             body=f"Error: {str(e)[:100]}",
-            data=json.dumps({
-                "job_id": job.id,
-                "filename": job.filename,
-                "error": str(e)
-            }),
-            read=False
+            data=json.dumps({"job_id": job.id, "filename": job.filename, "error": str(e)}),
+            read=False,
         )
         db.add(notification)
         db.commit()
@@ -105,10 +100,7 @@ async def _async_process_import_job(job_id: int):
         _log(f"[IMPORT JOB] Processing job {job_id}: {job.filename}")
 
         preview = await run_smart_import(
-            file_content=job.file_content,
-            filename=job.filename,
-            db=db,
-            user_id=job.user_id
+            file_content=job.file_content, filename=job.filename, db=db, user_id=job.user_id
         )
 
         job.preview_data = json.dumps(preview, default=str)
@@ -120,12 +112,10 @@ async def _async_process_import_job(job_id: int):
             type="import_ready",
             title=f"Importación lista: {job.filename}",
             body=f"{len(preview['rows'])} transacciones encontradas",
-            data=json.dumps({
-                "job_id": job.id,
-                "filename": job.filename,
-                "row_count": len(preview['rows'])
-            }),
-            read=False
+            data=json.dumps(
+                {"job_id": job.id, "filename": job.filename, "row_count": len(preview["rows"])}
+            ),
+            read=False,
         )
         db.add(notification)
         db.commit()
@@ -135,6 +125,7 @@ async def _async_process_import_job(job_id: int):
     except Exception as e:
         _log(f"[IMPORT JOB] Job {job_id} failed: {e}")
         import traceback
+
         traceback.print_exc()
 
         job.status = "FAILED"
@@ -146,12 +137,8 @@ async def _async_process_import_job(job_id: int):
             type="import_failed",
             title=f"Error al importar: {job.filename}",
             body=f"Error: {str(e)[:100]}",
-            data=json.dumps({
-                "job_id": job.id,
-                "filename": job.filename,
-                "error": str(e)
-            }),
-            read=False
+            data=json.dumps({"job_id": job.id, "filename": job.filename, "error": str(e)}),
+            read=False,
         )
         db.add(notification)
         db.commit()

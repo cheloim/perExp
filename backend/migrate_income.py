@@ -2,9 +2,11 @@
 """
 Migration script: Convert negative amounts to positive + set is_income flag
 """
-from app.database import SessionLocal
-from app.models import Expense, Category
 from sqlalchemy import text
+
+from app.database import SessionLocal
+from app.models import Category, Expense
+
 
 def main():
     db = SessionLocal()

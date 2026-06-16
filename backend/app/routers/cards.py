@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from pydantic import BaseModel
 from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
 from app.database import get_db
 from app.models import Card, User
-from app.services.auth import get_current_user
 from app.routers.groups import get_group_user_ids
+from app.services.auth import get_current_user
 
 router = APIRouter(prefix="/cards", tags=["cards"])
 
@@ -62,12 +64,16 @@ def create_card(
     if not card_name or not bank:
         raise HTTPException(status_code=400, detail="Nombre y banco son obligatorios")
 
-    existing_by_fields = db.query(Card).filter(
-        Card.user_id == current_user.id,
-        func.lower(func.trim(Card.card_name)) == card_name.lower(),
-        func.lower(func.trim(Card.bank)) == bank.lower(),
-        Card.card_type == card.card_type,
-    ).first()
+    existing_by_fields = (
+        db.query(Card)
+        .filter(
+            Card.user_id == current_user.id,
+            func.lower(func.trim(Card.card_name)) == card_name.lower(),
+            func.lower(func.trim(Card.bank)) == bank.lower(),
+            Card.card_type == card.card_type,
+        )
+        .first()
+    )
 
     if existing_by_fields:
         raise HTTPException(
@@ -78,7 +84,7 @@ def create_card(
                 "existing_card_name": existing_by_fields.card_name,
                 "existing_bank": existing_by_fields.bank,
                 "existing_card_type": existing_by_fields.card_type,
-            }
+            },
         )
 
     db_card = Card(
@@ -102,10 +108,14 @@ def update_card(
     current_user: User = Depends(get_current_user),
 ):
     """Update a card"""
-    db_card = db.query(Card).filter(
-        Card.id == card_id,
-        Card.user_id == current_user.id,
-    ).first()
+    db_card = (
+        db.query(Card)
+        .filter(
+            Card.id == card_id,
+            Card.user_id == current_user.id,
+        )
+        .first()
+    )
 
     if not db_card:
         raise HTTPException(status_code=404, detail="Card not found")
@@ -129,22 +139,24 @@ def delete_card(
     current_user: User = Depends(get_current_user),
 ):
     """Delete a card"""
-    db_card = db.query(Card).filter(
-        Card.id == card_id,
-        Card.user_id == current_user.id,
-    ).first()
+    db_card = (
+        db.query(Card)
+        .filter(
+            Card.id == card_id,
+            Card.user_id == current_user.id,
+        )
+        .first()
+    )
 
     if not db_card:
         raise HTTPException(status_code=404, detail="Card not found")
 
     # Check if card has expenses
     from app.models import Expense
+
     has_expenses = db.query(Expense).filter(Expense.card_id == card_id).first()
     if has_expenses:
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot delete card with associated expenses"
-        )
+        raise HTTPException(status_code=400, detail="Cannot delete card with associated expenses")
 
     db.delete(db_card)
     db.commit()
@@ -158,29 +170,33 @@ def sync_card_holders(
 ):
     """Sync holders from expenses to cards based on most frequent person per bank+name"""
     from sqlalchemy import func
+
     from app.models import Expense
-    
+
     cards = db.query(Card).filter(Card.user_id == current_user.id).all()
     updated = 0
-    
+
     for card in cards:
         if card.holder:
             continue
-        
-        most_common_person = db.query(
-            Expense.person,
-            func.count(Expense.id).label('cnt')
-        ).filter(
-            Expense.user_id == current_user.id,
-            func.lower(func.trim(Expense.bank)) == (card.bank or '').lower().strip(),
-            Expense.card.ilike(f"%{card.card_name}%"),
-            Expense.person.isnot(None),
-            Expense.person != ''
-        ).group_by(Expense.person).order_by(func.count(Expense.id).desc()).first()
-        
+
+        most_common_person = (
+            db.query(Expense.person, func.count(Expense.id).label("cnt"))
+            .filter(
+                Expense.user_id == current_user.id,
+                func.lower(func.trim(Expense.bank)) == (card.bank or "").lower().strip(),
+                Expense.card.ilike(f"%{card.card_name}%"),
+                Expense.person.isnot(None),
+                Expense.person != "",
+            )
+            .group_by(Expense.person)
+            .order_by(func.count(Expense.id).desc())
+            .first()
+        )
+
         if most_common_person and most_common_person[0]:
             card.holder = most_common_person[0]
             updated += 1
-    
+
     db.commit()
     return {"updated": updated, "total_cards": len(cards)}

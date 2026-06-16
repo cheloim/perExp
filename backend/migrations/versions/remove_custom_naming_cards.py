@@ -5,8 +5,8 @@ Revises: 6e6e66850562
 Create Date: 2026-06-11 20:10:00.000000
 
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'remove_custom_naming_cards'

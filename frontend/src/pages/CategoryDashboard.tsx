@@ -1,25 +1,39 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
-} from 'recharts'
-import { getDashboard, getExpenses, getCategoryTrend, getTopMerchants } from '../api/client'
-import type { TopMerchant, CategorySummary } from '../types'
-import { formatCurrency, toUpperCase, titleCase, getContrastTextColor, formatDateDMY, MonthSelector } from '../utils/format'
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
+import { getDashboard, getExpenses, getCategoryTrend, getTopMerchants } from "../api/client";
+import type { TopMerchant, CategorySummary } from "../types";
+import {
+  formatCurrency,
+  toUpperCase,
+  titleCase,
+  getContrastTextColor,
+  formatDateDMY,
+  MonthSelector,
+} from "../utils/format";
 
 interface GroupedCategory {
-  name: string
-  color: string
-  total: number
-  count: number
-  isParent: boolean
-  children: CategorySummary[]
-  self?: CategorySummary  // the parent's own summary entry (if it appears as a leaf too)
+  name: string;
+  color: string;
+  total: number;
+  count: number;
+  isParent: boolean;
+  children: CategorySummary[];
+  self?: CategorySummary; // the parent's own summary entry (if it appears as a leaf too)
 }
 
 function groupByParent(cats: CategorySummary[]): GroupedCategory[] {
-  const parentMap = new Map<string, GroupedCategory>()
-  const result: GroupedCategory[] = []
+  const parentMap = new Map<string, GroupedCategory>();
+  const result: GroupedCategory[] = [];
 
   // First pass: create parent groups
   for (const cat of cats) {
@@ -27,17 +41,17 @@ function groupByParent(cats: CategorySummary[]): GroupedCategory[] {
       if (!parentMap.has(cat.parent_name)) {
         parentMap.set(cat.parent_name, {
           name: cat.parent_name,
-          color: cat.parent_color ?? '#6b7280',
+          color: cat.parent_color ?? "#6b7280",
           total: 0,
           count: 0,
           isParent: true,
           children: [],
-        })
+        });
       }
-      const group = parentMap.get(cat.parent_name)!
-      group.total += cat.total
-      group.count += cat.count
-      group.children.push(cat)
+      const group = parentMap.get(cat.parent_name)!;
+      group.total += cat.total;
+      group.count += cat.count;
+      group.children.push(cat);
     } else {
       result.push({
         name: cat.category_name,
@@ -47,112 +61,128 @@ function groupByParent(cats: CategorySummary[]): GroupedCategory[] {
         isParent: false,
         children: [],
         self: cat,
-      })
+      });
     }
   }
 
   // Sort children within each parent by total desc
   for (const g of parentMap.values()) {
-    g.children.sort((a, b) => b.total - a.total)
-    result.push(g)
+    g.children.sort((a, b) => b.total - a.total);
+    result.push(g);
   }
 
-  return result.sort((a, b) => b.total - a.total)
+  return result.sort((a, b) => b.total - a.total);
 }
 
 export default function CategoryDashboard() {
-  const now = new Date()
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const [month, setMonth] = useState(currentMonth)
-  const [selectedCategoryName, setSelectedCategoryName] = useState<string | null>(null)
-  const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set())
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const [month, setMonth] = useState(currentMonth);
+  const [selectedCategoryName, setSelectedCategoryName] = useState<string | null>(null);
+  const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set());
 
   const { data: summary, isLoading } = useQuery({
-    queryKey: ['dashboard', 'cat-dash', month],
+    queryKey: ["dashboard", "cat-dash", month],
     queryFn: () => getDashboard({ month }),
     placeholderData: (prev) => prev,
-  })
+  });
 
   const { data: trendData } = useQuery({
-    queryKey: ['category-trend', month],
+    queryKey: ["category-trend", month],
     queryFn: () => getCategoryTrend(4, month),
     staleTime: 60_000,
-  })
+  });
 
-  const [merchantTab, setMerchantTab] = useState<'amount' | 'count'>('amount')
+  const [merchantTab, setMerchantTab] = useState<"amount" | "count">("amount");
 
   const { data: merchantsRaw = [] } = useQuery({
-    queryKey: ['top-merchants', month],
+    queryKey: ["top-merchants", month],
     queryFn: () => getTopMerchants({ month, limit: 20 }),
     staleTime: 60_000,
-  })
+  });
 
-  const categories = summary?.by_category ?? []
-  const grouped = groupByParent(categories)
-  const grandTotal = categories.reduce((s, c) => s + c.total, 0)
-  const maxGroupTotal = grouped.reduce((m, g) => Math.max(m, g.total), 0)
+  const categories = summary?.by_category ?? [];
+  const grouped = groupByParent(categories);
+  const grandTotal = categories.reduce((s, c) => s + c.total, 0);
+  const maxGroupTotal = grouped.reduce((m, g) => Math.max(m, g.total), 0);
 
   // Resolve selected category to a CategorySummary for drilldown
   const activeCat = selectedCategoryName
-    ? categories.find(c => c.category_name === selectedCategoryName) ?? null
-    : null
+    ? categories.find((c) => c.category_name === selectedCategoryName) ?? null
+    : null;
 
   const merchants: TopMerchant[] = activeCat
-    ? merchantsRaw.filter(m => m.category_name === activeCat.category_name)
-    : merchantsRaw
+    ? merchantsRaw.filter((m) => m.category_name === activeCat.category_name)
+    : merchantsRaw;
 
-  const sortedMerchants = [...merchants].sort((a, b) =>
-    merchantTab === 'amount' ? b.total_amount - a.total_amount : b.count - a.count
-  ).slice(0, 15)
+  const sortedMerchants = [...merchants]
+    .sort((a, b) =>
+      merchantTab === "amount" ? b.total_amount - a.total_amount : b.count - a.count,
+    )
+    .slice(0, 15);
 
-  const maxMerchantVal = sortedMerchants.length > 0
-    ? Math.max(...sortedMerchants.map(m => merchantTab === 'amount' ? m.total_amount : m.count))
-    : 1
+  const maxMerchantVal =
+    sortedMerchants.length > 0
+      ? Math.max(
+          ...sortedMerchants.map((m) => (merchantTab === "amount" ? m.total_amount : m.count)),
+        )
+      : 1;
 
-  const selectedCategoryId = activeCat?.category_id ?? undefined
+  const selectedCategoryId = activeCat?.category_id ?? undefined;
 
   const { data: expenses = [], isLoading: expLoading } = useQuery({
-    queryKey: ['expenses', 'cat-drill', selectedCategoryId, month],
+    queryKey: ["expenses", "cat-drill", selectedCategoryId, month],
     queryFn: () => getExpenses({ category_id: selectedCategoryId, month, limit: 300 }),
     enabled: selectedCategoryName !== null,
-  })
+  });
 
-  const displayTotal = activeCat ? activeCat.total : (summary?.total_amount ?? 0)
-  const displayCount = activeCat ? activeCat.count : (summary?.total_expenses ?? 0)
-  const displayAvg = displayCount > 0 ? displayTotal / displayCount : 0
-  const sortedExpenses = [...expenses].sort((a, b) => b.amount - a.amount)
+  const displayTotal = activeCat ? activeCat.total : summary?.total_amount ?? 0;
+  const displayCount = activeCat ? activeCat.count : summary?.total_expenses ?? 0;
+  const displayAvg = displayCount > 0 ? displayTotal / displayCount : 0;
+  const sortedExpenses = [...expenses].sort((a, b) => b.amount - a.amount);
 
   const toggleParent = (name: string) => {
-    setExpandedParents(prev => {
-      const next = new Set(prev)
-      if (next.has(name)) next.delete(name); else next.add(name)
-      return next
-    })
-  }
+    setExpandedParents((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
 
   const handleLegendClick = (name: string) => {
-    setSelectedCategoryName(prev => prev === name ? null : name)
-  }
+    setSelectedCategoryName((prev) => (prev === name ? null : name));
+  };
 
-  const visibleCategories = trendData?.categories ?? []
+  const visibleCategories = trendData?.categories ?? [];
 
   return (
     <div className="space-y-6">
       {/* Header Bar */}
       <div className="flex items-center justify-between gap-4 px-1">
         <div className="flex items-center gap-3">
-          <h1 className="text-lg font-semibold text-[var(--text-primary)] tracking-tight">Por Categoría</h1>
+          <h1 className="text-lg font-semibold text-[var(--text-primary)] tracking-tight">
+            Por Categoría
+          </h1>
           {activeCat && (
             <span className="text-sm text-[var(--text-tertiary)]">/ {activeCat.category_name}</span>
           )}
         </div>
-        <MonthSelector value={month} onChange={(v) => { setMonth(v); setSelectedCategoryName(null) }} />
+        <MonthSelector
+          value={month}
+          onChange={(v) => {
+            setMonth(v);
+            setSelectedCategoryName(null);
+          }}
+        />
       </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-4">
         <div className="card p-4">
-          <p className="text-xs text-tertiary mb-1">{activeCat ? activeCat.category_name : 'Total'}</p>
+          <p className="text-xs text-tertiary mb-1">
+            {activeCat ? activeCat.category_name : "Total"}
+          </p>
           <p className="text-2xl font-bold text-primary">{formatCurrency(displayTotal)}</p>
         </div>
         <div className="card p-4">
@@ -170,73 +200,118 @@ export default function CategoryDashboard() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-primary">Gastos por categoría</h2>
           {selectedCategoryName && (
-            <button onClick={() => setSelectedCategoryName(null)} className="text-xs text-secondary hover:text-primary transition-colors">
+            <button
+              onClick={() => setSelectedCategoryName(null)}
+              className="text-xs text-secondary hover:text-primary transition-colors"
+            >
               Limpiar selección
             </button>
           )}
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center py-10"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
+          <div className="flex justify-center py-10">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+          </div>
         ) : grouped.length === 0 ? (
           <p className="text-secondary text-sm text-center py-10">Sin datos</p>
         ) : (
           <div className="space-y-1">
-            {grouped.map(group => {
-              const pct = maxGroupTotal > 0 ? (group.total / maxGroupTotal) * 100 : 0
-              const isExpanded = expandedParents.has(group.name)
+            {grouped.map((group) => {
+              const pct = maxGroupTotal > 0 ? (group.total / maxGroupTotal) * 100 : 0;
+              const isExpanded = expandedParents.has(group.name);
 
               return (
                 <div key={group.name}>
                   {/* Group row */}
                   <div
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all hover:bg-base-alt ${
-                      !group.isParent && selectedCategoryName === group.name ? 'bg-base-alt/70 ring-1 ring-white/10' : ''
+                      !group.isParent && selectedCategoryName === group.name
+                        ? "bg-base-alt/70 ring-1 ring-white/10"
+                        : ""
                     }`}
                     onClick={() => {
                       if (group.isParent) {
-                        toggleParent(group.name)
+                        toggleParent(group.name);
                       } else {
-                        setSelectedCategoryName(prev => prev === group.name ? null : group.name)
+                        setSelectedCategoryName((prev) =>
+                          prev === group.name ? null : group.name,
+                        );
                       }
                     }}
                   >
-                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: group.color }} />
-                    <span className="text-sm text-primary font-medium w-36 truncate flex-shrink-0">{group.name}</span>
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: group.color }}
+                    />
+                    <span className="text-sm text-primary font-medium w-36 truncate flex-shrink-0">
+                      {group.name}
+                    </span>
                     <div className="flex-1 h-2 bg-base-alt rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-all duration-300" style={{ width: `${pct}%`, backgroundColor: group.color }} />
+                      <div
+                        className="h-full rounded-full transition-all duration-300"
+                        style={{ width: `${pct}%`, backgroundColor: group.color }}
+                      />
                     </div>
-                    <span className="text-xs text-tertiary w-8 text-right flex-shrink-0">{group.count}</span>
-                    <span className="text-sm font-semibold text-primary w-32 text-right flex-shrink-0">{formatCurrency(group.total)}</span>
+                    <span className="text-xs text-tertiary w-8 text-right flex-shrink-0">
+                      {group.count}
+                    </span>
+                    <span className="text-sm font-semibold text-primary w-32 text-right flex-shrink-0">
+                      {formatCurrency(group.total)}
+                    </span>
                     {grandTotal > 0 && (
                       <span className="text-xs text-secondary w-10 text-right flex-shrink-0">
                         {((group.total / grandTotal) * 100).toFixed(2)}%
                       </span>
                     )}
                     {group.isParent && (
-                      <span className="text-secondary text-xs flex-shrink-0 w-4">{isExpanded ? '▼' : '▶'}</span>
+                      <span className="text-secondary text-xs flex-shrink-0 w-4">
+                        {isExpanded ? "▼" : "▶"}
+                      </span>
                     )}
                   </div>
 
                   {/* Children rows */}
                   {group.isParent && isExpanded && (
                     <div className="ml-5 space-y-0.5 mb-1">
-                      {group.children.map(child => {
-                        const childPct = maxGroupTotal > 0 ? (child.total / maxGroupTotal) * 100 : 0
-                        const isSelected = selectedCategoryName === child.category_name
+                      {group.children.map((child) => {
+                        const childPct =
+                          maxGroupTotal > 0 ? (child.total / maxGroupTotal) * 100 : 0;
+                        const isSelected = selectedCategoryName === child.category_name;
                         return (
                           <div
                             key={child.category_name}
-                            onClick={() => setSelectedCategoryName(prev => prev === child.category_name ? null : child.category_name)}
-                            className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all hover:bg-base-alt ${isSelected ? 'bg-base-alt/70 ring-1 ring-white/10' : ''}`}
+                            onClick={() =>
+                              setSelectedCategoryName((prev) =>
+                                prev === child.category_name ? null : child.category_name,
+                              )
+                            }
+                            className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all hover:bg-base-alt ${
+                              isSelected ? "bg-base-alt/70 ring-1 ring-white/10" : ""
+                            }`}
                           >
-                            <span className="w-2 h-2 rounded-full flex-shrink-0 opacity-80" style={{ backgroundColor: child.category_color }} />
-                            <span className="text-xs text-secondary w-36 truncate flex-shrink-0">{child.category_name}</span>
+                            <span
+                              className="w-2 h-2 rounded-full flex-shrink-0 opacity-80"
+                              style={{ backgroundColor: child.category_color }}
+                            />
+                            <span className="text-xs text-secondary w-36 truncate flex-shrink-0">
+                              {child.category_name}
+                            </span>
                             <div className="flex-1 h-1.5 bg-base-alt rounded-full overflow-hidden">
-                              <div className="h-full rounded-full" style={{ width: `${childPct}%`, backgroundColor: child.category_color }} />
+                              <div
+                                className="h-full rounded-full"
+                                style={{
+                                  width: `${childPct}%`,
+                                  backgroundColor: child.category_color,
+                                }}
+                              />
                             </div>
-                            <span className="text-xs text-secondary w-8 text-right flex-shrink-0">{child.count}</span>
-                            <span className="text-xs font-medium text-secondary w-32 text-right flex-shrink-0">{formatCurrency(child.total)}</span>
+                            <span className="text-xs text-secondary w-8 text-right flex-shrink-0">
+                              {child.count}
+                            </span>
+                            <span className="text-xs font-medium text-secondary w-32 text-right flex-shrink-0">
+                              {formatCurrency(child.total)}
+                            </span>
                             {grandTotal > 0 && (
                               <span className="text-xs text-secondary w-10 text-right flex-shrink-0">
                                 {((child.total / grandTotal) * 100).toFixed(2)}%
@@ -244,51 +319,87 @@ export default function CategoryDashboard() {
                             )}
                             <span className="w-4 flex-shrink-0" />
                           </div>
-                        )
+                        );
                       })}
                     </div>
                   )}
                 </div>
-              )
+              );
             })}
           </div>
         )}
-        <p className="text-xs text-secondary mt-3 text-center">Hacé clic en una categoría para ver el detalle · clic en padre para expandir subcategorías</p>
+        <p className="text-xs text-secondary mt-3 text-center">
+          Hacé clic en una categoría para ver el detalle · clic en padre para expandir subcategorías
+        </p>
       </div>
 
       {/* Line chart — 4-month trend per category */}
       <div className="card p-5">
         <h2 className="text-base font-semibold text-primary mb-4">Evolución — últimos 4 meses</h2>
         {!trendData ? (
-          <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
+          <div className="flex justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+          </div>
         ) : visibleCategories.length === 0 ? (
           <p className="text-secondary text-sm text-center py-12">Sin datos</p>
         ) : (
           <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={trendData.rows} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
-                <XAxis
-                  dataKey="month"
-                  tick={{ fontSize: 11, fill: 'var(--chart-text)' }}
-                  tickFormatter={(v: string) => {
-                    const [y, m] = String(v).split('-')
-                    const names = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
-                    return `${names[parseInt(m)-1]} ${y.slice(2)}`
-                  }}
-                />
-                <YAxis
-                  tickFormatter={(v) => new Intl.NumberFormat('es-AR', { notation: 'compact' } as any).format(v)}
-                  tick={{ fontSize: 11, fill: 'var(--chart-text)' }}
-                  width={52}
-                />
-                <Tooltip
-                  contentStyle={{ backgroundColor: 'var(--chart-tooltip-bg)', borderColor: 'var(--chart-tooltip-border)', color: 'var(--chart-tooltip-text)' }}
-                  itemStyle={{ color: 'var(--chart-tooltip-text)' }}
+            <LineChart data={trendData.rows} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 11, fill: "var(--chart-text)" }}
+                tickFormatter={(v: string) => {
+                  const [y, m] = String(v).split("-");
+                  const names = [
+                    "Ene",
+                    "Feb",
+                    "Mar",
+                    "Abr",
+                    "May",
+                    "Jun",
+                    "Jul",
+                    "Ago",
+                    "Sep",
+                    "Oct",
+                    "Nov",
+                    "Dic",
+                  ];
+                  return `${names[parseInt(m) - 1]} ${y.slice(2)}`;
+                }}
+              />
+              <YAxis
+                tickFormatter={(v) =>
+                  new Intl.NumberFormat("es-AR", { notation: "compact" } as any).format(v)
+                }
+                tick={{ fontSize: 11, fill: "var(--chart-text)" }}
+                width={52}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "var(--chart-tooltip-bg)",
+                  borderColor: "var(--chart-tooltip-border)",
+                  color: "var(--chart-tooltip-text)",
+                }}
+                itemStyle={{ color: "var(--chart-tooltip-text)" }}
                 formatter={(v: number, name: string) => [formatCurrency(v), name]}
                 labelFormatter={(l: string) => {
-                  const [y, m] = l.split('-')
-                  const names = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
-                  return `${names[parseInt(m)-1]} ${y}`
+                  const [y, m] = l.split("-");
+                  const names = [
+                    "Ene",
+                    "Feb",
+                    "Mar",
+                    "Abr",
+                    "May",
+                    "Jun",
+                    "Jul",
+                    "Ago",
+                    "Sep",
+                    "Oct",
+                    "Nov",
+                    "Dic",
+                  ];
+                  return `${names[parseInt(m) - 1]} ${y}`;
                 }}
               />
               <Legend
@@ -297,20 +408,28 @@ export default function CategoryDashboard() {
                 iconSize={8}
                 onClick={(e) => handleLegendClick(e.value as string)}
                 formatter={(value: string) => (
-                  <span className={`cursor-pointer text-xs ${selectedCategoryName && selectedCategoryName !== value ? 'opacity-40' : 'text-secondary'}`}>
+                  <span
+                    className={`cursor-pointer text-xs ${
+                      selectedCategoryName && selectedCategoryName !== value
+                        ? "opacity-40"
+                        : "text-secondary"
+                    }`}
+                  >
                     {value}
                   </span>
                 )}
               />
-              {visibleCategories.map(cat => (
+              {visibleCategories.map((cat) => (
                 <Line
                   key={cat.name}
                   type="monotone"
                   dataKey={cat.name}
-                  stroke={cat.color || 'var(--chart-text)'}
+                  stroke={cat.color || "var(--chart-text)"}
                   strokeWidth={selectedCategoryName === cat.name ? 3 : 2}
-                  strokeOpacity={selectedCategoryName && selectedCategoryName !== cat.name ? 0.2 : 1}
-                  dot={{ r: 3, fill: cat.color || 'var(--chart-text)' }}
+                  strokeOpacity={
+                    selectedCategoryName && selectedCategoryName !== cat.name ? 0.2 : 1
+                  }
+                  dot={{ r: 3, fill: cat.color || "var(--chart-text)" }}
                   activeDot={{ r: 5, onClick: () => handleLegendClick(cat.name) }}
                   connectNulls
                 />
@@ -325,28 +444,30 @@ export default function CategoryDashboard() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-primary">
             Top Comercios
-            {activeCat && <span className="ml-2 text-xs text-secondary">— {activeCat.category_name}</span>}
+            {activeCat && (
+              <span className="ml-2 text-xs text-secondary">— {activeCat.category_name}</span>
+            )}
           </h2>
           <div className="flex items-center gap-1">
             <button
-              onClick={() => setMerchantTab('amount')}
+              onClick={() => setMerchantTab("amount")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                merchantTab === 'amount'
-                  ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 active:scale-95'
-                  : 'bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:brightness-95'
+                merchantTab === "amount"
+                  ? "bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 active:scale-95"
+                  : "bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:brightness-95"
               }`}
             >
-              {merchantTab === 'amount' ? '●' : '○'} Por monto
+              {merchantTab === "amount" ? "●" : "○"} Por monto
             </button>
             <button
-              onClick={() => setMerchantTab('count')}
+              onClick={() => setMerchantTab("count")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                merchantTab === 'count'
-                  ? 'bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 active:scale-95'
-                  : 'bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:brightness-95'
+                merchantTab === "count"
+                  ? "bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 active:scale-95"
+                  : "bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:brightness-95"
               }`}
             >
-              {merchantTab === 'count' ? '●' : '○'} Por frecuencia
+              {merchantTab === "count" ? "●" : "○"} Por frecuencia
             </button>
           </div>
         </div>
@@ -356,22 +477,37 @@ export default function CategoryDashboard() {
         ) : (
           <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
             {sortedMerchants.map((m, i) => {
-              const val = merchantTab === 'amount' ? m.total_amount : m.count
-              const pct = maxMerchantVal > 0 ? (val / maxMerchantVal) * 100 : 0
+              const val = merchantTab === "amount" ? m.total_amount : m.count;
+              const pct = maxMerchantVal > 0 ? (val / maxMerchantVal) * 100 : 0;
               return (
                 <div key={i} className="flex items-center gap-2 group">
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: m.category_color || '#6366f1' }} />
-                  <span className="text-xs text-secondary w-40 truncate flex-shrink-0" title={m.description}>{toUpperCase(m.description)}</span>
+                  <span
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: m.category_color || "#6366f1" }}
+                  />
+                  <span
+                    className="text-xs text-secondary w-40 truncate flex-shrink-0"
+                    title={m.description}
+                  >
+                    {toUpperCase(m.description)}
+                  </span>
                   <div className="flex-1 h-1.5 bg-base-alt rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: m.category_color || '#6366f1' }} />
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${pct}%`, backgroundColor: m.category_color || "#6366f1" }}
+                    />
                   </div>
                   <span className="text-xs text-tertiary flex-shrink-0 w-28 text-right">
-                    {merchantTab === 'amount'
-                      ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(m.total_amount)
+                    {merchantTab === "amount"
+                      ? new Intl.NumberFormat("es-AR", {
+                          style: "currency",
+                          currency: "ARS",
+                          minimumFractionDigits: 0,
+                        }).format(m.total_amount)
                       : `${m.count}×`}
                   </span>
                 </div>
-              )
+              );
             })}
           </div>
         )}
@@ -382,29 +518,49 @@ export default function CategoryDashboard() {
         <div className="card overflow-hidden">
           <div className="px-4 py-3 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--color-base-alt)]">
             <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-              {activeCat
-                ? <><span style={{ color: getContrastTextColor(activeCat.category_color) }}>{activeCat.category_name}</span> — mayor a menor</>
-                : 'Gastos'}
+              {activeCat ? (
+                <>
+                  <span style={{ color: getContrastTextColor(activeCat.category_color) }}>
+                    {activeCat.category_name}
+                  </span>{" "}
+                  — mayor a menor
+                </>
+              ) : (
+                "Gastos"
+              )}
             </h2>
-            <span className="text-xs text-[var(--text-tertiary)]">{sortedExpenses.length} registros</span>
+            <span className="text-xs text-[var(--text-tertiary)]">
+              {sortedExpenses.length} registros
+            </span>
           </div>
           {expLoading ? (
-            <div className="flex justify-center py-10"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div>
+            <div className="flex justify-center py-10">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+            </div>
           ) : sortedExpenses.length === 0 ? (
             <p className="text-secondary text-sm text-center py-10">Sin gastos en este período</p>
           ) : (
             <div className="flex flex-col gap-1 p-3 max-h-[480px] overflow-y-auto">
               {sortedExpenses.map((exp) => (
-                <div key={exp.id} className="group flex items-center justify-between px-4 py-3 bg-[var(--color-base)] hover:bg-[var(--color-base-alt)] rounded-md transition-colors">
+                <div
+                  key={exp.id}
+                  className="group flex items-center justify-between px-4 py-3 bg-[var(--color-base)] hover:bg-[var(--color-base-alt)] rounded-md transition-colors"
+                >
                   <div>
-                    <p className="text-sm font-medium text-[var(--text-primary)]">{toUpperCase(exp.description)}</p>
+                    <p className="text-sm font-medium text-[var(--text-primary)]">
+                      {toUpperCase(exp.description)}
+                    </p>
                     <p className="text-xs text-[var(--text-secondary)]">
                       {formatDateDMY(exp.date)}
-                      {exp.person ? ` · ${titleCase(exp.person)}` : ''}
-                      {exp.bank ? ` · ${titleCase(exp.bank)}` : ''}
+                      {exp.person ? ` · ${titleCase(exp.person)}` : ""}
+                      {exp.bank ? ` · ${titleCase(exp.bank)}` : ""}
                     </p>
                   </div>
-                  <span className={`text-sm font-semibold ml-4 whitespace-nowrap ${exp.amount < 0 ? 'text-success' : 'text-[var(--text-primary)]'}`}>
+                  <span
+                    className={`text-sm font-semibold ml-4 whitespace-nowrap ${
+                      exp.amount < 0 ? "text-success" : "text-[var(--text-primary)]"
+                    }`}
+                  >
                     {formatCurrency(exp.amount, exp.currency)}
                   </span>
                 </div>
@@ -414,5 +570,5 @@ export default function CategoryDashboard() {
         </div>
       )}
     </div>
-  )
+  );
 }

@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 import pandas as pd
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -12,9 +10,16 @@ from app.services.auth import get_current_user
 router = APIRouter(prefix="/card-closings", tags=["card-closings"])
 
 
-@router.get("", response_model=List[CardClosingResponse])
-def get_card_closings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return db.query(CardClosing).filter(CardClosing.user_id == current_user.id).order_by(CardClosing.closing_date.desc()).all()
+@router.get("", response_model=list[CardClosingResponse])
+def get_card_closings(
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    return (
+        db.query(CardClosing)
+        .filter(CardClosing.user_id == current_user.id)
+        .order_by(CardClosing.closing_date.desc())
+        .all()
+    )
 
 
 @router.post("", response_model=CardClosingResponse)
@@ -22,8 +27,8 @@ def create_card_closing(
     card: str,
     bank: str,
     closing_date: str,
-    next_closing_date: Optional[str] = None,
-    due_date: Optional[str] = None,
+    next_closing_date: str | None = None,
+    due_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -31,7 +36,9 @@ def create_card_closing(
         card=card,
         bank=bank,
         closing_date=pd.to_datetime(closing_date, dayfirst=True).date(),
-        next_closing_date=pd.to_datetime(next_closing_date, dayfirst=True).date() if next_closing_date else None,
+        next_closing_date=pd.to_datetime(next_closing_date, dayfirst=True).date()
+        if next_closing_date
+        else None,
         due_date=pd.to_datetime(due_date, dayfirst=True).date() if due_date else None,
         user_id=current_user.id,
     )

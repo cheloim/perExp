@@ -8,14 +8,21 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import User
-from app.schemas import LoginRequest, UserCreate, UserResponse, Token, ChangePasswordRequest, OAuthRequest
+from app.schemas import (
+    ChangePasswordRequest,
+    LoginRequest,
+    OAuthRequest,
+    Token,
+    UserCreate,
+    UserResponse,
+)
 from app.services.auth import (
     create_access_token,
+    exchange_google_code,
     get_current_user,
     get_password_hash,
-    verify_password,
     verify_google_token,
-    exchange_google_code,
+    verify_password,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -38,7 +45,9 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
 def register(body: UserCreate, db: Session = Depends(get_db)):
     email = body.email.lower().strip()
     if db.query(User).filter(User.email == email).first():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El email ya está registrado")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="El email ya está registrado"
+        )
     user = User(
         full_name=body.full_name,
         email=email,
@@ -48,6 +57,7 @@ def register(body: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
     from app.seed import _apply_base_hierarchy_for_user
+
     _apply_base_hierarchy_for_user(db, user.id)
     return Token(access_token=create_access_token(user.id), token_type="bearer")
 
@@ -67,17 +77,18 @@ async def oauth_login(body: OAuthRequest, db: Session = Depends(get_db)):
     if not email:
         raise HTTPException(status_code=400, detail="No se pudo obtener el email del proveedor")
 
-    user = db.query(User).filter(
-        User.provider == body.provider,
-        User.provider_id == provider_id
-    ).first()
+    user = (
+        db.query(User)
+        .filter(User.provider == body.provider, User.provider_id == provider_id)
+        .first()
+    )
 
     if not user:
         existing = db.query(User).filter(User.email == email).first()
         if existing and existing.provider:
             raise HTTPException(
                 status_code=409,
-                detail="Este email ya está vinculado a otra cuenta. Iniciá sesión con tu proveedor original."
+                detail="Este email ya está vinculado a otra cuenta. Iniciá sesión con tu proveedor original.",
             )
         if existing and not existing.provider:
             existing.provider = body.provider
@@ -100,6 +111,7 @@ async def oauth_login(body: OAuthRequest, db: Session = Depends(get_db)):
             db.commit()
             db.refresh(user)
             from app.seed import _apply_base_hierarchy_for_user
+
             _apply_base_hierarchy_for_user(db, user.id)
 
     if not user.is_active:
@@ -129,17 +141,18 @@ async def oauth_callback(
     if not email:
         raise HTTPException(status_code=400, detail="No se pudo obtener el email del proveedor")
 
-    user = db.query(User).filter(
-        User.provider == body.provider,
-        User.provider_id == provider_id
-    ).first()
+    user = (
+        db.query(User)
+        .filter(User.provider == body.provider, User.provider_id == provider_id)
+        .first()
+    )
 
     if not user:
         existing = db.query(User).filter(User.email == email).first()
         if existing and existing.provider:
             raise HTTPException(
                 status_code=409,
-                detail="Este email ya está vinculado a otra cuenta. Iniciá sesión con tu proveedor original."
+                detail="Este email ya está vinculado a otra cuenta. Iniciá sesión con tu proveedor original.",
             )
         if existing and not existing.provider:
             existing.provider = body.provider
@@ -162,6 +175,7 @@ async def oauth_callback(
             db.commit()
             db.refresh(user)
             from app.seed import _apply_base_hierarchy_for_user
+
             _apply_base_hierarchy_for_user(db, user.id)
 
     if not user.is_active:
@@ -182,7 +196,9 @@ def change_password(
     db: Session = Depends(get_db),
 ):
     if not verify_password(body.current_password, current_user.hashed_password):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Contraseña actual incorrecta")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Contraseña actual incorrecta"
+        )
     current_user.hashed_password = get_password_hash(body.new_password)
     db.commit()
 
@@ -193,7 +209,7 @@ class TelegramKeyResponse(BaseModel):
 
 def _generate_telegram_key() -> str:
     alphabet = string.ascii_letters + string.digits
-    return ''.join(secrets.choice(alphabet) for _ in range(12))
+    return "".join(secrets.choice(alphabet) for _ in range(12))
 
 
 @router.get("/me/telegram-key", response_model=TelegramKeyResponse)

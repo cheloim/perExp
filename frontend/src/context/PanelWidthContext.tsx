@@ -1,10 +1,10 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState } from "react";
 
 interface PanelWidthContextType {
-  panelWidth: number
-  isCollapsed: boolean
-  setPanelWidth: (w: number) => void
-  setIsCollapsed: (c: boolean) => void
+  panelWidth: number;
+  isCollapsed: boolean;
+  setPanelWidth: (w: number) => void;
+  setIsCollapsed: (c: boolean) => void;
 }
 
 const PanelWidthContext = createContext<PanelWidthContextType>({
@@ -12,19 +12,19 @@ const PanelWidthContext = createContext<PanelWidthContextType>({
   isCollapsed: false,
   setPanelWidth: () => {},
   setIsCollapsed: () => {},
-})
+});
 
 export function PanelWidthProvider({ children }: { children: React.ReactNode }) {
-  const [panelWidth, setPanelWidth] = useState(360)
-  const [isCollapsed, setIsCollapsed] = useState(true)
+  const [panelWidth, setPanelWidth] = useState(360);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   return (
     <PanelWidthContext.Provider value={{ panelWidth, isCollapsed, setPanelWidth, setIsCollapsed }}>
       {children}
     </PanelWidthContext.Provider>
-  )
+  );
 }
 
 export function usePanelWidth() {
-  return useContext(PanelWidthContext)
+  return useContext(PanelWidthContext);
 }

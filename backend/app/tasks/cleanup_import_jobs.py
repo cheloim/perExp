@@ -1,14 +1,15 @@
 """
 Cleanup expired import jobs (TTL: 24 hours)
 """
+
 import json
 from datetime import datetime, timedelta
 
 from app.database import SessionLocal
 
 _log = lambda msg: print(f"{datetime.now().isoformat()} {msg}")
-from app.models import ImportJob, Notification
 from app.celery_app import celery_app
+from app.models import ImportJob, Notification
 
 
 @celery_app.task(name="app.tasks.cleanup_import_jobs.cleanup_expired_import_jobs")
@@ -22,21 +23,21 @@ def cleanup_expired_import_jobs():
     try:
         cutoff = datetime.utcnow() - timedelta(hours=24)
 
-        expired = db.query(ImportJob).filter(
-            ImportJob.created_at < cutoff
-        ).all()
+        expired = db.query(ImportJob).filter(ImportJob.created_at < cutoff).all()
 
         count = 0
         for job in expired:
             # Eliminar notificación asociada (import_ready o import_failed)
-            notifications = db.query(Notification).filter(
-                Notification.type.in_(['import_ready', 'import_failed'])
-            ).all()
+            notifications = (
+                db.query(Notification)
+                .filter(Notification.type.in_(["import_ready", "import_failed"]))
+                .all()
+            )
 
             for notif in notifications:
                 try:
                     data = json.loads(notif.data)
-                    if data.get('job_id') == job.id:
+                    if data.get("job_id") == job.id:
                         db.delete(notif)
                 except Exception:
                     pass  # Ignorar errores de parseo JSON

@@ -1,7 +1,7 @@
 interface BulkSubmenuProps {
-  label: string
-  children: React.ReactNode
-  onClear?: () => void
+  label: string;
+  children: React.ReactNode;
+  onClear?: () => void;
 }
 
 export function BulkSubmenu({ label, children, onClear }: BulkSubmenuProps) {
@@ -21,5 +21,5 @@ export function BulkSubmenu({ label, children, onClear }: BulkSubmenuProps) {
         </>
       )}
     </div>
-  )
+  );
 }

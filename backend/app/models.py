@@ -1,8 +1,19 @@
+from datetime import datetime
+
 from sqlalchemy import (
-    Column, Integer, String, Float, Date, ForeignKey, Text, DateTime, Boolean, LargeBinary,
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    LargeBinary,
+    String,
+    Text,
 )
 from sqlalchemy.orm import relationship
-from datetime import datetime
+
 from app.database import Base
 
 
@@ -83,7 +94,9 @@ class Account(Base):
     __tablename__ = "accounts"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    type = Column(String, default="efectivo")  # efectivo, cuenta_corriente, caja_ahorro, mercadopago, etc
+    type = Column(
+        String, default="efectivo"
+    )  # efectivo, cuenta_corriente, caja_ahorro, mercadopago, etc
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -93,7 +106,9 @@ class Card(Base):
     id = Column(Integer, primary_key=True, index=True)
     card_name = Column(String, nullable=False)  # Visa, Mastercard, etc
     bank = Column(String, default="")
-    holder = Column(String, default="")  # Primer nombre del usuario (para agrupar en grupo familiar)
+    holder = Column(
+        String, default=""
+    )  # Primer nombre del usuario (para agrupar en grupo familiar)
     card_type = Column(String, default="credito")  # credito, debito
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)

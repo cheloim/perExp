@@ -1,7 +1,6 @@
 import json
 import secrets
 import string
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -18,7 +17,7 @@ MAX_MEMBERS = 5
 
 def _generate_invite_code() -> str:
     alphabet = string.ascii_letters + string.digits
-    return ''.join(secrets.choice(alphabet) for _ in range(8))
+    return "".join(secrets.choice(alphabet) for _ in range(8))
 
 
 class InviteRequest(BaseModel):
@@ -72,21 +71,27 @@ def get_my_group(current_user: User = Depends(get_current_user), db: Session = D
         return None
     group = db.query(Group).filter(Group.id == membership.group_id).first()
     members = []
-    for m in db.query(GroupMember).filter(
-        GroupMember.group_id == group.id,
-        GroupMember.status.in_(["accepted", "pending"]),
-    ).all():
+    for m in (
+        db.query(GroupMember)
+        .filter(
+            GroupMember.group_id == group.id,
+            GroupMember.status.in_(["accepted", "pending"]),
+        )
+        .all()
+    ):
         u = db.query(User).filter(User.id == m.user_id).first()
         if u:
-            members.append(GroupMemberResponse(
-                id=m.id,
-                user_id=m.user_id,
-                full_name=u.full_name,
-                email=u.email,
-                role=m.role,
-                status=m.status,
-                joined_at=m.joined_at.isoformat() if m.joined_at else "",
-            ))
+            members.append(
+                GroupMemberResponse(
+                    id=m.id,
+                    user_id=m.user_id,
+                    full_name=u.full_name,
+                    email=u.email,
+                    role=m.role,
+                    status=m.status,
+                    joined_at=m.joined_at.isoformat() if m.joined_at else "",
+                )
+            )
     return FamilyGroupResponse(id=group.id, name=group.name, members=members)
 
 
@@ -127,12 +132,14 @@ def invite_user(
         group = Group(name="Grupo Familiar", created_by=current_user.id)
         db.add(group)
         db.flush()
-        db.add(GroupMember(
-            group_id=group.id,
-            user_id=current_user.id,
-            role="admin",
-            status="accepted",
-        ))
+        db.add(
+            GroupMember(
+                group_id=group.id,
+                user_id=current_user.id,
+                role="admin",
+                status="accepted",
+            )
+        )
 
     member = GroupMember(
         group_id=group.id,
@@ -149,12 +156,14 @@ def invite_user(
         type="group_invitation",
         title="Invitación a grupo familiar",
         body=f"{current_user.full_name} te invita a compartir gastos en grupo familiar",
-        data=json.dumps({
-            "group_id": group.id,
-            "inviter_id": current_user.id,
-            "inviter_name": current_user.full_name,
-            "member_id": member.id,
-        }),
+        data=json.dumps(
+            {
+                "group_id": group.id,
+                "inviter_id": current_user.id,
+                "inviter_name": current_user.full_name,
+                "member_id": member.id,
+            }
+        ),
     )
     db.add(notif)
     db.commit()

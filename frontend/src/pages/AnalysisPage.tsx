@@ -1,65 +1,65 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getAnalysisHistory, deleteAnalysisHistory } from '../api/client'
-import type { AnalysisHistory } from '../types'
-import { ConfirmDialog } from '../components/ConfirmDialog'
-import { formatAIResponse } from '../utils/formatText'
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getAnalysisHistory, deleteAnalysisHistory } from "../api/client";
+import type { AnalysisHistory } from "../types";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import { formatAIResponse } from "../utils/formatText";
 
-const SAVED_QUERIES_KEY = 'analysis_saved_queries'
-const MAX_SAVED = 20
+const SAVED_QUERIES_KEY = "analysis_saved_queries";
+const MAX_SAVED = 20;
 
 function loadSavedQueries(): string[] {
   try {
-    return JSON.parse(localStorage.getItem(SAVED_QUERIES_KEY) ?? '[]')
+    return JSON.parse(localStorage.getItem(SAVED_QUERIES_KEY) ?? "[]");
   } catch {
-    return []
+    return [];
   }
 }
 
 function saveQuery(question: string) {
-  if (!question.trim()) return
-  const existing = loadSavedQueries().filter((q) => q !== question)
-  const updated = [question, ...existing].slice(0, MAX_SAVED)
-  localStorage.setItem(SAVED_QUERIES_KEY, JSON.stringify(updated))
+  if (!question.trim()) return;
+  const existing = loadSavedQueries().filter((q) => q !== question);
+  const updated = [question, ...existing].slice(0, MAX_SAVED);
+  localStorage.setItem(SAVED_QUERIES_KEY, JSON.stringify(updated));
 }
 
 function removeQuery(question: string) {
-  const updated = loadSavedQueries().filter((q) => q !== question)
-  localStorage.setItem(SAVED_QUERIES_KEY, JSON.stringify(updated))
+  const updated = loadSavedQueries().filter((q) => q !== question);
+  localStorage.setItem(SAVED_QUERIES_KEY, JSON.stringify(updated));
 }
 
 function formatARS(amount: number) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
     minimumFractionDigits: 0,
-  }).format(amount)
+  }).format(amount);
 }
 
 function formatDate(iso: string) {
-  if (!iso) return ''
+  if (!iso) return "";
   if (iso.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    const [y, m, d] = iso.split('-')
-    return `${d}-${m}-${y}`
+    const [y, m, d] = iso.split("-");
+    return `${d}-${m}-${y}`;
   }
-  return new Date(iso).toLocaleDateString('es-AR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return new Date(iso).toLocaleDateString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function HistorySection({ onDelete }: { onDelete: (id: number) => void }) {
-  const [expanded, setExpanded] = useState<number | null>(null)
+  const [expanded, setExpanded] = useState<number | null>(null);
 
   const { data: history = [] } = useQuery({
-    queryKey: ['analysis-history'],
+    queryKey: ["analysis-history"],
     queryFn: getAnalysisHistory,
-  })
+  });
 
-  if (history.length === 0) return null
+  if (history.length === 0) return null;
 
   return (
     <div className="space-y-3">
@@ -91,14 +91,14 @@ function HistorySection({ onDelete }: { onDelete: (id: number) => void }) {
             <div className="flex items-center gap-3 ml-3 flex-shrink-0">
               <button
                 onClick={(e) => {
-                  e.stopPropagation()
-                  onDelete(h.id)
+                  e.stopPropagation();
+                  onDelete(h.id);
                 }}
                 className="text-secondary hover:text-danger text-base leading-none"
               >
                 ✕
               </button>
-              <span className="text-tertiary text-xs">{expanded === h.id ? '▲' : '▼'}</span>
+              <span className="text-tertiary text-xs">{expanded === h.id ? "▲" : "▼"}</span>
             </div>
           </div>
           {expanded === h.id && (
@@ -109,79 +109,79 @@ function HistorySection({ onDelete }: { onDelete: (id: number) => void }) {
         </div>
       ))}
     </div>
-  )
+  );
 }
 
 export default function AnalysisPage() {
-  const qc = useQueryClient()
-  const [month, setMonth] = useState('')
-  const [question, setQuestion] = useState('')
-  const [streaming, setStreaming] = useState(false)
-  const [output, setOutput] = useState('')
-  const [error, setError] = useState('')
-  const [savedQueries, setSavedQueries] = useState<string[]>(loadSavedQueries)
-  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
-  const outputRef = useRef<HTMLDivElement>(null)
+  const qc = useQueryClient();
+  const [month, setMonth] = useState("");
+  const [question, setQuestion] = useState("");
+  const [streaming, setStreaming] = useState(false);
+  const [output, setOutput] = useState("");
+  const [error, setError] = useState("");
+  const [savedQueries, setSavedQueries] = useState<string[]>(loadSavedQueries);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const outputRef = useRef<HTMLDivElement>(null);
 
-  const refreshSaved = useCallback(() => setSavedQueries(loadSavedQueries()), [])
+  const refreshSaved = useCallback(() => setSavedQueries(loadSavedQueries()), []);
 
-const deleteMut = useMutation({
+  const deleteMut = useMutation({
     mutationFn: deleteAnalysisHistory,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['analysis-history'] }),
-  })
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["analysis-history"] }),
+  });
 
   useEffect(() => {
     if (outputRef.current) {
-      outputRef.current.scrollTop = outputRef.current.scrollHeight
+      outputRef.current.scrollTop = outputRef.current.scrollHeight;
     }
-  }, [output])
+  }, [output]);
 
   const handleAnalyze = async () => {
-    setOutput('')
-    setError('')
-    setStreaming(true)
+    setOutput("");
+    setError("");
+    setStreaming(true);
 
     try {
-      const response = await fetch('/api/analysis/stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/analysis/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           month: month || null,
           question: question || null,
         }),
-      })
+      });
 
       if (!response.ok) {
-        throw new Error(`Error ${response.status}`)
+        throw new Error(`Error ${response.status}`);
       }
 
-      const reader = response.body!.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
 
       while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
+        const { done, value } = await reader.read();
+        if (done) break;
 
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() ?? ''
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
 
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const raw = line.slice(6).trim()
-            if (raw === '[DONE]') {
-              setStreaming(false)
-              qc.invalidateQueries({ queryKey: ['analysis-history'] })
+          if (line.startsWith("data: ")) {
+            const raw = line.slice(6).trim();
+            if (raw === "[DONE]") {
+              setStreaming(false);
+              qc.invalidateQueries({ queryKey: ["analysis-history"] });
               if (question.trim()) {
-                saveQuery(question.trim())
-                refreshSaved()
+                saveQuery(question.trim());
+                refreshSaved();
               }
-              return
+              return;
             }
             try {
-              const { text } = JSON.parse(raw) as { text: string }
-              if (text) setOutput((prev) => prev + text)
+              const { text } = JSON.parse(raw) as { text: string };
+              if (text) setOutput((prev) => prev + text);
             } catch {
               // skip malformed
             }
@@ -189,11 +189,11 @@ const deleteMut = useMutation({
         }
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error desconocido')
+      setError(e instanceof Error ? e.message : "Error desconocido");
     } finally {
-      setStreaming(false)
+      setStreaming(false);
     }
-  }
+  };
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -205,18 +205,14 @@ const deleteMut = useMutation({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-secondary mb-1">
-              Mes a analizar
-            </label>
+            <label className="block text-sm font-medium text-secondary mb-1">Mes a analizar</label>
             <input
               type="month"
               value={month}
               onChange={(e) => setMonth(e.target.value)}
               className="w-full input"
             />
-            <p className="text-xs text-tertiary mt-1">
-              Dejá vacío para analizar todos los gastos
-            </p>
+            <p className="text-xs text-tertiary mt-1">Dejá vacío para analizar todos los gastos</p>
           </div>
 
           <div>
@@ -246,9 +242,9 @@ const deleteMut = useMutation({
                   <span className="truncate max-w-[260px]">{q}</span>
                   <button
                     onClick={(e) => {
-                      e.stopPropagation()
-                      removeQuery(q)
-                      refreshSaved()
+                      e.stopPropagation();
+                      removeQuery(q);
+                      refreshSaved();
                     }}
                     className="ml-1 text-tertiary hover:text-danger leading-none opacity-0 group-hover:opacity-100 transition-opacity"
                   >
@@ -271,16 +267,12 @@ const deleteMut = useMutation({
               Analizando...
             </span>
           ) : (
-            '✨ Analizar mis gastos'
+            "✨ Analizar mis gastos"
           )}
         </button>
       </div>
 
-      {error && (
-        <div className="alert-danger rounded-lg p-4 text-sm">
-          {error}
-        </div>
-      )}
+      {error && <div className="alert-danger rounded-lg p-4 text-sm">{error}</div>}
 
       {(output || streaming) && (
         <div className="card">
@@ -313,12 +305,12 @@ const deleteMut = useMutation({
           message="¿Estás seguro de eliminar este análisis del historial? Esta acción no se puede deshacer."
           confirmLabel="Eliminar"
           onConfirm={() => {
-            deleteMut.mutate(deleteConfirmId)
-            setDeleteConfirmId(null)
+            deleteMut.mutate(deleteConfirmId);
+            setDeleteConfirmId(null);
           }}
           onCancel={() => setDeleteConfirmId(null)}
         />
       )}
     </div>
-  )
+  );
 }

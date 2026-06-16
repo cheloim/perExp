@@ -1,7 +1,7 @@
 import re
-from typing import Optional
-from sqlalchemy.orm import Session
+
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 BANK_NORM_MAP: dict[str, str] = {
     "santander río": "Santander",
@@ -33,12 +33,13 @@ def normalize_bank(name: str) -> str:
     key = raw.lower()
     if key in BANK_NORM_MAP:
         return BANK_NORM_MAP[key]
-    cleaned = re.sub(r'(?i)^banco\s+', '', raw).strip()
+    cleaned = re.sub(r"(?i)^banco\s+", "", raw).strip()
     return cleaned.title() if cleaned else "Banco"
 
 
 def _normalize_person(person: str, db: Session) -> str:
     from app.models import Expense
+
     val = person.strip()
     if not val:
         return val
@@ -50,7 +51,8 @@ def _normalize_person(person: str, db: Session) -> str:
         .all()
     )
     candidates = [
-        (r.person, r.cnt) for r in rows
+        (r.person, r.cnt)
+        for r in rows
         if r.person.lower().startswith(val_lower) and len(r.person) > len(val)
     ]
     if not candidates:
@@ -60,8 +62,8 @@ def _normalize_person(person: str, db: Session) -> str:
 
 def _norm_holder(name: str) -> str:
     name = (name or "").strip().upper()
-    name = re.sub(r',\s*', ', ', name)
-    name = re.sub(r'\s+', ' ', name)
+    name = re.sub(r",\s*", ", ", name)
+    name = re.sub(r"\s+", " ", name)
     return name
 
 

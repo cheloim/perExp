@@ -17,9 +17,6 @@ from fastapi.middleware.cors import CORSMiddleware
 import app.models  # noqa: F401 — runs migrations on import
 from app.database import SessionLocal
 from app.models import Category, User
-from app.scheduler import price_refresh_loop
-from app.seed import _apply_base_hierarchy
-from app.services.auth import get_password_hash
 from app.routers import (
     accounts,
     analysis,
@@ -36,6 +33,9 @@ from app.routers import (
     notifications,
     scheduled_expenses,
 )
+from app.scheduler import price_refresh_loop
+from app.seed import _apply_base_hierarchy
+from app.services.auth import get_password_hash
 
 
 @asynccontextmanager

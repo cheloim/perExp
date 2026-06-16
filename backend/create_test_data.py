@@ -3,9 +3,11 @@
 Create test data for income verification
 """
 from datetime import date
-from app.database import SessionLocal
-from app.models import User, Account, Expense, Category
+
 from passlib.context import CryptContext
+
+from app.database import SessionLocal
+from app.models import Account, Category, Expense, User
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

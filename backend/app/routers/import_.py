@@ -1,37 +1,37 @@
-import json
 import os
 import re
 from datetime import date, datetime
-from typing import Optional
 
 _log = lambda msg: print(f"{datetime.now().isoformat()} {msg}")
 
 import pandas as pd
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from google import genai
-from google.genai import types as genai_types
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Card, Category, Expense, User
-from app.services.auth import get_current_user
-from app.prompts import SMART_IMPORT_PROMPT
 from app.schemas import RowsConfirmBody
-from app.services.categorization import _resolve_category, _should_skip
+from app.services.auth import get_current_user
+from app.services.categorization import _resolve_category, _should_skip, auto_categorize
 from app.services.date_utils import _normalize_date_str
 from app.services.import_utils import (
     _detect_col,
-    _expand_installments,
     _is_duplicate,
     _load_dataframe,
-    _normalize_persons_llm,
     _normalize_text,
-    _title_case,
 )
-from app.services.normalizers import normalize_bank, _normalize_person, first_card_word, title_case_single
-from app.services.pdf import _extract_pdf_text, _inject_card_markers, _inject_csv_card_markers, _normalize_santander_dates
-from app.services.categorization import auto_categorize
-
+from app.services.normalizers import (
+    first_card_word,
+    normalize_bank,
+    title_case_single,
+)
+from app.services.pdf import (
+    _extract_pdf_text,
+    _inject_card_markers,
+    _inject_csv_card_markers,
+    _normalize_santander_dates,
+)
 
 router = APIRouter(prefix="/import", tags=["import"])
 
@@ -39,12 +39,12 @@ router = APIRouter(prefix="/import", tags=["import"])
 @router.post("/preview")
 async def preview_import(
     file: UploadFile = File(...),
-    date_col: Optional[str] = None,
-    desc_col: Optional[str] = None,
-    amount_col: Optional[str] = None,
-    card_col: Optional[str] = None,
-    bank_col: Optional[str] = None,
-    person_col: Optional[str] = None,
+    date_col: str | None = None,
+    desc_col: str | None = None,
+    amount_col: str | None = None,
+    card_col: str | None = None,
+    bank_col: str | None = None,
+    person_col: str | None = None,
     db: Session = Depends(get_db),
 ):
     content = await file.read()
@@ -54,11 +54,15 @@ async def preview_import(
         raise HTTPException(400, f"Error al leer el archivo: {e}")
 
     cols = list(df.columns)
-    auto_date   = date_col   or _detect_col(cols, ["fecha", "date", "dia", "day"])
-    auto_desc   = desc_col   or _detect_col(cols, ["desc", "concepto", "detalle", "comercio", "nombre", "detail"])
-    auto_amount = amount_col or _detect_col(cols, ["monto", "importe", "amount", "total", "valor", "pesos"])
-    auto_card   = card_col   or ""
-    auto_bank   = bank_col   or ""
+    auto_date = date_col or _detect_col(cols, ["fecha", "date", "dia", "day"])
+    auto_desc = desc_col or _detect_col(
+        cols, ["desc", "concepto", "detalle", "comercio", "nombre", "detail"]
+    )
+    auto_amount = amount_col or _detect_col(
+        cols, ["monto", "importe", "amount", "total", "valor", "pesos"]
+    )
+    auto_card = card_col or ""
+    auto_bank = bank_col or ""
     auto_person = person_col or ""
 
     cats = db.query(Category).all()
@@ -85,13 +89,15 @@ async def preview_import(
         except Exception:
             row_date = None
 
-        rows.append({
-            "date": str(row.get(auto_date, "")).strip(),
-            "description": desc,
-            "amount": amount,
-            "suggested_category": cat_name,
-            "is_duplicate": _is_duplicate(db, row_date, amount, desc) if row_date else False,
-        })
+        rows.append(
+            {
+                "date": str(row.get(auto_date, "")).strip(),
+                "description": desc,
+                "amount": amount,
+                "suggested_category": cat_name,
+                "is_duplicate": _is_duplicate(db, row_date, amount, desc) if row_date else False,
+            }
+        )
 
     return {
         "columns": cols,
@@ -111,9 +117,9 @@ async def confirm_import(
     date_col: str = "",
     desc_col: str = "",
     amount_col: str = "",
-    card_col: Optional[str] = None,
-    bank_col: Optional[str] = None,
-    person_col: Optional[str] = None,
+    card_col: str | None = None,
+    bank_col: str | None = None,
+    person_col: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -132,7 +138,7 @@ async def confirm_import(
             raw_date = str(row.get(date_col, "")).strip()
             try:
                 normalized = _normalize_date_str(raw_date)
-                if re.match(r'^\d{4}-\d{2}-\d{2}$', normalized):
+                if re.match(r"^\d{4}-\d{2}-\d{2}$", normalized):
                     parsed_date = date.fromisoformat(normalized)
                 else:
                     parsed_date = pd.to_datetime(normalized, dayfirst=True).date()
@@ -160,21 +166,23 @@ async def confirm_import(
                 skipped += 1
                 continue
 
-            card   = _normalize_text(str(row.get(card_col,   ""))) if card_col   else ""
-            bank   = _normalize_text(str(row.get(bank_col,   ""))) if bank_col   else ""
+            card = _normalize_text(str(row.get(card_col, ""))) if card_col else ""
+            bank = _normalize_text(str(row.get(bank_col, ""))) if bank_col else ""
             person = _normalize_text(str(row.get(person_col, ""))) if person_col else ""
 
             category_id = _resolve_category(db, amount, description, cats)
-            db.add(Expense(
-                date=parsed_date,
-                description=_normalize_text(description),
-                amount=amount,
-                category_id=category_id,
-                card=card,
-                bank=bank,
-                person=person,
-                user_id=current_user.id,
-            ))
+            db.add(
+                Expense(
+                    date=parsed_date,
+                    description=_normalize_text(description),
+                    amount=amount,
+                    category_id=category_id,
+                    card=card,
+                    bank=bank,
+                    person=person,
+                    user_id=current_user.id,
+                )
+            )
             imported += 1
         except Exception:
             skipped += 1
@@ -193,7 +201,7 @@ async def pdf_debug(file: UploadFile = File(...)):
         candidate_lines = [
             {"i": i, "line": repr(l)}
             for i, l in enumerate(lines)
-            if (re.search(r'\d[\d\-]{4,}\d', l) or 'arjeta' in l or 'uenta' in l or 'socio' in l)
+            if (re.search(r"\d[\d\-]{4,}\d", l) or "arjeta" in l or "uenta" in l or "socio" in l)
             and len(l.strip()) < 200
         ]
         injected = _inject_card_markers(raw).splitlines()
@@ -233,12 +241,22 @@ async def csv_debug(file: UploadFile = File(...)):
 
 
 @router.post("/csv-parser-debug")
-async def csv_parser_debug(file: UploadFile = File(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    from app.services.csv_parser import (
-        _csv_split, _parse_amount, _parse_date, _parse_installments,
-        _extract_card_from_text, _extract_person_from_text, _load_dataframe,
-    )
+async def csv_parser_debug(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     import re
+
+    from app.services.csv_parser import (
+        _csv_split,
+        _extract_card_from_text,
+        _extract_person_from_text,
+        _load_dataframe,
+        _parse_amount,
+        _parse_date,
+    )
+
     content = await file.read()
     filename = (file.filename or "").lower()
     try:
@@ -278,11 +296,13 @@ async def csv_parser_debug(file: UploadFile = File(...), db: Session = Depends(g
         skipped_reasons = {"no_header": 0, "no_desc": 0, "no_amount": 0, "ok": 0}
 
         if header_idx is None:
-            return {"error": "No se encontró la fila de encabezado con 'Fecha' y 'Descripción'.", "header_col_idx": {}}
+            return {
+                "error": "No se encontró la fila de encabezado con 'Fecha' y 'Descripción'.",
+                "header_col_idx": {},
+            }
 
         current_last4 = None
         current_person = None
-        previous_date = None
 
         for i in range(header_idx + 1, len(lines)):
             line = lines[i].strip()
@@ -298,15 +318,23 @@ async def csv_parser_debug(file: UploadFile = File(...), db: Session = Depends(g
                 current_person = person
 
             date_idx = header_col_idx.get("date")
-            date_raw = parts[date_idx].strip() if date_idx is not None and date_idx < len(parts) else ""
+            date_raw = (
+                parts[date_idx].strip() if date_idx is not None and date_idx < len(parts) else ""
+            )
             date_obj = _parse_date(date_raw)
 
             desc_idx = header_col_idx.get("desc")
-            desc_raw = parts[desc_idx].strip() if desc_idx is not None and desc_idx < len(parts) else ""
+            desc_raw = (
+                parts[desc_idx].strip() if desc_idx is not None and desc_idx < len(parts) else ""
+            )
 
             if date_obj is None:
                 comp_idx = header_col_idx.get("comprob")
-                comp_raw = parts[comp_idx].strip() if comp_idx is not None and comp_idx < len(parts) else ""
+                comp_raw = (
+                    parts[comp_idx].strip()
+                    if comp_idx is not None and comp_idx < len(parts)
+                    else ""
+                )
                 if not (re.match(r"^\d{4,}$", comp_raw) and desc_raw):
                     skipped_reasons["no_header"] += 1
                     continue
@@ -317,8 +345,14 @@ async def csv_parser_debug(file: UploadFile = File(...), db: Session = Depends(g
 
             pesos_idx = header_col_idx.get("pesos")
             dolares_idx = header_col_idx.get("dolares")
-            pesos_raw = parts[pesos_idx].strip() if pesos_idx is not None and pesos_idx < len(parts) else ""
-            dolares_raw = parts[dolares_idx].strip() if dolares_idx is not None and dolares_idx < len(parts) else ""
+            pesos_raw = (
+                parts[pesos_idx].strip() if pesos_idx is not None and pesos_idx < len(parts) else ""
+            )
+            dolares_raw = (
+                parts[dolares_idx].strip()
+                if dolares_idx is not None and dolares_idx < len(parts)
+                else ""
+            )
 
             amount = None
             if dolares_raw and dolares_raw not in ("", "-"):
@@ -327,16 +361,18 @@ async def csv_parser_debug(file: UploadFile = File(...), db: Session = Depends(g
                 amount = _parse_amount(pesos_raw)
 
             if len(sample_rows) < 20:
-                sample_rows.append({
-                    "line_idx": i,
-                    "date_raw": date_raw,
-                    "desc_raw": desc_raw,
-                    "pesos_raw": pesos_raw,
-                    "dolares_raw": dolares_raw,
-                    "amount_parsed": amount,
-                    "card_last4": current_last4,
-                    "person": current_person,
-                })
+                sample_rows.append(
+                    {
+                        "line_idx": i,
+                        "date_raw": date_raw,
+                        "desc_raw": desc_raw,
+                        "pesos_raw": pesos_raw,
+                        "dolares_raw": dolares_raw,
+                        "amount_parsed": amount,
+                        "card_last4": current_last4,
+                        "person": current_person,
+                    }
+                )
 
             if amount is None or amount == 0:
                 skipped_reasons["no_amount"] += 1
@@ -356,12 +392,17 @@ async def csv_parser_debug(file: UploadFile = File(...), db: Session = Depends(g
         }
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         raise HTTPException(400, str(e))
 
 
 @router.post("/smart")
-async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def smart_import(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """
     Smart import endpoint (synchronous, legacy).
     New async import is available at POST /import-jobs.
@@ -373,10 +414,7 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
 
     try:
         result = await run_smart_import(
-            file_content=content,
-            filename=filename,
-            db=db,
-            user_id=current_user.id
+            file_content=content, filename=filename, db=db, user_id=current_user.id
         )
         return result
     except ValueError as e:
@@ -384,25 +422,31 @@ async def smart_import(file: UploadFile = File(...), db: Session = Depends(get_d
         error_msg = str(e)
         if "LLM_API_KEY" in error_msg:
             raise HTTPException(500, error_msg)
-        elif "Formato no soportado" in error_msg or "no pudo leer" in error_msg:
+        elif (
+            "Formato no soportado" in error_msg
+            or "no pudo leer" in error_msg
+            or "no pudo extraer" in error_msg
+        ):
             raise HTTPException(400, error_msg)
-        elif "no pudo extraer" in error_msg:
-            raise HTTPException(400, error_msg)
-        elif "no pudo parsear" in error_msg:
-            raise HTTPException(422, error_msg)
-        elif "No se encontraron transacciones" in error_msg:
+        elif "no pudo parsear" in error_msg or "No se encontraron transacciones" in error_msg:
             raise HTTPException(422, error_msg)
         else:
             raise HTTPException(500, f"Error: {error_msg}")
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         raise HTTPException(500, f"Error interno: {type(e).__name__}: {e}")
 
 
 @router.post("/rows-confirm")
-def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def rows_confirm_import(
+    body: RowsConfirmBody,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     from app.models import ScheduledExpense
+
     cats = db.query(Category).all()
     user_cards = db.query(Card).filter(Card.user_id == current_user.id).all()
     imported = 0
@@ -415,19 +459,29 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
     def get_card_key(bank: str, card: str, holder: str) -> str:
         return f"{bank}|{card}|{holder}"
 
-    def find_or_create_card(bank: str, card: str, holder: str, card_type: str = "credito") -> tuple[Card, bool]:
+    def find_or_create_card(
+        bank: str, card: str, holder: str, card_type: str = "credito"
+    ) -> tuple[Card, bool]:
         norm_bank = normalize_bank(bank)
         norm_card = first_card_word(card)
         norm_holder = title_case_single(holder)
 
-        _log(f"[FIND_OR_CREATE_CARD] bank={norm_bank}, card={norm_card}, holder={norm_holder}, card_type={card_type}")
-        _log(f"[FIND_OR_CREATE_CARD] user_cards count={len(user_cards)}, names: {[c.card_name for c in user_cards]}")
+        _log(
+            f"[FIND_OR_CREATE_CARD] bank={norm_bank}, card={norm_card}, holder={norm_holder}, card_type={card_type}"
+        )
+        _log(
+            f"[FIND_OR_CREATE_CARD] user_cards count={len(user_cards)}, names: {[c.card_name for c in user_cards]}"
+        )
 
         existing = next(
-            (c for c in user_cards
-             if c.card_name.lower() == norm_card.lower()
-             and c.bank.lower() == norm_bank.lower()
-             and c.holder.lower() == norm_holder.lower()), None
+            (
+                c
+                for c in user_cards
+                if c.card_name.lower() == norm_card.lower()
+                and c.bank.lower() == norm_bank.lower()
+                and c.holder.lower() == norm_holder.lower()
+            ),
+            None,
         )
         if existing:
             _log(f"[FIND_OR_CREATE_CARD] Found existing card: {existing.card_name}")
@@ -447,7 +501,9 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
         db.add(new_card)
         db.flush()
         user_cards.append(new_card)
-        _log(f"[FIND_OR_CREATE_CARD] Created new card: card_name={norm_card}, bank={norm_bank}, holder={norm_holder}")
+        _log(
+            f"[FIND_OR_CREATE_CARD] Created new card: card_name={norm_card}, bank={norm_bank}, holder={norm_holder}"
+        )
         return new_card, True
 
     for r in body.rows:
@@ -464,7 +520,7 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
         try:
             raw_date = str(r.get("date", "")).strip()
             normalized = _normalize_date_str(raw_date)
-            if re.match(r'^\d{4}-\d{2}-\d{2}$', normalized):
+            if re.match(r"^\d{4}-\d{2}-\d{2}$", normalized):
                 parsed_date = date.fromisoformat(normalized)
             else:
                 parsed_date = pd.to_datetime(normalized, dayfirst=True).date()
@@ -501,30 +557,44 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
         card_key = get_card_key(norm_bank, norm_card, norm_person)
         mapping_entry = cards_mapping.get(card_key, {})
         # Override bank/card if provided in mapping
-        final_bank = mapping_entry.get("bank") if isinstance(mapping_entry, dict) and mapping_entry.get("bank") else norm_bank
-        final_card = mapping_entry.get("card_name") if isinstance(mapping_entry, dict) and mapping_entry.get("card_name") else norm_card
-        card_type = cards_mapping.get(f"_card_type_{norm_bank}_{norm_card}", "credito") if isinstance(cards_mapping.get(f"_card_type_{norm_bank}_{norm_card}"), str) else "credito"
+        final_bank = (
+            mapping_entry.get("bank")
+            if isinstance(mapping_entry, dict) and mapping_entry.get("bank")
+            else norm_bank
+        )
+        final_card = (
+            mapping_entry.get("card_name")
+            if isinstance(mapping_entry, dict) and mapping_entry.get("card_name")
+            else norm_card
+        )
+        card_type = (
+            cards_mapping.get(f"_card_type_{norm_bank}_{norm_card}", "credito")
+            if isinstance(cards_mapping.get(f"_card_type_{norm_bank}_{norm_card}"), str)
+            else "credito"
+        )
 
         is_scheduled = r.get("is_scheduled", False)
 
         if is_scheduled:
             try:
-                db.add(ScheduledExpense(
-                    scheduled_date=parsed_date,
-                    description=_normalize_text(desc),
-                    amount=amount,
-                    currency=currency,
-                    category_id=category_id,
-                    card=final_card,
-                    bank=final_bank,
-                    person=norm_person,
-                    transaction_id=txn_id,
-                    installment_number=inst_num,
-                    installment_total=inst_total,
-                    installment_group_id=str(r.get("installment_group_id") or "") or None,
-                    status="PENDING",
-                    user_id=current_user.id,
-                ))
+                db.add(
+                    ScheduledExpense(
+                        scheduled_date=parsed_date,
+                        description=_normalize_text(desc),
+                        amount=amount,
+                        currency=currency,
+                        category_id=category_id,
+                        card=final_card,
+                        bank=final_bank,
+                        person=norm_person,
+                        transaction_id=txn_id,
+                        installment_number=inst_num,
+                        installment_total=inst_total,
+                        installment_group_id=str(r.get("installment_group_id") or "") or None,
+                        status="PENDING",
+                        user_id=current_user.id,
+                    )
+                )
                 scheduled_count += 1
             except Exception:
                 skipped += 1
@@ -532,22 +602,24 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
             card_obj, _ = find_or_create_card(final_bank, row_card, norm_person, card_type)
 
             try:
-                db.add(Expense(
-                    date=parsed_date,
-                    description=_normalize_text(desc),
-                    amount=amount,
-                    currency=currency,
-                    category_id=category_id,
-                    card=final_card,
-                    bank=final_bank,
-                    person=norm_person,
-                    transaction_id=txn_id,
-                    installment_number=inst_num,
-                    installment_total=inst_total,
-                    installment_group_id=str(r.get("installment_group_id") or "") or None,
-                    user_id=current_user.id,
-                    card_id=card_obj.id,
-                ))
+                db.add(
+                    Expense(
+                        date=parsed_date,
+                        description=_normalize_text(desc),
+                        amount=amount,
+                        currency=currency,
+                        category_id=category_id,
+                        card=final_card,
+                        bank=final_bank,
+                        person=norm_person,
+                        transaction_id=txn_id,
+                        installment_number=inst_num,
+                        installment_total=inst_total,
+                        installment_group_id=str(r.get("installment_group_id") or "") or None,
+                        user_id=current_user.id,
+                        card_id=card_obj.id,
+                    )
+                )
 
                 imported += 1
             except Exception:

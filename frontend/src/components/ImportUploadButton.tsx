@@ -1,47 +1,47 @@
-import { useRef } from 'react'
-import { createImportJob } from '../api/client'
-import { sidebarIcons } from './SidebarIcons'
-import { useUploadProgress } from '../context/UploadProgressContext'
+import { useRef } from "react";
+import { createImportJob } from "../api/client";
+import { sidebarIcons } from "./SidebarIcons";
+import { useUploadProgress } from "../context/UploadProgressContext";
 
 export default function ImportUploadButton() {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const { addUpload, updateUpload } = useUploadProgress()
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { addUpload, updateUpload } = useUploadProgress();
 
   const handleClick = () => {
-    inputRef.current?.click()
-  }
+    inputRef.current?.click();
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files || files.length === 0) return
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
     // Procesar archivos uno por uno
     for (const file of Array.from(files)) {
-      const uploadId = addUpload(file.name)
-      const abortController = new AbortController()
+      const uploadId = addUpload(file.name);
+      const abortController = new AbortController();
 
       // Store abort controller in upload state
-      updateUpload(uploadId, { abortController })
+      updateUpload(uploadId, { abortController });
 
       try {
         // Pass abort signal to createImportJob
-        const job = await createImportJob(file, abortController.signal)
+        const job = await createImportJob(file, abortController.signal);
         // Actualizar a processing (el backend ya tiene el job)
-        updateUpload(uploadId, { status: 'processing', jobId: job.id })
+        updateUpload(uploadId, { status: "processing", jobId: job.id });
       } catch (error: any) {
         // Handle abort error
-        if (error.name === 'AbortError' || error.name === 'CanceledError') {
-          updateUpload(uploadId, { status: 'failed', error: 'Cancelado' })
+        if (error.name === "AbortError" || error.name === "CanceledError") {
+          updateUpload(uploadId, { status: "failed", error: "Cancelado" });
         } else {
           // Marcar como fallido
-          updateUpload(uploadId, { status: 'failed', error: error.message })
+          updateUpload(uploadId, { status: "failed", error: error.message });
         }
       }
     }
 
     // Limpiar input
-    e.target.value = ''
-  }
+    e.target.value = "";
+  };
 
   return (
     <>
@@ -67,5 +67,5 @@ export default function ImportUploadButton() {
         className="hidden"
       />
     </>
-  )
+  );
 }

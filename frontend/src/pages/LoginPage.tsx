@@ -1,10 +1,10 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { login, register, storeToken } from '../api/client'
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { login, register, storeToken } from "../api/client";
 
 export default function LoginPage() {
-  const navigate = useNavigate()
-  const [mode, setMode] = useState<'login' | 'register'>('login')
+  const navigate = useNavigate();
+  const [mode, setMode] = useState<"login" | "register">("login");
 
   return (
     <div className="min-h-screen bg-base flex items-center justify-center px-4">
@@ -18,41 +18,44 @@ export default function LoginPage() {
           </h1>
         </div>
 
-        {mode === 'login'
-          ? <LoginForm onRegister={() => setMode('register')} onSuccess={() => navigate('/')} />
-          : <RegisterForm onLogin={() => setMode('login')} onSuccess={() => navigate('/')} />
-        }
+        {mode === "login" ? (
+          <LoginForm onRegister={() => setMode("register")} onSuccess={() => navigate("/")} />
+        ) : (
+          <RegisterForm onLogin={() => setMode("login")} onSuccess={() => navigate("/")} />
+        )}
       </div>
     </div>
-  )
+  );
 }
 
 function LoginForm({ onRegister, onSuccess }: { onRegister: () => void; onSuccess: () => void }) {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
+    e.preventDefault();
+    setError("");
+    setLoading(true);
     try {
-      const token = await login(email.trim().toLowerCase(), password)
-      storeToken(token.access_token)
-      onSuccess()
+      const token = await login(email.trim().toLowerCase(), password);
+      storeToken(token.access_token);
+      onSuccess();
     } catch {
-      setError('Email o contraseña incorrectos')
+      setError("Email o contraseña incorrectos");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-gnome p-8 flex flex-col gap-5">
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-[var(--text-secondary)]" htmlFor="email">Email</label>
+          <label className="text-sm font-medium text-[var(--text-secondary)]" htmlFor="email">
+            Email
+          </label>
           <input
             id="email"
             type="email"
@@ -67,7 +70,9 @@ function LoginForm({ onRegister, onSuccess }: { onRegister: () => void; onSucces
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-[var(--text-secondary)]" htmlFor="password">Contraseña</label>
+          <label className="text-sm font-medium text-[var(--text-secondary)]" htmlFor="password">
+            Contraseña
+          </label>
           <input
             id="password"
             type="password"
@@ -80,60 +85,58 @@ function LoginForm({ onRegister, onSuccess }: { onRegister: () => void; onSucces
           />
         </div>
 
-        {error && (
-          <div className="alert-error">{error}</div>
-        )}
+        {error && <div className="alert-error">{error}</div>}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="gnome-btn-primary w-full"
-        >
-          {loading ? 'Ingresando...' : 'Ingresar'}
+        <button type="submit" disabled={loading} className="gnome-btn-primary w-full">
+          {loading ? "Ingresando..." : "Ingresar"}
         </button>
       </form>
 
       <p className="text-center text-sm text-[var(--text-tertiary)]">
-        ¿No tenés cuenta?{' '}
-        <button type="button" onClick={onRegister} className="text-[var(--color-primary)] hover:underline font-medium">
+        ¿No tenés cuenta?{" "}
+        <button
+          type="button"
+          onClick={onRegister}
+          className="text-[var(--color-primary)] hover:underline font-medium"
+        >
           Registrarse
         </button>
       </p>
     </div>
-  )
+  );
 }
 
 function RegisterForm({ onLogin, onSuccess }: { onLogin: () => void; onSuccess: () => void }) {
-  const [nombre, setNombre] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirm, setConfirm] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [nombre, setNombre] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
+    e.preventDefault();
+    setError("");
     if (password !== confirm) {
-      setError('Las contraseñas no coinciden')
-      return
+      setError("Las contraseñas no coinciden");
+      return;
     }
     if (password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres')
-      return
+      setError("La contraseña debe tener al menos 6 caracteres");
+      return;
     }
-    setLoading(true)
+    setLoading(true);
     try {
-      const token = await register(nombre.trim(), email.trim().toLowerCase(), password)
-      storeToken(token.access_token)
-      onSuccess()
+      const token = await register(nombre.trim(), email.trim().toLowerCase(), password);
+      storeToken(token.access_token);
+      onSuccess();
     } catch (err: any) {
-      const detail = err?.response?.data?.detail
-      setError(typeof detail === 'string' ? detail : 'Error al registrar. Intentá de nuevo.')
+      const detail = err?.response?.data?.detail;
+      setError(typeof detail === "string" ? detail : "Error al registrar. Intentá de nuevo.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-gnome p-8 flex flex-col gap-4">
@@ -144,7 +147,13 @@ function RegisterForm({ onLogin, onSuccess }: { onLogin: () => void; onSuccess: 
           className="text-sm text-[var(--text-secondary)] hover:text-primary transition flex items-center gap-1"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path
+              d="M10 12L6 8l4-4"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
           Volver
         </button>
@@ -154,40 +163,90 @@ function RegisterForm({ onLogin, onSuccess }: { onLogin: () => void; onSuccess: 
         <h2 className="text-base font-semibold text-[var(--text-primary)]">Crear cuenta</h2>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-[var(--text-secondary)]" htmlFor="nombre">Nombre completo</label>
-          <input id="nombre" type="text" autoComplete="name" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Juan Pérez" required className="input" />
+          <label className="text-sm font-medium text-[var(--text-secondary)]" htmlFor="nombre">
+            Nombre completo
+          </label>
+          <input
+            id="nombre"
+            type="text"
+            autoComplete="name"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            placeholder="Juan Pérez"
+            required
+            className="input"
+          />
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-[var(--text-secondary)]" htmlFor="reg-email">Email</label>
-          <input id="reg-email" type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@email.com" required className="input" />
+          <label className="text-sm font-medium text-[var(--text-secondary)]" htmlFor="reg-email">
+            Email
+          </label>
+          <input
+            id="reg-email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="tu@email.com"
+            required
+            className="input"
+          />
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-[var(--text-secondary)]" htmlFor="reg-password">Contraseña</label>
-          <input id="reg-password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" required className="input" />
+          <label
+            className="text-sm font-medium text-[var(--text-secondary)]"
+            htmlFor="reg-password"
+          >
+            Contraseña
+          </label>
+          <input
+            id="reg-password"
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Mínimo 6 caracteres"
+            required
+            className="input"
+          />
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-[var(--text-secondary)]" htmlFor="reg-confirm">Repetir contraseña</label>
-          <input id="reg-confirm" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" required className="input" />
+          <label className="text-sm font-medium text-[var(--text-secondary)]" htmlFor="reg-confirm">
+            Repetir contraseña
+          </label>
+          <input
+            id="reg-confirm"
+            type="password"
+            autoComplete="new-password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="••••••••"
+            required
+            className="input"
+          />
         </div>
 
-        {error && (
-          <div className="alert-error">{error}</div>
-        )}
+        {error && <div className="alert-error">{error}</div>}
 
         <button type="submit" disabled={loading} className="gnome-btn-primary w-full">
-          {loading ? 'Registrando...' : 'Crear cuenta'}
+          {loading ? "Registrando..." : "Crear cuenta"}
         </button>
       </form>
 
       <p className="text-center text-sm text-[var(--text-tertiary)]">
-        ¿Ya tenés cuenta?{' '}
-        <button type="button" onClick={onLogin} className="text-[var(--color-primary)] hover:underline font-medium">
+        ¿Ya tenés cuenta?{" "}
+        <button
+          type="button"
+          onClick={onLogin}
+          className="text-[var(--color-primary)] hover:underline font-medium"
+        >
           Iniciar sesión
         </button>
       </p>
     </div>
-  )
+  );
 }

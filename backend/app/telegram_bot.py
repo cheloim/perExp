@@ -7,6 +7,7 @@ import uuid
 from datetime import date, datetime
 
 from google import genai
+from sqlalchemy import func
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Application,
@@ -18,14 +19,12 @@ from telegram.ext import (
     filters,
 )
 
-from sqlalchemy import func
-
 from app.database import SessionLocal
 from app.models import Account, Card, Category, Expense, User
-from app.prompts import EXPENSE_PARSE_PROMPT, CARD_EXTRACT_PROMPT
+from app.prompts import CARD_EXTRACT_PROMPT, EXPENSE_PARSE_PROMPT
 from app.services.categorization import auto_categorize
 from app.services.import_utils import _normalize_text, _title_case
-from app.services.normalizers import normalize_bank, _normalize_person
+from app.services.normalizers import _normalize_person, normalize_bank
 
 logger = logging.getLogger(__name__)
 
@@ -78,10 +77,7 @@ def _parse_expense(text: str) -> dict | None:
 
 def _extract_card_info(raw_input: str, card_type: str) -> dict:
     """Extract card_name and bank from user input using LLM."""
-    prompt = CARD_EXTRACT_PROMPT.format(
-        raw_input=raw_input,
-        card_type=card_type
-    )
+    prompt = CARD_EXTRACT_PROMPT.format(raw_input=raw_input, card_type=card_type)
     api_key = os.getenv("LLM_API_KEY")
     if not api_key:
         return {"card_name": raw_input, "bank": ""}
@@ -225,8 +221,21 @@ def _format_amount(amount: float, currency: str) -> str:
     return f"${amount:,.0f}"
 
 
-_MONTHS_ES = ["enero","febrero","marzo","abril","mayo","junio",
-               "julio","agosto","septiembre","octubre","noviembre","diciembre"]
+_MONTHS_ES = [
+    "enero",
+    "febrero",
+    "marzo",
+    "abril",
+    "mayo",
+    "junio",
+    "julio",
+    "agosto",
+    "septiembre",
+    "octubre",
+    "noviembre",
+    "diciembre",
+]
+
 
 def _format_date_es(date_str: str) -> str:
     try:
@@ -276,19 +285,56 @@ def _confirm_text(parsed: dict, payment_label: str, cat_levels: list[str] = None
 
 _CAT_EMOJI: dict[str, str] = {
     # Categorías raíz
-    "salud": "🏥", "alimentación": "🍽️", "alimentos": "🍽️", "supermercado": "🛒",
-    "transporte": "🚗", "servicios": "⚡", "entretenimiento": "🎬", "educación": "📚",
-    "ropa": "👕", "indumentaria": "👕", "viajes": "✈️", "hogar": "🏠", "tecnología": "💻",
-    "mascotas": "🐾", "deporte": "🏋️", "inversiones": "📈", "impuestos": "🧾",
-    "seguros": "🛡️", "banco": "🏦", "suscripciones": "📲",
+    "salud": "🏥",
+    "alimentación": "🍽️",
+    "alimentos": "🍽️",
+    "supermercado": "🛒",
+    "transporte": "🚗",
+    "servicios": "⚡",
+    "entretenimiento": "🎬",
+    "educación": "📚",
+    "ropa": "👕",
+    "indumentaria": "👕",
+    "viajes": "✈️",
+    "hogar": "🏠",
+    "tecnología": "💻",
+    "mascotas": "🐾",
+    "deporte": "🏋️",
+    "inversiones": "📈",
+    "impuestos": "🧾",
+    "seguros": "🛡️",
+    "banco": "🏦",
+    "suscripciones": "📲",
     # Subcategorías
-    "farmacia": "💊", "médico": "🩺", "médicos": "🩺", "taxi": "🚕", "uber": "🚕",
-    "combustible": "⛽", "nafta": "⛽", "restaurante": "🍴", "café": "☕", "cafetería": "☕",
-    "bar": "🍺", "fast food": "🍔", "netflix": "📺", "spotify": "🎵", "streaming": "📺",
-    "gimnasio": "🏋️", "librería": "📖", "colegio": "🏫", "universidad": "🎓",
-    "luz": "💡", "gas": "🔥", "agua": "💧", "internet": "🌐", "celular": "📱",
-    "supermercados": "🛒", "almacén": "🛒", "verdulería": "🥦",
+    "farmacia": "💊",
+    "médico": "🩺",
+    "médicos": "🩺",
+    "taxi": "🚕",
+    "uber": "🚕",
+    "combustible": "⛽",
+    "nafta": "⛽",
+    "restaurante": "🍴",
+    "café": "☕",
+    "cafetería": "☕",
+    "bar": "🍺",
+    "fast food": "🍔",
+    "netflix": "📺",
+    "spotify": "🎵",
+    "streaming": "📺",
+    "gimnasio": "🏋️",
+    "librería": "📖",
+    "colegio": "🏫",
+    "universidad": "🎓",
+    "luz": "💡",
+    "gas": "🔥",
+    "agua": "💧",
+    "internet": "🌐",
+    "celular": "📱",
+    "supermercados": "🛒",
+    "almacén": "🛒",
+    "verdulería": "🥦",
 }
+
 
 def _cat_emoji(name: str) -> str:
     return _CAT_EMOJI.get(name.lower(), "📂")
@@ -364,12 +410,12 @@ async def handle_auth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             f"✅ Autenticado como *{user.full_name}*\\.\n\n"
             "Para registrar un gasto, mandame un mensaje describiendo lo que gastaste\\. "
             "Podés ser tan informal como quieras:\n\n"
-            "• _\"gasté 1500 en farmacity\"_\n"
-            "• _\"uber 3200 ayer\"_\n"
-            "• _\"almuerzo con Pedro 8500 pesos\"_\n"
-            "• _\"Netflix USD 5\"_\n\n"
+            '• _"gasté 1500 en farmacity"_\n'
+            '• _"uber 3200 ayer"_\n'
+            '• _"almuerzo con Pedro 8500 pesos"_\n'
+            '• _"Netflix USD 5"_\n\n'
             "Te voy a mostrar el gasto parseado y te voy a pedir que confirmes el medio de pago\\. "
-            "Por ejemplo, si mandás *\"uber 3200\"* te respondo así:\n\n"
+            'Por ejemplo, si mandás *"uber 3200"* te respondo así:\n\n'
             "▸ *Uber* — $3\\.200 \\(hoy\\)\n"
             "  ¿Cómo pagaste?  💵 Efectivo · 🔁 Transferencia · 💳 Tarjeta",
             parse_mode="MarkdownV2",
@@ -381,11 +427,11 @@ async def handle_auth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
 _HELP_TEXT = (
     "Registrá tus gastos escribiéndome de forma natural, como le contarías a alguien:\n\n"
-    "• _\"farmacity 3200\"_\n"
-    "• _\"almuerzo con el equipo 8500 pesos\"_\n"
-    "• _\"uber ayer 1800\"_\n"
-    "• _\"Netflix USD 5\"_\n"
-    "• _\"cargué nafta 15000 el viernes\"_\n\n"
+    '• _"farmacity 3200"_\n'
+    '• _"almuerzo con el equipo 8500 pesos"_\n'
+    '• _"uber ayer 1800"_\n'
+    '• _"Netflix USD 5"_\n'
+    '• _"cargué nafta 15000 el viernes"_\n\n'
     "No hace falta ser preciso con el formato. "
     "Te voy a pedir el medio de pago y antes de guardar te muestro un resumen para que confirmes."
 )
@@ -393,7 +439,7 @@ _HELP_TEXT = (
 _UNRECOGNIZED_MESSAGES = [
     "No encontré un monto en tu mensaje. ¿Podés contarme qué gastaste y cuánto?",
     "Necesito al menos el monto para registrar el gasto. ¿Cuánto fue?",
-    "No pude identificar el importe. Probá con algo como _\"supermercado 4500\"_ o _\"taxi 1200 ayer\"_.",
+    'No pude identificar el importe. Probá con algo como _"supermercado 4500"_ o _"taxi 1200 ayer"_.',
     "Hmm, no entendí bien. ¿Podés decirme qué compraste y por cuánto?",
 ]
 
@@ -413,7 +459,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return ConversationHandler.END
 
     parsed = await asyncio.to_thread(_parse_expense, text)
-    logger.warning(f"[DEBUG PARSE] Parsed result: {parsed}, amount: {parsed.get('amount') if parsed else None}")
+    logger.warning(
+        f"[DEBUG PARSE] Parsed result: {parsed}, amount: {parsed.get('amount') if parsed else None}"
+    )
 
     if not parsed or not parsed.get("amount"):
         await update.message.reply_text(
@@ -423,7 +471,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return ConversationHandler.END
 
     context.user_data["parsed"] = parsed
-    context.user_data["tg_user"] = update.effective_user.full_name or update.effective_user.username or ""
+    context.user_data["tg_user"] = (
+        update.effective_user.full_name or update.effective_user.username or ""
+    )
 
     desc = parsed.get("description", "")
     amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
@@ -431,7 +481,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     keyboard = [
         [
-            InlineKeyboardButton("💵 Efectivo/Transferencia", callback_data="pay:efectivo_transferencia"),
+            InlineKeyboardButton(
+                "💵 Efectivo/Transferencia", callback_data="pay:efectivo_transferencia"
+            ),
             InlineKeyboardButton("💳 Tarjeta", callback_data="pay:tarjeta"),
         ]
     ]
@@ -475,7 +527,9 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             [InlineKeyboardButton(f"{acc.name} ({acc.type})", callback_data=f"account:{acc.id}")]
             for acc in accounts
         ]
-        keyboard.append([InlineKeyboardButton("➕ Crear nueva cuenta", callback_data="account:new")])
+        keyboard.append(
+            [InlineKeyboardButton("➕ Crear nueva cuenta", callback_data="account:new")]
+        )
 
         await query.edit_message_text(
             "💰 ¿Desde qué cuenta?",
@@ -494,8 +548,7 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             [InlineKeyboardButton("✏️ Ingresar nombre manualmente", callback_data="cardnew:manual")],
         ]
         await query.edit_message_text(
-            "💳 *No tenés tarjetas registradas*\n\n"
-            "¿Qué preferís?",
+            "💳 *No tenés tarjetas registradas*\n\n¿Qué preferís?",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(keyboard),
         )
@@ -525,10 +578,7 @@ async def handle_card_bank(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
         return WAITING_CARD_MANUAL
 
-    keyboard = [
-        [InlineKeyboardButton(card, callback_data=f"card:{card}")]
-        for card in cards
-    ]
+    keyboard = [[InlineKeyboardButton(card, callback_data=f"card:{card}")] for card in cards]
     await query.edit_message_text("💳 ¿Qué tarjeta?", reply_markup=InlineKeyboardMarkup(keyboard))
     return WAITING_CARD_TYPE
 
@@ -555,10 +605,12 @@ async def handle_card_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
         # Check if we should ask about installments
         if _should_ask_installments(predicted_category_id, db):
-            installment_keyboard = [[
-                InlineKeyboardButton("✅ Sí", callback_data="installment:yes"),
-                InlineKeyboardButton("❌ No", callback_data="installment:no"),
-            ]]
+            installment_keyboard = [
+                [
+                    InlineKeyboardButton("✅ Sí", callback_data="installment:yes"),
+                    InlineKeyboardButton("❌ No", callback_data="installment:no"),
+                ]
+            ]
             await query.edit_message_text(
                 "¿Lo pagaste en cuotas?",
                 reply_markup=InlineKeyboardMarkup(installment_keyboard),
@@ -567,10 +619,12 @@ async def handle_card_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         else:
             # No installments needed, go straight to confirmation
             cat_levels = _build_cat_levels(predicted_category_id, db)
-            confirm_keyboard = [[
-                InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
-                InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
-            ]]
+            confirm_keyboard = [
+                [
+                    InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
+                    InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
+                ]
+            ]
             await query.edit_message_text(
                 _confirm_text(parsed, label, cat_levels),
                 parse_mode="Markdown",
@@ -597,10 +651,12 @@ async def handle_installment_question(update: Update, context: ContextTypes.DEFA
             cat_levels = _build_cat_levels(predicted_category_id, db)
         finally:
             db.close()
-        confirm_keyboard = [[
-            InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
-            InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
-        ]]
+        confirm_keyboard = [
+            [
+                InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
+                InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
+            ]
+        ]
         await query.edit_message_text(
             _confirm_text(context.user_data["parsed"], payment_label, cat_levels),
             parse_mode="Markdown",
@@ -609,9 +665,7 @@ async def handle_installment_question(update: Update, context: ContextTypes.DEFA
         return WAITING_CONFIRM
 
     # answer == "yes" - ask for number of installments
-    await query.edit_message_text(
-        "¿Cuántas cuotas? (Escribí un número entre 2 y 60)"
-    )
+    await query.edit_message_text("¿Cuántas cuotas? (Escribí un número entre 2 y 60)")
     return WAITING_INSTALLMENT_NUMBER
 
 
@@ -623,9 +677,7 @@ async def handle_installment_number(update: Update, context: ContextTypes.DEFAUL
     try:
         installments = int(text)
         if installments < 2 or installments > 60:
-            await update.message.reply_text(
-                "Por favor, ingresá un número entre 2 y 60."
-            )
+            await update.message.reply_text("Por favor, ingresá un número entre 2 y 60.")
             return WAITING_INSTALLMENT_NUMBER
     except ValueError:
         await update.message.reply_text(
@@ -648,10 +700,12 @@ async def handle_installment_number(update: Update, context: ContextTypes.DEFAUL
         cat_levels = _build_cat_levels(predicted_category_id, db)
     finally:
         db.close()
-    confirm_keyboard = [[
-        InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
-        InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
-    ]]
+    confirm_keyboard = [
+        [
+            InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
+            InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
+        ]
+    ]
 
     await update.message.reply_text(
         _confirm_text(context.user_data["parsed"], payment_label, cat_levels),
@@ -703,10 +757,12 @@ async def handle_account_select(update: Update, context: ContextTypes.DEFAULT_TY
         db.close()
 
     # Show confirmation
-    confirm_keyboard = [[
-        InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
-        InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
-    ]]
+    confirm_keyboard = [
+        [
+            InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
+            InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
+        ]
+    ]
     await query.edit_message_text(
         _confirm_text(context.user_data["parsed"], context.user_data["payment_label"], cat_levels),
         parse_mode="Markdown",
@@ -729,8 +785,7 @@ async def handle_account_create_name(update: Update, context: ContextTypes.DEFAU
         [InlineKeyboardButton("💰 Otro", callback_data="acctype:otro")],
     ]
     await update.message.reply_text(
-        f"✅ Perfecto, *{account_name}*\n\n"
-        f"Ahora elegí el tipo de cuenta:",
+        f"✅ Perfecto, *{account_name}*\n\nAhora elegí el tipo de cuenta:",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard),
     )
@@ -771,10 +826,12 @@ async def handle_account_create_type(update: Update, context: ContextTypes.DEFAU
         db.close()
 
     # Show confirmation
-    confirm_keyboard = [[
-        InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
-        InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
-    ]]
+    confirm_keyboard = [
+        [
+            InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
+            InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
+        ]
+    ]
     await query.edit_message_text(
         _confirm_text(context.user_data["parsed"], context.user_data["payment_label"], cat_levels),
         parse_mode="Markdown",
@@ -792,13 +849,14 @@ async def handle_card_create_choice(update: Update, context: ContextTypes.DEFAUL
 
     if choice == "new":
         await query.edit_message_text(
-            "💳 *Nueva Tarjeta*\n\n"
-            "Primero, elegí el tipo de tarjeta:",
+            "💳 *Nueva Tarjeta*\n\nPrimero, elegí el tipo de tarjeta:",
             parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("💳 Crédito", callback_data="cardctype:credito")],
-                [InlineKeyboardButton("💰 Débito", callback_data="cardctype:debito")],
-            ]),
+            reply_markup=InlineKeyboardMarkup(
+                [
+                    [InlineKeyboardButton("💳 Crédito", callback_data="cardctype:credito")],
+                    [InlineKeyboardButton("💰 Débito", callback_data="cardctype:debito")],
+                ]
+            ),
         )
         return WAITING_CARD_CREATE_TYPE
 
@@ -831,7 +889,7 @@ async def handle_card_create_name(update: Update, context: ContextTypes.DEFAULT_
     """Handle card name input, extract info with LLM, ask for confirmation"""
     raw_input = update.message.text.strip()
     card_type = context.user_data.get("new_card_type", "credito")
-    user_id = context.user_data.get("user_id")
+    context.user_data.get("user_id")
 
     db = SessionLocal()
     try:
@@ -867,10 +925,12 @@ async def handle_card_create_name(update: Update, context: ContextTypes.DEFAULT_
         f"💳 Tipo: *{card_type}*\n\n"
         "¿Confirmás la creación de esta tarjeta?",
         parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Sí, crear", callback_data="cardconfirm:yes")],
-            [InlineKeyboardButton("❌ Cancelar", callback_data="cardconfirm:no")],
-        ]),
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("✅ Sí, crear", callback_data="cardconfirm:yes")],
+                [InlineKeyboardButton("❌ Cancelar", callback_data="cardconfirm:no")],
+            ]
+        ),
     )
     return WAITING_CARD_CREATE_CONFIRM
 
@@ -909,11 +969,15 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
         else:
             holder = ""
 
-        existing = db.query(Card).filter(
-            Card.user_id == user_id,
-            func.lower(func.trim(Card.card_name)) == card_name.lower(),
-            func.lower(func.trim(Card.bank)) == bank.lower(),
-        ).first()
+        existing = (
+            db.query(Card)
+            .filter(
+                Card.user_id == user_id,
+                func.lower(func.trim(Card.card_name)) == card_name.lower(),
+                func.lower(func.trim(Card.bank)) == bank.lower(),
+            )
+            .first()
+        )
         if existing:
             await query.message.reply_text(
                 "❌ Ya existe una tarjeta con ese nombre y banco. Probá con otro nombre.",
@@ -942,23 +1006,26 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
         context.user_data["predicted_category_id"] = predicted_category_id
 
         if _should_ask_installments(predicted_category_id, db):
-            installment_keyboard = [[
-                InlineKeyboardButton("✅ Sí", callback_data="installment:yes"),
-                InlineKeyboardButton("❌ No", callback_data="installment:no"),
-            ]]
+            installment_keyboard = [
+                [
+                    InlineKeyboardButton("✅ Sí", callback_data="installment:yes"),
+                    InlineKeyboardButton("❌ No", callback_data="installment:no"),
+                ]
+            ]
             await query.edit_message_text(
-                f"✅ *Tarjeta {card_name} creada!*\n\n"
-                "¿Lo pagaste en cuotas?",
+                f"✅ *Tarjeta {card_name} creada!*\n\n¿Lo pagaste en cuotas?",
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup(installment_keyboard),
             )
             return WAITING_INSTALLMENT_QUESTION
         else:
             cat_levels = _build_cat_levels(predicted_category_id, db)
-            confirm_keyboard = [[
-                InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
-                InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
-            ]]
+            confirm_keyboard = [
+                [
+                    InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
+                    InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
+                ]
+            ]
             await query.edit_message_text(
                 f"✅ *Tarjeta {card_name} creada!*\n\n"
                 + _confirm_text(parsed, context.user_data["payment_label"], cat_levels),
@@ -1057,10 +1124,12 @@ async def handle_card_manual(update: Update, context: ContextTypes.DEFAULT_TYPE)
         context.user_data["predicted_category_id"] = predicted_category_id
 
         if _should_ask_installments(predicted_category_id, db):
-            installment_keyboard = [[
-                InlineKeyboardButton("✅ Sí", callback_data="installment:yes"),
-                InlineKeyboardButton("❌ No", callback_data="installment:no"),
-            ]]
+            installment_keyboard = [
+                [
+                    InlineKeyboardButton("✅ Sí", callback_data="installment:yes"),
+                    InlineKeyboardButton("❌ No", callback_data="installment:no"),
+                ]
+            ]
             await update.message.reply_text(
                 "¿Lo pagaste en cuotas?",
                 reply_markup=InlineKeyboardMarkup(installment_keyboard),
@@ -1068,10 +1137,12 @@ async def handle_card_manual(update: Update, context: ContextTypes.DEFAULT_TYPE)
             return WAITING_INSTALLMENT_QUESTION
         else:
             cat_levels = _build_cat_levels(predicted_category_id, db)
-            confirm_keyboard = [[
-                InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
-                InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
-            ]]
+            confirm_keyboard = [
+                [
+                    InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
+                    InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
+                ]
+            ]
             await update.message.reply_text(
                 _confirm_text(parsed, label, cat_levels),
                 parse_mode="Markdown",
@@ -1107,19 +1178,39 @@ async def _run_bot(token: str) -> None:
         states={
             WAITING_AUTH: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_auth)],
             WAITING_PAYMENT: [CallbackQueryHandler(handle_payment, pattern=r"^pay:")],
-            WAITING_ACCOUNT_SELECT: [CallbackQueryHandler(handle_account_select, pattern=r"^account:")],
-            WAITING_ACCOUNT_CREATE_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_account_create_name)],
-            WAITING_ACCOUNT_CREATE_TYPE: [CallbackQueryHandler(handle_account_create_type, pattern=r"^acctype:")],
+            WAITING_ACCOUNT_SELECT: [
+                CallbackQueryHandler(handle_account_select, pattern=r"^account:")
+            ],
+            WAITING_ACCOUNT_CREATE_NAME: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_account_create_name)
+            ],
+            WAITING_ACCOUNT_CREATE_TYPE: [
+                CallbackQueryHandler(handle_account_create_type, pattern=r"^acctype:")
+            ],
             WAITING_CARD_BANK: [CallbackQueryHandler(handle_card_bank, pattern=r"^bank:")],
             WAITING_CARD_TYPE: [CallbackQueryHandler(handle_card_type, pattern=r"^card:")],
             WAITING_CONFIRM: [CallbackQueryHandler(handle_confirm, pattern=r"^confirm:")],
-            WAITING_CARD_MANUAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_card_manual)],
-            WAITING_INSTALLMENT_QUESTION: [CallbackQueryHandler(handle_installment_question, pattern=r"^installment:")],
-            WAITING_INSTALLMENT_NUMBER: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_installment_number)],
-            WAITING_CARD_CREATE_CHOICE: [CallbackQueryHandler(handle_card_create_choice, pattern=r"^cardnew:")],
-            WAITING_CARD_CREATE_TYPE: [CallbackQueryHandler(handle_card_create_type, pattern=r"^cardctype:")],
-            WAITING_CARD_CREATE_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_card_create_name)],
-            WAITING_CARD_CREATE_CONFIRM: [CallbackQueryHandler(handle_card_create_confirm, pattern=r"^cardconfirm:")],
+            WAITING_CARD_MANUAL: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_card_manual)
+            ],
+            WAITING_INSTALLMENT_QUESTION: [
+                CallbackQueryHandler(handle_installment_question, pattern=r"^installment:")
+            ],
+            WAITING_INSTALLMENT_NUMBER: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_installment_number)
+            ],
+            WAITING_CARD_CREATE_CHOICE: [
+                CallbackQueryHandler(handle_card_create_choice, pattern=r"^cardnew:")
+            ],
+            WAITING_CARD_CREATE_TYPE: [
+                CallbackQueryHandler(handle_card_create_type, pattern=r"^cardctype:")
+            ],
+            WAITING_CARD_CREATE_NAME: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_card_create_name)
+            ],
+            WAITING_CARD_CREATE_CONFIRM: [
+                CallbackQueryHandler(handle_card_create_confirm, pattern=r"^cardconfirm:")
+            ],
         },
         fallbacks=[MessageHandler(filters.COMMAND, cancel)],
         per_message=False,

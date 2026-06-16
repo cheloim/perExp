@@ -1,23 +1,23 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { acceptGroupInvitation } from '../api/client'
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { acceptGroupInvitation } from "../api/client";
 
 interface Props {
-  notificationId: number
-  inviterName: string
-  onClose: () => void
+  notificationId: number;
+  inviterName: string;
+  onClose: () => void;
 }
 
 export default function InvitationDisclaimer({ notificationId, inviterName, onClose }: Props) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   const { mutate, isPending, isError } = useMutation({
     mutationFn: () => acceptGroupInvitation(notificationId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications-count'] })
-      queryClient.invalidateQueries({ queryKey: ['my-group'] })
-      onClose()
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-count"] });
+      queryClient.invalidateQueries({ queryKey: ["my-group"] });
+      onClose();
     },
-  })
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-base-container/60">
@@ -28,17 +28,16 @@ export default function InvitationDisclaimer({ notificationId, inviterName, onCl
         </div>
 
         <p className="text-secondary text-sm mb-3">
-          Al aceptar esta invitación, <span className="text-primary font-medium">{inviterName}</span> podrá
-          ver todos tus gastos e información financiera de tu cuenta.
+          Al aceptar esta invitación,{" "}
+          <span className="text-primary font-medium">{inviterName}</span> podrá ver todos tus gastos
+          e información financiera de tu cuenta.
         </p>
         <p className="text-tertiary text-sm mb-6">
-          Esta acción se puede deshacer saliendo del grupo en cualquier momento desde{' '}
+          Esta acción se puede deshacer saliendo del grupo en cualquier momento desde{" "}
           <span className="text-secondary">Mi cuenta → Grupo Familiar</span>.
         </p>
 
-        {isError && (
-          <p className="text-danger text-sm mb-4">Ocurrió un error. Intentá de nuevo.</p>
-        )}
+        {isError && <p className="text-danger text-sm mb-4">Ocurrió un error. Intentá de nuevo.</p>}
 
         <div className="flex gap-3">
           <button
@@ -52,10 +51,10 @@ export default function InvitationDisclaimer({ notificationId, inviterName, onCl
             disabled={isPending}
             className="flex-1 py-2 rounded-lg gnome-btn-primary text-sm font-medium transition-colors disabled:opacity-50"
           >
-            {isPending ? 'Confirmando…' : 'Confirmar'}
+            {isPending ? "Confirmando…" : "Confirmar"}
           </button>
         </div>
       </div>
     </div>
-  )
+  );
 }
