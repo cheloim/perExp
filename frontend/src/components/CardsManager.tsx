@@ -1,9 +1,16 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getCards, createCard, updateCard, deleteCard, createAccount, getCardSummary } from '../api/client'
+import { getCards, createCard, updateCard, deleteCard, createAccount, getCardSummary, getMe } from '../api/client'
 import { useQuery as useCardDataQuery } from '@tanstack/react-query'
 import type { Card } from '../types'
 import { Select } from './ui/Select'
+
+const getFirstName = (fullName: string): string => {
+  if (fullName.includes(',')) {
+    return fullName.split(',')[1].trim().split(' ')[0]
+  }
+  return fullName.split(' ')[0]
+}
 
 const ACCOUNT_TYPES = [
   { value: 'efectivo', label: 'Efectivo' },
@@ -29,6 +36,11 @@ export default function CardsManager() {
   const { data: cards = [], isLoading } = useQuery({
     queryKey: ['cards'],
     queryFn: getCards,
+  })
+
+  const { data: currentUser } = useQuery({
+    queryKey: ['me'],
+    queryFn: getMe,
   })
 
   // Card data from expenses (for future extension - show spending by card)
@@ -116,7 +128,7 @@ export default function CardsManager() {
     setEditId(-1)
     setCardName('')
     setBank('')
-    setHolder('')
+    setHolder(currentUser ? getFirstName(currentUser.full_name) : '')
     setCardType('credito')
     setAccountType('efectivo')
     setMenuOpen(null)
@@ -140,15 +152,15 @@ export default function CardsManager() {
     setErrors({})
 
     if (accountType === 'tarjeta') {
-      const data = {
+      const data: Record<string, string> = {
         card_name: cardName.trim(),
         bank: bank.trim(),
-        holder: holder.trim(),
         card_type: cardType,
       }
       if (editId && editId > 0) {
         updateMut.mutate({ id: editId, data })
       } else {
+        data.holder = holder.trim()
         createMut.mutate(data)
       }
     } else {
@@ -192,16 +204,6 @@ export default function CardsManager() {
                     placeholder="Ej: Galicia"
                   />
                   {errors.bank && <p className="text-xs text-red-500">{errors.bank}</p>}
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-[var(--text-secondary)]">Titular</label>
-                  <input
-                    type="text"
-                    value={holder}
-                    onChange={(e) => setHolder(e.target.value)}
-                    className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-                    placeholder="Ej: Juan Perez"
-                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-[var(--text-secondary)]">Tipo</label>
@@ -313,16 +315,6 @@ export default function CardsManager() {
                   placeholder="Ej: Galicia"
                 />
                 {errors.bank && <p className="text-xs text-red-500">{errors.bank}</p>}
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[var(--text-secondary)]">Titular</label>
-                <input
-                  type="text"
-                  value={holder}
-                  onChange={(e) => setHolder(e.target.value)}
-                  className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-                  placeholder="Ej: Juan Perez"
-                />
               </div>
             </div>
           )}
