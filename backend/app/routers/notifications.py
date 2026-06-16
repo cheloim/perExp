@@ -70,31 +70,6 @@ def _validate_token(token: str, db: Session) -> User:
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 
-class NotificationResponse(BaseModel):
-    id: int
-    type: str
-    title: str
-    body: str
-    data: dict
-    read: bool
-    created_at: str
-
-    class Config:
-        from_attributes = True
-
-
-def _to_response(n: Notification) -> NotificationResponse:
-    return NotificationResponse(
-        id=n.id,
-        type=n.type,
-        title=n.title,
-        body=n.body,
-        data=json.loads(n.data or "{}"),
-        read=n.read,
-        created_at=n.created_at.isoformat() if n.created_at else "",
-    )
-
-
 @router.get("", response_model=list[NotificationResponse])
 def get_notifications(
     current_user: User = Depends(get_current_user), db: Session = Depends(get_db)

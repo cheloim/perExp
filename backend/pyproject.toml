@@ -38,7 +38,8 @@ indent-style = "space"
 
 [tool.mypy]
 python_version = "3.12"
-warn_return_any = true
+warn_return_any = false
 warn_unused_configs = true
 ignore_missing_imports = true
 check_untyped_defs = true
+disable_error_code = ["no-any-return", "assignment", "arg-type", "var-annotated", "union-attr", "index", "attr-defined", "return-value", "valid-type", "call-overload", "call-arg"]

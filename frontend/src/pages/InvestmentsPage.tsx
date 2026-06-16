@@ -180,8 +180,6 @@ function PnlChip({
   );
 }
 
-
-
 function InvestmentModal({
   initial,
   onClose,
@@ -557,7 +555,6 @@ function CredentialsModal({
     </div>
   );
 }
-
 
 type SortField = "name" | "type" | "broker" | "cost_basis" | "current_value" | "pnl" | "pnl_pct";
 

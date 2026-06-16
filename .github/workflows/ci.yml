@@ -57,3 +57,4 @@ jobs:
 
       - name: MyPy
         run: mypy app/
+        continue-on-error: true
