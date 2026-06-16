@@ -50,11 +50,11 @@ function LoginForm({ onRegister, onSuccess }: { onRegister: () => void; onSucces
   };
 
   return (
-    <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-gnome p-8 flex flex-col gap-5">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-[var(--text-secondary)]" htmlFor="email">
-            Email
+    <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-gnome p-6 flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-[var(--text-primary)]" htmlFor="email">
+            Correo electrónico
           </label>
           <input
             id="email"
@@ -69,8 +69,8 @@ function LoginForm({ onRegister, onSuccess }: { onRegister: () => void; onSucces
           />
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-[var(--text-secondary)]" htmlFor="password">
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-[var(--text-primary)]" htmlFor="password">
             Contraseña
           </label>
           <input
@@ -87,7 +87,7 @@ function LoginForm({ onRegister, onSuccess }: { onRegister: () => void; onSucces
 
         {error && <div className="alert-error">{error}</div>}
 
-        <button type="submit" disabled={loading} className="gnome-btn-primary w-full">
+        <button type="submit" disabled={loading} className="gnome-btn-primary w-full mt-1">
           {loading ? "Ingresando..." : "Ingresar"}
         </button>
       </form>
@@ -139,12 +139,12 @@ function RegisterForm({ onLogin, onSuccess }: { onLogin: () => void; onSuccess: 
   };
 
   return (
-    <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-gnome p-8 flex flex-col gap-4">
+    <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-gnome p-6 flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <button
           type="button"
           onClick={onLogin}
-          className="text-sm text-[var(--text-secondary)] hover:text-primary transition flex items-center gap-1"
+          className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition flex items-center gap-1"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path
@@ -159,11 +159,11 @@ function RegisterForm({ onLogin, onSuccess }: { onLogin: () => void; onSuccess: 
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <h2 className="text-base font-semibold text-[var(--text-primary)]">Crear cuenta</h2>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Crear cuenta</h2>
 
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-[var(--text-secondary)]" htmlFor="nombre">
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-[var(--text-primary)]" htmlFor="nombre">
             Nombre completo
           </label>
           <input
@@ -176,11 +176,12 @@ function RegisterForm({ onLogin, onSuccess }: { onLogin: () => void; onSuccess: 
             required
             className="input"
           />
+          <span className="text-xs text-[var(--text-tertiary)]">Tu nombre tal como aparece en la tarjeta</span>
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-[var(--text-secondary)]" htmlFor="reg-email">
-            Email
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-[var(--text-primary)]" htmlFor="reg-email">
+            Correo electrónico
           </label>
           <input
             id="reg-email"
@@ -195,9 +196,9 @@ function RegisterForm({ onLogin, onSuccess }: { onLogin: () => void; onSuccess: 
           />
         </div>
 
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1">
           <label
-            className="text-sm font-medium text-[var(--text-secondary)]"
+            className="text-sm font-medium text-[var(--text-primary)]"
             htmlFor="reg-password"
           >
             Contraseña
@@ -212,11 +213,12 @@ function RegisterForm({ onLogin, onSuccess }: { onLogin: () => void; onSuccess: 
             required
             className="input"
           />
+          <span className="text-xs text-[var(--text-tertiary)]">Mínimo 6 caracteres</span>
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-[var(--text-secondary)]" htmlFor="reg-confirm">
-            Repetir contraseña
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-[var(--text-primary)]" htmlFor="reg-confirm">
+            Confirmar contraseña
           </label>
           <input
             id="reg-confirm"
@@ -232,7 +234,7 @@ function RegisterForm({ onLogin, onSuccess }: { onLogin: () => void; onSuccess: 
 
         {error && <div className="alert-error">{error}</div>}
 
-        <button type="submit" disabled={loading} className="gnome-btn-primary w-full">
+        <button type="submit" disabled={loading} className="gnome-btn-primary w-full mt-1">
           {loading ? "Registrando..." : "Crear cuenta"}
         </button>
       </form>
