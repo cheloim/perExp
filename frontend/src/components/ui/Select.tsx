@@ -19,6 +19,7 @@ interface SelectProps {
   className?: string
   disabled?: boolean
   direction?: 'down' | 'up'
+  allowCustomValue?: boolean
 }
 
 export function Select({
@@ -30,6 +31,7 @@ export function Select({
   className = '',
   disabled = false,
   direction = 'down',
+  allowCustomValue = true,
 }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -58,7 +60,7 @@ export function Select({
   const displayValue = selectedOption?.label || (value && !selectedOption ? value : placeholder) || ''
 
   const filteredOptions = search
-    ? allOptions.filter(o => 
+    ? allOptions.filter(o =>
         o.label.toLowerCase().includes(search.toLowerCase()) ||
         o.value.toLowerCase().includes(search.toLowerCase())
       )
@@ -100,7 +102,7 @@ export function Select({
       </button>
 
       {isOpen && (
-        <div className={`absolute z-50 w-full ${direction === 'up' ? 'bottom-full mb-1' : 'mt-1'} bg-[var(--color-surface)] border border-[var(--border-color)] rounded-md shadow-lg overflow-hidden max-h-60 flex flex-col`}>
+        <div className={`absolute z-50 w-full bg-[var(--color-surface)] border border-[var(--border-color)] rounded-md shadow-lg overflow-hidden max-h-60 flex flex-col ${direction === 'up' ? 'bottom-full mb-1' : 'mt-1 top-full'}`}>
           <div className="p-2 border-b border-[var(--border-color)]">
             <input
               ref={inputRef}
@@ -129,7 +131,7 @@ export function Select({
               </button>
             )}
 
-            {search.trim() && !filteredOptions.some(o => o.label.toLowerCase() === search.toLowerCase()) && (
+            {allowCustomValue && search.trim() && !filteredOptions.some(o => o.label.toLowerCase() === search.toLowerCase()) && (
               <button
                 type="button"
                 onClick={handleCustomValue}
@@ -155,8 +157,8 @@ export function Select({
             ))}
 
             {groups.map(group => {
-              const groupFiltered = group.options.filter(o => 
-                !search || 
+              const groupFiltered = group.options.filter(o =>
+                !search ||
                 o.label.toLowerCase().includes(search.toLowerCase()) ||
                 o.value.toLowerCase().includes(search.toLowerCase())
               )

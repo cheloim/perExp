@@ -19,7 +19,6 @@ import CategoryDashboard from './pages/CategoryDashboard'
 import InstallmentsPage from './pages/InstallmentsPage'
 import InvestmentsPage from './pages/InvestmentsPage'
 import LoginPage from './pages/LoginPage'
-import OAuthCallback from './pages/OAuthCallback'
 import { getStoredToken } from './api/client'
 
 const TABS = [
@@ -199,7 +198,6 @@ function MainLayout() {
           <div className={`w-full px-4 sm:px-6 lg:px-8 ${location.pathname.startsWith('/import-jobs') ? 'py-0' : 'py-8 md:py-10'}`}>
             <Routes>
               <Route path="/login"          element={<LoginPage />} />
-              <Route path="/oauth/google/callback" element={<OAuthCallback />} />
               <Route path="/"               element={<RequireAuth><Dashboard /></RequireAuth>} />
               <Route path="/accounts"       element={<RequireAuth><AccountsPage /></RequireAuth>} />
               <Route path="/expenses"       element={<RequireAuth><ExpensesPage /></RequireAuth>} />

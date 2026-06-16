@@ -187,6 +187,44 @@ def change_password(
     db.commit()
 
 
+class ResetPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordResponse(BaseModel):
+    message: str
+    new_password: str | None = None
+
+
+def _generate_password(length: int = 12) -> str:
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
+
+
+@router.post("/reset-password", response_model=ResetPasswordResponse)
+def reset_password(
+    body: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    email = body.email.lower().strip()
+    user = db.query(User).filter(User.email == email).first()
+
+    if not user:
+        return ResetPasswordResponse(message="Si el email existe, recibirás instrucciones para restablecer tu contraseña")
+
+    if not user.hashed_password:
+        return ResetPasswordResponse(message="Esta cuenta usa autenticación por OAuth. Iniciá sesión con tu proveedor.")
+
+    new_password = _generate_password()
+    user.hashed_password = get_password_hash(new_password)
+    db.commit()
+
+    return ResetPasswordResponse(
+        message="Contraseña restablecida. Iniciá sesión con la nueva contraseña.",
+        new_password=new_password
+    )
+
+
 class TelegramKeyResponse(BaseModel):
     telegram_key: str
 

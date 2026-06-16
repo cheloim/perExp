@@ -1,20 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getAccounts, createAccount, updateAccount, deleteAccount, createCard } from '../api/client'
-import type { Account } from '../types'
+import { getAccounts, createAccount, updateAccount, deleteAccount, createCard, getDistinctValues, getCards } from '../api/client'
 import { Select } from './ui/Select'
+import type { Account } from '../types'
 
 const ACCOUNT_TYPES = [
   { value: 'efectivo', label: 'Efectivo', color: 'badge-success' },
-  { value: 'cuenta_corriente', label: 'Cta. Corriente', color: 'badge-primary' },
-  { value: 'caja_ahorro', label: 'Caja de Ahorro', color: 'badge-warning' },
-  { value: 'mercadopago', label: 'MercadoPago', color: 'badge-neutral' },
+  { value: 'banco_digital', label: 'Banco Digital', color: 'badge-neutral' },
   { value: 'tarjeta', label: 'Tarjeta', color: 'badge-neutral' },
-]
-
-const CARD_TYPES = [
-  { value: 'credito', label: 'Crédito' },
-  { value: 'debito', label: 'Débito' },
 ]
 
 export default function AccountsManager() {
@@ -24,7 +17,6 @@ export default function AccountsManager() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'account'; id: number; name: string } | null>(null)
   const [duplicateFound, setDuplicateFound] = useState<{ id: number; name: string; type: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [customNaming, setCustomNaming] = useState('')
   const [name, setName] = useState('')
   const [type, setType] = useState('efectivo')
   const [bank, setBank] = useState('')
@@ -34,6 +26,34 @@ export default function AccountsManager() {
     queryKey: ['accounts'],
     queryFn: getAccounts,
   })
+
+  const { data: distinctValues } = useQuery({
+    queryKey: ['distinct-values'],
+    queryFn: getDistinctValues,
+    staleTime: 60_000,
+  })
+
+  const { data: cards = [] } = useQuery({
+    queryKey: ['cards'],
+    queryFn: getCards,
+  })
+
+  const bankOptions = (distinctValues?.banks ?? []).map(b => ({ value: b, label: b }))
+  const cardBanks = (cards || []).map(c => c.bank).filter(Boolean)
+  const allBankValues = [...new Set([...bankOptions.map(o => o.value), ...cardBanks])]
+  const bankOptionsWithCards = allBankValues.map(b => ({ value: b, label: b }))
+
+  useEffect(() => {
+    return () => {
+      if (editId !== null || name !== '' || bank !== '') {
+        setEditId(null)
+        setName('')
+        setType('efectivo')
+        setBank('')
+        setCardType('credito')
+      }
+    }
+  }, [])
 
   const createMut = useMutation({
     mutationFn: createAccount,
@@ -75,15 +95,26 @@ export default function AccountsManager() {
   })
 
   const createCardMut = useMutation({
-    mutationFn: (data: { custom_naming: string; name: string; bank: string; card_type: string }) => createCard(data),
+    mutationFn: (data: { card_name: string; bank: string; card_type: string }) => createCard(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards'] })
       setEditId(null)
-      setCustomNaming('')
       setName('')
       setType('efectivo')
       setBank('')
       setCardType('credito')
+    },
+    onError: (error: any) => {
+      if (error.response?.status === 400) {
+        setError(error.response.data.detail || 'Error al crear tarjeta')
+      } else if (error.response?.status === 409) {
+        const detail = error.response.data.detail
+        setDuplicateFound({
+          id: detail.existing_id,
+          name: detail.existing_name || '',
+          type: 'tarjeta',
+        })
+      }
     },
   })
 
@@ -96,7 +127,6 @@ export default function AccountsManager() {
 
   const handleCancel = () => {
     setEditId(null)
-    setCustomNaming('')
     setName('')
     setType('efectivo')
     setBank('')
@@ -116,17 +146,12 @@ export default function AccountsManager() {
         alert('La edición de tarjetas se puede hacer desde la sección de Tarjetas')
         return
       }
-      if (!customNaming.trim()) {
-        setError('El nombre personalizado es obligatorio')
-        return
-      }
       if (!bank.trim()) {
         setError('El banco es obligatorio')
         return
       }
       createCardMut.mutate({
-        custom_naming: customNaming.trim(),
-        name: name.trim(),
+        card_name: name.trim(),
         bank: bank.trim(),
         card_type: cardType,
       })
@@ -153,72 +178,79 @@ export default function AccountsManager() {
           <div key={account.id} className="relative">
             {isEditing ? (
               <form onSubmit={handleSubmit} className="p-4 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg space-y-4">
-                {/* Nombre */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-[var(--text-secondary)]">Nombre</label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => { setName(e.target.value); setError(null) }}
-                    className={`w-full px-3 py-2 rounded-md border text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 transition ${error ? 'border-red-500 focus:ring-red-300 focus:border-red-500' : 'border-[var(--border-color)] focus:border-primary'}`}
-                    placeholder={type === 'tarjeta' ? 'Ej: Visa Galicia' : 'Ej: Mi Cuenta'}
-                    autoFocus
-                  />
-                  {error && <p className="text-xs text-red-500">{error}</p>}
-                </div>
-
                 {/* Tipo de cuenta */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-[var(--text-secondary)]">Tipo de cuenta</label>
-                  <select
+                  <Select
                     value={type}
-                    onChange={(e) => setType(e.target.value)}
-                    className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-                  >
-                    <option value="efectivo">💵 Efectivo</option>
-                    <option value="cuenta_corriente">🏦 Cuenta Corriente</option>
-                    <option value="caja_ahorro">💳 Caja de Ahorro</option>
-                    <option value="mercadopago">📱 MercadoPago</option>
-                    <option value="tarjeta">💰 Tarjeta</option>
-                  </select>
+                    onChange={(v) => { setType(v); setError(null) }}
+                    options={[
+                      { value: 'efectivo', label: 'Efectivo' },
+                      { value: 'banco_digital', label: 'Banco Digital' },
+                      { value: 'tarjeta', label: 'Tarjeta' },
+                    ]}
+                    allowCustomValue={false}
+                  />
                 </div>
 
                 {/* Campos de Tarjeta */}
                 {type === 'tarjeta' && (
                   <div className="space-y-3 pt-2 border-t border-[var(--border-color)]">
-                    {/* Tipo: Crédito/Débito */}
+                    {/* Credito/Debito */}
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-[var(--text-secondary)]">Tipo de tarjeta</label>
                       <Select
                         value={cardType}
                         onChange={v => setCardType(v)}
-                        options={CARD_TYPES.map(t => ({ value: t.value, label: t.label }))}
-                      />
-                    </div>
-
-                    {/* Nombre personalizado */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-[var(--text-secondary)]">Nombre personalizado</label>
-                      <input
-                        type="text"
-                        value={customNaming}
-                        onChange={(e) => { setCustomNaming(e.target.value); setError(null) }}
-                        className={`w-full px-3 py-2 rounded-md border text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 transition ${error && type === 'tarjeta' && !customNaming.trim() ? 'border-red-500 focus:ring-red-300 focus:border-red-500' : 'border-[var(--border-color)] focus:border-primary'}`}
-                        placeholder="Ej: Visa Galicia - Juan"
+                        options={[
+                          { value: 'credito', label: 'Crédito' },
+                          { value: 'debito', label: 'Débito' },
+                        ]}
+                        allowCustomValue={false}
                       />
                     </div>
 
                     {/* Banco */}
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
-                      <input
-                        type="text"
+                      <Select
                         value={bank}
-                        onChange={(e) => { setBank(e.target.value); setError(null) }}
-                        className={`w-full px-3 py-2 rounded-md border text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 transition ${error && type === 'tarjeta' && !bank.trim() ? 'border-red-500 focus:ring-red-300 focus:border-red-500' : 'border-[var(--border-color)] focus:border-primary'}`}
-                        placeholder="Ej: Galicia"
+                        onChange={v => setBank(v)}
+                        options={bankOptionsWithCards}
+                        placeholder="Seleccionar banco"
+                        allowCustomValue={false}
                       />
                     </div>
+
+                    {/* Marca */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-[var(--text-secondary)]">Marca</label>
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => { setName(e.target.value); setError(null) }}
+                        className={`w-full px-3 py-2 rounded-md border text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 transition ${error ? 'border-red-500 focus:ring-red-300 focus:border-red-500' : 'border-[var(--border-color)] focus:border-primary'}`}
+                        placeholder="Ej: Visa"
+                        autoFocus
+                      />
+                      {error && <p className="text-xs text-red-500">{error}</p>}
+                    </div>
+                  </div>
+                )}
+
+                {/* Nombre para no-tarjeta */}
+                {type !== 'tarjeta' && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-[var(--text-secondary)]">Nombre</label>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => { setName(e.target.value); setError(null) }}
+                      className={`w-full px-3 py-2 rounded-md border text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 transition ${error ? 'border-red-500 focus:ring-red-300 focus:border-red-500' : 'border-[var(--border-color)] focus:border-primary'}`}
+                      placeholder="Ej: Mi Cuenta"
+                      autoFocus
+                    />
+                    {error && <p className="text-xs text-red-500">{error}</p>}
                   </div>
                 )}
 
@@ -244,9 +276,7 @@ export default function AccountsManager() {
               <div className="group relative flex items-center gap-3 p-3 bg-surface border border-border-color rounded-lg hover:border-border-color transition-colors">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${typeInfo.color}`}>
                   {account.type === 'efectivo' ? '💵' :
-                   account.type === 'mercadopago' ? '📱' :
-                   account.type === 'cuenta_corriente' ? '🏦' :
-                   account.type === 'caja_ahorro' ? '💳' : '💰'}
+                   account.type === 'banco_digital' ? '📱' : '💰'}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-primary truncate">{account.name}</div>

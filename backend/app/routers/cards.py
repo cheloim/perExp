@@ -12,25 +12,20 @@ router = APIRouter(prefix="/cards", tags=["cards"])
 
 
 class CardCreate(BaseModel):
-    custom_naming: str
-    name: str
+    card_name: str  # Marca: Visa, Mastercard, Amex, Cabal, etc
     bank: str = ""
-    holder: str = ""
     card_type: str = "credito"  # credito, debito
 
 
 class CardUpdate(BaseModel):
-    custom_naming: str | None = None
-    name: str | None = None
+    card_name: str | None = None
     bank: str | None = None
-    holder: str | None = None
     card_type: str | None = None
 
 
 class CardResponse(BaseModel):
     id: int
-    custom_naming: str
-    name: str
+    card_name: str
     bank: str
     holder: str
     card_type: str
@@ -59,53 +54,44 @@ def create_card(
     current_user: User = Depends(get_current_user),
 ):
     """Create a new card"""
-    custom_naming = card.custom_naming.strip()
-    name = card.name.strip()
+    card_name = card.card_name.strip()
     bank = card.bank.strip() if card.bank else ""
 
-    if not custom_naming:
-        raise HTTPException(status_code=400, detail="custom_naming es obligatorio")
-    if not name or not bank:
-        raise HTTPException(status_code=400, detail="Nombre y banco son obligatorios")
+    if not card_name:
+        raise HTTPException(status_code=400, detail="Franquicia (card_name) es obligatoria")
 
-    existing_by_naming = db.query(Card).filter(
-        Card.user_id == current_user.id,
-        func.lower(func.trim(Card.custom_naming)) == custom_naming.lower(),
-    ).first()
-    if existing_by_naming:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "message": "Ya existe una tarjeta con ese nombre personalizado",
-                "existing_id": existing_by_naming.id,
-                "existing_custom_naming": existing_by_naming.custom_naming,
-            }
-        )
+    # Extraer primer nombre del usuario para holder (para agrupar en grupo familiar)
+    holder = ""
+    if current_user.full_name:
+        if "," in current_user.full_name:
+            holder = current_user.full_name.split(",")[0].split()[0]
+        else:
+            holder = current_user.full_name.split()[0] if current_user.full_name.split() else ""
 
-    existing_by_fields = db.query(Card).filter(
+    # Validar duplicados por (card_name + bank + card_type)
+    existing = db.query(Card).filter(
         Card.user_id == current_user.id,
-        func.lower(func.trim(Card.name)) == name.lower(),
+        func.lower(func.trim(Card.card_name)) == card_name.lower(),
         func.lower(func.trim(Card.bank)) == bank.lower(),
         Card.card_type == card.card_type,
     ).first()
 
-    if existing_by_fields:
+    if existing:
         raise HTTPException(
             status_code=409,
             detail={
-                "message": "Ya existe una tarjeta con esos datos",
-                "existing_id": existing_by_fields.id,
-                "existing_name": existing_by_fields.name,
-                "existing_bank": existing_by_fields.bank,
-                "existing_card_type": existing_by_fields.card_type,
+                "message": "Ya existe una tarjeta con esos datos (misma franquicia, banco y tipo)",
+                "existing_id": existing.id,
+                "existing_name": existing.card_name,
+                "existing_bank": existing.bank,
+                "existing_card_type": existing.card_type,
             }
         )
 
     db_card = Card(
-        custom_naming=custom_naming,
-        name=name,
+        card_name=card_name,
         bank=bank,
-        holder=card.holder or "",
+        holder=holder,
         card_type=card.card_type,
         user_id=current_user.id,
     )
@@ -132,26 +118,6 @@ def update_card(
         raise HTTPException(status_code=404, detail="Card not found")
 
     update_data = card.model_dump(exclude_none=True)
-
-    if "custom_naming" in update_data:
-        new_naming = update_data["custom_naming"].strip()
-        if not new_naming:
-            raise HTTPException(status_code=400, detail="custom_naming no puede estar vacío")
-        existing = db.query(Card).filter(
-            Card.user_id == current_user.id,
-            func.lower(func.trim(Card.custom_naming)) == new_naming.lower(),
-            Card.id != card_id,
-        ).first()
-        if existing:
-            raise HTTPException(
-                status_code=409,
-                detail={
-                    "message": "Ya existe otra tarjeta con ese nombre personalizado",
-                    "existing_id": existing.id,
-                    "existing_custom_naming": existing.custom_naming,
-                }
-            )
-        update_data["custom_naming"] = new_naming
 
     for key, value in update_data.items():
         setattr(db_card, key, value)
@@ -212,7 +178,7 @@ def sync_card_holders(
         ).filter(
             Expense.user_id == current_user.id,
             func.lower(func.trim(Expense.bank)) == (card.bank or '').lower().strip(),
-            Expense.card.ilike(f"%{card.name}%"),
+            Expense.card.ilike(f"%{card.card_name}%"),
             Expense.person.isnot(None),
             Expense.person != ''
         ).group_by(Expense.person).order_by(func.count(Expense.id).desc()).first()

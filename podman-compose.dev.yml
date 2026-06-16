@@ -7,6 +7,7 @@ services:
       - creditcard_backend_dev_postgres_password
       - creditcard_backend_dev_llm_api_key
       - creditcard_backend_dev_investments_llm_api_key
+      - creditcard_backend_dev_messages_bot_llm_api_key
       - creditcard_backend_dev_telegram_bot_token
       - creditcard_backend_dev_google_client_id
       - creditcard_backend_dev_google_client_secret
@@ -15,6 +16,10 @@ services:
       PYTHONPATH: /app
       DATABASE_URL: postgresql://expenses_dev_user:${POSTGRES_PASSWORD_DEV}@db:5432/expenses_dev
       REDIS_URL: redis://redis:6379/1
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ./backend/app:/app/app:Z
+      - ./backend/main.py:/app/main.py:Z
     ports:
       - "8001:8000"
     depends_on:
@@ -46,6 +51,7 @@ services:
       - creditcard_backend_dev_postgres_password
       - creditcard_backend_dev_llm_api_key
       - creditcard_backend_dev_investments_llm_api_key
+      - creditcard_backend_dev_messages_bot_llm_api_key
       - creditcard_backend_dev_telegram_bot_token
       - creditcard_backend_dev_google_client_id
       - creditcard_backend_dev_google_client_secret
@@ -54,6 +60,7 @@ services:
       PYTHONPATH: /app
       DATABASE_URL: postgresql://expenses_dev_user:${POSTGRES_PASSWORD_DEV}@db:5432/expenses_dev
       REDIS_URL: redis://redis:6379/1
+      PYTHONUNBUFFERED: "1"
 
 secrets:
   creditcard_backend_dev_postgres_password:
@@ -65,6 +72,9 @@ secrets:
   creditcard_backend_dev_investments_llm_api_key:
     external: true
     env: INVESTMENTS_LLM_API_KEY_DEV
+  creditcard_backend_dev_messages_bot_llm_api_key:
+    external: true
+    env: MESSAGES_BOT_LLM_API_KEY_DEV
   creditcard_backend_dev_telegram_bot_token:
     external: true
     env: TELEGRAM_BOT_TOKEN_DEV
@@ -79,4 +89,4 @@ secrets:
     env: SECRET_KEY_DEV
   creditcard_frontend_dev_google_client_id:
     external: true
-    env: VITE_GOOGLE_CLIENT_ID_DEV
+    env: GOOGLE_CLIENT_ID_DEV

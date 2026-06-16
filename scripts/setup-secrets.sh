@@ -13,17 +13,23 @@ if [ "$ENV" != "prod" ] && [ "$ENV" != "dev" ]; then
     exit 1
 fi
 
+SUFFIX=""
+if [ "$ENV" = "dev" ]; then
+    SUFFIX="_dev"
+fi
+
 declare -A SECRETS=(
-    ["backend/POSTGRES_PASSWORD"]="${NAMESPACE}_backend_${ENV}_postgres_password"
-    ["backend/LLM_API_KEY"]="${NAMESPACE}_backend_${ENV}_llm_api_key"
-    ["backend/INVESTMENTS_LLM_API_KEY"]="${NAMESPACE}_backend_${ENV}_investments_llm_api_key"
-    ["backend/TELEGRAM_BOT_TOKEN"]="${NAMESPACE}_backend_${ENV}_telegram_bot_token"
-    ["backend/GOOGLE_CLIENT_ID"]="${NAMESPACE}_backend_${ENV}_google_client_id"
-    ["backend/GOOGLE_CLIENT_SECRET"]="${NAMESPACE}_backend_${ENV}_google_client_secret"
-    ["backend/SECRET_KEY"]="${NAMESPACE}_backend_${ENV}_secret_key"
+    ["backend/POSTGRES_PASSWORD"]="${NAMESPACE}_backend${SUFFIX}_postgres_password"
+    ["backend/LLM_API_KEY"]="${NAMESPACE}_backend${SUFFIX}_llm_api_key"
+    ["backend/INVESTMENTS_LLM_API_KEY"]="${NAMESPACE}_backend${SUFFIX}_investments_llm_api_key"
+    ["backend/MESSAGES_BOT_LLM_API_KEY"]="${NAMESPACE}_backend${SUFFIX}_messages_bot_llm_api_key"
+    ["backend/TELEGRAM_BOT_TOKEN"]="${NAMESPACE}_backend${SUFFIX}_telegram_bot_token"
+    ["backend/GOOGLE_CLIENT_ID"]="${NAMESPACE}_backend${SUFFIX}_google_client_id"
+    ["backend/GOOGLE_CLIENT_SECRET"]="${NAMESPACE}_backend${SUFFIX}_google_client_secret"
+    ["backend/SECRET_KEY"]="${NAMESPACE}_backend${SUFFIX}_secret_key"
 )
 
-FRONTEND_SECRET="${NAMESPACE}_frontend_${ENV}_google_client_id"
+FRONTEND_SECRET="${NAMESPACE}_frontend${SUFFIX}_google_client_id"
 FRONTEND_SECRET_PATH="${SECRETS_DIR}/${ENV}/frontend/GOOGLE_CLIENT_ID"
 
 echo "=== Podman Secrets Setup (${ENV}) ==="
@@ -59,4 +65,8 @@ echo ""
 echo "=== ${ENV^} Setup Complete (${count} secrets) ==="
 echo ""
 echo "Secrets for ${ENV}:"
-podman secret ls | grep "${NAMESPACE}_.*_${ENV}" | awk '{print "  " $2, "-", $3}'
+if [ "$ENV" = "prod" ]; then
+    podman secret ls | grep -E "creditcard_backend_(llm|investments|messages_bot|telegram|postgres|google|secret)" | awk '{print "  " $2, "-", $3}'
+else
+    podman secret ls | grep "${NAMESPACE}_.*_${ENV}" | awk '{print "  " $2, "-", $3}'
+fi

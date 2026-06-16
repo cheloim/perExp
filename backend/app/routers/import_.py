@@ -415,20 +415,20 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
     def get_card_key(bank: str, card: str, holder: str) -> str:
         return f"{bank}|{card}|{holder}"
 
-    def find_or_create_card(bank: str, card: str, holder: str, custom_naming: str, card_type: str = "credito") -> tuple[Card, bool]:
+    def find_or_create_card(bank: str, card: str, holder: str, _custom_naming: str, card_type: str = "credito") -> tuple[Card, bool]:
         norm_bank = normalize_bank(bank)
         norm_card = first_card_word(card)
         norm_holder = title_case_single(holder)
 
-        _log(f"[FIND_OR_CREATE_CARD] bank={norm_bank}, card={norm_card}, holder={norm_holder}, custom_naming={custom_naming}, card_type={card_type}")
-        _log(f"[FIND_OR_CREATE_CARD] user_cards count={len(user_cards)}, names: {[c.custom_naming for c in user_cards]}")
+        _log(f"[FIND_OR_CREATE_CARD] bank={norm_bank}, card={norm_card}, holder={norm_holder}, card_type={card_type}")
+        _log(f"[FIND_OR_CREATE_CARD] user_cards count={len(user_cards)}, names: {[c.card_name for c in user_cards]}")
 
         existing = next(
             (c for c in user_cards
-             if c.custom_naming.lower() == custom_naming.lower()), None
+             if c.card_name.lower() == norm_card.lower() and c.bank.lower() == norm_bank.lower()), None
         )
         if existing:
-            _log(f"[FIND_OR_CREATE_CARD] Found existing card: {existing.custom_naming}")
+            _log(f"[FIND_OR_CREATE_CARD] Found existing card: {existing.card_name}")
             if existing.holder.lower() != norm_holder.lower():
                 existing.holder = norm_holder
             if existing.card_type != card_type:
@@ -436,8 +436,7 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
             return existing, False
 
         new_card = Card(
-            custom_naming=custom_naming,
-            name=norm_card,
+            card_name=norm_card,
             bank=norm_bank,
             holder=norm_holder,
             card_type=card_type,
@@ -446,7 +445,7 @@ def rows_confirm_import(body: RowsConfirmBody, db: Session = Depends(get_db), cu
         db.add(new_card)
         db.flush()
         user_cards.append(new_card)
-        _log(f"[FIND_OR_CREATE_CARD] Created new card: custom_naming={custom_naming}, name={norm_card}, bank={norm_bank}, holder={norm_holder}")
+        _log(f"[FIND_OR_CREATE_CARD] Created new card: card_name={norm_card}, bank={norm_bank}, holder={norm_holder}")
         return new_card, True
 
     for r in body.rows:

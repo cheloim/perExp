@@ -186,7 +186,7 @@ def _is_scheduled_duplicate(
     return q.first() is not None
 
 
-def _expand_installments(parsed: list, db: Session, user_id: int) -> tuple[list, list]:
+def _expand_installments(parsed: list, db: Session, user_id: int, closing_date=None) -> tuple[list, list]:
     """
     Retorna: (expenses_to_create, scheduled_expenses_to_create)
     """
@@ -201,7 +201,10 @@ def _expand_installments(parsed: list, db: Session, user_id: int) -> tuple[list,
         d = r.get("_date_obj")
         if not inst_num or not inst_total or inst_total < 2 or not d:
             continue
-        base_date = add_months(d, -(inst_num - 1))
+        if closing_date:
+            base_date = add_months(closing_date, -(inst_num - 1))
+        else:
+            base_date = add_months(d, -(inst_num - 1))
         txn_id = r.get("transaction_id") or ""
         # Group by txn_id when available: Argentine statements share the same comprobante
         # across all installments of a purchase, so C.02/03 and C.03/03 with the same
@@ -240,8 +243,9 @@ def _expand_installments(parsed: list, db: Session, user_id: int) -> tuple[list,
                 continue
             charge_date = add_months(base_date, i - 1)
 
-            # Saltear si es futura
-            if charge_date > today:
+            # Saltear si es futura respecto al closing_date (o today si no hay closing_date)
+            max_date = closing_date if closing_date else today
+            if charge_date > max_date:
                 continue
 
             gen_key = (desc_lower, i, inst_total, txn_id) if txn_id \

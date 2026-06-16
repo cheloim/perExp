@@ -12,12 +12,8 @@ function getCardKey(bank: string, card: string, holder: string): string {
   return `${bank}|${card}|${titleCase(holder)}`
 }
 
-function getSuggestionsForHolder(cards: Card[], holder: string): string[] {
-  if (!holder) return []
-  return cards
-    .filter(c => c.holder?.toLowerCase() === holder.toLowerCase())
-    .map(c => c.custom_naming)
-    .filter(Boolean) as string[]
+function getSuggestionsForHolder(_cards: Card[], _holder: string): string[] {
+  return []
 }
 
 type CardNamingEdit = { custom_naming?: string; bank?: string; card_name?: string; holder?: string }

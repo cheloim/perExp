@@ -18,9 +18,11 @@ from telegram.ext import (
     filters,
 )
 
+from sqlalchemy import func
+
 from app.database import SessionLocal
 from app.models import Account, Card, Category, Expense, User
-from app.prompts import EXPENSE_PARSE_PROMPT
+from app.prompts import EXPENSE_PARSE_PROMPT, CARD_EXTRACT_PROMPT
 from app.services.categorization import auto_categorize
 from app.services.import_utils import _normalize_text, _title_case
 from app.services.normalizers import normalize_bank, _normalize_person
@@ -38,15 +40,20 @@ WAITING_INSTALLMENT_NUMBER = 7
 WAITING_ACCOUNT_SELECT = 8
 WAITING_ACCOUNT_CREATE_NAME = 9
 WAITING_ACCOUNT_CREATE_TYPE = 10
+WAITING_CARD_CREATE_CHOICE = 11
+WAITING_CARD_CREATE_TYPE = 12
+WAITING_CARD_CREATE_NAME = 13
+WAITING_CARD_CREATE_CONFIRM = 14
 
 
 def _gemini_client() -> genai.Client:
-    return genai.Client(api_key=os.getenv("GEMINI_API_KEY", ""))
+    return genai.Client(api_key=os.getenv("MESSAGES_BOT_LLM_API_KEY", ""))
 
 
 def _parse_expense(text: str) -> dict | None:
     today = date.today().strftime("%Y-%m-%d")
     prompt = EXPENSE_PARSE_PROMPT.format(today=today) + f"\n\nMensaje: {text}"
+    logger.warning(f"[DEBUG PARSE] Prompt:\n{prompt}")
     try:
         client = _gemini_client()
         response = client.models.generate_content(
@@ -54,7 +61,7 @@ def _parse_expense(text: str) -> dict | None:
             contents=prompt,
         )
         raw = response.text.strip()
-        logger.info("Gemini raw response: %r", raw)
+        logger.warning(f"[DEBUG PARSE] Raw response: {raw}")
         # Strip markdown code fences if present
         if raw.startswith("```"):
             raw = raw.split("```")[1]
@@ -65,7 +72,37 @@ def _parse_expense(text: str) -> dict | None:
         return result
     except Exception as e:
         logger.error("Gemini parse error: %s", e)
+        logger.warning(f"[DEBUG PARSE] Failed text input: {text}")
         return None
+
+
+def _extract_card_info(raw_input: str, card_type: str) -> dict:
+    """Extract card_name and bank from user input using LLM."""
+    prompt = CARD_EXTRACT_PROMPT.format(
+        raw_input=raw_input,
+        card_type=card_type
+    )
+    api_key = os.getenv("LLM_API_KEY")
+    if not api_key:
+        return {"card_name": raw_input, "bank": ""}
+
+    try:
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model="gemini-flash-latest",
+            contents=prompt,
+        )
+        raw = response.text.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        result = json.loads(raw.strip())
+        logger.info("Card extract result: %s", result)
+        return result
+    except Exception as e:
+        logger.error("Card extract error: %s", e)
+        return {"card_name": raw_input, "bank": ""}
 
 
 def _get_accounts(user_id: int) -> list[Account]:
@@ -78,26 +115,15 @@ def _get_accounts(user_id: int) -> list[Account]:
 
 
 def _get_card_options(user_id: int) -> dict:
-    """Returns {bank: [(card, last4), ...]} for the authenticated user."""
+    """Returns {bank: [card_name, ...]} from Card table for the authenticated user."""
     db = SessionLocal()
     try:
-        rows = (
-            db.query(Expense.bank, Expense.card, Expense.card_last4)
-            .filter(Expense.user_id == user_id)
-            .filter(Expense.bank != "", Expense.card != "")
-            .filter(Expense.card.notin_(["Efectivo", "Transferencia"]))
-            .distinct()
-            .all()
-        )
+        cards = db.query(Card).filter(Card.user_id == user_id).all()
         result: dict = {}
-        seen: set = set()
-        for bank, card, last4 in rows:
-            key = (bank, card, last4)
-            if key in seen:
-                continue
-            seen.add(key)
-            result.setdefault(bank, []).append((card, last4 or ""))
-        return {b: sorted(cards, key=lambda x: x[0]) for b, cards in result.items()}
+        for card in cards:
+            bank = card.bank or "Sin banco"
+            result.setdefault(bank, []).append(card.card_name)
+        return {b: sorted(cards) for b, cards in result.items()}
     finally:
         db.close()
 
@@ -108,7 +134,6 @@ def _save_expense(
     person: str,
     bank: str = "",
     card: str = "",
-    card_last4: str = "",
     user_id: int | None = None,
     installment_total: int | None = None,
     installment_group_id: str | None = None,
@@ -139,7 +164,6 @@ def _save_expense(
             card=_title_case(card if card else payment),
             bank=normalize_bank(bank),
             person=_normalize_person(person, db),
-            card_last4=card_last4 or None,
             user_id=user_id,
             installment_number=1 if installment_total else None,
             installment_total=installment_total,
@@ -212,17 +236,41 @@ def _format_date_es(date_str: str) -> str:
         return date_str
 
 
-def _confirm_text(parsed: dict, payment_label: str) -> str:
+def _build_cat_levels(category_id: int | None, db) -> list[str]:
+    """Build category hierarchy list from category_id."""
+    if not category_id:
+        return []
+    cat = db.query(Category).filter(Category.id == category_id).first()
+    if not cat:
+        return []
+    levels = [cat.name]
+    node = cat
+    while node.parent_id:
+        node = db.query(Category).filter(Category.id == node.parent_id).first()
+        if not node:
+            break
+        levels.append(node.name)
+    return list(reversed(levels))
+
+
+def _confirm_text(parsed: dict, payment_label: str, cat_levels: list[str] = None) -> str:
     desc = parsed.get("description", "")
     amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
     date_str = _format_date_es(parsed.get("date", date.today().strftime("%Y-%m-%d")))
+    cat_tree = ""
+    if cat_levels:
+        indents = ["", "  └ ", "      └ "]
+        for i, name in enumerate(cat_levels):
+            indent = indents[i] if i < len(indents) else indents[-1]
+            cat_tree += f"{indent}{_cat_emoji(name)} {name}\n"
     return (
         f"Esto es lo que voy a guardar:\n\n"
         f"🛒 *{desc}*\n"
         f"💰 {amount_str}\n"
         f"📅 {date_str}\n"
-        f"💳 {payment_label}\n\n"
-        f"¿Lo guardamos?"
+        f"💳 {payment_label}\n"
+        f"{cat_tree}"
+        f"\n¿Lo guardamos?"
     )
 
 
@@ -365,6 +413,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return ConversationHandler.END
 
     parsed = await asyncio.to_thread(_parse_expense, text)
+    logger.warning(f"[DEBUG PARSE] Parsed result: {parsed}, amount: {parsed.get('amount') if parsed else None}")
 
     if not parsed or not parsed.get("amount"):
         await update.message.reply_text(
@@ -440,12 +489,17 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     context.user_data["card_options"] = card_options
 
     if not card_options:
+        keyboard = [
+            [InlineKeyboardButton("➕ Crear nueva tarjeta", callback_data="cardnew:new")],
+            [InlineKeyboardButton("✏️ Ingresar nombre manualmente", callback_data="cardnew:manual")],
+        ]
         await query.edit_message_text(
-            "No tengo tarjetas registradas para tu usuario.\n"
-            "¿Con qué tarjeta pagaste? Escribí el nombre, por ejemplo: _Visa Galicia_ o _Master HSBC_.",
+            "💳 *No tenés tarjetas registradas*\n\n"
+            "¿Qué preferís?",
             parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(keyboard),
         )
-        return WAITING_CARD_MANUAL
+        return WAITING_CARD_CREATE_CHOICE
 
     banks = sorted(card_options.keys())
     keyboard = [[InlineKeyboardButton(b, callback_data=f"bank:{b}")] for b in banks]
@@ -472,11 +526,8 @@ async def handle_card_bank(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return WAITING_CARD_MANUAL
 
     keyboard = [
-        [InlineKeyboardButton(
-            f"{card} ****{last4}" if last4 else card,
-            callback_data=f"card:{card}:{last4}",
-        )]
-        for card, last4 in cards
+        [InlineKeyboardButton(card, callback_data=f"card:{card}")]
+        for card in cards
     ]
     await query.edit_message_text("💳 ¿Qué tarjeta?", reply_markup=InlineKeyboardMarkup(keyboard))
     return WAITING_CARD_TYPE
@@ -486,14 +537,12 @@ async def handle_card_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     query = update.callback_query
     await query.answer()
 
-    parts = query.data.split(":", 2)
+    parts = query.data.split(":", 1)
     card = parts[1]
-    last4 = parts[2] if len(parts) > 2 else ""
     bank = context.user_data.get("card_bank", "")
 
-    label = f"{bank} {card}" + (f" ****{last4}" if last4 else "")
+    label = f"{bank} {card}"
     context.user_data["card_selected"] = card
-    context.user_data["card_last4"] = last4
     context.user_data["payment_label"] = label
 
     # Run early categorization to determine if we need to ask about installments
@@ -517,12 +566,13 @@ async def handle_card_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             return WAITING_INSTALLMENT_QUESTION
         else:
             # No installments needed, go straight to confirmation
+            cat_levels = _build_cat_levels(predicted_category_id, db)
             confirm_keyboard = [[
                 InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
                 InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
             ]]
             await query.edit_message_text(
-                _confirm_text(parsed, label),
+                _confirm_text(parsed, label, cat_levels),
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup(confirm_keyboard),
             )
@@ -541,12 +591,18 @@ async def handle_installment_question(update: Update, context: ContextTypes.DEFA
     if answer == "no":
         # No installments, go to confirmation
         payment_label = context.user_data.get("payment_label", "")
+        predicted_category_id = context.user_data.get("predicted_category_id")
+        db = SessionLocal()
+        try:
+            cat_levels = _build_cat_levels(predicted_category_id, db)
+        finally:
+            db.close()
         confirm_keyboard = [[
             InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
             InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
         ]]
         await query.edit_message_text(
-            _confirm_text(context.user_data["parsed"], payment_label),
+            _confirm_text(context.user_data["parsed"], payment_label, cat_levels),
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(confirm_keyboard),
         )
@@ -586,13 +642,19 @@ async def handle_installment_number(update: Update, context: ContextTypes.DEFAUL
 
     # Show confirmation
     payment_label = context.user_data.get("payment_label", "")
+    predicted_category_id = context.user_data.get("predicted_category_id")
+    db = SessionLocal()
+    try:
+        cat_levels = _build_cat_levels(predicted_category_id, db)
+    finally:
+        db.close()
     confirm_keyboard = [[
         InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
         InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
     ]]
 
     await update.message.reply_text(
-        _confirm_text(context.user_data["parsed"], payment_label),
+        _confirm_text(context.user_data["parsed"], payment_label, cat_levels),
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(confirm_keyboard),
     )
@@ -620,7 +682,7 @@ async def handle_account_select(update: Update, context: ContextTypes.DEFAULT_TY
         )
         return WAITING_ACCOUNT_CREATE_NAME
 
-    # Load account info
+    # Load account info and categorize
     db = SessionLocal()
     try:
         account = db.query(Account).filter(Account.id == int(account_id)).first()
@@ -630,6 +692,13 @@ async def handle_account_select(update: Update, context: ContextTypes.DEFAULT_TY
 
         context.user_data["account_id"] = account.id
         context.user_data["payment_label"] = f"{account.name} ({account.type})"
+
+        # Auto-categorize for cash/transfer expenses
+        parsed = context.user_data["parsed"]
+        cats = db.query(Category).all()
+        predicted_category_id = auto_categorize(parsed.get("description", ""), cats)
+        context.user_data["predicted_category_id"] = predicted_category_id
+        cat_levels = _build_cat_levels(predicted_category_id, db)
     finally:
         db.close()
 
@@ -639,7 +708,7 @@ async def handle_account_select(update: Update, context: ContextTypes.DEFAULT_TY
         InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
     ]]
     await query.edit_message_text(
-        _confirm_text(context.user_data["parsed"], context.user_data["payment_label"]),
+        _confirm_text(context.user_data["parsed"], context.user_data["payment_label"], cat_levels),
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(confirm_keyboard),
     )
@@ -691,6 +760,13 @@ async def handle_account_create_type(update: Update, context: ContextTypes.DEFAU
 
         context.user_data["account_id"] = new_account.id
         context.user_data["payment_label"] = f"{new_account.name} ({new_account.type})"
+
+        # Auto-categorize for cash/transfer expenses
+        parsed = context.user_data["parsed"]
+        cats = db.query(Category).all()
+        predicted_category_id = auto_categorize(parsed.get("description", ""), cats)
+        context.user_data["predicted_category_id"] = predicted_category_id
+        cat_levels = _build_cat_levels(predicted_category_id, db)
     finally:
         db.close()
 
@@ -700,14 +776,202 @@ async def handle_account_create_type(update: Update, context: ContextTypes.DEFAU
         InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
     ]]
     await query.edit_message_text(
-        _confirm_text(context.user_data["parsed"], context.user_data["payment_label"]),
+        _confirm_text(context.user_data["parsed"], context.user_data["payment_label"], cat_levels),
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(confirm_keyboard),
     )
     return WAITING_CONFIRM
 
 
+async def handle_card_create_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Ask if user wants to create a new card when none exist"""
+    query = update.callback_query
+    await query.answer()
+
+    _, choice = query.data.split(":", 1)
+
+    if choice == "new":
+        await query.edit_message_text(
+            "💳 *Nueva Tarjeta*\n\n"
+            "Primero, elegí el tipo de tarjeta:",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("💳 Crédito", callback_data="cardctype:credito")],
+                [InlineKeyboardButton("💰 Débito", callback_data="cardctype:debito")],
+            ]),
+        )
+        return WAITING_CARD_CREATE_TYPE
+
+    return ConversationHandler.END
+
+
+async def handle_card_create_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle card type selection and ask for card name"""
+    query = update.callback_query
+    await query.answer()
+
+    _, card_type = query.data.split(":", 1)
+    context.user_data["new_card_type"] = card_type
+
+    await query.message.reply_text(
+        "📝 *Datos de la tarjeta*\n\n"
+        "Escribí los datos como los ves en tus gastos:\n\n"
+        "Ejemplos:\n"
+        "• _Visa Galicia_\n"
+        "• _Mastercard HSBC_\n"
+        "• _Naranja_\n"
+        "• _Mercado Pago_\n\n"
+        "💡 Puedo detectar automáticamente la franquicia y el banco.",
+        parse_mode="Markdown",
+    )
+    return WAITING_CARD_CREATE_NAME
+
+
+async def handle_card_create_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle card name input, extract info with LLM, ask for confirmation"""
+    raw_input = update.message.text.strip()
+    card_type = context.user_data.get("new_card_type", "credito")
+    user_id = context.user_data.get("user_id")
+
+    db = SessionLocal()
+    try:
+        chat_id = str(update.effective_chat.id)
+        user = db.query(User).filter(User.telegram_chat_id == chat_id).first()
+        user_full_name = user.full_name if user else ""
+    finally:
+        db.close()
+
+    extracted = _extract_card_info(raw_input, card_type)
+    card_name = extracted.get("card_name", raw_input)
+    bank = extracted.get("bank", "")
+
+    if user_full_name:
+        if "," in user_full_name:
+            holder = user_full_name.split(",")[0].split()[0]
+        else:
+            holder = user_full_name.split()[0] if user_full_name.split() else ""
+    else:
+        holder = ""
+
+    context.user_data["new_card_name"] = card_name
+    context.user_data["new_card_bank"] = bank
+    context.user_data["new_card_holder"] = holder
+
+    bank_display = bank if bank else "No detectado"
+
+    await update.message.reply_text(
+        "🔍 *Detectado*\n\n"
+        f"💳 Tarjeta: *{card_name}*\n"
+        f"🏦 Banco: *{bank_display}*\n"
+        f"👤 Titular: *{holder}*\n"
+        f"💳 Tipo: *{card_type}*\n\n"
+        "¿Confirmás la creación de esta tarjeta?",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Sí, crear", callback_data="cardconfirm:yes")],
+            [InlineKeyboardButton("❌ Cancelar", callback_data="cardconfirm:no")],
+        ]),
+    )
+    return WAITING_CARD_CREATE_CONFIRM
+
+
+async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle card creation confirmation"""
+    query = update.callback_query
+    await query.answer()
+
+    _, action = query.data.split(":", 1)
+
+    if action == "no":
+        await query.message.reply_text("❌ Creación de tarjeta cancelada.")
+        return ConversationHandler.END
+
+    card_name = context.user_data.get("new_card_name", "")
+    bank = context.user_data.get("new_card_bank", "")
+    card_type = context.user_data.get("new_card_type", "credito")
+
+    chat_id = str(update.effective_chat.id)
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.telegram_chat_id == chat_id).first()
+        if not user:
+            await query.message.reply_text("❌ Error: usuario no encontrado.")
+            return ConversationHandler.END
+
+        user_id = user.id
+        user_full_name = user.full_name if user.full_name else ""
+
+        if user_full_name:
+            if "," in user_full_name:
+                holder = user_full_name.split(",")[0].split()[0]
+            else:
+                holder = user_full_name.split()[0] if user_full_name.split() else ""
+        else:
+            holder = ""
+
+        existing = db.query(Card).filter(
+            Card.user_id == user_id,
+            func.lower(func.trim(Card.card_name)) == card_name.lower(),
+            func.lower(func.trim(Card.bank)) == bank.lower(),
+        ).first()
+        if existing:
+            await query.message.reply_text(
+                "❌ Ya existe una tarjeta con ese nombre y banco. Probá con otro nombre.",
+                parse_mode="Markdown",
+            )
+            return ConversationHandler.END
+
+        new_card = Card(
+            card_name=card_name,
+            bank=bank,
+            holder=holder,
+            card_type=card_type,
+            user_id=user_id,
+        )
+        db.add(new_card)
+        db.commit()
+
+        context.user_data["card_selected"] = card_name
+        context.user_data["card_bank"] = bank
+        context.user_data["payment_label"] = f"{bank} {card_name}".strip() if bank else card_name
+        context.user_data["card_id"] = new_card.id
+
+        parsed = context.user_data["parsed"]
+        cats = db.query(Category).all()
+        predicted_category_id = auto_categorize(parsed.get("description", ""), cats)
+        context.user_data["predicted_category_id"] = predicted_category_id
+
+        if _should_ask_installments(predicted_category_id, db):
+            installment_keyboard = [[
+                InlineKeyboardButton("✅ Sí", callback_data="installment:yes"),
+                InlineKeyboardButton("❌ No", callback_data="installment:no"),
+            ]]
+            await query.edit_message_text(
+                f"✅ *Tarjeta {card_name} creada!*\n\n"
+                "¿Lo pagaste en cuotas?",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(installment_keyboard),
+            )
+            return WAITING_INSTALLMENT_QUESTION
+        else:
+            cat_levels = _build_cat_levels(predicted_category_id, db)
+            confirm_keyboard = [[
+                InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
+                InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
+            ]]
+            await query.edit_message_text(
+                f"✅ *Tarjeta {card_name} creada!*\n\n"
+                + _confirm_text(parsed, context.user_data["payment_label"], cat_levels),
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(confirm_keyboard),
+            )
+            return WAITING_CONFIRM
+    finally:
+        db.close()
+
+
 async def handle_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle expense confirmation - save or cancel"""
     query = update.callback_query
     await query.answer()
 
@@ -722,51 +986,59 @@ async def handle_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     user_id = context.user_data.get("user_id")
     person = context.user_data.get("tg_user", "")
 
-    # Extract installment data from context
     installment_total = context.user_data.get("installment_total")
     installment_group_id = context.user_data.get("installment_group_id")
     predicted_category_id = context.user_data.get("predicted_category_id")
 
-    if method == "tarjeta":
-        card = context.user_data.get("card_selected", "")
-        bank = context.user_data.get("card_bank", "")
-        last4 = context.user_data.get("card_last4", "")
-        card_id = context.user_data.get("card_id")
-        expense = _save_expense(
-            parsed,
-            payment=card,
-            person=person,
-            bank=bank,
-            card=card,
-            card_last4=last4,
-            user_id=user_id,
-            installment_total=installment_total,
-            installment_group_id=installment_group_id,
-            predicted_category_id=predicted_category_id,
-            card_id=card_id,
+    db = SessionLocal()
+    try:
+        if method == "tarjeta":
+            card = context.user_data.get("card_selected", "")
+            bank = context.user_data.get("card_bank", "")
+            card_id = context.user_data.get("card_id")
+            expense = _save_expense(
+                parsed,
+                payment=card,
+                person=person,
+                bank=bank,
+                card=card,
+                user_id=user_id,
+                installment_total=installment_total,
+                installment_group_id=installment_group_id,
+                predicted_category_id=predicted_category_id,
+                card_id=card_id,
+            )
+        elif method == "efectivo_transferencia":
+            account_id = context.user_data.get("account_id")
+            expense = _save_expense(
+                parsed,
+                payment=payment_label,
+                person=person,
+                user_id=user_id,
+                predicted_category_id=predicted_category_id,
+                account_id=account_id,
+            )
+        else:
+            expense = _save_expense(
+                parsed,
+                payment=payment_label,
+                person=person,
+                user_id=user_id,
+                predicted_category_id=predicted_category_id,
+            )
+
+        await query.edit_message_text(
+            _saved_text(expense, payment_label),
+            parse_mode="Markdown",
         )
-    elif method == "efectivo_transferencia":
-        account_id = context.user_data.get("account_id")
-        expense = _save_expense(
-            parsed,
-            payment=payment_label,
-            person=person,
-            user_id=user_id,
-            predicted_category_id=predicted_category_id,
-            account_id=account_id,
-        )
 
-    await query.edit_message_text(
-        _saved_text(expense, payment_label),
-        parse_mode="Markdown",
-    )
+        context.user_data.pop("installment_total", None)
+        context.user_data.pop("installment_group_id", None)
+        context.user_data.pop("predicted_category_id", None)
 
-    # Clean up installment data from context to prevent leakage
-    context.user_data.pop("installment_total", None)
-    context.user_data.pop("installment_group_id", None)
-    context.user_data.pop("predicted_category_id", None)
-
-    return ConversationHandler.END
+        return ConversationHandler.END
+    finally:
+        db.close()
 
 
 async def handle_card_manual(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -774,7 +1046,6 @@ async def handle_card_manual(update: Update, context: ContextTypes.DEFAULT_TYPE)
     bank = context.user_data.get("card_bank", "")
     label = f"{bank} {card_name}".strip() if bank else card_name
     context.user_data["card_selected"] = card_name
-    context.user_data["card_last4"] = ""
     context.user_data["payment_label"] = label
 
     # Run early categorization
@@ -796,12 +1067,13 @@ async def handle_card_manual(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
             return WAITING_INSTALLMENT_QUESTION
         else:
+            cat_levels = _build_cat_levels(predicted_category_id, db)
             confirm_keyboard = [[
                 InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
                 InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
             ]]
             await update.message.reply_text(
-                _confirm_text(parsed, label),
+                _confirm_text(parsed, label, cat_levels),
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup(confirm_keyboard),
             )
@@ -844,6 +1116,10 @@ async def _run_bot(token: str) -> None:
             WAITING_CARD_MANUAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_card_manual)],
             WAITING_INSTALLMENT_QUESTION: [CallbackQueryHandler(handle_installment_question, pattern=r"^installment:")],
             WAITING_INSTALLMENT_NUMBER: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_installment_number)],
+            WAITING_CARD_CREATE_CHOICE: [CallbackQueryHandler(handle_card_create_choice, pattern=r"^cardnew:")],
+            WAITING_CARD_CREATE_TYPE: [CallbackQueryHandler(handle_card_create_type, pattern=r"^cardctype:")],
+            WAITING_CARD_CREATE_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_card_create_name)],
+            WAITING_CARD_CREATE_CONFIRM: [CallbackQueryHandler(handle_card_create_confirm, pattern=r"^cardconfirm:")],
         },
         fallbacks=[MessageHandler(filters.COMMAND, cancel)],
         per_message=False,

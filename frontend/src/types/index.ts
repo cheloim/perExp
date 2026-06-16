@@ -58,10 +58,9 @@ export interface Account {
 
 export interface Card {
   id: number
-  custom_naming: string
-  name: string
+  card_name: string
   bank: string
-  holder: string
+  holder?: string
   card_type: string
   user_id: number
   created_at: string
@@ -187,7 +186,7 @@ export interface InstallmentGroup {
   currency: string
   card: string
   card_id: number | null
-  custom_naming: string | null
+  card_name_from_id: string | null
 }
 
 export interface ScheduledExpense {
@@ -210,7 +209,7 @@ export interface CardSummary {
   holder: string
   bank: string
   card_name: string
-  custom_naming?: string
+  card_name_from_id?: string
   card_type: string
   total_amount: number
   count: number
