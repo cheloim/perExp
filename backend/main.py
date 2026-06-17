@@ -15,7 +15,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import app.models  # noqa: F401 — runs migrations on import
-from app.database import SessionLocal
+from app.database import Base, SessionLocal, engine
 from app.models import Category, User
 from app.routers import (
     accounts,
@@ -40,6 +40,9 @@ from app.services.auth import get_password_hash
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
+    # Create tables if they don't exist
+    Base.metadata.create_all(bind=engine)
+    
     db = SessionLocal()
     if db.query(Category).count() == 0:
         _apply_base_hierarchy(db)
