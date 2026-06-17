@@ -183,10 +183,7 @@ jobs:
             import json, sys
             with open('/tmp/secrets.json') as f:
                 content = f.read()
-            # Remove control characters except newlines
-            import re
-            content = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', content)
-            data = json.loads(content)
+            data = json.loads(content, strict=False)
             for k, v in data.items():
                 print(f'{k}={v}')
             " >> /opt/creditcardanalyzer/.env
