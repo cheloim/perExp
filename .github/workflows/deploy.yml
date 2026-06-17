@@ -64,6 +64,7 @@ jobs:
           host: ${{ secrets.LINODE_SERVER_IP }}
           username: ${{ secrets.LINODE_SSH_USER }}
           key: ${{ secrets.LINODE_SSH_KEY }}
+          port: 43422
           script: |
             # Install podman if not exists
             if ! command -v podman &> /dev/null; then
@@ -73,7 +74,9 @@ jobs:
 
             # Install podman-compose if not exists
             if ! command -v podman-compose &> /dev/null; then
-                pip3 install podman-compose
+                sudo dnf install -y python3-pip
+                pip3 install --user podman-compose
+                export PATH="$HOME/.local/bin:$PATH"
             fi
 
             # Create app directory
@@ -86,16 +89,16 @@ jobs:
             IMAGE_TAG="${{ github.sha }}"
 
             # Write docker-compose.yml
-            cat > /opt/creditcardanalyzer/docker-compose.yml << EOF
+            cat > /opt/creditcardanalyzer/docker-compose.yml << 'EOF'
             services:
               db:
-                image: postgres:16-alpine
+                image: docker.io/library/postgres:16-alpine
                 ports:
                   - "5432:5432"
                 environment:
                   POSTGRES_DB: expenses
                   POSTGRES_USER: expenses_user
-                  POSTGRES_PASSWORD: \${POSTGRES_PASSWORD}
+                  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
                 volumes:
                   - postgres_data:/var/lib/postgresql/data
                 healthcheck:
@@ -105,7 +108,7 @@ jobs:
                   retries: 5
 
               redis:
-                image: redis:7-alpine
+                image: docker.io/library/redis:7-alpine
                 volumes:
                   - redis_data:/data
                 healthcheck:
@@ -122,17 +125,17 @@ jobs:
                   redis:
                     condition: service_healthy
                 environment:
-                  DATABASE_URL: postgresql://expenses_user:\${POSTGRES_PASSWORD}@db:5432/expenses
+                  DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses
                   REDIS_URL: redis://redis:6379/0
                   PYTHONUNBUFFERED: "1"
-                  POSTGRES_PASSWORD: \${POSTGRES_PASSWORD}
-                  LLM_API_KEY: \${LLM_API_KEY}
-                  INVESTMENTS_LLM_API_KEY: \${INVESTMENTS_LLM_API_KEY}
-                  MESSAGES_BOT_LLM_API_KEY: \${MESSAGES_BOT_LLM_API_KEY}
-                  TELEGRAM_BOT_TOKEN: \${TELEGRAM_BOT_TOKEN}
-                  GOOGLE_CLIENT_ID: \${GOOGLE_CLIENT_ID}
-                  GOOGLE_CLIENT_SECRET: \${GOOGLE_CLIENT_SECRET}
-                  SECRET_KEY: \${SECRET_KEY}
+                  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+                  LLM_API_KEY: ${LLM_API_KEY}
+                  INVESTMENTS_LLM_API_KEY: ${INVESTMENTS_LLM_API_KEY}
+                  MESSAGES_BOT_LLM_API_KEY: ${MESSAGES_BOT_LLM_API_KEY}
+                  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+                  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+                  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+                  SECRET_KEY: ${SECRET_KEY}
                 ports:
                   - "8000:8000"
                 restart: unless-stopped
@@ -144,17 +147,17 @@ jobs:
                   - db
                   - redis
                 environment:
-                  DATABASE_URL: postgresql://expenses_user:\${POSTGRES_PASSWORD}@db:5432/expenses
+                  DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses
                   REDIS_URL: redis://redis:6379/0
                   PYTHONUNBUFFERED: "1"
-                  POSTGRES_PASSWORD: \${POSTGRES_PASSWORD}
-                  LLM_API_KEY: \${LLM_API_KEY}
-                  INVESTMENTS_LLM_API_KEY: \${INVESTMENTS_LLM_API_KEY}
-                  MESSAGES_BOT_LLM_API_KEY: \${MESSAGES_BOT_LLM_API_KEY}
-                  TELEGRAM_BOT_TOKEN: \${TELEGRAM_BOT_TOKEN}
-                  GOOGLE_CLIENT_ID: \${GOOGLE_CLIENT_ID}
-                  GOOGLE_CLIENT_SECRET: \${GOOGLE_CLIENT_SECRET}
-                  SECRET_KEY: \${SECRET_KEY}
+                  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+                  LLM_API_KEY: ${LLM_API_KEY}
+                  INVESTMENTS_LLM_API_KEY: ${INVESTMENTS_LLM_API_KEY}
+                  MESSAGES_BOT_LLM_API_KEY: ${MESSAGES_BOT_LLM_API_KEY}
+                  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+                  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+                  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+                  SECRET_KEY: ${SECRET_KEY}
                 restart: unless-stopped
 
               frontend:
@@ -170,18 +173,34 @@ jobs:
               redis_data:
             EOF
 
-            # Parse APP_SECRETS JSON and write to .env file
-            echo '${{ secrets.APP_SECRETS }}' | python3 -c "
+            # Write image variables to .env for docker-compose substitution
+            echo "BACKEND_IMAGE=${BACKEND_IMAGE}" > /opt/creditcardanalyzer/.env
+            echo "IMAGE_TAG=${IMAGE_TAG}" >> /opt/creditcardanalyzer/.env
+
+            # Parse APP_SECRETS JSON and append to .env file
+            cat > /tmp/secrets.json << 'SECRETS_EOF'
+            ${{ secrets.APP_SECRETS }}
+            SECRETS_EOF
+            python3 -c "
             import json, sys
-            data = json.load(sys.stdin)
+            with open('/tmp/secrets.json') as f:
+                data = json.load(f)
             for k, v in data.items():
                 print(f'{k}={v}')
-            " > /opt/creditcardanalyzer/.env
+            " >> /opt/creditcardanalyzer/.env
+            rm -f /tmp/secrets.json
 
             # Ensure .env is secure
             chmod 600 /opt/creditcardanalyzer/.env
 
             # Deploy
             cd /opt/creditcardanalyzer
-            docker-compose pull
-            docker-compose up -d --remove-orphans
+            export PATH="$HOME/.local/bin:$PATH"
+            export BACKEND_IMAGE="${BACKEND_IMAGE}"
+            export FRONTEND_IMAGE="${FRONTEND_IMAGE}"
+            export IMAGE_TAG="${IMAGE_TAG}"
+            set -a
+            source .env
+            set +a
+            podman-compose pull
+            podman-compose up -d --remove-orphans
