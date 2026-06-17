@@ -53,12 +53,12 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  deploy:
+  setup-server:
     runs-on: ubuntu-latest
     needs: build-and-push
 
     steps:
-      - name: Deploy to server via SSH
+      - name: Install dependencies on server
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.LINODE_SERVER_IP }}
@@ -76,13 +76,25 @@ jobs:
             if ! command -v podman-compose &> /dev/null; then
                 sudo dnf install -y python3-pip
                 pip3 install --user podman-compose
-                export PATH="$HOME/.local/bin:$PATH"
             fi
 
             # Create app directory
             sudo mkdir -p /opt/creditcardanalyzer
             sudo chown -R $USER:$USER /opt/creditcardanalyzer
 
+  deploy:
+    runs-on: ubuntu-latest
+    needs: setup-server
+
+    steps:
+      - name: Deploy to server via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.LINODE_SERVER_IP }}
+          username: ${{ secrets.LINODE_SSH_USER }}
+          key: ${{ secrets.LINODE_SSH_KEY }}
+          port: 43422
+          script: |
             # Set image variables
             BACKEND_IMAGE="${{ env.BACKEND_IMAGE }}"
             FRONTEND_IMAGE="${{ env.FRONTEND_IMAGE }}"
@@ -173,31 +185,24 @@ jobs:
               redis_data:
             EOF
 
-            # Write image variables to .env for docker-compose substitution
+            # Write image variables to .env
             echo "BACKEND_IMAGE=${BACKEND_IMAGE}" > /opt/creditcardanalyzer/.env
             echo "IMAGE_TAG=${IMAGE_TAG}" >> /opt/creditcardanalyzer/.env
 
-            # Parse APP_SECRETS JSON and append to .env file
-            printf '%s' '${{ secrets.APP_SECRETS }}' > /tmp/secrets.json
-            python3 -c "
+            # Decode base64 secrets and append to .env
+            echo '${{ secrets.APP_SECRETS_B64 }}' | base64 -d | python3 -c "
             import json, sys
-            with open('/tmp/secrets.json') as f:
-                content = f.read()
-            data = json.loads(content, strict=False)
+            data = json.load(sys.stdin)
             for k, v in data.items():
                 print(f'{k}={v}')
             " >> /opt/creditcardanalyzer/.env
-            rm -f /tmp/secrets.json
 
-            # Ensure .env is secure
+            # Secure .env
             chmod 600 /opt/creditcardanalyzer/.env
 
             # Deploy
             cd /opt/creditcardanalyzer
             export PATH="$HOME/.local/bin:$PATH"
-            export BACKEND_IMAGE="${BACKEND_IMAGE}"
-            export FRONTEND_IMAGE="${FRONTEND_IMAGE}"
-            export IMAGE_TAG="${IMAGE_TAG}"
             set -a
             source .env
             set +a

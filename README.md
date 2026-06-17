@@ -83,6 +83,54 @@ The project uses environment variables. Copy `.env.example` to `.env` and config
 - `GEMINI_API_KEY`: Google Gemini API key
 - `IOL_API_KEY` / `PPI_API_KEY`: For investment sync
 
+## GitHub Actions Deployment
+
+### Required Secrets
+
+Add these secrets in `Settings → Secrets → Actions`:
+
+| Secret | Description |
+|--------|-------------|
+| `LINODE_SERVER_IP` | Server IP address |
+| `LINODE_SSH_USER` | SSH username |
+| `LINODE_SSH_KEY` | SSH private key |
+| `APP_SECRETS_B64` | Base64-encoded JSON with app secrets |
+
+### APP_SECRETS Template
+
+Create a JSON file with your secrets:
+
+```json
+{
+  "POSTGRES_PASSWORD": "your-postgres-password",
+  "LLM_API_KEY": "your-gemini-api-key",
+  "INVESTMENTS_LLM_API_KEY": "your-investments-llm-key",
+  "MESSAGES_BOT_LLM_API_KEY": "your-messages-bot-llm-key",
+  "TELEGRAM_BOT_TOKEN": "your-telegram-bot-token",
+  "GOOGLE_CLIENT_ID": "your-google-client-id",
+  "GOOGLE_CLIENT_SECRET": "your-google-client-secret",
+  "SECRET_KEY": "your-jwt-secret-key"
+}
+```
+
+### Generate Base64 Secret
+
+```bash
+# Option 1: From file
+cat app-secrets.json | base64 -w 0
+
+# Option 2: Inline
+echo '{"POSTGRES_PASSWORD":"xxx","LLM_API_KEY":"xxx"}' | base64 -w 0
+```
+
+### Add to GitHub
+
+1. Copy the base64 output
+2. Go to `Settings → Secrets → Actions`
+3. Click `New repository secret`
+4. Name: `APP_SECRETS_B64`
+5. Value: paste the base64 string
+
 ## License
 
 MIT
