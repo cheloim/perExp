@@ -74,7 +74,9 @@ jobs:
 
             # Install podman-compose if not exists
             if ! command -v podman-compose &> /dev/null; then
-                pip3 install podman-compose
+                sudo dnf install -y python3-pip
+                pip3 install --user podman-compose
+                export PATH="$HOME/.local/bin:$PATH"
             fi
 
             # Create app directory
@@ -172,17 +174,23 @@ jobs:
             EOF
 
             # Parse APP_SECRETS JSON and write to .env file
-            echo '${{ secrets.APP_SECRETS }}' | python3 -c "
+            cat > /tmp/secrets.json << 'SECRETS_EOF'
+            ${{ secrets.APP_SECRETS }}
+            SECRETS_EOF
+            python3 -c "
             import json, sys
-            data = json.load(sys.stdin)
+            with open('/tmp/secrets.json') as f:
+                data = json.load(f)
             for k, v in data.items():
                 print(f'{k}={v}')
             " > /opt/creditcardanalyzer/.env
+            rm -f /tmp/secrets.json
 
             # Ensure .env is secure
             chmod 600 /opt/creditcardanalyzer/.env
 
             # Deploy
             cd /opt/creditcardanalyzer
-            docker-compose pull
-            docker-compose up -d --remove-orphans
+            export PATH="$HOME/.local/bin:$PATH"
+            podman-compose pull
+            podman-compose up -d --remove-orphans
