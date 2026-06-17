@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 
 interface SelectOption {
   value: string;
@@ -35,8 +35,10 @@ export function Select({
 }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -72,6 +74,7 @@ export function Select({
     onChange(val);
     setIsOpen(false);
     setSearch("");
+    setHighlightedIndex(-1);
   };
 
   const handleCustomValue = () => {
@@ -79,8 +82,74 @@ export function Select({
       onChange(search.trim());
       setIsOpen(false);
       setSearch("");
+      setHighlightedIndex(-1);
     }
   };
+
+  const flatOptions = useMemo(() => {
+    const result: { value: string; label: string }[] = [];
+    if (placeholder) result.push({ value: "", label: placeholder });
+    filteredOptions.forEach((o) => result.push(o));
+    groups.forEach((group) => {
+      const groupFiltered = group.options.filter(
+        (o) =>
+          !search ||
+          o.label.toLowerCase().includes(search.toLowerCase()) ||
+          o.value.toLowerCase().includes(search.toLowerCase()),
+      );
+      groupFiltered.forEach((o) => result.push(o));
+    });
+    return result;
+  }, [filteredOptions, groups, search, placeholder]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (!isOpen) {
+        if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter") {
+          e.preventDefault();
+          setIsOpen(true);
+          setHighlightedIndex(0);
+        }
+        return;
+      }
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault();
+          setHighlightedIndex((prev) => (prev < flatOptions.length - 1 ? prev + 1 : 0));
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : flatOptions.length - 1));
+          break;
+        case "Enter":
+          e.preventDefault();
+          if (highlightedIndex >= 0 && highlightedIndex < flatOptions.length) {
+            handleSelect(flatOptions[highlightedIndex].value);
+          } else if (search.trim() && allowCustomValue) {
+            handleCustomValue();
+          }
+          break;
+        case "Escape":
+          e.preventDefault();
+          setIsOpen(false);
+          setSearch("");
+          setHighlightedIndex(-1);
+          break;
+      }
+    },
+    [isOpen, highlightedIndex, flatOptions, search, allowCustomValue],
+  );
+
+  useEffect(() => {
+    setHighlightedIndex(-1);
+  }, [search]);
+
+  useEffect(() => {
+    if (listRef.current && highlightedIndex >= 0) {
+      const items = listRef.current.querySelectorAll("[data-option]");
+      items[highlightedIndex]?.scrollIntoView({ block: "nearest" });
+    }
+  }, [highlightedIndex]);
 
   return (
     <div ref={ref} className={`relative ${className}`}>
@@ -88,6 +157,7 @@ export function Select({
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setIsOpen(!isOpen)}
+        onKeyDown={handleKeyDown}
         className={`w-full text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition flex items-center justify-between ${
           disabled
             ? "opacity-50 cursor-not-allowed"
@@ -121,21 +191,21 @@ export function Select({
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar o escribir..."
               className="w-full text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition placeholder:text-[var(--text-tertiary)]"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleCustomValue();
-                }
-              }}
+              onKeyDown={handleKeyDown}
             />
           </div>
 
-          <div className="overflow-y-auto flex-1">
+          <div ref={listRef} className="overflow-y-auto flex-1">
             {placeholder && (
               <button
                 type="button"
+                data-option
                 onClick={() => handleSelect("")}
-                className="w-full px-3 py-2 text-left text-sm text-[var(--text-tertiary)] hover:bg-[var(--color-base-alt)] transition"
+                className={`w-full px-3 py-2 text-left text-sm transition ${
+                  highlightedIndex === 0
+                    ? "bg-[var(--color-base-alt)]"
+                    : "text-[var(--text-tertiary)] hover:bg-[var(--color-base-alt)]"
+                }`}
               >
                 {placeholder}
               </button>
@@ -146,6 +216,7 @@ export function Select({
               !filteredOptions.some((o) => o.label.toLowerCase() === search.toLowerCase()) && (
                 <button
                   type="button"
+                  data-option
                   onClick={handleCustomValue}
                   className="w-full px-3 py-2 text-left text-sm text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 transition font-medium border-b border-[var(--border-color)]"
                 >
@@ -153,20 +224,26 @@ export function Select({
                 </button>
               )}
 
-            {filteredOptions.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => handleSelect(option.value)}
-                className={`w-full px-3 py-2 text-left text-sm transition ${
-                  value === option.value
-                    ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-medium"
-                    : "text-[var(--text-primary)] hover:bg-[var(--color-base-alt)]"
-                }`}
-              >
+            {filteredOptions.map((option) => {
+              const flatIdx = flatOptions.findIndex((o) => o.value === option.value);
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  data-option
+                  onClick={() => handleSelect(option.value)}
+                  className={`w-full px-3 py-2 text-left text-sm transition ${
+                    highlightedIndex === flatIdx
+                      ? "bg-[var(--color-base-alt)]"
+                      : value === option.value
+                        ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-medium"
+                        : "text-[var(--text-primary)] hover:bg-[var(--color-base-alt)]"
+                  }`}
+                >
                 {option.label}
-              </button>
-            ))}
+                </button>
+              );
+            })}
 
             {groups.map((group) => {
               const groupFiltered = group.options.filter(
@@ -181,20 +258,26 @@ export function Select({
                   <div className="px-3 py-1.5 text-xs font-medium text-[var(--text-tertiary)] bg-[var(--color-base-alt)] border-t border-[var(--border-color)]">
                     {group.label}
                   </div>
-                  {groupFiltered.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => handleSelect(option.value)}
-                      className={`w-full px-3 py-2 text-left text-sm transition ${
-                        value === option.value
-                          ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-medium"
-                          : "text-[var(--text-primary)] hover:bg-[var(--color-base-alt)]"
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
+                  {groupFiltered.map((option) => {
+                    const flatIdx = flatOptions.findIndex((o) => o.value === option.value);
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        data-option
+                        onClick={() => handleSelect(option.value)}
+                        className={`w-full px-3 py-2 text-left text-sm transition ${
+                          highlightedIndex === flatIdx
+                            ? "bg-[var(--color-base-alt)]"
+                            : value === option.value
+                              ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-medium"
+                              : "text-[var(--text-primary)] hover:bg-[var(--color-base-alt)]"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
                 </div>
               );
             })}

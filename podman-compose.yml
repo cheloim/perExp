@@ -4,13 +4,13 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: expenses
-      POSTGRES_USER: expenses_user
-      POSTGRES_PASSWORD: postgres_secret_pass
+      POSTGRES_DB: expenses_dev
+      POSTGRES_USER: expenses_dev_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_DEV}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U expenses_user -d expenses"]
+      test: ["CMD-SHELL", "pg_isready -U expenses_dev_user -d expenses_dev"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -25,88 +25,101 @@ services:
       timeout: 5s
       retries: 5
 
-  backend:
-    build: ./backend
+  backend_dev:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    secrets:
+      - creditcard_backend_dev_postgres_password
+      - creditcard_backend_dev_llm_api_key
+      - creditcard_backend_dev_investments_llm_api_key
+      - creditcard_backend_dev_messages_bot_llm_api_key
+      - creditcard_backend_dev_telegram_bot_token
+      - creditcard_backend_dev_google_client_id
+      - creditcard_backend_dev_google_client_secret
+      - creditcard_backend_dev_secret_key
+    environment:
+      PYTHONPATH: /app
+      DATABASE_URL: postgresql://expenses_dev_user:${POSTGRES_PASSWORD_DEV}@db:5432/expenses_dev
+      REDIS_URL: redis://redis:6379/1
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ./backend/app:/app/app:Z
+      - ./backend/main.py:/app/main.py:Z
+    ports:
+      - "8001:8000"
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    secrets:
-      - creditcard_backend_postgres_password
-      - creditcard_backend_llm_api_key
-      - creditcard_backend_investments_llm_api_key
-      - creditcard_backend_messages_bot_llm_api_key
-      - creditcard_backend_telegram_bot_token
-      - creditcard_backend_google_client_id
-      - creditcard_backend_google_client_secret
-      - creditcard_backend_secret_key
-    environment:
-      DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses
-      REDIS_URL: redis://redis:6379/0
-      PYTHONUNBUFFERED: "1"
-    ports:
-      - "8000:8000"
-    restart: unless-stopped
 
-  celery_worker:
-    build: ./backend
+  frontend_dev:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    secrets:
+      - creditcard_frontend_dev_google_client_id
+    volumes:
+      - ./frontend/src:/app/src:Z
+      - ./frontend/index.html:/app/index.html:Z
+    ports:
+      - "8082:5173"
+    environment:
+      VITE_API_URL: http://localhost:8001
+
+  celery_worker_dev:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
     command: celery -A app.celery_app worker --loglevel=info
-    depends_on:
-      - db
-      - redis
     secrets:
-      - creditcard_backend_postgres_password
-      - creditcard_backend_llm_api_key
-      - creditcard_backend_investments_llm_api_key
-      - creditcard_backend_messages_bot_llm_api_key
-      - creditcard_backend_telegram_bot_token
-      - creditcard_backend_google_client_id
-      - creditcard_backend_google_client_secret
-      - creditcard_backend_secret_key
+      - creditcard_backend_dev_postgres_password
+      - creditcard_backend_dev_llm_api_key
+      - creditcard_backend_dev_investments_llm_api_key
+      - creditcard_backend_dev_messages_bot_llm_api_key
+      - creditcard_backend_dev_telegram_bot_token
+      - creditcard_backend_dev_google_client_id
+      - creditcard_backend_dev_google_client_secret
+      - creditcard_backend_dev_secret_key
     environment:
-      DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses
-      REDIS_URL: redis://redis:6379/0
+      PYTHONPATH: /app
+      DATABASE_URL: postgresql://expenses_dev_user:${POSTGRES_PASSWORD_DEV}@db:5432/expenses_dev
+      REDIS_URL: redis://redis:6379/1
       PYTHONUNBUFFERED: "1"
-    restart: unless-stopped
+    volumes:
+      - ./backend/app:/app/app:Z
+      - ./backend/main.py:/app/main.py:Z
 
-  frontend:
-    build: ./frontend
-    ports:
-      - "8080:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
+secrets:
+  creditcard_backend_dev_postgres_password:
+    external: true
+    env: POSTGRES_PASSWORD_DEV
+  creditcard_backend_dev_llm_api_key:
+    external: true
+    env: LLM_API_KEY_DEV
+  creditcard_backend_dev_investments_llm_api_key:
+    external: true
+    env: INVESTMENTS_LLM_API_KEY_DEV
+  creditcard_backend_dev_messages_bot_llm_api_key:
+    external: true
+    env: MESSAGES_BOT_LLM_API_KEY_DEV
+  creditcard_backend_dev_telegram_bot_token:
+    external: true
+    env: TELEGRAM_BOT_TOKEN_DEV
+  creditcard_backend_dev_google_client_id:
+    external: true
+    env: GOOGLE_CLIENT_ID_DEV
+  creditcard_backend_dev_google_client_secret:
+    external: true
+    env: GOOGLE_CLIENT_SECRET_DEV
+  creditcard_backend_dev_secret_key:
+    external: true
+    env: SECRET_KEY_DEV
+  creditcard_frontend_dev_google_client_id:
+    external: true
+    env: GOOGLE_CLIENT_ID_DEV
 
 volumes:
   postgres_data:
   redis_data:
-
-secrets:
-  creditcard_backend_postgres_password:
-    external: true
-    env: POSTGRES_PASSWORD
-  creditcard_postgres_password:
-    external: true
-    env: POSTGRES_PASSWORD
-  creditcard_backend_llm_api_key:
-    external: true
-    env: LLM_API_KEY
-  creditcard_backend_investments_llm_api_key:
-    external: true
-    env: INVESTMENTS_LLM_API_KEY
-  creditcard_backend_messages_bot_llm_api_key:
-    external: true
-    env: MESSAGES_BOT_LLM_API_KEY
-  creditcard_backend_telegram_bot_token:
-    external: true
-    env: TELEGRAM_BOT_TOKEN
-  creditcard_backend_google_client_id:
-    external: true
-    env: GOOGLE_CLIENT_ID
-  creditcard_backend_google_client_secret:
-    external: true
-    env: GOOGLE_CLIENT_SECRET
-  creditcard_backend_secret_key:
-    external: true
-    env: SECRET_KEY

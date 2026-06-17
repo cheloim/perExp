@@ -21,87 +21,7 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { InvestmentDetailModal } from "../components/InvestmentDetailModal";
 
 // Parses "1.234,56" or "1234,56" or "1234.56" → 1234.56
-function parseCurrency(s: string): number | null {
-  const clean = s.trim();
-  if (!clean) return null;
-  // Remove thousands separators: if both . and , present, dots are thousands
-  let normalized: string;
-  if (clean.includes(".") && clean.includes(",")) {
-    normalized = clean.replace(/\./g, "").replace(",", ".");
-  } else if (clean.includes(",")) {
-    // single comma → decimal separator (es-AR style)
-    normalized = clean.replace(",", ".");
-  } else {
-    // only dots, no comma → dots are thousands separators (our formatter always uses . for thousands)
-    normalized = clean.replace(/\./g, "");
-  }
-  const n = parseFloat(normalized);
-  return isNaN(n) ? null : n;
-}
-
-function formatCurrency(n: number): string {
-  return n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-// Formats the raw string while typing: applies thousands separators preserving partial decimal
-function formatWhileTyping(s: string): string {
-  const clean = s.replace(/[^\d,]/g, ""); // keep digits and comma
-  const [intPart, ...rest] = clean.split(",");
-  const intFormatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  return rest.length > 0 ? `${intFormatted},${rest.join("")}` : intFormatted;
-}
-
-function CurrencyInput({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: number | null;
-  onChange: (v: number | null) => void;
-  placeholder?: string;
-}) {
-  const isEmpty = (v: number | null) => v === null || v === 0;
-  const [raw, setRaw] = useState(isEmpty(value) ? "" : formatCurrency(value!));
-  const [focused, setFocused] = useState(false);
-
-  useEffect(() => {
-    if (!focused) setRaw(isEmpty(value) ? "" : formatCurrency(value!));
-  }, [value, focused]);
-
-  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-    setFocused(true);
-    // clear placeholder-like zeros so paste/type overwrites immediately
-    if (isEmpty(value)) setRaw("");
-    setTimeout(() => e.target.select(), 0);
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target.value;
-    const formatted = formatWhileTyping(input);
-    setRaw(formatted);
-    onChange(parseCurrency(formatted));
-  };
-
-  const handleBlur = () => {
-    setFocused(false);
-    const parsed = parseCurrency(raw);
-    onChange(parsed);
-    setRaw(isEmpty(parsed) ? "" : formatCurrency(parsed!));
-  };
-
-  return (
-    <input
-      type="text"
-      inputMode="decimal"
-      value={raw}
-      placeholder={placeholder ?? "0,00"}
-      onChange={handleChange}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-      className="w-full input"
-    />
-  );
-}
+import { CurrencyInput } from "../components/ui/CurrencyInput";
 
 const INVESTMENT_TYPES = [
   "Acción",
@@ -251,12 +171,14 @@ function InvestmentModal({
 
   const set = (k: keyof InvestmentCreate, v: unknown) => setForm((prev) => ({ ...prev, [k]: v }));
 
+  const isValid = (form.ticker?.trim().length ?? 0) > 0 && (form.quantity ?? 0) > 0;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-backdrop">
       <div className="fixed inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative card w-full max-w-lg max-h-[90vh] overflow-auto p-6 space-y-4">
+      <div className="relative card w-full max-w-lg max-h-[90vh] overflow-auto p-6 space-y-4 animate-modal-content">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[var(--text-[var(--text-primary)])]">
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">
             {initial ? "Editar inversión" : "Nueva inversión"}
           </h2>
           <button onClick={onClose} className="text-tertiary hover:text-[var(--text-primary)]">
@@ -402,7 +324,7 @@ function InvestmentModal({
           <button onClick={onClose} className="gnome-btn-secondary flex-1">
             Cancelar
           </button>
-          <button onClick={() => onSave(form)} className="gnome-btn-primary flex-1">
+          <button onClick={() => onSave(form)} disabled={!isValid} className="gnome-btn-primary flex-1 disabled:opacity-60">
             Guardar
           </button>
         </div>
@@ -457,9 +379,9 @@ function CredentialsModal({
   const hasChanges = iolUser || iolPass || ppiKey || ppiSec;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-backdrop">
       <div className="fixed inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative card w-full max-w-md p-6 space-y-5">
+      <div className="relative card w-full max-w-md p-6 space-y-5 animate-modal-content">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">
             Configuración de brokers
@@ -613,8 +535,7 @@ export default function InvestmentsPage() {
     queryFn: getCashBalances,
     staleTime: 15 * 60_000,
   });
-  // @ts-ignore
-  const { data: manualCash = {}, refetch: refetchManualCash } = useQuery({
+  useQuery({
     queryKey: ["manual-cash-balances"],
     queryFn: getManualCashBalances,
     staleTime: 0,
@@ -859,22 +780,6 @@ export default function InvestmentsPage() {
   };
 
   // ── Aggregates ──────────────────────────────────────────────────────────────
-  const arsHoldings = visible.filter((i) => i.currency === "ARS");
-  const usdHoldings = visible.filter((i) => i.currency === "USD");
-
-  // @ts-ignore
-  const _arsValue = arsHoldings.reduce((s, i) => s + (i.current_value ?? i.cost_basis), 0);
-  // @ts-ignore
-  const _usdValue = usdHoldings.reduce((s, i) => s + (i.current_value ?? i.cost_basis), 0);
-  // @ts-ignore
-  const _arsCost = arsHoldings.reduce((s, i) => s + i.cost_basis, 0);
-  // @ts-ignore
-  const _usdCost = usdHoldings.reduce((s, i) => s + i.cost_basis, 0);
-  // @ts-ignore
-  const _arsPnl = _arsValue - _arsCost;
-  // @ts-ignore
-  const _usdPnl = _usdValue - _usdCost;
-
   // ── Full portfolio aggregates (unfiltered) for TOTAL ─────────────────────────
   const allArsHoldings = investments.filter((i) => i.currency === "ARS");
   const allUsdHoldings = investments.filter((i) => i.currency === "USD");
@@ -997,7 +902,7 @@ export default function InvestmentsPage() {
 
             <button onClick={() => setEditing(null)} className="gnome-btn-primary-round text-sm">
               <span className="text-base leading-none">+</span>
-              <span>Nueva</span>
+              <span>Nueva inversión</span>
             </button>
           </div>
         </div>
@@ -1022,9 +927,6 @@ export default function InvestmentsPage() {
               {brokerData.map((b) => {
                 const isSelected = brokerFilter === b.broker;
                 const isOpen = brokerDropdownOpen === b.broker;
-                const arsCost = b.arsValue - b.arsPnl;
-                // @ts-ignore
-                const arsPnlPct = arsCost > 0 ? (b.arsPnl / arsCost) * 100 : 0;
                 return (
                   <div key={b.broker} className="relative" data-broker-dropdown>
                     <div

@@ -7,10 +7,6 @@ ENV PYTHONPATH=/app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app/ ./app/
-COPY main.py .
-COPY alembic.ini .
-COPY migrations/ ./migrations/
 COPY docker-entrypoint.sh .
 
 RUN chmod +x docker-entrypoint.sh

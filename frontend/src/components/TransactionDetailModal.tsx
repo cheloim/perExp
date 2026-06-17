@@ -44,12 +44,12 @@ export function TransactionDetailModal({ isOpen, row, onClose }: TransactionDeta
         {(row.is_duplicate || row.is_auto_generated) && (
           <div className="flex gap-2 flex-wrap pt-2">
             {row.is_duplicate && (
-              <span className="text-xs bg-yellow-500/20 text-yellow-700 px-2 py-1 rounded">
+              <span className="text-xs bg-warning/10 text-warning px-2 py-1 rounded">
                 Duplicada
               </span>
             )}
             {row.is_auto_generated && (
-              <span className="text-xs bg-blue-500/20 text-blue-700 px-2 py-1 rounded">
+              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
                 Auto-generada
               </span>
             )}

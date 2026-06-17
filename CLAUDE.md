@@ -30,7 +30,7 @@ creditCardAnalyzer/
 │   │   └── pages/
 │   └── Dockerfile.dev     # Dev container (WITH volume mounts)
 │
-└── podman-compose.dev.yml  # Dev environment orchestration
+└── podman-compose.yml      # Dev environment orchestration
 ```
 
 ## Dev Environment - Hot Reload
@@ -48,12 +48,12 @@ Los cambios en `./backend/app/` se recargan automáticamente gracias a uvicorn -
 
 Si el container no responde o hay errores, reiniciar:
 ```bash
-podman-compose -f podman-compose.dev.yml restart backend_dev
+podman-compose restart backend_dev
 ```
 
 Para rebuild completo (si cambiaron dependencias o archivos no mapeados):
 ```bash
-podman-compose -f podman-compose.dev.yml build backend_dev && podman-compose -f podman-compose.dev.yml up -d backend_dev
+podman-compose build backend_dev && podman-compose up -d backend_dev
 ```
 
 ## Modelo de Datos - Cards
@@ -124,7 +124,7 @@ threading.Thread(target=start_bot, args=(token,), daemon=True).start()
 El código de `telegram_bot.py` está mapeado por volumen. Los cambios se recargan automáticamente.
 Si el bot no responde, reiniciar el container:
 ```bash
-podman-compose -f podman-compose.dev.yml restart backend_dev
+podman-compose restart backend_dev
 ```
 
 ### AccountsManager no muestra "Nombre personalizado"

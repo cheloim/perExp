@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useUndoToast } from "../hooks/useUndoToast";
 import {
   getExpenses,
   getCategories,
@@ -15,6 +16,7 @@ import { Select } from "../components/ui/Select";
 import { ExpenseModal } from "../components/ExpenseModals";
 import { BulkSubmenu } from "../components/ui/BulkSubmenu";
 import { AutocompleteInput } from "../components/ui/AutocompleteInput";
+import EmptyState from "../components/ui/EmptyState";
 import {
   formatCurrency,
   toUpperCase,
@@ -31,15 +33,12 @@ type SortField = "date" | "description" | "category" | "bank" | "person" | "amou
 type SortDir = "asc" | "desc";
 
 function hasMissingData(exp: Expense): boolean {
-  return !exp.category_id || !exp.card || !exp.bank || !exp.person;
+  return !exp.category_id;
 }
 
 function getMissingDataFields(exp: Expense): string[] {
   const missing: string[] = [];
   if (!exp.category_id) missing.push("categoría");
-  if (!exp.card) missing.push("tarjeta");
-  if (!exp.bank) missing.push("banco");
-  if (!exp.person) missing.push("persona");
   return missing;
 }
 
@@ -210,6 +209,30 @@ export default function ExpensesPage() {
     onSuccess: invalidate,
   });
 
+  const { show: showUndo, ToastContainer } = useUndoToast();
+  const pendingDeletes = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+
+  const handleDelete = (id: number, description: string) => {
+    const timer = setTimeout(() => {
+      deleteMut.mutate(id);
+      pendingDeletes.current.delete(id);
+    }, 5000);
+    pendingDeletes.current.set(id, timer);
+
+    showUndo(
+      `"${description}" eliminado`,
+      () => {}, // close callback
+      () => {
+        // Undo: cancel the pending delete
+        const t = pendingDeletes.current.get(id);
+        if (t) {
+          clearTimeout(t);
+          pendingDeletes.current.delete(id);
+        }
+      },
+    );
+  };
+
   const handleSave = (data: ExpenseCreate) => {
     setSaveError(null);
     if (editing && editing.id) {
@@ -223,6 +246,60 @@ export default function ExpensesPage() {
     `px-4 py-3 text-left cursor-pointer select-none hover:bg-[var(--color-base-alt)] whitespace-nowrap text-xs font-medium text-[var(--text-secondary)] uppercase ${
       sort.field === field ? "text-[var(--color-primary)]" : ""
     }`;
+
+  const sortedExpenses = useMemo(() => {
+    return [...expenses].sort((a, b) => {
+      const aVal = a[sort.field as keyof Expense];
+      const bVal = b[sort.field as keyof Expense];
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      if (sort.field === "amount") {
+        return sort.dir === "asc"
+          ? (aVal as number) - (bVal as number)
+          : (bVal as number) - (aVal as number);
+      }
+      if (sort.field === "date") {
+        const parseDate = (s: string) => {
+          const [d, m, y] = s.split("-").map(Number);
+          return new Date(y, m - 1, d).getTime();
+        };
+        const aTime = parseDate(String(aVal));
+        const bTime = parseDate(String(bVal));
+        return sort.dir === "asc" ? aTime - bTime : bTime - aTime;
+      }
+      let aStr = String(aVal);
+      let bStr = String(bVal);
+      if (sort.field === "description") {
+        const pad = (n: number | null | undefined) => String(n ?? 0).padStart(4, "0");
+        aStr += `\x00${pad(a.installment_number)}`;
+        bStr += `\x00${pad(b.installment_number)}`;
+      }
+      const cmp = aStr.localeCompare(bStr);
+      return sort.dir === "asc" ? cmp : -cmp;
+    });
+  }, [expenses, sort.field, sort.dir]);
+
+  const exportCSV = () => {
+    const headers = ["Fecha", "Descripción", "Monto", "Moneda", "Categoría", "Banco", "Tarjeta", "Persona"];
+    const rows = sortedExpenses.map((e) => [
+      e.date,
+      `"${e.description.replace(/"/g, '""')}"`,
+      e.amount,
+      e.currency || "ARS",
+      e.category_name || "",
+      e.bank || "",
+      e.card || "",
+      e.person || "",
+    ]);
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `gastos_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-4">
@@ -298,6 +375,13 @@ export default function ExpensesPage() {
           >
             <span className="text-base leading-none">+</span>
             <span>Nuevo gasto</span>
+          </button>
+          <button
+            onClick={exportCSV}
+            className="gnome-btn-secondary-round text-sm"
+            title="Exportar gastos a CSV"
+          >
+            CSV
           </button>
         </div>
       </div>
@@ -540,42 +624,17 @@ export default function ExpensesPage() {
                 </tr>
               ) : expenses.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-[var(--text-secondary)]">
-                    No hay gastos registrados.
+                  <td colSpan={5} className="px-4 py-4">
+                    <EmptyState
+                      icon="📋"
+                      title="No hay gastos registrados"
+                      description="Creá un gasto para empezar a trackear tus gastos"
+                      action={{ label: "Crear gasto", onClick: () => setEditing(null) }}
+                    />
                   </td>
                 </tr>
               ) : (
-                expenses
-                  .sort((a, b) => {
-                    const aVal = a[sort.field as keyof Expense];
-                    const bVal = b[sort.field as keyof Expense];
-                    if (aVal == null) return 1;
-                    if (bVal == null) return -1;
-                    if (sort.field === "amount") {
-                      return sort.dir === "asc"
-                        ? (aVal as number) - (bVal as number)
-                        : (bVal as number) - (aVal as number);
-                    }
-                    if (sort.field === "date") {
-                      const parseDate = (s: string) => {
-                        const [d, m, y] = s.split("-").map(Number);
-                        return new Date(y, m - 1, d).getTime();
-                      };
-                      const aTime = parseDate(String(aVal));
-                      const bTime = parseDate(String(bVal));
-                      return sort.dir === "asc" ? aTime - bTime : bTime - aTime;
-                    }
-                    let aStr = String(aVal);
-                    let bStr = String(bVal);
-                    if (sort.field === "description") {
-                      const pad = (n: number | null | undefined) => String(n ?? 0).padStart(4, "0");
-                      aStr += `\x00${pad(a.installment_number)}`;
-                      bStr += `\x00${pad(b.installment_number)}`;
-                    }
-                    const cmp = aStr.localeCompare(bStr);
-                    return sort.dir === "asc" ? cmp : -cmp;
-                  })
-                  .map((exp) => {
+                sortedExpenses.map((exp) => {
                     const missing = hasMissingData(exp);
                     return (
                       <tr
@@ -989,6 +1048,7 @@ export default function ExpensesPage() {
           }}
           onSave={handleSave}
           saveError={saveError}
+          isSaving={createMut.isPending || updateMut.isPending}
         />
       )}
 
@@ -996,10 +1056,10 @@ export default function ExpensesPage() {
         <ConfirmDialog
           isOpen={true}
           title="Confirmar eliminación"
-          message={`¿Estás seguro de eliminar "${deleteConfirm.description}"? Esta acción no se puede deshacer.`}
+          message={`¿Estás seguro de eliminar "${deleteConfirm.description}"?`}
           confirmLabel="Eliminar"
           onConfirm={() => {
-            deleteMut.mutate(deleteConfirm.id);
+            handleDelete(deleteConfirm.id, deleteConfirm.description);
             setDeleteConfirm(null);
           }}
           onCancel={() => setDeleteConfirm(null)}
@@ -1021,6 +1081,8 @@ export default function ExpensesPage() {
           onCancel={() => setBulkDeleteConfirm(false)}
         />
       )}
+
+      {ToastContainer}
     </div>
   );
 }

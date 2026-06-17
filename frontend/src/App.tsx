@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Routes, Route, NavLink, useLocation, Navigate } from "react-router-dom";
 import AIAssistant from "./components/AIAssistant";
 import InvestmentsAssistant from "./components/InvestmentsAssistant";
@@ -9,24 +9,26 @@ import { usePanelWidth } from "./context/PanelWidthContext";
 import { UploadProgressProvider } from "./context/UploadProgressContext";
 import { NotificationsProvider, useNotifications } from "./context/NotificationsContext";
 import { sidebarIcons } from "./components/SidebarIcons";
-import Dashboard from "./pages/Dashboard";
-import AccountsPage from "./pages/AccountsPage";
-import ExpensesPage from "./pages/ExpensesPage";
-import ImportPage from "./pages/ImportPage";
-import ImportJobPreview from "./pages/ImportJobPreview";
-import CategoriesPage from "./pages/CategoriesPage";
-import CategoryDashboard from "./pages/CategoryDashboard";
-import InstallmentsPage from "./pages/InstallmentsPage";
-import InvestmentsPage from "./pages/InvestmentsPage";
-import LoginPage from "./pages/LoginPage";
 import { getStoredToken } from "./api/client";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const AccountsPage = lazy(() => import("./pages/AccountsPage"));
+const ExpensesPage = lazy(() => import("./pages/ExpensesPage"));
+const ImportPage = lazy(() => import("./pages/ImportPage"));
+const ImportJobPreview = lazy(() => import("./pages/ImportJobPreview"));
+const CategoriesPage = lazy(() => import("./pages/CategoriesPage"));
+const CategoryDashboard = lazy(() => import("./pages/CategoryDashboard"));
+const InstallmentsPage = lazy(() => import("./pages/InstallmentsPage"));
+const InvestmentsPage = lazy(() => import("./pages/InvestmentsPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
 
 const TABS = [
   { path: "/", label: "Inicio", icon: "home", exact: true },
   { path: "/accounts", label: "Cuentas", icon: "accounts", exact: false },
   { path: "/expenses", label: "Gastos", icon: "expenses", exact: false },
   { path: "/cat-dashboard", label: "Por Categoría", icon: "catDashboard", exact: false },
-  { path: "/installments", label: "Gasto en cuotas", icon: "installments", exact: false },
+  { path: "/installments", label: "Cuotas", icon: "installments", exact: false },
   { path: "/investments", label: "Inversiones", icon: "investments", exact: false },
   { path: "/categories", label: "Config. Categorías", icon: "settings", exact: false },
 ];
@@ -67,6 +69,12 @@ function MainLayout() {
   const [aiDrawerOpen, setAiDrawerOpen] = useState(getInitialDrawerState);
   const [userPanelOpen, setUserPanelOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [showMoreNav, setShowMoreNav] = useState(false);
+
+  useEffect(() => {
+    const main = document.querySelector("main");
+    if (main) main.scrollTo(0, 0);
+  }, [location.pathname]);
   const { panelWidth, isCollapsed } = usePanelWidth();
   const { unreadCount } = useNotifications();
 
@@ -108,7 +116,7 @@ function MainLayout() {
 
           {/* Nav links — GNOME style */}
           <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5 scrollbar-none">
-            {TABS.map((tab) => (
+            {TABS.filter((tab) => tab.path !== "/categories").map((tab) => (
               <NavLink
                 key={tab.path}
                 to={tab.path}
@@ -146,6 +154,47 @@ function MainLayout() {
                 )}
               </NavLink>
             ))}
+            <div className="border-t border-[var(--border-color)] mx-2 my-1" />
+            {(() => {
+              const settingsTab = TABS.find((t) => t.path === "/categories");
+              if (!settingsTab) return null;
+              return (
+                <NavLink
+                  key={settingsTab.path}
+                  to={settingsTab.path}
+                  end={settingsTab.exact}
+                  title={settingsTab.label}
+                  className={({ isActive }) => `
+                  group/nav relative flex items-center gap-3 px-2.5 py-2 rounded-md text-sm font-medium transition-all duration-150
+                  ${
+                    isActive
+                      ? "bg-[var(--color-base-alt)] text-[var(--color-sidebar-text-active)]"
+                      : "text-[var(--color-sidebar-icon)] hover:bg-[var(--color-base-alt)] hover:text-[var(--text-primary)]"
+                  }
+                `}
+                >
+                  {({ isActive }) => (
+                    <>
+                      <span
+                        className={`absolute left-0 top-1/2 -translate-y-1/2 h-6 w-0.5 rounded-full bg-sidebar-indicator transition-opacity duration-150 ${
+                          isActive ? "opacity-100" : "opacity-0"
+                        } group-hover/nav:opacity-30`}
+                      />
+                      <span
+                        className={`w-5 h-5 flex-shrink-0 flex items-center justify-center ${
+                          isActive ? "text-[var(--color-sidebar-icon-active)]" : ""
+                        }`}
+                      >
+                        {sidebarIcons[settingsTab.icon as keyof typeof sidebarIcons]}
+                      </span>
+                      <span className="whitespace-nowrap overflow-hidden w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300">
+                        {settingsTab.label}
+                      </span>
+                    </>
+                  )}
+                </NavLink>
+              );
+            })()}
           </nav>
 
           {/* Bottom actions */}
@@ -216,7 +265,15 @@ function MainLayout() {
                 location.pathname.startsWith("/import-jobs") ? "py-0" : "py-8 md:py-10"
               }`}
             >
-              <Routes>
+              <ErrorBoundary>
+                <Suspense
+                  fallback={
+                    <div className="flex items-center justify-center h-full">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                    </div>
+                  }
+                >
+                  <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route
                   path="/"
@@ -306,13 +363,15 @@ function MainLayout() {
                     </RequireAuth>
                   }
                 />
-              </Routes>
+                </Routes>
+                </Suspense>
+              </ErrorBoundary>
             </div>
           </main>
 
           {/* Mobile bottom nav */}
-          <nav className="md:hidden border-t border-[var(--border-color)] bg-sidebar flex items-center justify-around pb-safe pt-1 z-40">
-            {TABS.slice(0, 5).map((tab) => (
+          <nav className="md:hidden border-t border-[var(--border-color)] bg-sidebar flex items-center justify-around pb-safe pt-1 z-40 relative">
+            {TABS.slice(0, 4).map((tab) => (
               <NavLink
                 key={tab.path}
                 to={tab.path}
@@ -328,6 +387,37 @@ function MainLayout() {
                 <span className="truncate w-full text-center">{tab.label.split(" ")[0]}</span>
               </NavLink>
             ))}
+            <button
+              onClick={() => setShowMoreNav(!showMoreNav)}
+              className="flex flex-col items-center gap-1 p-2 min-w-[64px] text-[10px] font-medium transition-colors text-[var(--color-sidebar-icon)]"
+            >
+              <span className="w-5 h-5 mb-0.5">{sidebarIcons.more}</span>
+              <span className="truncate w-full text-center">Más</span>
+            </button>
+            {showMoreNav && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setShowMoreNav(false)} />
+                <div className="absolute bottom-full right-2 mb-2 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-lg py-2 min-w-[180px] z-40">
+                  {TABS.slice(4).map((tab) => (
+                    <NavLink
+                      key={tab.path}
+                      to={tab.path}
+                      end={tab.exact}
+                      onClick={() => setShowMoreNav(false)}
+                      className={({ isActive }) => `
+                        flex items-center gap-3 px-4 py-2.5 text-sm transition-colors
+                        ${isActive ? "text-primary bg-primary/5" : "text-[var(--text-primary)] hover:bg-[var(--color-base-alt)]"}
+                      `}
+                    >
+                      <span className="w-5 h-5">
+                        {sidebarIcons[tab.icon as keyof typeof sidebarIcons]}
+                      </span>
+                      <span>{tab.label}</span>
+                    </NavLink>
+                  ))}
+                </div>
+              </>
+            )}
           </nav>
 
           {/* Floating AI Assistant toggle button */}

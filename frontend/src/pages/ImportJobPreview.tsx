@@ -115,6 +115,7 @@ export default function ImportJobPreview() {
   const [editForm, setEditForm] = useState({ bank: "", card: "", person: "", onlyEmpty: true });
 
   const [spotlightNaming, setSpotlightNaming] = useState(false);
+  const [pageError, setPageError] = useState<string | null>(null);
   const [customNamingEdits, setCustomNamingEdits] = useState<
     Record<string, { bank?: string; card_name?: string; holder?: string }>
   >({});
@@ -236,14 +237,14 @@ export default function ImportJobPreview() {
     const finalValidation = validateRows(rows);
 
     if (!finalValidation.valid) {
-      alert(
+      setPageError(
         `Faltan datos en ${finalValidation.missingCount} fila(s). Completalos antes de importar.`,
       );
       return;
     }
 
     if (customNamingRequired && !customNamingComplete) {
-      alert("Tenés que completar los nombres de las tarjetas antes de importar.");
+      setPageError("Tenés que completar los nombres de las tarjetas antes de importar.");
       return;
     }
 
@@ -281,7 +282,7 @@ export default function ImportJobPreview() {
 
   const handleApplyEdit = () => {
     if (!editForm.bank || !editForm.card || !editForm.person) {
-      alert("Completá todos los campos");
+      setPageError("Completá todos los campos");
       return;
     }
 
@@ -411,22 +412,26 @@ export default function ImportJobPreview() {
           >
             {confirmMutation.isPending
               ? "Confirmando..."
-              : canImport
-                ? "Confirmar importación"
-                : !dataComplete
-                  ? "Completar datos"
-                  : "Completar nombres de tarjetas"}
+              : customNamingRequired && !customNamingComplete
+                ? "Completá nombres primero"
+                : "Confirmar importación"}
           </button>
         </div>
       </div>
 
-      {/* Warning si faltan datos */}
+      {pageError && (
+        <div className="flex items-start gap-2 bg-danger/10 border border-danger/30 rounded-lg px-4 py-3 text-sm text-danger">
+          <span>{pageError}</span>
+          <button onClick={() => setPageError(null)} className="ml-auto hover:opacity-70">✕</button>
+        </div>
+      )}
+
       {!dataComplete && (
-        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 flex items-start gap-3">
-          <span className="text-yellow-600 text-xl">⚠️</span>
+        <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 flex items-start gap-3">
+          <span className="text-warning text-xl">⚠️</span>
           <div className="flex-1">
-            <p className="text-sm font-medium text-yellow-700">Datos incompletos</p>
-            <p className="text-xs text-yellow-600 mt-1">
+            <p className="text-sm font-medium text-warning">Datos incompletos</p>
+            <p className="text-xs text-warning mt-1">
               Faltan datos en {validation.missingCount} transacción(es). Completá banco, tarjeta y
               persona antes de confirmar.
             </p>
@@ -439,14 +444,14 @@ export default function ImportJobPreview() {
 
       {/* Warning si falta custom naming */}
       {customNamingRequired && !customNamingComplete && (
-        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 flex items-start gap-3">
-          <span className="text-yellow-600 text-xl">⚠️</span>
+        <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 flex items-start gap-3">
+          <span className="text-warning text-xl">⚠️</span>
           <div className="flex-1">
-            <p className="text-sm font-medium text-yellow-700">Nombres de tarjetas requeridos</p>
-            <p className="text-xs text-yellow-600 mt-1">
+            <p className="text-sm font-medium text-warning">Nombres de tarjetas requeridos</p>
+            <p className="text-xs text-warning mt-1">
               Completá el nombre personalizado para las tarjetas listadas abajo.
             </p>
-            <ul className="mt-1 text-xs text-yellow-600 list-disc list-inside">
+            <ul className="mt-1 text-xs text-warning list-disc list-inside">
               {detectedCards
                 .filter((dc) => {
                   const key = getCardKey(dc.bank, dc.card, dc.holders[0] || "");

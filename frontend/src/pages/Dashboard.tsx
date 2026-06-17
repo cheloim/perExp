@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
   XAxis,
@@ -19,22 +19,21 @@ import {
   getCategoryTrend,
   getAccountExpenses,
   getInvestments,
+  createExpense,
 } from "../api/client";
-import { formatCurrency, toUpperCase, formatDateDMYSlash, MonthSelector } from "../utils/format";
+import type { Expense, ExpenseCreate } from "../types";
+import { formatCurrency, toUpperCase, formatDateDMYSlash, MONTHS_ES_SHORT } from "../utils/format";
+import { ExpenseModal } from "../components/ExpenseModals";
+import EmptyState from "../components/ui/EmptyState";
 
-const MONTHS_ES_SHORT = [
-  "Ene",
-  "Feb",
-  "Mar",
-  "Abr",
-  "May",
-  "Jun",
-  "Jul",
-  "Ago",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dic",
+const FALLBACK_COLORS = [
+  "#3584e4", // blue-3
+  "#33d17a", // green-3
+  "#e5a50a", // yellow-4
+  "#c64600", // orange-3
+  "#9141ac", // purple-2
+  "#e01b24", // red-3
+  "#70492c", // brown-3
 ];
 
 function toYMD(d: Date) {
@@ -105,25 +104,36 @@ function CardRow({
 export default function Dashboard() {
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const [month, setMonth] = useState(currentMonth);
+  const month = currentMonth;
   const [trendMonths, setTrendMonths] = useState(3);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState<Expense | null | undefined>(undefined);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const isCurrentMonth = month === currentMonth;
+  const createMut = useMutation({
+    mutationFn: (data: ExpenseCreate) => createExpense(data),
+    onSuccess: () => {
+      setEditing(undefined);
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["card-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["expenses-recent-7d"] });
+    },
+  });
 
-  // "To" date: today if current month, else last day of selected month
-  const toDate = useMemo(() => {
-    if (isCurrentMonth) return now;
-    const [y, m] = month.split("-").map(Number);
-    return new Date(y, m, 0); // last day of month
-  }, [month, isCurrentMonth]);
+  const handleSave = (data: ExpenseCreate) => {
+    setSaveError(null);
+    createMut.mutate(data);
+  };
 
-  // 7 days back from toDate for transactions list
+  const toDate = now;
+
+  // 7 days back for transactions list
   const sevenDaysAgo = useMemo(() => {
-    const d = new Date(toDate);
+    const d = new Date(now);
     d.setDate(d.getDate() - 6);
     return d;
-  }, [toDate]);
+  }, [now]);
 
   const { data: dashData } = useQuery({
     queryKey: ["dashboard", month],
@@ -164,13 +174,6 @@ export default function Dashboard() {
     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const progress = dayOfMonth / daysInMonth;
 
-    console.log(
-      "[DEBUG] categoryTrendData rows:",
-      categoryTrendData.rows.length,
-      "progress:",
-      progress.toFixed(3),
-    );
-
     const rows = categoryTrendData.rows.map((row) => {
       const isCurrentMonth = row.month === currentMonthKey;
       if (!isCurrentMonth) return row;
@@ -178,7 +181,6 @@ export default function Dashboard() {
       const adjusted = { ...row };
       categoryTrendData.categories.forEach((cat) => {
         const val = Number(row[cat.name] || 0);
-        console.log("[DEBUG] cat:", cat.name, "val:", val, "isCurrent:", isCurrentMonth);
         if (val > 0) {
           adjusted[cat.name] = val / progress;
         }
@@ -241,26 +243,6 @@ export default function Dashboard() {
       .filter((a) => a.total > 0);
   }, [accountExpensesCurrent, accountExpensesPrev]);
 
-  // Calculate card summary with variations (only credit cards)
-  const cardSummary = useMemo(() => {
-    return cardData
-      .filter((c) => c.card_type === "credito")
-      .map((card) => {
-        const currentEntry = card.monthly?.find((m) => m.month === currentMonthKey);
-        const prevEntry = card.monthly?.find((m) => m.month === prevMonthKey);
-        const currentTotal = currentEntry?.total ?? 0;
-        const prevTotal = prevEntry?.total ?? 0;
-        const variation = prevTotal > 0 ? ((currentTotal - prevTotal) / prevTotal) * 100 : 0;
-        return {
-          name: card.card_name,
-          bank: card.bank,
-          total: currentTotal,
-          variation,
-        };
-      })
-      .filter((c) => c.total > 0);
-  }, [cardData, currentMonthKey, prevMonthKey]);
-
   // Calculate total investments value
   const investmentsTotal = useMemo(() => {
     const total = investments.reduce((sum, inv) => {
@@ -280,15 +262,16 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Page header + period selector */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-primary">Finanzas Personales</h1>
-          <p className="text-sm text-secondary mt-0.5">
-            {isCurrentMonth ? "Mes en curso" : "Período seleccionado"}
-          </p>
-        </div>
-        <MonthSelector value={month} onChange={setMonth} />
+      {/* Page header */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-primary">Finanzas Personales</h1>
+        <button
+          onClick={() => setEditing(null)}
+          className="gnome-btn-primary-round text-sm"
+        >
+          <span className="text-base leading-none">+</span>
+          <span>Nuevo gasto</span>
+        </button>
       </div>
 
       {/* Accounts/Cards/Investments Summary */}
@@ -317,39 +300,6 @@ export default function Dashboard() {
                   >
                     {acc.variation > 0 ? "↑" : acc.variation < 0 ? "↓" : "→"}{" "}
                     {Math.abs(acc.variation).toFixed(2)}%
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Tarjetas */}
-        {cardSummary.length > 0 && (
-          <div className="card p-4">
-            <h2 className="text-xs font-semibold text-secondary uppercase tracking-wide mb-3">
-              Tarjetas
-            </h2>
-            <div className="flex gap-3 overflow-x-auto pb-1">
-              {cardSummary.map((card, idx) => (
-                <div key={idx} className="flex-shrink-0 w-32 bg-base-alt rounded-lg p-3">
-                  <p className="text-xs font-medium text-primary truncate" title={card.name}>
-                    {card.name}
-                  </p>
-                  <p className="text-sm font-bold text-primary mt-1">
-                    {formatCurrency(card.total)}
-                  </p>
-                  <p
-                    className={`text-xs mt-1 ${
-                      card.variation > 0
-                        ? "text-success"
-                        : card.variation < 0
-                          ? "text-danger"
-                          : "text-tertiary"
-                    }`}
-                  >
-                    {card.variation > 0 ? "↑" : card.variation < 0 ? "↓" : "→"}{" "}
-                    {Math.abs(card.variation).toFixed(2)}%
                   </p>
                 </div>
               ))}
@@ -386,10 +336,15 @@ export default function Dashboard() {
               </button>
             </div>
             {cardData.length === 0 ? (
-              <p className="text-sm text-secondary text-center py-6">Sin tarjetas registradas</p>
+              <EmptyState
+                icon="💳"
+                title="Sin tarjetas registradas"
+                description="Creá una tarjeta para ver el resumen de gastos"
+                action={{ label: "Crear tarjeta", onClick: () => navigate("/accounts") }}
+              />
             ) : (
               <div className="divide-y divide-border-color">
-                {cardData.map((card, i) => {
+                {cardData.filter((c) => c.card_type === "credito").map((card, i) => {
                   const monthEntry = card.monthly?.find((m) => m.month === month);
                   return (
                     <CardRow
@@ -410,11 +365,11 @@ export default function Dashboard() {
             <h2 className="text-sm font-semibold text-primary mb-3">Próximos Gastos Programados</h2>
             {!scheduledData ||
             (scheduledData.installments.length === 0 && scheduledData.manual.length === 0) ? (
-              <div className="flex flex-col items-center justify-center py-6 text-center gap-2">
-                <span className="text-3xl opacity-30">📅</span>
-                <p className="text-sm text-secondary">Sin gastos programados</p>
-                <p className="text-xs text-tertiary">Los vencimientos del mes aparecerán aquí</p>
-              </div>
+              <EmptyState
+                icon="📅"
+                title="Sin gastos programados"
+                description="Los vencimientos del mes aparecerán aquí"
+              />
             ) : (
               <div className="space-y-2">
                 {scheduledData.installments.map((inst) => (
@@ -490,7 +445,11 @@ export default function Dashboard() {
               </div>
             </div>
             {!adjustedCategoryTrend || adjustedCategoryTrend.rows.length === 0 ? (
-              <p className="text-sm text-secondary text-center py-10">Sin datos en este período</p>
+              <EmptyState
+                icon="📈"
+                title="Sin datos en este período"
+                description="Los gastos del mes aparecerán en el gráfico"
+              />
             ) : (
               <ResponsiveContainer width="100%" height={220}>
                 <ComposedChart
@@ -504,7 +463,7 @@ export default function Dashboard() {
                   />
                   <XAxis
                     dataKey="month"
-                    tick={{ fontSize: 10, fill: "var(--chart-text)" }}
+                    tick={{ fontSize: 11, fill: "var(--chart-text)" }}
                     axisLine={false}
                     tickLine={false}
                     tickFormatter={(v) => {
@@ -516,7 +475,7 @@ export default function Dashboard() {
                     tickFormatter={(v) =>
                       new Intl.NumberFormat("es-AR", { notation: "compact" } as any).format(v)
                     }
-                    tick={{ fontSize: 10, fill: "var(--chart-text)" }}
+                    tick={{ fontSize: 11, fill: "var(--chart-text)" }}
                     width={48}
                     axisLine={false}
                     tickLine={false}
@@ -526,33 +485,35 @@ export default function Dashboard() {
                       backgroundColor: "var(--chart-tooltip-bg)",
                       borderColor: "var(--chart-tooltip-border)",
                       color: "var(--chart-tooltip-text)",
-                      borderRadius: 8,
+                      borderRadius: 10,
                       fontSize: 12,
+                      padding: "8px 12px",
+                      boxShadow: "var(--shadow-md)",
                     }}
-                    formatter={(v: number, name: string) =>
-                      v > 0 ? [formatCurrency(v), name] : [formatCurrency(v), name]
-                    }
+                    formatter={(v: number, name: string) => [formatCurrency(v), name]}
+                    labelStyle={{ fontWeight: 600, marginBottom: 4 }}
                   />
                   <Legend
-                    wrapperStyle={{ fontSize: 10, paddingTop: 10 }}
+                    wrapperStyle={{ fontSize: 11, paddingTop: 10 }}
                     formatter={(value) => (
                       <span style={{ color: "var(--text-secondary)" }}>{value}</span>
                     )}
                   />
-                  {adjustedCategoryTrend.categories.map((cat) => {
+                  {adjustedCategoryTrend.categories.map((cat, i) => {
                     const monthHasData = adjustedCategoryTrend.rows.some(
                       (r) => Number(r[cat.name] || 0) > 0,
                     );
                     if (!monthHasData) return null;
+                    const color = cat.color || FALLBACK_COLORS[i % FALLBACK_COLORS.length];
                     return (
                       <Line
                         key={cat.name}
                         type="monotone"
                         dataKey={cat.name}
-                        stroke={cat.color || "#9a9996"}
-                        strokeWidth={2}
-                        dot={{ r: 3, fill: cat.color || "#9a9996" }}
-                        activeDot={{ r: 4 }}
+                        stroke={color}
+                        strokeWidth={2.5}
+                        dot={{ r: 4, fill: color, strokeWidth: 0 }}
+                        activeDot={{ r: 5, stroke: "#fff", strokeWidth: 2 }}
                         connectNulls
                       />
                     );
@@ -574,18 +535,23 @@ export default function Dashboard() {
               </button>
             </div>
             {topCategories.length === 0 ? (
-              <p className="text-sm text-secondary text-center py-6">Sin datos</p>
+              <EmptyState
+                icon="📊"
+                title="Sin datos"
+                description="Los gastos por categoría aparecerán aquí"
+              />
             ) : (
               <div className="space-y-3">
                 {topCategories.map((cat, i) => {
                   const pct = (cat.total / maxCatTotal) * 100;
+                  const color = cat.category_color || FALLBACK_COLORS[i % FALLBACK_COLORS.length];
                   return (
                     <div key={i}>
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-1.5">
                           <span
-                            className="w-2 h-2 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: cat.category_color || "#9a9996" }}
+                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: color }}
                           />
                           <span className="text-xs text-secondary font-medium">
                             {cat.category_name}
@@ -595,12 +561,12 @@ export default function Dashboard() {
                           {formatCurrency(cat.total)}
                         </span>
                       </div>
-                      <div className="h-1.5 bg-base-alt rounded-full overflow-hidden">
+                      <div className="h-2.5 bg-base-alt rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all duration-500"
                           style={{
                             width: `${pct}%`,
-                            backgroundColor: cat.category_color || "#9a9996",
+                            backgroundColor: color,
                           }}
                         />
                       </div>
@@ -618,7 +584,6 @@ export default function Dashboard() {
         <div className="px-5 py-4 border-b border-border-color flex items-center justify-between">
           <h2 className="text-sm font-semibold text-primary">
             Transacciones — Últimos 7 días
-            {!isCurrentMonth && ` (al ${formatDateDMYSlash(toYMD(toDate))})`}
           </h2>
           <button
             onClick={() => navigate("/expenses")}
@@ -628,9 +593,12 @@ export default function Dashboard() {
           </button>
         </div>
         {recentExpenses.length === 0 ? (
-          <p className="text-sm text-secondary text-center py-10">
-            Sin transacciones en este período
-          </p>
+          <EmptyState
+            icon="💸"
+            title="Sin transacciones en este período"
+            description="Tus últimos 7 días de gastos aparecerán aquí"
+            action={{ label: "Ver todos los gastos", onClick: () => navigate("/expenses") }}
+          />
         ) : (
           <div className="divide-y divide-border-color">
             {recentExpenses.map((exp) => (
@@ -641,7 +609,7 @@ export default function Dashboard() {
                 <div className="flex items-center gap-3">
                   <span
                     className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: exp.category_color || "#9a9996" }}
+                    style={{ backgroundColor: exp.category_color || "#3584e4" }}
                   />
                   <div>
                     <p className="text-sm font-medium text-primary">
@@ -671,6 +639,19 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {editing !== undefined && (
+        <ExpenseModal
+          initial={editing}
+          onClose={() => {
+            setEditing(undefined);
+            setSaveError(null);
+          }}
+          onSave={handleSave}
+          saveError={saveError}
+          isSaving={createMut.isPending}
+        />
+      )}
     </div>
   );
 }

@@ -101,7 +101,7 @@ export function SortIcon({
   return <span className="ml-1 text-[var(--color-primary)]">{sort.dir === "asc" ? "↑" : "↓"}</span>;
 }
 
-const MONTHS_ES_SHORT = [
+export const MONTHS_ES_SHORT = [
   "Ene",
   "Feb",
   "Mar",

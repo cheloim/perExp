@@ -16,25 +16,13 @@ import {
   getScheduledExpenses,
   executeScheduledExpense,
   cancelScheduledExpense,
+  createExpense,
 } from "../api/client";
-import type { InstallmentGroup } from "../types";
+import type { InstallmentGroup, ExpenseCreate } from "../types";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { formatCurrency, toUpperCase, formatDateDMY } from "../utils/format";
+import { ExpenseModal } from "../components/ExpenseModals";
+import { formatCurrency, toUpperCase, formatDateDMY, MONTHS_ES_SHORT } from "../utils/format";
 
-const MONTHS_ES = [
-  "Ene",
-  "Feb",
-  "Mar",
-  "Abr",
-  "May",
-  "Jun",
-  "Jul",
-  "Ago",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dic",
-];
 
 type CardNetwork = "visa" | "mastercard" | "amex" | "unknown";
 
@@ -178,6 +166,18 @@ export default function InstallmentsPage() {
   const [selectedGroup, setSelectedGroup] = useState<InstallmentGroup | null>(null);
   const [showScheduledModal, setShowScheduledModal] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState<number | null>(null);
+  const [editing, setEditing] = useState<null | undefined>(undefined);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const createMut = useMutation({
+    mutationFn: (data: ExpenseCreate) => createExpense(data),
+    onSuccess: () => {
+      setEditing(undefined);
+      queryClient.invalidateQueries({ queryKey: ["installments"] });
+      queryClient.invalidateQueries({ queryKey: ["installments-monthly-load"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
 
   const { data: groups = [], isLoading } = useQuery({
     queryKey: ["installments"],
@@ -295,6 +295,16 @@ export default function InstallmentsPage() {
 
   return (
     <div className="space-y-6 p-4 md:p-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Gastos en Cuotas</h1>
+        <button
+          onClick={() => setEditing(null)}
+          className="gnome-btn-primary-round text-sm"
+        >
+          <span className="text-base leading-none">+</span>
+          <span>Nuevo gasto</span>
+        </button>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="card p-4">
           <p className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>
@@ -342,7 +352,7 @@ export default function InstallmentsPage() {
                       tick={{ fontSize: 10, fill: "var(--chart-text)" }}
                       tickFormatter={(v: string) => {
                         const [y, m] = v.split("-");
-                        return `${MONTHS_ES[parseInt(m) - 1]} ${y.slice(2)}`;
+                        return `${MONTHS_ES_SHORT[parseInt(m) - 1]} ${y.slice(2)}`;
                       }}
                     />
                     <YAxis
@@ -388,7 +398,7 @@ export default function InstallmentsPage() {
                       }}
                       labelFormatter={(l: string) => {
                         const [y, m] = l.split("-");
-                        return `${MONTHS_ES[parseInt(m) - 1]} ${y}`;
+                        return `${MONTHS_ES_SHORT[parseInt(m) - 1]} ${y}`;
                       }}
                     />
                     <Bar dataKey="total" radius={[4, 4, 0, 0]}>
@@ -649,11 +659,11 @@ export default function InstallmentsPage() {
 
       {showScheduledModal && selectedGroup && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-modal-backdrop"
           onClick={() => setShowScheduledModal(false)}
         >
           <div
-            className="bg-[var(--color-surface)] border rounded-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-xl"
+            className="bg-[var(--color-surface)] border rounded-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-xl animate-modal-content"
             style={{ borderColor: "var(--border-color)" }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -754,6 +764,19 @@ export default function InstallmentsPage() {
         }}
         onCancel={() => setCancelConfirm(null)}
       />
+
+      {editing !== undefined && (
+        <ExpenseModal
+          initial={editing}
+          onClose={() => {
+            setEditing(undefined);
+            setSaveError(null);
+          }}
+          onSave={(data) => createMut.mutate(data)}
+          saveError={saveError}
+          isSaving={createMut.isPending}
+        />
+      )}
     </div>
   );
 }

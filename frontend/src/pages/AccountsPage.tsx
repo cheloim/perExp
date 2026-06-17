@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   PieChart,
@@ -37,6 +37,8 @@ import {
 } from "../utils/format";
 import { useExpenseFilters } from "../hooks/useExpenseFilters";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import EmptyState from "../components/ui/EmptyState";
+import { SkeletonTable } from "../components/ui/Skeleton";
 
 type GroupBy = "month" | "year";
 type SortField = "date" | "description" | "category" | "bank" | "person" | "amount";
@@ -79,7 +81,7 @@ function PieLabel({ cx, cy, midAngle, outerRadius, percent, category_name }: any
       textAnchor={x > cx ? "start" : "end"}
       dominantBaseline="central"
       fontSize={11}
-      fill="#374151"
+      fill="var(--chart-text)"
     >
       {category_name} {(percent * 100).toFixed(2)}%
     </text>
@@ -592,7 +594,15 @@ export default function AccountsPage() {
   }
 
   if (!data) {
-    return <div className="text-center text-secondary py-20">Error loading dashboard</div>;
+    return (
+      <div className="card p-10">
+        <EmptyState
+          icon="⚠️"
+          title="Error al cargar datos"
+          description="No se pudo obtener la información del dashboard"
+        />
+      </div>
+    );
   }
 
   const hasTrend = data.by_category.some((c) => c.previous_total !== undefined);
@@ -638,14 +648,47 @@ export default function AccountsPage() {
     }
   };
 
+  const evolutionChartData = useMemo(() => {
+    const filtered = cardData
+      .filter((card) => card.card_type === "credito")
+      .filter((card) => !bankFilter || card.bank === bankFilter);
+
+    const [selYear, selMonth] = month.split("-");
+    const selMonthNum = parseInt(selMonth);
+    const monthsRange: string[] = [];
+    for (let i = -3; i <= 0; i++) {
+      const d = new Date(parseInt(selYear), selMonthNum - 1 + i, 1);
+      monthsRange.push(
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+      );
+    }
+
+    const chartData = monthsRange.map((m) => {
+      const entry: Record<string, number | string> = { month: m };
+      let monthTotal = 0;
+      filtered.forEach((card) => {
+        const cardKey = card.card_name;
+        const monthData = card.monthly?.find((x: { month: string }) => x.month === m);
+        const value = monthData?.total || 0;
+        entry[cardKey] = value;
+        monthTotal += value;
+      });
+      entry["total"] = monthTotal;
+      return entry;
+    });
+
+    return { filtered, chartData, monthsRange };
+  }, [cardData, bankFilter, month]);
+
   return (
     <>
       <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-primary">Cuentas</h1>
         {/* Cards panel — horizontal scroll row */}
         {cardData.length > 0 && (
           <div className="card p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-primary">Accounts</h2>
+              <h2 className="text-sm font-semibold text-primary">Resumen</h2>
               <div className="flex items-center gap-2">
                 {(() => {
                   const banks = [...new Set(cardData.map((c) => c.bank))].sort();
@@ -727,7 +770,7 @@ export default function AccountsPage() {
               </div>
 
               {data.by_category.length === 0 ? (
-                <p className="text-secondary text-sm text-center py-12">Sin datos</p>
+                <EmptyState icon="📊" title="Sin datos" description="Los gastos por categoría aparecerán aquí" />
               ) : (
                 <>
                   <ResponsiveContainer width="100%" height={320}>
@@ -820,35 +863,9 @@ export default function AccountsPage() {
             </div>
 
             <div className="card p-5">
-              <h2 className="text-base font-semibold text-primary mb-4">Evolución por Account</h2>
+              <h2 className="text-base font-semibold text-primary mb-4">Evolución por Cuenta</h2>
               {(() => {
-                const filteredCards = cardData
-                  .filter((card) => card.card_type === "credito")
-                  .filter((card) => !bankFilter || card.bank === bankFilter);
-
-                const [selYear, selMonth] = month.split("-");
-                const selMonthNum = parseInt(selMonth);
-                const monthsRange: string[] = [];
-                for (let i = -3; i <= 0; i++) {
-                  const d = new Date(parseInt(selYear), selMonthNum - 1 + i, 1);
-                  monthsRange.push(
-                    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-                  );
-                }
-
-                const chartData = monthsRange.map((m) => {
-                  const entry: Record<string, number | string> = { month: m };
-                  let monthTotal = 0;
-                  filteredCards.forEach((card) => {
-                    const cardKey = card.card_name;
-                    const monthData = card.monthly?.find((x: { month: string }) => x.month === m);
-                    const value = monthData?.total || 0;
-                    entry[cardKey] = value;
-                    monthTotal += value;
-                  });
-                  entry["total"] = monthTotal;
-                  return entry;
-                });
+                const { filtered: filteredCards, chartData, monthsRange } = evolutionChartData;
 
                 const colors = [
                   "#6366f1",
@@ -893,36 +910,8 @@ export default function AccountsPage() {
                             backgroundColor: "var(--chart-tooltip-bg)",
                             borderColor: "var(--chart-tooltip-border)",
                             color: "var(--chart-tooltip-text)",
-                            borderRadius: 8,
                           }}
                           itemStyle={{ color: "var(--chart-tooltip-text)" }}
-                          formatter={(v: number, name: string) => [formatCurrency(v), name]}
-                        />
-                        <Legend wrapperStyle={{ fontSize: "11px" }} />
-                        <Line
-                          type="monotone"
-                          dataKey="total"
-                          name="Total"
-                          stroke="var(--chart-text)"
-                          strokeWidth={2}
-                          strokeDasharray="5 5"
-                          dot={{ r: 4, fill: "var(--chart-text)" }}
-                          opacity={0.4}
-                        />
-                        <YAxis
-                          tickFormatter={(v) =>
-                            new Intl.NumberFormat("es-AR", { notation: "compact" } as any).format(v)
-                          }
-                          tick={{ fontSize: 11, fill: "#71717a" }}
-                          width={50}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "#ffffff",
-                            borderColor: "#d4d4d8",
-                            color: "#18181b",
-                          }}
-                          itemStyle={{ color: "#18181b" }}
                           formatter={(v: number, name: string) => [formatCurrency(v), name]}
                           labelFormatter={(label) => {
                             const [y, m] = label.split("-");
@@ -953,10 +942,10 @@ export default function AccountsPage() {
                           type="monotone"
                           dataKey="total"
                           name="Total"
-                          stroke="#71717a"
+                          stroke="var(--chart-text)"
                           strokeWidth={2}
                           strokeDasharray="5 5"
-                          dot={{ r: 4, fill: "#71717a" }}
+                          dot={{ r: 4, fill: "var(--chart-text)" }}
                           opacity={0.4}
                         />
                         {filteredCards.map((card, idx) => {
@@ -1142,9 +1131,9 @@ export default function AccountsPage() {
             )}
 
             {expensesLoading ? (
-              <div className="text-center py-10 text-secondary">Cargando...</div>
+              <SkeletonTable rows={5} cols={4} />
             ) : expenses.length === 0 ? (
-              <div className="text-center py-10 text-secondary">No hay gastos en este período</div>
+              <EmptyState icon="📋" title="No hay gastos en este período" />
             ) : (
               <div className="overflow-x-auto -mx-5 px-5">
                 <table className="w-full text-sm">
@@ -1218,19 +1207,24 @@ export default function AccountsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {expenses
-                      .sort((a, b) => {
+                    {(() => {
+                      const sorted = [...expenses].sort((a, b) => {
                         const dir = sort.dir === "asc" ? 1 : -1;
-                        if (sort.field === "date")
-                          return (new Date(a.date).getTime() - new Date(b.date).getTime()) * dir;
+                        if (sort.field === "date") {
+                          const parseDate = (s: string) => {
+                            const [d, m, y] = s.split("-").map(Number);
+                            return new Date(y, m - 1, d).getTime();
+                          };
+                          return (parseDate(a.date) - parseDate(b.date)) * dir;
+                        }
                         if (sort.field === "description")
                           return a.description.localeCompare(b.description) * dir;
                         if (sort.field === "category")
                           return (a.category_name ?? "").localeCompare(b.category_name ?? "") * dir;
                         if (sort.field === "amount") return (a.amount - b.amount) * dir;
                         return 0;
-                      })
-                      .map((exp) => (
+                      });
+                      return sorted.map((exp) => (
                         <tr
                           key={exp.id}
                           className={`border-b border-border-color hover:bg-base-alt transition-colors ${
@@ -1329,7 +1323,8 @@ export default function AccountsPage() {
                             </td>
                           )}
                         </tr>
-                      ))}
+                      ));
+                    })()}
                   </tbody>
                 </table>
               </div>
@@ -1353,6 +1348,7 @@ export default function AccountsPage() {
               }
             }}
             saveError={saveError}
+            isSaving={createMut.isPending || updateMut.isPending}
           />
         )}
 

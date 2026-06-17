@@ -60,8 +60,8 @@ function CategoryForm({
   );
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="card w-full max-w-md">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 animate-modal-backdrop">
+      <div className="card w-full max-w-md animate-modal-content">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border-color">
           <h2 className="text-base font-semibold text-primary">
             {initial ? "Editar" : isParentForm ? "Nueva Categoría Padre" : "Nueva Subcategoría"}
@@ -185,8 +185,8 @@ function CategoryDetail({ cat, onClose }: { cat: Category; onClose: () => void }
   const total = expenses.reduce((s, e) => s + e.amount, 0);
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-      <div className="card w-full sm:max-w-2xl flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-modal-backdrop">
+      <div className="card w-full sm:max-w-2xl flex flex-col max-h-[90vh] animate-modal-content">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-border-color flex-shrink-0">
           <span
             className="w-4 h-4 rounded-full flex-shrink-0"
@@ -279,6 +279,7 @@ export default function CategoriesPage() {
   );
   const [browsing, setBrowsing] = useState<Category | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Category | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ["categories"],
@@ -325,8 +326,11 @@ export default function CategoriesPage() {
   });
   const deleteMut = useMutation({
     mutationFn: deleteCategory,
-    onSuccess: invalidate,
-    onError: (err: any) => alert(err?.response?.data?.detail ?? "Error al eliminar"),
+    onSuccess: () => {
+      invalidate();
+      setDeleteError(null);
+    },
+    onError: (err: any) => setDeleteError(err?.response?.data?.detail ?? "Error al eliminar"),
   });
 
   const [recatResult, setRecatResult] = useState<{ updated: number; total: number } | null>(null);
@@ -731,6 +735,13 @@ export default function CategoriesPage() {
           }}
           onCancel={() => setDeleteConfirm(null)}
         />
+      )}
+
+      {deleteError && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-start gap-2 bg-danger/10 border border-danger/30 rounded-lg px-4 py-3 text-sm text-danger shadow-lg">
+          <span>{deleteError}</span>
+          <button onClick={() => setDeleteError(null)} className="ml-2 hover:opacity-70">✕</button>
+        </div>
       )}
     </div>
   );

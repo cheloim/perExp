@@ -383,9 +383,7 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
     ]);
     setStreaming(true);
     try {
-      console.log("Calling getDashboardAITrends with month:", currentMonth);
       const data = await getDashboardAITrends({ month: currentMonth });
-      console.log("AI Trends data received:", data);
 
       const trendIcon = data.trend === "up" ? "↑" : data.trend === "down" ? "↓" : "→";
       const trendLabel =
@@ -401,7 +399,6 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
       if (data.recommendation) responseText += `\n\n💡 ${data.recommendation}`;
       if (data.alert) responseText += `\n\n⚠ ${data.alert}`;
 
-      console.log("Setting response:", responseText);
       setMessages((prev) => {
         const u = [...prev];
         u[u.length - 1] = { role: "assistant", text: responseText };
