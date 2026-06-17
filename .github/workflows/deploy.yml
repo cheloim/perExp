@@ -182,7 +182,8 @@ jobs:
             python3 -c "
             import json, sys
             with open('/tmp/secrets.json') as f:
-                data = json.load(f)
+                content = f.read()
+            data = json.loads(content, strict=False)
             for k, v in data.items():
                 print(f'{k}={v}')
             " >> /opt/creditcardanalyzer/.env
