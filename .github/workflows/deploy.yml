@@ -64,6 +64,7 @@ jobs:
           host: ${{ secrets.LINODE_SERVER_IP }}
           username: ${{ secrets.LINODE_SSH_USER }}
           key: ${{ secrets.LINODE_SSH_KEY }}
+          port: 43422
           script: |
             # Install podman if not exists
             if ! command -v podman &> /dev/null; then
