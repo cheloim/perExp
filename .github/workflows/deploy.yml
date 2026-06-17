@@ -178,9 +178,7 @@ jobs:
             echo "IMAGE_TAG=${IMAGE_TAG}" >> /opt/creditcardanalyzer/.env
 
             # Parse APP_SECRETS JSON and append to .env file
-            cat > /tmp/secrets.json << 'SECRETS_EOF'
-            ${{ secrets.APP_SECRETS }}
-            SECRETS_EOF
+            printf '%s' '${{ secrets.APP_SECRETS }}' > /tmp/secrets.json
             python3 -c "
             import json, sys
             with open('/tmp/secrets.json') as f:
