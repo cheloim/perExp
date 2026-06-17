@@ -187,6 +187,7 @@ jobs:
 
             # Write image variables to .env
             echo "BACKEND_IMAGE=${BACKEND_IMAGE}" > /opt/creditcardanalyzer/.env
+            echo "FRONTEND_IMAGE=${FRONTEND_IMAGE}" >> /opt/creditcardanalyzer/.env
             echo "IMAGE_TAG=${IMAGE_TAG}" >> /opt/creditcardanalyzer/.env
 
             # Decode base64 secrets and append to .env
