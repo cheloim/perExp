@@ -2,24 +2,26 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
-  XAxis,
-  YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ComposedChart,
-  Line,
-  Legend,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
 } from "recharts";
 import {
   getDashboard,
   getCardSummary,
   getExpenses,
   getScheduledSummary,
-  getCategoryTrend,
-  getAccountExpenses,
   getInvestments,
   createExpense,
+  getUsdRate,
+  getCreditCardPasivos,
+  getInstallmentsMonthlyLoad,
+  getTopMerchants,
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
 import { formatCurrency, toUpperCase, formatDateDMYSlash, MONTHS_ES_SHORT } from "../utils/format";
@@ -27,20 +29,15 @@ import { ExpenseModal } from "../components/ExpenseModals";
 import EmptyState from "../components/ui/EmptyState";
 
 const FALLBACK_COLORS = [
-  "#3584e4", // blue-3
-  "#33d17a", // green-3
-  "#e5a50a", // yellow-4
-  "#c64600", // orange-3
-  "#9141ac", // purple-2
-  "#e01b24", // red-3
-  "#70492c", // brown-3
+  "#3b82f6", // blue
+  "#22c55e", // green
+  "#eab308", // yellow
+  "#f97316", // orange
+  "#a855f7", // purple
+  "#ef4444", // red
+  "#06b6d4", // cyan
 ];
 
-function toYMD(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate(),
-  ).padStart(2, "0")}`;
-}
 
 function CardRow({
   cardName,
@@ -105,11 +102,14 @@ export default function Dashboard() {
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const month = currentMonth;
-  const [trendMonths, setTrendMonths] = useState(3);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Expense | null | undefined>(undefined);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [visibleCount, setVisibleCount] = useState(15);
+  const [showAllCategories, setShowAllCategories] = useState(false);
 
   const createMut = useMutation({
     mutationFn: (data: ExpenseCreate) => createExpense(data),
@@ -117,7 +117,7 @@ export default function Dashboard() {
       setEditing(undefined);
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["card-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["expenses-recent-7d"] });
+      queryClient.invalidateQueries({ queryKey: ["expenses-month"] });
     },
   });
 
@@ -125,15 +125,6 @@ export default function Dashboard() {
     setSaveError(null);
     createMut.mutate(data);
   };
-
-  const toDate = now;
-
-  // 7 days back for transactions list
-  const sevenDaysAgo = useMemo(() => {
-    const d = new Date(now);
-    d.setDate(d.getDate() - 6);
-    return d;
-  }, [now]);
 
   const { data: dashData } = useQuery({
     queryKey: ["dashboard", month],
@@ -144,121 +135,169 @@ export default function Dashboard() {
   const { data: cardData = [] } = useQuery({
     queryKey: ["card-summary"],
     queryFn: getCardSummary,
+    staleTime: 60_000,
   });
 
-  // Expenses for 7-day transaction list
-  const { data: recentExpenses = [] } = useQuery({
-    queryKey: ["expenses-recent-7d", toYMD(sevenDaysAgo), toYMD(toDate)],
+  // Expenses for current month (filterable by category)
+  const { data: monthExpenses = [] } = useQuery({
+    queryKey: ["expenses-month", month, selectedCategoryId],
     queryFn: () =>
-      getExpenses({ date_from: toYMD(sevenDaysAgo), date_to: toYMD(toDate), limit: 30 }),
+      getExpenses({
+        month,
+        category_id: selectedCategoryId ?? undefined,
+        limit: 100,
+      }),
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
   });
 
   // Scheduled expenses for current month
   const { data: scheduledData } = useQuery({
     queryKey: ["scheduled-summary"],
     queryFn: () => getScheduledSummary(),
-  });
-
-  // Category trend for evolution chart
-  const { data: categoryTrendData } = useQuery({
-    queryKey: ["category-trend", trendMonths],
-    queryFn: () => getCategoryTrend(trendMonths),
-  });
-
-  // Category trend with current-month progress scaled to fill chart proportionally
-  const adjustedCategoryTrend = useMemo(() => {
-    if (!categoryTrendData?.rows?.length) return null;
-    const now = new Date();
-    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    const dayOfMonth = now.getDate();
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const progress = dayOfMonth / daysInMonth;
-
-    const rows = categoryTrendData.rows.map((row) => {
-      const isCurrentMonth = row.month === currentMonthKey;
-      if (!isCurrentMonth) return row;
-
-      const adjusted = { ...row };
-      categoryTrendData.categories.forEach((cat) => {
-        const val = Number(row[cat.name] || 0);
-        if (val > 0) {
-          adjusted[cat.name] = val / progress;
-        }
-      });
-      return adjusted;
-    });
-
-    return { ...categoryTrendData, rows };
-  }, [categoryTrendData]);
-
-  // Current month key for calculations
-  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const prevMonthKey = useMemo(() => {
-    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  }, [now]);
-
-  // Account expenses for current and previous month
-  const { data: accountExpensesCurrent = [] } = useQuery({
-    queryKey: ["account-expenses", currentMonthKey],
-    queryFn: () => getAccountExpenses(currentMonthKey),
-  });
-
-  const { data: accountExpensesPrev = [] } = useQuery({
-    queryKey: ["account-expenses", prevMonthKey],
-    queryFn: () => getAccountExpenses(prevMonthKey),
+    staleTime: 60_000,
   });
 
   // Investments
   const { data: investments = [] } = useQuery({
     queryKey: ["investments"],
     queryFn: () => getInvestments(),
+    staleTime: 60_000,
   });
 
-  // Calculate account summary with variations (using card field to identify non-card expenses)
-  const accountSummary = useMemo(() => {
-    // Group by account name from accountExpenses where card is empty (non-card expenses)
-    const currentByAccount: Record<string, number> = {};
-    const prevByAccount: Record<string, number> = {};
+  // USD exchange rate for conversion
+  const { data: usdRate } = useQuery({
+    queryKey: ["usd-rate"],
+    queryFn: getUsdRate,
+    staleTime: 30 * 60_000,
+  });
 
-    accountExpensesCurrent.forEach((e) => {
-      if (!e.card) {
-        currentByAccount[e.person || "Sin asignar"] =
-          (currentByAccount[e.person || "Sin asignar"] || 0) + e.amount;
-      }
-    });
-    accountExpensesPrev.forEach((e) => {
-      if (!e.card) {
-        prevByAccount[e.person || "Sin asignar"] =
-          (prevByAccount[e.person || "Sin asignar"] || 0) + e.amount;
-      }
-    });
+  // Credit card pasivos (pending debt)
+  const { data: pasivosData } = useQuery({
+    queryKey: ["credit-card-pasivos"],
+    queryFn: getCreditCardPasivos,
+    staleTime: 60_000,
+  });
 
-    return Object.entries(currentByAccount)
-      .map(([name, total]) => {
-        const prevTotal = prevByAccount[name] || 0;
-        const variation = prevTotal > 0 ? ((total - prevTotal) / prevTotal) * 100 : 0;
-        return { id: name, name, total, variation };
-      })
-      .filter((a) => a.total > 0);
-  }, [accountExpensesCurrent, accountExpensesPrev]);
+  // Installment monthly load (7 months)
+  const { data: monthlyLoad = [] } = useQuery({
+    queryKey: ["installments-monthly-load"],
+    queryFn: getInstallmentsMonthlyLoad,
+    staleTime: 60_000,
+  });
 
-  // Calculate total investments value
-  const investmentsTotal = useMemo(() => {
-    const total = investments.reduce((sum, inv) => {
-      const price = inv.current_price ?? inv.avg_cost ?? 0;
-      return sum + inv.quantity * price;
-    }, 0);
-    return total;
-  }, [investments]);
+  // Top merchants for current month
+  const { data: topMerchants = [] } = useQuery({
+    queryKey: ["top-merchants", month],
+    queryFn: () => getTopMerchants({ month, limit: 5 }),
+    staleTime: 60_000,
+  });
+
+  // Calculate savings by currency
+  const savingsArs = useMemo(() =>
+    investments
+      .filter((i) => i.currency === "ARS")
+      .reduce((sum, i) => sum + i.quantity * (i.current_price ?? i.avg_cost ?? 0), 0),
+    [investments]
+  );
+
+  // USD total: native USD investments + ARS investments converted to USD
+  const totalUsd = useMemo(() => {
+    const nativeUsd = investments
+      .filter((i) => i.currency === "USD")
+      .reduce((sum, i) => sum + i.quantity * (i.current_price ?? i.avg_cost ?? 0), 0);
+
+    if (!usdRate?.rate) return nativeUsd;
+
+    const arsTotal = investments
+      .filter((i) => i.currency === "ARS")
+      .reduce((sum, i) => sum + i.quantity * (i.current_price ?? i.avg_cost ?? 0), 0);
+
+    return nativeUsd + (arsTotal / usdRate.rate);
+  }, [investments, usdRate]);
 
   // Category budgets — top 5 by spending
-  const topCategories = [...(dashData?.by_category ?? [])]
-    .filter((c) => c.total > 0)
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 5);
+  const topCategories = useMemo(() =>
+    [...(dashData?.by_category ?? [])]
+      .filter((c) => c.total > 0)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 4),
+    [dashData?.by_category]
+  );
 
   const maxCatTotal = topCategories[0]?.total ?? 1;
+
+  // All categories for expanded view
+  const allCategories = useMemo(() =>
+    [...(dashData?.by_category ?? [])]
+      .filter((c) => c.total > 0)
+      .sort((a, b) => b.total - a.total),
+    [dashData?.by_category]
+  );
+
+  const displayedCategories = showAllCategories ? allCategories : topCategories;
+
+  // Category name → ID mapping for filtering
+  const categoryMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const c of dashData?.by_category ?? []) {
+      if (c.category_name && c.category_id) map.set(c.category_name, c.category_id);
+    }
+    return map;
+  }, [dashData?.by_category]);
+
+  const handleCategorySelect = (name: string) => {
+    if (selectedCategory === name) {
+      setSelectedCategory(null);
+      setSelectedCategoryId(null);
+    } else {
+      setSelectedCategory(name);
+      setSelectedCategoryId(categoryMap.get(name) ?? null);
+    }
+    setVisibleCount(15);
+  };
+
+  // Pie chart data — group small slices into "Otros"
+  const pieData = useMemo(() => {
+    const categories = dashData?.by_category ?? [];
+    const total = categories.reduce((s, c) => s + Math.abs(c.total), 0);
+    const big: typeof categories = [];
+    const small: typeof categories = [];
+    for (const c of categories) {
+      if (c.total <= 0) continue;
+      const pct = total > 0 ? (c.total / total) * 100 : 0;
+      if (pct >= 3) big.push(c);
+      else small.push(c);
+    }
+    const result = big.map((c) => ({
+      name: c.category_name,
+      color: c.category_color || FALLBACK_COLORS[big.indexOf(c) % FALLBACK_COLORS.length],
+      total: c.total,
+    }));
+    if (small.length > 0) {
+      result.push({
+        name: `Otros (${small.length})`,
+        color: "#94a3b8",
+        total: small.reduce((s, c) => s + c.total, 0),
+      });
+    }
+    return result;
+  }, [dashData?.by_category]);
+
+  // KPI calculations
+  const totalSpent = dashData?.total_amount ?? 0;
+  const totalPasivos = pasivosData?.total_pasivos ?? 0;
+  const currentMonthLoad = monthlyLoad.find((m) => m.is_current);
+  const cuotasComprometidas = currentMonthLoad?.total ?? 0;
+
+  // MoM comparison: total this month vs total of all previous_total in categories
+  const prevMonthTotal = (dashData?.by_category ?? []).reduce(
+    (s, c) => s + (c.previous_total ?? 0),
+    0,
+  );
+  const momVariation = prevMonthTotal > 0
+    ? ((totalSpent - prevMonthTotal) / prevMonthTotal) * 100
+    : 0;
 
   return (
     <div className="space-y-6">
@@ -274,279 +313,158 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* Accounts/Cards/Investments Summary */}
-      <div className="space-y-4">
-        {/* Cuentas */}
-        {accountSummary.length > 0 && (
-          <div className="card p-4">
-            <h2 className="text-xs font-semibold text-secondary uppercase tracking-wide mb-3">
-              Cuentas
-            </h2>
-            <div className="flex gap-3 overflow-x-auto pb-1">
-              {accountSummary.map((acc) => (
-                <div key={acc.id} className="flex-shrink-0 w-32 bg-base-alt rounded-lg p-3">
-                  <p className="text-xs font-medium text-primary truncate" title={acc.name}>
-                    {acc.name}
-                  </p>
-                  <p className="text-sm font-bold text-primary mt-1">{formatCurrency(acc.total)}</p>
-                  <p
-                    className={`text-xs mt-1 ${
-                      acc.variation > 0
-                        ? "text-success"
-                        : acc.variation < 0
-                          ? "text-danger"
-                          : "text-tertiary"
-                    }`}
-                  >
-                    {acc.variation > 0 ? "↑" : acc.variation < 0 ? "↓" : "→"}{" "}
-                    {Math.abs(acc.variation).toFixed(2)}%
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Inversiones */}
-        {investmentsTotal > 0 && (
-          <div className="card p-4">
-            <h2 className="text-xs font-semibold text-secondary uppercase tracking-wide mb-2">
-              Inversiones
-            </h2>
-            <p className="text-xl font-bold text-primary">
-              Total: {formatCurrency(investmentsTotal)}
-            </p>
-          </div>
-        )}
+      {/* KPI Row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="card p-4">
+          <p className="text-[10px] text-tertiary uppercase mb-1">Total gastado</p>
+          <p className="text-lg font-bold text-primary">{formatCurrency(totalSpent)}</p>
+          <p className="text-xs text-tertiary mt-1">{dashData?.total_expenses ?? 0} transacciones</p>
+        </div>
+        <div className="card p-4">
+          <p className="text-[10px] text-tertiary uppercase mb-1">Deuda tarjetas</p>
+          <p className="text-lg font-bold text-danger">{formatCurrency(totalPasivos)}</p>
+          <p className="text-xs text-tertiary mt-1">{pasivosData?.count ?? 0} cuotas pendientes</p>
+        </div>
+        <div className="card p-4">
+          <p className="text-[10px] text-tertiary uppercase mb-1">Cuotas este mes</p>
+          <p className="text-lg font-bold text-primary">{formatCurrency(cuotasComprometidas)}</p>
+          <p className="text-xs text-tertiary mt-1">{currentMonthLoad?.count ?? 0} cuotas</p>
+        </div>
+        <div className="card p-4">
+          <p className="text-[10px] text-tertiary uppercase mb-1">vs Mes anterior</p>
+          <p className={`text-lg font-bold ${momVariation > 0 ? "text-danger" : momVariation < 0 ? "text-success" : "text-tertiary"}`}>
+            {momVariation > 0 ? "↑" : momVariation < 0 ? "↓" : "→"} {Math.abs(momVariation).toFixed(1)}%
+          </p>
+          <p className="text-xs text-tertiary mt-1">
+            {momVariation > 0 ? "Gastaste más" : momVariation < 0 ? "Gastaste menos" : "Sin cambio"}
+          </p>
+        </div>
       </div>
 
-      {/* Middle section: left (cards + scheduled), right (area chart + budgets) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left column */}
-        <div className="space-y-4">
-          {/* Credit cards */}
-          <div className="card p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-primary">Tarjetas de Crédito</h2>
-              <button
-                onClick={() => navigate("/accounts")}
-                className="text-xs text-secondary hover:text-primary transition-colors"
-              >
-                Ver detalle →
-              </button>
+      {/* Ahorros */}
+      {(savingsArs > 0 || totalUsd > 0) && (
+        <div className="card p-4">
+          <h2 className="text-xs font-semibold text-secondary uppercase tracking-wide mb-2">
+            Ahorros
+          </h2>
+          <div className="flex gap-4">
+            <div>
+              <p className="text-[10px] text-tertiary uppercase">ARS</p>
+              <p className="text-sm font-bold text-primary">
+                {savingsArs > 0 ? formatCurrency(savingsArs) : "—"}
+              </p>
             </div>
-            {cardData.length === 0 ? (
-              <EmptyState
-                icon="💳"
-                title="Sin tarjetas registradas"
-                description="Creá una tarjeta para ver el resumen de gastos"
-                action={{ label: "Crear tarjeta", onClick: () => navigate("/accounts") }}
-              />
-            ) : (
-              <div className="divide-y divide-border-color">
-                {cardData.filter((c) => c.card_type === "credito").map((card, i) => {
-                  const monthEntry = card.monthly?.find((m) => m.month === month);
-                  return (
-                    <CardRow
-                      key={i}
-                      cardName={card.card_name}
-                      bank={card.bank}
-                      total={monthEntry?.total ?? 0}
-                      cardType={card.card_type}
-                    />
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Scheduled expenses */}
-          <div className="card p-5">
-            <h2 className="text-sm font-semibold text-primary mb-3">Próximos Gastos Programados</h2>
-            {!scheduledData ||
-            (scheduledData.installments.length === 0 && scheduledData.manual.length === 0) ? (
-              <EmptyState
-                icon="📅"
-                title="Sin gastos programados"
-                description="Los vencimientos del mes aparecerán aquí"
-              />
-            ) : (
-              <div className="space-y-2">
-                {scheduledData.installments.map((inst) => (
-                  <div
-                    key={`inst-${inst.id}`}
-                    className="flex items-start justify-between py-2 px-1 rounded hover:bg-base-alt transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">📦</span>
-                      <div>
-                        <p className="text-sm font-medium text-primary">
-                          {toUpperCase(inst.description)}
-                        </p>
-                        <p className="text-xs text-tertiary">
-                          {formatDateDMYSlash(inst.scheduled_date)} · {inst.installment_number}/
-                          {inst.installment_total}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-sm font-semibold text-primary">
-                      {formatCurrency(inst.amount, inst.currency)}
-                    </span>
-                  </div>
-                ))}
-                {scheduledData.manual.map((man) => (
-                  <div
-                    key={`man-${man.id}`}
-                    className="flex items-start justify-between py-2 px-1 rounded hover:bg-base-alt transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">📅</span>
-                      <div>
-                        <p className="text-sm font-medium text-primary">
-                          {toUpperCase(man.description)}
-                        </p>
-                        <p className="text-xs text-tertiary">
-                          {formatDateDMYSlash(man.scheduled_date)}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-sm font-semibold text-primary">
-                      {formatCurrency(man.amount, man.currency)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div>
+              <p className="text-[10px] text-tertiary uppercase">USD</p>
+              <p className="text-sm font-bold text-primary">
+                {totalUsd > 0
+                  ? `USD ${totalUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  : "—"}
+              </p>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Right column */}
-        <div className="space-y-4">
-          {/* Category evolution chart */}
-          <div className="card p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-primary">
-                Evolución de gastos por categoría
-              </h2>
-              <div className="flex gap-1">
-                {[1, 3, 6].map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setTrendMonths(m)}
-                    className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
-                      trendMonths === m
-                        ? "bg-primary text-on-primary border-primary"
-                        : "border-border-color text-tertiary hover:text-primary hover:border-border-color"
-                    }`}
-                  >
-                    {m}M
-                  </button>
-                ))}
-              </div>
-            </div>
-            {!adjustedCategoryTrend || adjustedCategoryTrend.rows.length === 0 ? (
-              <EmptyState
-                icon="📈"
-                title="Sin datos en este período"
-                description="Los gastos del mes aparecerán en el gráfico"
-              />
-            ) : (
-              <ResponsiveContainer width="100%" height={220}>
-                <ComposedChart
-                  data={adjustedCategoryTrend.rows}
-                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+      {/* Gastos por Categoría + Transacciones — side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* Left: Gastos por Categoría */}
+        <div className="card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-primary">Gastos por Categoría</h2>
+              {selectedCategory && (
+                <button
+                  onClick={() => { setSelectedCategory(null); setSelectedCategoryId(null); setVisibleCount(15); }}
+                  className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                 >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="var(--chart-grid)"
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="month"
-                    tick={{ fontSize: 11, fill: "var(--chart-text)" }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v) => {
-                      const [, m] = v.split("-");
-                      return MONTHS_ES_SHORT[parseInt(m) - 1] || v;
-                    }}
-                  />
-                  <YAxis
-                    tickFormatter={(v) =>
-                      new Intl.NumberFormat("es-AR", { notation: "compact" } as any).format(v)
-                    }
-                    tick={{ fontSize: 11, fill: "var(--chart-text)" }}
-                    width={48}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "var(--chart-tooltip-bg)",
-                      borderColor: "var(--chart-tooltip-border)",
-                      color: "var(--chart-tooltip-text)",
-                      borderRadius: 10,
-                      fontSize: 12,
-                      padding: "8px 12px",
-                      boxShadow: "var(--shadow-md)",
-                    }}
-                    formatter={(v: number, name: string) => [formatCurrency(v), name]}
-                    labelStyle={{ fontWeight: 600, marginBottom: 4 }}
-                  />
-                  <Legend
-                    wrapperStyle={{ fontSize: 11, paddingTop: 10 }}
-                    formatter={(value) => (
-                      <span style={{ color: "var(--text-secondary)" }}>{value}</span>
-                    )}
-                  />
-                  {adjustedCategoryTrend.categories.map((cat, i) => {
-                    const monthHasData = adjustedCategoryTrend.rows.some(
-                      (r) => Number(r[cat.name] || 0) > 0,
-                    );
-                    if (!monthHasData) return null;
-                    const color = cat.color || FALLBACK_COLORS[i % FALLBACK_COLORS.length];
-                    return (
-                      <Line
-                        key={cat.name}
-                        type="monotone"
-                        dataKey={cat.name}
-                        stroke={color}
-                        strokeWidth={2.5}
-                        dot={{ r: 4, fill: color, strokeWidth: 0 }}
-                        activeDot={{ r: 5, stroke: "#fff", strokeWidth: 2 }}
-                        connectNulls
-                      />
-                    );
-                  })}
-                </ComposedChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-
-          {/* Category spending */}
-          <div className="card p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-primary">Gasto por Categoría</h2>
-              <button
-                onClick={() => navigate("/cat-dashboard")}
-                className="text-xs text-secondary hover:text-primary transition-colors"
-              >
-                Ver todo →
-              </button>
+                  {selectedCategory} ✕
+                </button>
+              )}
             </div>
-            {topCategories.length === 0 ? (
-              <EmptyState
-                icon="📊"
-                title="Sin datos"
-                description="Los gastos por categoría aparecerán aquí"
-              />
-            ) : (
-              <div className="space-y-3">
-                {topCategories.map((cat, i) => {
+            <button
+              onClick={() => navigate("/cat-dashboard")}
+              className="text-xs text-secondary hover:text-primary transition-colors"
+            >
+              Ver detalle →
+            </button>
+          </div>
+          {topCategories.length === 0 ? (
+            <EmptyState
+              icon="📊"
+              title="Sin datos"
+              description="Los gastos por categoría aparecerán aquí"
+            />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Pie chart */}
+              <div className="flex items-center justify-center">
+                <ResponsiveContainer width="100%" height={175}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      dataKey="total"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={65}
+                      innerRadius={30}
+                      paddingAngle={1}
+                      onClick={(entry) => handleCategorySelect(entry.name)}
+                      style={{ cursor: "pointer" }}
+                    >
+                      {pieData.map((entry, i) => (
+                        <Cell
+                          key={i}
+                          fill={entry.color}
+                          opacity={selectedCategory && selectedCategory !== entry.name ? 0.3 : 1}
+                          stroke={selectedCategory === entry.name ? "var(--color-primary)" : "none"}
+                          strokeWidth={2}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "var(--chart-tooltip-bg)",
+                        borderColor: "var(--chart-tooltip-border)",
+                        color: "var(--chart-tooltip-text)",
+                        borderRadius: 10,
+                        fontSize: 12,
+                        padding: "8px 12px",
+                        boxShadow: "var(--shadow-md)",
+                      }}
+                      formatter={(v: number, name: string) => {
+                        const total = pieData.reduce((s, d) => s + d.total, 0);
+                        const pct = total > 0 ? ((v / total) * 100).toFixed(1) : "0";
+                        return [`${formatCurrency(v)} (${pct}%)`, name];
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Bars */}
+              <div className="space-y-2">
+                {displayedCategories.map((cat, i) => {
                   const pct = (cat.total / maxCatTotal) * 100;
                   const color = cat.category_color || FALLBACK_COLORS[i % FALLBACK_COLORS.length];
+                  const isSelected = selectedCategory === cat.category_name;
+                  const prevTotal = cat.previous_total ?? 0;
+                  const variation = prevTotal > 0
+                    ? ((cat.total - prevTotal) / prevTotal) * 100
+                    : 0;
                   return (
-                    <div key={i}>
+                    <div
+                      key={i}
+                      onClick={() => handleCategorySelect(cat.category_name)}
+                      className={`cursor-pointer rounded-lg p-2 transition-all ${
+                        isSelected
+                          ? "bg-primary/10 ring-1 ring-primary"
+                          : selectedCategory
+                            ? "opacity-40 hover:opacity-70"
+                            : "hover:bg-base-alt"
+                      }`}
+                    >
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-1.5">
                           <span
@@ -557,87 +475,316 @@ export default function Dashboard() {
                             {cat.category_name}
                           </span>
                         </div>
-                        <span className="text-xs font-semibold text-primary">
-                          {formatCurrency(cat.total)}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          {prevTotal > 0 && (
+                            <span className={`text-[10px] font-medium ${
+                              variation > 0 ? "text-danger" : variation < 0 ? "text-success" : "text-tertiary"
+                            }`}>
+                              {variation > 0 ? "↑" : variation < 0 ? "↓" : "→"}{Math.abs(variation).toFixed(0)}%
+                            </span>
+                          )}
+                          <span className="text-xs font-semibold text-primary">
+                            {formatCurrency(cat.total)}
+                          </span>
+                        </div>
                       </div>
-                      <div className="h-2.5 bg-base-alt rounded-full overflow-hidden">
+                      <div className="h-2 bg-base-alt rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all duration-500"
-                          style={{
-                            width: `${pct}%`,
-                            backgroundColor: color,
-                          }}
+                          style={{ width: `${pct}%`, backgroundColor: color }}
                         />
                       </div>
                     </div>
                   );
                 })}
+                {!showAllCategories && allCategories.length > 4 && (
+                  <button
+                    onClick={() => setShowAllCategories(true)}
+                    className="text-xs text-primary hover:underline w-full text-center py-1"
+                  >
+                    Ver más ({allCategories.length - 4} categorías)
+                  </button>
+                )}
               </div>
-            )}
+            </div>
+          )}
+        </div>
+
+        {/* Right: Transacciones */}
+        <div className="card">
+          <div className="px-4 py-3 border-b border-border-color flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-primary">
+              Transacciones — Mes corriente
+              {selectedCategory && (
+                <span className="ml-2 text-xs font-normal text-secondary">
+                  ({selectedCategory})
+                </span>
+              )}
+            </h2>
+            <button
+              onClick={() => navigate("/expenses")}
+              className="text-xs text-secondary hover:text-primary transition-colors"
+            >
+              Ver todos →
+            </button>
           </div>
+          {monthExpenses.length === 0 ? (
+            <EmptyState
+              icon="💸"
+              title={selectedCategory ? `Sin gastos en ${selectedCategory}` : "Sin transacciones este mes"}
+              description={selectedCategory ? "Probá seleccionando otra categoría" : "Tus gastos del mes aparecerán aquí"}
+              action={{ label: "Ver todos los gastos", onClick: () => navigate("/expenses") }}
+            />
+          ) : (
+            <>
+              <div className="divide-y divide-border-color max-h-[400px] overflow-y-auto">
+                {monthExpenses.slice(0, visibleCount).map((exp) => (
+                  <div
+                    key={exp.id}
+                    className="flex items-center justify-between px-4 py-2.5 hover:bg-base-alt transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: exp.category_color || "#3584e4" }}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-primary truncate">
+                          {toUpperCase(exp.description)}
+                        </p>
+                        <p className="text-xs text-tertiary">
+                          {formatDateDMYSlash(exp.date)}
+                          {exp.category_name ? ` · ${exp.category_name}` : ""}
+                          {exp.card ? ` · ${exp.card}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      className={`text-sm font-semibold flex-shrink-0 ml-2 ${
+                        exp.amount < 0 ? "text-success" : "text-primary"
+                      }`}
+                    >
+                      {exp.currency === "USD" && (
+                        <span className="text-xs font-normal badge-success px-1.5 py-0.5 rounded mr-1">
+                          USD
+                        </span>
+                      )}
+                      {formatCurrency(exp.amount, exp.currency)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {monthExpenses.length > visibleCount && (
+                <div className="px-4 py-2.5 border-t border-border-color text-center">
+                  <button
+                    onClick={() => setVisibleCount((c) => c + 15)}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Ver más ({monthExpenses.length - visibleCount} restantes)
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
 
-      {/* Recent transactions */}
-      <div className="card">
-        <div className="px-5 py-4 border-b border-border-color flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-primary">
-            Transacciones — Últimos 7 días
-          </h2>
-          <button
-            onClick={() => navigate("/expenses")}
-            className="text-xs text-secondary hover:text-primary transition-colors"
-          >
-            Ver todos →
-          </button>
-        </div>
-        {recentExpenses.length === 0 ? (
-          <EmptyState
-            icon="💸"
-            title="Sin transacciones en este período"
-            description="Tus últimos 7 días de gastos aparecerán aquí"
-            action={{ label: "Ver todos los gastos", onClick: () => navigate("/expenses") }}
-          />
-        ) : (
-          <div className="divide-y divide-border-color">
-            {recentExpenses.map((exp) => (
-              <div
-                key={exp.id}
-                className="flex items-center justify-between px-5 py-3 hover:bg-base-alt transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <span
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: exp.category_color || "#3584e4" }}
+      {/* Tarjetas + Programados — side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Credit cards */}
+        <div className="card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-primary">Tarjetas de Crédito</h2>
+            <button
+              onClick={() => navigate("/accounts")}
+              className="text-xs text-secondary hover:text-primary transition-colors"
+            >
+              Ver detalle →
+            </button>
+          </div>
+          {cardData.length === 0 ? (
+            <EmptyState
+              icon="💳"
+              title="Sin tarjetas registradas"
+              description="Creá una tarjeta para ver el resumen de gastos"
+              action={{ label: "Crear tarjeta", onClick: () => navigate("/accounts") }}
+            />
+          ) : (
+            <div className="divide-y divide-border-color">
+              {cardData.filter((c) => c.card_type === "credito").map((card, i) => {
+                const monthEntry = card.monthly?.find((m) => m.month === month);
+                return (
+                  <CardRow
+                    key={i}
+                    cardName={card.card_name}
+                    bank={card.bank}
+                    total={monthEntry?.total ?? 0}
+                    cardType={card.card_type}
                   />
-                  <div>
-                    <p className="text-sm font-medium text-primary">
-                      {toUpperCase(exp.description)}
-                    </p>
-                    <p className="text-xs text-tertiary">
-                      {formatDateDMYSlash(exp.date)}
-                      {exp.category_name ? ` · ${exp.category_name}` : ""}
-                      {exp.card ? ` · ${exp.card}` : ""}
-                    </p>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Scheduled expenses */}
+        <div className="card p-4">
+          <h2 className="text-sm font-semibold text-primary mb-3">Gastos programados</h2>
+          {!scheduledData ||
+          (scheduledData.installments.length === 0 && scheduledData.manual.length === 0) ? (
+            <EmptyState
+              icon="📅"
+              title="Sin gastos programados"
+              description="Los vencimientos del mes aparecerán aquí"
+            />
+          ) : (
+            <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
+              {scheduledData.installments.map((inst) => (
+                <div
+                  key={`inst-${inst.id}`}
+                  className="flex items-start justify-between py-2 px-1 rounded hover:bg-base-alt transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">📦</span>
+                    <div>
+                      <p className="text-sm font-medium text-primary">
+                        {toUpperCase(inst.description)}
+                      </p>
+                      <p className="text-xs text-tertiary">
+                        {formatDateDMYSlash(inst.scheduled_date)} · {inst.installment_number}/
+                        {inst.installment_total}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-semibold text-primary">
+                    {formatCurrency(inst.amount, inst.currency)}
+                  </span>
+                </div>
+              ))}
+              {scheduledData.manual.map((man) => (
+                <div
+                  key={`man-${man.id}`}
+                  className="flex items-start justify-between py-2 px-1 rounded hover:bg-base-alt transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">📅</span>
+                    <div>
+                      <p className="text-sm font-medium text-primary">
+                        {toUpperCase(man.description)}
+                      </p>
+                      <p className="text-xs text-tertiary">
+                        {formatDateDMYSlash(man.scheduled_date)}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-semibold text-primary">
+                    {formatCurrency(man.amount, man.currency)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Carga de cuotas + Top merchants — side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Carga de cuotas mini chart */}
+        <div className="card p-4">
+          <h2 className="text-sm font-semibold text-primary mb-3">Carga de Cuotas</h2>
+          {monthlyLoad.length === 0 ? (
+            <EmptyState
+              icon="📦"
+              title="Sin cuotas"
+              description="Las cuotas comprometidas aparecerán aquí"
+            />
+          ) : (
+            <ResponsiveContainer width="100%" height={140}>
+              <BarChart data={monthlyLoad} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+                  {monthlyLoad.map((entry, i) => (
+                    <Cell
+                      key={i}
+                      fill={
+                        entry.is_current
+                          ? "var(--color-primary)"
+                          : entry.is_past
+                            ? "var(--text-tertiary)"
+                            : "var(--color-primary)"
+                      }
+                      opacity={entry.is_past ? 0.4 : 1}
+                    />
+                  ))}
+                </Bar>
+                <XAxis
+                  dataKey="month"
+                  tick={{ fontSize: 10, fill: "var(--chart-text)" }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v) => {
+                    const [, m] = v.split("-");
+                    return MONTHS_ES_SHORT[parseInt(m) - 1] || v;
+                  }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "var(--chart-tooltip-bg)",
+                    borderColor: "var(--chart-tooltip-border)",
+                    color: "var(--chart-tooltip-text)",
+                    borderRadius: 10,
+                    fontSize: 12,
+                    padding: "8px 12px",
+                    boxShadow: "var(--shadow-md)",
+                  }}
+                  formatter={(v: number) => [formatCurrency(v), "Cuotas"]}
+                  labelFormatter={(v) => {
+                    const [y, m] = v.split("-");
+                    return `${MONTHS_ES_SHORT[parseInt(m) - 1]} ${y}`;
+                  }}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* Top merchants */}
+        <div className="card p-4">
+          <h2 className="text-sm font-semibold text-primary mb-3">Top Comercios</h2>
+          {topMerchants.length === 0 ? (
+            <EmptyState
+              icon="🏪"
+              title="Sin datos"
+              description="Los comercios con más gasto aparecerán aquí"
+            />
+          ) : (
+            <div className="space-y-2.5">
+              {topMerchants.map((m, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between py-1.5 px-1 rounded hover:bg-base-alt transition-colors"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: m.category_color || "#94a3b8" }}
+                    />
+                    <span className="text-xs text-secondary font-medium truncate">
+                      {toUpperCase(m.description)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                    <span className="text-[10px] text-tertiary">
+                      {m.count}x
+                    </span>
+                    <span className="text-xs font-semibold text-primary">
+                      {formatCurrency(m.total_amount)}
+                    </span>
                   </div>
                 </div>
-                <span
-                  className={`text-sm font-semibold ${
-                    exp.amount < 0 ? "text-success" : "text-primary"
-                  }`}
-                >
-                  {exp.currency === "USD" && (
-                    <span className="text-xs font-normal badge-success px-1.5 py-0.5 rounded mr-1">
-                      USD
-                    </span>
-                  )}
-                  {formatCurrency(exp.amount, exp.currency)}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {editing !== undefined && (

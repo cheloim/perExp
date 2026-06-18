@@ -7,6 +7,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     LargeBinary,
     String,
@@ -116,6 +117,11 @@ class Card(Base):
 
 class Expense(Base):
     __tablename__ = "expenses"
+    __table_args__ = (
+        Index("ix_expenses_user_date", "user_id", "date"),
+        Index("ix_expenses_user_category", "user_id", "category_id"),
+        Index("ix_expenses_user_installment", "user_id", "installment_group_id"),
+    )
     id = Column(Integer, primary_key=True, index=True)
     date = Column(Date, nullable=False)
     description = Column(String, nullable=False)

@@ -3,7 +3,7 @@ import os
 import re
 from calendar import monthrange
 from collections import Counter, defaultdict
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import desc
@@ -499,21 +499,25 @@ def get_installments_monthly_load(
             "is_current": key == current_month,
         }
 
+    cutoff_start = date.today() - timedelta(days=365)
+    cutoff_end = date.today() + timedelta(days=180)
     exps = (
         db.query(Expense)
         .filter(
             Expense.user_id.in_(uid_list),
             Expense.installment_group_id != None,
             Expense.installment_group_id != "",
+            Expense.date >= cutoff_start,
+            Expense.date <= cutoff_end,
         )
         .order_by(Expense.installment_number)
         .all()
     )
 
-    # Past months + current month: sum actual paid installments by their real date
+    # Sum ALL installment expenses by their real date
     for e in exps:
         key = e.date.strftime("%Y-%m") if isinstance(e.date, date) else str(e.date)[:7]
-        if key <= current_month and key in monthly:
+        if key in monthly:
             monthly[key]["total"] += abs(e.amount)
             monthly[key]["count"] += 1
 
@@ -555,11 +559,13 @@ def get_scheduled_summary(
     uid_list = get_group_user_ids(current_user.id, db)
     today = date.today()
     current_month_start = date(today.year, today.month, 1)
-    current_month_end = date(today.year, today.month, monthrange(today.year, today.month)[1])
+    # Show 3 months forward from current month
+    future = add_months(today, 3)
+    future_end = date(future.year, future.month, monthrange(future.year, future.month)[1])
 
     cat_map = {c.id: c for c in db.query(Category).all()}
 
-    # Cuotas pendientes del mes (installment_total > 1)
+    # Cuotas pendientes (installment_total > 1) — current month + 3 months forward
     pending_installments = (
         db.query(ScheduledExpense)
         .filter(
@@ -567,13 +573,13 @@ def get_scheduled_summary(
             ScheduledExpense.status == "PENDING",
             ScheduledExpense.installment_total > 1,
             ScheduledExpense.scheduled_date >= current_month_start,
-            ScheduledExpense.scheduled_date <= current_month_end,
+            ScheduledExpense.scheduled_date <= future_end,
         )
         .order_by(ScheduledExpense.scheduled_date)
         .all()
     )
 
-    # Gastos manuales programados del mes (installment_total = 1)
+    # Gastos manuales programados (installment_total = 1) — current month + 3 months forward
     pending_manual = (
         db.query(ScheduledExpense)
         .filter(
@@ -581,7 +587,7 @@ def get_scheduled_summary(
             ScheduledExpense.status == "PENDING",
             ScheduledExpense.installment_total == 1,
             ScheduledExpense.scheduled_date >= current_month_start,
-            ScheduledExpense.scheduled_date <= current_month_end,
+            ScheduledExpense.scheduled_date <= future_end,
         )
         .order_by(ScheduledExpense.scheduled_date)
         .all()
@@ -773,7 +779,12 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
             return "amex"
         return s or "unknown"
 
-    exps = db.query(Expense).filter(Expense.user_id.in_(uid_list), Expense.amount > 0).all()
+    cutoff = date.today() - timedelta(days=365)
+    exps = db.query(Expense).filter(
+        Expense.user_id.in_(uid_list),
+        Expense.amount > 0,
+        Expense.date >= cutoff,
+    ).all()
 
     by_card: dict = {}
     by_card_monthly: dict = {}
