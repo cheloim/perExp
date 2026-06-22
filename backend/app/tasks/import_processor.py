@@ -4,6 +4,7 @@ Processes uploaded files asynchronously and creates notifications when ready.
 """
 
 import asyncio
+import gc
 import json
 from datetime import datetime
 
@@ -33,14 +34,17 @@ def process_import_job(job_id: int):
 
         _log(f"[IMPORT JOB] Processing job {job_id}: {job.filename}")
 
+        file_content = job.file_content
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         preview = loop.run_until_complete(
             run_smart_import(
-                file_content=job.file_content, filename=job.filename, db=db, user_id=job.user_id
+                file_content=file_content, filename=job.filename, db=db, user_id=job.user_id
             )
         )
         loop.close()
+        del file_content
+        job.file_content = None
 
         job.preview_data = json.dumps(preview, default=str)
         job.status = "READY_PREVIEW"
@@ -59,7 +63,11 @@ def process_import_job(job_id: int):
         db.add(notification)
         db.commit()
 
-        _log(f"[IMPORT JOB] Job {job_id} completed successfully: {len(preview['rows'])} rows")
+        row_count = len(preview["rows"])
+        del preview
+        gc.collect()
+
+        _log(f"[IMPORT JOB] Job {job_id} completed successfully: {row_count} rows")
 
     except Exception as e:
         _log(f"[IMPORT JOB] Job {job_id} failed: {e}")
