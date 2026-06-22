@@ -556,7 +556,7 @@ _ADR_TICKERS = list(_BCBA_ADR_MAP.values())
 
 
 @router.get("/investments/usd-rate")
-def get_usd_rate():
+def get_usd_rate(current_user: User = Depends(get_current_user)):
     """Returns USD/ARS rate. Tries BNA (dolarapi.com) first,
     then ADR-implied rate (Yahoo Finance), then BCRA official.
 
@@ -835,7 +835,10 @@ RESTRICCIONES ESTRICTAS:
 
 
 @router.post("/investments/chat/stream")
-async def investments_chat_stream(body: dict):
+async def investments_chat_stream(
+    body: dict,
+    current_user: User = Depends(get_current_user),
+):
     """SSE chat endpoint for the investments assistant. Uses INVESTMENTS_LLM_API_KEY if set, else LLM_API_KEY."""
     import json
 

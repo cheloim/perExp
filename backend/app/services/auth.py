@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 import bcrypt
 import httpx
@@ -11,7 +11,9 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User
 
-SECRET_KEY = os.getenv("SECRET_KEY", "insecure-default-change-me")
+SECRET_KEY = os.getenv("SECRET_KEY", "")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY environment variable is required")
 ALGORITHM = "HS256"
 JWT_EXPIRE_DAYS = int(os.getenv("JWT_EXPIRE_DAYS", "7"))
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
@@ -34,7 +36,7 @@ def get_password_hash(password: str) -> str:
 
 
 def create_access_token(user_id: int) -> str:
-    expire = datetime.utcnow() + timedelta(days=JWT_EXPIRE_DAYS)
+    expire = datetime.now(timezone.utc) + timedelta(days=JWT_EXPIRE_DAYS)
     return jwt.encode({"sub": str(user_id), "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
 
 
@@ -109,13 +111,29 @@ async def verify_apple_token(code: str) -> dict:
         id_token = data.get("id_token")
         if not id_token:
             raise HTTPException(status_code=401, detail="No se recibió id_token de Apple")
-        return jwt.decode(id_token, "", algorithms=["RS256"])
+
+        # Verify against Apple's public keys
+        import requests as _req
+
+        apple_keys_resp = _req.get("https://appleid.apple.com/auth/keys", timeout=10)
+        if apple_keys_resp.status_code != 200:
+            raise HTTPException(status_code=502, detail="No se pudieron obtener las claves de Apple")
+        from jose import jwt as jose_jwt
+
+        header = jose_jwt.get_unverified_header(id_token)
+        kid = header.get("kid")
+        keys = apple_keys_resp.json().get("keys", [])
+        matching_key = next((k for k in keys if k.get("kid") == kid), None)
+        if not matching_key:
+            raise HTTPException(status_code=401, detail="Token de Apple inválido: kid no encontrado")
+        public_key = jose_jwt.construct_rsa_key(matching_key)
+        return jose_jwt.decode(id_token, public_key, algorithms=["RS256"], audience=APPLE_CLIENT_ID)
 
 
 def _generate_apple_client_secret() -> str:
     from jose import jwt as jose_jwt
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     payload = {
         "iss": APPLE_TEAM_ID,
         "iat": now,
