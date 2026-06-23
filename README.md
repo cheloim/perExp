@@ -6,7 +6,7 @@ Personal expense management with intelligent bank statement import.
 
 | Layer | Tech |
 |-------|------|
-| Backend | FastAPI + SQLAlchemy 2 + Pydantic v2 + SQLite |
+| Backend | FastAPI + SQLAlchemy 2 + Pydantic v2 + PostgreSQL |
 | Frontend | React 18 + TypeScript + Vite + TanStack Query v5 + React Router DOM v7 |
 | Charts | Recharts |
 | LLM | Google Gemini Flash |

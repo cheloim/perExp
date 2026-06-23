@@ -1,11 +1,10 @@
 """
-Seed script to populate the database with realistic demo data for visualization.
-Run from the backend directory: python -m app.seed_demo_data [user_id]
+Seed script to populate the database with randomized demo data.
+Run from the backend directory: python -m app.seed_demo_data
 """
 
 import random
 import uuid
-import sys
 from datetime import date, timedelta
 from sqlalchemy.orm import Session
 
@@ -13,35 +12,218 @@ from app.database import SessionLocal
 from app.models import Expense, Card, Account, Category, User, ScheduledExpense
 from app.seed import _apply_base_hierarchy_for_user
 
+# ─── Merchant pools per category ─────────────────────────────────────────────
 
-def get_or_create_demo_user(db: Session) -> User:
-    """Get the first user or create a demo user."""
-    user = db.query(User).first()
-    if not user:
-        user = User(
-            full_name="Demo, Usuario",
-            email="demo@example.com",
-            hashed_password="demo",
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-    return user
+MERCHANT_POOLS = {
+    "Supermercado": [
+        "COTO", "CARREFOUR", "DIA", "DISCO", "JUMBO", "CHANGO MAS",
+        "VEA", "LOTE", "MEDIUM", "AKENATON", "LIBRE MERCADO",
+    ],
+    "Restaurantes": [
+        "MCDONALDS", "BURGER KING", "LA PAROLACCIA", "SARKIS",
+        "DON JULIO", "PAROLACCIA", "IL MATTO", "PAIN ET VIN",
+        "OSHER", "LA BIRRERIA", "STEAK HOUSE",
+    ],
+    "Delivery": [
+        "RAPPI", "PEDIDOSYA", "CABIFY EATS", "IFOOD", "MEPEDIDO",
+    ],
+    "Combustible": [
+        "YPF", "SHELL", "PETROBRAS", "AXION", "BLANCA ESPERANZA",
+        "OGASA", "PUMA",
+    ],
+    "Transporte Público": [
+        "SUBE RECARGA", "SUBE", "ECOBICI",
+    ],
+    "Streaming": [
+        "NETFLIX", "SPOTIFY", "DISNEY+", "HBO MAX", "AMAZON PRIME",
+        "PARAMOUNT+", "YOUTUBE PREMIUM", "APPLE TV+",
+    ],
+    "Electricidad & Gas": [
+        "EDENOR", "EDESUR", "METROGAS", "CAMUZ", "DISTRIBUIDORA DE GAS",
+    ],
+    "Internet & Cable": [
+        "FIBERTEL", "PERSONAL", "CLARO", "MOVISTAR", "TDC",
+    ],
+    "Farmacia": [
+        "FARMACITY", "DR. AHUMADA", "LA SANatorial", "ROEMMERS",
+        "FARMACIA DEL PUEBLO",
+    ],
+    "Prepaga": [
+        "SWISS MEDICAL", "OSDE", "SMG", "MEDICUS", "GALENO",
+    ],
+    "Ropa": [
+        "ZARA", "H&M", "C&A", "LEVIS", "ADIDAS", "NIKE",
+        "SHEIN", "RIP CURL", "FOREVER 21",
+    ],
+    "Almacén/Kiosco": [
+        "ALMACEN DON PEPE", "KIOSCO EL RINCON", "VERDULERIA DON PEPE",
+        "LIBRERIA", "CHINO DEL BARRIO",
+    ],
+    "Cine & Salidas": [
+        "CINE HOYTS", "CINEMARK", "SALTER", "PUNTO CINE",
+    ],
+    "Librería & Libros": [
+        "LIBRERIA EL ATENEO", "Yenny", "CASA DEL LIBRO", "AGUALISA",
+    ],
+    "Taxi/Remis": [
+        "UBER", "CABIFY", "DIDI", "BEAT", "IN DRIVER",
+    ],
+    "Tecnología": [
+        "COMPUMAGNO", "GARBARINO", "FRACTAL", "MAXICARGAS",
+        "MERCADO LIBRE", "FALABELLA",
+    ],
+    "Hogar": [
+        "CASA CUELLAR", "SODIMAC", "EASY", "LIVERA",
+        "BLANCO Y ROJO",
+    ],
+    "Mascota": [
+        "PETISMO", "PETFARM", "ZONA GAUCHA", "MASCOT Market",
+    ],
+    "Salud": [
+        "CLINICA PRIVADA", "LABORATORIO", "ODONTOLOGO", "OFTALMOLOGO",
+    ],
+    "Educación": [
+        "CURSO ONLINE", "UNIVERSIDAD", "LIBROS DE TEXTO", "UDC",
+    ],
+    "Viajes": [
+        "VUELTA A BARILOCHE", "HOTEL CALAFATE", "AEROLINEAS ARGENTINAS",
+        " booking.com", "AIRBNB",
+    ],
+    "Seguros": [
+        "SEGURO AUTO", "SEGURO HOGAR", "SEGURO VIDA", "LA CAJA",
+    ],
+    "Gimnasio": [
+        "MEGATLON", " SPORTS", "EVOLUTION", "SMART FIT",
+    ],
+}
+
+# ─── Amount ranges per category (base amounts before randomization) ──────────
+
+AMOUNT_RANGES = {
+    "Supermercado": (8000, 50000),
+    "Restaurantes": (5000, 30000),
+    "Delivery": (3000, 18000),
+    "Combustible": (15000, 45000),
+    "Transporte Público": (2000, 8000),
+    "Streaming": (1500, 12000),
+    "Electricidad & Gas": (5000, 25000),
+    "Internet & Cable": (5000, 20000),
+    "Farmacia": (3000, 30000),
+    "Prepaga": (15000, 60000),
+    "Ropa": (5000, 80000),
+    "Almacén/Kiosco": (1000, 12000),
+    "Cine & Salidas": (3000, 15000),
+    "Librería & Libros": (3000, 25000),
+    "Taxi/Remis": (1500, 12000),
+    "Tecnología": (10000, 200000),
+    "Hogar": (5000, 60000),
+    "Mascota": (2000, 15000),
+    "Salud": (5000, 40000),
+    "Educación": (3000, 50000),
+    "Viajes": (50000, 500000),
+    "Seguros": (10000, 40000),
+    "Gimnasio": (5000, 15000),
+}
+
+# ─── Installment product templates ──────────────────────────────────────────
+
+INSTALLMENT_TEMPLATES = [
+    {"desc": "SAMSUNG GALAXY S24", "base_amount": 1200000, "installments_range": (6, 18), "category": None},
+    {"desc": "IPHONE 15 PRO", "base_amount": 1800000, "installments_range": (6, 18), "category": None},
+    {"desc": "NOTEBOOK LENOVO", "base_amount": 980000, "installments_range": (6, 12), "category": None},
+    {"desc": "SILLON BELGRANO", "base_amount": 180000, "installments_range": (3, 6), "category": "Hogar"},
+    {"desc": "VIAJE BARILOCHE", "base_amount": 500000, "installments_range": (3, 6), "category": "Viajes"},
+    {"desc": "TV SAMSUNG 65\"", "base_amount": 800000, "installments_range": (6, 12), "category": None},
+    {"desc": "AIRE ACONDICIONADO", "base_amount": 450000, "installments_range": (6, 12), "category": "Hogar"},
+    {"desc": "MUEBLE LIVING", "base_amount": 350000, "installments_range": (3, 6), "category": "Hogar"},
+    {"desc": "BICICLETA MOUNTAIN", "base_amount": 280000, "installments_range": (3, 6), "category": None},
+    {"desc": "CONSOLA PS5", "base_amount": 750000, "installments_range": (6, 12), "category": None},
+    {"desc": "CAFETERA NESPRESSO", "base_amount": 120000, "installments_range": (3, 6), "category": "Hogar"},
+    {"desc": "SMART WATCH GARMIN", "base_amount": 350000, "installments_range": (3, 6), "category": None},
+]
+
+
+# ─── Helper functions ────────────────────────────────────────────────────────
+
+def _random_date_in_range(start: date, end: date) -> date:
+    """Return a random date between start and end (inclusive)."""
+    delta = (end - start).days
+    if delta <= 0:
+        return start
+    return start + timedelta(days=random.randint(0, delta))
+
+
+def _random_amount(base_min: int, base_max: int) -> float:
+    """Generate a randomized amount within the range, then apply ±40% variance."""
+    base = random.randint(base_min, base_max)
+    variance = random.uniform(0.6, 1.4)
+    return round(base * variance, 2)
+
+
+def _pick_random_items(lst: list, min_count: int = 1, max_count: int = None) -> list:
+    """Pick random items from a list, allowing repeats if list is small."""
+    if max_count is None:
+        max_count = max(min_count, len(lst) // 2)
+    count = random.randint(min_count, min(max_count, len(lst)))
+    if len(lst) <= count:
+        return list(lst)
+    return random.sample(lst, count)
+
+
+# ─── Core functions ─────────────────────────────────────────────────────────
+
+def select_user_interactive(db: Session) -> User:
+    """Show numbered list of users and prompt for selection."""
+    users = db.query(User).order_by(User.id).all()
+    if not users:
+        print("No hay usuarios en la base de datos. Creá uno primero.")
+        exit(1)
+
+    print("\n=== Usuarios disponibles ===\n")
+    for i, u in enumerate(users, 1):
+        print(f"  [{i}] {u.full_name} — {u.email} (id={u.id})")
+
+    print()
+    while True:
+        try:
+            choice = input("Seleccioná el número de usuario: ").strip()
+            idx = int(choice) - 1
+            if 0 <= idx < len(users):
+                return users[idx]
+            print(f"  Número inválido. Elegí entre 1 y {len(users)}.")
+        except (ValueError, EOFError):
+            print("  Entrada inválida. Ingresá un número.")
 
 
 def get_or_create_cards(db: Session, user_id: int) -> list[Card]:
-    """Get existing cards or create demo cards."""
+    """Get existing cards or create demo cards with random banks."""
     cards = db.query(Card).filter(Card.user_id == user_id).all()
     if cards:
         return cards
 
-    demo_cards = [
-        {"card_name": "Visa", "bank": "Galicia", "card_type": "credito", "holder": "Usuario"},
-        {"card_name": "Mastercard", "bank": "Santander", "card_type": "credito", "holder": "Usuario"},
-        {"card_name": "Visa Débito", "bank": "Galicia", "card_type": "debito", "holder": "Usuario"},
+    user = db.get(User, user_id)
+    first_name = "Usuario"
+    if user and user.full_name:
+        if "," in user.full_name:
+            first_name = user.full_name.split(",")[1].strip().split()[0]
+        else:
+            first_name = user.full_name.split()[0]
+
+    banks = random.sample(["Galicia", "Santander", "BBVA", "Macro", "Nación", "HSBC"], k=3)
+    card_types = [
+        ("Visa", "credito"),
+        ("Mastercard", "credito"),
+        ("Visa Débito", "debito"),
     ]
-    for card_data in demo_cards:
-        card = Card(user_id=user_id, **card_data)
+
+    for (card_name, card_type), bank in zip(card_types, banks):
+        card = Card(
+            user_id=user_id,
+            card_name=card_name,
+            bank=bank,
+            card_type=card_type,
+            holder=first_name,
+        )
         db.add(card)
     db.commit()
     return db.query(Card).filter(Card.user_id == user_id).all()
@@ -82,232 +264,138 @@ def get_categories(db: Session, user_id: int) -> dict[str, Category]:
     return {c.name: c for c in cats}
 
 
-def seed_demo_expenses(db: Session, user_id: int):
-    """Create realistic demo expenses for the current and previous months."""
-    # Delete existing demo expenses (those without installment_group_id)
-    existing = db.query(Expense).filter(
-        Expense.user_id == user_id,
-        Expense.installment_group_id.is_(None),
-    ).count()
-    if existing > 0:
-        print(f"Deleting {existing} existing non-installment expenses...")
-        db.query(Expense).filter(
-            Expense.user_id == user_id,
-            Expense.installment_group_id.is_(None),
-        ).delete()
-        db.commit()
-
+def seed_demo_expenses(db: Session, user_id: int, count: int = 60):
+    """Create randomized demo expenses across the last 6 months."""
     cards = get_or_create_cards(db, user_id)
     accounts = get_or_create_accounts(db, user_id)
     categories = get_categories(db, user_id)
 
-    # Map card names to card objects
-    card_map = {c.card_name: c for c in cards}
-    account_map = {a.name: a for a in accounts}
-
     today = date.today()
-    current_month_start = today.replace(day=1)
-    prev_month_start = (current_month_start - timedelta(days=1)).replace(day=1)
+    six_months_ago = today - timedelta(days=180)
 
-    # Demo expenses data — category names must match seed.py BASE_HIERARCHY exactly
-    demo_expenses = [
-        # Supermercado
-        {"desc": "COTO", "amount": 28500, "category": "Supermercado", "card": "Visa", "bank": "Galicia", "person": "Usuario"},
-        {"desc": "CARREFOUR", "amount": 35200, "category": "Supermercado", "card": "Mastercard", "bank": "Santander", "person": "Usuario"},
-        {"desc": "DIA", "amount": 12800, "category": "Supermercado", "card": "Visa Débito", "bank": "Galicia", "person": "Usuario"},
-        {"desc": "DISCO", "amount": 41500, "category": "Supermercado", "card": "Visa", "bank": "Galicia", "person": "Usuario"},
-        # Restaurantes
-        {"desc": "MCDONALDS", "amount": 8500, "category": "Restaurantes", "card": "Visa", "bank": "Galicia", "person": "Usuario"},
-        {"desc": "BURGER KING", "amount": 7200, "category": "Restaurantes", "card": "Mastercard", "bank": "Santander", "person": "Usuario"},
-        {"desc": "LA PAROLACCIA", "amount": 22000, "category": "Restaurantes", "card": "Visa", "bank": "Galicia", "person": "Usuario"},
-        # Delivery
-        {"desc": "RAPPI", "amount": 15600, "category": "Delivery", "card": "Visa", "bank": "Galicia", "person": "Usuario"},
-        {"desc": "PEDIDOSYA", "amount": 12300, "category": "Delivery", "card": "Mastercard", "bank": "Santander", "person": "Usuario"},
-        # Combustible
-        {"desc": "YPF", "amount": 32000, "category": "Combustible", "card": "Visa Débito", "bank": "Galicia", "person": "Usuario"},
-        {"desc": "SHELL", "amount": 28500, "category": "Combustible", "card": "Visa", "bank": "Galicia", "person": "Usuario"},
-        # Transporte Público
-        {"desc": "SUBE RECARGA", "amount": 5000, "category": "Transporte Público", "account": "MercadoPago", "person": "Usuario"},
-        # Streaming
-        {"desc": "NETFLIX", "amount": 6990, "category": "Streaming", "card": "Visa", "bank": "Galicia", "person": "Usuario"},
-        {"desc": "SPOTIFY", "amount": 3490, "category": "Streaming", "card": "Mastercard", "bank": "Santander", "person": "Usuario"},
-        {"desc": "DISNEY+", "amount": 8990, "category": "Streaming", "card": "Visa", "bank": "Galicia", "person": "Usuario"},
-        # Electricidad & Gas
-        {"desc": "EDENOR", "amount": 18500, "category": "Electricidad & Gas", "account": "MercadoPago", "person": "Usuario"},
-        {"desc": "METROGAS", "amount": 8200, "category": "Electricidad & Gas", "account": "MercadoPago", "person": "Usuario"},
-        # Internet & Cable
-        {"desc": "FIBERTEL", "amount": 12800, "category": "Internet & Cable", "account": "Caja de Ahorro Galicia", "person": "Usuario"},
-        # Farmacia
-        {"desc": "FARMACITY", "amount": 15600, "category": "Farmacia", "card": "Visa", "bank": "Galicia", "person": "Usuario"},
-        # Prepaga
-        {"desc": "SWISS MEDICAL", "amount": 45000, "category": "Prepaga", "account": "Caja de Ahorro Galicia", "person": "Usuario"},
-        # Ropa
-        {"desc": "ZARA", "amount": 38900, "category": "Ropa", "card": "Mastercard", "bank": "Santander", "person": "Usuario"},
-        # Supermercado (más)
-        {"desc": "COTO", "amount": 19800, "category": "Supermercado", "card": "Visa", "bank": "Galicia", "person": "Usuario"},
-        {"desc": "CARREFOUR", "amount": 27400, "category": "Supermercado", "card": "Visa", "bank": "Galicia", "person": "Usuario"},
-        # Almacén/Kiosco
-        {"desc": "ALMACEN DON PEPE", "amount": 8500, "category": "Almacén/Kiosco", "account": "Efectivo", "person": "Usuario"},
-        {"desc": "KIOSCO EL RINCON", "amount": 3200, "category": "Almacén/Kiosco", "account": "Efectivo", "person": "Usuario"},
-        # Cine & Salidas
-        {"desc": "CINE HOYTS", "amount": 8900, "category": "Cine & Salidas", "card": "Mastercard", "bank": "Santander", "person": "Usuario"},
-        # Librería & Libros
-        {"desc": "LIBRERIA EL ATENEO", "amount": 15800, "category": "Librería & Libros", "card": "Visa", "bank": "Galicia", "person": "Usuario"},
-        # Taxi/Remis
-        {"desc": "UBER", "amount": 4500, "category": "Taxi/Remis", "card": "Visa", "bank": "Galicia", "person": "Usuario"},
-        {"desc": "CABIFY", "amount": 6200, "category": "Taxi/Remis", "card": "Mastercard", "bank": "Santander", "person": "Usuario"},
-    ]
+    # Build weighted category list (supermercado/restaurants more frequent)
+    category_weights = {
+        "Supermercado": 15,
+        "Restaurantes": 10,
+        "Delivery": 8,
+        "Combustible": 8,
+        "Transporte Público": 6,
+        "Streaming": 4,
+        "Electricidad & Gas": 4,
+        "Internet & Cable": 3,
+        "Farmacia": 4,
+        "Prepaga": 2,
+        "Ropa": 5,
+        "Almacén/Kiosco": 5,
+        "Cine & Salidas": 3,
+        "Librería & Libros": 2,
+        "Taxi/Remis": 6,
+        "Tecnología": 3,
+        "Hogar": 3,
+        "Mascota": 2,
+        "Salud": 3,
+        "Educación": 2,
+        "Viajes": 1,
+        "Seguros": 1,
+        "Gimnasio": 3,
+    }
 
-    # Create expenses for current month (spread across the month)
-    days_in_month = (today - current_month_start).days + 1
-    for exp_data in demo_expenses:
-        cat = categories.get(exp_data["category"])
-        random_day = random.randint(1, min(days_in_month, 28))
-        exp_date = current_month_start + timedelta(days=random_day - 1)
+    weighted_categories = []
+    for cat, weight in category_weights.items():
+        if cat in categories:
+            weighted_categories.extend([cat] * weight)
+
+    # Split payment methods: 70% cards, 30% accounts
+    card_names = [c.card_name for c in cards]
+    account_names = [a.name for a in accounts]
+
+    expenses_created = 0
+    for _ in range(count):
+        category_name = random.choice(weighted_categories)
+        cat = categories.get(category_name)
+        merchants = MERCHANT_POOLS.get(category_name, ["GASTO VARIO"])
+        merchant = random.choice(merchants)
+        amount_min, amount_max = AMOUNT_RANGES.get(category_name, (1000, 20000))
+        amount = _random_amount(amount_min, amount_max)
+        exp_date = _random_date_in_range(six_months_ago, today)
 
         expense = Expense(
             date=exp_date,
-            description=exp_data["desc"],
-            amount=exp_data["amount"],
+            description=merchant,
+            amount=amount,
             category_id=cat.id if cat else None,
-            card=exp_data.get("card", ""),
-            bank=exp_data.get("bank", ""),
-            person=exp_data.get("person", ""),
             currency="ARS",
             user_id=user_id,
             is_income=False,
         )
 
-        # Set card_id or account_id
-        if "card" in exp_data and exp_data["card"] in card_map:
-            expense.card_id = card_map[exp_data["card"]].id
-        elif "account" in exp_data and exp_data["account"] in account_map:
-            expense.account_id = account_map[exp_data["account"]].id
+        # Randomly assign card (70%) or account (30%)
+        if random.random() < 0.7 and card_names:
+            card_obj = random.choice(cards)
+            expense.card_id = card_obj.id
+        elif account_names:
+            acc_obj = random.choice(accounts)
+            expense.account_id = acc_obj.id
 
         db.add(expense)
+        expenses_created += 1
 
     db.commit()
-    print(f"Created {len(demo_expenses)} expenses for current month")
+    print(f"  {expenses_created} gastos creados (últimos 6 meses, randomizados)")
 
 
-def seed_demo_installments(db: Session, user_id: int):
-    """Create demo installment purchases."""
-    existing = db.query(Expense).filter(
-        Expense.user_id == user_id,
-        Expense.installment_group_id.isnot(None),
-    ).count()
-    if existing > 0:
-        print(f"Deleting {existing} existing installment expenses...")
-        db.query(Expense).filter(
-            Expense.user_id == user_id,
-            Expense.installment_group_id.isnot(None),
-        ).delete()
-        # Also delete scheduled expenses
-        db.query(ScheduledExpense).filter(
-            ScheduledExpense.user_id == user_id,
-        ).delete()
-        db.commit()
-
+def seed_demo_installments(db: Session, user_id: int, count: int = 6):
+    """Create randomized installment purchases."""
     cards = get_or_create_cards(db, user_id)
     categories = get_categories(db, user_id)
-    card_map = {c.card_name: c for c in cards}
 
     today = date.today()
     current_month_start = today.replace(day=1)
 
-    # Installment purchases — category names must match seed.py BASE_HIERARCHY
-    installment_purchases = [
-        {
-            "desc": "SAMSUNG GALAXY S24",
-            "total_amount": 1200000,
-            "installments": 12,
-            "category": None,  # No matching category for electronics
-            "card": "Visa",
-            "bank": "Galicia",
-            "start_month_offset": -3,
-        },
-        {
-            "desc": "SILLON BELGRANO",
-            "amount": 85000,
-            "installments": 6,
-            "category": "Expensas",  # Hogar → closest match
-            "card": "Mastercard",
-            "bank": "Santander",
-            "start_month_offset": -2,
-        },
-        {
-            "desc": "IPHONE 15 PRO",
-            "total_amount": 1800000,
-            "installments": 18,
-            "category": None,  # No matching category for electronics
-            "card": "Visa",
-            "bank": "Galicia",
-            "start_month_offset": -5,
-        },
-        {
-            "desc": "VIAJE BARILOCHE",
-            "total_amount": 450000,
-            "installments": 6,
-            "category": "Viajes",
-            "card": "Mastercard",
-            "bank": "Santander",
-            "start_month_offset": -1,
-        },
-        {
-            "desc": "NOTEBOOK LENOVO",
-            "total_amount": 980000,
-            "installments": 12,
-            "category": None,  # No matching category for electronics
-            "card": "Visa",
-            "bank": "Galicia",
-            "start_month_offset": -4,
-        },
-    ]
+    templates = random.sample(INSTALLMENT_TEMPLATES, k=min(count, len(INSTALLMENT_TEMPLATES)))
 
-    for purchase in installment_purchases:
+    for template in templates:
         group_id = str(uuid.uuid4())
-        total = purchase.get("total_amount", purchase.get("amount", 0) * purchase["installments"])
-        installment_amount = total / purchase["installments"]
-        cat = categories.get(purchase["category"]) if purchase.get("category") else None
-        card = card_map.get(purchase["card"])
-        start_date = current_month_start + timedelta(days=purchase["start_month_offset"] * 30)
+        num_installments = random.randint(*template["installments_range"])
+        # Apply ±30% variance to total amount
+        total = round(template["base_amount"] * random.uniform(0.7, 1.3), 2)
+        installment_amount = round(total / num_installments, 2)
+        cat = categories.get(template["category"]) if template.get("category") else None
+        card = random.choice(cards)
 
-        for i in range(purchase["installments"]):
+        # Random start month: 1-6 months ago
+        start_offset = random.randint(-6, -1)
+        start_date = current_month_start + timedelta(days=start_offset * 30)
+
+        for i in range(num_installments):
             exp_date = start_date + timedelta(days=i * 30)
-            if exp_date > today + timedelta(days=90):  # Don't create too far in the future
+            if exp_date > today + timedelta(days=90):
                 break
 
             expense = Expense(
                 date=exp_date,
-                description=purchase["desc"],
+                description=template["desc"],
                 amount=installment_amount,
                 category_id=cat.id if cat else None,
-                card=purchase["card"],
-                bank=purchase["bank"],
-                person="Usuario",
                 currency="ARS",
                 installment_number=i + 1,
-                installment_total=purchase["installments"],
+                installment_total=num_installments,
                 installment_group_id=group_id,
                 user_id=user_id,
-                card_id=card.id if card else None,
+                card_id=card.id,
                 is_income=False,
             )
             db.add(expense)
 
-            # Create corresponding ScheduledExpense
             scheduled = ScheduledExpense(
                 installment_group_id=group_id,
                 installment_number=i + 1,
-                installment_total=purchase["installments"],
+                installment_total=num_installments,
                 scheduled_date=exp_date,
                 amount=installment_amount,
                 currency="ARS",
-                description=purchase["desc"],
-                card=purchase["card"],
-                bank=purchase["bank"],
-                person="Usuario",
-                card_id=card.id if card else None,
+                description=template["desc"],
+                card_id=card.id,
                 category_id=cat.id if cat else None,
                 status="EXECUTED" if exp_date < today else "PENDING",
                 user_id=user_id,
@@ -315,53 +403,37 @@ def seed_demo_installments(db: Session, user_id: int):
             db.add(scheduled)
 
     db.commit()
-    print(f"Created {len(installment_purchases)} installment purchases")
+    print(f"  {len(templates)} compras en cuotas creadas")
 
 
 def main():
-    import sys
     db = SessionLocal()
     try:
-        # List all users
-        users = db.query(User).all()
-        if not users:
-            print("No users found. Please create a user first.")
-            return
+        user = select_user_interactive(db)
+        print(f"\nGenerando datos randomizados para: {user.full_name} (id={user.id})")
 
-        print("Available users:")
-        for u in users:
-            print(f"  id={u.id}: {u.full_name} ({u.email})")
-
-        # Use specified user_id or first user
-        target_id = int(sys.argv[1]) if len(sys.argv) > 1 else users[0].id
-        user = db.get(User, target_id)
-        if not user:
-            print(f"User id={target_id} not found!")
-            return
-
-        print(f"\nSeeding data for: {user.full_name} (id={user.id})")
-
-        # Show categories available
         cats = get_categories(db, user.id)
-        print(f"Found {len(cats)} categories: {', '.join(list(cats.keys())[:10])}...")
+        print(f"  {len(cats)} categorías disponibles")
 
         get_or_create_cards(db, user.id)
         get_or_create_accounts(db, user.id)
 
-        seed_demo_expenses(db, user.id)
-        seed_demo_installments(db, user.id)
+        print()
+        seed_demo_expenses(db, user.id, count=60)
+        seed_demo_installments(db, user.id, count=6)
 
-        # Count final state
         expense_count = db.query(Expense).filter(Expense.user_id == user.id).count()
         card_count = db.query(Card).filter(Card.user_id == user.id).count()
         account_count = db.query(Account).filter(Account.user_id == user.id).count()
-        scheduled_count = db.query(ScheduledExpense).filter(ScheduledExpense.user_id == user.id).count()
+        scheduled_count = db.query(ScheduledExpense).filter(
+            ScheduledExpense.user_id == user.id
+        ).count()
 
-        print(f"\nDone! Final state:")
-        print(f"  - {expense_count} expenses")
-        print(f"  - {scheduled_count} scheduled expenses")
-        print(f"  - {card_count} cards")
-        print(f"  - {account_count} accounts")
+        print(f"\nListo! Estado final:")
+        print(f"  - {expense_count} gastos")
+        print(f"  - {scheduled_count} gastos programados/cuotas")
+        print(f"  - {card_count} tarjetas")
+        print(f"  - {account_count} cuentas")
     finally:
         db.close()
 

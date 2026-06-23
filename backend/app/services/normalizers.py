@@ -38,22 +38,22 @@ def normalize_bank(name: str) -> str:
 
 
 def _normalize_person(person: str, db: Session) -> str:
-    from app.models import Expense
+    from app.models import Card
 
     val = person.strip()
     if not val:
         return val
     val_lower = val.lower()
     rows = (
-        db.query(Expense.person, func.count(Expense.id).label("cnt"))
-        .filter(Expense.person != "")
-        .group_by(Expense.person)
+        db.query(Card.holder, func.count(Card.id).label("cnt"))
+        .filter(Card.holder != "")
+        .group_by(Card.holder)
         .all()
     )
     candidates = [
-        (r.person, r.cnt)
+        (r.holder, r.cnt)
         for r in rows
-        if r.person.lower().startswith(val_lower) and len(r.person) > len(val)
+        if r.holder.lower().startswith(val_lower) and len(r.holder) > len(val)
     ]
     if not candidates:
         return val

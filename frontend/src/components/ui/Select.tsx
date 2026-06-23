@@ -57,8 +57,10 @@ export function Select({
     }
   }, [isOpen]);
 
-  const allOptions = [...options, ...groups.flatMap((g) => g.options)];
-  const selectedOption = allOptions.find((o) => o.value === value);
+  const allOptions = groups.length > 0
+    ? [...options]  // Don't include group options in flat list when groups exist
+    : [...options, ...groups.flatMap((g) => g.options)];
+  const selectedOption = [...options, ...groups.flatMap((g) => g.options)].find((o) => o.value === value);
   const displayValue =
     selectedOption?.label || (value && !selectedOption ? value : placeholder) || "";
 
@@ -89,16 +91,20 @@ export function Select({
   const flatOptions = useMemo(() => {
     const result: { value: string; label: string }[] = [];
     if (placeholder) result.push({ value: "", label: placeholder });
+    // Add standalone options (filtered)
     filteredOptions.forEach((o) => result.push(o));
-    groups.forEach((group) => {
-      const groupFiltered = group.options.filter(
-        (o) =>
-          !search ||
-          o.label.toLowerCase().includes(search.toLowerCase()) ||
-          o.value.toLowerCase().includes(search.toLowerCase()),
-      );
-      groupFiltered.forEach((o) => result.push(o));
-    });
+    // Add group options (only when groups exist, since they're not in filteredOptions)
+    if (groups.length > 0) {
+      groups.forEach((group) => {
+        const groupFiltered = group.options.filter(
+          (o) =>
+            !search ||
+            o.label.toLowerCase().includes(search.toLowerCase()) ||
+            o.value.toLowerCase().includes(search.toLowerCase()),
+        );
+        groupFiltered.forEach((o) => result.push(o));
+      });
+    }
     return result;
   }, [filteredOptions, groups, search, placeholder]);
 
@@ -224,7 +230,8 @@ export function Select({
                 </button>
               )}
 
-            {filteredOptions.map((option) => {
+            {/* Render standalone options (always, before groups) */}
+            {options.length > 0 && options.map((option) => {
               const flatIdx = flatOptions.findIndex((o) => o.value === option.value);
               return (
                 <button
@@ -245,7 +252,8 @@ export function Select({
               );
             })}
 
-            {groups.map((group) => {
+            {/* Render grouped options with headers */}
+            {groups.length > 0 && groups.map((group) => {
               const groupFiltered = group.options.filter(
                 (o) =>
                   !search ||
@@ -282,7 +290,7 @@ export function Select({
               );
             })}
 
-            {filteredOptions.length === 0 && !search && (
+            {filteredOptions.length === 0 && groups.length === 0 && !search && (
               <div className="px-3 py-4 text-center text-sm text-[var(--text-tertiary)]">
                 Sin opciones disponibles
               </div>

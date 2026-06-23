@@ -12,7 +12,7 @@ export interface GroupMember {
   id: number;
   user_id: number;
   full_name: string;
-  dni: string;
+  email: string;
   role: string;
   status: string;
   joined_at: string;
@@ -75,7 +75,7 @@ export interface Expense {
   category_id: number | null;
   category_name: string | null;
   category_color: string | null;
-  // Legacy fields
+  // Derived from card_rel (computed by backend)
   card: string;
   bank: string;
   person: string;
@@ -84,7 +84,7 @@ export interface Expense {
   installment_number?: number | null;
   installment_total?: number | null;
   installment_group_id?: string | null;
-  // New structured fields
+  // Structured fields
   account_id?: number | null;
   card_id?: number | null;
   account_rel?: Account | null;
@@ -97,16 +97,11 @@ export interface ExpenseCreate {
   amount: number;
   currency?: string;
   category_id?: number | null;
-  // Legacy fields
-  card?: string;
-  bank?: string;
-  person?: string;
   notes?: string;
   transaction_id?: string | null;
   installment_number?: number | null;
   installment_total?: number | null;
   installment_group_id?: string | null;
-  // New structured fields
   account_id?: number | null;
   card_id?: number | null;
 }
@@ -199,9 +194,8 @@ export interface ScheduledExpense {
   description: string;
   status: "PENDING" | "EXECUTED" | "CANCELLED";
   category_id: number | null;
-  card: string;
-  bank: string;
-  person: string;
+  card_id?: number | null;
+  card_rel?: Card | null;
 }
 
 export interface CardSummary {
@@ -209,6 +203,7 @@ export interface CardSummary {
   bank: string;
   card_name: string;
   card_type: string;
+  account_id?: number | null;
   total_amount: number;
   count: number;
   currency: string;

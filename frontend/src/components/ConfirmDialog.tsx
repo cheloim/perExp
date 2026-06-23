@@ -21,8 +21,8 @@ export function ConfirmDialog({
   onCancel,
   variant = "danger",
 }: ConfirmDialogProps) {
+  const trapRef = useFocusTrap(isOpen);
   if (!isOpen) return null;
-  const trapRef = useFocusTrap(true);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-backdrop">

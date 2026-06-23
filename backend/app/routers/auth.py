@@ -207,6 +207,10 @@ class TelegramKeyResponse(BaseModel):
     telegram_key: str
 
 
+class TelegramStatusResponse(BaseModel):
+    connected: bool
+
+
 def _generate_telegram_key() -> str:
     alphabet = string.ascii_letters + string.digits
     return "".join(secrets.choice(alphabet) for _ in range(12))
@@ -229,11 +233,23 @@ def regenerate_telegram_key(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # Notify the bot before clearing the session
+    if current_user.telegram_chat_id:
+        from app.telegram_bot import send_disconnect_notification
+        send_disconnect_notification(current_user.telegram_chat_id)
+
     current_user.telegram_key = _generate_telegram_key()
     current_user.telegram_chat_id = None
     db.commit()
     db.refresh(current_user)
     return TelegramKeyResponse(telegram_key=current_user.telegram_key)
+
+
+@router.get("/me/telegram-status", response_model=TelegramStatusResponse)
+def get_telegram_status(
+    current_user: User = Depends(get_current_user),
+):
+    return TelegramStatusResponse(connected=bool(current_user.telegram_chat_id))
 
 
 @router.post("/refresh", response_model=Token)

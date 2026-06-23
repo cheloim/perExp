@@ -198,17 +198,24 @@ export default function AccountsManager() {
                   <label className="text-xs font-medium text-[var(--text-secondary)]">
                     Tipo de cuenta
                   </label>
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value)}
-                    className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-                  >
-                    <option value="efectivo">💵 Efectivo</option>
-                    <option value="cuenta_corriente">🏦 Cuenta Corriente</option>
-                    <option value="caja_ahorro">💳 Caja de Ahorro</option>
-                    <option value="mercadopago">📱 MercadoPago</option>
-                    <option value="tarjeta">💰 Tarjeta</option>
-                  </select>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                      type === "tarjeta" ? "badge-neutral" : ACCOUNT_TYPES.find((t) => t.value === type)?.color || "badge-neutral"
+                    }`}>
+                      {type === "efectivo" ? "💵" : type === "mercadopago" ? "📱" : type === "cuenta_corriente" ? "🏦" : type === "caja_ahorro" ? "💳" : "💰"}
+                    </div>
+                    <select
+                      value={type}
+                      onChange={(e) => setType(e.target.value)}
+                      className="flex-1 px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+                    >
+                      <option value="efectivo">Efectivo</option>
+                      <option value="cuenta_corriente">Cuenta Corriente</option>
+                      <option value="caja_ahorro">Caja de Ahorro</option>
+                      <option value="mercadopago">MercadoPago</option>
+                      <option value="tarjeta">Tarjeta</option>
+                    </select>
+                  </div>
                 </div>
 
                 {/* Campos de Tarjeta */}

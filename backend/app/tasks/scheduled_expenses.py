@@ -28,9 +28,6 @@ def execute_due_installments():
                 description=scheduled.description,
                 amount=scheduled.amount,
                 currency=scheduled.currency,
-                card=scheduled.card,
-                bank=scheduled.bank,
-                person=scheduled.person,
                 card_id=scheduled.card_id,
                 account_id=scheduled.account_id,
                 category_id=scheduled.category_id,
@@ -39,7 +36,6 @@ def execute_due_installments():
                 installment_total=scheduled.installment_total,
                 installment_group_id=scheduled.installment_group_id,
                 user_id=scheduled.user_id,
-                group_id=scheduled.group_id,
             )
             db.add(expense)
             db.flush()

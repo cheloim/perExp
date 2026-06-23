@@ -17,6 +17,7 @@ import {
   getExpenses,
   getScheduledSummary,
   getInvestments,
+  getMyGroup,
   createExpense,
   getUsdRate,
   getCreditCardPasivos,
@@ -44,11 +45,13 @@ function CardRow({
   bank,
   total,
   cardType,
+  holder,
 }: {
   cardName: string;
   bank: string;
   total: number;
   cardType?: string;
+  holder?: string;
 }) {
   const isAccount =
     !bank ||
@@ -91,6 +94,9 @@ function CardRow({
             {displayName}
             {bank ? ` | ${bank}` : ""}
           </p>
+          {holder && (
+            <p className="text-xs text-tertiary leading-tight">{holder}</p>
+          )}
         </div>
       </div>
       <span className="text-sm font-semibold text-primary">{formatCurrency(total)}</span>
@@ -107,10 +113,6 @@ export default function Dashboard() {
   const [editing, setEditing] = useState<Expense | null | undefined>(undefined);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
-  const [visibleCount, setVisibleCount] = useState(15);
-  const [showAllCategories, setShowAllCategories] = useState(false);
-
   const createMut = useMutation({
     mutationFn: (data: ExpenseCreate) => createExpense(data),
     onSuccess: () => {
@@ -138,14 +140,13 @@ export default function Dashboard() {
     staleTime: 60_000,
   });
 
-  // Expenses for current month (filterable by category)
+  // Expenses for current month
   const { data: monthExpenses = [] } = useQuery({
-    queryKey: ["expenses-month", month, selectedCategoryId],
+    queryKey: ["expenses-month", month],
     queryFn: () =>
       getExpenses({
         month,
-        category_id: selectedCategoryId ?? undefined,
-        limit: 100,
+        limit: 500,
       }),
     staleTime: 30_000,
     placeholderData: (prev) => prev,
@@ -156,6 +157,12 @@ export default function Dashboard() {
     queryKey: ["scheduled-summary"],
     queryFn: () => getScheduledSummary(),
     staleTime: 60_000,
+  });
+
+  const { data: myGroup } = useQuery({
+    queryKey: ["my-group"],
+    queryFn: getMyGroup,
+    staleTime: 300_000,
   });
 
   // Investments
@@ -216,46 +223,37 @@ export default function Dashboard() {
     return nativeUsd + (arsTotal / usdRate.rate);
   }, [investments, usdRate]);
 
-  // Category budgets — top 5 by spending
-  const topCategories = useMemo(() =>
-    [...(dashData?.by_category ?? [])]
-      .filter((c) => c.total > 0)
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 4),
-    [dashData?.by_category]
-  );
-
-  const maxCatTotal = topCategories[0]?.total ?? 1;
-
-  // All categories for expanded view
-  const allCategories = useMemo(() =>
+  // All categories sorted by spending
+  const categories = useMemo(() =>
     [...(dashData?.by_category ?? [])]
       .filter((c) => c.total > 0)
       .sort((a, b) => b.total - a.total),
     [dashData?.by_category]
   );
 
-  const displayedCategories = showAllCategories ? allCategories : topCategories;
-
-  // Category name → ID mapping for filtering
-  const categoryMap = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const c of dashData?.by_category ?? []) {
-      if (c.category_name && c.category_id) map.set(c.category_name, c.category_id);
-    }
-    return map;
-  }, [dashData?.by_category]);
+  const maxCatTotal = categories[0]?.total ?? 1;
 
   const handleCategorySelect = (name: string) => {
-    if (selectedCategory === name) {
-      setSelectedCategory(null);
-      setSelectedCategoryId(null);
-    } else {
-      setSelectedCategory(name);
-      setSelectedCategoryId(categoryMap.get(name) ?? null);
-    }
-    setVisibleCount(15);
+    setSelectedCategory(selectedCategory === name ? null : name);
   };
+
+  // Filtered expenses by selected category (frontend filtering)
+  const filteredExpenses = useMemo(() => {
+    if (!selectedCategory) return monthExpenses;
+    
+    // "Otros (N)" = categories with category_id null or small slices
+    if (selectedCategory.startsWith("Otros")) {
+      const bigCategoryNames = new Set(
+        categories.map((c) => c.category_name)
+      );
+      return monthExpenses.filter(
+        (exp) => !exp.category_id || !bigCategoryNames.has(exp.category_name ?? "")
+      );
+    }
+    
+    // Normal category — filter by category_name
+    return monthExpenses.filter((exp) => exp.category_name === selectedCategory);
+  }, [monthExpenses, selectedCategory, categories]);
 
   // Pie chart data — group small slices into "Otros"
   const pieData = useMemo(() => {
@@ -303,7 +301,14 @@ export default function Dashboard() {
     <div className="space-y-6">
       {/* Page header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-primary">Finanzas Personales</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-primary">Finanzas Personales</h1>
+          {myGroup && myGroup.members.length > 1 && (
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+              Grupo familiar
+            </span>
+          )}
+        </div>
         <button
           onClick={() => setEditing(null)}
           className="gnome-btn-primary-round text-sm"
@@ -314,7 +319,7 @@ export default function Dashboard() {
       </div>
 
       {/* KPI Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-2 ${savingsArs > 0 || totalUsd > 0 ? "md:grid-cols-5" : "md:grid-cols-4"} gap-4`}>
         <div className="card p-4">
           <p className="text-[10px] text-tertiary uppercase mb-1">Total gastado</p>
           <p className="text-lg font-bold text-primary">{formatCurrency(totalSpent)}</p>
@@ -339,23 +344,13 @@ export default function Dashboard() {
             {momVariation > 0 ? "Gastaste más" : momVariation < 0 ? "Gastaste menos" : "Sin cambio"}
           </p>
         </div>
-      </div>
-
-      {/* Ahorros */}
-      {(savingsArs > 0 || totalUsd > 0) && (
-        <div className="card p-4">
-          <h2 className="text-xs font-semibold text-secondary uppercase tracking-wide mb-2">
-            Ahorros
-          </h2>
-          <div className="flex gap-4">
-            <div>
-              <p className="text-[10px] text-tertiary uppercase">ARS</p>
+        {(savingsArs > 0 || totalUsd > 0) && (
+          <div className="card p-4">
+            <p className="text-[10px] text-tertiary uppercase mb-1">Inversiones</p>
+            <div className="space-y-0.5">
               <p className="text-sm font-bold text-primary">
                 {savingsArs > 0 ? formatCurrency(savingsArs) : "—"}
               </p>
-            </div>
-            <div>
-              <p className="text-[10px] text-tertiary uppercase">USD</p>
               <p className="text-sm font-bold text-primary">
                 {totalUsd > 0
                   ? `USD ${totalUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -363,19 +358,19 @@ export default function Dashboard() {
               </p>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Gastos por Categoría + Transacciones — side by side */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Gastos por Categoría */}
-        <div className="card p-4">
+        <div className="card p-4 h-[313px] flex flex-col">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-primary">Gastos por Categoría</h2>
               {selectedCategory && (
                 <button
-                  onClick={() => { setSelectedCategory(null); setSelectedCategoryId(null); setVisibleCount(15); }}
+                  onClick={() => { setSelectedCategory(null); }}
                   className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                 >
                   {selectedCategory} ✕
@@ -389,17 +384,17 @@ export default function Dashboard() {
               Ver detalle →
             </button>
           </div>
-          {topCategories.length === 0 ? (
+          {categories.length === 0 ? (
             <EmptyState
               icon="📊"
               title="Sin datos"
               description="Los gastos por categoría aparecerán aquí"
             />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto flex-1 min-h-0">
               {/* Pie chart */}
               <div className="flex items-center justify-center">
-                <ResponsiveContainer width="100%" height={175}>
+                <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
                     <Pie
                       data={pieData}
@@ -407,8 +402,8 @@ export default function Dashboard() {
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      outerRadius={65}
-                      innerRadius={30}
+                      outerRadius={85}
+                      innerRadius={40}
                       paddingAngle={1}
                       onClick={(entry) => handleCategorySelect(entry.name)}
                       style={{ cursor: "pointer" }}
@@ -444,8 +439,8 @@ export default function Dashboard() {
               </div>
 
               {/* Bars */}
-              <div className="space-y-2">
-                {displayedCategories.map((cat, i) => {
+              <div className="space-y-2 overflow-y-auto flex-1 min-h-0 p-1">
+                {categories.map((cat, i) => {
                   const pct = (cat.total / maxCatTotal) * 100;
                   const color = cat.category_color || FALLBACK_COLORS[i % FALLBACK_COLORS.length];
                   const isSelected = selectedCategory === cat.category_name;
@@ -497,22 +492,14 @@ export default function Dashboard() {
                     </div>
                   );
                 })}
-                {!showAllCategories && allCategories.length > 4 && (
-                  <button
-                    onClick={() => setShowAllCategories(true)}
-                    className="text-xs text-primary hover:underline w-full text-center py-1"
-                  >
-                    Ver más ({allCategories.length - 4} categorías)
-                  </button>
-                )}
               </div>
             </div>
           )}
         </div>
 
         {/* Right: Transacciones */}
-        <div className="card">
-          <div className="px-4 py-3 border-b border-border-color flex items-center justify-between">
+        <div className="card h-[313px] flex flex-col">
+          <div className="px-4 py-3 border-b border-border-color flex items-center justify-between flex-shrink-0">
             <h2 className="text-sm font-semibold text-primary">
               Transacciones — Mes corriente
               {selectedCategory && (
@@ -528,7 +515,7 @@ export default function Dashboard() {
               Ver todos →
             </button>
           </div>
-          {monthExpenses.length === 0 ? (
+          {filteredExpenses.length === 0 ? (
             <EmptyState
               icon="💸"
               title={selectedCategory ? `Sin gastos en ${selectedCategory}` : "Sin transacciones este mes"}
@@ -536,55 +523,43 @@ export default function Dashboard() {
               action={{ label: "Ver todos los gastos", onClick: () => navigate("/expenses") }}
             />
           ) : (
-            <>
-              <div className="divide-y divide-border-color max-h-[400px] overflow-y-auto">
-                {monthExpenses.slice(0, visibleCount).map((exp) => (
-                  <div
-                    key={exp.id}
-                    className="flex items-center justify-between px-4 py-2.5 hover:bg-base-alt transition-colors"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: exp.category_color || "#3584e4" }}
-                      />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-primary truncate">
-                          {toUpperCase(exp.description)}
-                        </p>
-                        <p className="text-xs text-tertiary">
-                          {formatDateDMYSlash(exp.date)}
-                          {exp.category_name ? ` · ${exp.category_name}` : ""}
-                          {exp.card ? ` · ${exp.card}` : ""}
-                        </p>
-                      </div>
-                    </div>
+            <div className="divide-y divide-border-color overflow-y-auto flex-1 min-h-0">
+              {filteredExpenses.map((exp) => (
+                <div
+                  key={exp.id}
+                  className="flex items-center justify-between px-4 py-2.5 hover:bg-base-alt transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
                     <span
-                      className={`text-sm font-semibold flex-shrink-0 ml-2 ${
-                        exp.amount < 0 ? "text-success" : "text-primary"
-                      }`}
-                    >
-                      {exp.currency === "USD" && (
-                        <span className="text-xs font-normal badge-success px-1.5 py-0.5 rounded mr-1">
-                          USD
-                        </span>
-                      )}
-                      {formatCurrency(exp.amount, exp.currency)}
-                    </span>
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: exp.category_color || "#3584e4" }}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-primary truncate">
+                        {toUpperCase(exp.description)}
+                      </p>
+                      <p className="text-xs text-tertiary">
+                        {formatDateDMYSlash(exp.date)}
+                        {exp.category_name ? ` · ${exp.category_name}` : ""}
+                        {exp.card ? ` · ${exp.card}` : ""}
+                      </p>
+                    </div>
                   </div>
-                ))}
-              </div>
-              {monthExpenses.length > visibleCount && (
-                <div className="px-4 py-2.5 border-t border-border-color text-center">
-                  <button
-                    onClick={() => setVisibleCount((c) => c + 15)}
-                    className="text-xs text-primary hover:underline"
+                  <span
+                    className={`text-sm font-semibold flex-shrink-0 ml-2 ${
+                      exp.amount < 0 ? "text-success" : "text-primary"
+                    }`}
                   >
-                    Ver más ({monthExpenses.length - visibleCount} restantes)
-                  </button>
+                    {exp.currency === "USD" && (
+                      <span className="text-xs font-normal badge-success px-1.5 py-0.5 rounded mr-1">
+                        USD
+                      </span>
+                    )}
+                    {formatCurrency(exp.amount, exp.currency)}
+                  </span>
                 </div>
-              )}
-            </>
+              ))}
+            </div>
           )}
         </div>
       </div>
@@ -620,6 +595,7 @@ export default function Dashboard() {
                     bank={card.bank}
                     total={monthEntry?.total ?? 0}
                     cardType={card.card_type}
+                    holder={card.holder}
                   />
                 );
               })}

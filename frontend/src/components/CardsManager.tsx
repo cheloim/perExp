@@ -205,6 +205,14 @@ export default function CardsManager() {
                 onSubmit={handleSubmit}
                 className="p-4 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg space-y-4"
               >
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-base-alt flex items-center justify-center text-sm font-bold">
+                    💳
+                  </div>
+                  <span className="text-xs font-medium text-secondary">
+                    {card.card_type === "credito" ? "Crédito" : "Débito"} — {card.bank}
+                  </span>
+                </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-[var(--text-secondary)]">
                     Tarjeta
@@ -335,6 +343,16 @@ export default function CardsManager() {
           onSubmit={handleSubmit}
           className="p-4 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg space-y-4"
         >
+          <div className="flex items-center gap-2">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${
+              accountType === "tarjeta" ? "bg-base-alt" : "bg-success/10"
+            }`}>
+              {accountType === "efectivo" ? "💵" : accountType === "mercadopago" ? "📱" : accountType === "cuenta_corriente" ? "🏦" : accountType === "caja_ahorro" ? "💳" : "💳"}
+            </div>
+            <span className="text-xs font-medium text-secondary">
+              {accountType === "tarjeta" ? (cardType === "credito" ? "Crédito" : "Débito") : ACCOUNT_TYPES.find((t) => t.value === accountType)?.label || accountType}
+            </span>
+          </div>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-[var(--text-secondary)]">
               Tipo de cuenta

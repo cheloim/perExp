@@ -1,11 +1,15 @@
-import { useState, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo, useRef, useEffect, useCallback, Fragment } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUndoToast } from "../hooks/useUndoToast";
 import {
   getExpenses,
   getCategories,
   getDistinctValues,
+  getCards,
+  getAccounts,
+  getExpenseStats,
+  getExpensesByCategory,
+  getExpensesByPerson,
   createExpense,
   updateExpense,
   deleteExpense,
@@ -14,9 +18,19 @@ import {
 import type { Expense, ExpenseCreate } from "../types";
 import { Select } from "../components/ui/Select";
 import { ExpenseModal } from "../components/ExpenseModals";
-import { BulkSubmenu } from "../components/ui/BulkSubmenu";
 import { AutocompleteInput } from "../components/ui/AutocompleteInput";
 import EmptyState from "../components/ui/EmptyState";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+} from "recharts";
 import {
   formatCurrency,
   toUpperCase,
@@ -44,7 +58,6 @@ function getMissingDataFields(exp: Expense): string[] {
 
 export default function ExpensesPage() {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const { filters, setFilter, clearFilters, searchParams, setSearchParams } = useExpenseFilters();
 
   const filterCategory = filters.categoryId;
@@ -55,6 +68,11 @@ export default function ExpensesPage() {
   const filterDateFrom = filters.dateFrom;
   const filterDateTo = filters.dateTo;
   const filterSearch = filters.search;
+
+  const now = new Date();
+  const month = filterDateFrom
+    ? `${filterDateFrom.substring(0, 7)}`
+    : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
   const handleCategoryFilter = (value: string) => {
     const next = new URLSearchParams(searchParams);
@@ -82,6 +100,16 @@ export default function ExpensesPage() {
     filterSearch,
   ].filter(Boolean).length;
 
+  const [visibleCount, setVisibleCount] = useState(100);
+
+  // Reset visible count when filters change
+  const filterKey = `${filterCategory}-${filterUncategorized}-${filterBank}-${filterPerson}-${filterCard}-${filterDateFrom}-${filterDateTo}-${filterSearch}`;
+  const prevFilterKey = useRef(filterKey);
+  if (filterKey !== prevFilterKey.current) {
+    prevFilterKey.current = filterKey;
+    setVisibleCount(100);
+  }
+
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["expenses"] });
 
   const { data: expenses = [], isLoading } = useQuery({
@@ -106,7 +134,7 @@ export default function ExpensesPage() {
         date_from: filterDateFrom,
         date_to: filterDateTo,
         search: filterSearch,
-        limit: 500,
+        limit: visibleCount,
       }),
   });
 
@@ -117,31 +145,68 @@ export default function ExpensesPage() {
     staleTime: 60_000,
   });
 
+  // Prefetch cards and accounts so modal opens instantly
+  useQuery({ queryKey: ["cards"], queryFn: getCards, staleTime: 300_000 });
+  useQuery({ queryKey: ["accounts"], queryFn: getAccounts, staleTime: 300_000 });
+
+  // Analytics queries
+  const { data: expenseStats } = useQuery({
+    queryKey: ["expense-stats", month],
+    queryFn: () => getExpenseStats({ month: month || undefined }),
+  });
+
+  const { data: categoryBreakdown = [] } = useQuery({
+    queryKey: ["expenses-by-category", month],
+    queryFn: () => getExpensesByCategory({ month: month || undefined }),
+  });
+
+  const { data: personBreakdown = [] } = useQuery({
+    queryKey: ["expenses-by-person", month],
+    queryFn: () => getExpensesByPerson({ month: month || undefined }),
+  });
+
   const [editing, setEditing] = useState<Expense | null | undefined>(undefined);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState(filterSearch ?? "");
+  const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Sync debouncedSearch when filterSearch changes externally (e.g., clear filters)
+  useEffect(() => {
+    setDebouncedSearch(filterSearch ?? "");
+  }, [filterSearch]);
+
+  const handleSearchChange = useCallback((value: string) => {
+    clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => {
+      setFilter("search", value || undefined);
+    }, 300);
+    setDebouncedSearch(value);
+  }, [setFilter]);
   const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({
     field: "date",
     dir: "desc",
   });
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [bulkCategoryId, setBulkCategoryId] = useState<string>("");
+  const [bulkBankValue, setBulkBankValue] = useState("");
+  const [bulkCardValue, setBulkCardValue] = useState("");
+  const [bulkPersonValue, setBulkPersonValue] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; description: string } | null>(
     null,
   );
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
-  const [bulkMenuOpen, setBulkMenuOpen] = useState(false);
-  const [bulkSubmenu, setBulkSubmenu] = useState<"category" | "bank" | "card" | "person" | null>(
-    null,
-  );
-  const [bulkFieldValue, setBulkFieldValue] = useState("");
 
-  const toggleSelect = (id: number) =>
+  const toggleSelect = (id: number) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
+      if (next.size > 0) setDrawerOpen(true);
+      else setDrawerOpen(false);
       return next;
     });
+  };
 
   const bulkFieldMut = useMutation({
     mutationFn: ({
@@ -156,10 +221,11 @@ export default function ExpensesPage() {
     onSuccess: () => {
       invalidate();
       setSelectedIds(new Set());
-      setBulkSubmenu(null);
-      setBulkMenuOpen(false);
-      setBulkFieldValue("");
+      setDrawerOpen(false);
       setBulkCategoryId("");
+      setBulkBankValue("");
+      setBulkCardValue("");
+      setBulkPersonValue("");
     },
     onError: (e: Error) => {
       console.error("Bulk update failed:", e);
@@ -249,8 +315,9 @@ export default function ExpensesPage() {
 
   const sortedExpenses = useMemo(() => {
     return [...expenses].sort((a, b) => {
-      const aVal = a[sort.field as keyof Expense];
-      const bVal = b[sort.field as keyof Expense];
+      const field = sort.field === "category" ? "category_name" : sort.field;
+      const aVal = a[field as keyof Expense];
+      const bVal = b[field as keyof Expense];
       if (aVal == null) return 1;
       if (bVal == null) return -1;
       if (sort.field === "amount") {
@@ -279,9 +346,21 @@ export default function ExpensesPage() {
     });
   }, [expenses, sort.field, sort.dir]);
 
-  const exportCSV = () => {
+  const exportCSV = async () => {
+    // Fetch all matching records for export
+    const allData = await getExpenses({
+      category_id: filterCategory,
+      uncategorized: filterUncategorized || undefined,
+      bank: filterBank,
+      person: filterPerson,
+      card: filterCard,
+      date_from: filterDateFrom,
+      date_to: filterDateTo,
+      search: filterSearch,
+      limit: 10000,
+    });
     const headers = ["Fecha", "Descripción", "Monto", "Moneda", "Categoría", "Banco", "Tarjeta", "Persona"];
-    const rows = sortedExpenses.map((e) => [
+    const rows = allData.map((e) => [
       e.date,
       `"${e.description.replace(/"/g, '""')}"`,
       e.amount,
@@ -307,7 +386,6 @@ export default function ExpensesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Gastos</h1>
         <div className="flex items-center gap-2">
-          {/* Seleccionar */}
           <button
             onClick={() => {
               setSelectMode((v) => !v);
@@ -321,67 +399,22 @@ export default function ExpensesPage() {
           >
             {selectMode ? "Cancelar" : "Seleccionar"}
           </button>
-          {/* Categorías */}
-          <button
-            onClick={() => navigate("/categories")}
-            className="gnome-btn-secondary-round text-sm"
-            title="Ir a configuración de categorías"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="mr-1">
-              <rect
-                x="2"
-                y="2"
-                width="5"
-                height="5"
-                rx="1"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              />
-              <rect
-                x="9"
-                y="2"
-                width="5"
-                height="5"
-                rx="1"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              />
-              <rect
-                x="2"
-                y="9"
-                width="5"
-                height="5"
-                rx="1"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              />
-              <rect
-                x="9"
-                y="9"
-                width="5"
-                height="5"
-                rx="1"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              />
-            </svg>
-            Categorías
-          </button>
-          <button
-            onClick={() => {
-              setEditing(null);
-            }}
-            className="gnome-btn-primary-round text-sm"
-          >
-            <span className="text-base leading-none">+</span>
-            <span>Nuevo gasto</span>
-          </button>
           <button
             onClick={exportCSV}
             className="gnome-btn-secondary-round text-sm"
             title="Exportar gastos a CSV"
           >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="inline mr-1">
+              <path d="M3 10v3h10v-3M8 2v8M5 7l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
             CSV
+          </button>
+          <button
+            onClick={() => setEditing(null)}
+            className="gnome-btn-primary-round text-sm"
+          >
+            <span className="text-base leading-none">+</span>
+            <span>Nuevo gasto</span>
           </button>
         </div>
       </div>
@@ -465,95 +498,98 @@ export default function ExpensesPage() {
         {/* Search */}
         <input
           type="text"
-          value={filterSearch ?? ""}
-          onChange={(e) => setFilter("search", e.target.value || undefined)}
+          value={debouncedSearch}
+          onChange={(e) => handleSearchChange(e.target.value)}
           placeholder="Buscar en descripción..."
           className="w-full text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition placeholder:text-[var(--text-tertiary)]"
         />
       </div>
 
-      {/* Date-range summary banner */}
-      {(filterDateFrom || filterDateTo) &&
-        expenses.length > 0 &&
-        (() => {
-          const arsExpenses = expenses.filter((e) => (e.currency || "ARS") === "ARS");
-          const usdExpenses = expenses.filter((e) => e.currency === "USD");
-          const arsTotal = arsExpenses.reduce((s, e) => s + e.amount, 0);
-          const usdTotal = usdExpenses.reduce((s, e) => s + e.amount, 0);
-          const avg = arsExpenses.length > 0 ? arsTotal / arsExpenses.length : 0;
-          return (
-            <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-md bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/20 text-sm">
-              <span className="text-[var(--text-secondary)]">
-                <span className="font-semibold text-[var(--color-primary)]">{expenses.length}</span>{" "}
-                gastos
-                {filterDateFrom && filterDateTo && (
-                  <>
-                    {" "}
-                    del{" "}
-                    <span className="text-[var(--color-primary)] font-medium">
-                      {filterDateFrom}
-                    </span>{" "}
-                    al{" "}
-                    <span className="text-[var(--color-primary)] font-medium">{filterDateTo}</span>
-                  </>
-                )}
-                {filterDateFrom && !filterDateTo && (
-                  <>
-                    {" "}
-                    desde{" "}
-                    <span className="text-[var(--color-primary)] font-medium">
-                      {filterDateFrom}
-                    </span>
-                  </>
-                )}
-                {!filterDateFrom && filterDateTo && (
-                  <>
-                    {" "}
-                    hasta{" "}
-                    <span className="text-[var(--color-primary)] font-medium">{filterDateTo}</span>
-                  </>
-                )}
-              </span>
-              <span className="text-[var(--text-tertiary)]">·</span>
-              <span className="text-[var(--text-secondary)]">
-                Total ARS:{" "}
-                <span className="text-[var(--color-primary)] font-semibold">
-                  {new Intl.NumberFormat("es-AR", {
-                    style: "currency",
-                    currency: "ARS",
-                    minimumFractionDigits: 0,
-                  }).format(arsTotal)}
-                </span>
-              </span>
-              {usdTotal !== 0 && (
-                <>
-                  <span className="text-[var(--text-tertiary)]">·</span>
-                  <span className="text-[var(--text-secondary)]">
-                    Total USD:{" "}
-                    <span className="text-[var(--color-primary)] font-semibold">
-                      {new Intl.NumberFormat("en-US", {
-                        style: "currency",
-                        currency: "USD",
-                        minimumFractionDigits: 2,
-                      }).format(usdTotal)}
-                    </span>
-                  </span>
-                </>
-              )}
-              <span className="text-[var(--text-tertiary)]">·</span>
-              <span className="text-[var(--text-secondary)]">
-                Promedio:{" "}
-                <span className="text-[var(--color-primary)] font-semibold">
-                  {new Intl.NumberFormat("es-AR", {
-                    style: "currency",
-                    currency: "ARS",
-                    minimumFractionDigits: 0,
-                  }).format(avg)}
-                </span>
-              </span>
+      {/* Stats cards + Charts */}
+      {expenses.length > 0 && (() => {
+        const arsExpenses = expenses.filter((e) => (e.currency || "ARS") === "ARS");
+        const arsTotal = expenseStats?.total ?? arsExpenses.reduce((s, e) => s + e.amount, 0);
+        const totalCount = expenseStats?.count ?? expenses.length;
+        const avg = expenseStats?.avg ?? (arsExpenses.length > 0 ? arsTotal / arsExpenses.length : 0);
+        const max = arsExpenses.length > 0 ? Math.max(...arsExpenses.map((e) => e.amount)) : 0;
+        return (
+          <>
+            {/* Stats cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="card p-3">
+                <p className="text-[10px] text-tertiary uppercase">Total</p>
+                <p className="text-lg font-bold text-primary">{formatCurrency(arsTotal)}</p>
+              </div>
+              <div className="card p-3">
+                <p className="text-[10px] text-tertiary uppercase">Gastos</p>
+                <p className="text-lg font-bold text-primary">{totalCount}</p>
+              </div>
+              <div className="card p-3">
+                <p className="text-[10px] text-tertiary uppercase">Promedio</p>
+                <p className="text-lg font-bold text-primary">{formatCurrency(avg)}</p>
+              </div>
+              <div className="card p-3">
+                <p className="text-[10px] text-tertiary uppercase">Mayor gasto</p>
+                <p className="text-lg font-bold text-primary">{formatCurrency(max)}</p>
+              </div>
             </div>
-          );
-        })()}
+
+            {/* Charts row */}
+            {categoryBreakdown.length > 0 && (
+              <div className="card p-4">
+                <h3 className="text-sm font-medium text-secondary mb-3">Por Categoría</h3>
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  <ResponsiveContainer width={160} height={160}>
+                    <PieChart>
+                      <Pie
+                        data={categoryBreakdown.slice(0, 6)}
+                        dataKey="total"
+                        nameKey="category_name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={65}
+                        innerRadius={35}
+                        paddingAngle={2}
+                      >
+                        {categoryBreakdown.slice(0, 6).map((entry, i) => (
+                          <Cell key={i} fill={entry.category_color || "#94a3b8"} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(v: number) => formatCurrency(v)}
+                        contentStyle={{ fontSize: 11, borderRadius: 6 }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="flex-1 grid grid-cols-2 gap-x-6 gap-y-1.5">
+                    {categoryBreakdown.slice(0, 6).map((cat, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs">
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.category_color || "#94a3b8" }} />
+                        <span className="text-secondary truncate flex-1">{cat.category_name}</span>
+                        <span className="text-primary font-medium whitespace-nowrap">{formatCurrency(cat.total)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {personBreakdown.length > 1 && (
+              <div className="card p-4">
+                <h3 className="text-sm font-medium text-secondary mb-3">Por Titular</h3>
+                <ResponsiveContainer width="100%" height={160}>
+                  <BarChart data={personBreakdown.slice(0, 5)} layout="vertical" margin={{ left: 10, right: 10, top: 0, bottom: 0 }}>
+                    <XAxis type="number" hide />
+                    <YAxis type="category" dataKey="person" width={80} tick={{ fontSize: 11, fill: "var(--text-secondary)" }} />
+                    <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ fontSize: 11, borderRadius: 6 }} />
+                    <Bar dataKey="total" fill="var(--color-primary)" radius={[0, 4, 4, 0]} barSize={16} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </>
+        );
+      })()}
 
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
@@ -565,11 +601,11 @@ export default function ExpensesPage() {
                     <input
                       type="checkbox"
                       checked={expenses.length > 0 && selectedIds.size === expenses.length}
-                      onChange={(e) =>
-                        setSelectedIds(
-                          e.target.checked ? new Set(expenses.map((x) => x.id)) : new Set(),
-                        )
-                      }
+                      onChange={(e) => {
+                        const next = e.target.checked ? new Set(expenses.map((x) => x.id)) : new Set();
+                        setSelectedIds(next);
+                        setDrawerOpen(next.size > 0);
+                      }}
                       className="accent-[var(--color-primary)]"
                     />
                   </th>
@@ -596,7 +632,17 @@ export default function ExpensesPage() {
                 >
                   Descripción <SortIcon field="description" sort={sort} />
                 </th>
-                <th className={thClass("category")}>Categoría</th>
+                <th
+                  className={thClass("category")}
+                  onClick={() =>
+                    setSort({
+                      field: "category",
+                      dir: sort.field === "category" && sort.dir === "asc" ? "desc" : "asc",
+                    })
+                  }
+                >
+                  Categoría <SortIcon field="category" sort={sort} />
+                </th>
                 <th
                   className={thClass("amount")}
                   onClick={() =>
@@ -615,38 +661,62 @@ export default function ExpensesPage() {
                 )}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[var(--border-color)]">
+              <tbody className="divide-y divide-[var(--border-color)]">
               {isLoading ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-[var(--text-secondary)]">
-                    Cargando...
-                  </td>
-                </tr>
+                  <>
+                  {[...Array(8)].map((_, i) => (
+                    <tr key={i} className="border-b border-[var(--border-color)]">
+                      <td className="px-4 py-3"><div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse w-16" /></td>
+                      <td className="px-4 py-3"><div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse w-40" /></td>
+                      <td className="px-4 py-3"><div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse w-20" /></td>
+                      <td className="px-4 py-3"><div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse w-16" /></td>
+                      <td className="px-4 py-3"><div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse w-12" /></td>
+                    </tr>
+                  ))}
+                  </>
               ) : expenses.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-4">
                     <EmptyState
                       icon="📋"
-                      title="No hay gastos registrados"
-                      description="Creá un gasto para empezar a trackear tus gastos"
-                      action={{ label: "Crear gasto", onClick: () => setEditing(null) }}
+                      title={activeFiltersCount > 0 ? "Sin resultados" : "No hay gastos registrados"}
+                      description={activeFiltersCount > 0
+                        ? "No hay gastos que coincidan con estos filtros"
+                        : "Creá un gasto para empezar a trackear tus gastos"
+                      }
+                      action={activeFiltersCount > 0
+                        ? { label: "Limpiar filtros", onClick: clearFilters }
+                        : { label: "Crear gasto", onClick: () => setEditing(null) }
+                      }
                     />
                   </td>
                 </tr>
               ) : (
-                sortedExpenses.map((exp) => {
+                (() => {
+                  let lastDate = "";
+                  return sortedExpenses.map((exp) => {
                     const missing = hasMissingData(exp);
+                    const showDateHeader = exp.date !== lastDate;
+                    if (showDateHeader) lastDate = exp.date;
                     return (
-                      <tr
-                        key={exp.id}
-                        className={`transition-colors ${
-                          selectMode
-                            ? "cursor-pointer hover:bg-[var(--color-base-alt)]/50"
-                            : "hover:bg-[var(--color-base-alt)]/30"
-                        } ${selectedIds.has(exp.id) ? "bg-[var(--color-primary)]/10" : ""}`}
-                        style={missing ? { borderLeft: "3px solid #f6d32d" } : undefined}
-                        onClick={selectMode ? () => toggleSelect(exp.id) : undefined}
-                      >
+                      <Fragment key={exp.id}>
+                        {showDateHeader && (
+                          <tr key={`date-${exp.date}`}>
+                            <td colSpan={5} className="px-4 py-2 text-xs font-medium text-[var(--text-tertiary)] bg-[var(--color-base-alt)]">
+                              {formatDateDMY(exp.date)}
+                            </td>
+                          </tr>
+                        )}
+                        <tr
+                          key={exp.id}
+                          className={`transition-colors ${
+                            selectMode
+                              ? "cursor-pointer hover:bg-[var(--color-base-alt)]/50"
+                              : "hover:bg-[var(--color-base-alt)]/30"
+                          } ${selectedIds.has(exp.id) ? "bg-[var(--color-primary)]/10" : ""}`}
+                          style={missing ? { borderLeft: "3px solid #f6d32d" } : undefined}
+                          onClick={selectMode ? () => toggleSelect(exp.id) : undefined}
+                        >
                         {selectMode && (
                           <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                             <input
@@ -697,9 +767,11 @@ export default function ExpensesPage() {
                               )}
                             </button>
                           </div>
-                          <div className="text-xs text-[var(--text-tertiary)] flex gap-2">
+                          <div className="text-xs text-[var(--text-tertiary)] flex gap-1 items-center">
                             {exp.card && <span>{titleCase(exp.card)}</span>}
+                            {exp.card && exp.bank && <span>·</span>}
                             {exp.bank && <span>{titleCase(exp.bank)}</span>}
+                            {(exp.card || exp.bank) && exp.person && <span>·</span>}
                             {exp.person && <span>{titleCase(exp.person)}</span>}
                           </div>
                         </td>
@@ -780,9 +852,11 @@ export default function ExpensesPage() {
                             </div>
                           </td>
                         )}
-                      </tr>
+                        </tr>
+                      </Fragment>
                     );
-                  })
+                  });
+                })()
               )}
             </tbody>
           </table>
@@ -790,253 +864,105 @@ export default function ExpensesPage() {
       </div>
 
       {expenses.length > 0 && (
-        <p className="text-xs text-[var(--text-tertiary)] text-right">{expenses.length} gastos</p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-[var(--text-tertiary)]">{expenses.length} gastos</p>
+          {expenses.length >= visibleCount && (
+            <button
+              onClick={() => setVisibleCount((prev) => prev + 100)}
+              className="text-xs text-[var(--color-primary)] hover:underline font-medium"
+            >
+              Ver más gastos
+            </button>
+          )}
+        </div>
       )}
 
-      {/* Bulk action bar */}
-      {selectMode && selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-2.5 rounded-full bg-[var(--color-surface)] border border-[var(--border-color)] shadow-gnome-xl">
-          <span className="text-sm text-[var(--text-primary)] font-medium">
-            {selectedIds.size} seleccionados
-          </span>
-          <div className="relative">
-            <button
-              onClick={() => setBulkMenuOpen(!bulkMenuOpen)}
-              className="gnome-btn-primary-round text-sm"
-            >
-              Acciones
-              <svg
-                width="10"
-                height="10"
-                viewBox="0 0 10 10"
-                fill="none"
-                className={`ml-1 transition-transform ${bulkMenuOpen ? "rotate-180" : ""}`}
+      {/* Bulk Drawer */}
+      {drawerOpen && selectedIds.size > 0 && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/30 transition-opacity"
+            onClick={() => setDrawerOpen(false)}
+          />
+          <div className="fixed right-0 top-0 z-50 h-full w-full sm:w-80 bg-[var(--color-surface)] border-l border-[var(--border-color)] shadow-gnome-lg flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-[var(--border-color)]">
+              <div>
+                <h3 className="text-sm font-semibold text-[var(--text-primary)]">Acciones en lote</h3>
+                <p className="text-xs text-[var(--text-tertiary)]">
+                  {selectedIds.size} gasto{selectedIds.size !== 1 ? "s" : ""} seleccionado{selectedIds.size !== 1 ? "s" : ""}
+                </p>
+              </div>
+              <button
+                onClick={() => setDrawerOpen(false)}
+                className="p-1.5 rounded-md hover:bg-[var(--color-base-alt)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition"
               >
-                <path
-                  d="M2 3.5L5 6.5L8 3.5"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-5">
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Asignar categoría</label>
+                <Select
+                  value={bulkCategoryId}
+                  onChange={(v) => { setBulkCategoryId(v); if (v) handleBulkFieldUpdate("category_id", parseInt(v)); }}
+                  options={[{ value: "", label: "Sin categoría" }]}
+                  groups={categoryGroupOptions(categories)}
+                  placeholder="Seleccionar..."
                 />
-              </svg>
-            </button>
-            {bulkMenuOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => {
-                    setBulkMenuOpen(false);
-                    setBulkSubmenu(null);
-                  }}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Asignar banco</label>
+                <AutocompleteInput
+                  value={bulkBankValue}
+                  onChange={setBulkBankValue}
+                  onSelect={(v) => { handleBulkFieldUpdate("bank", v); setBulkBankValue(""); }}
+                  options={distinctValues?.banks ?? []}
+                  placeholder="Seleccionar banco..."
                 />
-                <div
-                  className="absolute bottom-full left-0 mb-2 z-50 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl shadow-lg overflow-y-auto"
-                  style={{
-                    maxHeight: "360px",
-                    width: bulkSubmenu === "category" ? "280px" : bulkSubmenu ? "240px" : "220px",
-                  }}
-                >
-                  <div className="p-3">
-                    {bulkSubmenu && (
-                      <button
-                        onClick={() => setBulkSubmenu(null)}
-                        className="flex items-center gap-1 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] mb-3 transition-colors"
-                      >
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                          <path
-                            d="M7.5 3L4 6L7.5 9"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                        Volver
-                      </button>
-                    )}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Asignar tarjeta</label>
+                <AutocompleteInput
+                  value={bulkCardValue}
+                  onChange={setBulkCardValue}
+                  onSelect={(v) => { handleBulkFieldUpdate("card", v); setBulkCardValue(""); }}
+                  options={distinctValues?.cards ?? []}
+                  placeholder="Seleccionar tarjeta..."
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Asignar titular</label>
+                <AutocompleteInput
+                  value={bulkPersonValue}
+                  onChange={setBulkPersonValue}
+                  onSelect={(v) => { handleBulkFieldUpdate("person", v); setBulkPersonValue(""); }}
+                  options={distinctValues?.persons ?? []}
+                  placeholder="Seleccionar titular..."
+                />
+              </div>
+            </div>
 
-                    {bulkSubmenu === "category" && (
-                      <BulkSubmenu
-                        label="Categoría"
-                        onClear={() => handleBulkFieldUpdate("category_id", null)}
-                      >
-                        <Select
-                          value={bulkCategoryId}
-                          onChange={(v) => {
-                            setBulkCategoryId(v);
-                            if (v) handleBulkFieldUpdate("category_id", parseInt(v));
-                            setBulkSubmenu(null);
-                            setBulkMenuOpen(false);
-                          }}
-                          options={[{ value: "", label: "Sin categoría" }]}
-                          groups={categoryGroupOptions(categories)}
-                          direction="up"
-                        />
-                      </BulkSubmenu>
-                    )}
-
-                    {bulkSubmenu === "bank" && (
-                      <BulkSubmenu label="Banco">
-                        <AutocompleteInput
-                          value={bulkFieldValue}
-                          onChange={setBulkFieldValue}
-                          onSelect={(v) => {
-                            handleBulkFieldUpdate("bank", v);
-                            setBulkFieldValue("");
-                            setBulkSubmenu(null);
-                            setBulkMenuOpen(false);
-                          }}
-                          options={distinctValues?.banks ?? []}
-                          placeholder="Seleccionar banco..."
-                        />
-                      </BulkSubmenu>
-                    )}
-
-                    {bulkSubmenu === "card" && (
-                      <BulkSubmenu label="Tarjeta">
-                        <AutocompleteInput
-                          value={bulkFieldValue}
-                          onChange={setBulkFieldValue}
-                          onSelect={(v) => {
-                            handleBulkFieldUpdate("card", v);
-                            setBulkFieldValue("");
-                            setBulkSubmenu(null);
-                            setBulkMenuOpen(false);
-                          }}
-                          options={distinctValues?.cards ?? []}
-                          placeholder="Seleccionar tarjeta..."
-                        />
-                      </BulkSubmenu>
-                    )}
-
-                    {bulkSubmenu === "person" && (
-                      <BulkSubmenu label="Titular">
-                        <AutocompleteInput
-                          value={bulkFieldValue}
-                          onChange={setBulkFieldValue}
-                          onSelect={(v) => {
-                            handleBulkFieldUpdate("person", v);
-                            setBulkFieldValue("");
-                            setBulkSubmenu(null);
-                            setBulkMenuOpen(false);
-                          }}
-                          options={distinctValues?.persons ?? []}
-                          placeholder="Seleccionar titular..."
-                        />
-                      </BulkSubmenu>
-                    )}
-
-                    {!bulkSubmenu && (
-                      <div className="space-y-1">
-                        <button
-                          onClick={() => setBulkSubmenu("category")}
-                          className="w-full px-3 py-2 text-sm text-left flex items-center justify-between rounded-md hover:bg-[var(--color-base-alt)] transition-colors"
-                        >
-                          <span>Categoría</span>
-                          <svg
-                            width="12"
-                            height="12"
-                            viewBox="0 0 12 12"
-                            fill="none"
-                            className="text-[var(--text-tertiary)]"
-                          >
-                            <path
-                              d="M4.5 3L8 6L4.5 9"
-                              stroke="currentColor"
-                              strokeWidth="1.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => setBulkSubmenu("bank")}
-                          className="w-full px-3 py-2 text-sm text-left flex items-center justify-between rounded-md hover:bg-[var(--color-base-alt)] transition-colors"
-                        >
-                          <span>Banco</span>
-                          <svg
-                            width="12"
-                            height="12"
-                            viewBox="0 0 12 12"
-                            fill="none"
-                            className="text-[var(--text-tertiary)]"
-                          >
-                            <path
-                              d="M4.5 3L8 6L4.5 9"
-                              stroke="currentColor"
-                              strokeWidth="1.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => setBulkSubmenu("card")}
-                          className="w-full px-3 py-2 text-sm text-left flex items-center justify-between rounded-md hover:bg-[var(--color-base-alt)] transition-colors"
-                        >
-                          <span>Tarjeta</span>
-                          <svg
-                            width="12"
-                            height="12"
-                            viewBox="0 0 12 12"
-                            fill="none"
-                            className="text-[var(--text-tertiary)]"
-                          >
-                            <path
-                              d="M4.5 3L8 6L4.5 9"
-                              stroke="currentColor"
-                              strokeWidth="1.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => setBulkSubmenu("person")}
-                          className="w-full px-3 py-2 text-sm text-left flex items-center justify-between rounded-md hover:bg-[var(--color-base-alt)] transition-colors"
-                        >
-                          <span>Titular</span>
-                          <svg
-                            width="12"
-                            height="12"
-                            viewBox="0 0 12 12"
-                            fill="none"
-                            className="text-[var(--text-tertiary)]"
-                          >
-                            <path
-                              d="M4.5 3L8 6L4.5 9"
-                              stroke="currentColor"
-                              strokeWidth="1.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
+            <div className="p-4 border-t border-[var(--border-color)] flex gap-2">
+              <button
+                onClick={() => setBulkDeleteConfirm(true)}
+                disabled={bulkDeleteMut.isPending}
+                className="flex-shrink-0 px-4 py-2 rounded-md border border-[var(--red-3,#e01b24)]/30 text-[var(--red-3,#e01b24)] hover:bg-[var(--red-3,#e01b24)]/10 text-sm font-medium transition disabled:opacity-50"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="inline mr-1">
+                  <path d="M3 4h8M5 4V3a1 1 0 011-1h2a1 1 0 011 1v1M4.5 4v7a1 1 0 001 1h3a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Eliminar
+              </button>
+              <button
+                onClick={() => { setDrawerOpen(false); setSelectedIds(new Set()); }}
+                className="flex-1 px-4 py-2 rounded-md border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] text-sm font-medium transition"
+              >
+                Cancelar
+              </button>
+            </div>
           </div>
-          <button
-            onClick={() => setBulkDeleteConfirm(true)}
-            disabled={bulkDeleteMut.isPending}
-            className="gnome-btn-danger-round text-sm"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path
-                d="M3 4h8M5 4V3a1 1 0 011-1h2a1 1 0 011 1v1M4.5 4v7a1 1 0 001 1h3a1 1 0 001-1V4"
-                stroke="currentColor"
-                strokeWidth="1.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            Eliminar
-          </button>
-        </div>
+        </>
       )}
 
       {editing !== undefined && (

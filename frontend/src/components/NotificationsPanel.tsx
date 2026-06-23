@@ -206,23 +206,28 @@ export default function NotificationsPanel({ onClose }: Props) {
                 </div>
                 <p className="text-[var(--text-secondary)] text-xs mb-2">{n.body}</p>
 
-                {n.type === "group_invitation" && !n.read && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleAccept(n)}
-                      className="text-xs px-3 py-1 rounded-md bg-[var(--color-primary)] hover:brightness-110 text-white transition-colors"
-                    >
-                      ✓ Aceptar
-                    </button>
-                    <button
-                      onClick={() => reject.mutate(n.id)}
-                      disabled={reject.isPending}
-                      className="text-xs px-3 py-1 rounded-md border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition-colors disabled:opacity-50"
-                    >
-                      ✕ Rechazar
-                    </button>
-                  </div>
-                )}
+                {n.type === "group_invitation" && (() => {
+                  const data = JSON.parse(n.data || "{}");
+                  const hasPendingInvite = data.member_id && !n.read;
+                  if (!hasPendingInvite) return null;
+                  return (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleAccept(n)}
+                        className="text-xs px-3 py-1 rounded-md bg-[var(--color-primary)] hover:brightness-110 text-white transition-colors"
+                      >
+                        ✓ Aceptar
+                      </button>
+                      <button
+                        onClick={() => reject.mutate(n.id)}
+                        disabled={reject.isPending}
+                        className="text-xs px-3 py-1 rounded-md border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition-colors disabled:opacity-50"
+                      >
+                        ✕ Rechazar
+                      </button>
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}

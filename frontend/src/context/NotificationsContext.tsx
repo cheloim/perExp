@@ -140,8 +140,6 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     broadcastChannel,
     handleNewNotification,
     handleCountsUpdate,
-    state.unreadCount,
-    state.pendingCount,
   ]);
 
   useEffect(() => {

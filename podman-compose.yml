@@ -4,13 +4,13 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: expenses_dev
-      POSTGRES_USER: expenses_dev_user
+      POSTGRES_DB: expenses
+      POSTGRES_USER: expenses_user
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_DEV}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U expenses_dev_user -d expenses_dev"]
+      test: ["CMD-SHELL", "pg_isready -U expenses_user -d expenses"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -29,11 +29,17 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.5"
 
   backend_dev:
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
+    user: "1000:1000"
     secrets:
       - creditcard_backend_dev_postgres_password
       - creditcard_backend_dev_llm_api_key
@@ -45,12 +51,13 @@ services:
       - creditcard_backend_dev_secret_key
     environment:
       PYTHONPATH: /app
-      DATABASE_URL: postgresql://expenses_dev_user:${POSTGRES_PASSWORD_DEV}@db:5432/expenses_dev
+      DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD_DEV}@db:5432/expenses
       REDIS_URL: redis://redis:6379/1
       PYTHONUNBUFFERED: "1"
     volumes:
-      - ./backend/app:/app/app:Z
-      - ./backend/main.py:/app/main.py:Z
+      - ./backend/app:/app/app:z
+      - ./backend/main.py:/app/main.py:z
+      - ./backend/scripts:/app/scripts:z
     ports:
       - "8001:8000"
     depends_on:
@@ -87,6 +94,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
+    user: "1000:1000"
     command: celery -A app.celery_app worker --loglevel=info
     secrets:
       - creditcard_backend_dev_postgres_password
@@ -99,12 +107,17 @@ services:
       - creditcard_backend_dev_secret_key
     environment:
       PYTHONPATH: /app
-      DATABASE_URL: postgresql://expenses_dev_user:${POSTGRES_PASSWORD_DEV}@db:5432/expenses_dev
+      DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD_DEV}@db:5432/expenses
       REDIS_URL: redis://redis:6379/1
       PYTHONUNBUFFERED: "1"
     volumes:
-      - ./backend/app:/app/app:Z
-      - ./backend/main.py:/app/main.py:Z
+      - ./backend/app:/app/app:z
+      - ./backend/main.py:/app/main.py:z
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
 
 secrets:
   creditcard_backend_dev_postgres_password:

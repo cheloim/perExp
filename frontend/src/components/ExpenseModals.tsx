@@ -18,17 +18,16 @@ export function todayDDMMYYYY() {
 }
 
 // Cache last used payment info for quick repeat
-function getLastUsedPayment(): { card: string; bank: string; person: string; payMethod: "card" | "cash" } {
+function getLastUsedPayment(): { card_id: number | null; account_id: number | null; payMethod: "card" | "cash" } {
   try {
     const data = JSON.parse(localStorage.getItem("expense_last_payment") || "{}");
     return {
-      card: data.card || "",
-      bank: data.bank || "",
-      person: data.person || "",
+      card_id: data.card_id || null,
+      account_id: data.account_id || null,
       payMethod: data.payMethod || "card",
     };
   } catch {
-    return { card: "", bank: "", person: "", payMethod: "card" };
+    return { card_id: null, account_id: null, payMethod: "card" };
   }
 }
 
@@ -39,14 +38,13 @@ export const EMPTY_FORM: ExpenseCreate = {
   amount: 0,
   currency: "ARS",
   category_id: null,
-  card: "",
-  bank: "",
-  person: "",
   notes: "",
   transaction_id: "",
   installment_number: null,
   installment_total: null,
   installment_group_id: null,
+  account_id: null,
+  card_id: null,
 };
 
 // DatePicker component with calendar
@@ -142,11 +140,11 @@ export function ExpenseModal({ initial, onClose, onSave, saveError, isSaving }: 
     return () => document.removeEventListener("keydown", handleEscape);
   }, [onClose]);
 
-  const isCash = (card: string) => !card || card === "Efectivo";
+  const isCash = (cardId: number | null | undefined) => !cardId;
   const lastPayment = getLastUsedPayment();
 
   const [payMethod, setPayMethod] = useState<"card" | "cash">(
-    initial ? (isCash(initial.card ?? "") ? "cash" : "card") : lastPayment.payMethod,
+    initial ? (isCash(initial.card_id) ? "cash" : "card") : lastPayment.payMethod,
   );
   const [showCardModal, setShowCardModal] = useState(false);
 
@@ -158,9 +156,6 @@ export function ExpenseModal({ initial, onClose, onSave, saveError, isSaving }: 
         amount: Math.abs(initial.amount),
         currency: initial.currency || "ARS",
         category_id: initial.category_id,
-        card: initial.card ?? "",
-        bank: initial.bank ?? "",
-        person: initial.person ?? "",
         notes: initial.notes ?? "",
         transaction_id: initial.transaction_id ?? "",
         installment_number: initial.installment_number ?? null,
@@ -206,27 +201,27 @@ export function ExpenseModal({ initial, onClose, onSave, saveError, isSaving }: 
   const switchPayMethod = (method: "card" | "cash") => {
     setPayMethod(method);
     if (method === "cash") {
-      setForm((prev) => ({ ...prev, card: "", bank: "", card_id: null, account_id: null }));
+      setForm((prev) => ({ ...prev, card_id: null, account_id: null }));
     } else {
-      setForm((prev) => ({ ...prev, card: "", bank: "", account_id: null }));
+      setForm((prev) => ({ ...prev, account_id: null }));
     }
   };
 
   // Cascading selectors: bank → card
   const availableBanks = [...new Set(cards.map((c) => c.bank).filter(Boolean))].sort();
 
-  const selectedBank = form.bank ?? "";
+  const selectedCard = cards.find((c) => c.id === form.card_id);
+  const selectedBank = selectedCard?.bank ?? "";
   const availableCards = cards.filter((c) => !selectedBank || c.bank === selectedBank);
 
   const handleBankChange = (b: string) => {
-    setForm((prev) => ({ ...prev, bank: b, card: "" }));
+    setForm((prev) => ({ ...prev, card_id: null }));
   };
 
   const handleCardSelect = (c: Card) => {
     setForm((prev) => ({
       ...prev,
-      card: c.card_name,
-      bank: c.bank || "",
+      card_id: c.id,
     }));
   };
 
@@ -383,7 +378,7 @@ export function ExpenseModal({ initial, onClose, onSave, saveError, isSaving }: 
             <div>
               <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
               <Select
-                value={form.bank ?? ""}
+                value={selectedBank}
                 onChange={(v) => handleBankChange(v)}
                 options={availableBanks.map((b) => ({ value: b, label: b }))}
                 placeholder="— Banco —"
@@ -393,13 +388,12 @@ export function ExpenseModal({ initial, onClose, onSave, saveError, isSaving }: 
             <div>
               <label className="text-xs font-medium text-[var(--text-secondary)]">Tarjeta</label>
               <Select
-                value={form.card ?? ""}
+                value={String(form.card_id || "")}
                 onChange={(v) => {
-                  const selected = availableCards.find((c) => c.card_name === v);
+                  const selected = availableCards.find((c) => String(c.id) === v);
                   if (selected) handleCardSelect(selected);
-                  else set("card", v);
                 }}
-                options={availableCards.map((c) => ({ value: c.card_name, label: c.card_name }))}
+                options={availableCards.map((c) => ({ value: String(c.id), label: c.card_name }))}
                 placeholder="— Tarjeta —"
                 disabled={payMethod === "cash"}
               />
@@ -499,9 +493,8 @@ export function ExpenseModal({ initial, onClose, onSave, saveError, isSaving }: 
             onClick={() => {
               if (!initial) {
                 localStorage.setItem("expense_last_payment", JSON.stringify({
-                  card: form.card,
-                  bank: form.bank,
-                  person: form.person,
+                  card_id: form.card_id,
+                  account_id: form.account_id,
                   payMethod,
                 }));
               }

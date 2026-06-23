@@ -35,10 +35,9 @@ def execute_scheduled_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    uid_list = get_group_user_ids(current_user.id, db)
     scheduled = (
         db.query(ScheduledExpense)
-        .filter(ScheduledExpense.id == id, ScheduledExpense.user_id.in_(uid_list))
+        .filter(ScheduledExpense.id == id, ScheduledExpense.user_id == current_user.id)
         .first()
     )
 
@@ -54,9 +53,6 @@ def execute_scheduled_expense(
         description=scheduled.description,
         amount=scheduled.amount,
         currency=scheduled.currency,
-        card=scheduled.card,
-        bank=scheduled.bank,
-        person=scheduled.person,
         card_id=scheduled.card_id,
         account_id=scheduled.account_id,
         category_id=scheduled.category_id,
@@ -65,7 +61,6 @@ def execute_scheduled_expense(
         installment_total=scheduled.installment_total,
         installment_group_id=scheduled.installment_group_id,
         user_id=scheduled.user_id,
-        group_id=scheduled.group_id,
     )
     db.add(expense)
     db.flush()
@@ -88,10 +83,9 @@ def update_scheduled_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    uid_list = get_group_user_ids(current_user.id, db)
     scheduled = (
         db.query(ScheduledExpense)
-        .filter(ScheduledExpense.id == id, ScheduledExpense.user_id.in_(uid_list))
+        .filter(ScheduledExpense.id == id, ScheduledExpense.user_id == current_user.id)
         .first()
     )
 
@@ -117,10 +111,9 @@ def cancel_scheduled_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    uid_list = get_group_user_ids(current_user.id, db)
     scheduled = (
         db.query(ScheduledExpense)
-        .filter(ScheduledExpense.id == id, ScheduledExpense.user_id.in_(uid_list))
+        .filter(ScheduledExpense.id == id, ScheduledExpense.user_id == current_user.id)
         .first()
     )
 
