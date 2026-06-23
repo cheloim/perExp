@@ -31,6 +31,7 @@ def get_expenses(
     bank: str | None = None,
     person: str | None = None,
     card: str | None = None,
+    account: str | None = None,
     account_id: int | None = None,
     search: str | None = None,
     skip: int = 0,
@@ -68,6 +69,11 @@ def get_expenses(
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(Card.card_name.ilike(f"%{card}%"))
     if account_id:
         q = q.filter(Expense.account_id == account_id)
+    if account:
+        from app.models import Account
+        q = q.join(Account, Expense.account_id == Account.id, isouter=True).filter(
+            Account.name.ilike(f"%{account}%")
+        )
     if search:
         q = q.filter(Expense.description.ilike(f"%{search}%"))
     # Exclude future installments (they belong in /installments)
@@ -387,6 +393,7 @@ def get_expense_stats(
     month: str | None = None,
     card: str | None = None,
     bank: str | None = None,
+    account: str | None = None,
     account_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -408,6 +415,11 @@ def get_expense_stats(
             pass
     if account_id:
         q = q.filter(Expense.account_id == account_id)
+    elif account:
+        from app.models import Account
+        q = q.join(Account, Expense.account_id == Account.id, isouter=True).filter(
+            Account.name.ilike(f"%{account}%")
+        )
     elif card:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
             Card.card_name.ilike(f"%{card}%")
@@ -493,7 +505,7 @@ def get_expenses_by_category(
             pass
     if account_id:
         q = q.filter(Expense.account_id == account_id)
-    elif card:
+    if card:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
             Card.card_name.ilike(f"%{card}%")
         )

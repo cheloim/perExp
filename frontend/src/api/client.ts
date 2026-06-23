@@ -95,6 +95,7 @@ export const getExpenses = (params?: {
   bank?: string;
   person?: string;
   card?: string;
+  account?: string;
   search?: string;
   date_from?: string;
   date_to?: string;
@@ -106,6 +107,7 @@ export const getExpenseStats = (params?: {
   month?: string;
   card?: string;
   bank?: string;
+  account?: string;
   account_id?: number;
 }) =>
   api
@@ -368,9 +370,8 @@ export const bulkUpdateFields = (
   ids: number[],
   data: {
     category_id?: number | null;
-    bank?: string;
-    card?: string;
-    person?: string;
+    card_id?: number | null;
+    account_id?: number | null;
   },
 ) => api.patch<{ updated: number }>("/expenses/bulk-update", { ids, ...data }).then((r) => r.data);
 

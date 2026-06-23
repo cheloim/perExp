@@ -4,9 +4,9 @@ import { useUndoToast } from "../hooks/useUndoToast";
 import {
   getExpenses,
   getCategories,
-  getDistinctValues,
   getCards,
   getAccounts,
+  getMyGroup,
   getExpenseStats,
   getExpensesByCategory,
   getExpensesByPerson,
@@ -18,7 +18,6 @@ import {
 import type { Expense, ExpenseCreate } from "../types";
 import { Select } from "../components/ui/Select";
 import { ExpenseModal } from "../components/ExpenseModals";
-import { AutocompleteInput } from "../components/ui/AutocompleteInput";
 import EmptyState from "../components/ui/EmptyState";
 import {
   PieChart,
@@ -56,6 +55,17 @@ function getMissingDataFields(exp: Expense): string[] {
   return missing;
 }
 
+function groupSmallCategories(
+  data: { category_name: string; category_color: string | null; total: number; count: number }[],
+  maxItems = 5,
+) {
+  if (data.length <= maxItems) return { shown: data, hidden: [], hiddenTotal: 0 };
+  const shown = data.slice(0, maxItems);
+  const hidden = data.slice(maxItems);
+  const hiddenTotal = hidden.reduce((s, c) => s + c.total, 0);
+  return { shown, hidden, hiddenTotal };
+}
+
 export default function ExpensesPage() {
   const queryClient = useQueryClient();
   const { filters, setFilter, clearFilters, searchParams, setSearchParams } = useExpenseFilters();
@@ -65,6 +75,7 @@ export default function ExpensesPage() {
   const filterBank = filters.bank;
   const filterPerson = filters.person;
   const filterCard = filters.card;
+  const filterAccount = filters.account;
   const filterDateFrom = filters.dateFrom;
   const filterDateTo = filters.dateTo;
   const filterSearch = filters.search;
@@ -95,6 +106,7 @@ export default function ExpensesPage() {
     filterBank,
     filterPerson,
     filterCard,
+    filterAccount,
     filterDateFrom,
     filterDateTo,
     filterSearch,
@@ -103,7 +115,7 @@ export default function ExpensesPage() {
   const [visibleCount, setVisibleCount] = useState(100);
 
   // Reset visible count when filters change
-  const filterKey = `${filterCategory}-${filterUncategorized}-${filterBank}-${filterPerson}-${filterCard}-${filterDateFrom}-${filterDateTo}-${filterSearch}`;
+  const filterKey = `${filterCategory}-${filterUncategorized}-${filterBank}-${filterPerson}-${filterCard}-${filterAccount}-${filterDateFrom}-${filterDateTo}-${filterSearch}`;
   const prevFilterKey = useRef(filterKey);
   if (filterKey !== prevFilterKey.current) {
     prevFilterKey.current = filterKey;
@@ -120,6 +132,7 @@ export default function ExpensesPage() {
       filterBank,
       filterPerson,
       filterCard,
+      filterAccount,
       filterDateFrom,
       filterDateTo,
       filterSearch,
@@ -131,6 +144,7 @@ export default function ExpensesPage() {
         bank: filterBank,
         person: filterPerson,
         card: filterCard,
+        account: filterAccount,
         date_from: filterDateFrom,
         date_to: filterDateTo,
         search: filterSearch,
@@ -139,20 +153,35 @@ export default function ExpensesPage() {
   });
 
   const { data: categories = [] } = useQuery({ queryKey: ["categories"], queryFn: getCategories });
-  const { data: distinctValues } = useQuery({
-    queryKey: ["distinct-values"],
-    queryFn: getDistinctValues,
-    staleTime: 60_000,
-  });
 
   // Prefetch cards and accounts so modal opens instantly
-  useQuery({ queryKey: ["cards"], queryFn: getCards, staleTime: 300_000 });
-  useQuery({ queryKey: ["accounts"], queryFn: getAccounts, staleTime: 300_000 });
+  const { data: cards = [] } = useQuery({ queryKey: ["cards"], queryFn: getCards, staleTime: 300_000 });
+  const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: getAccounts, staleTime: 300_000 });
+  const { data: myGroup } = useQuery({ queryKey: ["my-group"], queryFn: getMyGroup, staleTime: 300_000 });
+
+  const hasFamilyGroup = myGroup && myGroup.members && myGroup.members.filter((m: any) => m.status === "accepted").length > 1;
+
+  // Combined card/account list for bulk selection
+  const cardAccountOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = [];
+    cards.forEach((c) => {
+      opts.push({ value: `card:${c.id}`, label: `${c.bank} - ${c.card_name}` });
+    });
+    accounts.forEach((a) => {
+      opts.push({ value: `account:${a.id}`, label: a.name });
+    });
+    return opts;
+  }, [cards, accounts]);
 
   // Analytics queries
   const { data: expenseStats } = useQuery({
-    queryKey: ["expense-stats", month],
-    queryFn: () => getExpenseStats({ month: month || undefined }),
+    queryKey: ["expense-stats", month, filterCategory, filterCard, filterAccount],
+    queryFn: () =>
+      getExpenseStats({
+        month: month || undefined,
+        card: filterCard || undefined,
+        account: filterAccount || undefined,
+      }),
   });
 
   const { data: categoryBreakdown = [] } = useQuery({
@@ -165,9 +194,22 @@ export default function ExpensesPage() {
     queryFn: () => getExpensesByPerson({ month: month || undefined }),
   });
 
+  // Categories that match the current search term
+  const matchingCategories = useMemo(() => {
+    if (!filterSearch || expenses.length === 0) return new Set<number>();
+    const ids = new Set<number>();
+    expenses.forEach((e) => {
+      if (e.category_id != null) ids.add(e.category_id);
+    });
+    return ids;
+  }, [filterSearch, expenses]);
+
   const [editing, setEditing] = useState<Expense | null | undefined>(undefined);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState(filterSearch ?? "");
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [selectedDonutCategory, setSelectedDonutCategory] = useState<string | null>(null);
+  const [showAllCategories, setShowAllCategories] = useState(false);
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Sync debouncedSearch when filterSearch changes externally (e.g., clear filters)
@@ -190,13 +232,17 @@ export default function ExpensesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [bulkCategoryId, setBulkCategoryId] = useState<string>("");
-  const [bulkBankValue, setBulkBankValue] = useState("");
-  const [bulkCardValue, setBulkCardValue] = useState("");
-  const [bulkPersonValue, setBulkPersonValue] = useState("");
-  const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; description: string } | null>(
+  const [bulkPaymentMethod, setBulkPaymentMethod] = useState<string>("");  const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; description: string } | null>(
     null,
   );
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+
+  const clearBulkState = () => {
+    setDrawerOpen(false);
+    setSelectedIds(new Set());
+    setBulkCategoryId("");
+    setBulkPaymentMethod("");
+  };
 
   const toggleSelect = (id: number) => {
     setSelectedIds((prev) => {
@@ -211,21 +257,16 @@ export default function ExpensesPage() {
   const bulkFieldMut = useMutation({
     mutationFn: ({
       ids,
-      field,
-      value,
+      ...updateData
     }: {
       ids: number[];
-      field: "category_id" | "bank" | "card" | "person";
-      value: string | number | null;
-    }) => bulkUpdateFields(ids, { [field]: value }),
+      category_id?: number | null;
+      card_id?: number | null;
+      account_id?: number | null;
+    }) => bulkUpdateFields(ids, updateData),
     onSuccess: () => {
       invalidate();
-      setSelectedIds(new Set());
-      setDrawerOpen(false);
-      setBulkCategoryId("");
-      setBulkBankValue("");
-      setBulkCardValue("");
-      setBulkPersonValue("");
+      clearBulkState();
     },
     onError: (e: Error) => {
       console.error("Bulk update failed:", e);
@@ -233,19 +274,32 @@ export default function ExpensesPage() {
     },
   });
 
-  const handleBulkFieldUpdate = (
-    field: "category_id" | "bank" | "card" | "person",
-    value: string | number | null,
-  ) => {
+  const handleBulkApply = () => {
     if (selectedIds.size === 0) return;
-    bulkFieldMut.mutate({ ids: Array.from(selectedIds), field, value });
+    const updateData: { category_id?: number | null; card_id?: number | null; account_id?: number | null } = {};
+    if (bulkCategoryId !== "") {
+      updateData.category_id = bulkCategoryId === "__none__" ? null : parseInt(bulkCategoryId);
+    }
+    if (bulkPaymentMethod) {
+      const [type, id] = bulkPaymentMethod.split(":");
+      if (type === "card") updateData.card_id = parseInt(id);
+      else if (type === "account") updateData.account_id = parseInt(id);
+    }
+    if (Object.keys(updateData).length === 0) return;
+    bulkFieldMut.mutate({ ids: Array.from(selectedIds), ...updateData });
   };
 
   const bulkDeleteMut = useMutation({
     mutationFn: (ids: number[]) => Promise.all(ids.map((id) => deleteExpense(id))),
     onSuccess: () => {
       invalidate();
-      setSelectedIds(new Set());
+      clearBulkState();
+      setBulkDeleteConfirm(false);
+    },
+    onError: (e: Error) => {
+      console.error("Bulk delete failed:", e);
+      setSaveError("Error al eliminar");
+      setBulkDeleteConfirm(false);
     },
   });
 
@@ -389,11 +443,11 @@ export default function ExpensesPage() {
           <button
             onClick={() => {
               setSelectMode((v) => !v);
-              setSelectedIds(new Set());
+              clearBulkState();
             }}
             className={`gnome-btn-secondary-round text-sm ${
               selectMode
-                ? "bg-[var(--color-primary)] text-[var(--color-on-primary)] border-transparent"
+                ? "bg-[var(--color-primary)] text-[var(--color-on-primary)] border-transparent hover:bg-[var(--color-primary)] hover:text-[var(--color-on-primary)] hover:border-transparent hover:shadow-md"
                 : ""
             }`}
           >
@@ -419,23 +473,37 @@ export default function ExpensesPage() {
         </div>
       </div>
 
-      {/* Filter panel */}
-      <div className="card p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-[var(--text-primary)]">Filtros</span>
-          {activeFiltersCount > 0 && (
-            <button
-              onClick={clearFilters}
-              className="text-xs text-[var(--text-secondary)] hover:text-[var(--color-primary)] flex items-center gap-1"
-            >
+      {/* Filter panel - collapsible */}
+      <div className="card">
+        <button
+          onClick={() => setFiltersExpanded(!filtersExpanded)}
+          className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--color-base-alt)] transition"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-[var(--text-primary)]">Filtros</span>
+            {activeFiltersCount > 0 && (
               <span className="bg-[var(--color-primary)] text-[var(--color-on-primary)] text-[10px] px-1.5 py-0.5 rounded-full">
                 {activeFiltersCount}
               </span>
-              Limpiar filtros
-            </button>
-          )}
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {activeFiltersCount > 0 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); clearFilters(); }}
+                className="text-xs px-2.5 py-1 rounded-full border border-[var(--color-primary)] text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 transition"
+              >
+                Limpiar ({activeFiltersCount})
+              </button>
+            )}
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className={`transition-transform ${filtersExpanded ? "rotate-180" : ""}`}>
+              <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+        </button>
+        {filtersExpanded && (
+          <div className="px-4 pb-4 space-y-3 border-t border-[var(--border-color)]">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 pt-3">
           {/* Categoría */}
           {(() => {
             const groups = categoryGroupOptions(categories);
@@ -452,29 +520,51 @@ export default function ExpensesPage() {
             );
           })()}
 
-          {/* Banco */}
-          <Select
-            value={filterBank ?? ""}
-            onChange={(v) => setFilter("bank", v || undefined)}
-            options={(distinctValues?.banks ?? []).map((b) => ({ value: b, label: b }))}
-            placeholder="Banco"
-          />
-
-          {/* Persona */}
-          <Select
-            value={filterPerson ?? ""}
-            onChange={(v) => setFilter("person", v || undefined)}
-            options={(distinctValues?.persons ?? []).map((p) => ({ value: p, label: p }))}
-            placeholder="Persona"
-          />
-
-          {/* Tarjeta */}
-          <Select
-            value={filterCard ?? ""}
-            onChange={(v) => setFilter("card", v || undefined)}
-            options={(distinctValues?.cards ?? []).map((c) => ({ value: c, label: c }))}
-            placeholder="Tarjeta"
-          />
+          {/* Cuenta (Banco + Tarjeta unificados) */}
+          {(() => {
+            const cuentaOptions: { value: string; label: string }[] = [];
+            // Cards from API: "Bank - Card"
+            cards.forEach((c) => {
+              cuentaOptions.push({ value: `card:${c.id}`, label: `${c.bank} - ${c.card_name}` });
+            });
+            // Accounts from API: just name
+            accounts.forEach((a) => {
+              cuentaOptions.push({ value: `account:${a.id}`, label: a.name });
+            });
+            const currentCuenta = filterCard ? `card:${filterCard}` : filterAccount ? `account:${filterAccount}` : "";
+            return (
+              <Select
+                value={currentCuenta}
+                onChange={(v) => {
+                  if (v.startsWith("card:")) {
+                    const cardId = v.replace("card:", "");
+                    const found = cards.find((c) => String(c.id) === cardId);
+                    // Combined update to avoid stale searchParams
+                    const next = new URLSearchParams(searchParams);
+                    if (found?.card_name) next.set("card", found.card_name);
+                    else next.delete("card");
+                    next.delete("account");
+                    setSearchParams(next);
+                  } else if (v.startsWith("account:")) {
+                    const accountId = v.replace("account:", "");
+                    const found = accounts.find((a) => String(a.id) === accountId);
+                    const next = new URLSearchParams(searchParams);
+                    if (found?.name) next.set("account", found.name);
+                    else next.delete("account");
+                    next.delete("card");
+                    setSearchParams(next);
+                  } else {
+                    const next = new URLSearchParams(searchParams);
+                    next.delete("card");
+                    next.delete("account");
+                    setSearchParams(next);
+                  }
+                }}
+                options={cuentaOptions}
+                placeholder="Cuenta"
+              />
+            );
+          })()}
 
           {/* Desde */}
           <input
@@ -503,6 +593,8 @@ export default function ExpensesPage() {
           placeholder="Buscar en descripción..."
           className="w-full text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition placeholder:text-[var(--text-tertiary)]"
         />
+          </div>
+        )}
       </div>
 
       {/* Stats cards + Charts */}
@@ -535,44 +627,107 @@ export default function ExpensesPage() {
             </div>
 
             {/* Charts row */}
-            {categoryBreakdown.length > 0 && (
-              <div className="card p-4">
-                <h3 className="text-sm font-medium text-secondary mb-3">Por Categoría</h3>
-                <div className="flex flex-col sm:flex-row items-center gap-4">
-                  <ResponsiveContainer width={160} height={160}>
-                    <PieChart>
-                      <Pie
-                        data={categoryBreakdown.slice(0, 6)}
-                        dataKey="total"
-                        nameKey="category_name"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={65}
-                        innerRadius={35}
-                        paddingAngle={2}
-                      >
-                        {categoryBreakdown.slice(0, 6).map((entry, i) => (
-                          <Cell key={i} fill={entry.category_color || "#94a3b8"} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        formatter={(v: number) => formatCurrency(v)}
-                        contentStyle={{ fontSize: 11, borderRadius: 6 }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="flex-1 grid grid-cols-2 gap-x-6 gap-y-1.5">
-                    {categoryBreakdown.slice(0, 6).map((cat, i) => (
-                      <div key={i} className="flex items-center gap-2 text-xs">
-                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.category_color || "#94a3b8" }} />
-                        <span className="text-secondary truncate flex-1">{cat.category_name}</span>
-                        <span className="text-primary font-medium whitespace-nowrap">{formatCurrency(cat.total)}</span>
-                      </div>
-                    ))}
+            {categoryBreakdown.length > 0 && (() => {
+              const { shown, hidden, hiddenTotal } = groupSmallCategories(categoryBreakdown, 12);
+              const displayCategories = showAllCategories ? categoryBreakdown : shown;
+              const pieData = [
+                ...displayCategories.map((c) => ({ name: c.category_name, value: c.total, color: c.category_color, categoryId: c.category_id })),
+                ...(!showAllCategories && hidden.length > 0 ? [{ name: `Otros (${hidden.length})`, value: hiddenTotal, color: "#94a3b8", categoryId: null }] : []),
+              ];
+              return (
+                <div className="card p-4">
+                  <h3 className="text-sm font-medium text-secondary mb-3">Por Categoría</h3>
+                  <div className="flex flex-col sm:flex-row items-center gap-4">
+                    <ResponsiveContainer width={200} height={200}>
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={80}
+                          innerRadius={45}
+                          paddingAngle={2}
+                          onClick={(entry) => {
+                            const name = entry.name;
+                            if (name.startsWith("Otros")) return;
+                            if (selectedDonutCategory === name) {
+                              setSelectedDonutCategory(null);
+                              handleCategoryFilter("");
+                            } else {
+                              setSelectedDonutCategory(name);
+                              const cat = categoryBreakdown.find((c) => c.category_name === name);
+                              if (cat?.category_id) handleCategoryFilter(String(cat.category_id));
+                            }
+                          }}
+                          style={{ cursor: "pointer" }}
+                        >
+                          {pieData.map((entry, i) => {
+                            const isSelected = selectedDonutCategory === entry.name;
+                            const isSearchMatch = filterSearch && matchingCategories.size > 0 && entry.categoryId != null && matchingCategories.has(entry.categoryId);
+                            const isHighlighted = selectedDonutCategory ? isSelected : (filterSearch ? isSearchMatch : true);
+                            return (
+                              <Cell
+                                key={i}
+                                fill={entry.color || "#94a3b8"}
+                                opacity={isHighlighted ? 1 : 0.3}
+                              />
+                            );
+                          })}
+                        </Pie>
+                        <Tooltip
+                          formatter={(v: number) => formatCurrency(v)}
+                          contentStyle={{ fontSize: 11, borderRadius: 6 }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="flex-1 max-h-[220px] overflow-y-auto grid grid-cols-2 gap-x-6 gap-y-1.5">
+                      {displayCategories.map((cat, i) => (
+                        <button
+                          key={i}
+                          onClick={() => {
+                            if (selectedDonutCategory === cat.category_name) {
+                              setSelectedDonutCategory(null);
+                              handleCategoryFilter("");
+                            } else {
+                              setSelectedDonutCategory(cat.category_name);
+                              if (cat.category_id) handleCategoryFilter(String(cat.category_id));
+                            }
+                          }}
+                          className={`flex items-center gap-2 text-xs text-left w-full rounded px-1 py-0.5 transition ${
+                            selectedDonutCategory === cat.category_name
+                              ? "bg-[var(--color-primary)]/10"
+                              : filterSearch && matchingCategories.has(cat.category_id)
+                                ? "bg-[var(--color-primary)]/5"
+                                : "hover:bg-[var(--color-base-alt)]"
+                          }`}
+                        >
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.category_color || "#94a3b8" }} />
+                          <span className="text-secondary truncate flex-1">{cat.category_name}</span>
+                          <span className="text-primary font-medium whitespace-nowrap">{formatCurrency(cat.total)}</span>
+                        </button>
+                      ))}
+                      {!showAllCategories && hidden.length > 0 && (
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="w-2 h-2 rounded-full flex-shrink-0 bg-[#94a3b8]" />
+                          <span className="text-secondary truncate flex-1">Otros ({hidden.length})</span>
+                          <span className="text-primary font-medium whitespace-nowrap">{formatCurrency(hiddenTotal)}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
+                  {hidden.length > 0 && (
+                    <button
+                      onClick={() => setShowAllCategories(!showAllCategories)}
+                      className="mt-2 text-xs text-[var(--color-primary)] hover:underline"
+                    >
+                      {showAllCategories ? "Mostrar top 12" : `Ver todas las ${categoryBreakdown.length} categorías`}
+                    </button>
+                  )}
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {personBreakdown.length > 1 && (
               <div className="card p-4">
@@ -882,7 +1037,7 @@ export default function ExpensesPage() {
         <>
           <div
             className="fixed inset-0 z-40 bg-black/30 transition-opacity"
-            onClick={() => setDrawerOpen(false)}
+            onClick={clearBulkState}
           />
           <div className="fixed right-0 top-0 z-50 h-full w-full sm:w-80 bg-[var(--color-surface)] border-l border-[var(--border-color)] shadow-gnome-lg flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-[var(--border-color)]">
@@ -893,57 +1048,45 @@ export default function ExpensesPage() {
                 </p>
               </div>
               <button
-                onClick={() => setDrawerOpen(false)}
+                onClick={clearBulkState}
                 className="p-1.5 rounded-md hover:bg-[var(--color-base-alt)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition"
               >
                 ✕
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-5">
+            <div className="flex-1 p-4 space-y-5">
               <div>
                 <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Asignar categoría</label>
                 <Select
                   value={bulkCategoryId}
-                  onChange={(v) => { setBulkCategoryId(v); if (v) handleBulkFieldUpdate("category_id", parseInt(v)); }}
-                  options={[{ value: "", label: "Sin categoría" }]}
+                  onChange={setBulkCategoryId}
+                  options={[{ value: "__none__", label: "Sin categoría" }]}
                   groups={categoryGroupOptions(categories)}
                   placeholder="Seleccionar..."
                 />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Asignar banco</label>
-                <AutocompleteInput
-                  value={bulkBankValue}
-                  onChange={setBulkBankValue}
-                  onSelect={(v) => { handleBulkFieldUpdate("bank", v); setBulkBankValue(""); }}
-                  options={distinctValues?.banks ?? []}
-                  placeholder="Seleccionar banco..."
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Asignar tarjeta</label>
-                <AutocompleteInput
-                  value={bulkCardValue}
-                  onChange={setBulkCardValue}
-                  onSelect={(v) => { handleBulkFieldUpdate("card", v); setBulkCardValue(""); }}
-                  options={distinctValues?.cards ?? []}
-                  placeholder="Seleccionar tarjeta..."
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Asignar titular</label>
-                <AutocompleteInput
-                  value={bulkPersonValue}
-                  onChange={setBulkPersonValue}
-                  onSelect={(v) => { handleBulkFieldUpdate("person", v); setBulkPersonValue(""); }}
-                  options={distinctValues?.persons ?? []}
-                  placeholder="Seleccionar titular..."
-                />
-              </div>
+              {cardAccountOptions.length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Asignar tarjeta / cuenta</label>
+                  <Select
+                    value={bulkPaymentMethod}
+                    onChange={setBulkPaymentMethod}
+                    options={cardAccountOptions}
+                    placeholder="Seleccionar..."
+                  />
+                </div>
+              )}
             </div>
 
             <div className="p-4 border-t border-[var(--border-color)] flex gap-2">
+              <button
+                onClick={handleBulkApply}
+                disabled={bulkFieldMut.isPending || bulkCategoryId === ""}
+                className="flex-1 px-4 py-2 rounded-md bg-[var(--color-primary)] text-[var(--color-on-primary)] text-sm font-medium hover:brightness-110 disabled:opacity-50 transition"
+              >
+                {bulkFieldMut.isPending ? "Aplicando…" : "Aplicar cambios"}
+              </button>
               <button
                 onClick={() => setBulkDeleteConfirm(true)}
                 disabled={bulkDeleteMut.isPending}
@@ -953,12 +1096,6 @@ export default function ExpensesPage() {
                   <path d="M3 4h8M5 4V3a1 1 0 011-1h2a1 1 0 011 1v1M4.5 4v7a1 1 0 001 1h3a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 Eliminar
-              </button>
-              <button
-                onClick={() => { setDrawerOpen(false); setSelectedIds(new Set()); }}
-                className="flex-1 px-4 py-2 rounded-md border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] text-sm font-medium transition"
-              >
-                Cancelar
               </button>
             </div>
           </div>
