@@ -90,6 +90,7 @@ export const deleteCategory = (id: number) => api.delete(`/categories/${id}`).th
 // Expenses
 export const getExpenses = (params?: {
   category_id?: number;
+  category_ids?: string;
   uncategorized?: boolean;
   month?: string;
   bank?: string;

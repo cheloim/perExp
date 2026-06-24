@@ -27,6 +27,7 @@ def get_expenses(
     date_to: date | None = None,
     month: str | None = None,
     category_id: int | None = None,
+    category_ids: str | None = None,
     uncategorized: bool = False,
     bank: str | None = None,
     person: str | None = None,
@@ -59,6 +60,10 @@ def get_expenses(
         q = q.filter(Expense.date <= date_to)
     if category_id is not None:
         q = q.filter(Expense.category_id == category_id)
+    elif category_ids:
+        id_list = [int(x) for x in category_ids.split(",") if x.strip().isdigit()]
+        if id_list:
+            q = q.filter(Expense.category_id.in_(id_list))
     elif uncategorized:
         q = q.filter(Expense.category_id.is_(None))
     if bank:

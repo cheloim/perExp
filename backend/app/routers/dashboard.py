@@ -6,7 +6,7 @@ from collections import Counter, defaultdict
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
@@ -753,7 +753,9 @@ def get_top_merchants(
     current_user: User = Depends(get_current_user),
 ):
     uid_list = get_group_user_ids(current_user.id, db)
-    q = db.query(Expense).filter(Expense.user_id.in_(uid_list))
+    q = db.query(Expense.description, Expense.amount, Expense.category_id).filter(
+        Expense.user_id.in_(uid_list), Expense.amount > 0
+    )
     if month:
         try:
             y, m = int(month[:4]), int(month[5:7])
@@ -767,19 +769,23 @@ def get_top_merchants(
     if bank:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(Card.bank.ilike(f"%{bank}%"))
 
-    expenses = q.filter(Expense.amount > 0).all()
-    cat_list = db.query(Category).all()
-    cat_map = {c.id: c for c in cat_list}
+    rows = q.all()
 
     groups: dict = {}
-    for e in expenses:
-        key = e.description.lower().strip()
+    for desc, amount, cat_id in rows:
+        key = desc.lower().strip()
         if key not in groups:
-            groups[key] = {"description": e.description, "total": 0.0, "count": 0, "cats": []}
-        groups[key]["total"] += e.amount
+            groups[key] = {"description": desc, "total": 0.0, "count": 0, "cats": []}
+        groups[key]["total"] += amount
         groups[key]["count"] += 1
-        if e.category_id:
-            groups[key]["cats"].append(e.category_id)
+        if cat_id:
+            groups[key]["cats"].append(cat_id)
+
+    cat_ids = set()
+    for g in groups.values():
+        if g["cats"]:
+            cat_ids.add(Counter(g["cats"]).most_common(1)[0][0])
+    cat_map = {c.id: c for c in db.query(Category).filter(Category.id.in_(cat_ids)).all()} if cat_ids else {}
 
     result = []
     for g in groups.values():
@@ -994,29 +1000,33 @@ def get_category_trend(
             y -= 1
         month_keys.append(f"{y}-{m:02d}")
 
-    cats_list = db.query(Category).all()
-    cats_by_id = {c.id: c for c in cats_list}
-
     start = date.fromisoformat(f"{month_keys[0]}-01")
-    exps = (
-        db.query(Expense)
-        .filter(Expense.user_id.in_(uid_list), Expense.amount > 0, Expense.date >= start)
+
+    rows_raw = (
+        db.query(
+            func.to_char(Expense.date, "YYYY-MM").label("month"),
+            func.coalesce(Category.name, "Sin categoría").label("cat_name"),
+            func.coalesce(Category.color, "#94a3b8").label("cat_color"),
+            func.sum(Expense.amount).label("total"),
+        )
+        .outerjoin(Category, Expense.category_id == Category.id)
+        .filter(
+            Expense.user_id.in_(uid_list),
+            Expense.amount > 0,
+            Expense.date >= start,
+        )
+        .group_by(func.to_char(Expense.date, "YYYY-MM"), Category.name, Category.color)
         .all()
     )
 
     data: dict = {mk: {} for mk in month_keys}
     cat_colors: dict = {}
-    for e in exps:
-        if not e.date:
-            continue
-        mk = e.date.strftime("%Y-%m")
+    for row in rows_raw:
+        mk = row.month
         if mk not in data:
             continue
-        cat = cats_by_id.get(e.category_id) if e.category_id else None
-        cat_name = cat.name if cat else "Sin categoría"
-        cat_color = cat.color if cat else "#94a3b8"
-        cat_colors[cat_name] = cat_color
-        data[mk][cat_name] = data[mk].get(cat_name, 0.0) + e.amount
+        data[mk][row.cat_name] = float(row.total)
+        cat_colors[row.cat_name] = row.cat_color
 
     rows = [{"month": mk, **data[mk]} for mk in month_keys]
     categories = [{"name": n, "color": c} for n, c in cat_colors.items()]
