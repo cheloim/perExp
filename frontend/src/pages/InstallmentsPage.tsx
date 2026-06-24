@@ -26,7 +26,7 @@ import { formatCurrency, toUpperCase, formatDateDMY, MONTHS_ES_SHORT } from "../
 
 export default function InstallmentsPage() {
   const queryClient = useQueryClient();
-  const [bankFilter, setBankFilter] = useState<string | null>(null);
+  const [paymentFilter, setPaymentFilter] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<InstallmentGroup | null>(null);
@@ -109,12 +109,17 @@ export default function InstallmentsPage() {
   const currentMonthTotal = currentMonthData?.total ?? 0;
   const currentMonthCount = currentMonthData?.count ?? 0;
 
-  const banks = [...new Set(groups.map((g) => g.bank).filter(Boolean))].sort();
+  const paymentMethods = [...new Set(
+    groups.map((g) => g.card ? `${g.bank} · ${g.card}` : g.bank || "Sin definir")
+  )].sort();
   const categories = [...new Set(groups.map((g) => g.category_name).filter(Boolean))].sort();
 
   const filtered = groups.filter((g) => {
     if (!showCompleted && g.remaining_installments === 0) return false;
-    if (bankFilter && g.bank !== bankFilter) return false;
+    if (paymentFilter) {
+      const displayKey = g.card ? `${g.bank} · ${g.card}` : g.bank || "Sin definir";
+      if (displayKey !== paymentFilter) return false;
+    }
     if (categoryFilter && g.category_name !== categoryFilter) return false;
     return true;
   });
@@ -425,9 +430,9 @@ export default function InstallmentsPage() {
               <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
                 Filtros
               </h2>
-              {(bankFilter || categoryFilter) && (
+              {(paymentFilter || categoryFilter) && (
                 <button
-                  onClick={() => { setBankFilter(null); setCategoryFilter(null); }}
+                  onClick={() => { setPaymentFilter(null); setCategoryFilter(null); }}
                   className="text-xs transition-colors hover:text-[var(--text-primary)]"
                   style={{ color: "var(--text-secondary)" }}
                 >
@@ -440,42 +445,42 @@ export default function InstallmentsPage() {
               {filtered.length} cuotas · {activeGroups.length} grupos activos
             </p>
 
-            {banks.length > 0 && (
+            {paymentMethods.length > 0 && (
               <div>
                 <p
                   className="text-[10px] uppercase tracking-wide mb-1.5"
                   style={{ color: "var(--text-secondary)" }}
                 >
-                  Banco
+                  Medio de pago
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {banks.length > 1 && (
+                  {paymentMethods.length > 1 && (
                     <button
-                      onClick={() => setBankFilter(null)}
+                      onClick={() => setPaymentFilter(null)}
                       className="text-xs px-3 py-1.5 rounded-lg border transition-all"
                       style={{
-                        backgroundColor: !bankFilter ? "var(--color-primary)" : "transparent",
-                        color: !bankFilter ? "var(--color-on-primary)" : "var(--text-secondary)",
-                        borderColor: !bankFilter ? "var(--color-primary)" : "var(--border-color)",
+                        backgroundColor: !paymentFilter ? "var(--color-primary)" : "transparent",
+                        color: !paymentFilter ? "var(--color-on-primary)" : "var(--text-secondary)",
+                        borderColor: !paymentFilter ? "var(--color-primary)" : "var(--border-color)",
                       }}
                     >
                       Todos
                     </button>
                   )}
-                  {banks.map((b) => (
+                  {paymentMethods.map((pm) => (
                     <button
-                      key={b}
-                      onClick={() => setBankFilter(bankFilter === b ? null : b)}
+                      key={pm}
+                      onClick={() => setPaymentFilter(paymentFilter === pm ? null : pm)}
                       className="text-xs px-3 py-1.5 rounded-lg border transition-all"
                       style={{
-                        backgroundColor: bankFilter === b ? "var(--color-primary)" : "transparent",
+                        backgroundColor: paymentFilter === pm ? "var(--color-primary)" : "transparent",
                         color:
-                          bankFilter === b ? "var(--color-on-primary)" : "var(--text-secondary)",
+                          paymentFilter === pm ? "var(--color-on-primary)" : "var(--text-secondary)",
                         borderColor:
-                          bankFilter === b ? "var(--color-primary)" : "var(--border-color)",
+                          paymentFilter === pm ? "var(--color-primary)" : "var(--border-color)",
                       }}
                     >
-                      {b}
+                      {pm}
                     </button>
                   ))}
                 </div>
