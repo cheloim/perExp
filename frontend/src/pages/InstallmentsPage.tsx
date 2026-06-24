@@ -24,144 +24,9 @@ import { ExpenseModal } from "../components/ExpenseModals";
 import { formatCurrency, toUpperCase, formatDateDMY, MONTHS_ES_SHORT } from "../utils/format";
 
 
-type CardNetwork = "visa" | "mastercard" | "amex" | "unknown";
-
-function detectNetwork(cardName: string): CardNetwork {
-  const s = cardName.toLowerCase();
-  if (s.includes("visa")) return "visa";
-  if (s.includes("mastercard") || s.includes("master")) return "mastercard";
-  if (s.includes("amex") || s.includes("american")) return "amex";
-  return "unknown";
-}
-
-function VisaLogo() {
-  return (
-    <svg width="38" height="14" viewBox="0 0 52 18" fill="none">
-      <text
-        x="1"
-        y="15"
-        fontFamily="Arial Black, Arial, sans-serif"
-        fontSize="17"
-        fontWeight="900"
-        fontStyle="italic"
-        fill="white"
-        letterSpacing="2"
-      >
-        VISA
-      </text>
-    </svg>
-  );
-}
-
-function MastercardLogo() {
-  return (
-    <svg width="32" height="22" viewBox="0 0 42 28" fill="none">
-      <circle cx="15" cy="14" r="13" fill="#EB001B" />
-      <circle cx="27" cy="14" r="13" fill="#F79E1B" fillOpacity="0.92" />
-    </svg>
-  );
-}
-
-function AmexLogo() {
-  return (
-    <svg width="38" height="18" viewBox="0 0 46 22" fill="none">
-      <rect width="46" height="22" rx="3" fill="rgba(255,255,255,0.25)" />
-      <text
-        x="23"
-        y="15.5"
-        textAnchor="middle"
-        fontFamily="Arial, sans-serif"
-        fontSize="10"
-        fontWeight="bold"
-        fill="white"
-        letterSpacing="1.5"
-      >
-        AMEX
-      </text>
-    </svg>
-  );
-}
-
-function CardNetworkLogo({ network }: { network: CardNetwork }) {
-  if (network === "visa") return <VisaLogo />;
-  if (network === "mastercard") return <MastercardLogo />;
-  if (network === "amex") return <AmexLogo />;
-  return null;
-}
-
-const CARD_GRADIENTS = [
-  "from-[#3584e4] to-[#1c71d8]",
-  "from-[#26a269] to-[#1b7f3e]",
-  "from-[#c64600] to-[#a35100]",
-  "from-[#9141ac] to-[#613583]",
-  "from-[#62a0ea] to-[#3584e4]",
-  "from-[#e5a50a] to-[#b78c09]",
-];
-
-interface CardEntry {
-  key: string;
-  card_id: number | null;
-  bank: string;
-  person: string;
-  pendingTotal: number;
-  currency: string;
-}
-
-function InstallmentCard({
-  entry,
-  active,
-  onClick,
-  index,
-}: {
-  entry: CardEntry;
-  active: boolean;
-  onClick: () => void;
-  index: number;
-}) {
-  const network = detectNetwork(entry.bank);
-  const color = CARD_GRADIENTS[index % CARD_GRADIENTS.length];
-
-  return (
-    <div
-      onClick={onClick}
-      className={`relative rounded-xl p-4 bg-gradient-to-br ${color} cursor-pointer transition-all duration-200 hover:scale-[1.02] shadow-md ${
-        active ? "ring-2 ring-white/60 scale-[1.02]" : "opacity-90 hover:opacity-100"
-      }`}
-      style={{ minWidth: 200, maxWidth: 280, minHeight: 120 }}
-    >
-      <div className="flex justify-between items-start">
-        <div className="min-w-0 flex-1">
-          <p className="text-white/70 text-[11px] font-medium tracking-widest uppercase truncate">
-            {entry.bank || "Banco"}
-          </p>
-          <p className="text-white text-sm font-semibold tracking-wide truncate">{entry.bank}</p>
-        </div>
-        <div className="flex-shrink-0 ml-2">
-          <CardNetworkLogo network={network} />
-        </div>
-      </div>
-
-      <div className="mt-3 mb-1 w-6 h-4 rounded-sm bg-yellow-300/80 border border-yellow-400/60 flex items-center justify-center">
-        <div className="w-4 h-2.5 rounded-sm border border-yellow-500/50 grid grid-cols-2 gap-px p-px">
-          <div className="bg-yellow-500/30 rounded-sm" />
-          <div className="bg-yellow-500/30 rounded-sm" />
-          <div className="bg-yellow-500/30 rounded-sm" />
-          <div className="bg-yellow-500/30 rounded-sm" />
-        </div>
-      </div>
-
-      <p className="text-white/60 text-[10px] mt-1">Cuotas pendientes</p>
-      <p className="text-white font-bold text-lg leading-tight">
-        {formatCurrency(entry.pendingTotal, entry.currency)}
-      </p>
-    </div>
-  );
-}
-
 export default function InstallmentsPage() {
   const queryClient = useQueryClient();
   const [bankFilter, setBankFilter] = useState<string | null>(null);
-  const [activeCardKey, setActiveCardKey] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<InstallmentGroup | null>(null);
   const [showScheduledModal, setShowScheduledModal] = useState(false);
@@ -177,6 +42,7 @@ export default function InstallmentsPage() {
       queryClient.invalidateQueries({ queryKey: ["installments-monthly-load"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
+    onError: (err: Error) => setSaveError(err.message),
   });
 
   const { data: groups = [], isLoading } = useQuery({
@@ -191,7 +57,7 @@ export default function InstallmentsPage() {
     staleTime: 60_000,
   });
 
-  const { data: scheduledForGroup = [] } = useQuery({
+  const { data: scheduledForGroup = [], isLoading: scheduledLoading } = useQuery({
     queryKey: ["scheduled-expenses", selectedGroup?.installment_group_id],
     queryFn: () =>
       getScheduledExpenses({
@@ -207,6 +73,7 @@ export default function InstallmentsPage() {
       queryClient.invalidateQueries({ queryKey: ["installments"] });
       queryClient.invalidateQueries({ queryKey: ["scheduled-expenses"] });
     },
+    onError: () => alert("Error al ejecutar el pago"),
   });
 
   useEffect(() => {
@@ -224,6 +91,7 @@ export default function InstallmentsPage() {
       queryClient.invalidateQueries({ queryKey: ["installments"] });
       queryClient.invalidateQueries({ queryKey: ["scheduled-expenses"] });
     },
+    onError: () => alert("Error al cancelar"),
   });
 
   const now = new Date();
@@ -240,34 +108,11 @@ export default function InstallmentsPage() {
   const currentMonthTotal = currentMonthData?.total ?? 0;
   const currentMonthCount = currentMonthData?.count ?? 0;
 
-  const cardMap = new Map<string, CardEntry>();
-  for (const g of activeGroups) {
-    const key = g.card_id ? `card_${g.card_id}` : `bank_person_${g.bank}|${g.person}`;
-    if (!cardMap.has(key)) {
-      cardMap.set(key, {
-        key,
-        card_id: g.card_id,
-        bank: g.bank,
-        person: g.person,
-        pendingTotal: 0,
-        currency: g.currency,
-      });
-    }
-    cardMap.get(key)!.pendingTotal += g.installment_amount * g.remaining_installments;
-  }
-  const cardEntries = Array.from(cardMap.values());
-
   const banks = [...new Set(groups.map((g) => g.bank).filter(Boolean))].sort();
-
-  const activeCard = activeCardKey ? cardEntries.find((c) => c.key === activeCardKey) : null;
 
   const filtered = groups.filter((g) => {
     if (!showCompleted && g.remaining_installments === 0) return false;
     if (bankFilter && g.bank !== bankFilter) return false;
-    if (activeCard) {
-      const groupKey = g.card_id ? `card_${g.card_id}` : `bank_person_${g.bank}|${g.person}`;
-      if (groupKey !== activeCard.key) return false;
-    }
     return true;
   });
 
@@ -535,14 +380,7 @@ export default function InstallmentsPage() {
                                 setSelectedGroup(g);
                                 setShowScheduledModal(true);
                               }}
-                              className="text-xs underline transition-colors"
-                              style={{ color: "var(--text-secondary)" }}
-                              onMouseEnter={(e) =>
-                                (e.currentTarget.style.color = "var(--text-primary)")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.currentTarget.style.color = "var(--text-secondary)")
-                              }
+                              className="text-xs underline transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                             >
                               Gestionar
                             </button>
@@ -582,18 +420,13 @@ export default function InstallmentsPage() {
           <div className="card p-5 sticky top-4 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
-                Tarjetas
+                Filtros
               </h2>
-              {(bankFilter || activeCardKey) && (
+              {bankFilter && (
                 <button
-                  onClick={() => {
-                    setBankFilter(null);
-                    setActiveCardKey(null);
-                  }}
-                  className="text-xs transition-colors"
+                  onClick={() => setBankFilter(null)}
+                  className="text-xs transition-colors hover:text-[var(--text-primary)]"
                   style={{ color: "var(--text-secondary)" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
                 >
                   Limpiar
                 </button>
@@ -639,20 +472,6 @@ export default function InstallmentsPage() {
                 </div>
               </div>
             )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-3">
-              {cardEntries
-                .filter((c) => !bankFilter || c.bank === bankFilter)
-                .map((entry, idx) => (
-                  <InstallmentCard
-                    key={entry.key}
-                    entry={entry}
-                    active={activeCardKey === entry.key}
-                    onClick={() => setActiveCardKey(activeCardKey === entry.key ? null : entry.key)}
-                    index={idx}
-                  />
-                ))}
-            </div>
           </div>
         </div>
       </div>
@@ -676,17 +495,20 @@ export default function InstallmentsPage() {
               </h2>
               <button
                 onClick={() => setShowScheduledModal(false)}
-                className="text-lg leading-none transition-colors"
-                style={{ color: "var(--text-secondary)" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+                className="text-lg leading-none transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               >
                 ✕
               </button>
             </div>
 
             <div className="space-y-2">
-              {scheduledForGroup.length === 0 ? (
+              {scheduledLoading ? (
+                <div className="space-y-2 py-4">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="h-16 rounded-lg bg-[var(--color-base-alt)] animate-pulse" />
+                  ))}
+                </div>
+              ) : scheduledForGroup.length === 0 ? (
                 <p className="text-sm text-center py-4" style={{ color: "var(--text-secondary)" }}>
                   No hay cuotas programadas
                 </p>
@@ -694,12 +516,7 @@ export default function InstallmentsPage() {
                 scheduledForGroup.map((s) => (
                   <div
                     key={s.id}
-                    className="flex items-center justify-between p-3 rounded-lg transition-colors"
-                    style={{ backgroundColor: "transparent" }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.backgroundColor = "var(--color-base-alt)")
-                    }
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                    className="flex items-center justify-between p-3 rounded-lg transition-colors hover:bg-[var(--color-base-alt)] cursor-pointer"
                   >
                     <div>
                       <p className="font-medium" style={{ color: "var(--text-primary)" }}>
@@ -712,30 +529,14 @@ export default function InstallmentsPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => executeMutation.mutate(s.id)}
-                        className="px-3 py-1.5 text-xs rounded-lg transition-all"
-                        style={{
-                          backgroundColor: "var(--color-primary)",
-                          color: "var(--color-on-primary)",
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.filter = "brightness(1.1)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.filter = "brightness(1)")}
+                        className="px-3 py-1.5 text-xs rounded-lg transition-all bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 active:scale-95"
                         disabled={executeMutation.isPending}
                       >
                         Ejecutar ahora
                       </button>
                       <button
                         onClick={() => setCancelConfirm(s.id)}
-                        className="px-3 py-1.5 text-xs rounded-lg border transition-colors"
-                        style={{
-                          borderColor: "var(--border-color)",
-                          color: "var(--text-secondary)",
-                        }}
-                        onMouseEnter={(e) =>
-                          (e.currentTarget.style.backgroundColor = "var(--color-base-alt)")
-                        }
-                        onMouseLeave={(e) =>
-                          (e.currentTarget.style.backgroundColor = "transparent")
-                        }
+                        className="px-3 py-1.5 text-xs rounded-lg border transition-colors border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
                         disabled={cancelMutation.isPending}
                       >
                         Cancelar
@@ -768,6 +569,7 @@ export default function InstallmentsPage() {
       {editing !== undefined && (
         <ExpenseModal
           initial={editing}
+          mode="installments-only"
           onClose={() => {
             setEditing(undefined);
             setSaveError(null);

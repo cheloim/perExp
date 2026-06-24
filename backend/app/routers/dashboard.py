@@ -583,6 +583,24 @@ def get_installments_monthly_load(
             monthly[key]["count"] += 1
 
     # Future months: project remaining installments per group
+    # Load scheduled expenses to avoid double-counting
+    from app.models import ScheduledExpense
+    scheduled = (
+        db.query(ScheduledExpense)
+        .filter(
+            ScheduledExpense.user_id.in_(uid_list),
+            ScheduledExpense.status == "PENDING",
+            ScheduledExpense.installment_group_id.isnot(None),
+        )
+        .all()
+    )
+    scheduled_months: dict = {}
+    for se in scheduled:
+        if se.installment_group_id not in scheduled_months:
+            scheduled_months[se.installment_group_id] = set()
+        smonth = se.scheduled_date.strftime("%Y-%m") if isinstance(se.scheduled_date, date) else str(se.scheduled_date)[:7]
+        scheduled_months[se.installment_group_id].add(smonth)
+
     groups: dict = {}
     for e in exps:
         gid = e.installment_group_id
@@ -604,6 +622,13 @@ def get_installments_monthly_load(
         for i in range(remaining):
             charge_date = add_months(next_date, i)
             key = charge_date.strftime("%Y-%m")
+            # Skip months that already have scheduled expenses
+            gid = max(
+                (k for k, v in groups.items() if v["paid"] == g["paid"]),
+                default=None,
+            )
+            if gid and gid in scheduled_months and key in scheduled_months[gid]:
+                continue
             if key >= current_month and key in monthly:
                 monthly[key]["total"] += g["amount"]
                 monthly[key]["count"] += 1

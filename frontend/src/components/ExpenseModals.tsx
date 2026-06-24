@@ -125,9 +125,10 @@ interface ExpenseModalProps {
   onSave: (data: ExpenseCreate) => void;
   saveError?: string | null;
   isSaving?: boolean;
+  mode?: "installments-only";
 }
 
-export function ExpenseModal({ initial, onClose, onSave, saveError, isSaving }: ExpenseModalProps) {
+export function ExpenseModal({ initial, onClose, onSave, saveError, isSaving, mode }: ExpenseModalProps) {
   const { data: categories = [] } = useQuery({ queryKey: ["categories"], queryFn: getCategories });
   const { data: cards = [] } = useQuery({ queryKey: ["cards"], queryFn: getCards });
   const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: getAccounts });
@@ -142,9 +143,10 @@ export function ExpenseModal({ initial, onClose, onSave, saveError, isSaving }: 
 
   const isCash = (cardId: number | null | undefined) => !cardId;
   const lastPayment = getLastUsedPayment();
+  const isInstallmentsOnly = mode === "installments-only";
 
   const [payMethod, setPayMethod] = useState<"card" | "cash">(
-    initial ? (isCash(initial.card_id) ? "cash" : "card") : lastPayment.payMethod,
+    isInstallmentsOnly ? "card" : initial ? (isCash(initial.card_id) ? "cash" : "card") : lastPayment.payMethod,
   );
   const [showCardModal, setShowCardModal] = useState(false);
 
@@ -170,8 +172,20 @@ export function ExpenseModal({ initial, onClose, onSave, saveError, isSaving }: 
   });
 
   const [cuotasEnabled, setCuotasEnabled] = useState(
-    !!(initial?.installment_total && initial.installment_total > 1),
+    isInstallmentsOnly || !!(initial?.installment_total && initial.installment_total > 1),
   );
+
+  // Generate installment group ID on mount for installments-only mode
+  useEffect(() => {
+    if (isInstallmentsOnly && !form.installment_group_id) {
+      setForm((prev) => ({
+        ...prev,
+        installment_group_id: crypto.randomUUID(),
+        installment_number: prev.installment_number ?? 1,
+        installment_total: prev.installment_total ?? 1,
+      }));
+    }
+  }, [isInstallmentsOnly]);
 
   const isValid = form.description.trim().length > 0 && form.amount > 0 && form.date.trim().length > 0;
 
@@ -267,6 +281,7 @@ export function ExpenseModal({ initial, onClose, onSave, saveError, isSaving }: 
         )}
 
         {/* Payment method toggle */}
+        {!isInstallmentsOnly && (
         <div>
           <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
             Medio de pago
@@ -296,6 +311,7 @@ export function ExpenseModal({ initial, onClose, onSave, saveError, isSaving }: 
             </button>
           </div>
         </div>
+        )}
 
         <div>
           <label className="text-xs font-medium text-[var(--text-secondary)]">Fecha <span className="text-danger">*</span></label>
@@ -429,6 +445,7 @@ export function ExpenseModal({ initial, onClose, onSave, saveError, isSaving }: 
 
         {payMethod === "card" && (
           <div className="border border-[var(--border-color)] rounded-md p-3 space-y-3">
+            {!isInstallmentsOnly && (
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -440,7 +457,8 @@ export function ExpenseModal({ initial, onClose, onSave, saveError, isSaving }: 
                 Compra en cuotas
               </span>
             </label>
-            {cuotasEnabled && (
+            )}
+            {(cuotasEnabled || isInstallmentsOnly) && (
               <div className="flex items-center gap-3">
                 <div className="flex-1">
                   <label className="text-xs font-medium text-[var(--text-secondary)]">

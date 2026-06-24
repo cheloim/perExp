@@ -35,9 +35,10 @@ def execute_scheduled_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    uid_list = get_group_user_ids(current_user.id, db)
     scheduled = (
         db.query(ScheduledExpense)
-        .filter(ScheduledExpense.id == id, ScheduledExpense.user_id == current_user.id)
+        .filter(ScheduledExpense.id == id, ScheduledExpense.user_id.in_(uid_list))
         .first()
     )
 
@@ -83,9 +84,10 @@ def update_scheduled_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    uid_list = get_group_user_ids(current_user.id, db)
     scheduled = (
         db.query(ScheduledExpense)
-        .filter(ScheduledExpense.id == id, ScheduledExpense.user_id == current_user.id)
+        .filter(ScheduledExpense.id == id, ScheduledExpense.user_id.in_(uid_list))
         .first()
     )
 
@@ -111,9 +113,10 @@ def cancel_scheduled_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    uid_list = get_group_user_ids(current_user.id, db)
     scheduled = (
         db.query(ScheduledExpense)
-        .filter(ScheduledExpense.id == id, ScheduledExpense.user_id == current_user.id)
+        .filter(ScheduledExpense.id == id, ScheduledExpense.user_id.in_(uid_list))
         .first()
     )
 
