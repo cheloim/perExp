@@ -4,11 +4,10 @@ import {
   BarChart,
   Bar,
   XAxis,
-  YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
   Cell,
+  ReferenceLine,
 } from "recharts";
 import {
   getInstallmentsDashboard,
@@ -193,13 +192,23 @@ export default function InstallmentsPage() {
               const currentEntry = monthlyLoad.find((e) => e.is_current);
               const currentTotal = currentEntry?.total ?? 0;
               return (
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={monthlyLoad} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="var(--chart-grid)"
-                      vertical={false}
-                    />
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={monthlyLoad} margin={{ top: 20, right: 8, left: 8, bottom: 0 }}>
+                    <defs>
+                      {monthlyLoad.map((e) => {
+                        let baseColor = "var(--color-primary)";
+                        if (e.is_current) baseColor = "var(--color-success)";
+                        else if (e.is_past) baseColor = "var(--gnome-yellow-3)";
+                        else if (currentTotal > 0)
+                          baseColor = e.total > currentTotal ? "var(--color-danger)" : "var(--color-primary)";
+                        return (
+                          <linearGradient key={e.month} id={`bar-${e.month}`} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={baseColor} stopOpacity={1} />
+                            <stop offset="100%" stopColor={baseColor} stopOpacity={0.55} />
+                          </linearGradient>
+                        );
+                      })}
+                    </defs>
                     <XAxis
                       dataKey="month"
                       tick={{ fontSize: 10, fill: "var(--chart-text)" }}
@@ -207,14 +216,17 @@ export default function InstallmentsPage() {
                         const [y, m] = v.split("-");
                         return `${MONTHS_ES_SHORT[parseInt(m) - 1]} ${y.slice(2)}`;
                       }}
+                      axisLine={false}
+                      tickLine={false}
                     />
-                    <YAxis
-                      tickFormatter={(v) =>
-                        new Intl.NumberFormat("es-AR", { notation: "compact" } as any).format(v)
-                      }
-                      tick={{ fontSize: 11, fill: "var(--chart-text)" }}
-                      width={52}
-                    />
+                    {currentTotal > 0 && (
+                      <ReferenceLine
+                        y={currentTotal}
+                        stroke="var(--text-tertiary)"
+                        strokeDasharray="4 4"
+                        strokeWidth={1}
+                      />
+                    )}
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "var(--chart-tooltip-bg)",
@@ -254,18 +266,24 @@ export default function InstallmentsPage() {
                         return `${MONTHS_ES_SHORT[parseInt(m) - 1]} ${y}`;
                       }}
                     />
-                    <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-                      {monthlyLoad.map((e) => {
-                        let fill = "var(--color-primary)";
-                        if (e.is_current) fill = "var(--color-success)";
-                        else if (e.is_past) fill = "var(--gnome-yellow-3)";
-                        else if (currentTotal > 0)
-                          fill =
-                            e.total > currentTotal ? "var(--color-danger)" : "var(--color-primary)";
-                        return (
-                          <Cell key={e.month} fill={fill} fillOpacity={e.is_past ? 0.75 : 1} />
-                        );
-                      })}
+                    <Bar
+                      dataKey="total"
+                      radius={[4, 4, 0, 0]}
+                      label={{
+                        position: "top",
+                        fontSize: 10,
+                        fill: "var(--text-secondary)",
+                        formatter: (v: number) =>
+                          new Intl.NumberFormat("es-AR", { notation: "compact" }).format(v),
+                      }}
+                    >
+                      {monthlyLoad.map((e) => (
+                        <Cell
+                          key={e.month}
+                          fill={`url(#bar-${e.month})`}
+                          fillOpacity={e.is_past ? 0.7 : 1}
+                        />
+                      ))}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
