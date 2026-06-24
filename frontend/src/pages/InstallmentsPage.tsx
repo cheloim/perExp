@@ -27,6 +27,7 @@ import { formatCurrency, toUpperCase, formatDateDMY, MONTHS_ES_SHORT } from "../
 export default function InstallmentsPage() {
   const queryClient = useQueryClient();
   const [bankFilter, setBankFilter] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<InstallmentGroup | null>(null);
   const [showScheduledModal, setShowScheduledModal] = useState(false);
@@ -109,10 +110,12 @@ export default function InstallmentsPage() {
   const currentMonthCount = currentMonthData?.count ?? 0;
 
   const banks = [...new Set(groups.map((g) => g.bank).filter(Boolean))].sort();
+  const categories = [...new Set(groups.map((g) => g.category_name).filter(Boolean))].sort();
 
   const filtered = groups.filter((g) => {
     if (!showCompleted && g.remaining_installments === 0) return false;
     if (bankFilter && g.bank !== bankFilter) return false;
+    if (categoryFilter && g.category_name !== categoryFilter) return false;
     return true;
   });
 
@@ -422,9 +425,9 @@ export default function InstallmentsPage() {
               <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
                 Filtros
               </h2>
-              {bankFilter && (
+              {(bankFilter || categoryFilter) && (
                 <button
-                  onClick={() => setBankFilter(null)}
+                  onClick={() => { setBankFilter(null); setCategoryFilter(null); }}
                   className="text-xs transition-colors hover:text-[var(--text-primary)]"
                   style={{ color: "var(--text-secondary)" }}
                 >
@@ -433,7 +436,11 @@ export default function InstallmentsPage() {
               )}
             </div>
 
-            {banks.length > 1 && (
+            <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+              {filtered.length} cuotas · {activeGroups.length} grupos activos
+            </p>
+
+            {banks.length > 0 && (
               <div>
                 <p
                   className="text-[10px] uppercase tracking-wide mb-1.5"
@@ -442,17 +449,19 @@ export default function InstallmentsPage() {
                   Banco
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => setBankFilter(null)}
-                    className="text-xs px-3 py-1.5 rounded-lg border transition-all"
-                    style={{
-                      backgroundColor: !bankFilter ? "var(--color-primary)" : "transparent",
-                      color: !bankFilter ? "var(--color-on-primary)" : "var(--text-secondary)",
-                      borderColor: !bankFilter ? "var(--color-primary)" : "var(--border-color)",
-                    }}
-                  >
-                    Todos
-                  </button>
+                  {banks.length > 1 && (
+                    <button
+                      onClick={() => setBankFilter(null)}
+                      className="text-xs px-3 py-1.5 rounded-lg border transition-all"
+                      style={{
+                        backgroundColor: !bankFilter ? "var(--color-primary)" : "transparent",
+                        color: !bankFilter ? "var(--color-on-primary)" : "var(--text-secondary)",
+                        borderColor: !bankFilter ? "var(--color-primary)" : "var(--border-color)",
+                      }}
+                    >
+                      Todos
+                    </button>
+                  )}
                   {banks.map((b) => (
                     <button
                       key={b}
@@ -467,6 +476,48 @@ export default function InstallmentsPage() {
                       }}
                     >
                       {b}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {categories.length > 0 && (
+              <div>
+                <p
+                  className="text-[10px] uppercase tracking-wide mb-1.5"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  Categoría
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {categories.length > 1 && (
+                    <button
+                      onClick={() => setCategoryFilter(null)}
+                      className="text-xs px-3 py-1.5 rounded-lg border transition-all"
+                      style={{
+                        backgroundColor: !categoryFilter ? "var(--color-primary)" : "transparent",
+                        color: !categoryFilter ? "var(--color-on-primary)" : "var(--text-secondary)",
+                        borderColor: !categoryFilter ? "var(--color-primary)" : "var(--border-color)",
+                      }}
+                    >
+                      Todas
+                    </button>
+                  )}
+                  {categories.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setCategoryFilter(categoryFilter === c ? null : c)}
+                      className="text-xs px-3 py-1.5 rounded-lg border transition-all"
+                      style={{
+                        backgroundColor: categoryFilter === c ? "var(--color-primary)" : "transparent",
+                        color:
+                          categoryFilter === c ? "var(--color-on-primary)" : "var(--text-secondary)",
+                        borderColor:
+                          categoryFilter === c ? "var(--color-primary)" : "var(--border-color)",
+                      }}
+                    >
+                      {c}
                     </button>
                   ))}
                 </div>
