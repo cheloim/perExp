@@ -136,7 +136,15 @@ export default function CategoryTreemap({
   }, []);
 
   const data = useMemo(() => buildHierarchy(categories), [categories]);
-  const grandTotal = useMemo(() => data.reduce((s, d) => s + d.total, 0), [data]);
+  const grandTotal = useMemo(() => {
+    function sumLeaves(items: TreemapDatum[]): number {
+      return items.reduce((s, d) => {
+        if (d.children && d.children.length > 0) return s + sumLeaves(d.children);
+        return s + d.total;
+      }, 0);
+    }
+    return sumLeaves(data);
+  }, [data]);
 
   const rects = useMemo(() => {
     if (size.width === 0 || size.height === 0 || data.length === 0) return [];

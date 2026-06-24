@@ -198,7 +198,11 @@ export default function CategoryDashboard() {
 
   const goToExpenses = () => {
     if (activeCat) {
-      navigate(`/expenses?category_id=${activeCat.category_id}&month=${month}`);
+      if (activeCat.category_id != null) {
+        navigate(`/expenses?category_id=${activeCat.category_id}&month=${month}`);
+      } else {
+        navigate(`/expenses?uncategorized=1&month=${month}`);
+      }
     } else if (activeGroup) {
       if (activeGroup.childIds.length > 0) {
         navigate(`/expenses?category_ids=${activeGroup.childIds.join(",")}&month=${month}`);
