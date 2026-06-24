@@ -133,8 +133,9 @@ def get_summary(
         else:
             cid, cname, ccolor = None, "Sin categoría", "#6b7280"
             pid, pname, pcolor = None, None, None
-        if cname not in by_category:
-            by_category[cname] = {
+        cat_key = cid if cid is not None else "__uncategorized__"
+        if cat_key not in by_category:
+            by_category[cat_key] = {
                 "category_id": cid,
                 "category_name": cname,
                 "category_color": ccolor,
@@ -145,8 +146,8 @@ def get_summary(
                 "count": 0,
                 "previous_total": 0.0,
             }
-        by_category[cname]["total"] += e.amount
-        by_category[cname]["count"] += 1
+        by_category[cat_key]["total"] += e.amount
+        by_category[cat_key]["count"] += 1
 
     if month:
         try:
@@ -154,15 +155,15 @@ def get_summary(
             pm = m - 1 if m > 1 else 12
             py = y if m > 1 else y - 1
             prev_expenses = _apply_filters(
-                base_q, f"{py}-{pm:02d}", search, None, category_id, bank
+                base_q, f"{py}-{pm:02d}", search, person, category_id, bank
             ).all()
             for e in prev_expenses:
                 # Skip income from previous month calculation
                 if e.is_income:
                     continue
-                cname = cat_map[e.category_id].name if e.category_id in cat_map else "Sin categoría"
-                if cname in by_category:
-                    by_category[cname]["previous_total"] += e.amount
+                prev_cat_key = e.category_id if e.category_id and e.category_id in cat_map else "__uncategorized__"
+                if prev_cat_key in by_category:
+                    by_category[prev_cat_key]["previous_total"] += e.amount
         except (ValueError, IndexError):
             pass
 
@@ -754,7 +755,7 @@ def get_top_merchants(
 ):
     uid_list = get_group_user_ids(current_user.id, db)
     q = db.query(Expense.description, Expense.amount, Expense.category_id).filter(
-        Expense.user_id.in_(uid_list), Expense.amount > 0
+        Expense.user_id.in_(uid_list), Expense.amount > 0, Expense.is_income == False
     )
     if month:
         try:
@@ -980,6 +981,7 @@ def get_category_trend(
     current_user: User = Depends(get_current_user),
 ):
     uid_list = get_group_user_ids(current_user.id, db)
+    months = min(months, 24)
 
     if anchor_month:
         try:
@@ -1013,6 +1015,7 @@ def get_category_trend(
         .filter(
             Expense.user_id.in_(uid_list),
             Expense.amount > 0,
+            Expense.is_income == False,
             Expense.date >= start,
         )
         .group_by(func.to_char(Expense.date, "YYYY-MM"), Category.name, Category.color)

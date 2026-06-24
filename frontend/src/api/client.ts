@@ -183,7 +183,6 @@ export const getDashboard = (params?: {
   search?: string;
   person?: string;
   category_id?: number;
-  card_last4_old?: string;
   bank?: string;
 }) => api.get<DashboardSummary>("/dashboard/summary", { params }).then((r) => r.data);
 

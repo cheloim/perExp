@@ -17,6 +17,7 @@ import { formatCurrency, MonthSelector, toUpperCase } from "../utils/format";
 import CategoryTreemap from "../components/CategoryTreemap";
 
 const MONTH_NAMES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+const UNCATEGORIZED = "Sin categoría";
 
 interface TrendRow {
   month: string;
@@ -29,7 +30,7 @@ export default function CategoryDashboard() {
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const [month, setMonth] = useState(currentMonth);
   const [selectedCategoryName, setSelectedCategoryName] = useState<string | null>(null);
-  const [trendMonths, setTrendMonths] = useState(4);
+  const [trendMonths, setTrendMonths] = useState(6);
   const [merchantTab, setMerchantTab] = useState<"amount" | "count">("amount");
 
   const trendRangeLabel = useMemo(() => {
@@ -40,19 +41,19 @@ export default function CategoryDashboard() {
     return `${fmt(start)} – ${fmt(end)}`;
   }, [month, trendMonths]);
 
-  const { data: summary, isLoading } = useQuery({
+  const { data: summary, isLoading, isError: summaryError } = useQuery({
     queryKey: ["dashboard", "cat-dash", month],
     queryFn: () => getDashboard({ month }),
     placeholderData: (prev) => prev,
   });
 
-  const { data: trendData, isLoading: trendLoading } = useQuery({
+  const { data: trendData, isLoading: trendLoading, isError: trendError } = useQuery({
     queryKey: ["category-trend", month, trendMonths],
     queryFn: () => getCategoryTrend(trendMonths, month),
     staleTime: 60_000,
   });
 
-  const { data: merchantsRaw = [], isLoading: merchantsLoading } = useQuery({
+  const { data: merchantsRaw = [], isLoading: merchantsLoading, isError: merchantsError } = useQuery({
     queryKey: ["top-merchants", month],
     queryFn: () => getTopMerchants({ month, limit: 20 }),
     staleTime: 60_000,
@@ -97,9 +98,13 @@ export default function CategoryDashboard() {
   const displayCount = activeSelection ? activeSelection.count : (summary?.total_expenses ?? 0);
   const displayAvg = displayCount > 0 ? displayTotal / displayCount : 0;
 
-  const previousTotal = activeSelection
-    ? (activeSelection.previous_total ?? 0)
-    : (summary?.by_category?.reduce((s, c) => s + (c.previous_total ?? 0), 0) ?? 0);
+  const previousTotal = useMemo(
+    () =>
+      activeSelection
+        ? (activeSelection.previous_total ?? 0)
+        : (summary?.by_category?.reduce((s, c) => s + (c.previous_total ?? 0), 0) ?? 0),
+    [activeSelection, summary],
+  );
   const pctChange = previousTotal > 0 ? ((displayTotal - previousTotal) / previousTotal) * 100 : null;
 
   const visibleCategories = trendData?.categories ?? [];
@@ -107,8 +112,8 @@ export default function CategoryDashboard() {
   const filteredMerchants = useMemo(() => {
     if (!activeSelection) return merchantsRaw;
     return merchantsRaw.filter((m) => {
-      if (activeSelection.name === "Sin categoría") {
-        return m.category_name === null || m.category_name === "Sin categoría";
+      if (activeSelection.name === UNCATEGORIZED) {
+        return m.category_name === null || m.category_name === UNCATEGORIZED;
       }
       return m.category_name === activeSelection.name;
     });
@@ -182,7 +187,11 @@ export default function CategoryDashboard() {
     if (activeCat) {
       navigate(`/expenses?category_id=${activeCat.category_id}&month=${month}`);
     } else if (activeGroup) {
-      navigate(`/expenses?category_ids=${activeGroup.childIds.join(",")}&month=${month}`);
+      if (activeGroup.childIds.length > 0) {
+        navigate(`/expenses?category_ids=${activeGroup.childIds.join(",")}&month=${month}`);
+      } else {
+        navigate(`/expenses?uncategorized=1&month=${month}`);
+      }
     }
   };
 
@@ -269,6 +278,8 @@ export default function CategoryDashboard() {
                 </div>
               ))}
             </div>
+          ) : summaryError ? (
+            <p className="text-danger text-sm text-center py-10">Error al cargar datos</p>
           ) : (
             <div className="flex-1 min-h-[300px]">
               <CategoryTreemap
@@ -299,12 +310,14 @@ export default function CategoryDashboard() {
                 <div className="text-[var(--text-primary)] font-semibold text-base">{formatCurrency(activeSelection.total)}</div>
                 <div className="text-[var(--text-secondary)]">{activeSelection.count} transacciones</div>
                 {grandTotal > 0 && <div className="text-[var(--text-secondary)]">{((activeSelection.total / grandTotal) * 100).toFixed(1)}% del total</div>}
-                {activeSelection.previous_total != null && activeSelection.previous_total > 0 && (
+                {activeSelection.previous_total != null && activeSelection.previous_total > 0 ? (
                   <div className={activeSelection.total > activeSelection.previous_total ? "text-danger" : "text-success"}>
                     {activeSelection.total > activeSelection.previous_total ? "↑" : "↓"}{" "}
                     {Math.abs(((activeSelection.total - activeSelection.previous_total) / activeSelection.previous_total) * 100).toFixed(0)}% vs mes anterior
                   </div>
-                )}
+                ) : activeSelection.previous_total === 0 ? (
+                  <div className="text-[var(--text-tertiary)]">Nuevo este mes</div>
+                ) : null}
               </div>
             </div>
           ) : (
@@ -326,6 +339,7 @@ export default function CategoryDashboard() {
                 <button
                   key={n}
                   onClick={() => setTrendMonths(n)}
+                  aria-label={`${n} meses`}
                   className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
                     trendMonths === n
                       ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
@@ -347,6 +361,8 @@ export default function CategoryDashboard() {
                 ))}
               </div>
             </div>
+          ) : trendError ? (
+            <p className="text-danger text-sm text-center py-12">Error al cargar tendencia</p>
           ) : visibleCategories.length === 0 ? (
             <p className="text-[var(--text-secondary)] text-sm text-center py-12">Sin datos</p>
           ) : (
@@ -462,6 +478,8 @@ export default function CategoryDashboard() {
                   </div>
                 ))}
               </div>
+            ) : merchantsError ? (
+              <p className="text-danger text-sm text-center py-8">Error al cargar comercios</p>
             ) : sortedMerchants.length === 0 ? (
               <p className="text-[var(--text-secondary)] text-sm text-center py-8">Sin datos</p>
             ) : (
@@ -470,17 +488,18 @@ export default function CategoryDashboard() {
                   const val = merchantTab === "amount" ? m.total_amount : m.count;
                   const pct = maxMerchantVal > 0 ? (val / maxMerchantVal) * 100 : 0;
                   return (
-                    <div key={i} className="flex items-center gap-3">
+                    <div key={i} className="flex items-center gap-3 group/merchant">
                       <span
                         className="w-2 h-2 rounded-full flex-shrink-0"
                         style={{ backgroundColor: m.category_color || "var(--color-primary)" }}
                       />
-                      <span
-                        className="text-xs text-[var(--text-secondary)] min-w-0 truncate flex-shrink-0 max-w-[180px]"
-                        title={m.description}
+                      <button
+                        onClick={() => navigate(`/expenses?search=${encodeURIComponent(m.description)}&month=${month}`)}
+                        className="text-xs text-[var(--text-secondary)] min-w-0 truncate flex-shrink-0 max-w-[180px] text-left hover:text-[var(--text-primary)] transition-colors"
+                        title={`Ver gastos de ${m.description}`}
                       >
                         {toUpperCase(m.description)}
-                      </span>
+                      </button>
                       <div className="flex-1 h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all"

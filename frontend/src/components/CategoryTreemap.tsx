@@ -124,12 +124,17 @@ export default function CategoryTreemap({
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+    let timeout: ReturnType<typeof setTimeout>;
     const ro = new ResizeObserver((entries) => {
       const { width, height } = entries[0].contentRect;
-      setSize({ width, height });
+      clearTimeout(timeout);
+      timeout = setTimeout(() => setSize({ width, height }), 100);
     });
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const data = useMemo(() => buildHierarchy(categories), [categories]);
@@ -197,11 +202,14 @@ export default function CategoryTreemap({
     <div ref={containerRef} className="relative w-full h-full min-h-[300px]">
       <svg width={size.width} height={size.height} className="block">
         <defs>
-          {leaves.map((r) => (
-            <clipPath id={`clip-${r.data.name.replace(/[^a-zA-Z0-9]/g, "-")}`}>
-              <rect x={r.x0} y={r.y0} width={r.x1 - r.x0} height={r.y1 - r.y0} rx={4} />
-            </clipPath>
-          ))}
+          {leaves.map((r) => {
+            const clipId = `clip-${r.data.category_id ?? r.data.name.replace(/[^a-zA-Z0-9]/g, "-")}`;
+            return (
+              <clipPath key={clipId} id={clipId}>
+                <rect x={r.x0} y={r.y0} width={r.x1 - r.x0} height={r.y1 - r.y0} rx={4} />
+              </clipPath>
+            );
+          })}
         </defs>
         {/* Pass 1: Parent group borders (bottom layer) */}
         {parentGroups.map((r) => {
@@ -245,12 +253,24 @@ export default function CategoryTreemap({
           const isFaded = selectedCategoryName !== null && !isSelected && !isHovered;
           const textColor = getContrastTextColor(r.data.color);
           const showLabel = w >= 24 && h >= 12;
-          const clipId = `clip-${r.data.name.replace(/[^a-zA-Z0-9]/g, "-")}`;
+          const clipId = `clip-${r.data.category_id ?? r.data.name.replace(/[^a-zA-Z0-9]/g, "-")}`;
           const maxChars = Math.floor(w / 6);
           const amountStr = formatCurrency(r.data.total);
 
           return (
-            <g key={`leaf-${r.data.name}`}>
+            <g
+              key={`leaf-${r.data.name}`}
+              role="button"
+              tabIndex={0}
+              aria-label={`${r.data.name}: ${formatCurrency(r.data.total)}`}
+              onClick={() => handleClick(r.data.name)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleClick(r.data.name);
+                }
+              }}
+            >
               <rect
                 x={r.x0}
                 y={r.y0}
@@ -262,7 +282,6 @@ export default function CategoryTreemap({
                 stroke={isSelected ? "#fff" : isHovered ? "rgba(255,255,255,0.5)" : "transparent"}
                 strokeWidth={isSelected ? 2 : 1}
                 className="cursor-pointer transition-all duration-200"
-                onClick={() => handleClick(r.data.name)}
                 onMouseEnter={() => setHovered(r.data.name)}
                 onMouseMove={(e) => handleMouseMove(e, r.data.name, r.data.total, r.data.count)}
                 onMouseLeave={handleMouseLeave}
@@ -311,7 +330,7 @@ export default function CategoryTreemap({
           style={{
             left: tooltip.x + 12,
             top: tooltip.y - 8,
-            transform: tooltip.x > size.width * 0.7 ? "translateX(-110%)" : undefined,
+            transform: `${tooltip.x > size.width * 0.7 ? "translateX(-110%)" : ""} ${tooltip.y > size.height * 0.8 ? "translateY(-100%)" : ""}`.trim() || undefined,
           }}
         >
           <p className="text-xs font-semibold text-[var(--text-primary)]">{tooltip.name}</p>
