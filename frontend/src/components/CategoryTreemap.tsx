@@ -81,7 +81,7 @@ function flattenLayout(
 ): LayoutRect[] {
   const rects: LayoutRect[] = [];
 
-  function walk(n: ReturnType<typeof hierarchy<TreemapDatum>>, parent?: LayoutRect) {
+  function walk(n: ReturnType<typeof hierarchy<TreemapDatum>>) {
     rects.push({
       x0: n.x0 ?? 0,
       y0: n.y0 ?? 0,
@@ -89,13 +89,11 @@ function flattenLayout(
       y1: n.y1 ?? 0,
       data: n.data,
       depth: n.depth,
-      parent,
     });
 
     if (n.children) {
-      const parentRect = rects[rects.length - 1];
       for (const child of n.children) {
-        walk(child, parentRect);
+        walk(child);
       }
     }
   }

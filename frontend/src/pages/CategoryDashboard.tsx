@@ -70,13 +70,19 @@ export default function CategoryDashboard() {
     if (!selectedCategoryName || activeCat) return null;
     const children = categories.filter((c) => c.parent_name === selectedCategoryName);
     if (children.length === 0) return null;
+    // Also include parent's own ID if it has a direct category entry
+    const parentEntry = categories.find((c) => c.category_name === selectedCategoryName);
+    const allIds = [
+      ...(parentEntry?.category_id != null ? [parentEntry.category_id] : []),
+      ...children.map((c) => c.category_id).filter((id): id is number => id != null),
+    ];
     return {
       name: selectedCategoryName,
-      color: children[0].parent_color ?? "#6b7280",
-      total: children.reduce((s, c) => s + c.total, 0),
-      count: children.reduce((s, c) => s + c.count, 0),
-      previous_total: children.reduce((s, c) => s + (c.previous_total ?? 0), 0),
-      childIds: children.map((c) => c.category_id).filter((id): id is number => id != null),
+      color: children[0].parent_color ?? parentEntry?.category_color ?? "#6b7280",
+      total: (parentEntry?.total ?? 0) + children.reduce((s, c) => s + c.total, 0),
+      count: (parentEntry?.count ?? 0) + children.reduce((s, c) => s + c.count, 0),
+      previous_total: (parentEntry?.previous_total ?? 0) + children.reduce((s, c) => s + (c.previous_total ?? 0), 0),
+      childIds: allIds,
     };
   }, [selectedCategoryName, categories, activeCat]);
 
@@ -115,9 +121,16 @@ export default function CategoryDashboard() {
       if (activeSelection.name === UNCATEGORIZED) {
         return m.category_name === null || m.category_name === UNCATEGORIZED;
       }
-      return m.category_name === activeSelection.name;
+      // Direct category match
+      const directMatch = m.category_name === activeSelection.name;
+      if (directMatch) return true;
+      // Parent category match — check if merchant belongs to a child
+      const childNames = categories
+        .filter((c) => c.parent_name === activeSelection.name)
+        .map((c) => c.category_name);
+      return childNames.length > 0 && childNames.includes(m.category_name ?? "");
     });
-  }, [merchantsRaw, activeSelection]);
+  }, [merchantsRaw, activeSelection, categories]);
 
   const sortedMerchants = useMemo(
     () =>

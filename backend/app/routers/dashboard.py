@@ -102,7 +102,7 @@ def get_summary(
     cards_by_id, _ = _load_cards_and_accounts(uid_list, expenses, db)
     categories = db.query(Category).all()
     cat_map = {c.id: c for c in categories}
-    total = sum(e.amount for e in expenses)
+    total = sum(e.amount for e in expenses if not e.is_income)
 
     # Calcular total_by_account (excluir gastos con tarjetas de credito)
     credit_cards = (
@@ -162,8 +162,35 @@ def get_summary(
                 if e.is_income:
                     continue
                 prev_cat_key = e.category_id if e.category_id and e.category_id in cat_map else "__uncategorized__"
-                if prev_cat_key in by_category:
-                    by_category[prev_cat_key]["previous_total"] += e.amount
+                if prev_cat_key not in by_category:
+                    # Category existed last month but not this month — add it with total=0
+                    if prev_cat_key == "__uncategorized__":
+                        by_category[prev_cat_key] = {
+                            "category_id": None,
+                            "category_name": "Sin categoría",
+                            "category_color": "#6b7280",
+                            "parent_id": None,
+                            "parent_name": None,
+                            "parent_color": None,
+                            "total": 0.0,
+                            "count": 0,
+                            "previous_total": 0.0,
+                        }
+                    elif prev_cat_key in cat_map:
+                        cat = cat_map[prev_cat_key]
+                        parent = cat_map.get(cat.parent_id) if cat.parent_id else None
+                        by_category[prev_cat_key] = {
+                            "category_id": cat.id,
+                            "category_name": cat.name,
+                            "category_color": cat.color,
+                            "parent_id": parent.id if parent else None,
+                            "parent_name": parent.name if parent else None,
+                            "parent_color": parent.color if parent else None,
+                            "total": 0.0,
+                            "count": 0,
+                            "previous_total": 0.0,
+                        }
+                by_category[prev_cat_key]["previous_total"] += e.amount
         except (ValueError, IndexError):
             pass
 
@@ -214,6 +241,8 @@ def get_summary(
 
     by_card: dict = {}
     for e in expenses:
+        if e.is_income:
+            continue
         card_name, card_bank, holder = _get_card_info(e, cards_by_id)
         if not card_name:
             continue
@@ -307,7 +336,7 @@ def get_summary(
     return {
         "total_amount": total,
         "total_by_account": total_by_account,
-        "total_expenses": len(expenses),
+        "total_expenses": sum(1 for e in expenses if not e.is_income),
         "by_category": sorted(by_category.values(), key=lambda x: x["total"], reverse=True),
         "by_income": sorted(by_income.values(), key=lambda x: x["total"], reverse=True),
         "by_period": sorted(by_period.values(), key=lambda x: x["period"]),
