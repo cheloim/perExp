@@ -241,7 +241,7 @@ export default function CategoryDashboard() {
       {/* Two-column: Treemap + Trend chart */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Treemap */}
-        <div className="card p-5">
+        <div className="card p-5 flex flex-col">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-semibold text-primary">Gastos por categoría</h2>
             {selectedCategoryName && (
@@ -265,7 +265,7 @@ export default function CategoryDashboard() {
               ))}
             </div>
           ) : (
-            <div className="h-[360px]">
+            <div className="flex-1 min-h-[300px]">
               <CategoryTreemap
                 categories={categories}
                 selectedCategoryName={selectedCategoryName}
