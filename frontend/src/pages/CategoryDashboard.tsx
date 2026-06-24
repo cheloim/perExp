@@ -369,12 +369,15 @@ export default function CategoryDashboard() {
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={chartData} margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
                 <defs>
-                  {topTrendCategories.map((cat) => (
-                    <linearGradient key={`grad-${cat.name}`} id={`grad-${cat.name}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={cat.color || "var(--chart-text)"} stopOpacity={0.3} />
-                      <stop offset="100%" stopColor={cat.color || "var(--chart-text)"} stopOpacity={0} />
-                    </linearGradient>
-                  ))}
+                  {topTrendCategories.map((cat) => {
+                    const gradId = `grad-${cat.name.replace(/[^a-zA-Z0-9]/g, "-")}`;
+                    return (
+                      <linearGradient key={gradId} id={gradId} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={cat.color || "var(--chart-text)"} stopOpacity={0.3} />
+                        <stop offset="100%" stopColor={cat.color || "var(--chart-text)"} stopOpacity={0} />
+                      </linearGradient>
+                    );
+                  })}
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                 <XAxis
@@ -422,13 +425,15 @@ export default function CategoryDashboard() {
                     </span>
                   )}
                 />
-                {topTrendCategories.map((cat) => (
-                  <Area
-                    key={cat.name}
-                    type="monotone"
-                    dataKey={cat.name}
-                    stroke={cat.color || "var(--chart-text)"}
-                    fill={`url(#grad-${cat.name})`}
+                {topTrendCategories.map((cat) => {
+                  const gradId = `grad-${cat.name.replace(/[^a-zA-Z0-9]/g, "-")}`;
+                  return (
+                    <Area
+                      key={cat.name}
+                      type="monotone"
+                      dataKey={cat.name}
+                      stroke={cat.color || "var(--chart-text)"}
+                      fill={`url(#${gradId})`}
                     strokeWidth={selectedCategoryName === cat.name ? 3 : 2}
                     strokeOpacity={
                       selectedCategoryName && selectedCategoryName !== cat.name ? 0.2 : 1
@@ -439,8 +444,9 @@ export default function CategoryDashboard() {
                     dot={{ r: 3, fill: cat.color || "var(--chart-text)" }}
                     activeDot={{ r: 5, onClick: () => handleCategorySelect(cat.name) }}
                     connectNulls
-                  />
-                ))}
+                    />
+                  );
+                })}
               </AreaChart>
             </ResponsiveContainer>
           )}
