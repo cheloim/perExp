@@ -106,7 +106,12 @@ export default function CategoryDashboard() {
 
   const filteredMerchants = useMemo(() => {
     if (!activeSelection) return merchantsRaw;
-    return merchantsRaw.filter((m) => m.category_name === activeSelection.name);
+    return merchantsRaw.filter((m) => {
+      if (activeSelection.name === "Sin categoría") {
+        return m.category_name === null || m.category_name === "Sin categoría";
+      }
+      return m.category_name === activeSelection.name;
+    });
   }, [merchantsRaw, activeSelection]);
 
   const sortedMerchants = useMemo(
