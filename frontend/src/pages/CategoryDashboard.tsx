@@ -309,8 +309,9 @@ export default function CategoryDashboard() {
           )}
         </div>
 
-        {/* Trend chart */}
-        <div className="card p-5">
+        {/* Trend chart + Top Comercios */}
+        <div className="flex flex-col gap-6">
+          <div className="card p-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-semibold text-primary">
               Tendencia — {trendRangeLabel}
@@ -410,91 +411,92 @@ export default function CategoryDashboard() {
               </LineChart>
             </ResponsiveContainer>
           )}
-        </div>
-      </div>
-
-      {/* Top Comercios */}
-      <div className="card p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-semibold text-primary">
-            Top Comercios
-            {activeSelection && (
-              <span className="ml-2 text-xs text-[var(--text-secondary)]">— {activeSelection.name}</span>
-            )}
-          </h2>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setMerchantTab("amount")}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
-                merchantTab === "amount"
-                  ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
-                  : "bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:brightness-95"
-              }`}
-            >
-              Por monto
-            </button>
-            <button
-              onClick={() => setMerchantTab("count")}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
-                merchantTab === "count"
-                  ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
-                  : "bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:brightness-95"
-              }`}
-            >
-              Por frecuencia
-            </button>
           </div>
-        </div>
 
-        {merchantsLoading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-[var(--color-base-alt)]" />
-                <div className="h-3 w-32 rounded bg-[var(--color-base-alt)]" />
-                <div className="flex-1 h-1.5 rounded-full bg-[var(--color-base-alt)]" />
-                <div className="h-3 w-16 rounded bg-[var(--color-base-alt)]" />
+          {/* Top Comercios */}
+          <div className="card p-5 flex-1">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold text-primary">
+                Top Comercios
+                {activeSelection && (
+                  <span className="ml-2 text-xs text-[var(--text-secondary)]">— {activeSelection.name}</span>
+                )}
+              </h2>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setMerchantTab("amount")}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                    merchantTab === "amount"
+                      ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
+                      : "bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:brightness-95"
+                  }`}
+                >
+                  Por monto
+                </button>
+                <button
+                  onClick={() => setMerchantTab("count")}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                    merchantTab === "count"
+                      ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
+                      : "bg-[var(--color-base-alt)] text-[var(--text-secondary)] hover:brightness-95"
+                  }`}
+                >
+                  Por frecuencia
+                </button>
               </div>
-            ))}
-          </div>
-        ) : sortedMerchants.length === 0 ? (
-          <p className="text-[var(--text-secondary)] text-sm text-center py-8">Sin datos</p>
-        ) : (
-          <div className="space-y-2">
-            {sortedMerchants.map((m, i) => {
-              const val = merchantTab === "amount" ? m.total_amount : m.count;
-              const pct = maxMerchantVal > 0 ? (val / maxMerchantVal) * 100 : 0;
-              return (
-                <div key={i} className="flex items-center gap-2">
-                  <span
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: m.category_color || "var(--color-primary)" }}
-                  />
-                  <span
-                    className="text-xs text-[var(--text-secondary)] w-48 truncate flex-shrink-0"
-                    title={m.description}
-                  >
-                    {toUpperCase(m.description)}
-                  </span>
-                  <div className="flex-1 h-1.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${pct}%`,
-                        backgroundColor: m.category_color || "var(--color-primary)",
-                      }}
-                    />
+            </div>
+
+            {merchantsLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-[var(--color-base-alt)]" />
+                    <div className="h-3 w-32 rounded bg-[var(--color-base-alt)]" />
+                    <div className="flex-1 h-2 rounded-full bg-[var(--color-base-alt)]" />
+                    <div className="h-3 w-16 rounded bg-[var(--color-base-alt)]" />
                   </div>
-                  <span className="text-xs text-[var(--text-tertiary)] flex-shrink-0 w-28 text-right">
-                    {merchantTab === "amount"
-                      ? formatCurrency(m.total_amount)
-                      : `${m.count}×`}
-                  </span>
-                </div>
-              );
-            })}
+                ))}
+              </div>
+            ) : sortedMerchants.length === 0 ? (
+              <p className="text-[var(--text-secondary)] text-sm text-center py-8">Sin datos</p>
+            ) : (
+              <div className="space-y-3">
+                {sortedMerchants.map((m, i) => {
+                  const val = merchantTab === "amount" ? m.total_amount : m.count;
+                  const pct = maxMerchantVal > 0 ? (val / maxMerchantVal) * 100 : 0;
+                  return (
+                    <div key={i} className="flex items-center gap-3">
+                      <span
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: m.category_color || "var(--color-primary)" }}
+                      />
+                      <span
+                        className="text-xs text-[var(--text-secondary)] min-w-0 truncate flex-shrink-0 max-w-[180px]"
+                        title={m.description}
+                      >
+                        {toUpperCase(m.description)}
+                      </span>
+                      <div className="flex-1 h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${pct}%`,
+                            backgroundColor: m.category_color || "var(--color-primary)",
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs text-[var(--text-tertiary)] flex-shrink-0 w-24 text-right">
+                        {merchantTab === "amount"
+                          ? formatCurrency(m.total_amount)
+                          : `${m.count}×`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
