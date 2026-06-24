@@ -2,8 +2,8 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -144,7 +144,7 @@ export default function CategoryDashboard() {
     const cats = trendData.categories;
     const rows = trendData.rows as TrendRow[];
 
-    if (cats.length <= 4) {
+    if (cats.length <= 6) {
       return { chartData: rows, topTrendCategories: cats };
     }
 
@@ -153,8 +153,8 @@ export default function CategoryDashboard() {
       total: rows.reduce((s, r) => s + ((r[c.name] as number) || 0), 0),
     }));
     totals.sort((a, b) => b.total - a.total);
-    const top3 = totals.slice(0, 3);
-    const topNames = new Set(top3.map((c) => c.name));
+    const top5 = totals.slice(0, 5);
+    const topNames = new Set(top5.map((c) => c.name));
 
     const otrosByMonth: Record<string, number> = {};
     for (const row of rows) {
@@ -176,7 +176,7 @@ export default function CategoryDashboard() {
       color: "#94a3b8",
       total: Object.values(otrosByMonth).reduce((s, v) => s + v, 0),
     };
-    return { chartData: enrichedRows, topTrendCategories: [...top3, otherLine] };
+    return { chartData: enrichedRows, topTrendCategories: [...top5, otherLine] };
   }, [trendData]);
 
   const handleCategorySelect = (name: string | null) => {
@@ -367,7 +367,15 @@ export default function CategoryDashboard() {
             <p className="text-[var(--text-secondary)] text-sm text-center py-12">Sin datos</p>
           ) : (
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={chartData} margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
+              <AreaChart data={chartData} margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
+                <defs>
+                  {topTrendCategories.map((cat) => (
+                    <linearGradient key={`grad-${cat.name}`} id={`grad-${cat.name}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={cat.color || "var(--chart-text)"} stopOpacity={0.3} />
+                      <stop offset="100%" stopColor={cat.color || "var(--chart-text)"} stopOpacity={0} />
+                    </linearGradient>
+                  ))}
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                 <XAxis
                   dataKey="month"
@@ -415,21 +423,25 @@ export default function CategoryDashboard() {
                   )}
                 />
                 {topTrendCategories.map((cat) => (
-                  <Line
+                  <Area
                     key={cat.name}
                     type="monotone"
                     dataKey={cat.name}
                     stroke={cat.color || "var(--chart-text)"}
+                    fill={`url(#grad-${cat.name})`}
                     strokeWidth={selectedCategoryName === cat.name ? 3 : 2}
                     strokeOpacity={
                       selectedCategoryName && selectedCategoryName !== cat.name ? 0.2 : 1
+                    }
+                    fillOpacity={
+                      selectedCategoryName && selectedCategoryName !== cat.name ? 0.05 : 1
                     }
                     dot={{ r: 3, fill: cat.color || "var(--chart-text)" }}
                     activeDot={{ r: 5, onClick: () => handleCategorySelect(cat.name) }}
                     connectNulls
                   />
                 ))}
-              </LineChart>
+              </AreaChart>
             </ResponsiveContainer>
           )}
           </div>
