@@ -108,7 +108,8 @@ def mark_read(
 @router.put("/read-all", status_code=200)
 def mark_all_read(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     db.query(Notification).filter(
-        Notification.user_id == current_user.id, Notification.read == False  # noqa: E712
+        Notification.user_id == current_user.id,
+        Notification.read == False,  # noqa: E712
     ).update({Notification.read: True})
     db.commit()
     return {"ok": True}
