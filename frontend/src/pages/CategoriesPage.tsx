@@ -55,7 +55,7 @@ function CategoryForm({
           name: "",
           color: "#3b82f6",
           keywords: "",
-          parent_id: isParentForm ? null : (parentCategories[0]?.id ?? null),
+          parent_id: isParentForm ? null : parentCategories[0]?.id ?? null,
         },
   );
 
@@ -740,7 +740,9 @@ export default function CategoriesPage() {
       {deleteError && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-start gap-2 bg-danger/10 border border-danger/30 rounded-lg px-4 py-3 text-sm text-danger shadow-lg">
           <span>{deleteError}</span>
-          <button onClick={() => setDeleteError(null)} className="ml-2 hover:opacity-70">✕</button>
+          <button onClick={() => setDeleteError(null)} className="ml-2 hover:opacity-70">
+            ✕
+          </button>
         </div>
       )}
     </div>

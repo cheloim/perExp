@@ -1,6 +1,5 @@
 import json
 import os
-import re
 from calendar import monthrange
 from collections import Counter, defaultdict
 from datetime import date, timedelta
@@ -14,7 +13,7 @@ from app.models import Card, Category, Expense, User
 from app.routers.groups import get_group_user_ids
 from app.services.auth import get_current_user
 from app.services.date_utils import add_months
-from app.services.normalizers import _norm_holder, normalize_bank
+from app.services.normalizers import normalize_bank
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -693,10 +692,10 @@ def get_scheduled_summary(
 
     for s in pending_installments:
         cat = cat_map.get(s.category_id) if s.category_id else None
-        card_name, card_bank, holder = "", "", ""
+        card_name, card_bank = "", ""
         if s.card_id and s.card_id in cards_by_id:
             c = cards_by_id[s.card_id]
-            card_name, card_bank, holder = c.card_name, c.bank or "", c.holder or ""
+            card_name, card_bank = c.card_name, c.bank or ""
         result["installments"].append(
             {
                 "id": s.id,
@@ -715,10 +714,10 @@ def get_scheduled_summary(
 
     for s in pending_manual:
         cat = cat_map.get(s.category_id) if s.category_id else None
-        card_name, card_bank, holder = "", "", ""
+        card_name, card_bank = "", ""
         if s.card_id and s.card_id in cards_by_id:
             c = cards_by_id[s.card_id]
-            card_name, card_bank, holder = c.card_name, c.bank or "", c.holder or ""
+            card_name, card_bank = c.card_name, c.bank or ""
         result["manual"].append(
             {
                 "id": s.id,
@@ -773,10 +772,10 @@ def get_credit_card_pasivos(
 
         if is_credit_card:
             total_pasivos += s.amount
-            card_name, card_bank, holder = "", "", ""
-            if s.card_id and s.card_id in cards_by_id:
-                c = cards_by_id[s.card_id]
-                card_name, card_bank, holder = c.card_name, c.bank or "", c.holder or ""
+        card_name, card_bank = "", ""
+        if s.card_id and s.card_id in cards_by_id:
+            c = cards_by_id[s.card_id]
+            card_name, card_bank = c.card_name, c.bank or ""
             pasivos_detail.append(
                 {
                     "id": s.id,

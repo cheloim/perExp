@@ -386,9 +386,7 @@ export default function AccountsPage() {
     const monthsRange: string[] = [];
     for (let i = -5; i <= 0; i++) {
       const d = new Date(parseInt(selYear), selMonthNum - 1 + i, 1);
-      monthsRange.push(
-        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-      );
+      monthsRange.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
     }
 
     const chartData = monthsRange.map((m) => {
@@ -430,9 +428,21 @@ export default function AccountsPage() {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-primary">Cuentas</h1>
           <div className="flex items-center gap-2">
-            <button onClick={prevMonth} className="p-1.5 rounded-md hover:bg-[var(--color-base-alt)] text-[var(--text-secondary)] transition">←</button>
-            <span className="text-sm font-medium text-[var(--text-primary)] min-w-[120px] text-center">{formatMonthLabel(month)}</span>
-            <button onClick={nextMonth} className="p-1.5 rounded-md hover:bg-[var(--color-base-alt)] text-[var(--text-secondary)] transition">→</button>
+            <button
+              onClick={prevMonth}
+              className="p-1.5 rounded-md hover:bg-[var(--color-base-alt)] text-[var(--text-secondary)] transition"
+            >
+              ←
+            </button>
+            <span className="text-sm font-medium text-[var(--text-primary)] min-w-[120px] text-center">
+              {formatMonthLabel(month)}
+            </span>
+            <button
+              onClick={nextMonth}
+              className="p-1.5 rounded-md hover:bg-[var(--color-base-alt)] text-[var(--text-secondary)] transition"
+            >
+              →
+            </button>
           </div>
         </div>
         {/* Cards panel — horizontal scroll row */}
@@ -443,7 +453,10 @@ export default function AccountsPage() {
               {/* Unified filters */}
               <div className="flex flex-wrap items-center gap-1.5">
                 <button
-                  onClick={() => { setTypeFilter(null); setBankFilter(null); }}
+                  onClick={() => {
+                    setTypeFilter(null);
+                    setBankFilter(null);
+                  }}
                   className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
                     !typeFilter && !bankFilter
                       ? "bg-primary text-on-primary border-primary"
@@ -471,16 +484,18 @@ export default function AccountsPage() {
                   </button>
                 ))}
                 {(() => {
-                  const filteredBanks = [...new Set(
-                    cardData
-                      .filter((c) => {
-                        if (!typeFilter) return true;
-                        if (typeFilter === "efectivo") return c.card_type === "debito" && !c.bank;
-                        return c.card_type === typeFilter;
-                      })
-                      .map((c) => c.bank)
-                      .filter(Boolean),
-                  )].sort();
+                  const filteredBanks = [
+                    ...new Set(
+                      cardData
+                        .filter((c) => {
+                          if (!typeFilter) return true;
+                          if (typeFilter === "efectivo") return c.card_type === "debito" && !c.bank;
+                          return c.card_type === typeFilter;
+                        })
+                        .map((c) => c.bank)
+                        .filter(Boolean),
+                    ),
+                  ].sort();
                   if (filteredBanks.length <= 1) return null;
                   return filteredBanks.map((b) => (
                     <button
@@ -543,7 +558,11 @@ export default function AccountsPage() {
               <h2 className="text-base font-semibold text-primary">Gasto por Cuenta</h2>
 
               {cardData.length === 0 ? (
-                <EmptyState icon="📊" title="Sin datos" description="Los gastos por cuenta aparecerán aquí" />
+                <EmptyState
+                  icon="📊"
+                  title="Sin datos"
+                  description="Los gastos por cuenta aparecerán aquí"
+                />
               ) : (
                 <div className="space-y-3">
                   {(() => {
@@ -565,10 +584,10 @@ export default function AccountsPage() {
                       const barColor = isActive
                         ? "bg-[var(--color-primary)]"
                         : card.card_type === "credito"
-                          ? "bg-gnomeBlue5"
-                          : card.card_type === "debito"
-                            ? "bg-gnomeGreen5"
-                            : "bg-gnomeOrange5";
+                        ? "bg-gnomeBlue5"
+                        : card.card_type === "debito"
+                        ? "bg-gnomeGreen5"
+                        : "bg-gnomeOrange5";
                       return (
                         <button
                           key={ckey}
@@ -581,19 +600,19 @@ export default function AccountsPage() {
                         >
                           <div className="flex items-center justify-between mb-1.5">
                             <div className="flex items-center gap-2 min-w-0">
-                              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                                card.card_type === "credito"
-                                  ? "bg-gnomeBlue5"
-                                  : card.card_type === "debito"
+                              <span
+                                className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                  card.card_type === "credito"
+                                    ? "bg-gnomeBlue5"
+                                    : card.card_type === "debito"
                                     ? "bg-gnomeGreen5"
                                     : "bg-gnomeOrange5"
-                              }`} />
+                                }`}
+                              />
                               <span className="text-sm font-medium text-primary truncate">
                                 {card.bank || card.card_name}
                               </span>
-                              <span className="text-xs text-tertiary">
-                                {card.card_name}
-                              </span>
+                              <span className="text-xs text-tertiary">{card.card_name}</span>
                             </div>
                             <span className="text-sm font-semibold text-primary ml-2">
                               {formatCurrency(monthTotal)}
@@ -699,8 +718,12 @@ export default function AccountsPage() {
                           opacity={0.4}
                         />
                         {filteredCards.map((card, idx) => {
-                          const cardKey = card.holder ? `${card.holder}|${card.card_name}` : card.card_name;
-                          const displayName = card.holder ? `${card.holder} — ${card.card_name}` : card.card_name;
+                          const cardKey = card.holder
+                            ? `${card.holder}|${card.card_name}`
+                            : card.card_name;
+                          const displayName = card.holder
+                            ? `${card.holder} — ${card.card_name}`
+                            : card.card_name;
                           return (
                             <Line
                               key={cardKey}
@@ -727,10 +750,17 @@ export default function AccountsPage() {
             <div className="card p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-base font-semibold text-primary">
-                  {cardData.find((c) => `${c.card_name}|${c.bank}|${c.holder}` === activeCard)?.bank || "Cuenta"}
-                  {cardData.find((c) => `${c.card_name}|${c.bank}|${c.holder}` === activeCard)?.holder && (
+                  {cardData.find((c) => `${c.card_name}|${c.bank}|${c.holder}` === activeCard)
+                    ?.bank || "Cuenta"}
+                  {cardData.find((c) => `${c.card_name}|${c.bank}|${c.holder}` === activeCard)
+                    ?.holder && (
                     <span className="text-sm font-normal text-tertiary ml-2">
-                      — {cardData.find((c) => `${c.card_name}|${c.bank}|${c.holder}` === activeCard)?.holder.split(" ")[0]}
+                      —{" "}
+                      {
+                        cardData
+                          .find((c) => `${c.card_name}|${c.bank}|${c.holder}` === activeCard)
+                          ?.holder.split(" ")[0]
+                      }
                     </span>
                   )}
                 </h2>
@@ -757,7 +787,9 @@ export default function AccountsPage() {
                 </div>
                 <div className="p-3 bg-[var(--color-base-alt)] rounded-lg">
                   <p className="text-[10px] text-tertiary uppercase">Último uso</p>
-                  <p className="text-sm font-bold text-primary">{stats.last_used ? formatDateDMY(stats.last_used) : "—"}</p>
+                  <p className="text-sm font-bold text-primary">
+                    {stats.last_used ? formatDateDMY(stats.last_used) : "—"}
+                  </p>
                 </div>
               </div>
 
@@ -766,7 +798,10 @@ export default function AccountsPage() {
                 {expensesLoading ? (
                   <div className="space-y-2">
                     {[...Array(3)].map((_, i) => (
-                      <div key={i} className="h-10 bg-[var(--color-base-alt)] rounded animate-pulse" />
+                      <div
+                        key={i}
+                        className="h-10 bg-[var(--color-base-alt)] rounded animate-pulse"
+                      />
                     ))}
                   </div>
                 ) : lastExpenses.length === 0 ? (

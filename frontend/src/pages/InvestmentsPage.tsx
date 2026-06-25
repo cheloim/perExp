@@ -324,7 +324,11 @@ function InvestmentModal({
           <button onClick={onClose} className="gnome-btn-secondary flex-1">
             Cancelar
           </button>
-          <button onClick={() => onSave(form)} disabled={!isValid} className="gnome-btn-primary flex-1 disabled:opacity-60">
+          <button
+            onClick={() => onSave(form)}
+            disabled={!isValid}
+            className="gnome-btn-primary flex-1 disabled:opacity-60"
+          >
             Guardar
           </button>
         </div>
@@ -608,7 +612,9 @@ export default function InvestmentsPage() {
     [investments, brokerFilter],
   );
 
-  const persons = [...new Set(investments.map((i) => i.user_name).filter(Boolean))].sort() as string[];
+  const persons = [
+    ...new Set(investments.map((i) => i.user_name).filter(Boolean)),
+  ].sort() as string[];
 
   // Fetch Yahoo prices for tickers with multiple brokers
   useEffect(() => {
@@ -737,9 +743,11 @@ export default function InvestmentsPage() {
       const existing = tickerMap.get(key);
       if (existing) {
         const newQty = existing.quantity + inv.quantity;
-        const newAvgCost = newQty > 0
-          ? ((existing.avg_cost ?? 0) * existing.quantity + (inv.avg_cost ?? 0) * inv.quantity) / newQty
-          : existing.avg_cost;
+        const newAvgCost =
+          newQty > 0
+            ? ((existing.avg_cost ?? 0) * existing.quantity + (inv.avg_cost ?? 0) * inv.quantity) /
+              newQty
+            : existing.avg_cost;
         const newCostBasis = (existing.cost_basis ?? 0) + (inv.cost_basis ?? 0);
         const currVal = inv.current_value ?? inv.cost_basis ?? 0;
         const existVal = existing.current_value ?? existing.cost_basis ?? 0;
@@ -803,7 +811,9 @@ export default function InvestmentsPage() {
       const av = a[sort.field as keyof Investment] ?? 0;
       const bv = b[sort.field as keyof Investment] ?? 0;
       if (typeof av === "string")
-        return sort.dir === "asc" ? av.localeCompare(bv as string) : (bv as string).localeCompare(av);
+        return sort.dir === "asc"
+          ? av.localeCompare(bv as string)
+          : (bv as string).localeCompare(av);
       return sort.dir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
     });
 
@@ -818,10 +828,13 @@ export default function InvestmentsPage() {
     );
 
   // ── USD conversion helper ────────────────────────────────────────────────────
-  const toDisplay = useCallback((amount: number, currency: string) => {
-    if (!showInUsd || !usdRate || currency === "USD") return fmt(amount, currency);
-    return fmt(amount / usdRate.rate, "USD");
-  }, [showInUsd, usdRate]);
+  const toDisplay = useCallback(
+    (amount: number, currency: string) => {
+      if (!showInUsd || !usdRate || currency === "USD") return fmt(amount, currency);
+      return fmt(amount / usdRate.rate, "USD");
+    },
+    [showInUsd, usdRate],
+  );
 
   // ── Aggregates ──────────────────────────────────────────────────────────────
   // ── Full portfolio aggregates (unfiltered) for TOTAL ─────────────────────────
@@ -969,8 +982,7 @@ export default function InvestmentsPage() {
               {(totalArsPnl !== 0 || totalUsdPnl !== 0) && (
                 <p
                   className={`text-lg font-bold ${
-                    (totalArsPnl >= 0 && totalUsdPnl >= 0) ||
-                    (totalArsPnl < 0 && totalUsdPnl < 0)
+                    (totalArsPnl >= 0 && totalUsdPnl >= 0) || (totalArsPnl < 0 && totalUsdPnl < 0)
                       ? totalArsPnl + totalUsdPnl >= 0
                         ? "text-success"
                         : "text-danger"
@@ -1070,7 +1082,10 @@ export default function InvestmentsPage() {
                         <button
                           onClick={() => {
                             setBrokerDropdownOpen(null);
-                            if (b.broker === "InvertirOnline" || b.broker === "Portfolio Personal") {
+                            if (
+                              b.broker === "InvertirOnline" ||
+                              b.broker === "Portfolio Personal"
+                            ) {
                               syncBrokerMut.mutate(b.broker);
                             } else {
                               syncAllMut.mutate();
@@ -1136,8 +1151,7 @@ export default function InvestmentsPage() {
                 </div>
                 <div
                   className={`text-xs font-medium ${
-                    (totalArsPnl >= 0 && totalUsdPnl >= 0) ||
-                    (totalArsPnl < 0 && totalUsdPnl < 0)
+                    (totalArsPnl >= 0 && totalUsdPnl >= 0) || (totalArsPnl < 0 && totalUsdPnl < 0)
                       ? totalArsPnl + totalUsdPnl >= 0
                         ? "text-success"
                         : "text-danger"
@@ -1271,7 +1285,10 @@ export default function InvestmentsPage() {
       {/* Scrollable table area */}
       <div className="px-6 pb-6">
         {/* Holdings table */}
-        <div className="card overflow-hidden flex flex-col" style={{ maxHeight: "calc(100vh - 60px)" }}>
+        <div
+          className="card overflow-hidden flex flex-col"
+          style={{ maxHeight: "calc(100vh - 60px)" }}
+        >
           <div className="overflow-y-auto flex-1">
             <table className="w-full text-sm">
               <thead className="bg-surface border-b border-border-color sticky top-0 z-10 flex-none">

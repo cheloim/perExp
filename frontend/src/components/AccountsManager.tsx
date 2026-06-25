@@ -154,7 +154,13 @@ export default function AccountsManager() {
     }
   };
 
-  if (isLoading) return <div className="px-4 py-2"><Skeleton className="h-4 w-24 mb-3" /><SkeletonList items={2} /></div>;
+  if (isLoading)
+    return (
+      <div className="px-4 py-2">
+        <Skeleton className="h-4 w-24 mb-3" />
+        <SkeletonList items={2} />
+      </div>
+    );
 
   return (
     <div className="px-4 py-2 space-y-2">
@@ -199,10 +205,22 @@ export default function AccountsManager() {
                     Tipo de cuenta
                   </label>
                   <div className="flex items-center gap-2">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 ${
-                      type === "tarjeta" ? "badge-neutral" : ACCOUNT_TYPES.find((t) => t.value === type)?.color || "badge-neutral"
-                    }`}>
-                      {type === "efectivo" ? "💵" : type === "mercadopago" ? "📱" : type === "cuenta_corriente" ? "🏦" : type === "caja_ahorro" ? "💳" : "💰"}
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                        type === "tarjeta"
+                          ? "badge-neutral"
+                          : ACCOUNT_TYPES.find((t) => t.value === type)?.color || "badge-neutral"
+                      }`}
+                    >
+                      {type === "efectivo"
+                        ? "💵"
+                        : type === "mercadopago"
+                        ? "📱"
+                        : type === "cuenta_corriente"
+                        ? "🏦"
+                        : type === "caja_ahorro"
+                        ? "💳"
+                        : "💰"}
                     </div>
                     <select
                       value={type}
@@ -282,12 +300,12 @@ export default function AccountsManager() {
                   {account.type === "efectivo"
                     ? "💵"
                     : account.type === "mercadopago"
-                      ? "📱"
-                      : account.type === "cuenta_corriente"
-                        ? "🏦"
-                        : account.type === "caja_ahorro"
-                          ? "💳"
-                          : "💰"}
+                    ? "📱"
+                    : account.type === "cuenta_corriente"
+                    ? "🏦"
+                    : account.type === "caja_ahorro"
+                    ? "💳"
+                    : "💰"}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-primary truncate">{account.name}</div>

@@ -76,9 +76,7 @@ function buildHierarchy(categories: CategorySummary[]): TreemapDatum[] {
   return result.sort((a, b) => b.total - a.total);
 }
 
-function flattenLayout(
-  node: ReturnType<typeof hierarchy<TreemapDatum>>,
-): LayoutRect[] {
+function flattenLayout(node: ReturnType<typeof hierarchy<TreemapDatum>>): LayoutRect[] {
   const rects: LayoutRect[] = [];
 
   function walk(n: ReturnType<typeof hierarchy<TreemapDatum>>) {
@@ -149,7 +147,14 @@ export default function CategoryTreemap({
   const rects = useMemo(() => {
     if (size.width === 0 || size.height === 0 || data.length === 0) return [];
 
-    const root = hierarchy({ name: "root", color: "", total: 0, count: 0, category_id: null, children: data })
+    const root = hierarchy({
+      name: "root",
+      color: "",
+      total: 0,
+      count: 0,
+      category_id: null,
+      children: data,
+    })
       .sum((d) => d.total)
       .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
 
@@ -165,8 +170,14 @@ export default function CategoryTreemap({
     return flattenLayout(root);
   }, [data, size, grandTotal]);
 
-  const leaves = useMemo(() => rects.filter((r) => r.depth === 2 || (r.depth === 1 && !r.data.children?.length)), [rects]);
-  const parentGroups = useMemo(() => rects.filter((r) => r.data.children && r.data.children.length > 0), [rects]);
+  const leaves = useMemo(
+    () => rects.filter((r) => r.depth === 2 || (r.depth === 1 && !r.data.children?.length)),
+    [rects],
+  );
+  const parentGroups = useMemo(
+    () => rects.filter((r) => r.data.children && r.data.children.length > 0),
+    [rects],
+  );
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent, name: string, total: number, count: number) => {
@@ -209,7 +220,9 @@ export default function CategoryTreemap({
       <svg width={size.width} height={size.height} className="block">
         <defs>
           {leaves.map((r) => {
-            const clipId = `clip-${r.data.category_id ?? r.data.name.replace(/[^a-zA-Z0-9]/g, "-")}`;
+            const clipId = `clip-${
+              r.data.category_id ?? r.data.name.replace(/[^a-zA-Z0-9]/g, "-")
+            }`;
             return (
               <clipPath key={clipId} id={clipId}>
                 <rect x={r.x0} y={r.y0} width={r.x1 - r.x0} height={r.y1 - r.y0} rx={4} />
@@ -238,7 +251,13 @@ export default function CategoryTreemap({
               rx={6}
               fill={parentColor}
               fillOpacity={isFaded ? 0.06 : 0.1}
-              stroke={isSelected ? parentColor : isHovered ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.08)"}
+              stroke={
+                isSelected
+                  ? parentColor
+                  : isHovered
+                  ? "rgba(255,255,255,0.2)"
+                  : "rgba(255,255,255,0.08)"
+              }
               strokeWidth={isSelected ? 2 : 1}
               className="cursor-pointer transition-all duration-200"
               onClick={() => handleClick(r.data.name)}
@@ -320,9 +339,7 @@ export default function CategoryTreemap({
                   opacity={isFaded ? 0.3 : 0.8}
                   clipPath={`url(#${clipId})`}
                 >
-                  {amountStr.length > maxChars
-                    ? amountStr.slice(0, maxChars) + "…"
-                    : amountStr}
+                  {amountStr.length > maxChars ? amountStr.slice(0, maxChars) + "…" : amountStr}
                 </text>
               )}
             </g>
@@ -336,7 +353,10 @@ export default function CategoryTreemap({
           style={{
             left: tooltip.x + 12,
             top: tooltip.y - 8,
-            transform: `${tooltip.x > size.width * 0.7 ? "translateX(-110%)" : ""} ${tooltip.y > size.height * 0.8 ? "translateY(-100%)" : ""}`.trim() || undefined,
+            transform:
+              `${tooltip.x > size.width * 0.7 ? "translateX(-110%)" : ""} ${
+                tooltip.y > size.height * 0.8 ? "translateY(-100%)" : ""
+              }`.trim() || undefined,
           }}
         >
           <p className="text-xs font-semibold text-[var(--text-primary)]">{tooltip.name}</p>

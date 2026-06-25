@@ -38,9 +38,8 @@ export default function InvitationDisclaimer({ notificationId, inviterName, onCl
         </div>
 
         <p className="text-secondary text-sm mb-3">
-          Al aceptar,{" "}
-          <span className="text-primary font-medium">tú y {inviterName}</span> podrán ver los gastos
-          e información financiera de ambos. Esta es una relación bidireccional.
+          Al aceptar, <span className="text-primary font-medium">tú y {inviterName}</span> podrán
+          ver los gastos e información financiera de ambos. Esta es una relación bidireccional.
         </p>
         <p className="text-tertiary text-sm mb-6">
           Podés salir del grupo en cualquier momento desde{" "}

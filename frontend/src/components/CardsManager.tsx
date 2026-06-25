@@ -186,7 +186,13 @@ export default function CardsManager() {
     }
   };
 
-  if (isLoading) return <div className="px-4 py-2"><Skeleton className="h-4 w-20 mb-3" /><SkeletonList items={2} /></div>;
+  if (isLoading)
+    return (
+      <div className="px-4 py-2">
+        <Skeleton className="h-4 w-20 mb-3" />
+        <SkeletonList items={2} />
+      </div>
+    );
 
   return (
     <div className="px-4 py-2 space-y-2">
@@ -296,8 +302,8 @@ export default function CardsManager() {
                     {card.card_type === "credito"
                       ? "Crédito"
                       : card.card_type === "debito"
-                        ? "Débito"
-                        : card.card_type}{" "}
+                      ? "Débito"
+                      : card.card_type}{" "}
                     — {card.bank}
                   </div>
                   <div className="text-xs text-tertiary mt-0.5">Titular: {card.holder || "—"}</div>
@@ -344,13 +350,27 @@ export default function CardsManager() {
           className="p-4 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg space-y-4"
         >
           <div className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${
-              accountType === "tarjeta" ? "bg-base-alt" : "bg-success/10"
-            }`}>
-              {accountType === "efectivo" ? "💵" : accountType === "mercadopago" ? "📱" : accountType === "cuenta_corriente" ? "🏦" : accountType === "caja_ahorro" ? "💳" : "💳"}
+            <div
+              className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${
+                accountType === "tarjeta" ? "bg-base-alt" : "bg-success/10"
+              }`}
+            >
+              {accountType === "efectivo"
+                ? "💵"
+                : accountType === "mercadopago"
+                ? "📱"
+                : accountType === "cuenta_corriente"
+                ? "🏦"
+                : accountType === "caja_ahorro"
+                ? "💳"
+                : "💳"}
             </div>
             <span className="text-xs font-medium text-secondary">
-              {accountType === "tarjeta" ? (cardType === "credito" ? "Crédito" : "Débito") : ACCOUNT_TYPES.find((t) => t.value === accountType)?.label || accountType}
+              {accountType === "tarjeta"
+                ? cardType === "credito"
+                  ? "Crédito"
+                  : "Débito"
+                : ACCOUNT_TYPES.find((t) => t.value === accountType)?.label || accountType}
             </span>
           </div>
           <div className="space-y-1.5">
@@ -428,11 +448,7 @@ export default function CardsManager() {
             >
               {createMut.isPending || createAccountMut.isPending ? "Creando..." : "Crear"}
             </button>
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="flex-1 gnome-btn-secondary"
-            >
+            <button type="button" onClick={handleCancel} className="flex-1 gnome-btn-secondary">
               Cancelar
             </button>
           </div>

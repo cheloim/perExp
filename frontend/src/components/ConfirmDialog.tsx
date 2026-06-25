@@ -27,7 +27,13 @@ export function ConfirmDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-backdrop">
       <div className="absolute inset-0 bg-black/60" onClick={onCancel} />
-      <div ref={trapRef} role="dialog" aria-modal="true" aria-label={title} className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-md shadow-xl w-full max-w-sm p-4 space-y-4 animate-modal-content">
+      <div
+        ref={trapRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-md shadow-xl w-full max-w-sm p-4 space-y-4 animate-modal-content"
+      >
         <div className="space-y-1">
           <h3 className="text-sm font-semibold text-[var(--text-primary)]">{title}</h3>
           <p className="text-sm text-[var(--text-secondary)]">{message}</p>

@@ -371,7 +371,9 @@ export default function ImportPage() {
     const allRows = fileResults.flatMap((f) => f.rows);
     const validation = validateRows(allRows);
     if (!validation.valid) {
-      setPageError(`Faltan datos en ${validation.missingCount} fila(s). Completalos antes de importar.`);
+      setPageError(
+        `Faltan datos en ${validation.missingCount} fila(s). Completalos antes de importar.`,
+      );
       return;
     }
     // Merge all cards_mapping from all files
@@ -514,7 +516,9 @@ export default function ImportPage() {
       {pageError && (
         <div className="flex items-start gap-2 bg-danger/10 border border-danger/30 rounded-lg px-4 py-3 text-sm text-danger">
           <span>{pageError}</span>
-          <button onClick={() => setPageError(null)} className="ml-auto hover:opacity-70">✕</button>
+          <button onClick={() => setPageError(null)} className="ml-auto hover:opacity-70">
+            ✕
+          </button>
         </div>
       )}
 
@@ -678,8 +682,8 @@ export default function ImportPage() {
                             row.is_duplicate
                               ? "bg-warning/10 opacity-60"
                               : row.is_auto_generated
-                                ? "bg-primary-subtle hover:bg-primary-subtle"
-                                : "hover:bg-base-alt"
+                              ? "bg-primary-subtle hover:bg-primary-subtle"
+                              : "hover:bg-base-alt"
                           }
                         >
                           <td className="px-4 py-2 text-secondary whitespace-nowrap">
@@ -892,16 +896,16 @@ export default function ImportPage() {
                 {confirmSmartMut.isPending
                   ? "Importando..."
                   : isProcessing
-                    ? "Esperando archivos..."
-                    : missingDataFiles > 0
-                      ? `Completar datos primero (${missingDataFiles} archivo${
-                          missingDataFiles > 1 ? "s" : ""
-                        })`
-                      : unsavedCustomNamingFiles > 0
-                        ? `Guardar nombres de tarjetas (${unsavedCustomNamingFiles} archivo${
-                            unsavedCustomNamingFiles > 1 ? "s" : ""
-                          })`
-                        : `Importar ${totalRows - totalDupes} gastos`}
+                  ? "Esperando archivos..."
+                  : missingDataFiles > 0
+                  ? `Completar datos primero (${missingDataFiles} archivo${
+                      missingDataFiles > 1 ? "s" : ""
+                    })`
+                  : unsavedCustomNamingFiles > 0
+                  ? `Guardar nombres de tarjetas (${unsavedCustomNamingFiles} archivo${
+                      unsavedCustomNamingFiles > 1 ? "s" : ""
+                    })`
+                  : `Importar ${totalRows - totalDupes} gastos`}
               </button>
             </div>
           </div>

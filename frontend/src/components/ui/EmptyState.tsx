@@ -9,7 +9,13 @@ interface EmptyStateProps {
   className?: string;
 }
 
-export default function EmptyState({ icon, title, description, action, className = "" }: EmptyStateProps) {
+export default function EmptyState({
+  icon,
+  title,
+  description,
+  action,
+  className = "",
+}: EmptyStateProps) {
   return (
     <div className={`flex flex-col items-center justify-center text-center py-8 ${className}`}>
       {icon && <span className="text-3xl opacity-30 mb-2">{icon}</span>}

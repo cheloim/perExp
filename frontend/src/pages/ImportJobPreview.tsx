@@ -413,8 +413,8 @@ export default function ImportJobPreview() {
             {confirmMutation.isPending
               ? "Confirmando..."
               : customNamingRequired && !customNamingComplete
-                ? "Completá nombres primero"
-                : "Confirmar importación"}
+              ? "Completá nombres primero"
+              : "Confirmar importación"}
           </button>
         </div>
       </div>
@@ -422,7 +422,9 @@ export default function ImportJobPreview() {
       {pageError && (
         <div className="flex items-start gap-2 bg-danger/10 border border-danger/30 rounded-lg px-4 py-3 text-sm text-danger">
           <span>{pageError}</span>
-          <button onClick={() => setPageError(null)} className="ml-auto hover:opacity-70">✕</button>
+          <button onClick={() => setPageError(null)} className="ml-auto hover:opacity-70">
+            ✕
+          </button>
         </div>
       )}
 

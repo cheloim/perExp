@@ -31,16 +31,11 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="flex flex-col items-center justify-center h-full p-8 text-center">
           <span className="text-4xl mb-4">⚠️</span>
-          <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
-            Algo salió mal
-          </h2>
+          <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Algo salió mal</h2>
           <p className="text-sm text-[var(--text-secondary)] mb-4 max-w-md">
             {this.state.error?.message || "Ocurrió un error inesperado"}
           </p>
-          <button
-            onClick={this.handleRetry}
-            className="gnome-btn-primary"
-          >
+          <button onClick={this.handleRetry} className="gnome-btn-primary">
             Reintentar
           </button>
         </div>

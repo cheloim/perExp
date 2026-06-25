@@ -1,16 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import {
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-  XAxis,
-} from "recharts";
+import { Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis } from "recharts";
 import {
   getDashboard,
   getCardSummary,
@@ -38,7 +29,6 @@ const FALLBACK_COLORS = [
   "#ef4444", // red
   "#06b6d4", // cyan
 ];
-
 
 function CardRow({
   cardName,
@@ -94,9 +84,7 @@ function CardRow({
             {displayName}
             {bank ? ` | ${bank}` : ""}
           </p>
-          {holder && (
-            <p className="text-xs text-tertiary leading-tight">{holder}</p>
-          )}
+          {holder && <p className="text-xs text-tertiary leading-tight">{holder}</p>}
         </div>
       </div>
       <span className="text-sm font-semibold text-primary">{formatCurrency(total)}</span>
@@ -201,11 +189,12 @@ export default function Dashboard() {
   });
 
   // Calculate savings by currency
-  const savingsArs = useMemo(() =>
-    investments
-      .filter((i) => i.currency === "ARS")
-      .reduce((sum, i) => sum + i.quantity * (i.current_price ?? i.avg_cost ?? 0), 0),
-    [investments]
+  const savingsArs = useMemo(
+    () =>
+      investments
+        .filter((i) => i.currency === "ARS")
+        .reduce((sum, i) => sum + i.quantity * (i.current_price ?? i.avg_cost ?? 0), 0),
+    [investments],
   );
 
   // USD total: native USD investments + ARS investments converted to USD
@@ -220,15 +209,16 @@ export default function Dashboard() {
       .filter((i) => i.currency === "ARS")
       .reduce((sum, i) => sum + i.quantity * (i.current_price ?? i.avg_cost ?? 0), 0);
 
-    return nativeUsd + (arsTotal / usdRate.rate);
+    return nativeUsd + arsTotal / usdRate.rate;
   }, [investments, usdRate]);
 
   // All categories sorted by spending
-  const categories = useMemo(() =>
-    [...(dashData?.by_category ?? [])]
-      .filter((c) => c.total > 0)
-      .sort((a, b) => b.total - a.total),
-    [dashData?.by_category]
+  const categories = useMemo(
+    () =>
+      [...(dashData?.by_category ?? [])]
+        .filter((c) => c.total > 0)
+        .sort((a, b) => b.total - a.total),
+    [dashData?.by_category],
   );
 
   const maxCatTotal = categories[0]?.total ?? 1;
@@ -240,17 +230,15 @@ export default function Dashboard() {
   // Filtered expenses by selected category (frontend filtering)
   const filteredExpenses = useMemo(() => {
     if (!selectedCategory) return monthExpenses;
-    
+
     // "Otros (N)" = categories with category_id null or small slices
     if (selectedCategory.startsWith("Otros")) {
-      const bigCategoryNames = new Set(
-        categories.map((c) => c.category_name)
-      );
+      const bigCategoryNames = new Set(categories.map((c) => c.category_name));
       return monthExpenses.filter(
-        (exp) => !exp.category_id || !bigCategoryNames.has(exp.category_name ?? "")
+        (exp) => !exp.category_id || !bigCategoryNames.has(exp.category_name ?? ""),
       );
     }
-    
+
     // Normal category — filter by category_name
     return monthExpenses.filter((exp) => exp.category_name === selectedCategory);
   }, [monthExpenses, selectedCategory, categories]);
@@ -293,9 +281,8 @@ export default function Dashboard() {
     (s, c) => s + (c.previous_total ?? 0),
     0,
   );
-  const momVariation = prevMonthTotal > 0
-    ? ((totalSpent - prevMonthTotal) / prevMonthTotal) * 100
-    : 0;
+  const momVariation =
+    prevMonthTotal > 0 ? ((totalSpent - prevMonthTotal) / prevMonthTotal) * 100 : 0;
 
   return (
     <div className="space-y-6">
@@ -309,21 +296,24 @@ export default function Dashboard() {
             </span>
           )}
         </div>
-        <button
-          onClick={() => setEditing(null)}
-          className="gnome-btn-primary-round text-sm"
-        >
+        <button onClick={() => setEditing(null)} className="gnome-btn-primary-round text-sm">
           <span className="text-base leading-none">+</span>
           <span>Nuevo gasto</span>
         </button>
       </div>
 
       {/* KPI Row */}
-      <div className={`grid grid-cols-2 ${savingsArs > 0 || totalUsd > 0 ? "md:grid-cols-5" : "md:grid-cols-4"} gap-4`}>
+      <div
+        className={`grid grid-cols-2 ${
+          savingsArs > 0 || totalUsd > 0 ? "md:grid-cols-5" : "md:grid-cols-4"
+        } gap-4`}
+      >
         <div className="card p-4">
           <p className="text-[10px] text-tertiary uppercase mb-1">Total gastado</p>
           <p className="text-lg font-bold text-primary">{formatCurrency(totalSpent)}</p>
-          <p className="text-xs text-tertiary mt-1">{dashData?.total_expenses ?? 0} transacciones</p>
+          <p className="text-xs text-tertiary mt-1">
+            {dashData?.total_expenses ?? 0} transacciones
+          </p>
         </div>
         <div className="card p-4">
           <p className="text-[10px] text-tertiary uppercase mb-1">Deuda tarjetas</p>
@@ -337,8 +327,13 @@ export default function Dashboard() {
         </div>
         <div className="card p-4">
           <p className="text-[10px] text-tertiary uppercase mb-1">vs Mes anterior</p>
-          <p className={`text-lg font-bold ${momVariation > 0 ? "text-danger" : momVariation < 0 ? "text-success" : "text-tertiary"}`}>
-            {momVariation > 0 ? "↑" : momVariation < 0 ? "↓" : "→"} {Math.abs(momVariation).toFixed(1)}%
+          <p
+            className={`text-lg font-bold ${
+              momVariation > 0 ? "text-danger" : momVariation < 0 ? "text-success" : "text-tertiary"
+            }`}
+          >
+            {momVariation > 0 ? "↑" : momVariation < 0 ? "↓" : "→"}{" "}
+            {Math.abs(momVariation).toFixed(1)}%
           </p>
           <p className="text-xs text-tertiary mt-1">
             {momVariation > 0 ? "Gastaste más" : momVariation < 0 ? "Gastaste menos" : "Sin cambio"}
@@ -353,7 +348,10 @@ export default function Dashboard() {
               </p>
               <p className="text-sm font-bold text-primary">
                 {totalUsd > 0
-                  ? `USD ${totalUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  ? `USD ${totalUsd.toLocaleString("en-US", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}`
                   : "—"}
               </p>
             </div>
@@ -370,7 +368,9 @@ export default function Dashboard() {
               <h2 className="text-sm font-semibold text-primary">Gastos por Categoría</h2>
               {selectedCategory && (
                 <button
-                  onClick={() => { setSelectedCategory(null); }}
+                  onClick={() => {
+                    setSelectedCategory(null);
+                  }}
                   className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                 >
                   {selectedCategory} ✕
@@ -445,9 +445,7 @@ export default function Dashboard() {
                   const color = cat.category_color || FALLBACK_COLORS[i % FALLBACK_COLORS.length];
                   const isSelected = selectedCategory === cat.category_name;
                   const prevTotal = cat.previous_total ?? 0;
-                  const variation = prevTotal > 0
-                    ? ((cat.total - prevTotal) / prevTotal) * 100
-                    : 0;
+                  const variation = prevTotal > 0 ? ((cat.total - prevTotal) / prevTotal) * 100 : 0;
                   return (
                     <div
                       key={i}
@@ -456,8 +454,8 @@ export default function Dashboard() {
                         isSelected
                           ? "bg-primary/10 ring-1 ring-primary"
                           : selectedCategory
-                            ? "opacity-40 hover:opacity-70"
-                            : "hover:bg-base-alt"
+                          ? "opacity-40 hover:opacity-70"
+                          : "hover:bg-base-alt"
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1">
@@ -472,10 +470,17 @@ export default function Dashboard() {
                         </div>
                         <div className="flex items-center gap-2">
                           {prevTotal > 0 && (
-                            <span className={`text-[10px] font-medium ${
-                              variation > 0 ? "text-danger" : variation < 0 ? "text-success" : "text-tertiary"
-                            }`}>
-                              {variation > 0 ? "↑" : variation < 0 ? "↓" : "→"}{Math.abs(variation).toFixed(0)}%
+                            <span
+                              className={`text-[10px] font-medium ${
+                                variation > 0
+                                  ? "text-danger"
+                                  : variation < 0
+                                  ? "text-success"
+                                  : "text-tertiary"
+                              }`}
+                            >
+                              {variation > 0 ? "↑" : variation < 0 ? "↓" : "→"}
+                              {Math.abs(variation).toFixed(0)}%
                             </span>
                           )}
                           <span className="text-xs font-semibold text-primary">
@@ -518,8 +523,16 @@ export default function Dashboard() {
           {filteredExpenses.length === 0 ? (
             <EmptyState
               icon="💸"
-              title={selectedCategory ? `Sin gastos en ${selectedCategory}` : "Sin transacciones este mes"}
-              description={selectedCategory ? "Probá seleccionando otra categoría" : "Tus gastos del mes aparecerán aquí"}
+              title={
+                selectedCategory
+                  ? `Sin gastos en ${selectedCategory}`
+                  : "Sin transacciones este mes"
+              }
+              description={
+                selectedCategory
+                  ? "Probá seleccionando otra categoría"
+                  : "Tus gastos del mes aparecerán aquí"
+              }
               action={{ label: "Ver todos los gastos", onClick: () => navigate("/expenses") }}
             />
           ) : (
@@ -586,19 +599,21 @@ export default function Dashboard() {
             />
           ) : (
             <div className="divide-y divide-border-color">
-              {cardData.filter((c) => c.card_type === "credito").map((card, i) => {
-                const monthEntry = card.monthly?.find((m) => m.month === month);
-                return (
-                  <CardRow
-                    key={i}
-                    cardName={card.card_name}
-                    bank={card.bank}
-                    total={monthEntry?.total ?? 0}
-                    cardType={card.card_type}
-                    holder={card.holder}
-                  />
-                );
-              })}
+              {cardData
+                .filter((c) => c.card_type === "credito")
+                .map((card, i) => {
+                  const monthEntry = card.monthly?.find((m) => m.month === month);
+                  return (
+                    <CardRow
+                      key={i}
+                      cardName={card.card_name}
+                      bank={card.bank}
+                      total={monthEntry?.total ?? 0}
+                      cardType={card.card_type}
+                      holder={card.holder}
+                    />
+                  );
+                })}
             </div>
           )}
         </div>
@@ -685,8 +700,8 @@ export default function Dashboard() {
                         entry.is_current
                           ? "var(--color-primary)"
                           : entry.is_past
-                            ? "var(--text-tertiary)"
-                            : "var(--color-primary)"
+                          ? "var(--text-tertiary)"
+                          : "var(--color-primary)"
                       }
                       opacity={entry.is_past ? 0.4 : 1}
                     />
@@ -749,9 +764,7 @@ export default function Dashboard() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                    <span className="text-[10px] text-tertiary">
-                      {m.count}x
-                    </span>
+                    <span className="text-[10px] text-tertiary">{m.count}x</span>
                     <span className="text-xs font-semibold text-primary">
                       {formatCurrency(m.total_amount)}
                     </span>

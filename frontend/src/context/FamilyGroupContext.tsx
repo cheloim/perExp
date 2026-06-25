@@ -24,10 +24,11 @@ export function FamilyGroupProvider({ children }: { children: React.ReactNode })
     staleTime: 300_000,
   });
 
-  const members: FamilyMember[] = group?.members?.map((m) => ({
-    id: m.user_id,
-    name: m.full_name,
-  })) ?? [];
+  const members: FamilyMember[] =
+    group?.members?.map((m) => ({
+      id: m.user_id,
+      name: m.full_name,
+    })) ?? [];
 
   return (
     <FamilyGroupContext.Provider value={{ members, isLoading }}>

@@ -57,10 +57,13 @@ export function Select({
     }
   }, [isOpen]);
 
-  const allOptions = groups.length > 0
-    ? [...options]  // Don't include group options in flat list when groups exist
-    : [...options, ...groups.flatMap((g) => g.options)];
-  const selectedOption = [...options, ...groups.flatMap((g) => g.options)].find((o) => o.value === value);
+  const allOptions =
+    groups.length > 0
+      ? [...options] // Don't include group options in flat list when groups exist
+      : [...options, ...groups.flatMap((g) => g.options)];
+  const selectedOption = [...options, ...groups.flatMap((g) => g.options)].find(
+    (o) => o.value === value,
+  );
   const displayValue =
     selectedOption?.label || (value && !selectedOption ? value : placeholder) || "";
 
@@ -231,64 +234,66 @@ export function Select({
               )}
 
             {/* Render standalone options (always, before groups) */}
-            {options.length > 0 && options.map((option) => {
-              const flatIdx = flatOptions.findIndex((o) => o.value === option.value);
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  data-option
-                  onClick={() => handleSelect(option.value)}
-                  className={`w-full px-3 py-2 text-left text-sm transition ${
-                    highlightedIndex === flatIdx
-                      ? "bg-[var(--color-base-alt)]"
-                      : value === option.value
+            {options.length > 0 &&
+              options.map((option) => {
+                const flatIdx = flatOptions.findIndex((o) => o.value === option.value);
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    data-option
+                    onClick={() => handleSelect(option.value)}
+                    className={`w-full px-3 py-2 text-left text-sm transition ${
+                      highlightedIndex === flatIdx
+                        ? "bg-[var(--color-base-alt)]"
+                        : value === option.value
                         ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-medium"
                         : "text-[var(--text-primary)] hover:bg-[var(--color-base-alt)]"
-                  }`}
-                >
-                {option.label}
-                </button>
-              );
-            })}
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
 
             {/* Render grouped options with headers */}
-            {groups.length > 0 && groups.map((group) => {
-              const groupFiltered = group.options.filter(
-                (o) =>
-                  !search ||
-                  o.label.toLowerCase().includes(search.toLowerCase()) ||
-                  o.value.toLowerCase().includes(search.toLowerCase()),
-              );
-              if (groupFiltered.length === 0) return null;
-              return (
-                <div key={group.label}>
-                  <div className="px-3 py-1.5 text-xs font-medium text-[var(--text-tertiary)] bg-[var(--color-base-alt)] border-t border-[var(--border-color)]">
-                    {group.label}
-                  </div>
-                  {groupFiltered.map((option) => {
-                    const flatIdx = flatOptions.findIndex((o) => o.value === option.value);
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        data-option
-                        onClick={() => handleSelect(option.value)}
-                        className={`w-full px-3 py-2 text-left text-sm transition ${
-                          highlightedIndex === flatIdx
-                            ? "bg-[var(--color-base-alt)]"
-                            : value === option.value
+            {groups.length > 0 &&
+              groups.map((group) => {
+                const groupFiltered = group.options.filter(
+                  (o) =>
+                    !search ||
+                    o.label.toLowerCase().includes(search.toLowerCase()) ||
+                    o.value.toLowerCase().includes(search.toLowerCase()),
+                );
+                if (groupFiltered.length === 0) return null;
+                return (
+                  <div key={group.label}>
+                    <div className="px-3 py-1.5 text-xs font-medium text-[var(--text-tertiary)] bg-[var(--color-base-alt)] border-t border-[var(--border-color)]">
+                      {group.label}
+                    </div>
+                    {groupFiltered.map((option) => {
+                      const flatIdx = flatOptions.findIndex((o) => o.value === option.value);
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          data-option
+                          onClick={() => handleSelect(option.value)}
+                          className={`w-full px-3 py-2 text-left text-sm transition ${
+                            highlightedIndex === flatIdx
+                              ? "bg-[var(--color-base-alt)]"
+                              : value === option.value
                               ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-medium"
                               : "text-[var(--text-primary)] hover:bg-[var(--color-base-alt)]"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              );
-            })}
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
 
             {filteredOptions.length === 0 && groups.length === 0 && !search && (
               <div className="px-3 py-4 text-center text-sm text-[var(--text-tertiary)]">

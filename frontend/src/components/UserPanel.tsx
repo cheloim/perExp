@@ -290,54 +290,82 @@ export default function UserPanel({ open, onClose }: Props) {
                 </h3>
 
                 {/* Tu código de invitación — solo si no tiene grupo o es el único miembro */}
-                {!isGroupLoading && (!myGroup || myGroup.members.filter((m) => m.status === "accepted").length <= 1) && (
-                <div className="mb-3 p-2 bg-[var(--color-base-alt)] rounded-md">
-                  <p className="text-xs text-[var(--text-tertiary)] mb-1">Compartí tu código:</p>
-                  <div className="flex items-center gap-2">
-                    <span className="flex-1 font-mono text-sm text-[var(--text-primary)] select-all">
-                      {myInviteCode?.invite_code ?? "—"}
-                    </span>
-                    {myInviteCode?.invite_code && (
-                      <>
-                        <button
-                          onClick={() => navigator.clipboard.writeText(myInviteCode.invite_code)}
-                          className="p-1.5 rounded hover:bg-[var(--color-base)] text-[var(--text-tertiary)] hover:text-primary transition"
-                          title="Copiar"
-                        >
-                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                            <rect
-                              x="5"
-                              y="5"
-                              width="9"
-                              height="9"
-                              rx="1"
-                              stroke="currentColor"
-                              strokeWidth="1.5"
-                            />
-                            <path
-                              d="M11 5V3a1 1 0 00-1-1H3a1 1 0 00-1 1v7a1 1 0 001 1h2"
-                              stroke="currentColor"
-                              strokeWidth="1.5"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => setShowRegenInviteConfirm(true)}
-                          className="p-1.5 rounded hover:bg-[var(--color-base)] text-[var(--text-tertiary)] hover:text-primary transition"
-                          title="Nuevo código"
-                        >
-                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                            <path d="M13.2 2.8A7.2 7.2 0 002.8 7.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                            <path d="M2.8 13.2A7.2 7.2 0 0013.2 8.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                            <path d="M13.2 2.8V6h-3.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M2.8 13.2v-3.2h3.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-                )}
+                {!isGroupLoading &&
+                  (!myGroup ||
+                    myGroup.members.filter((m) => m.status === "accepted").length <= 1) && (
+                    <div className="mb-3 p-2 bg-[var(--color-base-alt)] rounded-md">
+                      <p className="text-xs text-[var(--text-tertiary)] mb-1">
+                        Compartí tu código:
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <span className="flex-1 font-mono text-sm text-[var(--text-primary)] select-all">
+                          {myInviteCode?.invite_code ?? "—"}
+                        </span>
+                        {myInviteCode?.invite_code && (
+                          <>
+                            <button
+                              onClick={() =>
+                                navigator.clipboard.writeText(myInviteCode.invite_code)
+                              }
+                              className="p-1.5 rounded hover:bg-[var(--color-base)] text-[var(--text-tertiary)] hover:text-primary transition"
+                              title="Copiar"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                                <rect
+                                  x="5"
+                                  y="5"
+                                  width="9"
+                                  height="9"
+                                  rx="1"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                />
+                                <path
+                                  d="M11 5V3a1 1 0 00-1-1H3a1 1 0 00-1 1v7a1 1 0 001 1h2"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => setShowRegenInviteConfirm(true)}
+                              className="p-1.5 rounded hover:bg-[var(--color-base)] text-[var(--text-tertiary)] hover:text-primary transition"
+                              title="Nuevo código"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                                <path
+                                  d="M13.2 2.8A7.2 7.2 0 002.8 7.2"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                  strokeLinecap="round"
+                                />
+                                <path
+                                  d="M2.8 13.2A7.2 7.2 0 0013.2 8.8"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                  strokeLinecap="round"
+                                />
+                                <path
+                                  d="M13.2 2.8V6h-3.2"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                                <path
+                                  d="M2.8 13.2v-3.2h3.2"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                 {isGroupLoading ? (
                   <div className="space-y-3">
@@ -369,51 +397,54 @@ export default function UserPanel({ open, onClose }: Props) {
                               m.status === "accepted"
                                 ? "bg-[var(--gnome-green-3,#33d17a)]/20 text-[var(--gnome-green-5,#26a269)]"
                                 : m.status === "pending"
-                                  ? "bg-[var(--gnome-yellow-3,#f6d32d)]/20 text-[var(--gnome-yellow-5,#e5a50a)]"
-                                  : "bg-[var(--color-base-alt)] text-[var(--text-tertiary)]"
+                                ? "bg-[var(--gnome-yellow-3,#f6d32d)]/20 text-[var(--gnome-yellow-5,#e5a50a)]"
+                                : "bg-[var(--color-base-alt)] text-[var(--text-tertiary)]"
                             }`}
                           >
                             {m.status === "accepted"
                               ? "Activo"
                               : m.status === "pending"
-                                ? "Pendiente"
-                                : m.status}
+                              ? "Pendiente"
+                              : m.status}
                           </span>
                         </li>
                       ))}
                     </ul>
 
                     {myGroup.members.filter((m) => m.status === "accepted").length < 5 && (
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        setInviteError(null);
-                        setInviteSuccess(false);
-                        setLeaveError(null);
-                        if (myInviteCode?.invite_code && inviteCode.trim() === myInviteCode.invite_code) {
-                          setInviteError("No puedes invitarte a ti mismo");
-                          return;
-                        }
-                        inviteMut.mutate();
-                      }}
-                      className="space-y-2"
-                    >
-                      <input
-                        type="text"
-                        value={inviteCode}
-                        onChange={(e) => setInviteCode(e.target.value)}
-                        placeholder="Código de invitación del familiar"
-                        required
-                        className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-                      />
-                      <button
-                        type="submit"
-                        disabled={inviteMut.isPending || !inviteCode.trim()}
-                        className="w-full py-1.5 rounded-md bg-primary hover:brightness-110 disabled:opacity-60 text-[var(--color-on-primary)] text-xs font-medium transition"
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          setInviteError(null);
+                          setInviteSuccess(false);
+                          setLeaveError(null);
+                          if (
+                            myInviteCode?.invite_code &&
+                            inviteCode.trim() === myInviteCode.invite_code
+                          ) {
+                            setInviteError("No puedes invitarte a ti mismo");
+                            return;
+                          }
+                          inviteMut.mutate();
+                        }}
+                        className="space-y-2"
                       >
-                        {inviteMut.isPending ? "Invitando…" : "Invitar familiar"}
-                      </button>
-                    </form>
+                        <input
+                          type="text"
+                          value={inviteCode}
+                          onChange={(e) => setInviteCode(e.target.value)}
+                          placeholder="Código de invitación del familiar"
+                          required
+                          className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+                        />
+                        <button
+                          type="submit"
+                          disabled={inviteMut.isPending || !inviteCode.trim()}
+                          className="w-full py-1.5 rounded-md bg-primary hover:brightness-110 disabled:opacity-60 text-[var(--color-on-primary)] text-xs font-medium transition"
+                        >
+                          {inviteMut.isPending ? "Invitando…" : "Invitar familiar"}
+                        </button>
+                      </form>
                     )}
 
                     {inviteError && (
@@ -452,7 +483,10 @@ export default function UserPanel({ open, onClose }: Props) {
                         setInviteError(null);
                         setInviteSuccess(false);
                         setLeaveError(null);
-                        if (myInviteCode?.invite_code && inviteCode.trim() === myInviteCode.invite_code) {
+                        if (
+                          myInviteCode?.invite_code &&
+                          inviteCode.trim() === myInviteCode.invite_code
+                        ) {
                           setInviteError("No puedes invitarte a ti mismo");
                           return;
                         }
@@ -527,7 +561,9 @@ export default function UserPanel({ open, onClose }: Props) {
                     </div>
                     <p className="text-xs text-[var(--text-tertiary)]">
                       Enviá{" "}
-                      <span className="font-mono bg-[var(--color-base-alt)] px-1 rounded">/start</span>{" "}
+                      <span className="font-mono bg-[var(--color-base-alt)] px-1 rounded">
+                        /start
+                      </span>{" "}
                       al bot y pegá esta clave para autenticarte.
                     </p>
                     <div className="space-y-2">
@@ -707,9 +743,10 @@ export default function UserPanel({ open, onClose }: Props) {
       <ConfirmDialog
         isOpen={showRegenTelegramConfirm}
         title={tgStatus?.connected ? "Desconectar bot" : "Regenerar clave de Telegram"}
-        message={tgStatus?.connected
-          ? "Al regenerar la clave, se desconectará la sesión actual del bot. Necesitarás volver a vincularlo con la nueva clave."
-          : "Regenerar la clave generará una nueva. Si tenías una anterior compartida, ya no funcionará."
+        message={
+          tgStatus?.connected
+            ? "Al regenerar la clave, se desconectará la sesión actual del bot. Necesitarás volver a vincularlo con la nueva clave."
+            : "Regenerar la clave generará una nueva. Si tenías una anterior compartida, ya no funcionará."
         }
         confirmLabel={tgStatus?.connected ? "Desconectar" : "Regenerar"}
         cancelLabel="Cancelar"
