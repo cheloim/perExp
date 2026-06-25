@@ -13,7 +13,7 @@ from google import genai
 from google.genai import types as genai_types
 from sqlalchemy.orm import Session
 
-from app.models import Card, Category
+from app.models import Card, Category, User
 from app.prompts import SMART_IMPORT_PROMPT
 from app.services.categorization import _resolve_category, _should_skip
 from app.services.date_utils import _normalize_date_str
@@ -22,6 +22,7 @@ from app.services.import_utils import (
     _is_duplicate,
     _is_scheduled_duplicate,
     _load_dataframe,
+    _log,
 )
 from app.services.normalizers import (
     normalize_bank,
@@ -31,8 +32,6 @@ from app.services.pdf import (
     _extract_pdf_text,
     _inject_card_markers,
     _normalize_santander_dates,
-    extract_card_sections,
-    filter_text_by_section,
 )
 
 
@@ -95,6 +94,62 @@ def _match_card_to_existing(
     return None
 
 
+def _parse_full_name(full_name: str) -> tuple[str, str]:
+    """
+    Parse full_name into (first_name, last_name).
+    Handles both formats:
+      "Marcelo Mendoza" → ("Marcelo", "Mendoza")
+      "Mendoza, Marcelo" → ("Marcelo", "Mendoza")
+    """
+    if not full_name:
+        return "", ""
+
+    full_name = full_name.strip()
+    if "," in full_name:
+        parts = full_name.split(",", 1)
+        last_name = parts[0].strip()
+        first_name = parts[1].strip().split()[0] if parts[1].strip() else ""
+    else:
+        parts = full_name.split()
+        first_name = parts[0] if parts else ""
+        last_name = parts[1] if len(parts) > 1 else ""
+
+    return first_name, last_name
+
+
+def _holder_matches_user(card_holder: str, user_first_name: str, user_last_name: str) -> bool:
+    """
+    Check if a card holder name matches the user's full name.
+    Partial match: first name OR last name must match (case-insensitive).
+    Examples:
+      "MARCELO IGN MENDOZA" vs ("Marcelo", "Mendoza") → True
+      "PEREZ, JUAN" vs ("Marcelo", "Mendoza") → False
+      "MENDOZA, NATALIA" vs ("Marcelo", "Mendoza") → True (Mendoza matches)
+    """
+    if not card_holder or not user_first_name:
+        return False
+
+    card_holder_lower = card_holder.lower()
+    user_first_lower = user_first_name.lower()
+    user_last_lower = user_last_name.lower()
+
+    # Check if first name appears in holder
+    if user_first_lower and user_first_lower in card_holder_lower:
+        return True
+
+    # Check if last name appears in holder
+    if user_last_lower and user_last_lower in card_holder_lower:
+        return True
+
+    # Also check reverse: holder's name parts in user's full name
+    holder_parts = card_holder_lower.replace(",", " ").split()
+    for part in holder_parts:
+        if len(part) >= 3 and part in (user_first_lower, user_last_lower):
+            return True
+
+    return False
+
+
 async def run_smart_import(file_content: bytes, filename: str, db: Session, user_id: int) -> dict:
     """
     Core smart import logic: extracts text, calls LLM, expands installments, detects duplicates.
@@ -140,38 +195,8 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
     if not raw_text.strip():
         raise ValueError("No se pudo extraer contenido del archivo.")
 
-    # Step 2: Identify card sections and filter to main card
-    sections = extract_card_sections(raw_text)
-    user_cards = db.query(Card).filter(Card.user_id == user_id).all()
-    user_last4s = set()
-    for card in user_cards:
-        if hasattr(card, "last4") and card.last4:
-            user_last4s.add(card.last4)
-
-    if len(sections) > 1:
-        # Multiple sections found - filter to main card only
-        selected_last4 = None
-
-        # Try to match sections to user's existing cards
-        for section in sections:
-            if section["last4"] in user_last4s:
-                selected_last4 = section["last4"]
-                break
-
-        # If no match, keep the first section (usually main card)
-        if not selected_last4:
-            selected_last4 = sections[0]["last4"]
-
-        # Filter to selected section only
-        for section in sections:
-            if section["last4"] == selected_last4:
-                raw_text = filter_text_by_section(raw_text, section["start"], section["end"])
-                break
-    elif len(sections) == 1:
-        # Single section - filter to that section
-        raw_text = filter_text_by_section(raw_text, sections[0]["start"], sections[0]["end"])
-
-    # Clean text for LLM (after section filtering)
+    # Step 2: Clean text for LLM
+    # Note: Section filtering is done AFTER LLM returns, using card_holder matching
     raw_text = _clean_text_for_llm(raw_text)
 
     closing_info = {
@@ -307,9 +332,9 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
         raw_currency = str(r.get("currency", "") or "").strip().upper()
         currency = "USD" if raw_currency == "USD" else "ARS"
 
-        # Use card_header instead of bank/card/person
+        # Use card_header and card_holder from LLM
         card_header = str(r.get("card_header", "") or "").strip()
-        card_last4 = str(r.get("card_last4", "") or "").strip()
+        card_holder = str(r.get("card_holder", "") or "").strip()
 
         parsed.append(
             {
@@ -319,7 +344,7 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
                 "amount": amount,
                 "currency": currency,
                 "card_header": card_header,
-                "card_last4": card_last4,
+                "card_holder": card_holder,
                 "transaction_id": txn_id,
                 "installment_number": inst_num,
                 "installment_total": inst_total,
@@ -337,6 +362,24 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
         elif last_known_date is not None:
             p["_date_obj"] = last_known_date
             p["date"] = last_known_raw
+
+    # Step 5: Filter by card_holder matching user's full_name
+    user = db.query(User).filter(User.id == user_id).first()
+    if user and user.full_name:
+        user_first, user_last = _parse_full_name(user.full_name)
+        if user_first or user_last:
+            # Check if any rows have card_holder data
+            has_holders = any(p.get("card_holder") for p in parsed)
+            if has_holders:
+                original_count = len(parsed)
+                parsed = [
+                    p for p in parsed
+                    if not p.get("card_holder")  # Keep rows without holder (single card)
+                    or _holder_matches_user(p["card_holder"], user_first, user_last)
+                ]
+                filtered_count = original_count - len(parsed)
+                if filtered_count > 0:
+                    _log(f"[HOLDER FILTER] Filtered {filtered_count} extension transactions (kept {len(parsed)})")
 
     # Step 6: Expand installments (generates future scheduled expenses)
     expenses_list, scheduled_list = _expand_installments(

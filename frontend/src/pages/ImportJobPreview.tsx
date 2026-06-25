@@ -245,9 +245,10 @@ export default function ImportJobPreview() {
 
       {detectedCards.length > 0 && (
         <div className="mb-6 p-4 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg">
-          <h2 className="text-sm font-medium text-[var(--text-primary)] mb-3">
-            Tarjetas detectadas
-          </h2>
+          <h2 className="text-sm font-medium text-[var(--text-primary)] mb-1">Tarjeta detectada</h2>
+          <p className="text-xs text-[var(--text-tertiary)] mb-3">
+            Estos gastos se importarán a la tarjeta indicada
+          </p>
           <div className="space-y-3">
             {detectedCards.map((dc) => {
               const mapping = cardMappings[dc.card_header] || {};
@@ -271,9 +272,7 @@ export default function ImportJobPreview() {
                   </div>
                   <div className="flex gap-2 items-center">
                     {dc.matched_card_id ? (
-                      <span className="text-xs text-green-600">
-                        ✓ Auto-mapeada a: {dc.matched_card_name}
-                      </span>
+                      <span className="text-xs text-green-600">✓ {dc.matched_card_name}</span>
                     ) : (
                       <>
                         <select

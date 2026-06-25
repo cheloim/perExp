@@ -76,7 +76,7 @@ Por cada transacción devolvé un objeto JSON con exactamente estos campos:
 - "amount": número decimal. NEGATIVO para reintegros/bonificaciones/devoluciones. POSITIVO para consumos.
 - "currency": "USD" si el monto está expresado en dólares estadounidenses, "ARS" para pesos argentinos. Determinalo por el contexto (sección del resumen, encabezado, símbolo de moneda, o descripción como "USD" / "US$" / "U$S").
 - "card_header": encabezado de sección de tarjeta que identifica a qué tarjeta pertenece la transacción. Ej: "Visa Galicia", "Mastercard Santander", "Visa terminada en 8130". Si no hay secciones múltiples o no se detecta header, devolvé "".
-- "card_last4": últimos 4 dígitos de la tarjeta del header de sección. Si ves un marcador [TARJETA_LAST4: XXXX], poné XXXX acá. Si no hay marcador, devolvé "".
+- "card_holder": nombre del titular que aparece en el encabezado de sección de la tarjeta. Ej: "PEREZ, JUAN" de "TARJETA ADICIONAL - PEREZ, JUAN - Mastercard terminada en 1108". Si no hay nombre de titular en el header, devolvé "".
 - "transaction_id": código único de la operación. En el patrón "DD NNNNNN K/*/# descripcion monto", el NNNNNN ES el comprobante → ponerlo aquí siempre. También puede ser un nro de operación, referencia o auth que figure explícitamente. Si genuinamente no hay ningún código, null.
 - "installment_number": número de cuota si es un pago en cuotas (ej: "1/3" → 1), sino null
 - "installment_total": total de cuotas si es un pago en cuotas (ej: "1/3" → 3), sino null
