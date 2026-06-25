@@ -151,7 +151,7 @@ def create_investment(
     current_user: User = Depends(get_current_user),
 ):
     # Buscar precio de Yahoo Finance automáticamente
-    yf_quote = _fetch_yahoo_quote(data.ticker) if data.ticker else None
+    yf_quote = _fetch_yahoo_quote(data.ticker, data.currency or "ARS") if data.ticker else None
 
     # Buscar si ya existe ticker+broker para este usuario
     existing = (
@@ -197,9 +197,10 @@ def update_investment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    uid_list = get_group_user_ids(current_user.id, db)
     inv = (
         db.query(Investment)
-        .filter(Investment.id == inv_id, Investment.user_id == current_user.id)
+        .filter(Investment.id == inv_id, Investment.user_id.in_(uid_list))
         .first()
     )
     if not inv:
@@ -207,7 +208,7 @@ def update_investment(
     for k, v in data.model_dump().items():
         setattr(inv, k, v)
     # Obtener precio actualizado de Yahoo Finance
-    yf_quote = _fetch_yahoo_quote(data.ticker) if data.ticker else None
+    yf_quote = _fetch_yahoo_quote(data.ticker, data.currency or "ARS") if data.ticker else None
     if yf_quote and yf_quote.get("price"):
         inv.current_price = yf_quote["price"]
     inv.updated_at = datetime.utcnow()
@@ -223,9 +224,10 @@ def update_investment_price(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    uid_list = get_group_user_ids(current_user.id, db)
     inv = (
         db.query(Investment)
-        .filter(Investment.id == inv_id, Investment.user_id == current_user.id)
+        .filter(Investment.id == inv_id, Investment.user_id.in_(uid_list))
         .first()
     )
     if not inv:
@@ -241,9 +243,10 @@ def update_investment_price(
 def delete_investment(
     inv_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
+    uid_list = get_group_user_ids(current_user.id, db)
     inv = (
         db.query(Investment)
-        .filter(Investment.id == inv_id, Investment.user_id == current_user.id)
+        .filter(Investment.id == inv_id, Investment.user_id.in_(uid_list))
         .first()
     )
     if not inv:
@@ -511,13 +514,10 @@ def sync_ppi(db: Session = Depends(get_db), current_user: User = Depends(get_cur
                 existing.name = name or existing.name
                 existing.updated_at = datetime.utcnow()
                 # avg_cost is NOT provided by PPI API — preserve whatever the user set manually
-                # If avg_cost is 0 but we have current_price, use it as fallback so P&L shows something
-                if (existing.avg_cost or 0) == 0 and price_f is not None and price_f > 0:
-                    existing.avg_cost = price_f
+                # Don't overwrite avg_cost with current_price — it masks real P&L
                 updated += 1
             else:
-                # Use current_price as fallback avg_cost so P&L shows >= 0% instead of "--"
-                fallback_avg = price_f if price_f is not None and price_f > 0 else 0
+                # Don't fake avg_cost — let it be 0 so user can set it manually
                 db.add(
                     Investment(
                         ticker=ticker,
@@ -525,7 +525,7 @@ def sync_ppi(db: Session = Depends(get_db), current_user: User = Depends(get_cur
                         type=inv_type,
                         broker="Portfolio Personal",
                         quantity=quantity_f,
-                        avg_cost=fallback_avg,
+                        avg_cost=0,
                         current_price=price_f,
                         currency=currency,
                         notes="",
@@ -894,12 +894,18 @@ async def investments_chat_stream(
 # ─── Symbol Lookup ─────────────────────────────────────────────────────────────
 
 
-def _fetch_yahoo_quote(symbol: str) -> dict | None:
+def _fetch_yahoo_quote(symbol: str, currency: str = "ARS") -> dict | None:
     """Fetch quote from Yahoo Finance for a given symbol."""
     import requests as _req
 
     yf_headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"}
-    yf_symbol = symbol if "." in symbol else f"{symbol}.BA"
+    # Only append .BA for Argentine-listed stocks (ARS currency or already has suffix)
+    if "." in symbol:
+        yf_symbol = symbol
+    elif currency == "USD":
+        yf_symbol = symbol  # US-listed stock, no suffix
+    else:
+        yf_symbol = f"{symbol}.BA"
     url = f"https://query2.finance.yahoo.com/v8/finance/chart/{yf_symbol}"
     try:
         resp = _req.get(
@@ -1005,7 +1011,7 @@ def _fetch_yahoo_history(ticker: str, range_str: str, interval: str) -> list[dic
                     "close": round(float(close), 2),
                 }
             )
-        return formatted[-30:]
+        return formatted
     except Exception:
         return []
 
@@ -1026,7 +1032,7 @@ def get_investment_history(
         db.query(Investment)
         .filter(
             Investment.id == inv_id,
-            Investment.user_id == current_user.id,
+            Investment.user_id.in_(get_group_user_ids(current_user.id, db)),
         )
         .first()
     )

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getInvestments,
@@ -496,7 +496,7 @@ export default function InvestmentsPage() {
   const [showInUsd, setShowInUsd] = useState(false);
   const [usdRate, setUsdRate] = useState<{ rate: number; date: string } | null>(null);
   const [usdLoading, setUsdLoading] = useState(false);
-  const [lastUsdRateFetch, setLastUsdRateFetch] = useState<number | null>(null);
+  const lastUsdRateFetchRef = useRef<number>(0);
   const [brokerDropdownOpen, setBrokerDropdownOpen] = useState<string | null>(null);
   const [yahooPrices, setYahooPrices] = useState<
     Record<string, { price: number; currency: string }>
@@ -552,19 +552,19 @@ export default function InvestmentsPage() {
     return hours >= 8 && hours < 19;
   };
 
-  const fetchUsdRateIfNeeded = async () => {
-    if (!usdRate || Date.now() - (lastUsdRateFetch || 0) > 30 * 60 * 1000) {
+  const fetchUsdRateIfNeeded = useCallback(async () => {
+    if (!usdRate || Date.now() - lastUsdRateFetchRef.current > 30 * 60 * 1000) {
       if (isBusinessHoursARG()) {
         try {
           const r = await getUsdRate();
           setUsdRate(r);
-          setLastUsdRateFetch(Date.now());
+          lastUsdRateFetchRef.current = Date.now();
         } catch {
           /* silent fail for auto-fetch */
         }
       }
     }
-  };
+  }, [usdRate]);
 
   const handleToggleUsd = async () => {
     if (showInUsd) {
@@ -575,7 +575,7 @@ export default function InvestmentsPage() {
     try {
       const r = await getUsdRate();
       setUsdRate(r);
-      setLastUsdRateFetch(Date.now());
+      lastUsdRateFetchRef.current = Date.now();
       setShowInUsd(true);
       showSync(
         `USD: $${r.rate.toLocaleString("es-AR", { minimumFractionDigits: 2 })} · ${r.date}`,
@@ -594,7 +594,7 @@ export default function InvestmentsPage() {
     }
     const timer = setInterval(fetchUsdRateIfNeeded, 60 * 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [fetchUsdRateIfNeeded]);
 
   const { data: investments = [], isLoading } = useQuery({
     queryKey: ["investments"],
@@ -677,6 +677,7 @@ export default function InvestmentsPage() {
       invalidate();
       setEditing(undefined);
     },
+    onError: () => alert("Error al crear la inversión"),
   });
   const updateMut = useMutation({
     mutationFn: ({ id, data }: { id: number; data: InvestmentCreate }) =>
@@ -685,8 +686,16 @@ export default function InvestmentsPage() {
       invalidate();
       setEditing(undefined);
     },
+    onError: () => alert("Error al actualizar la inversión"),
   });
-  const deleteMut = useMutation({ mutationFn: deleteInvestment, onSuccess: invalidate });
+  const deleteMut = useMutation({
+    mutationFn: deleteInvestment,
+    onSuccess: () => {
+      invalidate();
+      setDeleteConfirmId(null);
+    },
+    onError: () => alert("Error al eliminar la inversión"),
+  });
 
   const handleSave = (data: InvestmentCreate) => {
     if (editing && editing.id) updateMut.mutate({ id: editing.id, data });
@@ -695,76 +704,86 @@ export default function InvestmentsPage() {
 
   // ── Aggregate by ticker ───────────────────────────────────────────────────────
   type AggregatedInv = Investment & { brokers: string[]; investments: Investment[] };
-  const tickerMap = new Map<string, AggregatedInv>();
 
-  for (const inv of brokerFiltered) {
-    const key = inv.ticker || inv.name || `__${inv.id}__`;
-    const existing = tickerMap.get(key);
-    if (existing) {
-      // Agregar al ticker existente
-      const newQty = existing.quantity + inv.quantity;
-      if (newQty > 0) {
-        existing.avg_cost =
-          ((existing.avg_cost ?? 0) * existing.quantity + (inv.avg_cost ?? 0) * inv.quantity) /
-          newQty;
-      }
-      existing.quantity = newQty;
-      existing.cost_basis = (existing.cost_basis ?? 0) + (inv.cost_basis ?? 0);
-      const currVal = inv.current_value ?? inv.cost_basis ?? 0;
-      const existVal = existing.current_value ?? existing.cost_basis ?? 0;
-      existing.current_value = existVal + currVal;
-      existing.pnl = (existing.current_value ?? 0) - (existing.cost_basis ?? 0);
-      existing.pnl_pct = existing.cost_basis
-        ? ((existing.pnl ?? 0) / existing.cost_basis) * 100
-        : 0;
-      // Usar current_price más reciente
-      if (
-        inv.current_price &&
-        (!existing.current_price ||
-          (inv.updated_at && existing.updated_at && inv.updated_at > existing.updated_at))
-      ) {
-        existing.current_price = inv.current_price;
-      }
-      if (!existing.brokers.includes(inv.broker)) {
-        existing.brokers.push(inv.broker);
-      }
-      existing.investments.push(inv);
-    } else {
-      tickerMap.set(key, {
-        ...inv,
-        brokers: [inv.broker],
-        investments: [inv],
-      });
-    }
-  }
+  const { aggregated, visible, sorted } = useMemo(() => {
+    const tickerMap = new Map<string, AggregatedInv>();
 
-  const visible = Array.from(tickerMap.values())
-    .filter((i) => !typeFilter || (i.type || "Otro") === typeFilter)
-    .map((inv) => {
-      // Si tenemos precio de Yahoo para este ticker, usarlo
-      if (inv.ticker && yahooPrices[inv.ticker]?.price) {
-        const yf = yahooPrices[inv.ticker];
-        const newCurrentValue = inv.quantity * yf.price;
-        const newPnl = newCurrentValue - inv.cost_basis;
-        const newPnlPct = inv.cost_basis ? (newPnl / inv.cost_basis) * 100 : 0;
-        return {
-          ...inv,
-          current_price: yf.price,
-          current_value: newCurrentValue,
+    for (const inv of brokerFiltered) {
+      const key = inv.ticker || inv.name || `__${inv.id}__`;
+      const existing = tickerMap.get(key);
+      if (existing) {
+        const newQty = existing.quantity + inv.quantity;
+        const newAvgCost = newQty > 0
+          ? ((existing.avg_cost ?? 0) * existing.quantity + (inv.avg_cost ?? 0) * inv.quantity) / newQty
+          : existing.avg_cost;
+        const newCostBasis = (existing.cost_basis ?? 0) + (inv.cost_basis ?? 0);
+        const currVal = inv.current_value ?? inv.cost_basis ?? 0;
+        const existVal = existing.current_value ?? existing.cost_basis ?? 0;
+        const newValue = existVal + currVal;
+        const newPnl = newValue - newCostBasis;
+        const newPnlPct = newCostBasis ? (newPnl / newCostBasis) * 100 : 0;
+        const newPrice =
+          inv.current_price &&
+          (!existing.current_price ||
+            (inv.updated_at && existing.updated_at && inv.updated_at > existing.updated_at))
+            ? inv.current_price
+            : existing.current_price;
+        const newBrokers = existing.brokers.includes(inv.broker)
+          ? existing.brokers
+          : [...existing.brokers, inv.broker];
+
+        tickerMap.set(key, {
+          ...existing,
+          quantity: newQty,
+          avg_cost: newAvgCost,
+          cost_basis: newCostBasis,
+          current_value: newValue,
           pnl: newPnl,
           pnl_pct: newPnlPct,
-        };
+          current_price: newPrice,
+          brokers: newBrokers,
+          investments: [...existing.investments, inv],
+        });
+      } else {
+        tickerMap.set(key, {
+          ...inv,
+          brokers: [inv.broker],
+          investments: [inv],
+        });
       }
-      return inv;
+    }
+
+    const agg = Array.from(tickerMap.values());
+
+    const vis = agg
+      .filter((i) => !typeFilter || (i.type || "Otro") === typeFilter)
+      .map((inv) => {
+        if (inv.ticker && yahooPrices[inv.ticker]?.price) {
+          const yf = yahooPrices[inv.ticker];
+          const newCurrentValue = inv.quantity * yf.price;
+          const newPnl = newCurrentValue - inv.cost_basis;
+          const newPnlPct = inv.cost_basis ? (newPnl / inv.cost_basis) * 100 : 0;
+          return {
+            ...inv,
+            current_price: yf.price,
+            current_value: newCurrentValue,
+            pnl: newPnl,
+            pnl_pct: newPnlPct,
+          };
+        }
+        return inv;
+      });
+
+    const srt = [...vis].sort((a, b) => {
+      const av = a[sort.field as keyof Investment] ?? 0;
+      const bv = b[sort.field as keyof Investment] ?? 0;
+      if (typeof av === "string")
+        return sort.dir === "asc" ? av.localeCompare(bv as string) : (bv as string).localeCompare(av);
+      return sort.dir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
     });
 
-  const sorted = [...visible].sort((a, b) => {
-    const av = a[sort.field as keyof Investment] ?? 0;
-    const bv = b[sort.field as keyof Investment] ?? 0;
-    if (typeof av === "string")
-      return sort.dir === "asc" ? av.localeCompare(bv as string) : (bv as string).localeCompare(av);
-    return sort.dir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
-  });
+    return { aggregated: agg, visible: vis, sorted: srt };
+  }, [brokerFiltered, typeFilter, yahooPrices, sort]);
 
   const toggleSort = (field: SortField) =>
     setSort((prev) =>
@@ -774,10 +793,10 @@ export default function InvestmentsPage() {
     );
 
   // ── USD conversion helper ────────────────────────────────────────────────────
-  const toDisplay = (amount: number, currency: string) => {
+  const toDisplay = useCallback((amount: number, currency: string) => {
     if (!showInUsd || !usdRate || currency === "USD") return fmt(amount, currency);
     return fmt(amount / usdRate.rate, "USD");
-  };
+  }, [showInUsd, usdRate]);
 
   // ── Aggregates ──────────────────────────────────────────────────────────────
   // ── Full portfolio aggregates (unfiltered) for TOTAL ─────────────────────────
@@ -1073,10 +1092,14 @@ export default function InvestmentsPage() {
                 </div>
                 <div
                   className={`text-xs font-medium ${
-                    totalArsPnl + totalUsdPnl >= 0 ? "text-success" : "text-danger"
+                    (totalArsPnl >= 0 && totalUsdPnl >= 0) ||
+                    (totalArsPnl < 0 && totalUsdPnl < 0)
+                      ? totalArsPnl + totalUsdPnl >= 0
+                        ? "text-success"
+                        : "text-danger"
+                      : "text-[var(--text-secondary)]"
                   }`}
                 >
-                  {totalArsPnl + totalUsdPnl >= 0 ? "+" : ""}
                   {toDisplay(totalArsPnl, "ARS")} + {fmt(totalUsdPnl, "USD")} P&L
                 </div>
               </button>
@@ -1234,8 +1257,14 @@ export default function InvestmentsPage() {
                   </tr>
                 ) : sorted.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-10 text-center text-tertiary">
-                      Sin inversiones registradas
+                    <td colSpan={7} className="py-10 text-center">
+                      <p className="text-tertiary mb-3">Sin inversiones registradas</p>
+                      <button
+                        onClick={() => setEditing(null)}
+                        className="text-xs px-4 py-2 rounded-lg bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 active:scale-95 transition-all font-medium"
+                      >
+                        Agregar tu primera inversión
+                      </button>
                     </td>
                   </tr>
                 ) : (
@@ -1266,7 +1295,7 @@ export default function InvestmentsPage() {
                         <span
                           className="px-2 py-0.5 rounded text-xs font-medium"
                           style={{
-                            backgroundColor: "#9a9996" + "20",
+                            backgroundColor: (TYPE_COLORS[inv.type] || "#94a3b8") + "20",
                             color: TYPE_COLORS[inv.type] || "#94a3b8",
                           }}
                         >
@@ -1377,7 +1406,6 @@ export default function InvestmentsPage() {
           confirmLabel="Eliminar"
           onConfirm={() => {
             deleteMut.mutate(deleteConfirmId);
-            setDeleteConfirmId(null);
           }}
           onCancel={() => setDeleteConfirmId(null)}
         />
