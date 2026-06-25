@@ -345,6 +345,7 @@ export interface Investment {
   current_value: number | null;
   pnl: number | null;
   pnl_pct: number | null;
+  user_name?: string | null;
 }
 
 export interface InvestmentCreate {

@@ -481,6 +481,7 @@ export default function InvestmentsPage() {
   const queryClient = useQueryClient();
   const [brokerFilter, setBrokerFilter] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [personFilter, setPersonFilter] = useState<string | null>(null);
   const [editing, setEditing] = useState<Investment | null | undefined>(undefined);
   const [viewing, setViewing] = useState<Investment | null>(null);
   const [viewingAggregated, setViewingAggregated] = useState<
@@ -607,6 +608,8 @@ export default function InvestmentsPage() {
     [investments, brokerFilter],
   );
 
+  const persons = [...new Set(investments.map((i) => i.user_name).filter(Boolean))].sort() as string[];
+
   // Fetch Yahoo prices for tickers with multiple brokers
   useEffect(() => {
     if (!investments || investments.length === 0) return;
@@ -664,6 +667,27 @@ export default function InvestmentsPage() {
     onSuccess: (msg) => {
       invalidate();
       showSync(msg || "Sincronizado", true);
+    },
+    onError: (e: Error) => {
+      invalidate();
+      showSync(e.message, false);
+    },
+  });
+
+  const syncBrokerMut = useMutation({
+    mutationFn: async (broker: string) => {
+      if (broker === "InvertirOnline") {
+        const r = await syncIOL();
+        return `IOL: ${r.updated}↑ ${r.created}+`;
+      } else if (broker === "Portfolio Personal") {
+        const r = await syncPPI();
+        return `PPI: ${r.updated}↑ ${r.created}+`;
+      }
+      throw new Error(`Sync no disponible para ${broker}`);
+    },
+    onSuccess: (msg) => {
+      invalidate();
+      showSync(msg, true);
     },
     onError: (e: Error) => {
       invalidate();
@@ -757,6 +781,7 @@ export default function InvestmentsPage() {
 
     const vis = agg
       .filter((i) => !typeFilter || (i.type || "Otro") === typeFilter)
+      .filter((i) => !personFilter || i.user_name === personFilter)
       .map((inv) => {
         if (inv.ticker && yahooPrices[inv.ticker]?.price) {
           const yf = yahooPrices[inv.ticker];
@@ -783,7 +808,7 @@ export default function InvestmentsPage() {
     });
 
     return { aggregated: agg, visible: vis, sorted: srt };
-  }, [brokerFiltered, typeFilter, yahooPrices, sort]);
+  }, [brokerFiltered, typeFilter, personFilter, yahooPrices, sort]);
 
   const toggleSort = (field: SortField) =>
     setSort((prev) =>
@@ -926,6 +951,40 @@ export default function InvestmentsPage() {
           </div>
         </div>
 
+        {/* Hero portfolio value */}
+        <div className="card p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-[var(--text-secondary)] font-medium uppercase tracking-wider mb-1">
+                Valor total del portafolio
+              </p>
+              <p className="text-3xl font-bold text-[var(--text-primary)]">
+                {toDisplay(totalArsValue + totalUsdValue, showInUsd ? "USD" : "ARS")}
+              </p>
+              <p className="text-xs text-[var(--text-secondary)] mt-1">
+                {toDisplay(totalArsValue, "ARS")} + {fmt(totalUsdValue, "USD")}
+              </p>
+            </div>
+            <div className="text-right">
+              {(totalArsPnl !== 0 || totalUsdPnl !== 0) && (
+                <p
+                  className={`text-lg font-bold ${
+                    (totalArsPnl >= 0 && totalUsdPnl >= 0) ||
+                    (totalArsPnl < 0 && totalUsdPnl < 0)
+                      ? totalArsPnl + totalUsdPnl >= 0
+                        ? "text-success"
+                        : "text-danger"
+                      : "text-[var(--text-secondary)]"
+                  }`}
+                >
+                  {toDisplay(totalArsPnl + totalUsdPnl, showInUsd ? "USD" : "ARS")}
+                </p>
+              )}
+              <p className="text-xs text-[var(--text-secondary)]">P&L total</p>
+            </div>
+          </div>
+        </div>
+
         {/* Resumen de cartera - GNOME 50 style */}
         <div className="card p-4">
           <div className="flex items-center justify-between mb-3">
@@ -980,33 +1039,13 @@ export default function InvestmentsPage() {
                           e.stopPropagation();
                           setBrokerDropdownOpen(isOpen ? null : b.broker);
                         }}
-                        onPointerDown={(e) => {
-                          if (e.pointerType === "touch") {
-                            e.preventDefault();
-                            const timer = setTimeout(() => {
-                              if (!isOpen) {
-                                setBrokerDropdownOpen(b.broker);
-                              }
-                            }, 500);
-                            (e.currentTarget as HTMLElement).dataset.pressTimer = String(timer);
-                          }
-                        }}
-                        onPointerUp={(e) => {
-                          if (e.pointerType === "touch") {
-                            const timer = (e.currentTarget as HTMLElement).dataset.pressTimer;
-                            if (timer) {
-                              clearTimeout(parseInt(timer));
-                              delete (e.currentTarget as HTMLElement).dataset.pressTimer;
-                            }
-                          }
-                        }}
                         className="ml-0.5 text-xs hover:opacity-70"
                       >
                         ▼
                       </button>
                     </div>
                     {/* Dropdown */}
-                    {isOpen && isSelected && (
+                    {isOpen && (
                       <div className="absolute top-full left-0 mt-1 w-48 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-lg py-1 z-20">
                         <button
                           onClick={() => {
@@ -1031,9 +1070,14 @@ export default function InvestmentsPage() {
                         <button
                           onClick={() => {
                             setBrokerDropdownOpen(null);
-                            syncAllMut.mutate();
+                            if (b.broker === "InvertirOnline" || b.broker === "Portfolio Personal") {
+                              syncBrokerMut.mutate(b.broker);
+                            } else {
+                              syncAllMut.mutate();
+                            }
                           }}
-                          className="w-full px-3 py-2 text-sm text-left text-[var(--text-primary)] hover:bg-[var(--color-base-alt)] flex items-center gap-2"
+                          disabled={syncAllMut.isPending || syncBrokerMut.isPending}
+                          className="w-full px-3 py-2 text-sm text-left text-[var(--text-primary)] hover:bg-[var(--color-base-alt)] flex items-center gap-2 disabled:opacity-50"
                         >
                           <span className="text-[var(--text-tertiary)]">↻</span> Sincronizar
                         </button>
@@ -1202,6 +1246,26 @@ export default function InvestmentsPage() {
             </div>
           </div>
         )}
+
+        {/* Person filter chips */}
+        {persons.length > 1 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-[var(--text-secondary)]">Persona:</span>
+            {persons.map((p) => (
+              <button
+                key={p}
+                onClick={() => setPersonFilter(personFilter === p ? null : p)}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
+                  personFilter === p
+                    ? "bg-[var(--color-primary)] text-[var(--color-on-primary)] border-[var(--color-primary)]"
+                    : "bg-transparent text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--color-base-alt)]"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Scrollable table area */}
@@ -1304,6 +1368,11 @@ export default function InvestmentsPage() {
                       </td>
                       <td className="px-2 py-3">
                         <div className="flex flex-wrap gap-1">
+                          {inv.user_name && (
+                            <span className="inline-block px-1.5 py-0.5 rounded text-xs bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+                              {inv.user_name}
+                            </span>
+                          )}
                           {inv.brokers.map((b) => (
                             <span
                               key={b}

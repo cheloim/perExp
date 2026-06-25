@@ -51,7 +51,7 @@ _PPI_TYPE_MAP = {
 }
 
 
-def _inv_response(inv: Investment) -> dict:
+def _inv_response(inv: Investment, user_name: str | None = None) -> dict:
     cost_basis = (inv.quantity or 0) * (inv.avg_cost or 0)
     current_value = (
         (inv.quantity or 0) * inv.current_price if inv.current_price is not None else None
@@ -74,6 +74,7 @@ def _inv_response(inv: Investment) -> dict:
         "current_value": current_value,
         "pnl": pnl,
         "pnl_pct": pnl_pct,
+        "user_name": user_name,
     }
 
 
@@ -135,11 +136,14 @@ def get_investments(
     current_user: User = Depends(get_current_user),
 ):
     uid_list = get_group_user_ids(current_user.id, db)
+    # Build user_id -> full_name mapping for family group
+    users = db.query(User).filter(User.id.in_(uid_list)).all()
+    user_names = {u.id: u.full_name or u.email for u in users}
     q = db.query(Investment).filter(Investment.user_id.in_(uid_list))
     if broker:
         q = q.filter(Investment.broker == broker)
     return [
-        _inv_response(inv)
+        _inv_response(inv, user_names.get(inv.user_id))
         for inv in q.order_by(Investment.broker, Investment.type, Investment.name).all()
     ]
 
