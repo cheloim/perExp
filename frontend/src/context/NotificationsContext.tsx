@@ -1,5 +1,14 @@
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  ReactNode,
+} from "react";
 import type { Notification } from "../types";
+import { markNotificationRead, markAllNotificationsRead } from "../api/client";
 
 interface NotificationsState {
   notifications: Notification[];
@@ -10,6 +19,7 @@ interface NotificationsState {
 
 interface NotificationsContextValue extends NotificationsState {
   markRead: (id: number) => Promise<void>;
+  markAllRead: () => Promise<void>;
   refresh: () => void;
 }
 
@@ -34,10 +44,6 @@ interface WorkerOutgoingMessage {
   token?: string;
 }
 
-function getStoredToken(): string | null {
-  return localStorage.getItem("auth_token");
-}
-
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<NotificationsState>({
     notifications: [],
@@ -48,6 +54,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const [port, setPort] = useState<MessagePort | null>(null);
   const [broadcastChannel] = useState(() => new BroadcastChannel(BROADCAST_CHANNEL_NAME));
+
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   const handleNewNotification = useCallback((notification: Notification) => {
     setState((s) => {
@@ -74,7 +83,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const token = getStoredToken();
+    const token = localStorage.getItem("auth_token");
     if (!token) return;
 
     let workerPort: MessagePort | null = null;
@@ -114,8 +123,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         });
       } else if (msg.type === "counts_update") {
         handleCountsUpdate(
-          msg.unread_count ?? state.unreadCount,
-          msg.pending_count ?? state.pendingCount,
+          msg.unread_count ?? stateRef.current.unreadCount,
+          msg.pending_count ?? stateRef.current.pendingCount,
         );
         broadcastChannel.postMessage({
           type: "counts_update",
@@ -128,7 +137,6 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     };
 
     workerPort.addEventListener("message", handleMessage);
-    workerPort.start();
 
     return () => {
       workerPort!.removeEventListener("message", handleMessage);
@@ -146,30 +154,22 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         handleNewNotification(msg.notification);
       } else if (msg.type === "counts_update") {
         handleCountsUpdate(
-          msg.unread_count ?? state.unreadCount,
-          msg.pending_count ?? state.pendingCount,
+          msg.unread_count ?? stateRef.current.unreadCount,
+          msg.pending_count ?? stateRef.current.pendingCount,
         );
       }
     };
 
     broadcastChannel.addEventListener("message", handleBroadcast);
     return () => broadcastChannel.removeEventListener("message", handleBroadcast);
-  }, [
-    broadcastChannel,
-    handleNewNotification,
-    handleCountsUpdate,
-    state.unreadCount,
-    state.pendingCount,
-  ]);
+  }, [broadcastChannel, handleNewNotification, handleCountsUpdate]);
 
   const markRead = useCallback(async (id: number) => {
     try {
-      await fetch(`/api/notifications/${id}/read`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${getStoredToken()}`,
-        },
-      });
+      const n = stateRef.current.notifications.find((n) => n.id === id);
+      if (n?.read) return;
+
+      await markNotificationRead(id);
       setState((s) => ({
         ...s,
         notifications: s.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
@@ -180,6 +180,19 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const markAllRead = useCallback(async () => {
+    try {
+      await markAllNotificationsRead();
+      setState((s) => ({
+        ...s,
+        notifications: s.notifications.map((n) => ({ ...n, read: true })),
+        unreadCount: 0,
+      }));
+    } catch (err) {
+      console.error("[NotificationsContext] markAllRead failed", err);
+    }
+  }, []);
+
   const refresh = useCallback(() => {
     if (port) {
       port.postMessage({ type: "force_refresh" } as WorkerOutgoingMessage);
@@ -187,7 +200,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, [port]);
 
   return (
-    <NotificationsContext.Provider value={{ ...state, markRead, refresh }}>
+    <NotificationsContext.Provider value={{ ...state, markRead, markAllRead, refresh }}>
       {children}
     </NotificationsContext.Provider>
   );
