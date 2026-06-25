@@ -563,8 +563,8 @@ export default function ExpensesPage() {
                       filterUncategorized
                         ? "__none__"
                         : filterCategory
-                        ? String(filterCategory)
-                        : ""
+                          ? String(filterCategory)
+                          : ""
                     }
                     onChange={(v) => handleCategoryFilter(v)}
                     options={[{ value: "__none__", label: "Sin categoría" }]}
@@ -591,8 +591,8 @@ export default function ExpensesPage() {
                 const currentCuenta = filterCard
                   ? `card:${filterCard}`
                   : filterAccount
-                  ? `account:${filterAccount}`
-                  : "";
+                    ? `account:${filterAccount}`
+                    : "";
                 return (
                   <Select
                     value={currentCuenta}
@@ -757,8 +757,8 @@ export default function ExpensesPage() {
                                 const isHighlighted = selectedDonutCategory
                                   ? isSelected
                                   : filterSearch
-                                  ? isSearchMatch
-                                  : true;
+                                    ? isSearchMatch
+                                    : true;
                                 return (
                                   <Cell
                                     key={i}
@@ -792,8 +792,8 @@ export default function ExpensesPage() {
                                 selectedDonutCategory === cat.category_name
                                   ? "bg-[var(--color-primary)]/10"
                                   : filterSearch && matchingCategories.has(cat.category_id)
-                                  ? "bg-[var(--color-primary)]/5"
-                                  : "hover:bg-[var(--color-base-alt)]"
+                                    ? "bg-[var(--color-primary)]/5"
+                                    : "hover:bg-[var(--color-base-alt)]"
                               }`}
                             >
                               <span

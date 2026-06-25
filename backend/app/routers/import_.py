@@ -53,7 +53,9 @@ async def preview_import(
 ):
     content = await file.read()
     if len(content) > MAX_UPLOAD_SIZE:
-        raise HTTPException(413, f"El archivo supera el límite de {MAX_UPLOAD_SIZE // (1024*1024)} MB")
+        raise HTTPException(
+            413, f"El archivo supera el límite de {MAX_UPLOAD_SIZE // (1024 * 1024)} MB"
+        )
     try:
         df = _load_dataframe(content, file.filename or "")
     except Exception as e:
@@ -131,7 +133,9 @@ async def confirm_import(
 ):
     content = await file.read()
     if len(content) > MAX_UPLOAD_SIZE:
-        raise HTTPException(413, f"El archivo supera el límite de {MAX_UPLOAD_SIZE // (1024*1024)} MB")
+        raise HTTPException(
+            413, f"El archivo supera el límite de {MAX_UPLOAD_SIZE // (1024 * 1024)} MB"
+        )
     try:
         df = _load_dataframe(content, file.filename or "")
     except Exception as e:
@@ -199,7 +203,9 @@ async def pdf_debug(
 ):
     content = await file.read()
     if len(content) > MAX_UPLOAD_SIZE:
-        raise HTTPException(413, f"El archivo supera el límite de {MAX_UPLOAD_SIZE // (1024*1024)} MB")
+        raise HTTPException(
+            413, f"El archivo supera el límite de {MAX_UPLOAD_SIZE // (1024 * 1024)} MB"
+        )
     try:
         raw = _extract_pdf_text(content)
         raw = _normalize_santander_dates(raw)
@@ -228,7 +234,9 @@ async def csv_debug(
 ):
     content = await file.read()
     if len(content) > MAX_UPLOAD_SIZE:
-        raise HTTPException(413, f"El archivo supera el límite de {MAX_UPLOAD_SIZE // (1024*1024)} MB")
+        raise HTTPException(
+            413, f"El archivo supera el límite de {MAX_UPLOAD_SIZE // (1024 * 1024)} MB"
+        )
     filename = (file.filename or "").lower()
     try:
         df = _load_dataframe(content, filename)

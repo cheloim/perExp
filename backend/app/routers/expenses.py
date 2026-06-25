@@ -42,7 +42,11 @@ def get_expenses(
     uid_list = get_group_user_ids(current_user.id, db)
     q = (
         db.query(Expense)
-        .options(joinedload(Expense.card_rel), joinedload(Expense.category), joinedload(Expense.account_rel))
+        .options(
+            joinedload(Expense.card_rel),
+            joinedload(Expense.category),
+            joinedload(Expense.account_rel),
+        )
         .filter(Expense.user_id.in_(uid_list))
     )
     if month:
@@ -66,25 +70,29 @@ def get_expenses(
     elif uncategorized:
         q = q.filter(Expense.category_id.is_(None))
     if bank:
-        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(Card.bank.ilike(f"%{bank}%"))
+        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
+            Card.bank.ilike(f"%{bank}%")
+        )
     if person:
-        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(Card.holder.ilike(f"%{person}%"))
+        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
+            Card.holder.ilike(f"%{person}%")
+        )
     if card:
-        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(Card.card_name.ilike(f"%{card}%"))
+        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
+            Card.card_name.ilike(f"%{card}%")
+        )
     if account_id:
         q = q.filter(Expense.account_id == account_id)
     if account:
         from app.models import Account
+
         q = q.join(Account, Expense.account_id == Account.id, isouter=True).filter(
             Account.name.ilike(f"%{account}%")
         )
     if search:
         q = q.filter(Expense.description.ilike(f"%{search}%"))
     # Exclude future installments (they belong in /installments)
-    q = q.filter(
-        (Expense.installment_group_id.is_(None)) |
-        (Expense.date <= date.today())
-    )
+    q = q.filter((Expense.installment_group_id.is_(None)) | (Expense.date <= date.today()))
     return q.order_by(desc(Expense.date)).offset(skip).limit(limit).all()
 
 
@@ -263,7 +271,11 @@ def update_expense(
 ):
     db_exp = (
         db.query(Expense)
-        .options(joinedload(Expense.card_rel), joinedload(Expense.category), joinedload(Expense.account_rel))
+        .options(
+            joinedload(Expense.card_rel),
+            joinedload(Expense.category),
+            joinedload(Expense.account_rel),
+        )
         .filter(Expense.id == exp_id, Expense.user_id == current_user.id)
         .first()
     )
@@ -350,8 +362,10 @@ def bulk_update_expenses(
     if not update_data:
         return {"updated": 0}
 
-    updated = db.query(Expense).filter(Expense.id.in_(ids), Expense.user_id == current_user.id).update(
-        update_data, synchronize_session=False
+    updated = (
+        db.query(Expense)
+        .filter(Expense.id.in_(ids), Expense.user_id == current_user.id)
+        .update(update_data, synchronize_session=False)
     )
     db.commit()
     return {"updated": updated}
@@ -421,6 +435,7 @@ def get_expense_stats(
         q = q.filter(Expense.account_id == account_id)
     elif account:
         from app.models import Account
+
         q = q.join(Account, Expense.account_id == Account.id, isouter=True).filter(
             Account.name.ilike(f"%{account}%")
         )
@@ -518,13 +533,15 @@ def get_expenses_by_category(
     result = []
     for cat_id, total, count in rows:
         cat = cat_map.get(cat_id) if cat_id else None
-        result.append(CategoryBreakdownItem(
-            category_id=cat_id,
-            category_name=cat.name if cat else "Sin categoría",
-            category_color=cat.color if cat else "#94a3b8",
-            total=float(total),
-            count=count,
-        ))
+        result.append(
+            CategoryBreakdownItem(
+                category_id=cat_id,
+                category_name=cat.name if cat else "Sin categoría",
+                category_color=cat.color if cat else "#94a3b8",
+                total=float(total),
+                count=count,
+            )
+        )
     return sorted(result, key=lambda x: x.total, reverse=True)
 
 

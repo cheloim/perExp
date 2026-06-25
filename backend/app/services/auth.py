@@ -117,7 +117,9 @@ async def verify_apple_token(code: str) -> dict:
 
         apple_keys_resp = _req.get("https://appleid.apple.com/auth/keys", timeout=10)
         if apple_keys_resp.status_code != 200:
-            raise HTTPException(status_code=502, detail="No se pudieron obtener las claves de Apple")
+            raise HTTPException(
+                status_code=502, detail="No se pudieron obtener las claves de Apple"
+            )
         from jose import jwt as jose_jwt
 
         header = jose_jwt.get_unverified_header(id_token)
@@ -125,7 +127,9 @@ async def verify_apple_token(code: str) -> dict:
         keys = apple_keys_resp.json().get("keys", [])
         matching_key = next((k for k in keys if k.get("kid") == kid), None)
         if not matching_key:
-            raise HTTPException(status_code=401, detail="Token de Apple inválido: kid no encontrado")
+            raise HTTPException(
+                status_code=401, detail="Token de Apple inválido: kid no encontrado"
+            )
         public_key = jose_jwt.construct_rsa_key(matching_key)
         return jose_jwt.decode(id_token, public_key, algorithms=["RS256"], audience=APPLE_CLIENT_ID)
 

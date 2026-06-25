@@ -51,7 +51,9 @@ def update_category(
     # Check for duplicate name (excluding self)
     existing = (
         db.query(Category)
-        .filter(Category.name == cat.name, Category.user_id == current_user.id, Category.id != cat_id)
+        .filter(
+            Category.name == cat.name, Category.user_id == current_user.id, Category.id != cat_id
+        )
         .first()
     )
     if existing:

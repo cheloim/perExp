@@ -236,6 +236,7 @@ def regenerate_telegram_key(
     # Notify the bot before clearing the session
     if current_user.telegram_chat_id:
         from app.telegram_bot import send_disconnect_notification
+
         send_disconnect_notification(current_user.telegram_chat_id)
 
     current_user.telegram_key = _generate_telegram_key()

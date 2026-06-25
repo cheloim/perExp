@@ -141,6 +141,7 @@ TOP 10 GASTOS MÁS ALTOS:
                 hist_db.commit()
             except Exception as e:
                 import logging
+
                 logging.getLogger(__name__).error(f"Failed to save analysis history: {e}")
             finally:
                 hist_db.close()

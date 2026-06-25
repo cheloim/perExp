@@ -71,11 +71,15 @@ def _apply_filters(q, month_val, search_val, person_val, cat_id_val, bank_val=No
     if search_val:
         q = q.filter(Expense.description.ilike(f"%{search_val}%"))
     if person_val:
-        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(Card.holder.ilike(f"%{person_val}%"))
+        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
+            Card.holder.ilike(f"%{person_val}%")
+        )
     if cat_id_val is not None:
         q = q.filter(Expense.category_id == cat_id_val)
     if bank_val:
-        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(Card.bank.ilike(f"%{bank_val}%"))
+        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
+            Card.bank.ilike(f"%{bank_val}%")
+        )
     return q
 
 
@@ -92,7 +96,11 @@ def get_summary(
 ):
     uid_list = get_group_user_ids(current_user.id, db)
 
-    base_q = db.query(Expense).options(joinedload(Expense.card_rel)).filter(Expense.user_id.in_(uid_list))
+    base_q = (
+        db.query(Expense)
+        .options(joinedload(Expense.card_rel))
+        .filter(Expense.user_id.in_(uid_list))
+    )
     expenses = (
         _apply_filters(base_q, month, search, person, category_id, bank)
         .order_by(desc(Expense.date))
@@ -160,7 +168,11 @@ def get_summary(
                 # Skip income from previous month calculation
                 if e.is_income:
                     continue
-                prev_cat_key = e.category_id if e.category_id and e.category_id in cat_map else "__uncategorized__"
+                prev_cat_key = (
+                    e.category_id
+                    if e.category_id and e.category_id in cat_map
+                    else "__uncategorized__"
+                )
                 if prev_cat_key not in by_category:
                     # Category existed last month but not this month — add it with total=0
                     if prev_cat_key == "__uncategorized__":
@@ -356,7 +368,11 @@ def get_account_expenses(
     current_user: User = Depends(get_current_user),
 ):
     uid_list = get_group_user_ids(current_user.id, db)
-    base_q = db.query(Expense).options(joinedload(Expense.card_rel)).filter(Expense.user_id.in_(uid_list))
+    base_q = (
+        db.query(Expense)
+        .options(joinedload(Expense.card_rel))
+        .filter(Expense.user_id.in_(uid_list))
+    )
 
     if month:
         try:
@@ -584,6 +600,7 @@ def get_installments_monthly_load(
     # Future months: project remaining installments per group
     # Load scheduled expenses to avoid double-counting
     from app.models import ScheduledExpense
+
     scheduled = (
         db.query(ScheduledExpense)
         .filter(
@@ -597,7 +614,11 @@ def get_installments_monthly_load(
     for se in scheduled:
         if se.installment_group_id not in scheduled_months:
             scheduled_months[se.installment_group_id] = set()
-        smonth = se.scheduled_date.strftime("%Y-%m") if isinstance(se.scheduled_date, date) else str(se.scheduled_date)[:7]
+        smonth = (
+            se.scheduled_date.strftime("%Y-%m")
+            if isinstance(se.scheduled_date, date)
+            else str(se.scheduled_date)[:7]
+        )
         scheduled_months[se.installment_group_id].add(smonth)
 
     groups: dict = {}
@@ -761,7 +782,9 @@ def get_credit_card_pasivos(
 
     # Load credit cards referenced by pending pasivos
     pasivo_card_ids = {s.card_id for s in pending_pasivos if s.card_id} - credit_card_ids
-    extra_cards = db.query(Card).filter(Card.id.in_(pasivo_card_ids)).all() if pasivo_card_ids else []
+    extra_cards = (
+        db.query(Card).filter(Card.id.in_(pasivo_card_ids)).all() if pasivo_card_ids else []
+    )
     cards_by_id = {c.id: c for c in credit_cards + extra_cards}
 
     total_pasivos = 0.0
@@ -819,9 +842,13 @@ def get_top_merchants(
         except (ValueError, IndexError):
             pass
     if person:
-        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(Card.holder.ilike(f"%{person}%"))
+        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
+            Card.holder.ilike(f"%{person}%")
+        )
     if bank:
-        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(Card.bank.ilike(f"%{bank}%"))
+        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
+            Card.bank.ilike(f"%{bank}%")
+        )
 
     rows = q.all()
 
@@ -839,7 +866,11 @@ def get_top_merchants(
     for g in groups.values():
         if g["cats"]:
             cat_ids.add(Counter(g["cats"]).most_common(1)[0][0])
-    cat_map = {c.id: c for c in db.query(Category).filter(Category.id.in_(cat_ids)).all()} if cat_ids else {}
+    cat_map = (
+        {c.id: c for c in db.query(Category).filter(Category.id.in_(cat_ids)).all()}
+        if cat_ids
+        else {}
+    )
 
     result = []
     for g in groups.values():
@@ -951,7 +982,9 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
                 "bank": g["bank"],
                 "card_name": g["card_name"],
                 "card_type": g["card_type"],
-                "account_id": g.get("account_ids", {}).keys().__iter__().__next__() if g.get("account_ids") else None,
+                "account_id": g.get("account_ids", {}).keys().__iter__().__next__()
+                if g.get("account_ids")
+                else None,
                 "total_amount": g["total_amount"],
                 "count": g["count"],
                 "currency": g["currency"],
@@ -982,7 +1015,11 @@ def get_card_category_breakdown(
             return "Amex"
         return s.title() or "Otra"
 
-    q = db.query(Expense).options(joinedload(Expense.card_rel)).filter(Expense.user_id.in_(uid_list), Expense.amount > 0)
+    q = (
+        db.query(Expense)
+        .options(joinedload(Expense.card_rel))
+        .filter(Expense.user_id.in_(uid_list), Expense.amount > 0)
+    )
     if month:
         try:
             y, m_num = int(month[:4]), int(month[5:7])
@@ -993,7 +1030,9 @@ def get_card_category_breakdown(
         except (ValueError, IndexError):
             pass
     if bank:
-        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(Card.bank.ilike(f"%{bank}%"))
+        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
+            Card.bank.ilike(f"%{bank}%")
+        )
 
     exps = q.all()
     cards_by_id, _ = _load_cards_and_accounts(uid_list, exps, db)
@@ -1074,8 +1113,12 @@ def get_category_trend(
         )
     )
     if person:
-        rows_raw = rows_raw.outerjoin(Card, Expense.card_id == Card.id).filter(Card.holder.ilike(f"%{person}%"))
-    rows_raw = rows_raw.group_by(func.to_char(Expense.date, "YYYY-MM"), Category.name, Category.color).all()
+        rows_raw = rows_raw.outerjoin(Card, Expense.card_id == Card.id).filter(
+            Card.holder.ilike(f"%{person}%")
+        )
+    rows_raw = rows_raw.group_by(
+        func.to_char(Expense.date, "YYYY-MM"), Category.name, Category.color
+    ).all()
 
     data: dict = {mk: {} for mk in month_keys}
     cat_colors: dict = {}

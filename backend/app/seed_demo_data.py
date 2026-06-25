@@ -17,84 +17,178 @@ from app.seed import _apply_base_hierarchy_for_user
 
 MERCHANT_POOLS = {
     "Supermercado": [
-        "COTO", "CARREFOUR", "DIA", "DISCO", "JUMBO", "CHANGO MAS",
-        "VEA", "LOTE", "MEDIUM", "AKENATON", "LIBRE MERCADO",
+        "COTO",
+        "CARREFOUR",
+        "DIA",
+        "DISCO",
+        "JUMBO",
+        "CHANGO MAS",
+        "VEA",
+        "LOTE",
+        "MEDIUM",
+        "AKENATON",
+        "LIBRE MERCADO",
     ],
     "Restaurantes": [
-        "MCDONALDS", "BURGER KING", "LA PAROLACCIA", "SARKIS",
-        "DON JULIO", "PAROLACCIA", "IL MATTO", "PAIN ET VIN",
-        "OSHER", "LA BIRRERIA", "STEAK HOUSE",
+        "MCDONALDS",
+        "BURGER KING",
+        "LA PAROLACCIA",
+        "SARKIS",
+        "DON JULIO",
+        "PAROLACCIA",
+        "IL MATTO",
+        "PAIN ET VIN",
+        "OSHER",
+        "LA BIRRERIA",
+        "STEAK HOUSE",
     ],
     "Delivery": [
-        "RAPPI", "PEDIDOSYA", "CABIFY EATS", "IFOOD", "MEPEDIDO",
+        "RAPPI",
+        "PEDIDOSYA",
+        "CABIFY EATS",
+        "IFOOD",
+        "MEPEDIDO",
     ],
     "Combustible": [
-        "YPF", "SHELL", "PETROBRAS", "AXION", "BLANCA ESPERANZA",
-        "OGASA", "PUMA",
+        "YPF",
+        "SHELL",
+        "PETROBRAS",
+        "AXION",
+        "BLANCA ESPERANZA",
+        "OGASA",
+        "PUMA",
     ],
     "Transporte Público": [
-        "SUBE RECARGA", "SUBE", "ECOBICI",
+        "SUBE RECARGA",
+        "SUBE",
+        "ECOBICI",
     ],
     "Streaming": [
-        "NETFLIX", "SPOTIFY", "DISNEY+", "HBO MAX", "AMAZON PRIME",
-        "PARAMOUNT+", "YOUTUBE PREMIUM", "APPLE TV+",
+        "NETFLIX",
+        "SPOTIFY",
+        "DISNEY+",
+        "HBO MAX",
+        "AMAZON PRIME",
+        "PARAMOUNT+",
+        "YOUTUBE PREMIUM",
+        "APPLE TV+",
     ],
     "Electricidad & Gas": [
-        "EDENOR", "EDESUR", "METROGAS", "CAMUZ", "DISTRIBUIDORA DE GAS",
+        "EDENOR",
+        "EDESUR",
+        "METROGAS",
+        "CAMUZ",
+        "DISTRIBUIDORA DE GAS",
     ],
     "Internet & Cable": [
-        "FIBERTEL", "PERSONAL", "CLARO", "MOVISTAR", "TDC",
+        "FIBERTEL",
+        "PERSONAL",
+        "CLARO",
+        "MOVISTAR",
+        "TDC",
     ],
     "Farmacia": [
-        "FARMACITY", "DR. AHUMADA", "LA SANatorial", "ROEMMERS",
+        "FARMACITY",
+        "DR. AHUMADA",
+        "LA SANatorial",
+        "ROEMMERS",
         "FARMACIA DEL PUEBLO",
     ],
     "Prepaga": [
-        "SWISS MEDICAL", "OSDE", "SMG", "MEDICUS", "GALENO",
+        "SWISS MEDICAL",
+        "OSDE",
+        "SMG",
+        "MEDICUS",
+        "GALENO",
     ],
     "Ropa": [
-        "ZARA", "H&M", "C&A", "LEVIS", "ADIDAS", "NIKE",
-        "SHEIN", "RIP CURL", "FOREVER 21",
+        "ZARA",
+        "H&M",
+        "C&A",
+        "LEVIS",
+        "ADIDAS",
+        "NIKE",
+        "SHEIN",
+        "RIP CURL",
+        "FOREVER 21",
     ],
     "Almacén/Kiosco": [
-        "ALMACEN DON PEPE", "KIOSCO EL RINCON", "VERDULERIA DON PEPE",
-        "LIBRERIA", "CHINO DEL BARRIO",
+        "ALMACEN DON PEPE",
+        "KIOSCO EL RINCON",
+        "VERDULERIA DON PEPE",
+        "LIBRERIA",
+        "CHINO DEL BARRIO",
     ],
     "Cine & Salidas": [
-        "CINE HOYTS", "CINEMARK", "SALTER", "PUNTO CINE",
+        "CINE HOYTS",
+        "CINEMARK",
+        "SALTER",
+        "PUNTO CINE",
     ],
     "Librería & Libros": [
-        "LIBRERIA EL ATENEO", "Yenny", "CASA DEL LIBRO", "AGUALISA",
+        "LIBRERIA EL ATENEO",
+        "Yenny",
+        "CASA DEL LIBRO",
+        "AGUALISA",
     ],
     "Taxi/Remis": [
-        "UBER", "CABIFY", "DIDI", "BEAT", "IN DRIVER",
+        "UBER",
+        "CABIFY",
+        "DIDI",
+        "BEAT",
+        "IN DRIVER",
     ],
     "Tecnología": [
-        "COMPUMAGNO", "GARBARINO", "FRACTAL", "MAXICARGAS",
-        "MERCADO LIBRE", "FALABELLA",
+        "COMPUMAGNO",
+        "GARBARINO",
+        "FRACTAL",
+        "MAXICARGAS",
+        "MERCADO LIBRE",
+        "FALABELLA",
     ],
     "Hogar": [
-        "CASA CUELLAR", "SODIMAC", "EASY", "LIVERA",
+        "CASA CUELLAR",
+        "SODIMAC",
+        "EASY",
+        "LIVERA",
         "BLANCO Y ROJO",
     ],
     "Mascota": [
-        "PETISMO", "PETFARM", "ZONA GAUCHA", "MASCOT Market",
+        "PETISMO",
+        "PETFARM",
+        "ZONA GAUCHA",
+        "MASCOT Market",
     ],
     "Salud": [
-        "CLINICA PRIVADA", "LABORATORIO", "ODONTOLOGO", "OFTALMOLOGO",
+        "CLINICA PRIVADA",
+        "LABORATORIO",
+        "ODONTOLOGO",
+        "OFTALMOLOGO",
     ],
     "Educación": [
-        "CURSO ONLINE", "UNIVERSIDAD", "LIBROS DE TEXTO", "UDC",
+        "CURSO ONLINE",
+        "UNIVERSIDAD",
+        "LIBROS DE TEXTO",
+        "UDC",
     ],
     "Viajes": [
-        "VUELTA A BARILOCHE", "HOTEL CALAFATE", "AEROLINEAS ARGENTINAS",
-        " booking.com", "AIRBNB",
+        "VUELTA A BARILOCHE",
+        "HOTEL CALAFATE",
+        "AEROLINEAS ARGENTINAS",
+        " booking.com",
+        "AIRBNB",
     ],
     "Seguros": [
-        "SEGURO AUTO", "SEGURO HOGAR", "SEGURO VIDA", "LA CAJA",
+        "SEGURO AUTO",
+        "SEGURO HOGAR",
+        "SEGURO VIDA",
+        "LA CAJA",
     ],
     "Gimnasio": [
-        "MEGATLON", " SPORTS", "EVOLUTION", "SMART FIT",
+        "MEGATLON",
+        " SPORTS",
+        "EVOLUTION",
+        "SMART FIT",
     ],
 }
 
@@ -129,22 +223,78 @@ AMOUNT_RANGES = {
 # ─── Installment product templates ──────────────────────────────────────────
 
 INSTALLMENT_TEMPLATES = [
-    {"desc": "SAMSUNG GALAXY S24", "base_amount": 1200000, "installments_range": (6, 18), "category": None},
-    {"desc": "IPHONE 15 PRO", "base_amount": 1800000, "installments_range": (6, 18), "category": None},
-    {"desc": "NOTEBOOK LENOVO", "base_amount": 980000, "installments_range": (6, 12), "category": None},
-    {"desc": "SILLON BELGRANO", "base_amount": 180000, "installments_range": (3, 6), "category": "Hogar"},
-    {"desc": "VIAJE BARILOCHE", "base_amount": 500000, "installments_range": (3, 6), "category": "Viajes"},
-    {"desc": "TV SAMSUNG 65\"", "base_amount": 800000, "installments_range": (6, 12), "category": None},
-    {"desc": "AIRE ACONDICIONADO", "base_amount": 450000, "installments_range": (6, 12), "category": "Hogar"},
-    {"desc": "MUEBLE LIVING", "base_amount": 350000, "installments_range": (3, 6), "category": "Hogar"},
-    {"desc": "BICICLETA MOUNTAIN", "base_amount": 280000, "installments_range": (3, 6), "category": None},
+    {
+        "desc": "SAMSUNG GALAXY S24",
+        "base_amount": 1200000,
+        "installments_range": (6, 18),
+        "category": None,
+    },
+    {
+        "desc": "IPHONE 15 PRO",
+        "base_amount": 1800000,
+        "installments_range": (6, 18),
+        "category": None,
+    },
+    {
+        "desc": "NOTEBOOK LENOVO",
+        "base_amount": 980000,
+        "installments_range": (6, 12),
+        "category": None,
+    },
+    {
+        "desc": "SILLON BELGRANO",
+        "base_amount": 180000,
+        "installments_range": (3, 6),
+        "category": "Hogar",
+    },
+    {
+        "desc": "VIAJE BARILOCHE",
+        "base_amount": 500000,
+        "installments_range": (3, 6),
+        "category": "Viajes",
+    },
+    {
+        "desc": 'TV SAMSUNG 65"',
+        "base_amount": 800000,
+        "installments_range": (6, 12),
+        "category": None,
+    },
+    {
+        "desc": "AIRE ACONDICIONADO",
+        "base_amount": 450000,
+        "installments_range": (6, 12),
+        "category": "Hogar",
+    },
+    {
+        "desc": "MUEBLE LIVING",
+        "base_amount": 350000,
+        "installments_range": (3, 6),
+        "category": "Hogar",
+    },
+    {
+        "desc": "BICICLETA MOUNTAIN",
+        "base_amount": 280000,
+        "installments_range": (3, 6),
+        "category": None,
+    },
     {"desc": "CONSOLA PS5", "base_amount": 750000, "installments_range": (6, 12), "category": None},
-    {"desc": "CAFETERA NESPRESSO", "base_amount": 120000, "installments_range": (3, 6), "category": "Hogar"},
-    {"desc": "SMART WATCH GARMIN", "base_amount": 350000, "installments_range": (3, 6), "category": None},
+    {
+        "desc": "CAFETERA NESPRESSO",
+        "base_amount": 120000,
+        "installments_range": (3, 6),
+        "category": "Hogar",
+    },
+    {
+        "desc": "SMART WATCH GARMIN",
+        "base_amount": 350000,
+        "installments_range": (3, 6),
+        "category": None,
+    },
 ]
 
 
 # ─── Helper functions ────────────────────────────────────────────────────────
+
 
 def _random_date_in_range(start: date, end: date) -> date:
     """Return a random date between start and end (inclusive)."""
@@ -172,6 +322,7 @@ def _pick_random_items(lst: list, min_count: int = 1, max_count: int = None) -> 
 
 
 # ─── Core functions ─────────────────────────────────────────────────────────
+
 
 def select_user_interactive(db: Session) -> User:
     """Show numbered list of users and prompt for selection."""
@@ -250,17 +401,21 @@ def get_or_create_accounts(db: Session, user_id: int) -> list[Account]:
 
 def get_categories(db: Session, user_id: int) -> dict[str, Category]:
     """Get categories by name for the user. Creates them if they don't exist."""
-    cats = db.query(Category).filter(
-        (Category.user_id == user_id) | (Category.user_id.is_(None))
-    ).all()
+    cats = (
+        db.query(Category)
+        .filter((Category.user_id == user_id) | (Category.user_id.is_(None)))
+        .all()
+    )
 
     if not cats:
         print(f"No categories found for user {user_id}. Creating base hierarchy...")
         _apply_base_hierarchy_for_user(db, user_id)
         db.commit()
-        cats = db.query(Category).filter(
-            (Category.user_id == user_id) | (Category.user_id.is_(None))
-        ).all()
+        cats = (
+            db.query(Category)
+            .filter((Category.user_id == user_id) | (Category.user_id.is_(None)))
+            .all()
+        )
 
     return {c.name: c for c in cats}
 
@@ -426,9 +581,9 @@ def main():
         expense_count = db.query(Expense).filter(Expense.user_id == user.id).count()
         card_count = db.query(Card).filter(Card.user_id == user.id).count()
         account_count = db.query(Account).filter(Account.user_id == user.id).count()
-        scheduled_count = db.query(ScheduledExpense).filter(
-            ScheduledExpense.user_id == user.id
-        ).count()
+        scheduled_count = (
+            db.query(ScheduledExpense).filter(ScheduledExpense.user_id == user.id).count()
+        )
 
         print("\nListo! Estado final:")
         print(f"  - {expense_count} gastos")

@@ -48,6 +48,7 @@ INDICES = [
     ("ix_scheduled_expenses_user_status", "scheduled_expenses", ["user_id", "status"]),
 ]
 
+
 def main():
     engine = create_engine(DATABASE_URL)
     with engine.connect() as conn:
@@ -58,6 +59,7 @@ def main():
             conn.execute(text(sql))
         conn.commit()
     print("Done! All indices created.")
+
 
 if __name__ == "__main__":
     main()

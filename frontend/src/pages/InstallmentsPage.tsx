@@ -244,8 +244,8 @@ export default function InstallmentsPage() {
                         const kind = entry?.is_current
                           ? "Mes actual"
                           : entry?.is_past
-                          ? "Pagado"
-                          : "Proyectado";
+                            ? "Pagado"
+                            : "Proyectado";
                         if (!entry?.is_current && currentTotal > 0) {
                           const pct = ((v - currentTotal) / currentTotal) * 100;
                           const sign = pct > 0 ? "+" : "";

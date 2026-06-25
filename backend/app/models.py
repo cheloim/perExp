@@ -46,9 +46,7 @@ class Group(Base):
 
 class GroupMember(Base):
     __tablename__ = "group_members"
-    __table_args__ = (
-        UniqueConstraint("group_id", "user_id", name="uq_group_member"),
-    )
+    __table_args__ = (UniqueConstraint("group_id", "user_id", name="uq_group_member"),)
     id = Column(Integer, primary_key=True, index=True)
     group_id = Column(Integer, ForeignKey("groups.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
@@ -61,9 +59,7 @@ class GroupMember(Base):
 
 class Notification(Base):
     __tablename__ = "notifications"
-    __table_args__ = (
-        Index("ix_notifications_user_read", "user_id", "read"),
-    )
+    __table_args__ = (Index("ix_notifications_user_read", "user_id", "read"),)
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     type = Column(String, nullable=False)
@@ -77,7 +73,9 @@ class Notification(Base):
 class ImportJob(Base):
     __tablename__ = "import_jobs"
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     filename = Column(String, nullable=False)
     status = Column(String, default="PROCESSING")  # PROCESSING | READY_PREVIEW | COMPLETED | FAILED
     file_content = Column(LargeBinary)
@@ -105,9 +103,7 @@ class Category(Base):
 
 class Account(Base):
     __tablename__ = "accounts"
-    __table_args__ = (
-        Index("ix_accounts_user_id", "user_id"),
-    )
+    __table_args__ = (Index("ix_accounts_user_id", "user_id"),)
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     type = Column(
@@ -168,9 +164,7 @@ class Expense(Base):
 
 class AnalysisHistory(Base):
     __tablename__ = "analysis_history"
-    __table_args__ = (
-        Index("ix_analysis_history_user_id", "user_id"),
-    )
+    __table_args__ = (Index("ix_analysis_history_user_id", "user_id"),)
     id = Column(Integer, primary_key=True, index=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     month = Column(String, nullable=True)
@@ -209,9 +203,7 @@ class Investment(Base):
 
 class CardClosing(Base):
     __tablename__ = "card_closings"
-    __table_args__ = (
-        Index("ix_card_closings_user_id", "user_id"),
-    )
+    __table_args__ = (Index("ix_card_closings_user_id", "user_id"),)
     id = Column(Integer, primary_key=True, index=True)
     card = Column(String, nullable=False, default="")
     card_last_digits = Column(String, default="")
@@ -254,7 +246,9 @@ class ScheduledExpense(Base):
     category_id = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
 
     # Si fue ejecutada
-    executed_expense_id = Column(Integer, ForeignKey("expenses.id", ondelete="SET NULL"), nullable=True)
+    executed_expense_id = Column(
+        Integer, ForeignKey("expenses.id", ondelete="SET NULL"), nullable=True
+    )
     executed_at = Column(DateTime, nullable=True)
 
     # Auditoría

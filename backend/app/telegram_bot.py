@@ -791,10 +791,14 @@ async def handle_account_select(update: Update, context: ContextTypes.DEFAULT_TY
     # Load account info and categorize
     db = SessionLocal()
     try:
-        account = db.query(Account).filter(
-            Account.id == int(account_id),
-            Account.user_id == context.user_data["user_id"],
-        ).first()
+        account = (
+            db.query(Account)
+            .filter(
+                Account.id == int(account_id),
+                Account.user_id == context.user_data["user_id"],
+            )
+            .first()
+        )
         if not account:
             await query.edit_message_text("Error: cuenta no encontrada.")
             return ConversationHandler.END

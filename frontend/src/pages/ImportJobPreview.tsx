@@ -413,8 +413,8 @@ export default function ImportJobPreview() {
             {confirmMutation.isPending
               ? "Confirmando..."
               : customNamingRequired && !customNamingComplete
-              ? "Completá nombres primero"
-              : "Confirmar importación"}
+                ? "Completá nombres primero"
+                : "Confirmar importación"}
           </button>
         </div>
       </div>
