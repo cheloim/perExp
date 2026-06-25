@@ -786,7 +786,9 @@ export default function ExpensesPage() {
                               className={`flex items-center gap-2 text-xs text-left w-full rounded px-1 py-0.5 transition ${
                                 selectedDonutCategory === cat.category_name
                                   ? "bg-[var(--color-primary)]/10"
-                                  : filterSearch && cat.category_id != null && matchingCategories.has(cat.category_id)
+                                  : filterSearch &&
+                                      cat.category_id != null &&
+                                      matchingCategories.has(cat.category_id)
                                     ? "bg-[var(--color-primary)]/5"
                                     : "hover:bg-[var(--color-base-alt)]"
                               }`}
