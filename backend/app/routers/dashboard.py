@@ -826,10 +826,10 @@ def get_top_merchants(
     rows = q.all()
 
     groups: dict = {}
-    for desc, amount, cat_id in rows:
-        key = desc.lower().strip()
+    for description, amount, cat_id in rows:
+        key = description.lower().strip()
         if key not in groups:
-            groups[key] = {"description": desc, "total": 0.0, "count": 0, "cats": []}
+            groups[key] = {"description": description, "total": 0.0, "count": 0, "cats": []}
         groups[key]["total"] += amount
         groups[key]["count"] += 1
         if cat_id:

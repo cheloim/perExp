@@ -23,8 +23,7 @@ from app.database import SessionLocal
 from app.models import Account, Card, Category, Expense, User
 from app.prompts import CARD_EXTRACT_PROMPT, EXPENSE_PARSE_PROMPT
 from app.services.categorization import auto_categorize
-from app.services.import_utils import _normalize_text, _title_case
-from app.services.normalizers import _normalize_person, normalize_bank
+from app.services.import_utils import _normalize_text
 
 logger = logging.getLogger(__name__)
 
@@ -389,7 +388,6 @@ async def _validate_session(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 def send_disconnect_notification(chat_id: str) -> None:
     """Send a disconnect notification to a Telegram chat. Safe to call from any thread."""
-    import threading
 
     if not _bot_app or not _bot_app.bot:
         logger.warning("[TELEGRAM] Bot app not available, cannot send disconnect notification")
@@ -406,7 +404,6 @@ def send_disconnect_notification(chat_id: str) -> None:
 
     loop = _bot_app.bot._local._loop if hasattr(_bot_app.bot, "_local") else None
     if loop and loop.is_running():
-        import concurrent.futures
         asyncio.run_coroutine_threadsafe(_send(), loop)
     else:
         logger.warning("[TELEGRAM] Bot event loop not available")

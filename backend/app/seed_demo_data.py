@@ -6,10 +6,11 @@ Run from the backend directory: python -m app.seed_demo_data
 import random
 import uuid
 from datetime import date, timedelta
+
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
-from app.models import Expense, Card, Account, Category, User, ScheduledExpense
+from app.models import Account, Card, Category, Expense, ScheduledExpense, User
 from app.seed import _apply_base_hierarchy_for_user
 
 # ─── Merchant pools per category ─────────────────────────────────────────────
@@ -216,7 +217,7 @@ def get_or_create_cards(db: Session, user_id: int) -> list[Card]:
         ("Visa Débito", "debito"),
     ]
 
-    for (card_name, card_type), bank in zip(card_types, banks):
+    for (card_name, card_type), bank in zip(card_types, banks, strict=False):
         card = Card(
             user_id=user_id,
             card_name=card_name,
@@ -429,7 +430,7 @@ def main():
             ScheduledExpense.user_id == user.id
         ).count()
 
-        print(f"\nListo! Estado final:")
+        print("\nListo! Estado final:")
         print(f"  - {expense_count} gastos")
         print(f"  - {scheduled_count} gastos programados/cuotas")
         print(f"  - {card_count} tarjetas")

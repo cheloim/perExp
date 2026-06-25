@@ -16,7 +16,6 @@ from app.services.auth import get_current_user
 from app.services.categorization import _resolve_category, auto_categorize
 from app.services.date_utils import _normalize_date_str, add_months
 from app.services.import_utils import _is_duplicate, _normalize_text
-from app.services.normalizers import normalize_bank
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
@@ -215,7 +214,7 @@ def create_expense(
 
     # Auto-categorize if needed
     if data.get("category_id") is None:
-    cats = db.query(Category).filter(Category.user_id == current_user.id).all()
+        cats = db.query(Category).filter(Category.user_id == current_user.id).all()
         data["category_id"] = auto_categorize(data["description"], cats)
 
     # Detect if this is income based on category parent

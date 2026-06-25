@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db
 from app.models import GroupMember, Notification, User
-from app.services.auth import SECRET_KEY, ALGORITHM, get_current_user
+from app.services.auth import ALGORITHM, SECRET_KEY, get_current_user
 
 
 class NotificationResponse(BaseModel):

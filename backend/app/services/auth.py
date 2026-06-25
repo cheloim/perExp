@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
 import bcrypt
 import httpx
@@ -36,7 +36,7 @@ def get_password_hash(password: str) -> str:
 
 
 def create_access_token(user_id: int) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(days=JWT_EXPIRE_DAYS)
+    expire = datetime.now(UTC) + timedelta(days=JWT_EXPIRE_DAYS)
     return jwt.encode({"sub": str(user_id), "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
 
 
@@ -133,7 +133,7 @@ async def verify_apple_token(code: str) -> dict:
 def _generate_apple_client_secret() -> str:
     from jose import jwt as jose_jwt
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "iss": APPLE_TEAM_ID,
         "iat": now,
