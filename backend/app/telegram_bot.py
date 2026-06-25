@@ -23,10 +23,12 @@ from app.database import SessionLocal
 from app.models import Account, Card, Category, Expense, User
 from app.prompts import CARD_EXTRACT_PROMPT, EXPENSE_PARSE_PROMPT
 from app.services.categorization import auto_categorize
-from app.services.import_utils import _normalize_text, _title_case
-from app.services.normalizers import _normalize_person, normalize_bank
+from app.services.import_utils import _normalize_text
 
 logger = logging.getLogger(__name__)
+
+# Module-level bot app reference for proactive messaging from web
+_bot_app: Application | None = None
 
 WAITING_AUTH = 0
 WAITING_PAYMENT = 1
@@ -52,7 +54,7 @@ def _gemini_client() -> genai.Client:
 def _parse_expense(text: str) -> dict | None:
     today = date.today().strftime("%Y-%m-%d")
     prompt = EXPENSE_PARSE_PROMPT.format(today=today) + f"\n\nMensaje: {text}"
-    logger.warning(f"[DEBUG PARSE] Prompt:\n{prompt}")
+    logger.debug(f"[PARSE] Prompt:\n{prompt}")
     try:
         client = _gemini_client()
         response = client.models.generate_content(
@@ -60,7 +62,7 @@ def _parse_expense(text: str) -> dict | None:
             contents=prompt,
         )
         raw = response.text.strip()
-        logger.warning(f"[DEBUG PARSE] Raw response: {raw}")
+        logger.debug(f"[PARSE] Raw response: {raw}")
         # Strip markdown code fences if present
         if raw.startswith("```"):
             raw = raw.split("```")[1]
@@ -71,7 +73,7 @@ def _parse_expense(text: str) -> dict | None:
         return result
     except Exception as e:
         logger.error("Gemini parse error: %s", e)
-        logger.warning(f"[DEBUG PARSE] Failed text input: {text}")
+        logger.debug(f"[PARSE] Failed text input: {text}")
         return None
 
 
@@ -157,9 +159,6 @@ def _save_expense(
             amount=float(parsed.get("amount") or 0),
             currency=parsed.get("currency", "ARS"),
             category_id=category_id,
-            card=_title_case(card if card else payment),
-            bank=normalize_bank(bank),
-            person=_normalize_person(person, db),
             user_id=user_id,
             installment_number=1 if installment_total else None,
             installment_total=installment_total,
@@ -373,6 +372,43 @@ def _get_user_by_chat_id(chat_id: str) -> User | None:
         db.close()
 
 
+async def _validate_session(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """Validate that the user's session is still active. Returns True if valid."""
+    chat_id = str(update.effective_chat.id)
+    user = _get_user_by_chat_id(chat_id)
+    if not user or user.id != context.user_data.get("user_id"):
+        query = update.callback_query
+        await query.answer()
+        await query.edit_message_text(
+            "🔒 Tu sesión fue desconectada desde la web.\nUsá /start para reconectarte."
+        )
+        return False
+    return True
+
+
+def send_disconnect_notification(chat_id: str) -> None:
+    """Send a disconnect notification to a Telegram chat. Safe to call from any thread."""
+
+    if not _bot_app or not _bot_app.bot:
+        logger.warning("[TELEGRAM] Bot app not available, cannot send disconnect notification")
+        return
+
+    async def _send():
+        try:
+            await _bot_app.bot.send_message(
+                chat_id=chat_id,
+                text="🔒 Tu sesión fue desconectada desde la web.\nUsá /start para reconectarte.",
+            )
+        except Exception as e:
+            logger.warning(f"[TELEGRAM] Could not send disconnect notification: {e}")
+
+    loop = _bot_app.bot._local._loop if hasattr(_bot_app.bot, "_local") else None
+    if loop and loop.is_running():
+        asyncio.run_coroutine_threadsafe(_send(), loop)
+    else:
+        logger.warning("[TELEGRAM] Bot event loop not available")
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = str(update.effective_chat.id)
     db = SessionLocal()
@@ -404,6 +440,7 @@ async def handle_auth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             await update.message.reply_text("Clave incorrecta. Intentá de nuevo.")
             return WAITING_AUTH
         user.telegram_chat_id = chat_id
+        user.telegram_key = None  # Invalidate key after use
         db.commit()
         db.refresh(user)
         await update.message.reply_text(
@@ -459,8 +496,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return ConversationHandler.END
 
     parsed = await asyncio.to_thread(_parse_expense, text)
-    logger.warning(
-        f"[DEBUG PARSE] Parsed result: {parsed}, amount: {parsed.get('amount') if parsed else None}"
+    logger.debug(
+        f"[PARSE] Parsed result: {parsed}, amount: {parsed.get('amount') if parsed else None}"
     )
 
     if not parsed or not parsed.get("amount"):
@@ -498,6 +535,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
+
+    if not await _validate_session(update, context):
+        return ConversationHandler.END
 
     _, method = query.data.split(":", 1)
     context.user_data["payment_method"] = method
@@ -564,6 +604,9 @@ async def handle_card_bank(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     query = update.callback_query
     await query.answer()
 
+    if not await _validate_session(update, context):
+        return ConversationHandler.END
+
     bank = query.data.split(":", 1)[1]
     context.user_data["card_bank"] = bank
 
@@ -586,6 +629,9 @@ async def handle_card_bank(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 async def handle_card_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
+
+    if not await _validate_session(update, context):
+        return ConversationHandler.END
 
     parts = query.data.split(":", 1)
     card = parts[1]
@@ -639,6 +685,9 @@ async def handle_installment_question(update: Update, context: ContextTypes.DEFA
     """Handle yes/no response to '¿Lo pagaste en cuotas?'"""
     query = update.callback_query
     await query.answer()
+
+    if not await _validate_session(update, context):
+        return ConversationHandler.END
 
     _, answer = query.data.split(":", 1)
 
@@ -720,6 +769,9 @@ async def handle_account_select(update: Update, context: ContextTypes.DEFAULT_TY
     query = update.callback_query
     await query.answer()
 
+    if not await _validate_session(update, context):
+        return ConversationHandler.END
+
     _, account_id = query.data.split(":", 1)
 
     if account_id == "new":
@@ -739,7 +791,14 @@ async def handle_account_select(update: Update, context: ContextTypes.DEFAULT_TY
     # Load account info and categorize
     db = SessionLocal()
     try:
-        account = db.query(Account).filter(Account.id == int(account_id)).first()
+        account = (
+            db.query(Account)
+            .filter(
+                Account.id == int(account_id),
+                Account.user_id == context.user_data["user_id"],
+            )
+            .first()
+        )
         if not account:
             await query.edit_message_text("Error: cuenta no encontrada.")
             return ConversationHandler.END
@@ -796,6 +855,9 @@ async def handle_account_create_type(update: Update, context: ContextTypes.DEFAU
     """Handle account type selection and create the account"""
     query = update.callback_query
     await query.answer()
+
+    if not await _validate_session(update, context):
+        return ConversationHandler.END
 
     _, account_type = query.data.split(":", 1)
     account_name = context.user_data.get("new_account_name", "Nueva cuenta")
@@ -905,7 +967,8 @@ async def handle_card_create_name(update: Update, context: ContextTypes.DEFAULT_
 
     if user_full_name:
         if "," in user_full_name:
-            holder = user_full_name.split(",")[0].split()[0]
+            parts = user_full_name.split(",")
+            holder = parts[1].strip().split()[0] if len(parts) > 1 and parts[1].strip() else ""
         else:
             holder = user_full_name.split()[0] if user_full_name.split() else ""
     else:
@@ -940,6 +1003,9 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
     query = update.callback_query
     await query.answer()
 
+    if not await _validate_session(update, context):
+        return ConversationHandler.END
+
     _, action = query.data.split(":", 1)
 
     if action == "no":
@@ -963,7 +1029,8 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
 
         if user_full_name:
             if "," in user_full_name:
-                holder = user_full_name.split(",")[0].split()[0]
+                parts = user_full_name.split(",")
+                holder = parts[1].strip().split()[0] if len(parts) > 1 and parts[1].strip() else ""
             else:
                 holder = user_full_name.split()[0] if user_full_name.split() else ""
         else:
@@ -1041,6 +1108,9 @@ async def handle_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     """Handle expense confirmation - save or cancel"""
     query = update.callback_query
     await query.answer()
+
+    if not await _validate_session(update, context):
+        return ConversationHandler.END
 
     _, answer = query.data.split(":", 1)
     if answer == "no":
@@ -1168,7 +1238,9 @@ def start_bot(token: str) -> None:
 
 
 async def _run_bot(token: str) -> None:
+    global _bot_app
     app = Application.builder().token(token).build()
+    _bot_app = app
 
     conv_handler = ConversationHandler(
         entry_points=[

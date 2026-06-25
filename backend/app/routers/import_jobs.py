@@ -308,11 +308,6 @@ async def confirm_import_job(
             if isinstance(mapping_entry, dict) and mapping_entry.get("bank")
             else norm_bank
         )
-        final_card = (
-            mapping_entry.get("card_name")
-            if isinstance(mapping_entry, dict) and mapping_entry.get("card_name")
-            else norm_card
-        )
         card_type = (
             cards_mapping.get(f"_card_type_{norm_bank}_{norm_card}", "credito")
             if isinstance(cards_mapping.get(f"_card_type_{norm_bank}_{norm_card}"), str)
@@ -332,9 +327,6 @@ async def confirm_import_job(
                     description=_normalize_text(r.get("description", "")),
                     amount=amount_value,
                     currency=r.get("currency", "ARS"),
-                    card=final_card,
-                    bank=final_bank,
-                    person=norm_person,
                     category_id=category_id,
                     transaction_id=txn_id,
                     installment_number=r.get("installment_number"),
@@ -359,9 +351,6 @@ async def confirm_import_job(
                     description=_normalize_text(r.get("description", "")),
                     amount=amount_value,
                     currency=r.get("currency", "ARS"),
-                    card=final_card,
-                    bank=final_bank,
-                    person=norm_person,
                     category_id=category_id,
                     transaction_id=txn_id,
                     installment_number=r.get("installment_number"),

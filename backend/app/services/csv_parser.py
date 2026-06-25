@@ -126,7 +126,7 @@ def _to_string_safe(val) -> str:
 
 
 def parse_csv_expenses(content: bytes, filename: str, db, user_id: int):
-    from app.models import Card, Category
+    from app.models import Category
     from app.services.categorization import auto_categorize
 
     if filename.lower().endswith(".csv"):
@@ -284,14 +284,6 @@ def parse_csv_expenses(content: bytes, filename: str, db, user_id: int):
 
     card_lookup: dict[str, dict] = {}
     unique_last4 = {r["card_last4"] for r in raw_rows if r["card_last4"]}
-    for last4 in unique_last4:
-        card = db.query(Card).filter(Card.user_id == user_id, Card.last4_digits == last4).first()
-        if card:
-            card_lookup[last4] = {
-                "bank": card.bank or "",
-                "card": card.card_name or "",
-                "card_id": card.id,
-            }
 
     for r in raw_rows:
         l4 = r["card_last4"]
@@ -304,7 +296,7 @@ def parse_csv_expenses(content: bytes, filename: str, db, user_id: int):
             r["card"] = ""
             r["card_id"] = None
 
-    raw_rows = _expand_installments(raw_rows, db)
+    raw_rows, _ = _expand_installments(raw_rows, db, user_id)
 
     cats = db.query(Category).all()
 

@@ -314,9 +314,6 @@ def _expand_installments(
                     "description": template["description"],
                     "amount": template["amount"],
                     "currency": template.get("currency", "ARS"),
-                    "card": template.get("card", ""),
-                    "bank": template.get("bank", ""),
-                    "person": template.get("person", ""),
                     "transaction_id": txn_id or None,
                     "installment_number": i,
                     "installment_total": inst_total,
@@ -376,9 +373,6 @@ def _expand_installments(
                         "description": template["description"],
                         "amount": template["amount"],
                         "currency": template.get("currency", "ARS"),
-                        "card": template.get("card", ""),
-                        "bank": template.get("bank", ""),
-                        "person": template.get("person", ""),
                         "transaction_id": txn_id or None,
                         "installment_number": i,
                         "installment_total": inst_total,
@@ -394,9 +388,6 @@ def _expand_installments(
                         "description": template["description"],
                         "amount": template["amount"],
                         "currency": template.get("currency", "ARS"),
-                        "card": template.get("card", ""),
-                        "bank": template.get("bank", ""),
-                        "person": template.get("person", ""),
                         "transaction_id": txn_id or None,
                         "installment_number": i,
                         "installment_total": inst_total,
@@ -404,7 +395,7 @@ def _expand_installments(
                         "status": "PENDING",
                         "category_id": None,
                         "user_id": user_id,
-                        "_is_scheduled": True,  # Flag para el frontend
+                        "_is_scheduled": True,
                     }
                 )
 
@@ -541,7 +532,7 @@ def fix_missing_installments(db: Session, user_id: int) -> dict:
         if base_date is None:
             continue
 
-        base_date.replace(day=1)
+        base_date = base_date.replace(day=1)
         generated_keys = set()
         for e, inst_num, inst_total in entries:
             gen_key = (desc_lower, inst_num, inst_total)
@@ -554,7 +545,6 @@ def fix_missing_installments(db: Session, user_id: int) -> dict:
             if gen_key in generated_keys:
                 continue
 
-            charge_date = add_months(base_date, inst_num - inst_num)
             charge_date = date(base_date.year, base_date.month, min(base_date.day, 28))
             charge_date = add_months(base_date, inst_num - 1)
 
@@ -591,9 +581,6 @@ def fix_missing_installments(db: Session, user_id: int) -> dict:
                     description=template_e.description,
                     amount=template_e.amount,
                     currency=template_e.currency or "ARS",
-                    card=template_e.card,
-                    bank=template_e.bank,
-                    person=template_e.person,
                     card_id=template_e.card_id,
                     account_id=template_e.account_id,
                     category_id=template_e.category_id,
@@ -601,7 +588,6 @@ def fix_missing_installments(db: Session, user_id: int) -> dict:
                     installment_total=inst_total,
                     installment_group_id=group_id,
                     user_id=user_id,
-                    group_id=template_e.group_id,
                     _auto_generated=True,
                 )
                 db.add(new_exp)
@@ -612,9 +598,6 @@ def fix_missing_installments(db: Session, user_id: int) -> dict:
                     description=template_e.description,
                     amount=template_e.amount,
                     currency=template_e.currency or "ARS",
-                    card=template_e.card,
-                    bank=template_e.bank,
-                    person=template_e.person,
                     card_id=template_e.card_id,
                     account_id=template_e.account_id,
                     category_id=template_e.category_id,
@@ -623,7 +606,6 @@ def fix_missing_installments(db: Session, user_id: int) -> dict:
                     installment_group_id=group_id,
                     status="PENDING",
                     user_id=user_id,
-                    group_id=template_e.group_id,
                 )
                 db.add(new_sched)
                 scheduled_created += 1

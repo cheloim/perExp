@@ -16,7 +16,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22.16.0"
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
@@ -26,7 +26,9 @@ jobs:
         run: npm run lint
 
       - name: Prettier
-        run: npx prettier --check --config .prettierrc src/
+        run: |
+          npx prettier --write src/
+          git diff --exit-code src/ || (echo "::error::Run 'npx prettier --write src/' locally" && exit 1)
 
       - name: TypeScript
         run: npm run typecheck
@@ -51,7 +53,9 @@ jobs:
         run: ruff check app/
 
       - name: Ruff Format
-        run: ruff format --check app/
+        run: |
+          ruff format app/
+          git diff --exit-code app/ || (echo "::error::Run 'ruff format app/' locally" && exit 1)
 
       - name: MyPy
         run: mypy app/

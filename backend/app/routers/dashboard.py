@@ -1,22 +1,55 @@
 import json
 import os
-import re
 from calendar import monthrange
 from collections import Counter, defaultdict
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import desc
-from sqlalchemy.orm import Session
+from sqlalchemy import desc, func
+from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
 from app.models import Card, Category, Expense, User
 from app.routers.groups import get_group_user_ids
 from app.services.auth import get_current_user
 from app.services.date_utils import add_months
-from app.services.normalizers import _norm_holder, normalize_bank
+from app.services.normalizers import normalize_bank
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+
+
+def _card_network(card_str: str) -> str:
+    s = (card_str or "").strip().lower()
+    if "visa" in s:
+        return "visa"
+    if "mastercard" in s or "master card" in s:
+        return "mastercard"
+    if "amex" in s or "american express" in s:
+        return "amex"
+    return s or "unknown"
+
+
+def _get_card_info(e: Expense, cards_by_id: dict) -> tuple[str, str, str]:
+    """Return (card_name, bank, holder) for an expense, using card_id when available."""
+    if e.card_id and e.card_id in cards_by_id:
+        c = cards_by_id[e.card_id]
+        return c.card_name, c.bank or "", c.holder or ""
+    return "", "", ""
+
+
+def _load_cards_and_accounts(uid_list: list[int], expenses: list[Expense], db: Session):
+    """Load cards and accounts for group users only."""
+    from app.models import Account
+
+    # Cards: only from group members
+    cards_by_id = {c.id: c for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
+
+    # Accounts: only from group members
+    accounts_by_id = {
+        a.id: a.type for a in db.query(Account).filter(Account.user_id.in_(uid_list)).all()
+    }
+
+    return cards_by_id, accounts_by_id
 
 
 def _apply_filters(q, month_val, search_val, person_val, cat_id_val, bank_val=None):
@@ -38,11 +71,15 @@ def _apply_filters(q, month_val, search_val, person_val, cat_id_val, bank_val=No
     if search_val:
         q = q.filter(Expense.description.ilike(f"%{search_val}%"))
     if person_val:
-        q = q.filter(Expense.person.ilike(f"%{person_val}%"))
+        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
+            Card.holder.ilike(f"%{person_val}%")
+        )
     if cat_id_val is not None:
         q = q.filter(Expense.category_id == cat_id_val)
     if bank_val:
-        q = q.filter(Expense.bank.ilike(f"%{bank_val}%"))
+        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
+            Card.bank.ilike(f"%{bank_val}%")
+        )
     return q
 
 
@@ -58,31 +95,30 @@ def get_summary(
     current_user: User = Depends(get_current_user),
 ):
     uid_list = get_group_user_ids(current_user.id, db)
-    base_q = db.query(Expense).filter(Expense.user_id.in_(uid_list))
+
+    base_q = (
+        db.query(Expense)
+        .options(joinedload(Expense.card_rel))
+        .filter(Expense.user_id.in_(uid_list))
+    )
     expenses = (
         _apply_filters(base_q, month, search, person, category_id, bank)
         .order_by(desc(Expense.date))
         .all()
     )
+    cards_by_id, _ = _load_cards_and_accounts(uid_list, expenses, db)
     categories = db.query(Category).all()
     cat_map = {c.id: c for c in categories}
-    total = sum(e.amount for e in expenses)
+    total = sum(e.amount for e in expenses if not e.is_income)
 
     # Calcular total_by_account (excluir gastos con tarjetas de credito)
     credit_cards = (
         db.query(Card).filter(Card.user_id.in_(uid_list), Card.card_type == "credito").all()
     )
     credit_card_ids = {c.id for c in credit_cards}
-    credit_card_names = {c.card_name.lower() for c in credit_cards}
 
     def is_credit_card_expense(e: Expense) -> bool:
-        if e.card_id and e.card_id in credit_card_ids:
-            return True
-        if e.card:
-            card_lower = e.card.lower()
-            if any(cn in card_lower for cn in credit_card_names):
-                return True
-        return False
+        return e.card_id is not None and e.card_id in credit_card_ids
 
     total_by_account = sum(
         e.amount for e in expenses if not is_credit_card_expense(e) and not e.is_income
@@ -104,8 +140,9 @@ def get_summary(
         else:
             cid, cname, ccolor = None, "Sin categoría", "#6b7280"
             pid, pname, pcolor = None, None, None
-        if cname not in by_category:
-            by_category[cname] = {
+        cat_key = cid if cid is not None else "__uncategorized__"
+        if cat_key not in by_category:
+            by_category[cat_key] = {
                 "category_id": cid,
                 "category_name": cname,
                 "category_color": ccolor,
@@ -116,8 +153,8 @@ def get_summary(
                 "count": 0,
                 "previous_total": 0.0,
             }
-        by_category[cname]["total"] += e.amount
-        by_category[cname]["count"] += 1
+        by_category[cat_key]["total"] += e.amount
+        by_category[cat_key]["count"] += 1
 
     if month:
         try:
@@ -125,15 +162,46 @@ def get_summary(
             pm = m - 1 if m > 1 else 12
             py = y if m > 1 else y - 1
             prev_expenses = _apply_filters(
-                base_q, f"{py}-{pm:02d}", search, None, category_id, bank
+                base_q, f"{py}-{pm:02d}", search, person, category_id, bank
             ).all()
             for e in prev_expenses:
                 # Skip income from previous month calculation
                 if e.is_income:
                     continue
-                cname = cat_map[e.category_id].name if e.category_id in cat_map else "Sin categoría"
-                if cname in by_category:
-                    by_category[cname]["previous_total"] += e.amount
+                prev_cat_key = (
+                    e.category_id
+                    if e.category_id and e.category_id in cat_map
+                    else "__uncategorized__"
+                )
+                if prev_cat_key not in by_category:
+                    # Category existed last month but not this month — add it with total=0
+                    if prev_cat_key == "__uncategorized__":
+                        by_category[prev_cat_key] = {
+                            "category_id": None,
+                            "category_name": "Sin categoría",
+                            "category_color": "#6b7280",
+                            "parent_id": None,
+                            "parent_name": None,
+                            "parent_color": None,
+                            "total": 0.0,
+                            "count": 0,
+                            "previous_total": 0.0,
+                        }
+                    elif prev_cat_key in cat_map:
+                        cat = cat_map[prev_cat_key]
+                        parent = cat_map.get(cat.parent_id) if cat.parent_id else None
+                        by_category[prev_cat_key] = {
+                            "category_id": cat.id,
+                            "category_name": cat.name,
+                            "category_color": cat.color,
+                            "parent_id": parent.id if parent else None,
+                            "parent_name": parent.name if parent else None,
+                            "parent_color": parent.color if parent else None,
+                            "total": 0.0,
+                            "count": 0,
+                            "previous_total": 0.0,
+                        }
+                by_category[prev_cat_key]["previous_total"] += e.amount
         except (ValueError, IndexError):
             pass
 
@@ -184,14 +252,17 @@ def get_summary(
 
     by_card: dict = {}
     for e in expenses:
-        key = f"{e.card or ''}|{e.bank or ''}|{e.person or ''}"
-        if key == "||":
+        if e.is_income:
             continue
+        card_name, card_bank, holder = _get_card_info(e, cards_by_id)
+        if not card_name:
+            continue
+        key = f"{card_name}|{card_bank}|{holder}"
         if key not in by_card:
             by_card[key] = {
-                "card": e.card or "",
-                "bank": e.bank or "",
-                "person": e.person or "",
+                "card": card_name,
+                "bank": card_bank,
+                "person": holder,
                 "total": 0.0,
                 "count": 0,
             }
@@ -208,6 +279,7 @@ def get_summary(
 
     def expense_to_dict(e: Expense) -> dict:
         cat = cat_map.get(e.category_id) if e.category_id else None
+        card_name, card_bank, holder = _get_card_info(e, cards_by_id)
         return {
             "id": e.id,
             "date": e.date.isoformat(),
@@ -217,9 +289,9 @@ def get_summary(
             "category_id": e.category_id,
             "category_name": cat.name if cat else None,
             "category_color": cat.color if cat else None,
-            "card": e.card or "",
-            "bank": e.bank or "",
-            "person": e.person or "",
+            "card": card_name,
+            "bank": card_bank,
+            "person": holder,
             "notes": e.notes or "",
         }
 
@@ -275,7 +347,7 @@ def get_summary(
     return {
         "total_amount": total,
         "total_by_account": total_by_account,
-        "total_expenses": len(expenses),
+        "total_expenses": sum(1 for e in expenses if not e.is_income),
         "by_category": sorted(by_category.values(), key=lambda x: x["total"], reverse=True),
         "by_income": sorted(by_income.values(), key=lambda x: x["total"], reverse=True),
         "by_period": sorted(by_period.values(), key=lambda x: x["period"]),
@@ -296,7 +368,11 @@ def get_account_expenses(
     current_user: User = Depends(get_current_user),
 ):
     uid_list = get_group_user_ids(current_user.id, db)
-    base_q = db.query(Expense).filter(Expense.user_id.in_(uid_list))
+    base_q = (
+        db.query(Expense)
+        .options(joinedload(Expense.card_rel))
+        .filter(Expense.user_id.in_(uid_list))
+    )
 
     if month:
         try:
@@ -308,21 +384,12 @@ def get_account_expenses(
             pass
 
     expenses = base_q.order_by(Expense.date).all()
+    cards_by_id, _ = _load_cards_and_accounts(uid_list, expenses, db)
 
-    credit_cards = (
-        db.query(Card).filter(Card.user_id.in_(uid_list), Card.card_type == "credito").all()
-    )
-    credit_card_ids = {c.id for c in credit_cards}
-    credit_card_names = {c.card_name.lower() for c in credit_cards}
+    credit_card_ids = {cid for cid, c in cards_by_id.items() if c.card_type == "credito"}
 
     def is_credit_card_expense(e: Expense) -> bool:
-        if e.card_id and e.card_id in credit_card_ids:
-            return True
-        if e.card:
-            card_lower = e.card.lower()
-            if any(cn in card_lower for cn in credit_card_names):
-                return True
-        return False
+        return e.card_id is not None and e.card_id in credit_card_ids
 
     cat_map = {c.id: c for c in db.query(Category).all()}
 
@@ -334,6 +401,7 @@ def get_account_expenses(
         if e.is_income:
             continue
         cat = cat_map.get(e.category_id) if e.category_id else None
+        card_name, card_bank, holder = _get_card_info(e, cards_by_id)
         result.append(
             {
                 "id": e.id,
@@ -344,9 +412,9 @@ def get_account_expenses(
                 "category_id": e.category_id,
                 "category_name": cat.name if cat else None,
                 "category_color": cat.color if cat else None,
-                "card": e.card or "",
-                "bank": e.bank or "",
-                "person": e.person or "",
+                "card": card_name,
+                "bank": card_bank,
+                "person": holder,
             }
         )
 
@@ -364,6 +432,7 @@ def get_installments_dashboard(
     # Cuotas realizadas (expenses)
     paid_exps = (
         db.query(Expense)
+        .options(joinedload(Expense.card_rel))
         .filter(
             Expense.user_id.in_(uid_list),
             Expense.installment_group_id != None,
@@ -379,12 +448,15 @@ def get_installments_dashboard(
         .all()
     )
 
+    cards_by_id, _ = _load_cards_and_accounts(uid_list, paid_exps, db)
+
     cat_map = {c.id: c for c in db.query(Category).all()}
     groups: dict = {}
 
     # Procesar cuotas pagadas
     for e in paid_exps:
         gid = e.installment_group_id
+        card_name, card_bank, holder = _get_card_info(e, cards_by_id)
         if gid not in groups:
             groups[gid] = {
                 "installment_group_id": gid,
@@ -401,10 +473,10 @@ def get_installments_dashboard(
                 "category_color": cat_map[e.category_id].color
                 if e.category_id in cat_map
                 else None,
-                "bank": e.bank or "",
-                "person": e.person or "",
+                "bank": card_bank,
+                "person": holder,
                 "currency": e.currency or "ARS",
-                "card": e.card or "",
+                "card": card_name,
                 "card_id": e.card_id,
             }
         groups[gid]["installments_paid"] += 1
@@ -414,6 +486,10 @@ def get_installments_dashboard(
     # Procesar cuotas programadas
     for s in scheduled_exps:
         gid = s.installment_group_id
+        card_name, card_bank, holder = "", "", ""
+        if s.card_id and s.card_id in cards_by_id:
+            c = cards_by_id[s.card_id]
+            card_name, card_bank, holder = c.card_name, c.bank or "", c.holder or ""
         if gid not in groups:
             groups[gid] = {
                 "installment_group_id": gid,
@@ -430,10 +506,10 @@ def get_installments_dashboard(
                 "category_color": cat_map[s.category_id].color
                 if s.category_id in cat_map
                 else None,
-                "bank": s.bank or "",
-                "person": s.person or "",
+                "bank": card_bank,
+                "person": holder,
                 "currency": s.currency or "ARS",
-                "card": s.card or "",
+                "card": card_name,
                 "card_id": s.card_id,
             }
         groups[gid]["remaining_installments"] += 1
@@ -499,25 +575,52 @@ def get_installments_monthly_load(
             "is_current": key == current_month,
         }
 
+    cutoff_start = date.today() - timedelta(days=365)
+    cutoff_end = date.today() + timedelta(days=180)
     exps = (
         db.query(Expense)
         .filter(
             Expense.user_id.in_(uid_list),
             Expense.installment_group_id != None,
             Expense.installment_group_id != "",
+            Expense.date >= cutoff_start,
+            Expense.date <= cutoff_end,
         )
         .order_by(Expense.installment_number)
         .all()
     )
 
-    # Past months + current month: sum actual paid installments by their real date
+    # Sum ALL installment expenses by their real date
     for e in exps:
         key = e.date.strftime("%Y-%m") if isinstance(e.date, date) else str(e.date)[:7]
-        if key <= current_month and key in monthly:
+        if key in monthly:
             monthly[key]["total"] += abs(e.amount)
             monthly[key]["count"] += 1
 
     # Future months: project remaining installments per group
+    # Load scheduled expenses to avoid double-counting
+    from app.models import ScheduledExpense
+
+    scheduled = (
+        db.query(ScheduledExpense)
+        .filter(
+            ScheduledExpense.user_id.in_(uid_list),
+            ScheduledExpense.status == "PENDING",
+            ScheduledExpense.installment_group_id.isnot(None),
+        )
+        .all()
+    )
+    scheduled_months: dict = {}
+    for se in scheduled:
+        if se.installment_group_id not in scheduled_months:
+            scheduled_months[se.installment_group_id] = set()
+        smonth = (
+            se.scheduled_date.strftime("%Y-%m")
+            if isinstance(se.scheduled_date, date)
+            else str(se.scheduled_date)[:7]
+        )
+        scheduled_months[se.installment_group_id].add(smonth)
+
     groups: dict = {}
     for e in exps:
         gid = e.installment_group_id
@@ -539,6 +642,13 @@ def get_installments_monthly_load(
         for i in range(remaining):
             charge_date = add_months(next_date, i)
             key = charge_date.strftime("%Y-%m")
+            # Skip months that already have scheduled expenses
+            gid = max(
+                (k for k, v in groups.items() if v["paid"] == g["paid"]),
+                default=None,
+            )
+            if gid and gid in scheduled_months and key in scheduled_months[gid]:
+                continue
             if key >= current_month and key in monthly:
                 monthly[key]["total"] += g["amount"]
                 monthly[key]["count"] += 1
@@ -555,11 +665,13 @@ def get_scheduled_summary(
     uid_list = get_group_user_ids(current_user.id, db)
     today = date.today()
     current_month_start = date(today.year, today.month, 1)
-    current_month_end = date(today.year, today.month, monthrange(today.year, today.month)[1])
+    # Show 3 months forward from current month
+    future = add_months(today, 3)
+    future_end = date(future.year, future.month, monthrange(future.year, future.month)[1])
 
     cat_map = {c.id: c for c in db.query(Category).all()}
 
-    # Cuotas pendientes del mes (installment_total > 1)
+    # Cuotas pendientes (installment_total > 1) — current month + 3 months forward
     pending_installments = (
         db.query(ScheduledExpense)
         .filter(
@@ -567,13 +679,13 @@ def get_scheduled_summary(
             ScheduledExpense.status == "PENDING",
             ScheduledExpense.installment_total > 1,
             ScheduledExpense.scheduled_date >= current_month_start,
-            ScheduledExpense.scheduled_date <= current_month_end,
+            ScheduledExpense.scheduled_date <= future_end,
         )
         .order_by(ScheduledExpense.scheduled_date)
         .all()
     )
 
-    # Gastos manuales programados del mes (installment_total = 1)
+    # Gastos manuales programados (installment_total = 1) — current month + 3 months forward
     pending_manual = (
         db.query(ScheduledExpense)
         .filter(
@@ -581,11 +693,18 @@ def get_scheduled_summary(
             ScheduledExpense.status == "PENDING",
             ScheduledExpense.installment_total == 1,
             ScheduledExpense.scheduled_date >= current_month_start,
-            ScheduledExpense.scheduled_date <= current_month_end,
+            ScheduledExpense.scheduled_date <= future_end,
         )
         .order_by(ScheduledExpense.scheduled_date)
         .all()
     )
+
+    # Load cards referenced by scheduled expenses
+    sched_card_ids = {s.card_id for s in pending_installments + pending_manual if s.card_id}
+    user_cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
+    extra_card_ids = sched_card_ids - {c.id for c in user_cards}
+    extra_cards = db.query(Card).filter(Card.id.in_(extra_card_ids)).all() if extra_card_ids else []
+    cards_by_id = {c.id: c for c in user_cards + extra_cards}
 
     result = {
         "installments": [],
@@ -594,6 +713,10 @@ def get_scheduled_summary(
 
     for s in pending_installments:
         cat = cat_map.get(s.category_id) if s.category_id else None
+        card_name, card_bank = "", ""
+        if s.card_id and s.card_id in cards_by_id:
+            c = cards_by_id[s.card_id]
+            card_name, card_bank = c.card_name, c.bank or ""
         result["installments"].append(
             {
                 "id": s.id,
@@ -605,13 +728,17 @@ def get_scheduled_summary(
                 "installment_total": s.installment_total,
                 "category_name": cat.name if cat else None,
                 "category_color": cat.color if cat else None,
-                "card": s.card or "",
-                "bank": s.bank or "",
+                "card": card_name,
+                "bank": card_bank,
             }
         )
 
     for s in pending_manual:
         cat = cat_map.get(s.category_id) if s.category_id else None
+        card_name, card_bank = "", ""
+        if s.card_id and s.card_id in cards_by_id:
+            c = cards_by_id[s.card_id]
+            card_name, card_bank = c.card_name, c.bank or ""
         result["manual"].append(
             {
                 "id": s.id,
@@ -621,8 +748,8 @@ def get_scheduled_summary(
                 "scheduled_date": s.scheduled_date.isoformat(),
                 "category_name": cat.name if cat else None,
                 "category_color": cat.color if cat else None,
-                "card": s.card or "",
-                "bank": s.bank or "",
+                "card": card_name,
+                "bank": card_bank,
             }
         )
 
@@ -653,22 +780,25 @@ def get_credit_card_pasivos(
         .all()
     )
 
+    # Load credit cards referenced by pending pasivos
+    pasivo_card_ids = {s.card_id for s in pending_pasivos if s.card_id} - credit_card_ids
+    extra_cards = (
+        db.query(Card).filter(Card.id.in_(pasivo_card_ids)).all() if pasivo_card_ids else []
+    )
+    cards_by_id = {c.id: c for c in credit_cards + extra_cards}
+
     total_pasivos = 0.0
     pasivos_detail = []
 
     for s in pending_pasivos:
-        is_credit_card = False
-        if s.card_id and s.card_id in credit_card_ids:
-            is_credit_card = True
-        if not is_credit_card and s.card:
-            s_card_lower = s.card.lower()
-            for cc in credit_cards:
-                if cc.card_name.lower() in s_card_lower:
-                    is_credit_card = True
-                    break
+        is_credit_card = s.card_id is not None and s.card_id in credit_card_ids
 
         if is_credit_card:
             total_pasivos += s.amount
+        card_name, card_bank = "", ""
+        if s.card_id and s.card_id in cards_by_id:
+            c = cards_by_id[s.card_id]
+            card_name, card_bank = c.card_name, c.bank or ""
             pasivos_detail.append(
                 {
                     "id": s.id,
@@ -678,8 +808,8 @@ def get_credit_card_pasivos(
                     "scheduled_date": s.scheduled_date.isoformat(),
                     "installment_number": s.installment_number,
                     "installment_total": s.installment_total,
-                    "card": s.card or "",
-                    "bank": s.bank or "",
+                    "card": card_name,
+                    "bank": card_bank,
                 }
             )
 
@@ -700,7 +830,9 @@ def get_top_merchants(
     current_user: User = Depends(get_current_user),
 ):
     uid_list = get_group_user_ids(current_user.id, db)
-    q = db.query(Expense).filter(Expense.user_id.in_(uid_list))
+    q = db.query(Expense.description, Expense.amount, Expense.category_id).filter(
+        Expense.user_id.in_(uid_list), Expense.amount > 0, Expense.is_income == False
+    )
     if month:
         try:
             y, m = int(month[:4]), int(month[5:7])
@@ -710,23 +842,35 @@ def get_top_merchants(
         except (ValueError, IndexError):
             pass
     if person:
-        q = q.filter(Expense.person.ilike(f"%{person}%"))
+        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
+            Card.holder.ilike(f"%{person}%")
+        )
     if bank:
-        q = q.filter(Expense.bank.ilike(f"%{bank}%"))
+        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
+            Card.bank.ilike(f"%{bank}%")
+        )
 
-    expenses = q.filter(Expense.amount > 0).all()
-    cat_list = db.query(Category).all()
-    cat_map = {c.id: c for c in cat_list}
+    rows = q.all()
 
     groups: dict = {}
-    for e in expenses:
-        key = e.description.lower().strip()
+    for description, amount, cat_id in rows:
+        key = description.lower().strip()
         if key not in groups:
-            groups[key] = {"description": e.description, "total": 0.0, "count": 0, "cats": []}
-        groups[key]["total"] += e.amount
+            groups[key] = {"description": description, "total": 0.0, "count": 0, "cats": []}
+        groups[key]["total"] += amount
         groups[key]["count"] += 1
-        if e.category_id:
-            groups[key]["cats"].append(e.category_id)
+        if cat_id:
+            groups[key]["cats"].append(cat_id)
+
+    cat_ids = set()
+    for g in groups.values():
+        if g["cats"]:
+            cat_ids.add(Counter(g["cats"]).most_common(1)[0][0])
+    cat_map = (
+        {c.id: c for c in db.query(Category).filter(Category.id.in_(cat_ids)).all()}
+        if cat_ids
+        else {}
+    )
 
     result = []
     for g in groups.values():
@@ -748,65 +892,73 @@ def get_top_merchants(
 
 @router.get("/card-summary")
 def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    from app.models import Account
-
     uid_list = get_group_user_ids(current_user.id, db)
 
-    # Build card lookup with both name and id
-    user_cards_by_name = {
-        c.card_name: c.card_type for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()
-    }
-    user_cards_by_id = {c.id: c for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
+    cutoff = date.today() - timedelta(days=365)
+    exps = (
+        db.query(Expense)
+        .options(joinedload(Expense.card_rel))
+        .filter(
+            Expense.user_id.in_(uid_list),
+            Expense.amount > 0,
+            Expense.date >= cutoff,
+        )
+        .all()
+    )
 
-    # Build account lookup - accounts are always "debito" type
-    user_accounts_by_id = {
-        a.id: a.type for a in db.query(Account).filter(Account.user_id.in_(uid_list)).all()
-    }
+    cards_by_id, user_accounts_by_id = _load_cards_and_accounts(uid_list, exps, db)
 
-    def _card_network(card_str: str) -> str:
-        s = (card_str or "").strip().lower()
-        if "visa" in s:
-            return "visa"
-        if "mastercard" in s or "master card" in s:
-            return "mastercard"
-        if "amex" in s or "american express" in s:
-            return "amex"
-        return s or "unknown"
-
-    exps = db.query(Expense).filter(Expense.user_id.in_(uid_list), Expense.amount > 0).all()
-
+    # Group by card_id (primary) or account_id (fallback)
     by_card: dict = {}
     by_card_monthly: dict = {}
 
     for e in exps:
-        bank = normalize_bank(e.bank)
-        card_str = (e.card or "").strip()
-        network = _card_network(card_str)
-        holder = _norm_holder(e.person)
-        key = f"{bank}|{network}|holder:{holder}" if holder else f"{bank}|{network}|card:{card_str}"
         month_key = e.date.strftime("%Y-%m") if e.date else "1970-01"
 
+        if e.card_id and e.card_id in cards_by_id:
+            key = f"card:{e.card_id}"
+        elif e.account_id:
+            key = f"account:{e.account_id}"
+        else:
+            continue  # Skip expenses without card or account
+
         if key not in by_card:
-            by_card[key] = {
-                "bank": bank,
-                "network": network,
-                "card_names": {},
-                "holders": {},
-                "total_amount": 0.0,
-                "count": 0,
-                "currency": e.currency or "ARS",
-                "last_used": None,
-                "card_ids": {},
-                "account_ids": {},
-            }
+            if key.startswith("card:"):
+                c = cards_by_id[int(key.split(":")[1])]
+                by_card[key] = {
+                    "bank": c.bank or "",
+                    "network": _card_network(c.card_name),
+                    "card_name": c.card_name,
+                    "holder": c.holder or "",
+                    "card_type": c.card_type,
+                    "total_amount": 0.0,
+                    "count": 0,
+                    "currency": e.currency or "ARS",
+                    "last_used": None,
+                    "card_ids": {c.id: 1},
+                    "account_ids": {},
+                }
+            else:
+                acct_id = int(key.split(":")[1])
+                acct_type = user_accounts_by_id.get(acct_id, "efectivo")
+                by_card[key] = {
+                    "bank": "",
+                    "network": "unknown",
+                    "card_name": acct_type.replace("_", " ").title(),
+                    "holder": "",
+                    "card_type": "debito",
+                    "total_amount": 0.0,
+                    "count": 0,
+                    "currency": e.currency or "ARS",
+                    "last_used": None,
+                    "card_ids": {},
+                    "account_ids": {acct_id: 1},
+                }
             by_card_monthly[key] = {}
 
         g = by_card[key]
         g["total_amount"] += e.amount
         g["count"] += 1
-        g["card_names"][card_str] = g["card_names"].get(card_str, 0) + 1
-        if holder:
-            g["holders"][holder] = g["holders"].get(holder, 0) + 1
         if not g["last_used"] or e.date > g["last_used"]:
             g["last_used"] = e.date
         if e.card_id:
@@ -815,108 +967,24 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
             g["account_ids"][e.account_id] = g["account_ids"].get(e.account_id, 0) + 1
         by_card_monthly[key][month_key] = by_card_monthly[key].get(month_key, 0.0) + e.amount
 
-    def _sig_tokens(name: str) -> set:
-        return {
-            re.sub(r"[^A-Z]", "", t)
-            for t in name.upper().split()
-            if len(re.sub(r"[^A-Z]", "", t)) >= 5
-        }
-
-    bank_net_map: dict = {}
-    for key in list(by_card.keys()):
-        if not key.split("|", 2)[2].startswith("holder:"):
-            continue
-        parts = key.split("|", 2)
-        bn = f"{parts[0]}|{parts[1]}"
-        bank_net_map.setdefault(bn, []).append(key)
-
-    for bn, keys in bank_net_map.items():
-        if len(keys) <= 1:
-            continue
-        parent = {k: k for k in keys}
-
-        def find(k: str) -> str:
-            while parent[k] != k:
-                parent[k] = parent[parent[k]]
-                k = parent[k]
-            return k
-
-        key_tokens = {}
-        for k in keys:
-            ts: set = set()
-            for h in by_card[k]["holders"]:
-                ts |= _sig_tokens(h)
-            key_tokens[k] = ts
-
-        for i, k1 in enumerate(keys):
-            for k2 in keys[i + 1 :]:
-                if key_tokens[k1] & key_tokens[k2]:
-                    r1, r2 = find(k1), find(k2)
-                    if r1 != r2:
-                        parent[r2] = r1
-
-        groups: dict = {}
-        for k in keys:
-            groups.setdefault(find(k), []).append(k)
-
-        for root, members in groups.items():
-            for m in members:
-                if m == root:
-                    continue
-                gr, gm = by_card[root], by_card[m]
-                gr["total_amount"] += gm["total_amount"]
-                gr["count"] += gm["count"]
-                for cn, c in gm["card_names"].items():
-                    gr["card_names"][cn] = gr["card_names"].get(cn, 0) + c
-                for h, c in gm["holders"].items():
-                    gr["holders"][h] = gr["holders"].get(h, 0) + c
-                for cid, c in gm.get("card_ids", {}).items():
-                    gr["card_ids"][cid] = gr["card_ids"].get(cid, 0) + c
-                if gm["last_used"] and (not gr["last_used"] or gm["last_used"] > gr["last_used"]):
-                    gr["last_used"] = gm["last_used"]
-                for mk, v in by_card_monthly.get(m, {}).items():
-                    by_card_monthly[root][mk] = by_card_monthly[root].get(mk, 0.0) + v
-                del by_card[m]
-                del by_card_monthly[m]
+    # Merge cards with the same card_id (same physical card)
+    # This is already handled by grouping on card_id above
 
     result = []
     for key, g in by_card.items():
-        card_name = (
-            max(g["card_names"], key=lambda n: (g["card_names"][n], len(n)))
-            if g["card_names"]
-            else g["network"].title()
-        )
-        holder = max(g["holders"], key=g["holders"].get) if g["holders"] else ""
-
         monthly = by_card_monthly.get(key, {})
         months_list = sorted(monthly.keys(), reverse=True)[:12]
         monthly_data = [{"month": m, "total": monthly[m]} for m in reversed(months_list)]
 
-        # Determine card_type: check account_ids first (has account_id = debito/cuenta)
-        card_type = None
-        if g.get("account_ids"):
-            most_used_account_id = max(g["account_ids"], key=g["account_ids"].get)
-            account_type = user_accounts_by_id.get(most_used_account_id)
-            if account_type:
-                card_type = "debito"
-        # If no account, check card_id lookup, then name lookup
-        if not card_type and g.get("card_ids"):
-            most_used_card_id = max(g["card_ids"], key=g["card_ids"].get)
-            card_obj = user_cards_by_id.get(most_used_card_id)
-            card_type = card_obj.card_type if card_obj else "credito"
-        if not card_type:
-            card_type = user_cards_by_name.get(card_name) or user_cards_by_name.get(
-                g["network"].title()
-            )
-        if not card_type:
-            card_type = "credito"
-
         result.append(
             {
-                "holder": holder,
+                "holder": g["holder"],
                 "bank": g["bank"],
-                "card_name": card_name,
-                "card_type": card_type,
+                "card_name": g["card_name"],
+                "card_type": g["card_type"],
+                "account_id": g.get("account_ids", {}).keys().__iter__().__next__()
+                if g.get("account_ids")
+                else None,
                 "total_amount": g["total_amount"],
                 "count": g["count"],
                 "currency": g["currency"],
@@ -947,7 +1015,11 @@ def get_card_category_breakdown(
             return "Amex"
         return s.title() or "Otra"
 
-    q = db.query(Expense).filter(Expense.user_id.in_(uid_list), Expense.amount > 0)
+    q = (
+        db.query(Expense)
+        .options(joinedload(Expense.card_rel))
+        .filter(Expense.user_id.in_(uid_list), Expense.amount > 0)
+    )
     if month:
         try:
             y, m_num = int(month[:4]), int(month[5:7])
@@ -958,9 +1030,12 @@ def get_card_category_breakdown(
         except (ValueError, IndexError):
             pass
     if bank:
-        q = q.filter(Expense.bank.ilike(f"%{bank}%"))
+        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
+            Card.bank.ilike(f"%{bank}%")
+        )
 
     exps = q.all()
+    cards_by_id, _ = _load_cards_and_accounts(uid_list, exps, db)
     cats_list = db.query(Category).all()
     cat_map = {c.id: c for c in cats_list}
 
@@ -968,8 +1043,9 @@ def get_card_category_breakdown(
     cat_colors: dict = {}
 
     for e in exps:
-        bank_norm = normalize_bank(e.bank) or "Efectivo"
-        network = _card_network_local(e.card or "")
+        card_name, card_bank, holder = _get_card_info(e, cards_by_id)
+        bank_norm = normalize_bank(card_bank) if card_bank else "Efectivo"
+        network = _card_network_local(card_name)
         card_key = f"{bank_norm} {network}" if bank_norm != "Efectivo" else "Efectivo/Transferencia"
 
         cat = cat_map.get(e.category_id) if e.category_id else None
@@ -993,10 +1069,12 @@ def get_card_category_breakdown(
 def get_category_trend(
     months: int = 4,
     anchor_month: str | None = None,
+    person: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     uid_list = get_group_user_ids(current_user.id, db)
+    months = min(months, 24)
 
     if anchor_month:
         try:
@@ -1017,29 +1095,39 @@ def get_category_trend(
             y -= 1
         month_keys.append(f"{y}-{m:02d}")
 
-    cats_list = db.query(Category).all()
-    cats_by_id = {c.id: c for c in cats_list}
-
     start = date.fromisoformat(f"{month_keys[0]}-01")
-    exps = (
-        db.query(Expense)
-        .filter(Expense.user_id.in_(uid_list), Expense.amount > 0, Expense.date >= start)
-        .all()
+
+    rows_raw = (
+        db.query(
+            func.to_char(Expense.date, "YYYY-MM").label("month"),
+            func.coalesce(Category.name, "Sin categoría").label("cat_name"),
+            func.coalesce(Category.color, "#94a3b8").label("cat_color"),
+            func.sum(Expense.amount).label("total"),
+        )
+        .outerjoin(Category, Expense.category_id == Category.id)
+        .filter(
+            Expense.user_id.in_(uid_list),
+            Expense.amount > 0,
+            Expense.is_income == False,
+            Expense.date >= start,
+        )
     )
+    if person:
+        rows_raw = rows_raw.outerjoin(Card, Expense.card_id == Card.id).filter(
+            Card.holder.ilike(f"%{person}%")
+        )
+    rows_raw = rows_raw.group_by(
+        func.to_char(Expense.date, "YYYY-MM"), Category.name, Category.color
+    ).all()
 
     data: dict = {mk: {} for mk in month_keys}
     cat_colors: dict = {}
-    for e in exps:
-        if not e.date:
-            continue
-        mk = e.date.strftime("%Y-%m")
+    for row in rows_raw:
+        mk = row.month
         if mk not in data:
             continue
-        cat = cats_by_id.get(e.category_id) if e.category_id else None
-        cat_name = cat.name if cat else "Sin categoría"
-        cat_color = cat.color if cat else "#94a3b8"
-        cat_colors[cat_name] = cat_color
-        data[mk][cat_name] = data[mk].get(cat_name, 0.0) + e.amount
+        data[mk][row.cat_name] = float(row.total)
+        cat_colors[row.cat_name] = row.cat_color
 
     rows = [{"month": mk, **data[mk]} for mk in month_keys]
     categories = [{"name": n, "color": c} for n, c in cat_colors.items()]

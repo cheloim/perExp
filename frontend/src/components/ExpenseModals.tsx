@@ -5,6 +5,8 @@ import { es } from "date-fns/locale";
 import { getCategories, getAccounts, getCards } from "../api/client";
 import type { Expense, ExpenseCreate, Card } from "../types";
 import { Select } from "./ui/Select";
+import CardAccountModal from "./CardAccountModal";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 // Helper function to get today's date in DD-MM-YYYY format
 export function todayDDMMYYYY() {
@@ -15,6 +17,24 @@ export function todayDDMMYYYY() {
   return `${d}-${m}-${y}`;
 }
 
+// Cache last used payment info for quick repeat
+function getLastUsedPayment(): {
+  card_id: number | null;
+  account_id: number | null;
+  payMethod: "card" | "cash";
+} {
+  try {
+    const data = JSON.parse(localStorage.getItem("expense_last_payment") || "{}");
+    return {
+      card_id: data.card_id || null,
+      account_id: data.account_id || null,
+      payMethod: data.payMethod || "card",
+    };
+  } catch {
+    return { card_id: null, account_id: null, payMethod: "card" };
+  }
+}
+
 // Empty form template
 export const EMPTY_FORM: ExpenseCreate = {
   date: todayDDMMYYYY(),
@@ -22,14 +42,13 @@ export const EMPTY_FORM: ExpenseCreate = {
   amount: 0,
   currency: "ARS",
   category_id: null,
-  card: "",
-  bank: "",
-  person: "",
   notes: "",
   transaction_id: "",
   installment_number: null,
   installment_total: null,
   installment_group_id: null,
+  account_id: null,
+  card_id: null,
 };
 
 // DatePicker component with calendar
@@ -71,8 +90,11 @@ export function DatePickerInput({
     <div ref={ref} className="relative">
       <input
         type="text"
-        readOnly
         value={value}
+        onChange={(e) => {
+          const raw = e.target.value.replace(/[^\d-]/g, "").slice(0, 10);
+          onChange(raw);
+        }}
         onClick={() => setIsOpen(!isOpen)}
         className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition cursor-pointer"
         placeholder="DD-MM-YYYY"
@@ -106,9 +128,18 @@ interface ExpenseModalProps {
   onClose: () => void;
   onSave: (data: ExpenseCreate) => void;
   saveError?: string | null;
+  isSaving?: boolean;
+  mode?: "installments-only";
 }
 
-export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseModalProps) {
+export function ExpenseModal({
+  initial,
+  onClose,
+  onSave,
+  saveError,
+  isSaving,
+  mode,
+}: ExpenseModalProps) {
   const { data: categories = [] } = useQuery({ queryKey: ["categories"], queryFn: getCategories });
   const { data: cards = [] } = useQuery({ queryKey: ["cards"], queryFn: getCards });
   const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: getAccounts });
@@ -121,37 +152,60 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
     return () => document.removeEventListener("keydown", handleEscape);
   }, [onClose]);
 
-  const isCash = (card: string) => !card || card === "Efectivo";
+  const isCash = (cardId: number | null | undefined) => !cardId;
+  const lastPayment = getLastUsedPayment();
+  const isInstallmentsOnly = mode === "installments-only";
 
   const [payMethod, setPayMethod] = useState<"card" | "cash">(
-    initial ? (isCash(initial.card ?? "") ? "cash" : "card") : "card",
+    isInstallmentsOnly
+      ? "card"
+      : initial
+        ? isCash(initial.card_id)
+          ? "cash"
+          : "card"
+        : lastPayment.payMethod,
   );
+  const [showCardModal, setShowCardModal] = useState(false);
 
-  const [form, setForm] = useState<ExpenseCreate>(
-    initial
-      ? {
-          date: initial.date,
-          description: initial.description,
-          amount: Math.abs(initial.amount),
-          currency: initial.currency || "ARS",
-          category_id: initial.category_id,
-          card: initial.card ?? "",
-          bank: initial.bank ?? "",
-          person: initial.person ?? "",
-          notes: initial.notes ?? "",
-          transaction_id: initial.transaction_id ?? "",
-          installment_number: initial.installment_number ?? null,
-          installment_total: initial.installment_total ?? null,
-          installment_group_id: initial.installment_group_id ?? null,
-          account_id: initial.account_id ?? null,
-          card_id: initial.card_id ?? null,
-        }
-      : EMPTY_FORM,
-  );
+  const [form, setForm] = useState<ExpenseCreate>(() => {
+    if (initial) {
+      return {
+        date: initial.date,
+        description: initial.description,
+        amount: Math.abs(initial.amount),
+        currency: initial.currency || "ARS",
+        category_id: initial.category_id,
+        notes: initial.notes ?? "",
+        transaction_id: initial.transaction_id ?? "",
+        installment_number: initial.installment_number ?? null,
+        installment_total: initial.installment_total ?? null,
+        installment_group_id: initial.installment_group_id ?? null,
+        account_id: initial.account_id ?? null,
+        card_id: initial.card_id ?? null,
+      };
+    }
+    const last = getLastUsedPayment();
+    return { ...EMPTY_FORM, ...last };
+  });
 
   const [cuotasEnabled, setCuotasEnabled] = useState(
-    !!(initial?.installment_total && initial.installment_total > 1),
+    isInstallmentsOnly || !!(initial?.installment_total && initial.installment_total > 1),
   );
+
+  // Generate installment group ID on mount for installments-only mode
+  useEffect(() => {
+    if (isInstallmentsOnly && !form.installment_group_id) {
+      setForm((prev) => ({
+        ...prev,
+        installment_group_id: crypto.randomUUID(),
+        installment_number: prev.installment_number ?? 1,
+        installment_total: prev.installment_total ?? 1,
+      }));
+    }
+  }, [isInstallmentsOnly]);
+
+  const isValid =
+    form.description.trim().length > 0 && form.amount > 0 && form.date.trim().length > 0;
 
   const toggleCuotas = (enabled: boolean) => {
     setCuotasEnabled(enabled);
@@ -179,45 +233,69 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
   const switchPayMethod = (method: "card" | "cash") => {
     setPayMethod(method);
     if (method === "cash") {
-      setForm((prev) => ({ ...prev, card: "", bank: "", card_id: null, account_id: null }));
+      setForm((prev) => ({ ...prev, card_id: null, account_id: null }));
     } else {
-      setForm((prev) => ({ ...prev, card: "", bank: "", account_id: null }));
+      setForm((prev) => ({ ...prev, account_id: null }));
     }
   };
 
   // Cascading selectors: bank → card
   const availableBanks = [...new Set(cards.map((c) => c.bank).filter(Boolean))].sort();
 
-  const selectedBank = form.bank ?? "";
+  const selectedCard = cards.find((c) => c.id === form.card_id);
+  const selectedBank = selectedCard?.bank ?? "";
   const availableCards = cards.filter((c) => !selectedBank || c.bank === selectedBank);
 
-  const handleBankChange = (b: string) => {
-    setForm((prev) => ({ ...prev, bank: b, card: "" }));
+  const handleBankChange = (_b: string) => {
+    setForm((prev) => ({ ...prev, card_id: null }));
   };
 
   const handleCardSelect = (c: Card) => {
     setForm((prev) => ({
       ...prev,
-      card: c.card_name,
-      bank: c.bank || "",
+      card_id: c.id,
     }));
   };
 
+  const trapRef = useFocusTrap(true);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-backdrop">
       <div className="fixed inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative card w-full max-w-lg max-h-[90vh] overflow-auto p-6 space-y-4">
+      <div
+        ref={trapRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={initial ? "Editar gasto" : "Nuevo gasto"}
+        className="relative card w-full max-w-lg max-h-[90vh] overflow-auto p-6 space-y-4 animate-modal-content"
+      >
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">
             {initial ? "Editar gasto" : "Nuevo gasto"}
           </h2>
           <button
             onClick={onClose}
+            aria-label="Cerrar"
             className="text-[var(--text-tertiary)] hover:text-[var(--color-primary)]"
           >
             ✕
           </button>
         </div>
+
+        {!initial && cards.length === 0 && accounts.length === 0 && (
+          <div className="flex items-start gap-2 bg-warning/10 border border-warning/30 rounded-lg px-3 py-2 text-xs text-warning">
+            <span className="mt-0.5">⚠</span>
+            <div className="flex-1">
+              <p>No tenés tarjetas ni cuentas creadas. Creá una para registrar gastos.</p>
+              <button
+                onClick={() => setShowCardModal(true)}
+                className="mt-1 text-xs font-semibold underline hover:no-underline"
+              >
+                Crear tarjeta o cuenta
+              </button>
+            </div>
+          </div>
+        )}
 
         {saveError && (
           <div className="flex items-start gap-2 bg-danger/10 border border-danger/30 rounded-lg px-3 py-2 text-xs text-danger">
@@ -227,43 +305,49 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
         )}
 
         {/* Payment method toggle */}
-        <div>
-          <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-            Medio de pago
-          </label>
-          <div className="flex rounded-md border border-[var(--border-color)] overflow-hidden">
-            <button
-              type="button"
-              onClick={() => switchPayMethod("card")}
-              className={`flex-1 px-3 py-2 text-sm font-medium transition ${
-                payMethod === "card"
-                  ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
-                  : "bg-[var(--color-base-container)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
-              }`}
-            >
-              💳 Tarjeta
-            </button>
-            <button
-              type="button"
-              onClick={() => switchPayMethod("cash")}
-              className={`flex-1 px-3 py-2 text-sm font-medium transition ${
-                payMethod === "cash"
-                  ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
-                  : "bg-[var(--color-base-container)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
-              }`}
-            >
-              💵 Efectivo / Transferencia
-            </button>
+        {!isInstallmentsOnly && (
+          <div>
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+              Medio de pago
+            </label>
+            <div className="flex rounded-md border border-[var(--border-color)] overflow-hidden">
+              <button
+                type="button"
+                onClick={() => switchPayMethod("card")}
+                className={`flex-1 px-3 py-2 text-sm font-medium transition ${
+                  payMethod === "card"
+                    ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
+                    : "bg-[var(--color-base-container)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
+                }`}
+              >
+                💳 Tarjeta
+              </button>
+              <button
+                type="button"
+                onClick={() => switchPayMethod("cash")}
+                className={`flex-1 px-3 py-2 text-sm font-medium transition ${
+                  payMethod === "cash"
+                    ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
+                    : "bg-[var(--color-base-container)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
+                }`}
+              >
+                💵 Efectivo / Transferencia
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         <div>
-          <label className="text-xs font-medium text-[var(--text-secondary)]">Fecha</label>
+          <label className="text-xs font-medium text-[var(--text-secondary)]">
+            Fecha <span className="text-danger">*</span>
+          </label>
           <DatePickerInput value={form.date} onChange={(d) => set("date", d)} />
         </div>
 
         <div>
-          <label className="text-xs font-medium text-[var(--text-secondary)]">Descripción</label>
+          <label className="text-xs font-medium text-[var(--text-secondary)]">
+            Descripción <span className="text-danger">*</span>
+          </label>
           <input
             type="text"
             value={form.description}
@@ -275,7 +359,9 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
 
         <div className="grid grid-cols-3 gap-3">
           <div className="col-span-2">
-            <label className="text-xs font-medium text-[var(--text-secondary)]">Monto</label>
+            <label className="text-xs font-medium text-[var(--text-secondary)]">
+              Monto <span className="text-danger">*</span>
+            </label>
             <input
               type="number"
               value={form.amount}
@@ -338,7 +424,7 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
             <div>
               <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
               <Select
-                value={form.bank ?? ""}
+                value={selectedBank}
                 onChange={(v) => handleBankChange(v)}
                 options={availableBanks.map((b) => ({ value: b, label: b }))}
                 placeholder="— Banco —"
@@ -348,13 +434,12 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
             <div>
               <label className="text-xs font-medium text-[var(--text-secondary)]">Tarjeta</label>
               <Select
-                value={form.card ?? ""}
+                value={String(form.card_id || "")}
                 onChange={(v) => {
-                  const selected = availableCards.find((c) => c.card_name === v);
+                  const selected = availableCards.find((c) => String(c.id) === v);
                   if (selected) handleCardSelect(selected);
-                  else set("card", v);
                 }}
-                options={availableCards.map((c) => ({ value: c.card_name, label: c.card_name }))}
+                options={availableCards.map((c) => ({ value: String(c.id), label: c.card_name }))}
                 placeholder="— Tarjeta —"
                 disabled={payMethod === "cash"}
               />
@@ -368,7 +453,7 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
         >
           <div>
             <label className="text-xs font-medium text-[var(--text-secondary)]">
-              Cuenta / Medio de pago
+              Cuenta de origen
             </label>
             <Select
               value={String(form.account_id || "")}
@@ -390,18 +475,20 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
 
         {payMethod === "card" && (
           <div className="border border-[var(--border-color)] rounded-md p-3 space-y-3">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={cuotasEnabled}
-                onChange={(e) => toggleCuotas(e.target.checked)}
-                className="accent-[var(--color-primary)]"
-              />
-              <span className="text-sm font-medium text-[var(--text-secondary)]">
-                Compra en cuotas
-              </span>
-            </label>
-            {cuotasEnabled && (
+            {!isInstallmentsOnly && (
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={cuotasEnabled}
+                  onChange={(e) => toggleCuotas(e.target.checked)}
+                  className="accent-[var(--color-primary)]"
+                />
+                <span className="text-sm font-medium text-[var(--text-secondary)]">
+                  Compra en cuotas
+                </span>
+              </label>
+            )}
+            {(cuotasEnabled || isInstallmentsOnly) && (
               <div className="flex items-center gap-3">
                 <div className="flex-1">
                   <label className="text-xs font-medium text-[var(--text-secondary)]">
@@ -451,13 +538,27 @@ export function ExpenseModal({ initial, onClose, onSave, saveError }: ExpenseMod
             Cancelar
           </button>
           <button
-            onClick={() => onSave({ ...form, amount: Math.abs(form.amount) })}
+            onClick={() => {
+              if (!initial) {
+                localStorage.setItem(
+                  "expense_last_payment",
+                  JSON.stringify({
+                    card_id: form.card_id,
+                    account_id: form.account_id,
+                    payMethod,
+                  }),
+                );
+              }
+              onSave({ ...form, amount: Math.abs(form.amount) });
+            }}
+            disabled={!isValid || isSaving}
             className="flex-1 px-4 py-2 rounded-md bg-[var(--color-primary)] text-white text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"
           >
-            Guardar
+            {isSaving ? "Guardando..." : "Guardar"}
           </button>
         </div>
       </div>
+      {showCardModal && <CardAccountModal onClose={() => setShowCardModal(false)} />}
     </div>
   );
 }

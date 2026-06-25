@@ -12,6 +12,7 @@ import {
 import { useQuery as useCardDataQuery } from "@tanstack/react-query";
 import type { Card } from "../types";
 import { Select } from "./ui/Select";
+import { Skeleton, SkeletonList } from "./ui/Skeleton";
 
 const getFirstName = (fullName: string): string => {
   if (fullName.includes(",")) {
@@ -185,7 +186,13 @@ export default function CardsManager() {
     }
   };
 
-  if (isLoading) return <div className="p-4 text-sm text-tertiary">Cargando…</div>;
+  if (isLoading)
+    return (
+      <div className="px-4 py-2">
+        <Skeleton className="h-4 w-20 mb-3" />
+        <SkeletonList items={2} />
+      </div>
+    );
 
   return (
     <div className="px-4 py-2 space-y-2">
@@ -204,6 +211,14 @@ export default function CardsManager() {
                 onSubmit={handleSubmit}
                 className="p-4 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg space-y-4"
               >
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-base-alt flex items-center justify-center text-sm font-bold">
+                    💳
+                  </div>
+                  <span className="text-xs font-medium text-secondary">
+                    {card.card_type === "credito" ? "Crédito" : "Débito"} — {card.bank}
+                  </span>
+                </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-[var(--text-secondary)]">
                     Tarjeta
@@ -334,6 +349,30 @@ export default function CardsManager() {
           onSubmit={handleSubmit}
           className="p-4 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg space-y-4"
         >
+          <div className="flex items-center gap-2">
+            <div
+              className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${
+                accountType === "tarjeta" ? "bg-base-alt" : "bg-success/10"
+              }`}
+            >
+              {accountType === "efectivo"
+                ? "💵"
+                : accountType === "mercadopago"
+                  ? "📱"
+                  : accountType === "cuenta_corriente"
+                    ? "🏦"
+                    : accountType === "caja_ahorro"
+                      ? "💳"
+                      : "💳"}
+            </div>
+            <span className="text-xs font-medium text-secondary">
+              {accountType === "tarjeta"
+                ? cardType === "credito"
+                  ? "Crédito"
+                  : "Débito"
+                : ACCOUNT_TYPES.find((t) => t.value === accountType)?.label || accountType}
+            </span>
+          </div>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-[var(--text-secondary)]">
               Tipo de cuenta
@@ -405,15 +444,11 @@ export default function CardsManager() {
             <button
               type="submit"
               disabled={createMut.isPending || createAccountMut.isPending}
-              className="flex-1 px-4 py-2 rounded-md bg-[var(--color-primary)] text-[var(--color-on-primary)] text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"
+              className="flex-1 gnome-btn-primary"
             >
               {createMut.isPending || createAccountMut.isPending ? "Creando..." : "Crear"}
             </button>
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="flex-1 px-4 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
-            >
+            <button type="button" onClick={handleCancel} className="flex-1 gnome-btn-secondary">
               Cancelar
             </button>
           </div>

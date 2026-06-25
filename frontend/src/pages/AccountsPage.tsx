@@ -1,9 +1,6 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  PieChart,
-  Pie,
-  Cell,
   LineChart,
   Line,
   XAxis,
@@ -11,166 +8,20 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
 import {
   getExpenses,
   getCardSummary,
-  getDashboard,
-  getCategories,
   createExpense,
   updateExpense,
-  deleteExpense,
-  getDistinctValues,
-  bulkUpdateCategory,
+  getExpenseStats,
+  getCards,
+  getAccounts,
 } from "../api/client";
-import type { CategorySummary, Expense, ExpenseCreate } from "../types";
-import { Select } from "../components/ui/Select";
+import type { Expense, ExpenseCreate } from "../types";
 import { ExpenseModal } from "../components/ExpenseModals";
-import {
-  formatCurrency,
-  toUpperCase,
-  titleCase,
-  getContrastTextColor,
-  SortIcon,
-  formatDateDMY,
-} from "../utils/format";
-import { useExpenseFilters } from "../hooks/useExpenseFilters";
-import { ConfirmDialog } from "../components/ConfirmDialog";
-
-type GroupBy = "month" | "year";
-type SortField = "date" | "description" | "category" | "bank" | "person" | "amount";
-type SortDir = "asc" | "desc";
-
-function groupSmallSlices(data: CategorySummary[], thresholdPct = 3) {
-  if (data.length === 0) return data;
-  const total = data.reduce((s, d) => s + Math.abs(d.total), 0);
-  const big: CategorySummary[] = [];
-  const small: CategorySummary[] = [];
-  for (const d of data) {
-    const pct = total > 0 ? (Math.abs(d.total) / total) * 100 : 0;
-    if (pct >= thresholdPct) big.push(d);
-    else small.push(d);
-  }
-  if (small.length === 0) return big;
-  const othersTotal = small.reduce((s, d) => s + d.total, 0);
-  return [
-    ...big,
-    {
-      category_id: null,
-      category_name: `Otros (${small.length})`,
-      category_color: "#94a3b8",
-      total: othersTotal,
-      count: small.reduce((s, d) => s + d.count, 0),
-    },
-  ];
-}
-
-function PieLabel({ cx, cy, midAngle, outerRadius, percent, category_name }: any) {
-  if (percent < 0.05) return null;
-  const RADIAN = Math.PI / 180;
-  const r = outerRadius + 18;
-  const x = cx + r * Math.cos(-midAngle * RADIAN);
-  const y = cy + r * Math.sin(-midAngle * RADIAN);
-  return (
-    <text
-      x={x}
-      y={y}
-      textAnchor={x > cx ? "start" : "end"}
-      dominantBaseline="central"
-      fontSize={11}
-      fill="#374151"
-    >
-      {category_name} {(percent * 100).toFixed(2)}%
-    </text>
-  );
-}
-
-function TrendIcon({ current, previous }: { current: number; previous: number }) {
-  if (!previous || previous === 0) return null;
-  const pct = ((current - previous) / Math.abs(previous)) * 100;
-  if (Math.abs(pct) < 5) return <span className="text-tertiary text-xs">→</span>;
-  if (pct > 0) return <span className="text-red-500 text-xs font-bold">▲{pct.toFixed(2)}%</span>;
-  return <span className="text-green-500 text-xs font-bold">▼{Math.abs(pct).toFixed(2)}%</span>;
-}
-
-function CategoryDrilldown({
-  category,
-  month,
-  onClose,
-}: {
-  category: CategorySummary;
-  month: string;
-  onClose: () => void;
-}) {
-  const { data: expenses = [], isLoading } = useQuery({
-    queryKey: ["expenses", "drill", category.category_id, month],
-    queryFn: () =>
-      getExpenses({
-        category_id: category.category_id ?? undefined,
-        month: month || undefined,
-        limit: 100,
-      }),
-    enabled: category.category_id != null,
-  });
-
-  return (
-    <div className="border border-border-color rounded-xl bg-surface shadow-sm overflow-hidden">
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-border-color bg-base-alt">
-        <span
-          className="w-3 h-3 rounded-full flex-shrink-0"
-          style={{ backgroundColor: category.category_color || "#9a9996" }}
-        />
-        <span className="font-semibold text-primary text-sm">{category.category_name}</span>
-        <span className="text-xs text-tertiary ml-1">{category.count} gastos</span>
-        <span className="ml-auto text-sm font-semibold text-primary">
-          {formatCurrency(category.total)}
-        </span>
-        <button
-          onClick={onClose}
-          className="text-tertiary hover:text-primary text-lg leading-none ml-2"
-        >
-          ×
-        </button>
-      </div>
-      <div className="max-h-64 overflow-y-auto divide-y divide-border-color">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
-          </div>
-        ) : category.category_id == null ? (
-          <p className="text-center text-secondary py-8 text-sm">
-            Esta categoría agrupa varios items pequeños.
-          </p>
-        ) : expenses.length === 0 ? (
-          <p className="text-center text-secondary py-8 text-sm">Sin gastos en este período</p>
-        ) : (
-          expenses.map((exp) => (
-            <div
-              key={exp.id}
-              className="flex items-center justify-between px-4 py-2.5 hover:bg-base-alt"
-            >
-              <div>
-                <p className="text-sm text-primary">{toUpperCase(exp.description)}</p>
-                <p className="text-xs text-tertiary">
-                  {formatDateDMY(exp.date)}
-                  {exp.person ? ` · ${titleCase(exp.person)}` : ""}
-                </p>
-              </div>
-              <span
-                className={`text-sm font-semibold ${
-                  exp.amount < 0 ? "text-success" : "text-primary"
-                }`}
-              >
-                {formatCurrency(exp.amount, exp.currency)}
-              </span>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
+import { formatCurrency, toUpperCase, getContrastTextColor, formatDateDMY } from "../utils/format";
+import EmptyState from "../components/ui/EmptyState";
 
 type CardNetwork = "visa" | "mastercard" | "amex" | "unknown";
 
@@ -246,6 +97,7 @@ function CreditCardViz({
   onClick,
   index,
   filterMonth,
+  showHolder,
 }: {
   cardName: string;
   holder?: string;
@@ -255,6 +107,7 @@ function CreditCardViz({
   onClick: () => void;
   index: number;
   filterMonth: string;
+  showHolder?: boolean;
 }) {
   const network = detectNetwork(cardName);
   const exactEntry = monthly?.find((m) => m.month === filterMonth);
@@ -270,7 +123,7 @@ function CreditCardViz({
     "from-gnomeBlue4 to-gnomeBlue3",
   ];
   const color = gradientColors[index % gradientColors.length];
-  const displayName = holder ? holder.split(" ")[0] : cardName;
+  const displayName = showHolder && holder ? `${holder.split(" ")[0]} — ${cardName}` : cardName;
 
   return (
     <div
@@ -364,6 +217,10 @@ function HScrollCards({ children }: { children: React.ReactNode }) {
     };
   }, [check]);
 
+  const scrollBy = (dir: -1 | 1) => {
+    ref.current?.scrollBy({ left: dir * 200, behavior: "smooth" });
+  };
+
   const startScroll = (dir: -1 | 1) => {
     if (scrollInterval.current) return;
     scrollInterval.current = setInterval(() => {
@@ -379,32 +236,38 @@ function HScrollCards({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="relative">
-      {/* Left arrow */}
+    <div className="relative group/scroll">
+      {/* Left arrow - Gnome HIG subtle circle button */}
       {canLeft && (
-        <div
+        <button
+          onClick={() => scrollBy(-1)}
           onMouseEnter={() => startScroll(-1)}
           onMouseLeave={stopScroll}
-          className="absolute left-0 top-0 bottom-0 z-10 flex items-center w-12 cursor-pointer"
-          style={{
-            background: "linear-gradient(to right, rgba(24,24,27,0.85) 0%, transparent 100%)",
-          }}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full
+                     bg-[var(--color-surface)] border border-[var(--border-color)] shadow-sm
+                     flex items-center justify-center text-[var(--text-secondary)]
+                     hover:text-[var(--text-primary)] hover:border-[var(--color-primary)]
+                     hover:shadow-md transition-all duration-150 opacity-0 group-hover/scroll:opacity-100
+                     text-sm font-medium"
         >
-          <span className="ml-1 text-secondary text-lg select-none">‹</span>
-        </div>
+          ‹
+        </button>
       )}
-      {/* Right arrow */}
+      {/* Right arrow - Gnome HIG subtle circle button */}
       {canRight && (
-        <div
+        <button
+          onClick={() => scrollBy(1)}
           onMouseEnter={() => startScroll(1)}
           onMouseLeave={stopScroll}
-          className="absolute right-0 top-0 bottom-0 z-10 flex items-center justify-end w-12 cursor-pointer"
-          style={{
-            background: "linear-gradient(to left, rgba(24,24,27,0.85) 0%, transparent 100%)",
-          }}
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full
+                     bg-[var(--color-surface)] border border-[var(--border-color)] shadow-sm
+                     flex items-center justify-center text-[var(--text-secondary)]
+                     hover:text-[var(--text-primary)] hover:border-[var(--color-primary)]
+                     hover:shadow-md transition-all duration-150 opacity-0 group-hover/scroll:opacity-100
+                     text-sm font-medium"
         >
-          <span className="mr-1 text-secondary text-lg select-none">›</span>
-        </div>
+          ›
+        </button>
       )}
       <div ref={ref} className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
         {children}
@@ -416,127 +279,61 @@ function HScrollCards({ children }: { children: React.ReactNode }) {
 export default function AccountsPage() {
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const [month, _setMonth] = useState(currentMonth);
-  const [groupBy, _setGroupBy] = useState<GroupBy>("month");
-  const [activeCat, setActiveCat] = useState<CategorySummary | null>(null);
+  const [month, setMonth] = useState(currentMonth);
   const [activeCard, setActiveCard] = useState<string | null>(null);
   const [bankFilter, setBankFilter] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const queryClient = useQueryClient();
-  const { filters, setFilter, clearFilters } = useExpenseFilters();
-
-  const filterCategory = filters.categoryId;
-  const filterUncategorized = filters.uncategorized;
-  const filterBank = filters.bank;
-  const filterPerson = filters.person;
-  const filterCard = filters.card;
-  const filterDateFrom = filters.dateFrom;
-  const filterDateTo = filters.dateTo;
-  const filterSearch = filters.search;
-
-  // UI states
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [selectMode, setSelectMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [bulkCategoryId, setBulkCategoryId] = useState<string>("");
-  const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({
-    field: "date",
-    dir: "desc",
-  });
 
   // Modal states
   const [editing, setEditing] = useState<Expense | null | undefined>(undefined);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
-  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
-
-  const activeFiltersCount = [
-    filterCategory,
-    filterUncategorized || undefined,
-    filterBank,
-    filterPerson,
-    filterCard,
-    filterDateFrom,
-    filterDateTo,
-    filterSearch,
-  ].filter(Boolean).length;
-
-  const toggleSelect = (id: number) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  };
 
   const { data: cardData = [] } = useQuery({
     queryKey: ["card-summary"],
     queryFn: getCardSummary,
   });
 
-  const { data: categories = [] } = useQuery({
-    queryKey: ["categories"],
-    queryFn: getCategories,
-  });
+  // Prefetch cards and accounts so modal opens instantly
+  useQuery({ queryKey: ["cards"], queryFn: getCards, staleTime: 300_000 });
+  useQuery({ queryKey: ["accounts"], queryFn: getAccounts, staleTime: 300_000 });
 
-  const { data: distinctValues } = useQuery({
-    queryKey: ["distinct-values"],
-    queryFn: getDistinctValues,
-    staleTime: 60_000,
-  });
-
-  const activeCardKey = activeCard
-    ? cardData.find((c) => `${c.card_name}|${c.bank}` === activeCard)?.card_name || null
+  const activeCardEntry = activeCard
+    ? cardData.find((c) => `${c.card_name}|${c.bank}|${c.holder}` === activeCard)
     : null;
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["dashboard", month, groupBy, activeCardKey, bankFilter],
-    queryFn: () =>
-      getDashboard({
-        month: month || undefined,
-        group_by: groupBy,
+  const activeCardKey = activeCardEntry?.card_name || null;
+  const activeAccountId = activeCardEntry?.account_id || null;
 
-        bank: bankFilter || undefined,
+  // Aggregated stats (lightweight)
+  const { data: stats } = useQuery({
+    queryKey: ["expense-stats", month, activeCardKey, activeAccountId],
+    queryFn: () =>
+      getExpenseStats({
+        month: month || undefined,
+        card: activeAccountId ? undefined : activeCardKey || undefined,
+        account_id: activeAccountId || undefined,
       }),
-    placeholderData: (prev) => prev,
+    enabled: !!activeCard,
   });
 
-  // Full expenses list with all filters
-  const { data: expenses = [], isLoading: expensesLoading } = useQuery({
-    queryKey: [
-      "expenses",
-      month,
-      filterCategory,
-      filterUncategorized,
-      filterBank,
-      filterPerson,
-      filterCard,
-      filterDateFrom,
-      filterDateTo,
-      filterSearch,
-      activeCardKey,
-      bankFilter,
-    ],
+  // Last 5 expenses for the selected account
+  const { data: lastExpenses = [], isLoading: expensesLoading } = useQuery({
+    queryKey: ["expenses", "last5", month, activeCardKey, activeAccountId],
     queryFn: () =>
       getExpenses({
         month: month || undefined,
-        category_id: filterCategory,
-        uncategorized: filterUncategorized || undefined,
-        bank: filterBank,
-        person: filterPerson,
-        card: filterCard,
-        date_from: filterDateFrom,
-        date_to: filterDateTo,
-        search: filterSearch,
-        limit: 500,
+        card: activeAccountId ? undefined : activeCardKey || undefined,
+        limit: 5,
       }),
+    enabled: !!activeCard,
   });
 
   // Mutations
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["expenses"] });
-    queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    queryClient.invalidateQueries({ queryKey: ["expense-stats"] });
     queryClient.invalidateQueries({ queryKey: ["card-summary"] });
-    queryClient.invalidateQueries({ queryKey: ["card-category-breakdown"] });
   };
 
   const createMut = useMutation({
@@ -560,153 +357,182 @@ export default function AccountsPage() {
     onError: (e: any) => setSaveError(e?.response?.data?.detail || e.message),
   });
 
-  const deleteMut = useMutation({
-    mutationFn: deleteExpense,
-    onSuccess: invalidate,
-  });
+  const evolutionChartData = useMemo(() => {
+    const filtered = cardData
+      .filter((card) => !bankFilter || card.bank === bankFilter)
+      .filter((card) => {
+        if (!typeFilter) return true;
+        if (typeFilter === "efectivo") return card.card_type === "debito" && !card.bank;
+        return card.card_type === typeFilter;
+      });
 
-  const bulkMut = useMutation({
-    mutationFn: ({ ids, catId }: { ids: number[]; catId: number | null }) =>
-      bulkUpdateCategory(ids, catId),
-    onSuccess: () => {
-      invalidate();
-      setSelectedIds(new Set());
-      setBulkCategoryId("");
-    },
-  });
-
-  const bulkDeleteMut = useMutation({
-    mutationFn: (ids: number[]) => Promise.all(ids.map((id) => deleteExpense(id))),
-    onSuccess: () => {
-      invalidate();
-      setSelectedIds(new Set());
-    },
-  });
-
-  if (isLoading && !data) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
-      </div>
-    );
-  }
-
-  if (!data) {
-    return <div className="text-center text-secondary py-20">Error loading dashboard</div>;
-  }
-
-  const hasTrend = data.by_category.some((c) => c.previous_total !== undefined);
-
-  // Roll up subcategories to their parent for pie chart display
-  const rolledUp: Record<string, CategorySummary> = {};
-  for (const cat of data.by_category) {
-    const key = cat.parent_name ?? cat.category_name;
-    const color = cat.parent_color ?? cat.category_color;
-    if (rolledUp[key]) {
-      rolledUp[key] = {
-        ...rolledUp[key],
-        total: rolledUp[key].total + cat.total,
-        count: rolledUp[key].count + cat.count,
-      };
-    } else {
-      rolledUp[key] = {
-        ...cat,
-        category_name: key,
-        category_color: color,
-        category_id: cat.parent_id ?? cat.category_id,
-      };
+    const [selYear, selMonth] = month.split("-");
+    const selMonthNum = parseInt(selMonth);
+    const monthsRange: string[] = [];
+    for (let i = -5; i <= 0; i++) {
+      const d = new Date(parseInt(selYear), selMonthNum - 1 + i, 1);
+      monthsRange.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
     }
-  }
-  const pieData = groupSmallSlices(Object.values(rolledUp))
-    .map((c) => ({
-      category_name: c.category_name,
-      category_color: c.category_color,
-      total: Math.abs(c.total),
-    }))
-    .filter((c) => c.total > 0);
 
-  const handlePieClick = (entry: any) => {
-    // entry.category_name may be a parent name — find first matching leaf or the rolled-up entry
-    if (activeCat?.category_name === entry.category_name) {
-      setActiveCat(null);
-    } else {
-      // Try exact match first, then parent name match
-      const found =
-        data.by_category.find((c) => c.category_name === entry.category_name) ??
-        data.by_category.find((c) => c.parent_name === entry.category_name);
-      if (found) setActiveCat({ ...found, category_name: entry.category_name });
-    }
+    const chartData = monthsRange.map((m) => {
+      const entry: Record<string, number | string> = { month: m };
+      let monthTotal = 0;
+      filtered.forEach((card) => {
+        const cardKey = card.holder ? `${card.holder}|${card.card_name}` : card.card_name;
+        const monthData = card.monthly?.find((x: { month: string }) => x.month === m);
+        const value = monthData?.total || 0;
+        entry[cardKey] = value;
+        monthTotal += value;
+      });
+      entry["total"] = monthTotal;
+      return entry;
+    });
+
+    return { filtered, chartData, monthsRange };
+  }, [cardData, bankFilter, month, typeFilter]);
+
+  const prevMonth = () => {
+    const [y, m] = month.split("-").map(Number);
+    const d = new Date(y, m - 2, 1);
+    setMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  };
+  const nextMonth = () => {
+    const [y, m] = month.split("-").map(Number);
+    const d = new Date(y, m, 1);
+    setMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  };
+  const formatMonthLabel = (m: string) => {
+    const [y, mo] = m.split("-").map(Number);
+    const date = new Date(y, mo - 1);
+    return date.toLocaleDateString("es-AR", { month: "long", year: "numeric" });
   };
 
   return (
     <>
       <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-primary">Cuentas</h1>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={prevMonth}
+              className="p-1.5 rounded-md hover:bg-[var(--color-base-alt)] text-[var(--text-secondary)] transition"
+            >
+              ←
+            </button>
+            <span className="text-sm font-medium text-[var(--text-primary)] min-w-[120px] text-center">
+              {formatMonthLabel(month)}
+            </span>
+            <button
+              onClick={nextMonth}
+              className="p-1.5 rounded-md hover:bg-[var(--color-base-alt)] text-[var(--text-secondary)] transition"
+            >
+              →
+            </button>
+          </div>
+        </div>
         {/* Cards panel — horizontal scroll row */}
         {cardData.length > 0 && (
           <div className="card p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-primary">Accounts</h2>
-              <div className="flex items-center gap-2">
-                {(() => {
-                  const banks = [...new Set(cardData.map((c) => c.bank))].sort();
-                  if (banks.length <= 1) return null;
-                  return (
-                    <div className="flex flex-wrap gap-1.5">
-                      <button
-                        onClick={() => setBankFilter(null)}
-                        className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
-                          !bankFilter
-                            ? "bg-primary text-on-primary border-primary"
-                            : "border-border-color text-tertiary hover:text-primary"
-                        }`}
-                      >
-                        Todos
-                      </button>
-                      {banks.map((b) => (
-                        <button
-                          key={b}
-                          onClick={() => setBankFilter(bankFilter === b ? null : b)}
-                          className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
-                            bankFilter === b
-                              ? "bg-primary text-on-primary border-primary"
-                              : "border-border-color text-tertiary hover:text-primary"
-                          }`}
-                        >
-                          {b}
-                        </button>
-                      ))}
-                    </div>
-                  );
-                })()}
-                {activeCard && (
+              <h2 className="text-sm font-semibold text-primary">Resumen</h2>
+              {/* Unified filters */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  onClick={() => {
+                    setTypeFilter(null);
+                    setBankFilter(null);
+                  }}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
+                    !typeFilter && !bankFilter
+                      ? "bg-primary text-on-primary border-primary"
+                      : "border-border-color text-tertiary hover:text-primary"
+                  }`}
+                >
+                  Todos
+                </button>
+                {[
+                  { key: "credito", label: "Crédito", color: "bg-gnomeBlue5" },
+                  { key: "debito", label: "Débito", color: "bg-gnomeGreen5" },
+                  { key: "efectivo", label: "Efectivo", color: "bg-gnomeOrange5" },
+                ].map((t) => (
                   <button
-                    onClick={() => setActiveCard(null)}
-                    className="text-xs text-tertiary hover:text-primary"
+                    key={t.key}
+                    onClick={() => setTypeFilter(typeFilter === t.key ? null : t.key)}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-all flex items-center gap-1 ${
+                      typeFilter === t.key
+                        ? "bg-primary text-on-primary border-primary"
+                        : "border-border-color text-tertiary hover:text-primary"
+                    }`}
                   >
-                    Limpiar
+                    <span className={`w-1.5 h-1.5 rounded-full ${t.color}`} />
+                    {t.label}
                   </button>
-                )}
+                ))}
+                {(() => {
+                  const filteredBanks = [
+                    ...new Set(
+                      cardData
+                        .filter((c) => {
+                          if (!typeFilter) return true;
+                          if (typeFilter === "efectivo") return c.card_type === "debito" && !c.bank;
+                          return c.card_type === typeFilter;
+                        })
+                        .map((c) => c.bank)
+                        .filter(Boolean),
+                    ),
+                  ].sort();
+                  if (filteredBanks.length <= 1) return null;
+                  return filteredBanks.map((b) => (
+                    <button
+                      key={b}
+                      onClick={() => setBankFilter(bankFilter === b ? null : b)}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
+                        bankFilter === b
+                          ? "bg-primary text-on-primary border-primary"
+                          : "border-border-color text-tertiary hover:text-primary"
+                      }`}
+                    >
+                      {b}
+                    </button>
+                  ));
+                })()}
               </div>
             </div>
             <HScrollCards>
-              {cardData
-                .filter((card) => !bankFilter || card.bank === bankFilter)
-                .map((card, idx) => {
+              {(() => {
+                const filtered = cardData
+                  .filter((card) => !bankFilter || card.bank === bankFilter)
+                  .filter((card) => {
+                    if (!typeFilter) return true;
+                    if (typeFilter === "efectivo") return card.card_type === "debito" && !card.bank;
+                    return card.card_type === typeFilter;
+                  });
+                const holders = [...new Set(filtered.map((c) => c.holder).filter(Boolean))];
+                const hasMultipleHolders = holders.length > 1;
+                return filtered.map((card, idx) => {
                   const ckey = `${card.card_name}|${card.bank}|${card.holder}`;
                   return (
-                    <CreditCardViz
-                      key={ckey}
-                      index={idx}
-                      cardName={card.card_name}
-                      holder={card.holder}
-                      bank={card.bank}
-                      monthly={card.monthly}
-                      active={activeCard === ckey}
-                      onClick={() => setActiveCard(activeCard === ckey ? null : ckey)}
-                      filterMonth={month}
-                    />
+                    <div key={ckey}>
+                      {hasMultipleHolders && card.holder && (
+                        <p className="text-[10px] text-tertiary uppercase tracking-wide mb-1 px-1">
+                          {card.holder}
+                        </p>
+                      )}
+                      <CreditCardViz
+                        index={idx}
+                        cardName={card.card_name}
+                        holder={card.holder}
+                        bank={card.bank}
+                        monthly={card.monthly}
+                        active={activeCard === ckey}
+                        showHolder={hasMultipleHolders}
+                        onClick={() => setActiveCard(activeCard === ckey ? null : ckey)}
+                        filterMonth={month}
+                      />
+                    </div>
                   );
-                })}
+                });
+              })()}
             </HScrollCards>
           </div>
         )}
@@ -714,141 +540,87 @@ export default function AccountsPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="card p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-semibold text-primary">Gastos por Categoría</h2>
-                {activeCat && (
-                  <button
-                    onClick={() => setActiveCat(null)}
-                    className="text-xs text-tertiary hover:text-primary"
-                  >
-                    Cerrar detalle
-                  </button>
-                )}
-              </div>
+              <h2 className="text-base font-semibold text-primary">Gasto por Cuenta</h2>
 
-              {data.by_category.length === 0 ? (
-                <p className="text-secondary text-sm text-center py-12">Sin datos</p>
+              {cardData.length === 0 ? (
+                <EmptyState
+                  icon="📊"
+                  title="Sin datos"
+                  description="Los gastos por cuenta aparecerán aquí"
+                />
               ) : (
-                <>
-                  <ResponsiveContainer width="100%" height={320}>
-                    <PieChart>
-                      <Pie
-                        data={pieData}
-                        dataKey="total"
-                        nameKey="category_name"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={110}
-                        innerRadius={40}
-                        paddingAngle={2}
-                        onClick={(entry) => handlePieClick(entry)}
-                        style={{ cursor: "pointer" }}
-                        labelLine={false}
-                        label={PieLabel}
-                      >
-                        {pieData.map((entry, i) => (
-                          <Cell
-                            key={i}
-                            fill={entry.category_color || "#9a9996"}
-                            opacity={
-                              activeCat && activeCat.category_name !== entry.category_name ? 0.4 : 1
-                            }
-                            stroke={
-                              activeCat?.category_name === entry.category_name
-                                ? "var(--color-primary)"
-                                : "none"
-                            }
-                            strokeWidth={2}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "var(--chart-tooltip-bg)",
-                          borderColor: "var(--chart-tooltip-border)",
-                          color: "var(--chart-tooltip-text)",
-                          borderRadius: 8,
-                          fontSize: 12,
-                        }}
-                        itemStyle={{ color: "var(--chart-tooltip-text)" }}
-                        formatter={(v: number, name: string) =>
-                          v > 0 ? [formatCurrency(v), name] : [formatCurrency(v), name]
-                        }
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {pieData.map((entry, i) => {
-                      const full = data.by_category.find(
-                        (c) => c.category_name === entry.category_name,
-                      );
+                <div className="space-y-3">
+                  {(() => {
+                    const sorted = [...cardData]
+                      .filter((c) => !bankFilter || c.bank === bankFilter)
+                      .filter((c) => {
+                        if (!typeFilter) return true;
+                        if (typeFilter === "efectivo") return c.card_type === "debito" && !c.bank;
+                        return c.card_type === typeFilter;
+                      })
+                      .sort((a, b) => b.total_amount - a.total_amount);
+                    const maxTotal = Math.max(...sorted.map((c) => c.total_amount), 1);
+                    return sorted.map((card) => {
+                      const monthEntry = card.monthly?.find((m) => m.month === month);
+                      const monthTotal = monthEntry?.total ?? 0;
+                      const pct = maxTotal > 0 ? (monthTotal / maxTotal) * 100 : 0;
+                      const ckey = `${card.card_name}|${card.bank}|${card.holder}`;
+                      const isActive = activeCard === ckey;
+                      const barColor = isActive
+                        ? "bg-[var(--color-primary)]"
+                        : card.card_type === "credito"
+                          ? "bg-gnomeBlue5"
+                          : card.card_type === "debito"
+                            ? "bg-gnomeGreen5"
+                            : "bg-gnomeOrange5";
                       return (
                         <button
-                          key={i}
-                          onClick={() => handlePieClick(entry)}
-                          className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full border transition-all ${
-                            activeCat?.category_name === entry.category_name
-                              ? "border-primary bg-primary/10 font-semibold text-primary"
-                              : "border-border-color text-secondary hover:bg-base-alt hover:border-border-color"
+                          key={ckey}
+                          onClick={() => setActiveCard(activeCard === ckey ? null : ckey)}
+                          className={`w-full text-left p-3 rounded-lg transition-all ${
+                            isActive
+                              ? "bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/30"
+                              : "hover:bg-[var(--color-base-alt)]"
                           }`}
                         >
-                          <span
-                            className="w-2 h-2 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: entry.category_color || "#9a9996" }}
-                          />
-                          {entry.category_name}
-                          {hasTrend &&
-                            full?.previous_total !== undefined &&
-                            full.previous_total > 0 && (
-                              <TrendIcon current={full.total} previous={full.previous_total} />
-                            )}
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span
+                                className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                  card.card_type === "credito"
+                                    ? "bg-gnomeBlue5"
+                                    : card.card_type === "debito"
+                                      ? "bg-gnomeGreen5"
+                                      : "bg-gnomeOrange5"
+                                }`}
+                              />
+                              <span className="text-sm font-medium text-primary truncate">
+                                {card.bank || card.card_name}
+                              </span>
+                              <span className="text-xs text-tertiary">{card.card_name}</span>
+                            </div>
+                            <span className="text-sm font-semibold text-primary ml-2">
+                              {formatCurrency(monthTotal)}
+                            </span>
+                          </div>
+                          <div className="w-full h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                              style={{ width: `${Math.max(pct, 2)}%` }}
+                            />
+                          </div>
                         </button>
                       );
-                    })}
-                  </div>
-                </>
-              )}
-
-              {activeCat && (
-                <CategoryDrilldown
-                  category={activeCat}
-                  month={month}
-                  onClose={() => setActiveCat(null)}
-                />
+                    });
+                  })()}
+                </div>
               )}
             </div>
 
             <div className="card p-5">
-              <h2 className="text-base font-semibold text-primary mb-4">Evolución por Account</h2>
+              <h2 className="text-base font-semibold text-primary mb-4">Evolución por Cuenta</h2>
               {(() => {
-                const filteredCards = cardData
-                  .filter((card) => card.card_type === "credito")
-                  .filter((card) => !bankFilter || card.bank === bankFilter);
-
-                const [selYear, selMonth] = month.split("-");
-                const selMonthNum = parseInt(selMonth);
-                const monthsRange: string[] = [];
-                for (let i = -3; i <= 0; i++) {
-                  const d = new Date(parseInt(selYear), selMonthNum - 1 + i, 1);
-                  monthsRange.push(
-                    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-                  );
-                }
-
-                const chartData = monthsRange.map((m) => {
-                  const entry: Record<string, number | string> = { month: m };
-                  let monthTotal = 0;
-                  filteredCards.forEach((card) => {
-                    const cardKey = card.card_name;
-                    const monthData = card.monthly?.find((x: { month: string }) => x.month === m);
-                    const value = monthData?.total || 0;
-                    entry[cardKey] = value;
-                    monthTotal += value;
-                  });
-                  entry["total"] = monthTotal;
-                  return entry;
-                });
+                const { filtered: filteredCards, chartData, monthsRange } = evolutionChartData;
 
                 const colors = [
                   "#6366f1",
@@ -893,36 +665,8 @@ export default function AccountsPage() {
                             backgroundColor: "var(--chart-tooltip-bg)",
                             borderColor: "var(--chart-tooltip-border)",
                             color: "var(--chart-tooltip-text)",
-                            borderRadius: 8,
                           }}
                           itemStyle={{ color: "var(--chart-tooltip-text)" }}
-                          formatter={(v: number, name: string) => [formatCurrency(v), name]}
-                        />
-                        <Legend wrapperStyle={{ fontSize: "11px" }} />
-                        <Line
-                          type="monotone"
-                          dataKey="total"
-                          name="Total"
-                          stroke="var(--chart-text)"
-                          strokeWidth={2}
-                          strokeDasharray="5 5"
-                          dot={{ r: 4, fill: "var(--chart-text)" }}
-                          opacity={0.4}
-                        />
-                        <YAxis
-                          tickFormatter={(v) =>
-                            new Intl.NumberFormat("es-AR", { notation: "compact" } as any).format(v)
-                          }
-                          tick={{ fontSize: 11, fill: "#71717a" }}
-                          width={50}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "#ffffff",
-                            borderColor: "#d4d4d8",
-                            color: "#18181b",
-                          }}
-                          itemStyle={{ color: "#18181b" }}
                           formatter={(v: number, name: string) => [formatCurrency(v), name]}
                           labelFormatter={(label) => {
                             const [y, m] = label.split("-");
@@ -948,25 +692,29 @@ export default function AccountsPage() {
                             return tooltip;
                           }}
                         />
-                        <Legend wrapperStyle={{ fontSize: "11px" }} />
                         <Line
                           type="monotone"
                           dataKey="total"
                           name="Total"
-                          stroke="#71717a"
+                          stroke="var(--chart-text)"
                           strokeWidth={2}
                           strokeDasharray="5 5"
-                          dot={{ r: 4, fill: "#71717a" }}
+                          dot={{ r: 4, fill: "var(--chart-text)" }}
                           opacity={0.4}
                         />
                         {filteredCards.map((card, idx) => {
-                          const cardKey = card.card_name;
+                          const cardKey = card.holder
+                            ? `${card.holder}|${card.card_name}`
+                            : card.card_name;
+                          const displayName = card.holder
+                            ? `${card.holder} — ${card.card_name}`
+                            : card.card_name;
                           return (
                             <Line
                               key={cardKey}
                               type="monotone"
                               dataKey={cardKey}
-                              name={card.card_name}
+                              name={displayName}
                               stroke={colors[idx % colors.length]}
                               strokeWidth={2}
                               dot={{ r: 3, fill: colors[idx % colors.length] }}
@@ -982,359 +730,107 @@ export default function AccountsPage() {
             </div>
           </div>
 
-          {/* Gastos - Full Featured Table */}
-          <div className="card p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setFiltersOpen(!filtersOpen)}
-                  className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border transition-all ${
-                    filtersOpen || activeFiltersCount > 0
-                      ? "bg-primary/20 border-primary/40 text-primary"
-                      : "border-border-color text-secondary hover:border-border-color"
-                  }`}
-                >
-                  Filtros
-                  {activeFiltersCount > 0 && (
-                    <span className="bg-primary text-on-primary text-[10px] px-1.5 py-0.5 rounded-full">
-                      {activeFiltersCount}
+          {/* Account Detail Summary */}
+          {activeCard && stats && (
+            <div className="card p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-semibold text-primary">
+                  {cardData.find((c) => `${c.card_name}|${c.bank}|${c.holder}` === activeCard)
+                    ?.bank || "Cuenta"}
+                  {cardData.find((c) => `${c.card_name}|${c.bank}|${c.holder}` === activeCard)
+                    ?.holder && (
+                    <span className="text-sm font-normal text-tertiary ml-2">
+                      —{" "}
+                      {
+                        cardData
+                          .find((c) => `${c.card_name}|${c.bank}|${c.holder}` === activeCard)
+                          ?.holder.split(" ")[0]
+                      }
                     </span>
                   )}
-                </button>
+                </h2>
                 <button
-                  onClick={() => {
-                    setSelectMode((v) => !v);
-                    setSelectedIds(new Set());
-                  }}
-                  className={`text-sm px-3 py-1.5 rounded-lg border transition-all ${
-                    selectMode
-                      ? "bg-primary/20 border-primary/40 text-primary"
-                      : "border-border-color text-tertiary hover:text-primary hover:border-border-color"
-                  }`}
+                  onClick={() => setActiveCard(null)}
+                  className="text-xs text-tertiary hover:text-primary"
                 >
-                  {selectMode ? "Cancelar selección" : "Seleccionar"}
+                  Cerrar
                 </button>
               </div>
-              {activeFiltersCount > 0 && (
-                <button
-                  onClick={clearFilters}
-                  className="text-xs text-secondary hover:text-primary flex items-center gap-1"
-                >
-                  <span className="bg-primary text-on-primary text-[10px] px-1.5 py-0.5 rounded-full">
-                    {activeFiltersCount}
-                  </span>
-                  Limpiar filtros
-                </button>
-              )}
-            </div>
 
-            {/* Filter Panel */}
-            {filtersOpen && (
-              <div className="mb-4 p-4 bg-base-alt rounded-lg border border-border-color space-y-3">
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-                  {/* Categoría */}
-                  {(() => {
-                    const parentIds = new Set(
-                      categories.filter((c) => c.parent_id).map((c) => c.parent_id!),
-                    );
-                    const parents = categories.filter((c) => !c.parent_id && parentIds.has(c.id));
-                    const orphans = categories.filter((c) => !c.parent_id && !parentIds.has(c.id));
-
-                    const handleCategoryFilter = (value: string) => {
-                      if (value === "__none__") {
-                        setFilter("uncategorized", "1");
-                        setFilter("category_id", undefined);
-                      } else if (value) {
-                        setFilter("category_id", value);
-                        setFilter("uncategorized", undefined);
-                      } else {
-                        setFilter("category_id", undefined);
-                        setFilter("uncategorized", undefined);
-                      }
-                    };
-
-                    return (
-                      <Select
-                        value={
-                          filterUncategorized
-                            ? "__none__"
-                            : filterCategory
-                              ? String(filterCategory)
-                              : ""
-                        }
-                        onChange={(v) => handleCategoryFilter(v)}
-                        groups={[
-                          ...parents.map((parent) => ({
-                            label: parent.name,
-                            options: categories
-                              .filter((c) => c.parent_id === parent.id)
-                              .map((c) => ({ value: String(c.id), label: c.name })),
-                          })),
-                          ...(orphans.length > 0
-                            ? [
-                                {
-                                  label: "—",
-                                  options: orphans.map((c) => ({
-                                    value: String(c.id),
-                                    label: c.name,
-                                  })),
-                                },
-                              ]
-                            : []),
-                        ]}
-                        placeholder="Categoría"
-                      />
-                    );
-                  })()}
-
-                  {/* Banco */}
-                  <Select
-                    value={filterBank ?? ""}
-                    onChange={(v) => setFilter("bank", v || undefined)}
-                    options={(distinctValues?.banks ?? []).map((b) => ({ value: b, label: b }))}
-                    placeholder="Banco"
-                  />
-
-                  {/* Persona */}
-                  <Select
-                    value={filterPerson ?? ""}
-                    onChange={(v) => setFilter("person", v || undefined)}
-                    options={(distinctValues?.persons ?? []).map((p) => ({ value: p, label: p }))}
-                    placeholder="Titular"
-                  />
-
-                  {/* Tarjeta */}
-                  <Select
-                    value={filterCard ?? ""}
-                    onChange={(v) => setFilter("card", v || undefined)}
-                    options={(distinctValues?.cards ?? []).map((c) => ({ value: c, label: c }))}
-                    placeholder="Tarjeta"
-                  />
-
-                  {/* Desde */}
-                  <input
-                    type="date"
-                    value={filterDateFrom ?? ""}
-                    onChange={(e) => setFilter("date_from", e.target.value || undefined)}
-                    className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
-                    placeholder="Desde"
-                  />
-
-                  {/* Hasta */}
-                  <input
-                    type="date"
-                    value={filterDateTo ?? ""}
-                    onChange={(e) => setFilter("date_to", e.target.value || undefined)}
-                    className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
-                    placeholder="Hasta"
-                  />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3 bg-[var(--color-base-alt)] rounded-lg">
+                  <p className="text-[10px] text-tertiary uppercase">Total</p>
+                  <p className="text-lg font-bold text-primary">{formatCurrency(stats.total)}</p>
                 </div>
-
-                {/* Search */}
-                <input
-                  type="text"
-                  value={filterSearch ?? ""}
-                  onChange={(e) => setFilter("search", e.target.value || undefined)}
-                  placeholder="Buscar en descripción..."
-                  className="w-full text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)] placeholder:text-[var(--text-tertiary)]"
-                />
+                <div className="p-3 bg-[var(--color-base-alt)] rounded-lg">
+                  <p className="text-[10px] text-tertiary uppercase">Transacciones</p>
+                  <p className="text-lg font-bold text-primary">{stats.count}</p>
+                </div>
+                <div className="p-3 bg-[var(--color-base-alt)] rounded-lg">
+                  <p className="text-[10px] text-tertiary uppercase">Promedio</p>
+                  <p className="text-lg font-bold text-primary">{formatCurrency(stats.avg)}</p>
+                </div>
+                <div className="p-3 bg-[var(--color-base-alt)] rounded-lg">
+                  <p className="text-[10px] text-tertiary uppercase">Último uso</p>
+                  <p className="text-sm font-bold text-primary">
+                    {stats.last_used ? formatDateDMY(stats.last_used) : "—"}
+                  </p>
+                </div>
               </div>
-            )}
 
-            {expensesLoading ? (
-              <div className="text-center py-10 text-secondary">Cargando...</div>
-            ) : expenses.length === 0 ? (
-              <div className="text-center py-10 text-secondary">No hay gastos en este período</div>
-            ) : (
-              <div className="overflow-x-auto -mx-5 px-5">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border-color text-secondary">
-                      {selectMode && (
-                        <th className="pb-2 text-left w-8">
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.size === expenses.length}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedIds(new Set(expenses.map((exp) => exp.id)));
-                              } else {
-                                setSelectedIds(new Set());
-                              }
-                            }}
-                            className="w-4 h-4 text-primary border-border-color rounded focus:ring-primary"
-                          />
-                        </th>
-                      )}
-                      <th
-                        className="pb-2 text-left cursor-pointer hover:text-primary"
-                        onClick={() =>
-                          setSort((s) => ({
-                            field: "date",
-                            dir: s.field === "date" && s.dir === "asc" ? "desc" : "asc",
-                          }))
-                        }
+              <div>
+                <h3 className="text-sm font-medium text-secondary mb-2">Últimos gastos</h3>
+                {expensesLoading ? (
+                  <div className="space-y-2">
+                    {[...Array(3)].map((_, i) => (
+                      <div
+                        key={i}
+                        className="h-10 bg-[var(--color-base-alt)] rounded animate-pulse"
+                      />
+                    ))}
+                  </div>
+                ) : lastExpenses.length === 0 ? (
+                  <p className="text-xs text-tertiary">Sin gastos en este período</p>
+                ) : (
+                  <div className="divide-y divide-[var(--border-color)]">
+                    {lastExpenses.map((exp) => (
+                      <div
+                        key={exp.id}
+                        className="flex items-center justify-between py-2.5 hover:bg-[var(--color-base-alt)] rounded px-2 -mx-2 cursor-pointer transition-colors"
+                        onClick={() => setEditing(exp)}
                       >
-                        Fecha
-                        <SortIcon field="date" sort={sort} />
-                      </th>
-                      <th
-                        className="pb-2 text-left cursor-pointer hover:text-primary"
-                        onClick={() =>
-                          setSort((s) => ({
-                            field: "description",
-                            dir: s.field === "description" && s.dir === "asc" ? "desc" : "asc",
-                          }))
-                        }
-                      >
-                        Descripción
-                        <SortIcon field="description" sort={sort} />
-                      </th>
-                      <th
-                        className="pb-2 text-left cursor-pointer hover:text-primary"
-                        onClick={() =>
-                          setSort((s) => ({
-                            field: "category",
-                            dir: s.field === "category" && s.dir === "asc" ? "desc" : "asc",
-                          }))
-                        }
-                      >
-                        Categoría
-                        <SortIcon field="category" sort={sort} />
-                      </th>
-                      <th
-                        className="pb-2 text-right cursor-pointer hover:text-primary"
-                        onClick={() =>
-                          setSort((s) => ({
-                            field: "amount",
-                            dir: s.field === "amount" && s.dir === "asc" ? "desc" : "asc",
-                          }))
-                        }
-                      >
-                        Monto
-                        <SortIcon field="amount" sort={sort} />
-                      </th>
-                      {!selectMode && <th className="pb-2 text-right">Acciones</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {expenses
-                      .sort((a, b) => {
-                        const dir = sort.dir === "asc" ? 1 : -1;
-                        if (sort.field === "date")
-                          return (new Date(a.date).getTime() - new Date(b.date).getTime()) * dir;
-                        if (sort.field === "description")
-                          return a.description.localeCompare(b.description) * dir;
-                        if (sort.field === "category")
-                          return (a.category_name ?? "").localeCompare(b.category_name ?? "") * dir;
-                        if (sort.field === "amount") return (a.amount - b.amount) * dir;
-                        return 0;
-                      })
-                      .map((exp) => (
-                        <tr
-                          key={exp.id}
-                          className={`border-b border-border-color hover:bg-base-alt transition-colors ${
-                            selectedIds.has(exp.id) ? "bg-primary/10" : ""
-                          }`}
-                          onClick={selectMode ? () => toggleSelect(exp.id) : undefined}
-                          style={selectMode ? { cursor: "pointer" } : undefined}
-                        >
-                          {selectMode && (
-                            <td className="py-2">
-                              <input
-                                type="checkbox"
-                                checked={selectedIds.has(exp.id)}
-                                onChange={() => toggleSelect(exp.id)}
-                                className="w-4 h-4 text-primary border-border-color rounded focus:ring-primary"
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                            </td>
-                          )}
-                          <td className="py-2 text-primary">{formatDateDMY(exp.date)}</td>
-                          <td className="py-2">
-                            <div className="text-primary font-medium">
-                              {toUpperCase(exp.description)}
-                              {exp.installment_total && (
-                                <span className="ml-2 text-[10px] bg-base-alt text-secondary px-1.5 py-0.5 rounded-full">
-                                  {exp.installment_number}/{exp.installment_total}
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-xs text-tertiary">
-                              {[exp.card, exp.bank, exp.person]
-                                .map(titleCase)
-                                .filter(Boolean)
-                                .join(" · ")}
-                            </div>
-                          </td>
-                          <td className="py-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-primary truncate">
+                            {toUpperCase(exp.description)}
+                          </p>
+                          <div className="flex items-center gap-1.5 text-xs text-tertiary">
+                            <span>{formatDateDMY(exp.date)}</span>
                             {exp.category_name && (
-                              <span
-                                className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full"
-                                style={{
-                                  backgroundColor: `${exp.category_color || "#9a9996"}20`,
-                                  color: getContrastTextColor(exp.category_color || "#9a9996"),
-                                }}
-                              >
+                              <>
+                                <span>·</span>
                                 <span
-                                  className="w-1.5 h-1.5 rounded-full"
-                                  style={{ backgroundColor: exp.category_color || "#9a9996" }}
-                                />
-                                {exp.category_name}
-                              </span>
-                            )}
-                          </td>
-                          <td
-                            className={`py-2 text-right font-semibold ${
-                              exp.amount < 0 ? "text-success" : "text-primary"
-                            }`}
-                          >
-                            {formatCurrency(Math.abs(exp.amount), exp.currency)}
-                          </td>
-                          {!selectMode && (
-                            <td className="py-2 text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                <button
-                                  onClick={() => {
-                                    setEditing(exp);
+                                  className="px-1.5 py-0.5 rounded-full text-[10px]"
+                                  style={{
+                                    backgroundColor: `${exp.category_color || "#9a9996"}20`,
+                                    color: getContrastTextColor(exp.category_color || "#9a9996"),
                                   }}
-                                  className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-primary hover:bg-[var(--color-base-alt)] transition"
-                                  title="Editar"
                                 >
-                                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                                    <path
-                                      d="M10.5 1.5l2 2-8 8H2.5v-2l8-8z"
-                                      stroke="currentColor"
-                                      strokeWidth="1.2"
-                                      strokeLinejoin="round"
-                                    />
-                                  </svg>
-                                </button>
-                                <button
-                                  onClick={() => setDeleteConfirmId(exp.id)}
-                                  className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-danger hover:bg-[var(--color-base-alt)] transition"
-                                  title="Eliminar"
-                                >
-                                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                                    <path
-                                      d="M3 4h8M5 4V3a1 1 0 011-1h2a1 1 0 011 1v1M4.5 4v7a1 1 0 001 1h3a1 1 0 001-1V4"
-                                      stroke="currentColor"
-                                      strokeWidth="1.2"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                    />
-                                  </svg>
-                                </button>
-                              </div>
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
+                                  {exp.category_name}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <span className="text-sm font-semibold text-primary ml-3">
+                          {formatCurrency(Math.abs(exp.amount), exp.currency)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Unified Modal Rendering */}
@@ -1353,101 +849,10 @@ export default function AccountsPage() {
               }
             }}
             saveError={saveError}
+            isSaving={createMut.isPending || updateMut.isPending}
           />
         )}
-
-        {/* Bulk Actions Floating Bar */}
-        {selectMode && selectedIds.size > 0 && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-surface border border-border-color rounded-2xl shadow-gnome-xl px-5 py-3 flex items-center gap-4">
-            <span className="text-sm text-primary">
-              {selectedIds.size} seleccionado{selectedIds.size > 1 ? "s" : ""}
-            </span>
-
-            <select
-              value={bulkCategoryId}
-              onChange={(e) => setBulkCategoryId(e.target.value)}
-              className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
-            >
-              <option value="">Categoría</option>
-              <option value="__none__">Sin categoría</option>
-              <optgroup label="Padres">
-                {categories
-                  .filter((c) => !c.parent_id)
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-              </optgroup>
-              <optgroup label="Subcategorías">
-                {categories
-                  .filter((c) => c.parent_id)
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>
-                      └ {c.name}
-                    </option>
-                  ))}
-              </optgroup>
-            </select>
-
-            <button
-              onClick={() => {
-                if (!bulkCategoryId) return;
-                const catId = bulkCategoryId === "__none__" ? null : parseInt(bulkCategoryId);
-                bulkMut.mutate({ ids: Array.from(selectedIds), catId });
-              }}
-              disabled={!bulkCategoryId || bulkMut.isPending}
-              className="text-sm px-3 py-1.5 bg-primary text-on-primary rounded-lg hover:brightness-110 disabled:opacity-50 transition-all"
-            >
-              Aplicar
-            </button>
-
-            <button
-              onClick={() => setBulkDeleteConfirm(true)}
-              disabled={bulkDeleteMut.isPending}
-              className="text-sm px-3 py-1.5 bg-danger/10 text-danger rounded-lg hover:bg-danger/20 disabled:opacity-50 transition-all"
-            >
-              Eliminar
-            </button>
-
-            <button
-              onClick={() => setSelectedIds(new Set())}
-              className="text-sm px-3 py-1.5 border border-border-color rounded-lg hover:bg-base-alt transition-all"
-            >
-              Limpiar
-            </button>
-          </div>
-        )}
       </div>
-
-      {deleteConfirmId !== null && (
-        <ConfirmDialog
-          isOpen={true}
-          title="Eliminar gasto"
-          message="¿Estás seguro de eliminar este gasto? Esta acción no se puede deshacer."
-          confirmLabel="Eliminar"
-          onConfirm={() => {
-            deleteMut.mutate(deleteConfirmId);
-            setDeleteConfirmId(null);
-          }}
-          onCancel={() => setDeleteConfirmId(null)}
-        />
-      )}
-
-      {bulkDeleteConfirm && (
-        <ConfirmDialog
-          isOpen={true}
-          title="Eliminar gastos"
-          message={`¿Eliminar ${selectedIds.size} gasto(s)? Esta acción no se puede deshacer.`}
-          confirmLabel="Eliminar"
-          onConfirm={() => {
-            bulkDeleteMut.mutate(Array.from(selectedIds));
-            setBulkDeleteConfirm(false);
-            setSelectedIds(new Set());
-          }}
-          onCancel={() => setBulkDeleteConfirm(false)}
-        />
-      )}
     </>
   );
 }

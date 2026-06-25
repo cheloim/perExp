@@ -18,6 +18,19 @@ class UserCreate(BaseModel):
     email: str
     password: str
 
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("La contraseña debe tener al menos 8 caracteres")
+        if not any(c.isupper() for c in v):
+            raise ValueError("La contraseña debe contener al menos una mayúscula")
+        if not any(c.islower() for c in v):
+            raise ValueError("La contraseña debe contener al menos una minúscula")
+        if not any(c.isdigit() for c in v):
+            raise ValueError("La contraseña debe contener al menos un número")
+        return v
+
 
 class UserResponse(BaseModel):
     id: int
@@ -45,6 +58,19 @@ class Token(BaseModel):
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("La contraseña debe tener al menos 8 caracteres")
+        if not any(c.isupper() for c in v):
+            raise ValueError("La contraseña debe contener al menos una mayúscula")
+        if not any(c.islower() for c in v):
+            raise ValueError("La contraseña debe contener al menos una minúscula")
+        if not any(c.isdigit() for c in v):
+            raise ValueError("La contraseña debe contener al menos un número")
+        return v
 
 
 class InvestmentCreate(BaseModel):
@@ -96,17 +122,12 @@ class ExpenseCreate(BaseModel):
     description: str
     amount: float
     category_id: int | None = None
-    # Legacy fields (deprecated)
-    card: str = ""
-    bank: str = ""
-    person: str = ""
     notes: str = ""
     transaction_id: str | None = None
     currency: str = "ARS"
     installment_number: int | None = None
     installment_total: int | None = None
     installment_group_id: str | None = None
-    # New structured fields
     account_id: int | None = None
     card_id: int | None = None
     is_income: bool | None = None  # Set by backend based on category
@@ -130,17 +151,12 @@ class ExpenseUpdate(BaseModel):
     description: str | None = None
     amount: float | None = None
     category_id: int | None = None
-    # Legacy fields
-    card: str | None = None
-    bank: str | None = None
-    person: str | None = None
     notes: str | None = None
     transaction_id: str | None = None
     currency: str | None = None
     installment_number: int | None = None
     installment_total: int | None = None
     installment_group_id: str | None = None
-    # New structured fields
     account_id: int | None = None
     card_id: int | None = None
     is_income: bool | None = None
@@ -152,10 +168,6 @@ class ExpenseResponse(BaseModel):
     description: str
     amount: float
     category_id: int | None = None
-    # Legacy fields
-    card: str = ""
-    bank: str = ""
-    person: str = ""
     notes: str = ""
     transaction_id: str | None = None
     currency: str = "ARS"
@@ -171,7 +183,7 @@ class ExpenseResponse(BaseModel):
     card_rel: CardSimple | None = None
     model_config = {"from_attributes": True}
 
-    @field_validator("card", "bank", "person", "notes", "currency", mode="before")
+    @field_validator("notes", "currency", mode="before")
     @classmethod
     def coerce_none(cls, v: object) -> str:
         return v if v is not None else ""
@@ -189,6 +201,21 @@ class ExpenseResponse(BaseModel):
     @property
     def category_color(self) -> str | None:
         return self.category.color if self.category else None
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def card(self) -> str:
+        return self.card_rel.card_name if self.card_rel else ""
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def bank(self) -> str:
+        return self.card_rel.bank if self.card_rel else ""
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def person(self) -> str:
+        return self.card_rel.holder if self.card_rel else ""
 
 
 class AnalysisRequest(BaseModel):

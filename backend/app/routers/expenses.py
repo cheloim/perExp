@@ -4,18 +4,18 @@ from datetime import date
 
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import desc, func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
-from app.models import Category, Expense, User
+from app.models import Card, Category, Expense, User
 from app.routers.groups import get_group_user_ids
 from app.schemas import ExpenseCreate, ExpenseResponse, ExpenseUpdate
 from app.services.auth import get_current_user
 from app.services.categorization import _resolve_category, auto_categorize
-from app.services.date_utils import _normalize_date_str
-from app.services.import_utils import _is_duplicate, _normalize_text, _title_case
-from app.services.normalizers import _norm_holder, _normalize_person, normalize_bank
+from app.services.date_utils import _normalize_date_str, add_months
+from app.services.import_utils import _is_duplicate, _normalize_text
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
@@ -26,9 +26,13 @@ def get_expenses(
     date_to: date | None = None,
     month: str | None = None,
     category_id: int | None = None,
+    category_ids: str | None = None,
     uncategorized: bool = False,
     bank: str | None = None,
     person: str | None = None,
+    card: str | None = None,
+    account: str | None = None,
+    account_id: int | None = None,
     search: str | None = None,
     skip: int = 0,
     limit: int = 200,
@@ -36,7 +40,15 @@ def get_expenses(
     current_user: User = Depends(get_current_user),
 ):
     uid_list = get_group_user_ids(current_user.id, db)
-    q = db.query(Expense).filter(Expense.user_id.in_(uid_list))
+    q = (
+        db.query(Expense)
+        .options(
+            joinedload(Expense.card_rel),
+            joinedload(Expense.category),
+            joinedload(Expense.account_rel),
+        )
+        .filter(Expense.user_id.in_(uid_list))
+    )
     if month:
         try:
             y, m = int(month[:4]), int(month[5:7])
@@ -51,14 +63,36 @@ def get_expenses(
         q = q.filter(Expense.date <= date_to)
     if category_id is not None:
         q = q.filter(Expense.category_id == category_id)
+    elif category_ids:
+        id_list = [int(x) for x in category_ids.split(",") if x.strip().isdigit()]
+        if id_list:
+            q = q.filter(Expense.category_id.in_(id_list))
     elif uncategorized:
         q = q.filter(Expense.category_id.is_(None))
     if bank:
-        q = q.filter(Expense.bank.ilike(f"%{bank}%"))
+        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
+            Card.bank.ilike(f"%{bank}%")
+        )
     if person:
-        q = q.filter(Expense.person.ilike(f"%{person}%"))
+        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
+            Card.holder.ilike(f"%{person}%")
+        )
+    if card:
+        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
+            Card.card_name.ilike(f"%{card}%")
+        )
+    if account_id:
+        q = q.filter(Expense.account_id == account_id)
+    if account:
+        from app.models import Account
+
+        q = q.join(Account, Expense.account_id == Account.id, isouter=True).filter(
+            Account.name.ilike(f"%{account}%")
+        )
     if search:
         q = q.filter(Expense.description.ilike(f"%{search}%"))
+    # Exclude future installments (they belong in /installments)
+    q = q.filter((Expense.installment_group_id.is_(None)) | (Expense.date <= date.today()))
     return q.order_by(desc(Expense.date)).offset(skip).limit(limit).all()
 
 
@@ -68,24 +102,27 @@ def get_distinct_values(
 ):
     uid_list = get_group_user_ids(current_user.id, db)
 
-    def distinct(col):
-        return sorted(
-            {
-                r[0]
-                for r in db.query(col).filter(Expense.user_id.in_(uid_list)).distinct().all()
-                if r[0]
-            }
-        )
+    cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
+
+    banks = sorted({c.bank for c in cards if c.bank})
+    persons = sorted({c.holder for c in cards if c.holder})
+    card_names = sorted({c.card_name for c in cards if c.card_name})
 
     return {
-        "banks": distinct(Expense.bank),
-        "persons": distinct(Expense.person),
-        "cards": distinct(Expense.card),
+        "banks": banks,
+        "persons": persons,
+        "cards": card_names,
     }
 
 
 @router.get("/card-options")
 def get_card_options(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    uid_list = get_group_user_ids(current_user.id, db)
+    cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
+
+    if not cards:
+        return {"persons": [], "by_person": {}}
+
     def _sig_tokens(name: str) -> set:
         return {
             re.sub(r"[^A-Z]", "", t)
@@ -93,31 +130,10 @@ def get_card_options(db: Session = Depends(get_db), current_user: User = Depends
             if len(re.sub(r"[^A-Z]", "", t)) >= 5
         }
 
-    uid_list = get_group_user_ids(current_user.id, db)
-    rows = (
-        db.query(Expense.person, Expense.bank, Expense.card)
-        .filter(
-            Expense.user_id.in_(uid_list),
-            Expense.person != "",
-            Expense.bank != "",
-            Expense.card != "",
-            Expense.card != "Efectivo",
-        )
-        .distinct()
-        .all()
-    )
-
-    data: list[tuple[str, str, str]] = []
-    for person, bank, card in rows:
-        nh = _norm_holder(person)
-        nb = normalize_bank(bank)
-        if nh and nb and card:
-            data.append((nh, nb, card.strip()))
-
-    if not data:
+    unique_holders = list({c.holder for c in cards if c.holder})
+    if not unique_holders:
         return {"persons": [], "by_person": {}}
 
-    unique_holders = list({d[0] for d in data})
     parent = {h: h for h in unique_holders}
 
     def find(k: str) -> str:
@@ -135,22 +151,26 @@ def get_card_options(db: Session = Depends(get_db), current_user: User = Depends
                     parent[r2] = r1
 
     cluster_cnt: dict[str, dict[str, int]] = {}
-    for nh, _, _ in data:
-        root = find(nh)
+    for c in cards:
+        if not c.holder:
+            continue
+        root = find(c.holder)
         d = cluster_cnt.setdefault(root, {})
-        d[nh] = d.get(nh, 0) + 1
+        d[c.holder] = d.get(c.holder, 0) + 1
 
     root_canonical: dict[str, str] = {
         root: max(cnts, key=cnts.get) for root, cnts in cluster_cnt.items()
     }
 
     structure: dict[str, dict[str, set]] = {}
-    for nh, nb, card in data:
-        canon = root_canonical[find(nh)]
-        structure.setdefault(canon, {}).setdefault(nb, set()).add(card)
+    for c in cards:
+        if not c.holder:
+            continue
+        canon = root_canonical[find(c.holder)]
+        structure.setdefault(canon, {}).setdefault(c.bank or "", set()).add(c.card_name)
 
     by_person = {
-        person: {bank: sorted(cards) for bank, cards in sorted(banks.items())}
+        person: {bank: sorted(card_names) for bank, card_names in sorted(banks.items())}
         for person, banks in structure.items()
     }
 
@@ -202,25 +222,15 @@ def create_expense(
 
     # Auto-categorize if needed
     if data.get("category_id") is None:
-        cats = db.query(Category).all()
+        cats = db.query(Category).filter(Category.user_id == current_user.id).all()
         data["category_id"] = auto_categorize(data["description"], cats)
 
     # Detect if this is income based on category parent
     data["is_income"] = is_income_category(data.get("category_id"), db)
 
-    # Normalize text fields
-    # description: UPPERCASE
+    # Normalize description
     if data.get("description"):
         data["description"] = _normalize_text(data["description"])
-    # card: Title Case
-    if data.get("card"):
-        data["card"] = _title_case(data["card"])
-    # bank: Title Case
-    if data.get("bank"):
-        data["bank"] = normalize_bank(data["bank"])
-    # person: Title Case (from DB matching or title)
-    if data.get("person"):
-        data["person"] = _normalize_person(data["person"], db)
 
     # Always store amount as positive (no sign convention)
     data["amount"] = abs(data["amount"])
@@ -237,15 +247,13 @@ def create_expense(
 
     # Validate: non-income cash/transfer payments also need account
     if not data["is_income"] and not data.get("account_id") and not data.get("card_id"):
-        card_lower = data.get("card", "").lower()
-        if any(kw in card_lower for kw in ["efectivo", "transferencia", "cash"]):
-            raise HTTPException(
-                400,
-                detail={
-                    "error": "account_required",
-                    "message": "Para gastos en efectivo o transferencia, debes seleccionar o crear una cuenta.",
-                },
-            )
+        raise HTTPException(
+            400,
+            detail={
+                "error": "account_required",
+                "message": "Para gastos en efectivo o transferencia, debes seleccionar o crear una cuenta.",
+            },
+        )
 
     db_exp = Expense(**data, user_id=current_user.id)
     db.add(db_exp)
@@ -262,7 +270,14 @@ def update_expense(
     current_user: User = Depends(get_current_user),
 ):
     db_exp = (
-        db.query(Expense).filter(Expense.id == exp_id, Expense.user_id == current_user.id).first()
+        db.query(Expense)
+        .options(
+            joinedload(Expense.card_rel),
+            joinedload(Expense.category),
+            joinedload(Expense.account_rel),
+        )
+        .filter(Expense.id == exp_id, Expense.user_id == current_user.id)
+        .first()
     )
     if not db_exp:
         raise HTTPException(404, "Gasto no encontrado")
@@ -340,18 +355,20 @@ def bulk_update_expenses(
         return {"updated": 0}
 
     update_data = {}
-    for field in ["category_id", "bank", "card", "person"]:
+    for field in ["category_id", "card_id", "account_id"]:
         if field in payload and payload[field] is not None:
             update_data[field] = payload[field]
 
     if not update_data:
         return {"updated": 0}
 
-    db.query(Expense).filter(Expense.id.in_(ids), Expense.user_id == current_user.id).update(
-        update_data, synchronize_session=False
+    updated = (
+        db.query(Expense)
+        .filter(Expense.id.in_(ids), Expense.user_id == current_user.id)
+        .update(update_data, synchronize_session=False)
     )
     db.commit()
-    return {"updated": len(ids)}
+    return {"updated": updated}
 
 
 @router.post("/bulk-category")
@@ -380,3 +397,245 @@ def detect_installments(
 
     result = fix_missing_installments(db, current_user.id)
     return result
+
+
+class ExpenseStatsResponse(BaseModel):
+    total: float
+    count: int
+    avg: float
+    last_used: str | None
+
+
+@router.get("/stats", response_model=ExpenseStatsResponse)
+def get_expense_stats(
+    month: str | None = None,
+    card: str | None = None,
+    bank: str | None = None,
+    account: str | None = None,
+    account_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    uid_list = get_group_user_ids(current_user.id, db)
+    q = db.query(
+        func.coalesce(func.sum(Expense.amount), 0.0),
+        func.count(Expense.id),
+    ).filter(Expense.user_id.in_(uid_list), Expense.amount > 0)
+
+    if month:
+        try:
+            y, m = int(month[:4]), int(month[5:7])
+            q = q.filter(
+                Expense.date >= date(y, m, 1),
+                Expense.date <= date(y, m, monthrange(y, m)[1]),
+            )
+        except (ValueError, IndexError):
+            pass
+    if account_id:
+        q = q.filter(Expense.account_id == account_id)
+    elif account:
+        from app.models import Account
+
+        q = q.join(Account, Expense.account_id == Account.id, isouter=True).filter(
+            Account.name.ilike(f"%{account}%")
+        )
+    elif card:
+        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
+            Card.card_name.ilike(f"%{card}%")
+        )
+    elif bank:
+        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
+            Card.bank.ilike(f"%{bank}%")
+        )
+
+    total, count = q.one()
+
+    # Separate query for last_used (only from card-based expenses)
+    last_used_q = db.query(func.max(Expense.date)).filter(
+        Expense.user_id.in_(uid_list),
+        Expense.amount > 0,
+        Expense.card_id.isnot(None),
+    )
+    if month:
+        try:
+            y, m = int(month[:4]), int(month[5:7])
+            last_used_q = last_used_q.filter(
+                Expense.date >= date(y, m, 1),
+                Expense.date <= date(y, m, monthrange(y, m)[1]),
+            )
+        except (ValueError, IndexError):
+            pass
+    if card:
+        last_used_q = last_used_q.join(Card, Expense.card_id == Card.id).filter(
+            Card.card_name.ilike(f"%{card}%")
+        )
+    elif bank:
+        last_used_q = last_used_q.join(Card, Expense.card_id == Card.id).filter(
+            Card.bank.ilike(f"%{bank}%")
+        )
+    last_used = last_used_q.scalar()
+
+    total, count = q.one()
+    return ExpenseStatsResponse(
+        total=float(total),
+        count=count,
+        avg=float(total) / count if count > 0 else 0.0,
+        last_used=last_used.isoformat() if last_used else None,
+    )
+
+
+class CategoryBreakdownItem(BaseModel):
+    category_id: int | None
+    category_name: str
+    category_color: str | None
+    total: float
+    count: int
+
+
+@router.get("/by-category", response_model=list[CategoryBreakdownItem])
+def get_expenses_by_category(
+    month: str | None = None,
+    card: str | None = None,
+    account_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    uid_list = get_group_user_ids(current_user.id, db)
+    cat_map = {c.id: c for c in db.query(Category).all()}
+
+    q = (
+        db.query(
+            Expense.category_id,
+            func.coalesce(func.sum(Expense.amount), 0.0),
+            func.count(Expense.id),
+        )
+        .filter(Expense.user_id.in_(uid_list), Expense.amount > 0)
+        .group_by(Expense.category_id)
+    )
+
+    if month:
+        try:
+            y, m = int(month[:4]), int(month[5:7])
+            q = q.filter(
+                Expense.date >= date(y, m, 1),
+                Expense.date <= date(y, m, monthrange(y, m)[1]),
+            )
+        except (ValueError, IndexError):
+            pass
+    if account_id:
+        q = q.filter(Expense.account_id == account_id)
+    if card:
+        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
+            Card.card_name.ilike(f"%{card}%")
+        )
+
+    rows = q.all()
+    result = []
+    for cat_id, total, count in rows:
+        cat = cat_map.get(cat_id) if cat_id else None
+        result.append(
+            CategoryBreakdownItem(
+                category_id=cat_id,
+                category_name=cat.name if cat else "Sin categoría",
+                category_color=cat.color if cat else "#94a3b8",
+                total=float(total),
+                count=count,
+            )
+        )
+    return sorted(result, key=lambda x: x.total, reverse=True)
+
+
+class PersonBreakdownItem(BaseModel):
+    person: str
+    total: float
+    count: int
+
+
+def _first_name(full_name: str) -> str:
+    """Extract first name from full_name. 'Perez, Juan' -> 'Juan', 'Juan Perez' -> 'Juan'"""
+    if not full_name:
+        return ""
+    if "," in full_name:
+        parts = full_name.split(",")
+        return parts[1].strip().split()[0] if len(parts) > 1 and parts[1].strip() else ""
+    return full_name.strip().split()[0] if full_name.strip() else ""
+
+
+@router.get("/by-person", response_model=list[PersonBreakdownItem])
+def get_expenses_by_person(
+    month: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    uid_list = get_group_user_ids(current_user.id, db)
+
+    q = (
+        db.query(
+            User.id,
+            User.full_name,
+            func.coalesce(func.sum(Expense.amount), 0.0),
+            func.count(Expense.id),
+        )
+        .join(User, Expense.user_id == User.id)
+        .filter(Expense.user_id.in_(uid_list), Expense.amount > 0)
+        .group_by(User.id, User.full_name)
+    )
+
+    if month:
+        try:
+            y, m = int(month[:4]), int(month[5:7])
+            q = q.filter(
+                Expense.date >= date(y, m, 1),
+                Expense.date <= date(y, m, monthrange(y, m)[1]),
+            )
+        except (ValueError, IndexError):
+            pass
+
+    rows = q.all()
+    return [
+        PersonBreakdownItem(
+            person=_first_name(full_name),
+            total=float(total),
+            count=count,
+        )
+        for _user_id, full_name, total, count in rows
+        if total > 0
+    ]
+
+
+class TrendItem(BaseModel):
+    month: str
+    total: float
+    count: int
+
+
+@router.get("/trend", response_model=list[TrendItem])
+def get_expenses_trend(
+    months: int = 6,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    uid_list = get_group_user_ids(current_user.id, db)
+    today = date.today()
+    start_date = add_months(today, -months + 1).replace(day=1)
+
+    rows = (
+        db.query(
+            func.to_char(Expense.date, "YYYY-MM"),
+            func.coalesce(func.sum(Expense.amount), 0.0),
+            func.count(Expense.id),
+        )
+        .filter(
+            Expense.user_id.in_(uid_list),
+            Expense.amount > 0,
+            Expense.date >= start_date,
+        )
+        .group_by(func.to_char(Expense.date, "YYYY-MM"))
+        .order_by(func.to_char(Expense.date, "YYYY-MM"))
+        .all()
+    )
+
+    return [
+        TrendItem(month=month_key, total=float(total), count=count)
+        for month_key, total, count in rows
+    ]

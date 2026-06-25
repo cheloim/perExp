@@ -168,6 +168,11 @@ jobs:
                   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
                   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
                   SECRET_KEY: ${SECRET_KEY}
+                deploy:
+                  resources:
+                    limits:
+                      memory: 512M
+                      cpus: "1.0"
                 restart: unless-stopped
 
               frontend:
@@ -206,4 +211,9 @@ jobs:
             source .env
             set +a
             podman-compose pull
+
+            # Run database migration before starting new containers
+            echo "Running database migration..."
+            podman-compose run --rm backend python -m scripts.migrate_remove_legacy_fields || echo "Migration skipped or failed (non-fatal)"
+
             podman-compose up -d --remove-orphans

@@ -5,7 +5,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
-COPY . .
+COPY vite.config.ts tsconfig.json tsconfig.node.json tsconfig.workers.json tailwind.config.js postcss.config.js ./
+COPY docker-entrypoint.sh .
 
 RUN chmod +x docker-entrypoint.sh
 

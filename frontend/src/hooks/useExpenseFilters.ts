@@ -6,6 +6,7 @@ export interface ExpenseFilters {
   bank: string | undefined;
   person: string | undefined;
   card: string | undefined;
+  account: string | undefined;
   dateFrom: string | undefined;
   dateTo: string | undefined;
   search: string | undefined;
@@ -22,6 +23,7 @@ export function useExpenseFilters() {
     bank: searchParams.get("bank") || undefined,
     person: searchParams.get("person") || undefined,
     card: searchParams.get("card") || undefined,
+    account: searchParams.get("account") || undefined,
     dateFrom: searchParams.get("date_from") || undefined,
     dateTo: searchParams.get("date_to") || undefined,
     search: searchParams.get("search") || undefined,

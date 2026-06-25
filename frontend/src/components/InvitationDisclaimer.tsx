@@ -15,6 +15,16 @@ export default function InvitationDisclaimer({ notificationId, inviterName, onCl
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["notifications-count"] });
       queryClient.invalidateQueries({ queryKey: ["my-group"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["card-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["cards"] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["scheduled-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["top-merchants"] });
+      queryClient.invalidateQueries({ queryKey: ["distinct-values"] });
+      queryClient.invalidateQueries({ queryKey: ["credit-card-pasivos"] });
+      queryClient.invalidateQueries({ queryKey: ["installments-monthly-load"] });
       onClose();
     },
   });
@@ -28,12 +38,11 @@ export default function InvitationDisclaimer({ notificationId, inviterName, onCl
         </div>
 
         <p className="text-secondary text-sm mb-3">
-          Al aceptar esta invitación,{" "}
-          <span className="text-primary font-medium">{inviterName}</span> podrá ver todos tus gastos
-          e información financiera de tu cuenta.
+          Al aceptar, <span className="text-primary font-medium">tú y {inviterName}</span> podrán
+          ver los gastos e información financiera de ambos. Esta es una relación bidireccional.
         </p>
         <p className="text-tertiary text-sm mb-6">
-          Esta acción se puede deshacer saliendo del grupo en cualquier momento desde{" "}
+          Podés salir del grupo en cualquier momento desde{" "}
           <span className="text-secondary">Mi cuenta → Grupo Familiar</span>.
         </p>
 

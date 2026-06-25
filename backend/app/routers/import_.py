@@ -36,6 +36,9 @@ from app.services.pdf import (
 router = APIRouter(prefix="/import", tags=["import"])
 
 
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
 @router.post("/preview")
 async def preview_import(
     file: UploadFile = File(...),
@@ -46,8 +49,13 @@ async def preview_import(
     bank_col: str | None = None,
     person_col: str | None = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     content = await file.read()
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            413, f"El archivo supera el límite de {MAX_UPLOAD_SIZE // (1024 * 1024)} MB"
+        )
     try:
         df = _load_dataframe(content, file.filename or "")
     except Exception as e:
@@ -124,6 +132,10 @@ async def confirm_import(
     current_user: User = Depends(get_current_user),
 ):
     content = await file.read()
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            413, f"El archivo supera el límite de {MAX_UPLOAD_SIZE // (1024 * 1024)} MB"
+        )
     try:
         df = _load_dataframe(content, file.filename or "")
     except Exception as e:
@@ -166,10 +178,6 @@ async def confirm_import(
                 skipped += 1
                 continue
 
-            card = _normalize_text(str(row.get(card_col, ""))) if card_col else ""
-            bank = _normalize_text(str(row.get(bank_col, ""))) if bank_col else ""
-            person = _normalize_text(str(row.get(person_col, ""))) if person_col else ""
-
             category_id = _resolve_category(db, amount, description, cats)
             db.add(
                 Expense(
@@ -177,9 +185,6 @@ async def confirm_import(
                     description=_normalize_text(description),
                     amount=amount,
                     category_id=category_id,
-                    card=card,
-                    bank=bank,
-                    person=person,
                     user_id=current_user.id,
                 )
             )
@@ -192,8 +197,15 @@ async def confirm_import(
 
 
 @router.post("/pdf-debug")
-async def pdf_debug(file: UploadFile = File(...)):
+async def pdf_debug(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
     content = await file.read()
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            413, f"El archivo supera el límite de {MAX_UPLOAD_SIZE // (1024 * 1024)} MB"
+        )
     try:
         raw = _extract_pdf_text(content)
         raw = _normalize_santander_dates(raw)
@@ -216,8 +228,15 @@ async def pdf_debug(file: UploadFile = File(...)):
 
 
 @router.post("/csv-debug")
-async def csv_debug(file: UploadFile = File(...)):
+async def csv_debug(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
     content = await file.read()
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            413, f"El archivo supera el límite de {MAX_UPLOAD_SIZE // (1024 * 1024)} MB"
+        )
     filename = (file.filename or "").lower()
     try:
         df = _load_dataframe(content, filename)
@@ -562,11 +581,6 @@ def rows_confirm_import(
             if isinstance(mapping_entry, dict) and mapping_entry.get("bank")
             else norm_bank
         )
-        final_card = (
-            mapping_entry.get("card_name")
-            if isinstance(mapping_entry, dict) and mapping_entry.get("card_name")
-            else norm_card
-        )
         card_type = (
             cards_mapping.get(f"_card_type_{norm_bank}_{norm_card}", "credito")
             if isinstance(cards_mapping.get(f"_card_type_{norm_bank}_{norm_card}"), str)
@@ -584,9 +598,6 @@ def rows_confirm_import(
                         amount=amount,
                         currency=currency,
                         category_id=category_id,
-                        card=final_card,
-                        bank=final_bank,
-                        person=norm_person,
                         transaction_id=txn_id,
                         installment_number=inst_num,
                         installment_total=inst_total,
@@ -609,9 +620,6 @@ def rows_confirm_import(
                         amount=amount,
                         currency=currency,
                         category_id=category_id,
-                        card=final_card,
-                        bank=final_bank,
-                        person=norm_person,
                         transaction_id=txn_id,
                         installment_number=inst_num,
                         installment_total=inst_total,

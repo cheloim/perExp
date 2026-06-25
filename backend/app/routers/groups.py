@@ -47,6 +47,7 @@ def _get_user_group(user_id: int, db: Session) -> GroupMember | None:
     return (
         db.query(GroupMember)
         .filter(GroupMember.user_id == user_id, GroupMember.status == "accepted")
+        .order_by(GroupMember.id.desc())
         .first()
     )
 
@@ -107,17 +108,24 @@ def invite_user(
     if target.id == current_user.id:
         raise HTTPException(400, "No puedes invitarte a ti mismo")
 
-    if _get_user_group(target.id, db):
+    # Check target has no existing group (accepted or pending)
+    target_accepted = (
+        db.query(GroupMember)
+        .filter(GroupMember.user_id == target.id, GroupMember.status == "accepted")
+        .first()
+    )
+    if target_accepted:
         raise HTTPException(400, "El usuario ya pertenece a un grupo familiar")
 
-    existing_pending = (
+    target_pending = (
         db.query(GroupMember)
         .filter(GroupMember.user_id == target.id, GroupMember.status == "pending")
         .first()
     )
-    if existing_pending:
+    if target_pending:
         raise HTTPException(400, "El usuario ya tiene una invitación pendiente")
 
+    # Check inviter has no existing group
     inviter_membership = _get_user_group(current_user.id, db)
     if inviter_membership:
         group = db.query(Group).filter(Group.id == inviter_membership.group_id).first()
@@ -186,8 +194,14 @@ def leave_group(current_user: User = Depends(get_current_user), db: Session = De
         .count()
     )
     if remaining == 0:
+        # Clean up all pending members and group
         db.query(GroupMember).filter(GroupMember.group_id == group_id).delete()
         db.query(Group).filter(Group.id == group_id).delete()
+    else:
+        # Clean up pending members (their invites are now invalid)
+        db.query(GroupMember).filter(
+            GroupMember.group_id == group_id, GroupMember.status == "pending"
+        ).delete()
 
     db.commit()
     return {"message": "Saliste del grupo"}

@@ -71,7 +71,8 @@ export const changePassword = (current_password: string, new_password: string) =
 
 export const getTelegramKey = () =>
   api.get<{ telegram_key: string }>("/auth/me/telegram-key").then((r) => r.data);
-
+export const getTelegramStatus = () =>
+  api.get<{ connected: boolean }>("/auth/me/telegram-status").then((r) => r.data);
 export const regenerateTelegramKey = () =>
   api.post<{ telegram_key: string }>("/auth/me/telegram-key/regenerate").then((r) => r.data);
 
@@ -89,17 +90,62 @@ export const deleteCategory = (id: number) => api.delete(`/categories/${id}`).th
 // Expenses
 export const getExpenses = (params?: {
   category_id?: number;
+  category_ids?: string;
   uncategorized?: boolean;
   month?: string;
   bank?: string;
   person?: string;
   card?: string;
+  account?: string;
   search?: string;
   date_from?: string;
   date_to?: string;
   limit?: number;
   offset?: number;
 }) => api.get<Expense[]>("/expenses", { params }).then((r) => r.data);
+
+export const getExpenseStats = (params?: {
+  month?: string;
+  card?: string;
+  bank?: string;
+  account?: string;
+  account_id?: number;
+}) =>
+  api
+    .get<{
+      total: number;
+      count: number;
+      avg: number;
+      last_used: string | null;
+    }>("/expenses/stats", { params })
+    .then((r) => r.data);
+
+export const getExpensesByCategory = (params?: {
+  month?: string;
+  card?: string;
+  account_id?: number;
+}) =>
+  api
+    .get<
+      {
+        category_id: number | null;
+        category_name: string;
+        category_color: string | null;
+        total: number;
+        count: number;
+      }[]
+    >("/expenses/by-category", { params })
+    .then((r) => r.data);
+
+export const getExpensesByPerson = (params?: { month?: string }) =>
+  api
+    .get<{ person: string; total: number; count: number }[]>("/expenses/by-person", { params })
+    .then((r) => r.data);
+
+export const getExpensesTrend = (params?: { months?: number }) =>
+  api
+    .get<{ month: string; total: number; count: number }[]>("/expenses/trend", { params })
+    .then((r) => r.data);
 
 export const getDistinctValues = () =>
   api
@@ -145,7 +191,6 @@ export const getDashboard = (params?: {
   search?: string;
   person?: string;
   category_id?: number;
-  card_last4_old?: string;
   bank?: string;
 }) => api.get<DashboardSummary>("/dashboard/summary", { params }).then((r) => r.data);
 
@@ -308,12 +353,12 @@ export const getDashboardAITrends = (params?: { month?: string }) =>
 export const deleteAllExpenses = () =>
   api.delete<{ deleted: number }>("/expenses/all").then((r) => r.data);
 
-export const getCategoryTrend = (months = 4, anchorMonth?: string) =>
+export const getCategoryTrend = (months = 4, anchorMonth?: string, person?: string) =>
   api
     .get<{
       rows: Record<string, number | string>[];
       categories: { name: string; color: string }[];
-    }>("/dashboard/category-trend", { params: { months, anchor_month: anchorMonth } })
+    }>("/dashboard/category-trend", { params: { months, anchor_month: anchorMonth, person } })
     .then((r) => r.data);
 
 export const getCardCategoryBreakdown = (params?: { month?: string; bank?: string }) =>
@@ -333,9 +378,8 @@ export const bulkUpdateFields = (
   ids: number[],
   data: {
     category_id?: number | null;
-    bank?: string;
-    card?: string;
-    person?: string;
+    card_id?: number | null;
+    account_id?: number | null;
   },
 ) => api.patch<{ updated: number }>("/expenses/bulk-update", { ids, ...data }).then((r) => r.data);
 

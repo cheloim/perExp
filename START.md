@@ -129,7 +129,7 @@ frontend/src/
     NotificationsPanel.tsx     # Bell notifications drawer
     UserPanel.tsx              # User account drawer
     CustomSelect.tsx          # Custom styled select component
-```## Database Schema (`expenses.db`)
+```## Database Schema
 
 ```sql
 categories (id, name, color, keywords, parent_id)

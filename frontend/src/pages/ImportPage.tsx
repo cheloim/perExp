@@ -147,6 +147,7 @@ export default function ImportPage() {
   const [editPerson, setEditPerson] = useState("");
   const [onlyEmpty, setOnlyEmpty] = useState(true);
   const [importingSingle, setImportingSingle] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{
     fileIdx: number;
     rowIdx: number;
@@ -284,7 +285,7 @@ export default function ImportPage() {
     if (!editModalFile) return;
 
     if (!editBank || !editCard || !editPerson) {
-      alert("Todos los campos son obligatorios");
+      setPageError("Todos los campos son obligatorios");
       return;
     }
 
@@ -311,7 +312,7 @@ export default function ImportPage() {
     // Validate all custom namings are filled
     const emptyOnes = Object.entries(customNamingEdits).filter(([, v]) => !v.trim());
     if (emptyOnes.length > 0) {
-      alert("Todos los nombres personalizados son obligatorios");
+      setPageError("Todos los nombres personalizados son obligatorios");
       return;
     }
 
@@ -340,7 +341,7 @@ export default function ImportPage() {
   const handleImportSingle = async (fileResult: FileImportResult) => {
     const valid = validateRows(fileResult.rows);
     if (!valid.valid) {
-      alert("Completá los datos faltantes primero");
+      setPageError("Completá los datos faltantes primero");
       return;
     }
 
@@ -360,7 +361,7 @@ export default function ImportPage() {
 
       setFileResults(remainingFiles);
     } catch (err: any) {
-      alert(err?.response?.data?.detail ?? "Error al importar");
+      setPageError(err?.response?.data?.detail ?? "Error al importar");
     } finally {
       setImportingSingle(null);
     }
@@ -370,7 +371,9 @@ export default function ImportPage() {
     const allRows = fileResults.flatMap((f) => f.rows);
     const validation = validateRows(allRows);
     if (!validation.valid) {
-      alert(`Faltan datos en ${validation.missingCount} fila(s). Completalos antes de importar.`);
+      setPageError(
+        `Faltan datos en ${validation.missingCount} fila(s). Completalos antes de importar.`,
+      );
       return;
     }
     // Merge all cards_mapping from all files
@@ -433,6 +436,7 @@ export default function ImportPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      <h1 className="text-2xl font-bold text-[var(--text-primary)]">Importar Extractos</h1>
       <div className="flex items-center gap-2 text-sm">
         {(["upload", "preview"] as Step[]).map((s, i) => (
           <span key={s} className="flex items-center gap-2">
@@ -506,6 +510,15 @@ export default function ImportPage() {
               {err}
             </p>
           ))}
+        </div>
+      )}
+
+      {pageError && (
+        <div className="flex items-start gap-2 bg-danger/10 border border-danger/30 rounded-lg px-4 py-3 text-sm text-danger">
+          <span>{pageError}</span>
+          <button onClick={() => setPageError(null)} className="ml-auto hover:opacity-70">
+            ✕
+          </button>
         </div>
       )}
 
@@ -764,7 +777,7 @@ export default function ImportPage() {
                                       revertCell(
                                         idx,
                                         i,
-                                        "bank",
+                                        "card",
                                         editingCell?.originalValue || "",
                                         prev,
                                       ),
@@ -812,7 +825,7 @@ export default function ImportPage() {
                                       revertCell(
                                         idx,
                                         i,
-                                        "bank",
+                                        "person",
                                         editingCell?.originalValue || "",
                                         prev,
                                       ),
@@ -901,11 +914,11 @@ export default function ImportPage() {
 
       {editModalFile && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-modal-backdrop"
           onClick={() => setEditModalFile(null)}
         >
           <div
-            className="bg-[var(--color-base-container)] rounded-xl p-6 w-full max-w-md shadow-xl border border-border-color"
+            className="bg-[var(--color-base-container)] rounded-xl p-6 w-full max-w-md shadow-xl border border-border-color animate-modal-content"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
@@ -1003,11 +1016,11 @@ export default function ImportPage() {
 
       {customNamingModalFile && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-modal-backdrop"
           onClick={() => setCustomNamingModalFile(null)}
         >
           <div
-            className="bg-[var(--color-base-container)] rounded-xl p-6 w-full max-w-lg shadow-xl border border-border-color max-h-[80vh] overflow-y-auto"
+            className="bg-[var(--color-base-container)] rounded-xl p-6 w-full max-w-lg shadow-xl border border-border-color max-h-[80vh] overflow-y-auto animate-modal-content"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">

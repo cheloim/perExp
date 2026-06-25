@@ -1,3 +1,5 @@
+import { useFocusTrap } from "../hooks/useFocusTrap";
+
 interface ConfirmDialogProps {
   isOpen: boolean;
   title: string;
@@ -19,12 +21,19 @@ export function ConfirmDialog({
   onCancel,
   variant = "danger",
 }: ConfirmDialogProps) {
+  const trapRef = useFocusTrap(isOpen);
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-backdrop">
       <div className="absolute inset-0 bg-black/60" onClick={onCancel} />
-      <div className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-md shadow-xl w-full max-w-sm p-4 space-y-4">
+      <div
+        ref={trapRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-md shadow-xl w-full max-w-sm p-4 space-y-4 animate-modal-content"
+      >
         <div className="space-y-1">
           <h3 className="text-sm font-semibold text-[var(--text-primary)]">{title}</h3>
           <p className="text-sm text-[var(--text-secondary)]">{message}</p>
@@ -32,6 +41,7 @@ export function ConfirmDialog({
         <div className="flex gap-2 justify-end">
           <button
             onClick={onCancel}
+            autoFocus
             className="px-4 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
           >
             {cancelLabel}

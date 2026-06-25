@@ -26,22 +26,30 @@ def cleanup_expired_import_jobs():
         expired = db.query(ImportJob).filter(ImportJob.created_at < cutoff).all()
 
         count = 0
+        expired_job_ids = {job.id for job in expired}
+
+        # Query all import notifications ONCE, then filter by job_id in memory
+        notifications = (
+            db.query(Notification)
+            .filter(Notification.type.in_(["import_ready", "import_failed"]))
+            .all()
+        )
+
+        # Build lookup: job_id -> list of notifications
+        notif_by_job = {}
+        for notif in notifications:
+            try:
+                data = json.loads(notif.data)
+                job_id = data.get("job_id")
+                if job_id in expired_job_ids:
+                    notif_by_job.setdefault(job_id, []).append(notif)
+            except Exception:
+                pass
+
+        # Delete notifications and jobs
         for job in expired:
-            # Eliminar notificación asociada (import_ready o import_failed)
-            notifications = (
-                db.query(Notification)
-                .filter(Notification.type.in_(["import_ready", "import_failed"]))
-                .all()
-            )
-
-            for notif in notifications:
-                try:
-                    data = json.loads(notif.data)
-                    if data.get("job_id") == job.id:
-                        db.delete(notif)
-                except Exception:
-                    pass  # Ignorar errores de parseo JSON
-
+            for notif in notif_by_job.get(job.id, []):
+                db.delete(notif)
             db.delete(job)
             count += 1
 

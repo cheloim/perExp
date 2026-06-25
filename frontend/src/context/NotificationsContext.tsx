@@ -136,13 +136,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       workerPort!.close();
       setPort(null);
     };
-  }, [
-    broadcastChannel,
-    handleNewNotification,
-    handleCountsUpdate,
-    state.unreadCount,
-    state.pendingCount,
-  ]);
+  }, [broadcastChannel, handleNewNotification, handleCountsUpdate]);
 
   useEffect(() => {
     const handleBroadcast = (e: MessageEvent) => {

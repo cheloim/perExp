@@ -13,6 +13,15 @@ from app.services.auth import get_current_user
 router = APIRouter(prefix="/cards", tags=["cards"])
 
 
+def get_first_name(full_name: str) -> str:
+    """Extract first name from full_name. 'Perez, Juan' -> 'Juan', 'Juan Perez' -> 'Juan'"""
+    if not full_name:
+        return ""
+    if "," in full_name:
+        return full_name.split(",")[1].strip().split()[0] if len(full_name.split(",")) > 1 else ""
+    return full_name.strip().split()[0] if full_name.strip() else ""
+
+
 class CardCreate(BaseModel):
     card_name: str
     bank: str = ""
@@ -87,10 +96,14 @@ def create_card(
             },
         )
 
+    holder = card.holder.strip() if card.holder else ""
+    if not holder:
+        holder = get_first_name(current_user.full_name or "")
+
     db_card = Card(
         card_name=card_name,
         bank=bank,
-        holder=card.holder or "",
+        holder=holder,
         card_type=card.card_type,
         user_id=current_user.id,
     )
@@ -168,11 +181,7 @@ def sync_card_holders(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Sync holders from expenses to cards based on most frequent person per bank+name"""
-    from sqlalchemy import func
-
-    from app.models import Expense
-
+    """Sync holders: auto-assign holder from user's full_name for cards without one"""
     cards = db.query(Card).filter(Card.user_id == current_user.id).all()
     updated = 0
 
@@ -180,22 +189,8 @@ def sync_card_holders(
         if card.holder:
             continue
 
-        most_common_person = (
-            db.query(Expense.person, func.count(Expense.id).label("cnt"))
-            .filter(
-                Expense.user_id == current_user.id,
-                func.lower(func.trim(Expense.bank)) == (card.bank or "").lower().strip(),
-                Expense.card.ilike(f"%{card.card_name}%"),
-                Expense.person.isnot(None),
-                Expense.person != "",
-            )
-            .group_by(Expense.person)
-            .order_by(func.count(Expense.id).desc())
-            .first()
-        )
-
-        if most_common_person and most_common_person[0]:
-            card.holder = most_common_person[0]
+        card.holder = get_first_name(current_user.full_name or "")
+        if card.holder:
             updated += 1
 
     db.commit()

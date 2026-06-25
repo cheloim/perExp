@@ -7,10 +7,12 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     LargeBinary,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 
@@ -37,27 +39,29 @@ class Group(Base):
     __tablename__ = "groups"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    members = relationship("GroupMember", back_populates="group")
+    members = relationship("GroupMember", back_populates="group", cascade="all, delete-orphan")
 
 
 class GroupMember(Base):
     __tablename__ = "group_members"
+    __table_args__ = (UniqueConstraint("group_id", "user_id", name="uq_group_member"),)
     id = Column(Integer, primary_key=True, index=True)
-    group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    group_id = Column(Integer, ForeignKey("groups.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     role = Column(String, default="member")
     status = Column(String, default="accepted")  # pending | accepted | rejected
-    invited_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    invited_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     joined_at = Column(DateTime, default=datetime.utcnow)
     group = relationship("Group", back_populates="members")
 
 
 class Notification(Base):
     __tablename__ = "notifications"
+    __table_args__ = (Index("ix_notifications_user_read", "user_id", "read"),)
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     type = Column(String, nullable=False)
     title = Column(String, nullable=False)
     body = Column(Text, default="")
@@ -69,7 +73,9 @@ class Notification(Base):
 class ImportJob(Base):
     __tablename__ = "import_jobs"
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     filename = Column(String, nullable=False)
     status = Column(String, default="PROCESSING")  # PROCESSING | READY_PREVIEW | COMPLETED | FAILED
     file_content = Column(LargeBinary)
@@ -81,28 +87,38 @@ class ImportJob(Base):
 
 class Category(Base):
     __tablename__ = "categories"
+    __table_args__ = (
+        Index("ix_categories_user_id", "user_id"),
+        Index("ix_categories_parent_id", "parent_id"),
+        UniqueConstraint("name", "user_id", name="uq_category_name_user"),
+    )
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
     color = Column(String, default="#6366f1")
     keywords = Column(Text, default="")
-    parent_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    parent_id = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     expenses = relationship("Expense", back_populates="category")
 
 
 class Account(Base):
     __tablename__ = "accounts"
+    __table_args__ = (Index("ix_accounts_user_id", "user_id"),)
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     type = Column(
         String, default="efectivo"
     )  # efectivo, cuenta_corriente, caja_ahorro, mercadopago, etc
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class Card(Base):
     __tablename__ = "cards"
+    __table_args__ = (
+        Index("ix_cards_user_id", "user_id"),
+        Index("ix_cards_card_type", "card_type"),
+    )
     id = Column(Integer, primary_key=True, index=True)
     card_name = Column(String, nullable=False)  # Visa, Mastercard, etc
     bank = Column(String, default="")
@@ -110,32 +126,36 @@ class Card(Base):
         String, default=""
     )  # Primer nombre del usuario (para agrupar en grupo familiar)
     card_type = Column(String, default="credito")  # credito, debito
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class Expense(Base):
     __tablename__ = "expenses"
+    __table_args__ = (
+        Index("ix_expenses_user_date", "user_id", "date"),
+        Index("ix_expenses_user_category", "user_id", "category_id"),
+        Index("ix_expenses_user_installment", "user_id", "installment_group_id"),
+        Index("ix_expenses_user_id", "user_id"),
+        Index("ix_expenses_card_id", "card_id"),
+        Index("ix_expenses_category_id", "category_id"),
+        Index("ix_expenses_account_id", "account_id"),
+        Index("ix_expenses_is_income", "is_income"),
+    )
     id = Column(Integer, primary_key=True, index=True)
     date = Column(Date, nullable=False)
     description = Column(String, nullable=False)
     amount = Column(Float, nullable=False)
-    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
-    # Legacy fields (deprecated, use account_id or card_id instead)
-    card = Column(String, default="")
-    bank = Column(String, default="")
-    person = Column(String, default="")
+    category_id = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
     notes = Column(Text, default="")
     transaction_id = Column(String, nullable=True, index=True)
     currency = Column(String, default="ARS")
     installment_number = Column(Integer, nullable=True)
     installment_total = Column(Integer, nullable=True)
     installment_group_id = Column(String, nullable=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
-    # New structured fields
-    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
-    card_id = Column(Integer, ForeignKey("cards.id"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    account_id = Column(Integer, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True)
+    card_id = Column(Integer, ForeignKey("cards.id", ondelete="SET NULL"), nullable=True)
     is_income = Column(Boolean, default=False, nullable=False)
     category = relationship("Category", back_populates="expenses")
     account_rel = relationship("Account")
@@ -144,6 +164,7 @@ class Expense(Base):
 
 class AnalysisHistory(Base):
     __tablename__ = "analysis_history"
+    __table_args__ = (Index("ix_analysis_history_user_id", "user_id"),)
     id = Column(Integer, primary_key=True, index=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     month = Column(String, nullable=True)
@@ -151,7 +172,7 @@ class AnalysisHistory(Base):
     result_text = Column(Text, nullable=False, default="")
     expense_count = Column(Integer, default=0)
     total_amount = Column(Float, default=0.0)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
 
 class Setting(Base):
@@ -162,6 +183,10 @@ class Setting(Base):
 
 class Investment(Base):
     __tablename__ = "investments"
+    __table_args__ = (
+        Index("ix_investments_user_id", "user_id"),
+        Index("ix_investments_user_ticker_broker", "user_id", "ticker", "broker"),
+    )
     id = Column(Integer, primary_key=True, index=True)
     ticker = Column(String, default="")
     name = Column(String, default="")
@@ -173,25 +198,32 @@ class Investment(Base):
     currency = Column(String, default="ARS")
     notes = Column(Text, default="")
     updated_at = Column(DateTime, default=datetime.utcnow)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
 
 class CardClosing(Base):
     __tablename__ = "card_closings"
+    __table_args__ = (Index("ix_card_closings_user_id", "user_id"),)
     id = Column(Integer, primary_key=True, index=True)
     card = Column(String, nullable=False, default="")
     card_last_digits = Column(String, default="")
     card_type = Column(String, default="")
     bank = Column(String, default="")
+    card_id = Column(Integer, ForeignKey("cards.id", ondelete="SET NULL"), nullable=True)
     closing_date = Column(Date, nullable=False)
     next_closing_date = Column(Date, nullable=True)
     due_date = Column(Date, nullable=True)
     last_imported_at = Column(DateTime, default=datetime.utcnow)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    card_rel = relationship("Card")
 
 
 class ScheduledExpense(Base):
     __tablename__ = "scheduled_expenses"
+    __table_args__ = (
+        Index("ix_scheduled_expenses_user_id", "user_id"),
+        Index("ix_scheduled_expenses_user_status", "user_id", "status"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     installment_group_id = Column(String, nullable=False, index=True)
@@ -203,29 +235,25 @@ class ScheduledExpense(Base):
     currency = Column(String, default="ARS")
     description = Column(String, nullable=False)
 
-    # Legacy fields (compatibilidad)
-    card = Column(String, default="")
-    bank = Column(String, default="")
-    person = Column(String, default="")
-
-    # Nuevos campos estructurados
-    card_id = Column(Integer, ForeignKey("cards.id"), nullable=True)
-    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
+    # Structured fields
+    card_id = Column(Integer, ForeignKey("cards.id", ondelete="SET NULL"), nullable=True)
+    account_id = Column(Integer, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True)
 
     # Estado
     status = Column(String, default="PENDING", index=True)  # PENDING | EXECUTED | CANCELLED
 
     # Categoría
-    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
+    category_id = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
 
     # Si fue ejecutada
-    executed_expense_id = Column(Integer, ForeignKey("expenses.id"), nullable=True)
+    executed_expense_id = Column(
+        Integer, ForeignKey("expenses.id", ondelete="SET NULL"), nullable=True
+    )
     executed_at = Column(DateTime, nullable=True)
 
     # Auditoría
     created_at = Column(DateTime, default=datetime.utcnow)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     transaction_id = Column(String, nullable=True, index=True)
 
     # Relationships

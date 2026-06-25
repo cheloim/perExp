@@ -31,6 +31,10 @@ load_secret "GOOGLE_CLIENT_ID" "creditcard_backend_google_client_id" "creditcard
 load_secret "GOOGLE_CLIENT_SECRET" "creditcard_backend_google_client_secret" "creditcard_backend_dev_google_client_secret"
 load_secret "SECRET_KEY" "creditcard_backend_secret_key" "creditcard_backend_dev_secret_key"
 
+# Create database indices if needed (idempotent - safe to run multiple times)
+echo "Checking database indices..."
+python -m app.add_indices 2>/dev/null || echo "Warning: Could not create indices, continuing..."
+
 # Skip Telegram bot for celery workers (avoid duplicate polling)
 if [ "$1" = "celery" ]; then
     exec "$@"

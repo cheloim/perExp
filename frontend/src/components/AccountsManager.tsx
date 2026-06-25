@@ -9,6 +9,7 @@ import {
 } from "../api/client";
 import type { Account } from "../types";
 import { Select } from "./ui/Select";
+import { Skeleton, SkeletonList } from "./ui/Skeleton";
 
 const ACCOUNT_TYPES = [
   { value: "efectivo", label: "Efectivo", color: "badge-success" },
@@ -128,7 +129,7 @@ export default function AccountsManager() {
 
     if (type === "tarjeta") {
       if (editId && editId > 0) {
-        alert("La edición de tarjetas se puede hacer desde la sección de Tarjetas");
+        setError("La edición de tarjetas se puede hacer desde la sección de Tarjetas");
         return;
       }
       if (!cardName.trim()) {
@@ -153,7 +154,13 @@ export default function AccountsManager() {
     }
   };
 
-  if (isLoading) return <div className="p-4 text-sm text-tertiary">Cargando…</div>;
+  if (isLoading)
+    return (
+      <div className="px-4 py-2">
+        <Skeleton className="h-4 w-24 mb-3" />
+        <SkeletonList items={2} />
+      </div>
+    );
 
   return (
     <div className="px-4 py-2 space-y-2">
@@ -197,17 +204,36 @@ export default function AccountsManager() {
                   <label className="text-xs font-medium text-[var(--text-secondary)]">
                     Tipo de cuenta
                   </label>
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value)}
-                    className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-                  >
-                    <option value="efectivo">💵 Efectivo</option>
-                    <option value="cuenta_corriente">🏦 Cuenta Corriente</option>
-                    <option value="caja_ahorro">💳 Caja de Ahorro</option>
-                    <option value="mercadopago">📱 MercadoPago</option>
-                    <option value="tarjeta">💰 Tarjeta</option>
-                  </select>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                        type === "tarjeta"
+                          ? "badge-neutral"
+                          : ACCOUNT_TYPES.find((t) => t.value === type)?.color || "badge-neutral"
+                      }`}
+                    >
+                      {type === "efectivo"
+                        ? "💵"
+                        : type === "mercadopago"
+                          ? "📱"
+                          : type === "cuenta_corriente"
+                            ? "🏦"
+                            : type === "caja_ahorro"
+                              ? "💳"
+                              : "💰"}
+                    </div>
+                    <select
+                      value={type}
+                      onChange={(e) => setType(e.target.value)}
+                      className="flex-1 px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+                    >
+                      <option value="efectivo">Efectivo</option>
+                      <option value="cuenta_corriente">Cuenta Corriente</option>
+                      <option value="caja_ahorro">Caja de Ahorro</option>
+                      <option value="mercadopago">MercadoPago</option>
+                      <option value="tarjeta">Tarjeta</option>
+                    </select>
+                  </div>
                 </div>
 
                 {/* Campos de Tarjeta */}
@@ -253,14 +279,14 @@ export default function AccountsManager() {
                   <button
                     type="submit"
                     disabled={createMut.isPending || updateMut.isPending}
-                    className="flex-1 px-4 py-2 rounded-md bg-[var(--color-primary)] text-[var(--color-on-primary)] text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"
+                    className="flex-1 gnome-btn-primary"
                   >
                     {createMut.isPending || updateMut.isPending ? "Guardando..." : "Guardar"}
                   </button>
                   <button
                     type="button"
                     onClick={handleCancel}
-                    className="flex-1 px-4 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
+                    className="flex-1 gnome-btn-secondary"
                   >
                     Cancelar
                   </button>

@@ -1,6 +1,5 @@
 import asyncio
 import json
-import os
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -9,12 +8,9 @@ from jose import JWTError, jwt
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.database import SessionLocal, get_db
 from app.models import GroupMember, Notification, User
-from app.services.auth import get_current_user
-
-SECRET_KEY = os.getenv("SECRET_KEY", "insecure-default-change-me")
-ALGORITHM = "HS256"
+from app.services.auth import ALGORITHM, SECRET_KEY, get_current_user
 
 
 class NotificationResponse(BaseModel):
@@ -113,6 +109,8 @@ def mark_read(
 def accept_invitation(
     notif_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
+    from app.routers.groups import _get_user_group
+
     notif = (
         db.query(Notification)
         .filter(Notification.id == notif_id, Notification.user_id == current_user.id)
@@ -137,6 +135,11 @@ def accept_invitation(
         raise HTTPException(404, "Invitación no encontrada")
     if member.status != "pending":
         raise HTTPException(400, "La invitación ya fue procesada")
+
+    # Check user hasn't joined another group since invitation
+    existing = _get_user_group(current_user.id, db)
+    if existing and existing.group_id != member.group_id:
+        raise HTTPException(400, "Ya perteneces a otro grupo familiar")
 
     member.status = "accepted"
     notif.read = True
@@ -203,7 +206,7 @@ def delete_notification(
 
 
 @router.get("/stream")
-async def notifications_stream(request: Request, db: Session = Depends(get_db)):
+async def notifications_stream(request: Request):
     token = request.query_params.get("token")
     if not token:
         return StreamingResponse(
@@ -211,7 +214,13 @@ async def notifications_stream(request: Request, db: Session = Depends(get_db)):
             media_type="text/event-stream",
         )
 
-    user = _validate_token(token, db)
+    # Validate token with a temporary session
+    temp_db = SessionLocal()
+    try:
+        user = _validate_token(token, temp_db)
+    finally:
+        temp_db.close()
+
     if not user:
         return StreamingResponse(
             _error_stream("Token inválido"),
@@ -224,69 +233,88 @@ async def notifications_stream(request: Request, db: Session = Depends(get_db)):
         last_check = datetime.now()
         default_page_size = 50
 
-        initial_notifs = (
-            db.query(Notification)
-            .filter(Notification.user_id == user.id)
-            .order_by(Notification.created_at.desc())
-            .limit(default_page_size)
-            .all()
-        )
-        unread_count = (
-            db.query(Notification)
-            .filter(Notification.user_id == user.id, Notification.read == False)
-            .count()
-        )
-        pending_count = (
-            db.query(Notification)
-            .filter(Notification.user_id == user.id, Notification.read == False)
-            .count()
-        )
-
-        initial_payload = {
-            "type": "initial",
-            "notifications": [_to_response(n).model_dump() for n in initial_notifs],
-            "unread_count": unread_count,
-            "pending_count": pending_count,
-        }
-        yield f"data: {json.dumps(initial_payload)}\n\n"
-
-        while True:
-            now = datetime.now()
-            elapsed = (now - last_check).total_seconds()
-            if elapsed < poll_timeout:
-                remaining = poll_timeout - elapsed
-            else:
-                remaining = 0
-
-            new_notifs = (
+        db = SessionLocal()
+        try:
+            initial_notifs = (
+                db.query(Notification)
+                .filter(Notification.user_id == user.id)
+                .order_by(Notification.created_at.desc())
+                .limit(default_page_size)
+                .all()
+            )
+            unread_count = (
+                db.query(Notification)
+                .filter(Notification.user_id == user.id, Notification.read == False)
+                .count()
+            )
+            pending_count = (
                 db.query(Notification)
                 .filter(
                     Notification.user_id == user.id,
-                    Notification.created_at > last_check,
+                    Notification.type == "group_invitation",
+                    Notification.read == False,
                 )
-                .order_by(Notification.created_at.asc())
-                .all()
+                .count()
             )
 
-            if new_notifs:
-                for n in new_notifs:
-                    yield f"data: {json.dumps({'type': 'notification', 'notification': _to_response(n).model_dump()})}\n\n"
+            initial_payload = {
+                "type": "initial",
+                "notifications": [_to_response(n).model_dump() for n in initial_notifs],
+                "unread_count": unread_count,
+                "pending_count": pending_count,
+            }
+            yield f"data: {json.dumps(initial_payload)}\n\n"
 
-                unread_count = (
+            while True:
+                if await request.is_disconnected():
+                    break
+
+                now = datetime.now()
+                elapsed = (now - last_check).total_seconds()
+                if elapsed < poll_timeout:
+                    remaining = poll_timeout - elapsed
+                else:
+                    remaining = 0
+
+                new_notifs = (
                     db.query(Notification)
-                    .filter(Notification.user_id == user.id, Notification.read == False)
-                    .count()
+                    .filter(
+                        Notification.user_id == user.id,
+                        Notification.created_at > last_check,
+                    )
+                    .order_by(Notification.created_at.asc())
+                    .all()
                 )
-                pending_count = unread_count
-                yield f"data: {json.dumps({'type': 'counts_update', 'unread_count': unread_count, 'pending_count': pending_count})}\n\n"
-                last_check = datetime.now()
 
-            if remaining <= 0:
-                yield f"data: {json.dumps({'type': 'ping'})}\n\n"
-                last_check = datetime.now()
-                poll_timeout = min(poll_timeout * 1.2, 120)
+                if new_notifs:
+                    for n in new_notifs:
+                        yield f"data: {json.dumps({'type': 'notification', 'notification': _to_response(n).model_dump()})}\n\n"
 
-            await asyncio.sleep(poll_interval)
+                    unread_count = (
+                        db.query(Notification)
+                        .filter(Notification.user_id == user.id, Notification.read == False)
+                        .count()
+                    )
+                    pending_count = (
+                        db.query(Notification)
+                        .filter(
+                            Notification.user_id == user.id,
+                            Notification.type == "group_invitation",
+                            Notification.read == False,
+                        )
+                        .count()
+                    )
+                    yield f"data: {json.dumps({'type': 'counts_update', 'unread_count': unread_count, 'pending_count': pending_count})}\n\n"
+                    last_check = datetime.now()
+
+                if remaining <= 0:
+                    yield f"data: {json.dumps({'type': 'ping'})}\n\n"
+                    last_check = datetime.now()
+                    poll_timeout = min(poll_timeout * 1.2, 120)
+
+                await asyncio.sleep(poll_interval)
+        finally:
+            db.close()
 
     return StreamingResponse(
         generate(),

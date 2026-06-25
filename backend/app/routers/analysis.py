@@ -139,8 +139,10 @@ TOP 10 GASTOS MÁS ALTOS:
                     )
                 )
                 hist_db.commit()
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+
+                logging.getLogger(__name__).error(f"Failed to save analysis history: {e}")
             finally:
                 hist_db.close()
 
@@ -154,7 +156,10 @@ TOP 10 GASTOS MÁS ALTOS:
 
 
 @router.post("/summarize")
-async def summarize_chat(body: dict):
+async def summarize_chat(
+    body: dict,
+    current_user: User = Depends(get_current_user),
+):
     """Stream a concise summary of a chat conversation (for session resume)."""
     import json as _json
 

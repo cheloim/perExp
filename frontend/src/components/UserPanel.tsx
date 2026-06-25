@@ -8,11 +8,13 @@ import {
   inviteToGroup,
   leaveGroup,
   getTelegramKey,
+  getTelegramStatus,
   regenerateTelegramKey,
   getMyInviteCode,
   generateInviteCode,
 } from "../api/client";
 import { useNavigate } from "react-router-dom";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { useTheme } from "../context/ThemeContext";
 import AccountsManager from "./AccountsManager";
 import CardsManager from "./CardsManager";
@@ -47,6 +49,11 @@ export default function UserPanel({ open, onClose }: Props) {
   const [inviteSuccess, setInviteSuccess] = useState(false);
   const [keyCopied, setKeyCopied] = useState(false);
   const [showTelegramKey, setShowTelegramKey] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showRegenInviteConfirm, setShowRegenInviteConfirm] = useState(false);
+  const [showRegenTelegramConfirm, setShowRegenTelegramConfirm] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
 
   const { data: user } = useQuery({
     queryKey: ["me"],
@@ -54,9 +61,15 @@ export default function UserPanel({ open, onClose }: Props) {
     enabled: open,
   });
 
-  const { data: myGroup } = useQuery({
+  const { data: myGroup, isLoading: isGroupLoading } = useQuery({
     queryKey: ["my-group"],
     queryFn: getMyGroup,
+    enabled: open,
+  });
+
+  const { data: myInviteCode } = useQuery({
+    queryKey: ["my-invite-code"],
+    queryFn: getMyInviteCode,
     enabled: open,
   });
 
@@ -66,10 +79,18 @@ export default function UserPanel({ open, onClose }: Props) {
     enabled: open,
   });
 
+  const { data: tgStatus } = useQuery({
+    queryKey: ["telegram-status"],
+    queryFn: getTelegramStatus,
+    enabled: open,
+    refetchInterval: open ? 5000 : false,
+  });
+
   const regenerateKeyMut = useMutation({
     mutationFn: regenerateTelegramKey,
     onSuccess: () => {
       refetchTgKey();
+      queryClient.invalidateQueries({ queryKey: ["telegram-status"] });
     },
   });
 
@@ -79,12 +100,6 @@ export default function UserPanel({ open, onClose }: Props) {
     setKeyCopied(true);
     setTimeout(() => setKeyCopied(false), 2000);
   };
-
-  const { data: myInviteCode } = useQuery({
-    queryKey: ["my-invite-code"],
-    queryFn: getMyInviteCode,
-    enabled: open,
-  });
 
   const regenerateInviteCodeMut = useMutation({
     mutationFn: generateInviteCode,
@@ -98,8 +113,11 @@ export default function UserPanel({ open, onClose }: Props) {
     onSuccess: () => {
       setInviteSuccess(true);
       setInviteError(null);
+      setLeaveError(null);
       setInviteCode("");
       queryClient.invalidateQueries({ queryKey: ["my-group"] });
+      // Auto-hide success message after 3 seconds
+      setTimeout(() => setInviteSuccess(false), 3000);
     },
     onError: (e: any) => {
       setInviteError(e?.response?.data?.detail ?? "Error al enviar invitación");
@@ -111,9 +129,23 @@ export default function UserPanel({ open, onClose }: Props) {
     mutationFn: leaveGroup,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-group"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["card-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["cards"] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["scheduled-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["top-merchants"] });
+      queryClient.invalidateQueries({ queryKey: ["distinct-values"] });
+      queryClient.invalidateQueries({ queryKey: ["credit-card-pasivos"] });
+      queryClient.invalidateQueries({ queryKey: ["installments-monthly-load"] });
+      setInviteSuccess(false);
+      setInviteError(null);
+      setLeaveError(null);
+      setInviteCode("");
     },
     onError: (e: any) => {
-      setInviteError(e?.response?.data?.detail ?? "Error al salir del grupo");
+      setLeaveError(e?.response?.data?.detail ?? "Error al salir del grupo");
     },
   });
 
@@ -257,58 +289,91 @@ export default function UserPanel({ open, onClose }: Props) {
                   Grupo Familiar
                 </h3>
 
-                {/* Tu código de invitación */}
-                <div className="mb-3 p-2 bg-[var(--color-base-alt)] rounded-md">
-                  <p className="text-xs text-[var(--text-tertiary)] mb-1">Tu código:</p>
-                  <div className="flex items-center gap-2">
-                    <span className="flex-1 font-mono text-sm text-[var(--text-primary)] select-all">
-                      {myInviteCode?.invite_code ?? "—"}
-                    </span>
-                    {myInviteCode?.invite_code && (
-                      <>
-                        <button
-                          onClick={() => navigator.clipboard.writeText(myInviteCode.invite_code)}
-                          className="p-1.5 rounded hover:bg-[var(--color-base)] text-[var(--text-tertiary)] hover:text-primary transition"
-                          title="Copiar"
-                        >
-                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                            <rect
-                              x="5"
-                              y="5"
-                              width="9"
-                              height="9"
-                              rx="1"
-                              stroke="currentColor"
-                              strokeWidth="1.5"
-                            />
-                            <path
-                              d="M11 5V3a1 1 0 00-1-1H3a1 1 0 00-1 1v7a1 1 0 001 1h2"
-                              stroke="currentColor"
-                              strokeWidth="1.5"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => regenerateInviteCodeMut.mutate()}
-                          className="p-1.5 rounded hover:bg-[var(--color-base)] text-[var(--text-tertiary)] hover:text-primary transition"
-                          title="Nuevo código"
-                        >
-                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                            <path
-                              d="M13.65 2.35A8 8 0 103.43 11.07l-1.07-1.07M13.65 2.35h-3.5M13.65 2.35v3.5"
-                              stroke="currentColor"
-                              strokeWidth="1.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
+                {/* Tu código de invitación — solo si no tiene grupo o es el único miembro */}
+                {!isGroupLoading &&
+                  (!myGroup ||
+                    myGroup.members.filter((m) => m.status === "accepted").length <= 1) && (
+                    <div className="mb-3 p-2 bg-[var(--color-base-alt)] rounded-md">
+                      <p className="text-xs text-[var(--text-tertiary)] mb-1">
+                        Compartí tu código:
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <span className="flex-1 font-mono text-sm text-[var(--text-primary)] select-all">
+                          {myInviteCode?.invite_code ?? "—"}
+                        </span>
+                        {myInviteCode?.invite_code && (
+                          <>
+                            <button
+                              onClick={() =>
+                                navigator.clipboard.writeText(myInviteCode.invite_code)
+                              }
+                              className="p-1.5 rounded hover:bg-[var(--color-base)] text-[var(--text-tertiary)] hover:text-primary transition"
+                              title="Copiar"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                                <rect
+                                  x="5"
+                                  y="5"
+                                  width="9"
+                                  height="9"
+                                  rx="1"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                />
+                                <path
+                                  d="M11 5V3a1 1 0 00-1-1H3a1 1 0 00-1 1v7a1 1 0 001 1h2"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => setShowRegenInviteConfirm(true)}
+                              className="p-1.5 rounded hover:bg-[var(--color-base)] text-[var(--text-tertiary)] hover:text-primary transition"
+                              title="Nuevo código"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                                <path
+                                  d="M13.2 2.8A7.2 7.2 0 002.8 7.2"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                  strokeLinecap="round"
+                                />
+                                <path
+                                  d="M2.8 13.2A7.2 7.2 0 0013.2 8.8"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                  strokeLinecap="round"
+                                />
+                                <path
+                                  d="M13.2 2.8V6h-3.2"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                                <path
+                                  d="M2.8 13.2v-3.2h3.2"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
-                {myGroup ? (
+                {isGroupLoading ? (
+                  <div className="space-y-3">
+                    <div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse" />
+                    <div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse w-3/4" />
+                    <div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse w-1/2" />
+                  </div>
+                ) : myGroup ? (
                   <div className="space-y-3">
                     <p className="text-xs text-[var(--text-tertiary)]">{myGroup.name}</p>
                     <ul className="space-y-1.5">
@@ -321,6 +386,11 @@ export default function UserPanel({ open, onClose }: Props) {
                             <span className="text-xs text-[var(--text-primary)]">
                               {formatFullName(m.full_name)}
                             </span>
+                            {m.role === "admin" && (
+                              <span className="text-[9px] font-medium px-1 py-0.5 rounded bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+                                Admin
+                              </span>
+                            )}
                           </div>
                           <span
                             className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
@@ -341,12 +411,20 @@ export default function UserPanel({ open, onClose }: Props) {
                       ))}
                     </ul>
 
-                    {myGroup.members.length < 5 && (
+                    {myGroup.members.filter((m) => m.status === "accepted").length < 5 && (
                       <form
                         onSubmit={(e) => {
                           e.preventDefault();
                           setInviteError(null);
                           setInviteSuccess(false);
+                          setLeaveError(null);
+                          if (
+                            myInviteCode?.invite_code &&
+                            inviteCode.trim() === myInviteCode.invite_code
+                          ) {
+                            setInviteError("No puedes invitarte a ti mismo");
+                            return;
+                          }
                           inviteMut.mutate();
                         }}
                         className="space-y-2"
@@ -381,12 +459,17 @@ export default function UserPanel({ open, onClose }: Props) {
                     )}
 
                     <button
-                      onClick={() => leaveMut.mutate()}
+                      onClick={() => setShowLeaveConfirm(true)}
                       disabled={leaveMut.isPending}
                       className="w-full py-1.5 rounded-md border border-[var(--red-3,#e01b24)]/30 text-[var(--red-3,#e01b24)] hover:bg-[var(--red-3,#e01b24)]/10 text-xs font-medium transition disabled:opacity-50"
                     >
                       {leaveMut.isPending ? "Saliendo…" : "Salir del grupo"}
                     </button>
+                    {leaveError && (
+                      <p className="text-xs text-[var(--red-3,#e01b24)] bg-[var(--color-base)] border border-[var(--border-color)] rounded-md px-3 py-2">
+                        {leaveError}
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -399,6 +482,14 @@ export default function UserPanel({ open, onClose }: Props) {
                         e.preventDefault();
                         setInviteError(null);
                         setInviteSuccess(false);
+                        setLeaveError(null);
+                        if (
+                          myInviteCode?.invite_code &&
+                          inviteCode.trim() === myInviteCode.invite_code
+                        ) {
+                          setInviteError("No puedes invitarte a ti mismo");
+                          return;
+                        }
                         inviteMut.mutate();
                       }}
                       className="space-y-2"
@@ -440,44 +531,76 @@ export default function UserPanel({ open, onClose }: Props) {
                 <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-3">
                   Telegram Bot
                 </h3>
-                <p className="text-xs text-[var(--text-tertiary)] mb-3">
-                  Enviá{" "}
-                  <span className="font-mono bg-[var(--color-base-alt)] px-1 rounded">/start</span>{" "}
-                  al bot y pegá esta clave para autenticarte.
-                </p>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`flex-1 font-mono text-sm bg-[var(--color-base-alt)] rounded-md px-3 py-2 tracking-widest text-[var(--text-primary)] select-all ${
-                        !showTelegramKey ? "blur-sm" : ""
-                      }`}
-                    >
-                      {tgKeyData?.telegram_key ?? "············"}
-                    </span>
+
+                {tgStatus?.connected ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 p-2 bg-[var(--gnome-green-3,#33d17a)]/10 rounded-md">
+                      <span className="text-sm">✅</span>
+                      <span className="text-xs font-medium text-[var(--gnome-green-5,#26a269)]">
+                        Bot conectado
+                      </span>
+                    </div>
+                    <p className="text-xs text-[var(--text-tertiary)]">
+                      Tu bot de Telegram está vinculado y funcionando.
+                    </p>
                     <button
-                      onClick={handleCopyKey}
-                      className="px-3 py-2 rounded-md border border-[var(--border-color)] text-xs text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
+                      onClick={() => setShowRegenTelegramConfirm(true)}
+                      disabled={regenerateKeyMut.isPending}
+                      className="w-full py-1.5 rounded-md border border-[var(--red-3,#e01b24)]/30 text-[var(--red-3,#e01b24)] hover:bg-[var(--red-3,#e01b24)]/10 text-xs font-medium transition disabled:opacity-50"
                     >
-                      {keyCopied ? "✓" : "Copiar"}
+                      {regenerateKeyMut.isPending ? "Desconectando…" : "Desconectar bot"}
                     </button>
                   </div>
-                  <button
-                    onClick={() => regenerateKeyMut.mutate()}
-                    disabled={regenerateKeyMut.isPending}
-                    className="w-full py-1.5 rounded-md border border-[var(--border-color)] text-xs text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition disabled:opacity-50"
-                  >
-                    {regenerateKeyMut.isPending ? "Regenerando…" : "Regenerar clave"}
-                  </button>
-                </div>
-                {!showTelegramKey && (
-                  <p className="text-xs text-[var(--text-tertiary)] mt-2">
-                    <button
-                      onClick={() => setShowTelegramKey(true)}
-                      className="text-primary hover:underline"
-                    >
-                      Mostrar clave
-                    </button>
-                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 p-2 bg-[var(--color-base-alt)] rounded-md">
+                      <span className="w-2 h-2 rounded-full bg-[var(--text-tertiary)]" />
+                      <span className="text-xs font-medium text-[var(--text-tertiary)]">
+                        Bot desconectado
+                      </span>
+                    </div>
+                    <p className="text-xs text-[var(--text-tertiary)]">
+                      Enviá{" "}
+                      <span className="font-mono bg-[var(--color-base-alt)] px-1 rounded">
+                        /start
+                      </span>{" "}
+                      al bot y pegá esta clave para autenticarte.
+                    </p>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`flex-1 font-mono text-sm bg-[var(--color-base-alt)] rounded-md px-3 py-2 tracking-widest text-[var(--text-primary)] select-all ${
+                            !showTelegramKey ? "blur-sm" : ""
+                          }`}
+                        >
+                          {tgKeyData?.telegram_key ?? "············"}
+                        </span>
+                        <button
+                          onClick={handleCopyKey}
+                          className="px-3 py-2 rounded-md border border-[var(--border-color)] text-xs text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
+                        >
+                          {keyCopied ? "✓" : "Copiar"}
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => setShowRegenTelegramConfirm(true)}
+                        disabled={regenerateKeyMut.isPending}
+                        className="w-full py-1.5 rounded-md border border-[var(--border-color)] text-xs text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition disabled:opacity-50"
+                      >
+                        {regenerateKeyMut.isPending ? "Regenerando…" : "Regenerar clave"}
+                      </button>
+                    </div>
+                    {!showTelegramKey && (
+                      <p className="text-xs text-[var(--text-tertiary)]">
+                        <button
+                          onClick={() => setShowTelegramKey(true)}
+                          className="text-primary hover:underline"
+                        >
+                          Mostrar clave
+                        </button>
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -572,7 +695,7 @@ export default function UserPanel({ open, onClose }: Props) {
         {/* Logout */}
         <div className="px-5 py-4 border-t border-[var(--border-color)]">
           <button
-            onClick={handleLogout}
+            onClick={() => setShowLogoutConfirm(true)}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-md border border-[var(--red-3,#e01b24)]/30 text-[var(--red-3,#e01b24)] hover:bg-[var(--red-3,#e01b24)]/10 text-sm font-medium transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -588,6 +711,67 @@ export default function UserPanel({ open, onClose }: Props) {
           </button>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showLeaveConfirm}
+        title="Salir del grupo"
+        message="Al salir, no verás más los gastos de otros miembros del grupo. Esta acción se puede deshacer invitándote nuevamente."
+        confirmLabel="Salir"
+        cancelLabel="Cancelar"
+        variant="danger"
+        onConfirm={() => {
+          setShowLeaveConfirm(false);
+          leaveMut.mutate();
+        }}
+        onCancel={() => setShowLeaveConfirm(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={showRegenInviteConfirm}
+        title="Regenerar código de invitación"
+        message="Regenerar el código invalidará el anterior. Si lo compartiste con alguien, esa persona ya no podrá usarlo."
+        confirmLabel="Regenerar"
+        cancelLabel="Cancelar"
+        variant="danger"
+        onConfirm={() => {
+          setShowRegenInviteConfirm(false);
+          regenerateInviteCodeMut.mutate();
+        }}
+        onCancel={() => setShowRegenInviteConfirm(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={showRegenTelegramConfirm}
+        title={tgStatus?.connected ? "Desconectar bot" : "Regenerar clave de Telegram"}
+        message={
+          tgStatus?.connected
+            ? "Al regenerar la clave, se desconectará la sesión actual del bot. Necesitarás volver a vincularlo con la nueva clave."
+            : "Regenerar la clave generará una nueva. Si tenías una anterior compartida, ya no funcionará."
+        }
+        confirmLabel={tgStatus?.connected ? "Desconectar" : "Regenerar"}
+        cancelLabel="Cancelar"
+        variant="danger"
+        onConfirm={() => {
+          setShowRegenTelegramConfirm(false);
+          regenerateKeyMut.mutate();
+          setShowTelegramKey(false);
+        }}
+        onCancel={() => setShowRegenTelegramConfirm(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={showLogoutConfirm}
+        title="Cerrar sesión"
+        message="¿Estás seguro que querés cerrar sesión?"
+        confirmLabel="Cerrar sesión"
+        cancelLabel="Cancelar"
+        variant="danger"
+        onConfirm={() => {
+          setShowLogoutConfirm(false);
+          handleLogout();
+        }}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
     </>
   );
 }

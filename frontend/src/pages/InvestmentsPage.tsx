@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getInvestments,
@@ -21,87 +21,7 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { InvestmentDetailModal } from "../components/InvestmentDetailModal";
 
 // Parses "1.234,56" or "1234,56" or "1234.56" → 1234.56
-function parseCurrency(s: string): number | null {
-  const clean = s.trim();
-  if (!clean) return null;
-  // Remove thousands separators: if both . and , present, dots are thousands
-  let normalized: string;
-  if (clean.includes(".") && clean.includes(",")) {
-    normalized = clean.replace(/\./g, "").replace(",", ".");
-  } else if (clean.includes(",")) {
-    // single comma → decimal separator (es-AR style)
-    normalized = clean.replace(",", ".");
-  } else {
-    // only dots, no comma → dots are thousands separators (our formatter always uses . for thousands)
-    normalized = clean.replace(/\./g, "");
-  }
-  const n = parseFloat(normalized);
-  return isNaN(n) ? null : n;
-}
-
-function formatCurrency(n: number): string {
-  return n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-// Formats the raw string while typing: applies thousands separators preserving partial decimal
-function formatWhileTyping(s: string): string {
-  const clean = s.replace(/[^\d,]/g, ""); // keep digits and comma
-  const [intPart, ...rest] = clean.split(",");
-  const intFormatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  return rest.length > 0 ? `${intFormatted},${rest.join("")}` : intFormatted;
-}
-
-function CurrencyInput({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: number | null;
-  onChange: (v: number | null) => void;
-  placeholder?: string;
-}) {
-  const isEmpty = (v: number | null) => v === null || v === 0;
-  const [raw, setRaw] = useState(isEmpty(value) ? "" : formatCurrency(value!));
-  const [focused, setFocused] = useState(false);
-
-  useEffect(() => {
-    if (!focused) setRaw(isEmpty(value) ? "" : formatCurrency(value!));
-  }, [value, focused]);
-
-  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-    setFocused(true);
-    // clear placeholder-like zeros so paste/type overwrites immediately
-    if (isEmpty(value)) setRaw("");
-    setTimeout(() => e.target.select(), 0);
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target.value;
-    const formatted = formatWhileTyping(input);
-    setRaw(formatted);
-    onChange(parseCurrency(formatted));
-  };
-
-  const handleBlur = () => {
-    setFocused(false);
-    const parsed = parseCurrency(raw);
-    onChange(parsed);
-    setRaw(isEmpty(parsed) ? "" : formatCurrency(parsed!));
-  };
-
-  return (
-    <input
-      type="text"
-      inputMode="decimal"
-      value={raw}
-      placeholder={placeholder ?? "0,00"}
-      onChange={handleChange}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-      className="w-full input"
-    />
-  );
-}
+import { CurrencyInput } from "../components/ui/CurrencyInput";
 
 const INVESTMENT_TYPES = [
   "Acción",
@@ -251,12 +171,14 @@ function InvestmentModal({
 
   const set = (k: keyof InvestmentCreate, v: unknown) => setForm((prev) => ({ ...prev, [k]: v }));
 
+  const isValid = (form.ticker?.trim().length ?? 0) > 0 && (form.quantity ?? 0) > 0;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-backdrop">
       <div className="fixed inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative card w-full max-w-lg max-h-[90vh] overflow-auto p-6 space-y-4">
+      <div className="relative card w-full max-w-lg max-h-[90vh] overflow-auto p-6 space-y-4 animate-modal-content">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[var(--text-[var(--text-primary)])]">
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">
             {initial ? "Editar inversión" : "Nueva inversión"}
           </h2>
           <button onClick={onClose} className="text-tertiary hover:text-[var(--text-primary)]">
@@ -402,7 +324,11 @@ function InvestmentModal({
           <button onClick={onClose} className="gnome-btn-secondary flex-1">
             Cancelar
           </button>
-          <button onClick={() => onSave(form)} className="gnome-btn-primary flex-1">
+          <button
+            onClick={() => onSave(form)}
+            disabled={!isValid}
+            className="gnome-btn-primary flex-1 disabled:opacity-60"
+          >
             Guardar
           </button>
         </div>
@@ -457,9 +383,9 @@ function CredentialsModal({
   const hasChanges = iolUser || iolPass || ppiKey || ppiSec;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-backdrop">
       <div className="fixed inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative card w-full max-w-md p-6 space-y-5">
+      <div className="relative card w-full max-w-md p-6 space-y-5 animate-modal-content">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">
             Configuración de brokers
@@ -559,6 +485,7 @@ export default function InvestmentsPage() {
   const queryClient = useQueryClient();
   const [brokerFilter, setBrokerFilter] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [personFilter, setPersonFilter] = useState<string | null>(null);
   const [editing, setEditing] = useState<Investment | null | undefined>(undefined);
   const [viewing, setViewing] = useState<Investment | null>(null);
   const [viewingAggregated, setViewingAggregated] = useState<
@@ -574,7 +501,7 @@ export default function InvestmentsPage() {
   const [showInUsd, setShowInUsd] = useState(false);
   const [usdRate, setUsdRate] = useState<{ rate: number; date: string } | null>(null);
   const [usdLoading, setUsdLoading] = useState(false);
-  const [lastUsdRateFetch, setLastUsdRateFetch] = useState<number | null>(null);
+  const lastUsdRateFetchRef = useRef<number>(0);
   const [brokerDropdownOpen, setBrokerDropdownOpen] = useState<string | null>(null);
   const [yahooPrices, setYahooPrices] = useState<
     Record<string, { price: number; currency: string }>
@@ -613,8 +540,7 @@ export default function InvestmentsPage() {
     queryFn: getCashBalances,
     staleTime: 15 * 60_000,
   });
-  // @ts-ignore
-  const { data: manualCash = {}, refetch: refetchManualCash } = useQuery({
+  useQuery({
     queryKey: ["manual-cash-balances"],
     queryFn: getManualCashBalances,
     staleTime: 0,
@@ -631,19 +557,19 @@ export default function InvestmentsPage() {
     return hours >= 8 && hours < 19;
   };
 
-  const fetchUsdRateIfNeeded = async () => {
-    if (!usdRate || Date.now() - (lastUsdRateFetch || 0) > 30 * 60 * 1000) {
+  const fetchUsdRateIfNeeded = useCallback(async () => {
+    if (!usdRate || Date.now() - lastUsdRateFetchRef.current > 30 * 60 * 1000) {
       if (isBusinessHoursARG()) {
         try {
           const r = await getUsdRate();
           setUsdRate(r);
-          setLastUsdRateFetch(Date.now());
+          lastUsdRateFetchRef.current = Date.now();
         } catch {
           /* silent fail for auto-fetch */
         }
       }
     }
-  };
+  }, [usdRate]);
 
   const handleToggleUsd = async () => {
     if (showInUsd) {
@@ -654,7 +580,7 @@ export default function InvestmentsPage() {
     try {
       const r = await getUsdRate();
       setUsdRate(r);
-      setLastUsdRateFetch(Date.now());
+      lastUsdRateFetchRef.current = Date.now();
       setShowInUsd(true);
       showSync(
         `USD: $${r.rate.toLocaleString("es-AR", { minimumFractionDigits: 2 })} · ${r.date}`,
@@ -673,7 +599,7 @@ export default function InvestmentsPage() {
     }
     const timer = setInterval(fetchUsdRateIfNeeded, 60 * 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [fetchUsdRateIfNeeded]);
 
   const { data: investments = [], isLoading } = useQuery({
     queryKey: ["investments"],
@@ -685,6 +611,10 @@ export default function InvestmentsPage() {
     () => investments.filter((i) => !brokerFilter || i.broker === brokerFilter),
     [investments, brokerFilter],
   );
+
+  const persons = [
+    ...new Set(investments.map((i) => i.user_name).filter(Boolean)),
+  ].sort() as string[];
 
   // Fetch Yahoo prices for tickers with multiple brokers
   useEffect(() => {
@@ -750,12 +680,34 @@ export default function InvestmentsPage() {
     },
   });
 
+  const syncBrokerMut = useMutation({
+    mutationFn: async (broker: string) => {
+      if (broker === "InvertirOnline") {
+        const r = await syncIOL();
+        return `IOL: ${r.updated}↑ ${r.created}+`;
+      } else if (broker === "Portfolio Personal") {
+        const r = await syncPPI();
+        return `PPI: ${r.updated}↑ ${r.created}+`;
+      }
+      throw new Error(`Sync no disponible para ${broker}`);
+    },
+    onSuccess: (msg) => {
+      invalidate();
+      showSync(msg, true);
+    },
+    onError: (e: Error) => {
+      invalidate();
+      showSync(e.message, false);
+    },
+  });
+
   const createMut = useMutation({
     mutationFn: createInvestment,
     onSuccess: () => {
       invalidate();
       setEditing(undefined);
     },
+    onError: () => alert("Error al crear la inversión"),
   });
   const updateMut = useMutation({
     mutationFn: ({ id, data }: { id: number; data: InvestmentCreate }) =>
@@ -764,8 +716,16 @@ export default function InvestmentsPage() {
       invalidate();
       setEditing(undefined);
     },
+    onError: () => alert("Error al actualizar la inversión"),
   });
-  const deleteMut = useMutation({ mutationFn: deleteInvestment, onSuccess: invalidate });
+  const deleteMut = useMutation({
+    mutationFn: deleteInvestment,
+    onSuccess: () => {
+      invalidate();
+      setDeleteConfirmId(null);
+    },
+    onError: () => alert("Error al eliminar la inversión"),
+  });
 
   const handleSave = (data: InvestmentCreate) => {
     if (editing && editing.id) updateMut.mutate({ id: editing.id, data });
@@ -774,76 +734,91 @@ export default function InvestmentsPage() {
 
   // ── Aggregate by ticker ───────────────────────────────────────────────────────
   type AggregatedInv = Investment & { brokers: string[]; investments: Investment[] };
-  const tickerMap = new Map<string, AggregatedInv>();
 
-  for (const inv of brokerFiltered) {
-    const key = inv.ticker || inv.name || `__${inv.id}__`;
-    const existing = tickerMap.get(key);
-    if (existing) {
-      // Agregar al ticker existente
-      const newQty = existing.quantity + inv.quantity;
-      if (newQty > 0) {
-        existing.avg_cost =
-          ((existing.avg_cost ?? 0) * existing.quantity + (inv.avg_cost ?? 0) * inv.quantity) /
-          newQty;
-      }
-      existing.quantity = newQty;
-      existing.cost_basis = (existing.cost_basis ?? 0) + (inv.cost_basis ?? 0);
-      const currVal = inv.current_value ?? inv.cost_basis ?? 0;
-      const existVal = existing.current_value ?? existing.cost_basis ?? 0;
-      existing.current_value = existVal + currVal;
-      existing.pnl = (existing.current_value ?? 0) - (existing.cost_basis ?? 0);
-      existing.pnl_pct = existing.cost_basis
-        ? ((existing.pnl ?? 0) / existing.cost_basis) * 100
-        : 0;
-      // Usar current_price más reciente
-      if (
-        inv.current_price &&
-        (!existing.current_price ||
-          (inv.updated_at && existing.updated_at && inv.updated_at > existing.updated_at))
-      ) {
-        existing.current_price = inv.current_price;
-      }
-      if (!existing.brokers.includes(inv.broker)) {
-        existing.brokers.push(inv.broker);
-      }
-      existing.investments.push(inv);
-    } else {
-      tickerMap.set(key, {
-        ...inv,
-        brokers: [inv.broker],
-        investments: [inv],
-      });
-    }
-  }
+  const { sorted } = useMemo(() => {
+    const tickerMap = new Map<string, AggregatedInv>();
 
-  const visible = Array.from(tickerMap.values())
-    .filter((i) => !typeFilter || (i.type || "Otro") === typeFilter)
-    .map((inv) => {
-      // Si tenemos precio de Yahoo para este ticker, usarlo
-      if (inv.ticker && yahooPrices[inv.ticker]?.price) {
-        const yf = yahooPrices[inv.ticker];
-        const newCurrentValue = inv.quantity * yf.price;
-        const newPnl = newCurrentValue - inv.cost_basis;
-        const newPnlPct = inv.cost_basis ? (newPnl / inv.cost_basis) * 100 : 0;
-        return {
-          ...inv,
-          current_price: yf.price,
-          current_value: newCurrentValue,
+    for (const inv of brokerFiltered) {
+      const key = inv.ticker || inv.name || `__${inv.id}__`;
+      const existing = tickerMap.get(key);
+      if (existing) {
+        const newQty = existing.quantity + inv.quantity;
+        const newAvgCost =
+          newQty > 0
+            ? ((existing.avg_cost ?? 0) * existing.quantity + (inv.avg_cost ?? 0) * inv.quantity) /
+              newQty
+            : existing.avg_cost;
+        const newCostBasis = (existing.cost_basis ?? 0) + (inv.cost_basis ?? 0);
+        const currVal = inv.current_value ?? inv.cost_basis ?? 0;
+        const existVal = existing.current_value ?? existing.cost_basis ?? 0;
+        const newValue = existVal + currVal;
+        const newPnl = newValue - newCostBasis;
+        const newPnlPct = newCostBasis ? (newPnl / newCostBasis) * 100 : 0;
+        const newPrice =
+          inv.current_price &&
+          (!existing.current_price ||
+            (inv.updated_at && existing.updated_at && inv.updated_at > existing.updated_at))
+            ? inv.current_price
+            : existing.current_price;
+        const newBrokers = existing.brokers.includes(inv.broker)
+          ? existing.brokers
+          : [...existing.brokers, inv.broker];
+
+        tickerMap.set(key, {
+          ...existing,
+          quantity: newQty,
+          avg_cost: newAvgCost,
+          cost_basis: newCostBasis,
+          current_value: newValue,
           pnl: newPnl,
           pnl_pct: newPnlPct,
-        };
+          current_price: newPrice,
+          brokers: newBrokers,
+          investments: [...existing.investments, inv],
+        });
+      } else {
+        tickerMap.set(key, {
+          ...inv,
+          brokers: [inv.broker],
+          investments: [inv],
+        });
       }
-      return inv;
+    }
+
+    const agg = Array.from(tickerMap.values());
+
+    const vis = agg
+      .filter((i) => !typeFilter || (i.type || "Otro") === typeFilter)
+      .filter((i) => !personFilter || i.user_name === personFilter)
+      .map((inv) => {
+        if (inv.ticker && yahooPrices[inv.ticker]?.price) {
+          const yf = yahooPrices[inv.ticker];
+          const newCurrentValue = inv.quantity * yf.price;
+          const newPnl = newCurrentValue - inv.cost_basis;
+          const newPnlPct = inv.cost_basis ? (newPnl / inv.cost_basis) * 100 : 0;
+          return {
+            ...inv,
+            current_price: yf.price,
+            current_value: newCurrentValue,
+            pnl: newPnl,
+            pnl_pct: newPnlPct,
+          };
+        }
+        return inv;
+      });
+
+    const srt = [...vis].sort((a, b) => {
+      const av = a[sort.field as keyof Investment] ?? 0;
+      const bv = b[sort.field as keyof Investment] ?? 0;
+      if (typeof av === "string")
+        return sort.dir === "asc"
+          ? av.localeCompare(bv as string)
+          : (bv as string).localeCompare(av);
+      return sort.dir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
     });
 
-  const sorted = [...visible].sort((a, b) => {
-    const av = a[sort.field as keyof Investment] ?? 0;
-    const bv = b[sort.field as keyof Investment] ?? 0;
-    if (typeof av === "string")
-      return sort.dir === "asc" ? av.localeCompare(bv as string) : (bv as string).localeCompare(av);
-    return sort.dir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
-  });
+    return { aggregated: agg, visible: vis, sorted: srt };
+  }, [brokerFiltered, typeFilter, personFilter, yahooPrices, sort]);
 
   const toggleSort = (field: SortField) =>
     setSort((prev) =>
@@ -853,28 +828,15 @@ export default function InvestmentsPage() {
     );
 
   // ── USD conversion helper ────────────────────────────────────────────────────
-  const toDisplay = (amount: number, currency: string) => {
-    if (!showInUsd || !usdRate || currency === "USD") return fmt(amount, currency);
-    return fmt(amount / usdRate.rate, "USD");
-  };
+  const toDisplay = useCallback(
+    (amount: number, currency: string) => {
+      if (!showInUsd || !usdRate || currency === "USD") return fmt(amount, currency);
+      return fmt(amount / usdRate.rate, "USD");
+    },
+    [showInUsd, usdRate],
+  );
 
   // ── Aggregates ──────────────────────────────────────────────────────────────
-  const arsHoldings = visible.filter((i) => i.currency === "ARS");
-  const usdHoldings = visible.filter((i) => i.currency === "USD");
-
-  // @ts-ignore
-  const _arsValue = arsHoldings.reduce((s, i) => s + (i.current_value ?? i.cost_basis), 0);
-  // @ts-ignore
-  const _usdValue = usdHoldings.reduce((s, i) => s + (i.current_value ?? i.cost_basis), 0);
-  // @ts-ignore
-  const _arsCost = arsHoldings.reduce((s, i) => s + i.cost_basis, 0);
-  // @ts-ignore
-  const _usdCost = usdHoldings.reduce((s, i) => s + i.cost_basis, 0);
-  // @ts-ignore
-  const _arsPnl = _arsValue - _arsCost;
-  // @ts-ignore
-  const _usdPnl = _usdValue - _usdCost;
-
   // ── Full portfolio aggregates (unfiltered) for TOTAL ─────────────────────────
   const allArsHoldings = investments.filter((i) => i.currency === "ARS");
   const allUsdHoldings = investments.filter((i) => i.currency === "USD");
@@ -934,9 +896,9 @@ export default function InvestmentsPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col h-screen">
       {/* Fixed header section */}
-      <div className="flex-shrink-0 px-6 pt-6 pb-4 space-y-4">
+      <div className="px-6 pt-6 pb-4 space-y-4">
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Inversiones</h1>
@@ -997,8 +959,41 @@ export default function InvestmentsPage() {
 
             <button onClick={() => setEditing(null)} className="gnome-btn-primary-round text-sm">
               <span className="text-base leading-none">+</span>
-              <span>Nueva</span>
+              <span>Nueva inversión</span>
             </button>
+          </div>
+        </div>
+
+        {/* Hero portfolio value */}
+        <div className="card p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-[var(--text-secondary)] font-medium uppercase tracking-wider mb-1">
+                Valor total del portafolio
+              </p>
+              <p className="text-3xl font-bold text-[var(--text-primary)]">
+                {toDisplay(totalArsValue + totalUsdValue, showInUsd ? "USD" : "ARS")}
+              </p>
+              <p className="text-xs text-[var(--text-secondary)] mt-1">
+                {toDisplay(totalArsValue, "ARS")} + {fmt(totalUsdValue, "USD")}
+              </p>
+            </div>
+            <div className="text-right">
+              {(totalArsPnl !== 0 || totalUsdPnl !== 0) && (
+                <p
+                  className={`text-lg font-bold ${
+                    (totalArsPnl >= 0 && totalUsdPnl >= 0) || (totalArsPnl < 0 && totalUsdPnl < 0)
+                      ? totalArsPnl + totalUsdPnl >= 0
+                        ? "text-success"
+                        : "text-danger"
+                      : "text-[var(--text-secondary)]"
+                  }`}
+                >
+                  {toDisplay(totalArsPnl + totalUsdPnl, showInUsd ? "USD" : "ARS")}
+                </p>
+              )}
+              <p className="text-xs text-[var(--text-secondary)]">P&L total</p>
+            </div>
           </div>
         </div>
 
@@ -1022,9 +1017,6 @@ export default function InvestmentsPage() {
               {brokerData.map((b) => {
                 const isSelected = brokerFilter === b.broker;
                 const isOpen = brokerDropdownOpen === b.broker;
-                const arsCost = b.arsValue - b.arsPnl;
-                // @ts-ignore
-                const arsPnlPct = arsCost > 0 ? (b.arsPnl / arsCost) * 100 : 0;
                 return (
                   <div key={b.broker} className="relative" data-broker-dropdown>
                     <div
@@ -1059,33 +1051,13 @@ export default function InvestmentsPage() {
                           e.stopPropagation();
                           setBrokerDropdownOpen(isOpen ? null : b.broker);
                         }}
-                        onPointerDown={(e) => {
-                          if (e.pointerType === "touch") {
-                            e.preventDefault();
-                            const timer = setTimeout(() => {
-                              if (!isOpen) {
-                                setBrokerDropdownOpen(b.broker);
-                              }
-                            }, 500);
-                            (e.currentTarget as HTMLElement).dataset.pressTimer = String(timer);
-                          }
-                        }}
-                        onPointerUp={(e) => {
-                          if (e.pointerType === "touch") {
-                            const timer = (e.currentTarget as HTMLElement).dataset.pressTimer;
-                            if (timer) {
-                              clearTimeout(parseInt(timer));
-                              delete (e.currentTarget as HTMLElement).dataset.pressTimer;
-                            }
-                          }
-                        }}
                         className="ml-0.5 text-xs hover:opacity-70"
                       >
                         ▼
                       </button>
                     </div>
                     {/* Dropdown */}
-                    {isOpen && isSelected && (
+                    {isOpen && (
                       <div className="absolute top-full left-0 mt-1 w-48 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-lg py-1 z-20">
                         <button
                           onClick={() => {
@@ -1110,9 +1082,17 @@ export default function InvestmentsPage() {
                         <button
                           onClick={() => {
                             setBrokerDropdownOpen(null);
-                            syncAllMut.mutate();
+                            if (
+                              b.broker === "InvertirOnline" ||
+                              b.broker === "Portfolio Personal"
+                            ) {
+                              syncBrokerMut.mutate(b.broker);
+                            } else {
+                              syncAllMut.mutate();
+                            }
                           }}
-                          className="w-full px-3 py-2 text-sm text-left text-[var(--text-primary)] hover:bg-[var(--color-base-alt)] flex items-center gap-2"
+                          disabled={syncAllMut.isPending || syncBrokerMut.isPending}
+                          className="w-full px-3 py-2 text-sm text-left text-[var(--text-primary)] hover:bg-[var(--color-base-alt)] flex items-center gap-2 disabled:opacity-50"
                         >
                           <span className="text-[var(--text-tertiary)]">↻</span> Sincronizar
                         </button>
@@ -1171,10 +1151,13 @@ export default function InvestmentsPage() {
                 </div>
                 <div
                   className={`text-xs font-medium ${
-                    totalArsPnl + totalUsdPnl >= 0 ? "text-success" : "text-danger"
+                    (totalArsPnl >= 0 && totalUsdPnl >= 0) || (totalArsPnl < 0 && totalUsdPnl < 0)
+                      ? totalArsPnl + totalUsdPnl >= 0
+                        ? "text-success"
+                        : "text-danger"
+                      : "text-[var(--text-secondary)]"
                   }`}
                 >
-                  {totalArsPnl + totalUsdPnl >= 0 ? "+" : ""}
                   {toDisplay(totalArsPnl, "ARS")} + {fmt(totalUsdPnl, "USD")} P&L
                 </div>
               </button>
@@ -1277,12 +1260,35 @@ export default function InvestmentsPage() {
             </div>
           </div>
         )}
+
+        {/* Person filter chips */}
+        {persons.length > 1 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-[var(--text-secondary)]">Persona:</span>
+            {persons.map((p) => (
+              <button
+                key={p}
+                onClick={() => setPersonFilter(personFilter === p ? null : p)}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
+                  personFilter === p
+                    ? "bg-[var(--color-primary)] text-[var(--color-on-primary)] border-[var(--color-primary)]"
+                    : "bg-transparent text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--color-base-alt)]"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Scrollable table area */}
-      <div className="flex-1 min-h-[150px] max-h-[55vh] overflow-hidden px-6 pb-6">
+      <div className="px-6 pb-6">
         {/* Holdings table */}
-        <div className="card h-full overflow-hidden flex flex-col">
+        <div
+          className="card overflow-hidden flex flex-col"
+          style={{ maxHeight: "calc(100vh - 60px)" }}
+        >
           <div className="overflow-y-auto flex-1">
             <table className="w-full text-sm">
               <thead className="bg-surface border-b border-border-color sticky top-0 z-10 flex-none">
@@ -1332,8 +1338,14 @@ export default function InvestmentsPage() {
                   </tr>
                 ) : sorted.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-10 text-center text-tertiary">
-                      Sin inversiones registradas
+                    <td colSpan={7} className="py-10 text-center">
+                      <p className="text-tertiary mb-3">Sin inversiones registradas</p>
+                      <button
+                        onClick={() => setEditing(null)}
+                        className="text-xs px-4 py-2 rounded-lg bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 active:scale-95 transition-all font-medium"
+                      >
+                        Agregar tu primera inversión
+                      </button>
                     </td>
                   </tr>
                 ) : (
@@ -1364,7 +1376,7 @@ export default function InvestmentsPage() {
                         <span
                           className="px-2 py-0.5 rounded text-xs font-medium"
                           style={{
-                            backgroundColor: "#9a9996" + "20",
+                            backgroundColor: (TYPE_COLORS[inv.type] || "#94a3b8") + "20",
                             color: TYPE_COLORS[inv.type] || "#94a3b8",
                           }}
                         >
@@ -1373,6 +1385,11 @@ export default function InvestmentsPage() {
                       </td>
                       <td className="px-2 py-3">
                         <div className="flex flex-wrap gap-1">
+                          {inv.user_name && (
+                            <span className="inline-block px-1.5 py-0.5 rounded text-xs bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+                              {inv.user_name}
+                            </span>
+                          )}
                           {inv.brokers.map((b) => (
                             <span
                               key={b}
@@ -1475,7 +1492,6 @@ export default function InvestmentsPage() {
           confirmLabel="Eliminar"
           onConfirm={() => {
             deleteMut.mutate(deleteConfirmId);
-            setDeleteConfirmId(null);
           }}
           onCancel={() => setDeleteConfirmId(null)}
         />
