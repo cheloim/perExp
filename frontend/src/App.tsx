@@ -23,6 +23,7 @@ const CategoryDashboard = lazy(() => import("./pages/CategoryDashboard"));
 const InstallmentsPage = lazy(() => import("./pages/InstallmentsPage"));
 const InvestmentsPage = lazy(() => import("./pages/InvestmentsPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 
 const TABS = [
   { path: "/", label: "Inicio", icon: "home", exact: true },
@@ -54,6 +55,8 @@ export default function App() {
   const location = useLocation();
 
   if (location.pathname === "/login") return <LoginPage />;
+
+  if (location.pathname === "/reset-password") return <ResetPasswordPage />;
 
   if (!getStoredToken()) return <Navigate to="/login" replace />;
 

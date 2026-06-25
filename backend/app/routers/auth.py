@@ -1,6 +1,7 @@
 import os
 import secrets
 import string
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -10,8 +11,10 @@ from app.database import get_db
 from app.models import User
 from app.schemas import (
     ChangePasswordRequest,
+    ForgotPasswordRequest,
     LoginRequest,
     OAuthRequest,
+    ResetPasswordRequest,
     Token,
     UserCreate,
     UserResponse,
@@ -24,6 +27,7 @@ from app.services.auth import (
     verify_google_token,
     verify_password,
 )
+from app.services.email import send_password_reset_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -256,3 +260,46 @@ def get_telegram_status(
 @router.post("/refresh", response_model=Token)
 def refresh_token(current_user: User = Depends(get_current_user)):
     return Token(access_token=create_access_token(current_user.id), token_type="bearer")
+
+
+RESET_TOKEN_EXPIRY_MINUTES = 15
+
+
+@router.post("/forgot-password", status_code=status.HTTP_200_OK)
+def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == body.email.lower().strip()).first()
+    if not user:
+        return {"detail": "Si el email existe, recibirás un enlace para restablecer tu contraseña"}
+
+    token = secrets.token_hex(32)
+    user.reset_token = token
+    user.reset_token_expires = datetime.utcnow() + timedelta(minutes=RESET_TOKEN_EXPIRY_MINUTES)
+    db.commit()
+
+    base_url = os.getenv("FRONTEND_URL", "http://localhost:8082")
+    send_password_reset_email(user.email, token, base_url)
+
+    return {"detail": "Si el email existe, recibirás un enlace para restablecer tu contraseña"}
+
+
+@router.post("/reset-password", status_code=status.HTTP_200_OK)
+def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.reset_token == body.token).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token inválido o expirado",
+        )
+
+    if user.reset_token_expires and user.reset_token_expires < datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token inválido o expirado",
+        )
+
+    user.hashed_password = get_password_hash(body.new_password)
+    user.reset_token = None
+    user.reset_token_expires = None
+    db.commit()
+
+    return {"detail": "Contraseña actualizada correctamente"}

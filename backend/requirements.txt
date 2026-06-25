@@ -23,3 +23,6 @@ alembic>=1.13.0
 # Celery + Redis
 celery>=5.4.0
 redis>=5.0.0
+
+# Email (password recovery)
+resend>=2.0.0

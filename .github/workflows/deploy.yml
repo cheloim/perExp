@@ -154,6 +154,8 @@ jobs:
                   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
                   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
                   SECRET_KEY: ${SECRET_KEY}
+                  RESEND_API_KEY: ${RESEND_API_KEY}
+                  FRONTEND_URL: https://expensas.chelo.ar
                 restart: unless-stopped
 
               celery_worker:

@@ -33,6 +33,8 @@ class User(Base):
     provider = Column(String, nullable=True)
     provider_id = Column(String, nullable=True, index=True)
     avatar_url = Column(String, nullable=True)
+    reset_token = Column(String(64), nullable=True, unique=True, index=True)
+    reset_token_expires = Column(DateTime, nullable=True)
 
 
 class Group(Base):

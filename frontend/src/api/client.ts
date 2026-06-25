@@ -69,6 +69,12 @@ export const getMe = () => api.get<User>("/auth/me").then((r) => r.data);
 export const changePassword = (current_password: string, new_password: string) =>
   api.put("/auth/password", { current_password, new_password });
 
+export const forgotPassword = (email: string) =>
+  api.post("/auth/forgot-password", { email }).then((r) => r.data);
+
+export const resetPassword = (token: string, new_password: string) =>
+  api.post("/auth/reset-password", { token, new_password }).then((r) => r.data);
+
 export const getTelegramKey = () =>
   api.get<{ telegram_key: string }>("/auth/me/telegram-key").then((r) => r.data);
 export const getTelegramStatus = () =>
@@ -199,9 +205,9 @@ export const getInstallmentsDashboard = () =>
 
 export const getInstallmentsMonthlyLoad = () =>
   api
-    .get<
-      { month: string; total: number; count: number; is_past: boolean; is_current: boolean }[]
-    >("/dashboard/installments/monthly-load")
+    .get<{ month: string; total: number; count: number; is_past: boolean; is_current: boolean }[]>(
+      "/dashboard/installments/monthly-load",
+    )
     .then((r) => r.data);
 
 export const getScheduledSummary = () =>
@@ -434,9 +440,10 @@ export const fetchUsdRate = () =>
 
 export const lookupSymbols = (symbols: string[]) =>
   api
-    .get<
-      Record<string, { symbol: string; name: string; price: number | null; currency: string }>
-    >("/investments/lookup-batch", { params: { symbols: symbols.join(",") } })
+    .get<Record<string, { symbol: string; name: string; price: number | null; currency: string }>>(
+      "/investments/lookup-batch",
+      { params: { symbols: symbols.join(",") } },
+    )
     .then((r) => r.data);
 
 export const deleteInvestment = (id: number) =>
@@ -475,9 +482,9 @@ export const refreshManualPrices = () =>
 
 export const getManualCashBalances = () =>
   api
-    .get<
-      Record<string, { ars: number | null; usd: number | null }>
-    >("/investments/manual-cash-balances")
+    .get<Record<string, { ars: number | null; usd: number | null }>>(
+      "/investments/manual-cash-balances",
+    )
     .then((r) => r.data);
 
 export const putManualCashBalance = (broker: string, ars: number | null, usd: number | null) =>

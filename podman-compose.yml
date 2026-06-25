@@ -49,6 +49,7 @@ services:
       - creditcard_backend_dev_google_client_id
       - creditcard_backend_dev_google_client_secret
       - creditcard_backend_dev_secret_key
+      - creditcard_backend_dev_resend_api_key
     environment:
       PYTHONPATH: /app
       DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD_DEV}@db:5432/expenses
@@ -144,6 +145,9 @@ secrets:
   creditcard_backend_dev_secret_key:
     external: true
     env: SECRET_KEY_DEV
+  creditcard_backend_dev_resend_api_key:
+    external: true
+    env: RESEND_API_KEY_DEV
   creditcard_frontend_dev_google_client_id:
     external: true
     env: GOOGLE_CLIENT_ID_DEV
