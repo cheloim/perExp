@@ -236,13 +236,14 @@ def _expand_installments(
         # across all installments of a purchase, so C.02/03 and C.03/03 with the same
         # txn_id must land in the same group to avoid cross-generating each other's rows.
         if txn_id:
-            key = (_strip_installment_suffix(r["description"].lower()), inst_total, txn_id)
+            key = (_strip_installment_suffix(r["description"].lower()), inst_total, txn_id, r.get("card_last4") or "")
         else:
             key = (
                 _strip_installment_suffix(r["description"].lower()),
                 inst_total,
                 base_date.strftime("%Y-%m"),
                 r.get("card_header") or "",
+                r.get("card_last4") or "",
             )
         groups[key].append((r, base_date))
 
@@ -314,6 +315,7 @@ def _expand_installments(
                     "amount": template["amount"],
                     "currency": template.get("currency", "ARS"),
                     "card_header": template.get("card_header", ""),
+                    "card_last4": template.get("card_last4", ""),
                     "transaction_id": txn_id or None,
                     "installment_number": i,
                     "installment_total": inst_total,
@@ -328,9 +330,9 @@ def _expand_installments(
                 continue
             charge_date = add_months(base_date, i - 1)
             gen_key = (
-                (desc_lower, i, inst_total, txn_id)
+                (desc_lower, i, inst_total, txn_id, template.get("card_last4") or "")
                 if txn_id
-                else (desc_lower, i, inst_total, charge_date.strftime("%Y-%m"))
+                else (desc_lower, i, inst_total, charge_date.strftime("%Y-%m"), template.get("card_last4") or "")
             )
             if gen_key in generated:
                 continue
@@ -374,6 +376,7 @@ def _expand_installments(
                         "amount": template["amount"],
                         "currency": template.get("currency", "ARS"),
                         "card_header": template.get("card_header", ""),
+                        "card_last4": template.get("card_last4", ""),
                         "transaction_id": txn_id or None,
                         "installment_number": i,
                         "installment_total": inst_total,
@@ -390,6 +393,7 @@ def _expand_installments(
                         "amount": template["amount"],
                         "currency": template.get("currency", "ARS"),
                         "card_header": template.get("card_header", ""),
+                        "card_last4": template.get("card_last4", ""),
                         "transaction_id": txn_id or None,
                         "installment_number": i,
                         "installment_total": inst_total,

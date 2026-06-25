@@ -29,7 +29,10 @@ from app.services.normalizers import (
 from app.services.pdf import (
     _clean_text_for_llm,
     _extract_pdf_text,
+    _inject_card_markers,
     _normalize_santander_dates,
+    extract_card_sections,
+    filter_text_by_section,
 )
 
 
@@ -120,15 +123,13 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
         if filename_lower.endswith(".pdf"):
             raw_text = _extract_pdf_text(file_content)
             raw_text = _normalize_santander_dates(raw_text)
-            raw_text = _clean_text_for_llm(raw_text)
+            raw_text = _inject_card_markers(raw_text)
         elif is_csv:
             if filename_lower.endswith(".csv"):
                 raw_text = file_content.decode("utf-8", errors="replace")
-                raw_text = _clean_text_for_llm(raw_text)
             else:
                 df = _load_dataframe(file_content, filename)
                 raw_text = df.to_string(index=False, max_rows=1000)
-                raw_text = _clean_text_for_llm(raw_text)
         else:
             raise ValueError(f"Formato no soportado: {filename}. Usá PDF, CSV o Excel.")
     except ValueError:
@@ -138,6 +139,40 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
 
     if not raw_text.strip():
         raise ValueError("No se pudo extraer contenido del archivo.")
+
+    # Step 2: Identify card sections and filter to main card
+    sections = extract_card_sections(raw_text)
+    user_cards = db.query(Card).filter(Card.user_id == user_id).all()
+    user_last4s = set()
+    for card in user_cards:
+        if hasattr(card, "last4") and card.last4:
+            user_last4s.add(card.last4)
+
+    if len(sections) > 1:
+        # Multiple sections found - filter to main card only
+        selected_last4 = None
+
+        # Try to match sections to user's existing cards
+        for section in sections:
+            if section["last4"] in user_last4s:
+                selected_last4 = section["last4"]
+                break
+
+        # If no match, keep the first section (usually main card)
+        if not selected_last4:
+            selected_last4 = sections[0]["last4"]
+
+        # Filter to selected section only
+        for section in sections:
+            if section["last4"] == selected_last4:
+                raw_text = filter_text_by_section(raw_text, section["start"], section["end"])
+                break
+    elif len(sections) == 1:
+        # Single section - filter to that section
+        raw_text = filter_text_by_section(raw_text, sections[0]["start"], sections[0]["end"])
+
+    # Clean text for LLM (after section filtering)
+    raw_text = _clean_text_for_llm(raw_text)
 
     closing_info = {
         "closing_date": None,
@@ -274,6 +309,7 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
 
         # Use card_header instead of bank/card/person
         card_header = str(r.get("card_header", "") or "").strip()
+        card_last4 = str(r.get("card_last4", "") or "").strip()
 
         parsed.append(
             {
@@ -283,6 +319,7 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
                 "amount": amount,
                 "currency": currency,
                 "card_header": card_header,
+                "card_last4": card_last4,
                 "transaction_id": txn_id,
                 "installment_number": inst_num,
                 "installment_total": inst_total,

@@ -243,6 +243,7 @@ export interface SmartImportRow {
   amount: number;
   currency: string;
   card_header: string;
+  card_last4?: string;
   transaction_id: string | null;
   installment_number: number | null;
   installment_total: number | null;
@@ -261,6 +262,7 @@ export interface DetectedCard {
   matched_card_id: number | null;
   matched_card_name: string | null;
   transaction_count: number;
+  card_last4?: string;
 }
 
 export interface CardsMappingEntry {

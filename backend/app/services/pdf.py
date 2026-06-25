@@ -171,17 +171,52 @@ def _inject_csv_card_markers(text: str) -> str:
     return text
 
 
+def extract_card_sections(text: str) -> list[dict]:
+    """
+    Identify card sections in text by [TARJETA_LAST4: XXXX] markers.
+    Returns a list of sections: [{ last4: str, start: int, end: int }]
+    where start/end are line numbers (0-indexed).
+    """
+    lines = text.split("\n")
+    sections = []
+    marker_re = re.compile(r"\[TARJETA_LAST4:\s*(\d{4})\]")
+
+    for i, line in enumerate(lines):
+        m = marker_re.search(line)
+        if m:
+            sections.append({"last4": m.group(1), "start": i, "end": None})
+
+    # Set end for each section
+    for idx in range(len(sections)):
+        if idx + 1 < len(sections):
+            sections[idx]["end"] = sections[idx + 1]["start"]
+        else:
+            sections[idx]["end"] = len(lines)
+
+    return sections
+
+
+def filter_text_by_section(text: str, section_start: int, section_end: int) -> str:
+    """
+    Keep only lines within a specific section (by line numbers).
+    section_start is inclusive, section_end is exclusive.
+    """
+    lines = text.split("\n")
+    return "\n".join(lines[section_start:section_end])
+
+
 def _clean_text_for_llm(text: str) -> str:
     """
     Pre-process text before sending to LLM to reduce token usage.
     1. Filter non-transaction lines (payments, totals, footers)
     2. Remove redundant headers/footers
-    3. Strip TARJETA ADICIONAL sections
-    4. Compress whitespace
+    3. Compress whitespace
+
+    Note: TARJETA ADICIONAL filtering is now handled by section-based
+    filtering before this function is called.
     """
     lines = text.split("\n")
     cleaned = []
-    in_adicional_section = False
 
     # Patterns to skip (non-transaction lines)
     skip_patterns = [
@@ -209,33 +244,9 @@ def _clean_text_for_llm(text: str) -> str:
         r"^ingresos\s+brutos:",
     ]
 
-    # Patterns for TARJETA ADICIONAL sections
-    adicional_start = re.compile(
-        r"tarjeta\s+adicional|adicional\s*[-:]|secci[oó]n\s+adicional", re.IGNORECASE
-    )
-    # Patterns for main card headers (to detect end of adicional section)
-    main_card_header = re.compile(
-        r"tarjeta\s+terminada|visa\s+terminada|mastercard\s+terminada|"
-        r"t[uú]tarjeta\s+principal|titular\s+principal",
-        re.IGNORECASE,
-    )
-
     for line in lines:
         stripped = line.strip()
         if not stripped:
-            continue
-
-        # Check for TARJETA ADICIONAL section
-        if adicional_start.search(stripped):
-            in_adicional_section = True
-            continue
-
-        # Check if we're back to main card section
-        if in_adicional_section and main_card_header.search(stripped):
-            in_adicional_section = False
-
-        # Skip lines in adicional section
-        if in_adicional_section:
             continue
 
         # Skip non-transaction lines
