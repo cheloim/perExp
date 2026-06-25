@@ -31,8 +31,17 @@ export default function NotificationsPanel({ onClose }: Props) {
     null,
   );
   const [confirmReject, setConfirmReject] = useState<number | null>(null);
+  const [confirmClearRead, setConfirmClearRead] = useState(false);
   const { uploads, removeUpload, cancelUpload } = useUploadProgress();
-  const { notifications, markRead, markAllRead, refresh, connected } = useNotifications();
+  const {
+    notifications,
+    markRead,
+    markAllRead,
+    deleteNotification,
+    deleteAllRead,
+    refresh,
+    connected,
+  } = useNotifications();
   const [, setTick] = useState(0);
 
   const timeAgoValues = useMemo(
@@ -103,6 +112,7 @@ export default function NotificationsPanel({ onClose }: Props) {
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const readCount = notifications.filter((n) => n.read).length;
 
   return (
     <>
@@ -145,6 +155,14 @@ export default function NotificationsPanel({ onClose }: Props) {
                 className="text-xs text-[var(--color-primary)] hover:underline transition-colors"
               >
                 Marcar todo leído
+              </button>
+            )}
+            {readCount > 0 && (
+              <button
+                onClick={() => setConfirmClearRead(true)}
+                className="text-xs text-[var(--text-tertiary)] hover:text-red-500 transition-colors"
+              >
+                Limpiar leídas
               </button>
             )}
             <button
@@ -234,7 +252,7 @@ export default function NotificationsPanel({ onClose }: Props) {
                     <span className="text-[var(--text-tertiary)] text-xs whitespace-nowrap">
                       {timeAgoValues.get(n.id) ?? timeAgo(n.created_at)}
                     </span>
-                    {isImportNotif && (
+                    {isImportNotif ? (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -244,7 +262,18 @@ export default function NotificationsPanel({ onClose }: Props) {
                           }
                         }}
                         className="text-[var(--text-tertiary)] hover:text-red-500 transition-colors"
-                        title="Cancelar importación"
+                        title="Eliminar importación"
+                      >
+                        ✕
+                      </button>
+                    ) : (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteNotification(n.id);
+                        }}
+                        className="text-[var(--text-tertiary)] hover:text-red-500 transition-colors"
+                        title="Eliminar notificación"
                       >
                         ✕
                       </button>
@@ -338,6 +367,37 @@ export default function NotificationsPanel({ onClose }: Props) {
                 className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors disabled:opacity-50"
               >
                 {reject.isPending ? "Rechazando..." : "Rechazar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmClearRead && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
+            <h2 className="text-[var(--text-primary)] font-semibold text-lg mb-2">
+              Limpiar notificaciones leídas
+            </h2>
+            <p className="text-[var(--text-secondary)] text-sm mb-4">
+              Se eliminarán {readCount} notificación{readCount !== 1 ? "es" : ""} leída
+              {readCount !== 1 ? "s" : ""}. Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmClearRead(false)}
+                className="flex-1 py-2 rounded-lg border border-[var(--border-color)] text-[var(--text-secondary)] text-sm hover:bg-[var(--color-base-alt)] transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  deleteAllRead();
+                  setConfirmClearRead(false);
+                }}
+                className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
+              >
+                Eliminar
               </button>
             </div>
           </div>
