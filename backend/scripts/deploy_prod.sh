@@ -1,6 +1,6 @@
 #!/bin/bash
 # Production deployment script for creditCardAnalyzer
-# Usage: ./scripts/deploy_prod.sh [--dry-run] [--skip-migration]
+# Usage: ./scripts/deploy_prod.sh [--dry-run]
 
 set -euo pipefail
 
@@ -15,26 +15,19 @@ echo "============================================================"
 
 # Parse args
 DRY_RUN=false
-SKIP_MIGRATION=false
 for arg in "$@"; do
   case $arg in
     --dry-run) DRY_RUN=true ;;
-    --skip-migration) SKIP_MIGRATION=true ;;
   esac
 done
 
 # Step 1: Database migration
-if [ "$SKIP_MIGRATION" = false ]; then
-  echo ""
-  echo "[Step 1/3] Running database migration..."
-  if [ "$DRY_RUN" = true ]; then
-    echo "  Would run: python -m scripts.migrate_remove_legacy_fields"
-  else
-    python -m scripts.migrate_remove_legacy_fields
-  fi
+echo ""
+echo "[Step 1/3] Running database migration..."
+if [ "$DRY_RUN" = true ]; then
+  echo "  Would run: python -m scripts.migrate_add_reset_token"
 else
-  echo ""
-  echo "[Step 1/3] Skipping migration"
+  python -m scripts.migrate_add_reset_token
 fi
 
 # Step 2: Restart services

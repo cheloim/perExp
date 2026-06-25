@@ -8,7 +8,7 @@ Handles:
 3. Restarting services
 
 Usage:
-  ./scripts/deploy_prod.sh [--dry-run] [--skip-migration]
+  ./scripts/deploy_prod.sh [--dry-run]
 """
 
 import argparse
@@ -32,7 +32,6 @@ def run_command(cmd: str, check: bool = True, capture: bool = False) -> subproce
 def main():
     parser = argparse.ArgumentParser(description="Deploy to production")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be done without executing")
-    parser.add_argument("--skip-migration", action="store_true", help="Skip database migration")
     parser.add_argument("--skip-restart", action="store_true", help="Skip service restart")
     args = parser.parse_args()
 
@@ -44,14 +43,11 @@ def main():
         print("\n[DRY RUN] No changes will be made.\n")
 
     # Step 1: Run migration
-    if not args.skip_migration:
-        print("\n[Step 1] Running database migration...")
-        if args.dry_run:
-            print("  Would run: python -m scripts.migrate_remove_legacy_fields")
-        else:
-            run_command("cd /home/chelo/creditCardAnalyzer/backend && python -m scripts.migrate_remove_legacy_fields")
+    print("\n[Step 1] Running database migration...")
+    if args.dry_run:
+        print("  Would run: python -m scripts.migrate_add_reset_token")
     else:
-        print("\n[Step 1] Skipping migration (--skip-migration)")
+        run_command("cd /home/chelo/creditCardAnalyzer/backend && python -m scripts.migrate_add_reset_token")
 
     # Step 2: Restart backend
     if not args.skip_restart:
