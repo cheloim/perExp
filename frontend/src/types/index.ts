@@ -237,42 +237,12 @@ export interface CardSummary {
   monthly?: { month: string; total: number }[];
 }
 
-export interface ImportPreviewRow {
-  date: string;
-  description: string;
-  amount: number;
-  suggested_category: string | null;
-  is_duplicate?: boolean;
-}
-
-export interface ImportPreview {
-  rows: ImportPreviewRow[];
-  columns: string[];
-  date_col: string;
-  desc_col: string;
-  amount_col: string;
-  card_col: string;
-  bank_col: string;
-  person_col: string;
-}
-
-export interface ColumnMapping {
-  date_col: string;
-  desc_col: string;
-  amount_col: string;
-  card_col?: string;
-  bank_col?: string;
-  person_col?: string;
-}
-
 export interface SmartImportRow {
   date: string;
   description: string;
   amount: number;
   currency: string;
-  card: string;
-  bank: string;
-  person: string;
+  card_header: string;
   transaction_id: string | null;
   installment_number: number | null;
   installment_total: number | null;
@@ -280,30 +250,34 @@ export interface SmartImportRow {
   suggested_category: string | null;
   is_duplicate?: boolean;
   is_auto_generated?: boolean;
+  is_scheduled?: boolean;
 }
 
 export interface DetectedCard {
-  bank: string;
-  card: string;
+  card_header: string;
+  detected_bank: string;
+  detected_card: string;
   card_type: string;
-  holders: string[];
-  suggested_custom_naming: string;
+  matched_card_id: number | null;
+  matched_card_name: string | null;
   transaction_count: number;
 }
 
 export interface CardsMappingEntry {
+  card_id?: number;
   bank?: string;
   card_name?: string;
+  card_type?: string;
+  holder?: string;
 }
 
 export interface CardsMapping {
-  [key: string]: CardsMappingEntry; // key: "bank|card|holder" -> value: { bank?, card_name? }
+  [card_header: string]: CardsMappingEntry;
 }
 
 export interface ImportSummary {
   card_type: string;
   bank: string;
-  person: string;
   closing_date: string | null;
   due_date: string | null;
   total_ars: number | null;

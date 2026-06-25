@@ -243,7 +243,7 @@ def _expand_installments(
                 _strip_installment_suffix(r["description"].lower()),
                 inst_total,
                 base_date.strftime("%Y-%m"),
-                r.get("person") or "",
+                r.get("card_header") or "",
             )
         groups[key].append((r, base_date))
 

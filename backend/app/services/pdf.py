@@ -169,3 +169,98 @@ def _inject_card_markers(text: str) -> str:
 def _inject_csv_card_markers(text: str) -> str:
     """Eliminado - markers de ultimos 4 digitos ya no necesarios"""
     return text
+
+
+def _clean_text_for_llm(text: str) -> str:
+    """
+    Pre-process text before sending to LLM to reduce token usage.
+    1. Filter non-transaction lines (payments, totals, footers)
+    2. Remove redundant headers/footers
+    3. Strip TARJETA ADICIONAL sections
+    4. Compress whitespace
+    """
+    lines = text.split("\n")
+    cleaned = []
+    in_adicional_section = False
+
+    # Patterns to skip (non-transaction lines)
+    skip_patterns = [
+        r"^su\s+pago",
+        r"^pago\s+m[ií]nimo",
+        r"^total\s+consumos",
+        r"^total\s+del\s+per[ií]odo",
+        r"^total\s+en\s+pesos",
+        r"^total\s+en\s+d[oó]lares",
+        r"^total\s+usd",
+        r"^subtotal",
+        r"^saldo\s+anterior",
+        r"^cr[eé]ditos",
+        r"^pagos\s+realizados",
+        r"^consumos\s+que\s+se\s+debitar[aá]n",
+        r"^saldo\s+de\s+cuotas\s+a\s+vencer",
+        r"^consumos\s+futuros",
+        r"^resumen\s+de\s+cuenta",
+        r"^extracto\s+mensual",
+        r"^extracto\s+bancario",
+        r"^website:",
+        r"^email:",
+        r"^tel[eé]fono:",
+        r"^CUIT:",
+        r"^ingresos\s+brutos:",
+    ]
+
+    # Patterns for TARJETA ADICIONAL sections
+    adicional_start = re.compile(
+        r"tarjeta\s+adicional|adicional\s*[-:]|secci[oó]n\s+adicional", re.IGNORECASE
+    )
+    # Patterns for main card headers (to detect end of adicional section)
+    main_card_header = re.compile(
+        r"tarjeta\s+terminada|visa\s+terminada|mastercard\s+terminada|"
+        r"t[uú]tarjeta\s+principal|titular\s+principal",
+        re.IGNORECASE,
+    )
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        # Check for TARJETA ADICIONAL section
+        if adicional_start.search(stripped):
+            in_adicional_section = True
+            continue
+
+        # Check if we're back to main card section
+        if in_adicional_section and main_card_header.search(stripped):
+            in_adicional_section = False
+
+        # Skip lines in adicional section
+        if in_adicional_section:
+            continue
+
+        # Skip non-transaction lines
+        skip = False
+        for pattern in skip_patterns:
+            if re.match(pattern, stripped, re.IGNORECASE):
+                skip = True
+                break
+        if skip:
+            continue
+
+        # Skip lines that are only decorative characters
+        if re.match(r"^[\s\-=─│╔╗╚╝═╠╣╦╩╬]+$", stripped):
+            continue
+
+        # Skip lines that are only numbers (page numbers, etc.)
+        if re.match(r"^\d+$", stripped):
+            continue
+
+        # Skip lines that look like URLs or email addresses
+        if re.match(r"^(https?://|www\.|[\w.-]+@[\w.-]+\.\w+)", stripped, re.IGNORECASE):
+            continue
+
+        # Compress multiple spaces to single space
+        compressed = re.sub(r"\s+", " ", stripped)
+        cleaned.append(compressed)
+
+    return "\n".join(cleaned)

@@ -10,9 +10,6 @@ import type {
   DashboardSummary,
   InstallmentGroup,
   CardSummary,
-  ImportPreview,
-  ColumnMapping,
-  SmartImportPreview,
   SmartImportRow,
   AnalysisHistory,
   AITrendsResponse,
@@ -303,48 +300,6 @@ export const cancelScheduledExpense = async (id: number) => {
 export const getCardSummary = () =>
   api.get<CardSummary[]>("/dashboard/card-summary").then((r) => r.data);
 
-// Import — manual (column mapping)
-export const importPreview = (file: File, mapping?: Partial<ColumnMapping>) => {
-  const formData = new FormData();
-  formData.append("file", file);
-  if (mapping?.date_col) formData.append("date_col", mapping.date_col);
-  if (mapping?.desc_col) formData.append("desc_col", mapping.desc_col);
-  if (mapping?.amount_col) formData.append("amount_col", mapping.amount_col);
-  if (mapping?.card_col) formData.append("card_col", mapping.card_col);
-  if (mapping?.bank_col) formData.append("bank_col", mapping.bank_col);
-  if (mapping?.person_col) formData.append("person_col", mapping.person_col);
-  return api.post<ImportPreview>("/import/preview", formData).then((r) => r.data);
-};
-
-export const importConfirm = (file: File, mapping: ColumnMapping) => {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("date_col", mapping.date_col);
-  formData.append("desc_col", mapping.desc_col);
-  formData.append("amount_col", mapping.amount_col);
-  if (mapping.card_col) formData.append("card_col", mapping.card_col);
-  if (mapping.bank_col) formData.append("bank_col", mapping.bank_col);
-  if (mapping.person_col) formData.append("person_col", mapping.person_col);
-  return api
-    .post<{ imported: number; skipped: number }>("/import/confirm", formData)
-    .then((r) => r.data);
-};
-
-// Import — smart (LLM, supports PDF)
-export const importSmart = (file: File) => {
-  const formData = new FormData();
-  formData.append("file", file);
-  return api.post<SmartImportPreview>("/import/smart", formData).then((r) => r.data);
-};
-
-export const importRowsConfirm = (rows: SmartImportRow[], cardsMapping?: CardsMapping) =>
-  api
-    .post<{ imported: number; skipped: number }>("/import/rows-confirm", {
-      rows,
-      cards_mapping: cardsMapping,
-    })
-    .then((r) => r.data);
-
 // Analysis history
 export const getAnalysisHistory = () =>
   api.get<AnalysisHistory[]>("/analysis/history").then((r) => r.data);
@@ -595,8 +550,4 @@ export async function confirmImportJob(
 
 export async function deleteImportJob(jobId: number): Promise<void> {
   await api.delete(`/import-jobs/${jobId}`);
-}
-
-export async function updateImportPreview(jobId: number, previewData: any): Promise<void> {
-  await api.put(`/import-jobs/${jobId}/preview`, previewData);
 }

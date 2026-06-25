@@ -26,9 +26,7 @@ export function TransactionDetailModal({ isOpen, row, onClose }: TransactionDeta
         </div>
 
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-          <DetailField label="Tarjeta" value={row.card || "-"} />
-          <DetailField label="Banco" value={row.bank || "-"} />
-          <DetailField label="Persona" value={row.person || "-"} />
+          <DetailField label="Tarjeta" value={row.card_header || "-"} />
           <DetailField label="Categoría" value={row.suggested_category || "-"} />
           <DetailField
             label="Cuotas"

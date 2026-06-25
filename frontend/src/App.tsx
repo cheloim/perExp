@@ -16,7 +16,6 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const AccountsPage = lazy(() => import("./pages/AccountsPage"));
 const ExpensesPage = lazy(() => import("./pages/ExpensesPage"));
-const ImportPage = lazy(() => import("./pages/ImportPage"));
 const ImportJobPreview = lazy(() => import("./pages/ImportJobPreview"));
 const CategoriesPage = lazy(() => import("./pages/CategoriesPage"));
 const CategoryDashboard = lazy(() => import("./pages/CategoryDashboard"));
@@ -333,14 +332,6 @@ function MainLayout() {
                         element={
                           <RequireAuth>
                             <ImportJobPreview />
-                          </RequireAuth>
-                        }
-                      />
-                      <Route
-                        path="/import"
-                        element={
-                          <RequireAuth>
-                            <ImportPage />
                           </RequireAuth>
                         }
                       />

@@ -288,36 +288,14 @@ async def confirm_import_job(
                 400, f"Monto inválido: '{r.get('amount')}' en '{r.get('description', 'N/A')}'"
             )
 
-        norm_bank = normalize_bank(str(r.get("bank", "") or ""))
-        row_card = str(r.get("card", "") or "").strip()
-        norm_card = first_card_word(row_card)
-        norm_person = title_case_single(str(r.get("person", "") or "").strip())
-
-        card_key = get_card_key(norm_bank, norm_card, norm_person)
-        _log(
-            f"[IMPORT CONFIRM] Looking up card_key: bank={norm_bank}, card={norm_card}, person={norm_person}"
-        )
-        _log(f"[IMPORT CONFIRM] Expected card_key: {card_key}")
-        _log(
-            f"[IMPORT CONFIRM] cards_mapping.get result: {cards_mapping.get(card_key, 'NOT_FOUND')}"
-        )
-        mapping_entry = cards_mapping.get(card_key, {})
-        # Override bank/card if provided in mapping
-        final_bank = (
-            mapping_entry.get("bank")
-            if isinstance(mapping_entry, dict) and mapping_entry.get("bank")
-            else norm_bank
-        )
-        card_type = (
-            cards_mapping.get(f"_card_type_{norm_bank}_{norm_card}", "credito")
-            if isinstance(cards_mapping.get(f"_card_type_{norm_bank}_{norm_card}"), str)
-            else "credito"
-        )
-
         raw_txn_id = r.get("transaction_id")
         txn_id = str(raw_txn_id).strip() if raw_txn_id else None
         if txn_id:
             txn_id = txn_id.lstrip("0") or "0"
+
+        # Card matching via card_header
+        card_header = str(r.get("card_header", "") or "").strip()
+        mapping_entry = cards_mapping.get(card_header, {})
 
         if is_scheduled:
             # Create ScheduledExpense
@@ -343,8 +321,30 @@ async def confirm_import_job(
                     f"Error al crear gasto programado '{r.get('description', 'N/A')}': {str(e)}",
                 )
         else:
-            # Create Expense with card
-            card_obj, _ = find_or_create_card(final_bank, row_card, norm_person, card_type)
+            # Create Expense with card from card_header mapping
+            if isinstance(mapping_entry, dict) and mapping_entry.get("card_id"):
+                card_id = mapping_entry["card_id"]
+            elif isinstance(mapping_entry, dict) and mapping_entry.get("bank"):
+                # Create new card from mapping
+                card_obj, _ = find_or_create_card(
+                    mapping_entry.get("bank", ""),
+                    mapping_entry.get("card_name", ""),
+                    mapping_entry.get("holder", user.full_name.split()[0] if user.full_name else ""),
+                    mapping_entry.get("card_type", "credito"),
+                )
+                card_id = card_obj.id
+            else:
+                # Fallback: create card from card_header
+                from app.services.smart_import_core import _parse_card_header
+                detected_bank, detected_card = _parse_card_header(card_header)
+                card_obj, _ = find_or_create_card(
+                    detected_bank or "",
+                    detected_card or "",
+                    user.full_name.split()[0] if user.full_name else "",
+                    "credito",
+                )
+                card_id = card_obj.id
+
             try:
                 expense = Expense(
                     date=row_date,
@@ -357,7 +357,7 @@ async def confirm_import_job(
                     installment_total=r.get("installment_total"),
                     installment_group_id=r.get("installment_group_id"),
                     user_id=user.id,
-                    card_id=card_obj.id,
+                    card_id=card_id,
                 )
                 db.add(expense)
                 imported_count += 1

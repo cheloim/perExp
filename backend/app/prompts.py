@@ -75,24 +75,10 @@ Por cada transacción devolvé un objeto JSON con exactamente estos campos:
 - "description": descripción limpia del comercio o concepto, sin códigos internos
 - "amount": número decimal. NEGATIVO para reintegros/bonificaciones/devoluciones. POSITIVO para consumos.
 - "currency": "USD" si el monto está expresado en dólares estadounidenses, "ARS" para pesos argentinos. Determinalo por el contexto (sección del resumen, encabezado, símbolo de moneda, o descripción como "USD" / "US$" / "U$S").
-- "card": SOLO la primera palabra del tipo de tarjeta (ej: "Visa", "Mastercard", "Amex"). NO incluir el banco ni el titular. Ej: "Visa Galicia" → "Visa". Si no figura, "".
-- "bank": banco emisor del HEADER (ej: "Galicia", "Santander", "Macro"). Poné el mismo valor en TODAS las transacciones. Si no figura, "".
-  Para CSV/XLSX: buscá el nombre del banco en el nombre del archivo, en filas de cierre ("Fecha de cierre:", "Fecha de vencimiento:"), o en cualquier encabezado. Bancos esperados: "Santander", "Galicia", "Macro", "BBVA", "HSBC", "Ciudad", "ICBC", "Patagonia", "Supervielle". Si no lo identificás con certeza, "" (el backend lo resuelve desde la DB por card_last4).
-- "person": Título caso (solo primera letra mayúscula): SOLO el primer nombre del titular (sin apellido).
-  • Los extractos pueden tener secciones separadas para tarjetas adicionales (ej: un bloque
-    encabezado por "TARJETA ADICIONAL", "ADICIONAL", o directamente el nombre de otro titular).
-    En ese caso, usá el nombre de ESA sección para las transacciones de ese bloque.
-  • Para las transacciones sin sección adicional, usá el titular principal del HEADER.
-  • SOLO extraé el PRIMER NOMBRE, ignorá el apellido. Solo la primera letra mayúscula.
-    Ej: "ZANONI, NATALIA LI" → "Natalia"
-    Ej: "PEREZ, JUAN" → "Juan"
-    Ej: "Juan Perez" → "Juan"
-    Ej: "MARIA" → "Maria"
-  • Si no hay nombre, "".
+- "card_header": encabezado de sección de tarjeta que identifica a qué tarjeta pertenece la transacción. Ej: "Visa Galicia", "Mastercard Santander", "Visa terminada en 8130". Si no hay secciones múltiples o no se detecta header, devolvé "".
 - "transaction_id": código único de la operación. En el patrón "DD NNNNNN K/*/# descripcion monto", el NNNNNN ES el comprobante → ponerlo aquí siempre. También puede ser un nro de operación, referencia o auth que figure explícitamente. Si genuinamente no hay ningún código, null.
 - "installment_number": número de cuota si es un pago en cuotas (ej: "1/3" → 1), sino null
 - "installment_total": total de cuotas si es un pago en cuotas (ej: "1/3" → 3), sino null
-- "card_last4": (DEPRECATED - no usar más) Ahora usá bank + card + person del header para identificar la tarjeta. Los 4 dígitos ya no se almacenan por seguridad.
 
 Para pagos en cuotas. Formatos reconocidos:
   • Santander / genérico: "C.12/12", "C.01/03", "Cta 2/6"
@@ -120,28 +106,31 @@ Reglas:
 Devolvé ÚNICAMENTE un array JSON válido. Sin texto adicional, sin markdown, sin bloques de código.
 
 ── IDENTIFICACIÓN DE TARJETA ────────────────────────────────────────
-El texto puede venir de PDF (con marcadores automáticos) o de CSV/XLSX.
-Para CADA transacción, usá el HEADER más reciente para obtener bank + card + person.
-NO uses los 4 dígitos (card_last4) para nada - el backend deduce la tarjeta por bank+name+holder.
+El texto puede venir de PDF o de CSV/XLSX.
+Para CADA transacción, identificá el encabezado de sección de tarjeta (card_header).
 
 CSV / XLSX:
   El texto es una exportación directa del banco. Puede tener VARIAS SECCIONES, una por cada tarjeta.
-  Cada SECCIÓN tiene un ENCABEZADO que contiene "terminada en XXXX" o "Visa/MC terminada en XXXX".
-  Ejemplo de encabezado de sección CSV:
+  Cada SECCIÓN tiene un ENCABEZADO que contiene información de la tarjeta.
+  Ejemplos de encabezados de sección CSV:
     "TARJETA ADICIONAL - PEREZ, JUAN - Mastercard terminada en 1108"
     "Visa terminada en 8130"
-  Para cada transacción, usá los valores (card, bank, person) del ÚLTIMO encabezado de sección visto.
+    "Galicia Visa"
+  Para cada transacción, usá el textodel ÚLTIMO encabezado de sección visto como card_header.
 
 PDF:
-  El texto contiene marcadores con el formato: [TARJETA_LAST4: XXXX]
-  Cada marcador aparece justo después del encabezado de una sección de tarjeta.
-  También podés extraer el nombre del banco del header del PDF.
-  Usá el bank + card + person del ÚLTIMO encabezado de sección visto.
+  El texto puede contener marcadores de sección como:
+    "[TARJETA_LAST4: XXXX]"
+    O encabezados como "Visa Galicia", "Mastercard Santander", etc.
+  Para cada transacción, usá el texto del ÚLTIMO encabezado de sección visto como card_header.
 
-IMPORTANTE: En lugar de card_last4, ahora UKILIZÁ estos campos:
-  - "card": tipo de tarjeta (Visa, Mastercard, etc.) del header
-  - "bank": banco emisor del header
-  - "person": primer nombre del titular del header
+IMPORTANTE: El card_header es el texto completo del encabezado de sección.
+Ejemplos:
+  - "Visa Galicia" → card_header: "Visa Galicia"
+  - "Mastercard Santander" → card_header: "Mastercard Santander"
+  - "Visa terminada en 8130" → card_header: "Visa terminada en 8130"
+  - "TARJETA ADICIONAL - PEREZ, JUAN - Mastercard terminada en 1108" → card_header: "Mastercard terminada en 1108"
+  - Si no hay encabezado de sección → card_header: ""
 
 ── FECHAS DE CIERRE DEL RESUMEN ─────────────────────────────────────────
 También debés extraer las fechas de cierre del resumen bancario:
@@ -166,7 +155,6 @@ EJEMPLOS REALES:
 - "previous_closing_date": fecha de cierre anterior
 - "next_closing_date": fecha del proximo cierre
 - "due_date": fecha de vencimiento (formato DD-MM-YYYY)
-- "bank_code": código o nombre del banco si aparece (ej: "Santander", "Galicia", etc.)
 
 ── TOTALES DEL RESUMEN ──────────────────────────────────────────────
 Buscá los totales globales del resumen (NO los subtotales por sección).
