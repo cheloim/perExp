@@ -171,8 +171,20 @@ export default function UserPanel({ open, onClose }: Props) {
       setPwError("Las contraseñas no coinciden");
       return;
     }
-    if (newPw.length < 6) {
-      setPwError("Mínimo 6 caracteres");
+    if (newPw.length < 8) {
+      setPwError("Mínimo 8 caracteres");
+      return;
+    }
+    if (!/[A-Z]/.test(newPw)) {
+      setPwError("Debe contener al menos una mayúscula");
+      return;
+    }
+    if (!/[a-z]/.test(newPw)) {
+      setPwError("Debe contener al menos una minúscula");
+      return;
+    }
+    if (!/[0-9]/.test(newPw)) {
+      setPwError("Debe contener al menos un número");
       return;
     }
     changePwMut.mutate();
@@ -397,15 +409,15 @@ export default function UserPanel({ open, onClose }: Props) {
                               m.status === "accepted"
                                 ? "bg-[var(--gnome-green-3,#33d17a)]/20 text-[var(--gnome-green-5,#26a269)]"
                                 : m.status === "pending"
-                                  ? "bg-[var(--gnome-yellow-3,#f6d32d)]/20 text-[var(--gnome-yellow-5,#e5a50a)]"
-                                  : "bg-[var(--color-base-alt)] text-[var(--text-tertiary)]"
+                                ? "bg-[var(--gnome-yellow-3,#f6d32d)]/20 text-[var(--gnome-yellow-5,#e5a50a)]"
+                                : "bg-[var(--color-base-alt)] text-[var(--text-tertiary)]"
                             }`}
                           >
                             {m.status === "accepted"
                               ? "Activo"
                               : m.status === "pending"
-                                ? "Pendiente"
-                                : m.status}
+                              ? "Pendiente"
+                              : m.status}
                           </span>
                         </li>
                       ))}
@@ -618,6 +630,8 @@ export default function UserPanel({ open, onClose }: Props) {
                     </label>
                     <input
                       type="password"
+                      name="current-password"
+                      autoComplete="current-password"
                       value={currentPw}
                       onChange={(e) => {
                         setCurrentPw(e.target.value);
@@ -634,12 +648,14 @@ export default function UserPanel({ open, onClose }: Props) {
                     </label>
                     <input
                       type="password"
+                      name="new-password"
+                      autoComplete="new-password"
                       value={newPw}
                       onChange={(e) => {
                         setNewPw(e.target.value);
                         setPwSuccess(false);
                       }}
-                      placeholder="Mínimo 6 caracteres"
+                      placeholder="Mínimo 8 caracteres"
                       required
                       className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
                     />
@@ -650,6 +666,8 @@ export default function UserPanel({ open, onClose }: Props) {
                     </label>
                     <input
                       type="password"
+                      name="new-password"
+                      autoComplete="new-password"
                       value={confirmPw}
                       onChange={(e) => {
                         setConfirmPw(e.target.value);
