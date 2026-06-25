@@ -1031,6 +1031,7 @@ def get_card_category_breakdown(
 def get_category_trend(
     months: int = 4,
     anchor_month: str | None = None,
+    person: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -1072,9 +1073,10 @@ def get_category_trend(
             Expense.is_income == False,
             Expense.date >= start,
         )
-        .group_by(func.to_char(Expense.date, "YYYY-MM"), Category.name, Category.color)
-        .all()
     )
+    if person:
+        rows_raw = rows_raw.outerjoin(Card, Expense.card_id == Card.id).filter(Card.holder.ilike(f"%{person}%"))
+    rows_raw = rows_raw.group_by(func.to_char(Expense.date, "YYYY-MM"), Category.name, Category.color).all()
 
     data: dict = {mk: {} for mk in month_keys}
     cat_colors: dict = {}

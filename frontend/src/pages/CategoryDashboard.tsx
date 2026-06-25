@@ -15,6 +15,7 @@ import { getDashboard, getCategoryTrend, getTopMerchants } from "../api/client";
 import type { TopMerchant } from "../types";
 import { formatCurrency, MonthSelector, toUpperCase } from "../utils/format";
 import CategoryTreemap from "../components/CategoryTreemap";
+import { useFamilyGroup } from "../context/FamilyGroupContext";
 
 const MONTH_NAMES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 const UNCATEGORIZED = "Sin categoría";
@@ -32,6 +33,8 @@ export default function CategoryDashboard() {
   const [selectedCategoryName, setSelectedCategoryName] = useState<string | null>(null);
   const [trendMonths, setTrendMonths] = useState(6);
   const [merchantTab, setMerchantTab] = useState<"amount" | "count">("amount");
+  const [personFilter, setPersonFilter] = useState<string | null>(null);
+  const { members } = useFamilyGroup();
 
   const trendRangeLabel = useMemo(() => {
     const [y, m] = month.split("-").map(Number);
@@ -42,20 +45,20 @@ export default function CategoryDashboard() {
   }, [month, trendMonths]);
 
   const { data: summary, isLoading, isError: summaryError } = useQuery({
-    queryKey: ["dashboard", "cat-dash", month],
-    queryFn: () => getDashboard({ month }),
+    queryKey: ["dashboard", "cat-dash", month, personFilter],
+    queryFn: () => getDashboard({ month, person: personFilter ?? undefined }),
     placeholderData: (prev) => prev,
   });
 
   const { data: trendData, isLoading: trendLoading, isError: trendError } = useQuery({
-    queryKey: ["category-trend", month, trendMonths],
-    queryFn: () => getCategoryTrend(trendMonths, month),
+    queryKey: ["category-trend", month, trendMonths, personFilter],
+    queryFn: () => getCategoryTrend(trendMonths, month, personFilter ?? undefined),
     staleTime: 60_000,
   });
 
   const { data: merchantsRaw = [], isLoading: merchantsLoading, isError: merchantsError } = useQuery({
-    queryKey: ["top-merchants", month],
-    queryFn: () => getTopMerchants({ month, limit: 20 }),
+    queryKey: ["top-merchants", month, personFilter],
+    queryFn: () => getTopMerchants({ month, limit: 20, person: personFilter ?? undefined }),
     staleTime: 60_000,
   });
 
@@ -230,6 +233,7 @@ export default function CategoryDashboard() {
             onChange={(v) => {
               setMonth(v);
               setSelectedCategoryName(null);
+              setPersonFilter(null);
             }}
           />
         </div>
@@ -268,6 +272,26 @@ export default function CategoryDashboard() {
           <p className="text-2xl font-bold text-[var(--text-primary)]">{formatCurrency(displayAvg)}</p>
         </div>
       </div>
+
+      {/* Person filter chips */}
+      {members.length > 1 && (
+        <div className="flex items-center gap-2 flex-wrap px-1">
+          <span className="text-xs text-[var(--text-secondary)]">Persona:</span>
+          {members.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => setPersonFilter(personFilter === m.name ? null : m.name)}
+              className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
+                personFilter === m.name
+                  ? "bg-[var(--color-primary)] text-[var(--color-on-primary)] border-[var(--color-primary)]"
+                  : "bg-transparent text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--color-base-alt)]"
+              }`}
+            >
+              {m.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Two-column: Treemap + Trend chart */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

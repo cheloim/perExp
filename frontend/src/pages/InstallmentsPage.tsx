@@ -21,12 +21,14 @@ import type { InstallmentGroup, ExpenseCreate } from "../types";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ExpenseModal } from "../components/ExpenseModals";
 import { formatCurrency, toUpperCase, formatDateDMY, MONTHS_ES_SHORT } from "../utils/format";
+import { useFamilyGroup } from "../context/FamilyGroupContext";
 
 
 export default function InstallmentsPage() {
   const queryClient = useQueryClient();
   const [paymentFilter, setPaymentFilter] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [personFilter, setPersonFilter] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<InstallmentGroup | null>(null);
   const [showScheduledModal, setShowScheduledModal] = useState(false);
@@ -112,6 +114,7 @@ export default function InstallmentsPage() {
     groups.map((g) => g.card ? `${g.bank} · ${g.card}` : g.bank || "Sin definir")
   )].sort();
   const categories = [...new Set(groups.map((g) => g.category_name).filter(Boolean))].sort();
+  const persons = [...new Set(groups.map((g) => g.person).filter(Boolean))].sort();
 
   const filtered = groups.filter((g) => {
     if (!showCompleted && g.remaining_installments === 0) return false;
@@ -120,6 +123,7 @@ export default function InstallmentsPage() {
       if (displayKey !== paymentFilter) return false;
     }
     if (categoryFilter && g.category_name !== categoryFilter) return false;
+    if (personFilter && g.person !== personFilter) return false;
     return true;
   });
 
@@ -370,6 +374,10 @@ export default function InstallmentsPage() {
                               className="text-xs mt-0.5"
                               style={{ color: "var(--text-secondary)" }}
                             >
+                              {g.person && (
+                                <span className="text-[var(--color-primary)]">{g.person}</span>
+                              )}
+                              {g.person && g.bank ? " · " : ""}
                               {g.bank}
                               {g.card ? ` · ${g.card}` : ""}
                               {g.next_date && !done && (
@@ -541,6 +549,48 @@ export default function InstallmentsPage() {
                       }}
                     >
                       {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {persons.length > 1 && (
+              <div>
+                <p
+                  className="text-[10px] uppercase tracking-wide mb-1.5"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  Persona
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {persons.length > 1 && (
+                    <button
+                      onClick={() => setPersonFilter(null)}
+                      className="text-xs px-3 py-1.5 rounded-lg border transition-all"
+                      style={{
+                        backgroundColor: !personFilter ? "var(--color-primary)" : "transparent",
+                        color: !personFilter ? "var(--color-on-primary)" : "var(--text-secondary)",
+                        borderColor: !personFilter ? "var(--color-primary)" : "var(--border-color)",
+                      }}
+                    >
+                      Todas
+                    </button>
+                  )}
+                  {persons.map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setPersonFilter(personFilter === p ? null : p)}
+                      className="text-xs px-3 py-1.5 rounded-lg border transition-all"
+                      style={{
+                        backgroundColor: personFilter === p ? "var(--color-primary)" : "transparent",
+                        color:
+                          personFilter === p ? "var(--color-on-primary)" : "var(--text-secondary)",
+                        borderColor:
+                          personFilter === p ? "var(--color-primary)" : "var(--border-color)",
+                      }}
+                    >
+                      {p}
                     </button>
                   ))}
                 </div>

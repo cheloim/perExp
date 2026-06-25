@@ -8,6 +8,7 @@ import ImportUploadButton from "./components/ImportUploadButton";
 import { usePanelWidth } from "./context/PanelWidthContext";
 import { UploadProgressProvider } from "./context/UploadProgressContext";
 import { NotificationsProvider, useNotifications } from "./context/NotificationsContext";
+import { FamilyGroupProvider } from "./context/FamilyGroupContext";
 import { sidebarIcons } from "./components/SidebarIcons";
 import { getStoredToken } from "./api/client";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -101,6 +102,7 @@ function MainLayout() {
 
   return (
     <UploadProgressProvider>
+      <FamilyGroupProvider>
       <div className="flex h-screen overflow-hidden bg-base">
         {/* Sidebar — GNOME Adwaita style, expand/collapse on hover */}
         <aside className="group fixed left-0 top-0 h-full z-30 bg-sidebar border-r border-[var(--border-color)] hidden md:flex flex-col w-16 hover:w-[220px] transition-all duration-300 overflow-hidden">
@@ -445,6 +447,7 @@ function MainLayout() {
         <UserPanel open={userPanelOpen} onClose={() => setUserPanelOpen(false)} />
         {notifOpen && <NotificationsPanel onClose={() => setNotifOpen(false)} />}
       </div>
+      </FamilyGroupProvider>
     </UploadProgressProvider>
   );
 }
