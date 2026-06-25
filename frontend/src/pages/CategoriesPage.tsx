@@ -302,10 +302,14 @@ export default function CategoriesPage() {
     queryFn: () => getExpenses({ limit: 500 }),
   });
 
-  const countMap = useMemo(() => allExpenses.reduce<Record<number, number>>((acc, e) => {
-    if (e.category_id != null) acc[e.category_id] = (acc[e.category_id] ?? 0) + 1;
-    return acc;
-  }, {}), [allExpenses]);
+  const countMap = useMemo(
+    () =>
+      allExpenses.reduce<Record<number, number>>((acc, e) => {
+        if (e.category_id != null) acc[e.category_id] = (acc[e.category_id] ?? 0) + 1;
+        return acc;
+      }, {}),
+    [allExpenses],
+  );
 
   // Classify categories
   const childParentIds = new Set(categories.filter((c) => c.parent_id).map((c) => c.parent_id!));
@@ -316,11 +320,17 @@ export default function CategoriesPage() {
 
   // Filter by search query
   const filteredParentCats = useMemo(
-    () => parentCats.filter((c) => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase())),
+    () =>
+      parentCats.filter(
+        (c) => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase()),
+      ),
     [parentCats, searchQuery],
   );
   const filteredChildCats = useMemo(
-    () => childCats.filter((c) => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase())),
+    () =>
+      childCats.filter(
+        (c) => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase()),
+      ),
     [childCats, searchQuery],
   );
 
@@ -673,7 +683,9 @@ export default function CategoriesPage() {
           placeholder="Buscar categoría..."
           className="w-full px-4 py-2 pl-9 text-sm rounded-lg border border-[var(--border-color)] bg-[var(--color-base-container)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
         />
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]">🔍</span>
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]">
+          🔍
+        </span>
       </div>
 
       {isLoading ? (
