@@ -32,7 +32,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Push Backend
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./backend
           push: true
@@ -43,7 +43,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build and Push Frontend
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./frontend
           push: true
@@ -136,6 +136,12 @@ jobs:
                     condition: service_healthy
                   redis:
                     condition: service_healthy
+                healthcheck:
+                  test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')\""]
+                  interval: 5s
+                  timeout: 3s
+                  retries: 10
+                  start_period: 15s
                 environment:
                   DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses
                   REDIS_URL: redis://redis:6379/0
@@ -180,7 +186,8 @@ jobs:
                 ports:
                   - "8080:80"
                 depends_on:
-                  - backend
+                  backend:
+                    condition: service_healthy
                 restart: unless-stopped
 
             volumes:
@@ -214,6 +221,16 @@ jobs:
 
             # Run database migration before starting new containers
             echo "Running database migration..."
-            podman-compose run --rm backend python -m scripts.migrate_remove_legacy_fields || echo "Migration skipped or failed (non-fatal)"
+            podman-compose run --rm --no-deps backend python -m scripts.migrate_remove_legacy_fields || echo "Migration skipped or failed (non-fatal)"
 
+            # Clean shutdown of old containers before starting new ones
+            echo "Stopping old containers..."
+            podman-compose down --remove-orphans 2>/dev/null || true
+
+            echo "Starting new containers..."
             podman-compose up -d --remove-orphans
+
+            # Verify deployment
+            echo "Waiting for services to start..."
+            sleep 5
+            curl -sf http://localhost:8080/api/health && echo "Deploy OK" || echo "WARN: health check failed"
