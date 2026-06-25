@@ -1,6 +1,5 @@
 import hashlib
 import io
-import json
 import re
 from datetime import date, datetime, timedelta
 
@@ -314,6 +313,7 @@ def _expand_installments(
                     "description": template["description"],
                     "amount": template["amount"],
                     "currency": template.get("currency", "ARS"),
+                    "card_header": template.get("card_header", ""),
                     "transaction_id": txn_id or None,
                     "installment_number": i,
                     "installment_total": inst_total,
@@ -373,6 +373,7 @@ def _expand_installments(
                         "description": template["description"],
                         "amount": template["amount"],
                         "currency": template.get("currency", "ARS"),
+                        "card_header": template.get("card_header", ""),
                         "transaction_id": txn_id or None,
                         "installment_number": i,
                         "installment_total": inst_total,
@@ -388,6 +389,7 @@ def _expand_installments(
                         "description": template["description"],
                         "amount": template["amount"],
                         "currency": template.get("currency", "ARS"),
+                        "card_header": template.get("card_header", ""),
                         "transaction_id": txn_id or None,
                         "installment_number": i,
                         "installment_total": inst_total,
@@ -400,38 +402,6 @@ def _expand_installments(
                 )
 
     return (parsed + expenses_extra, scheduled_extra)
-
-
-async def _normalize_persons_llm(persons: list[str], client) -> dict[str, str]:
-    if not persons:
-        return {}
-    prompt = (
-        "Estos son nombres de titulares de tarjetas de crédito argentinas extraídos de "
-        "extractos bancarios. Los PDFs suelen truncar o reordenar los nombres "
-        "(ej: 'MENDOZA MARCELO IGN' y 'MARCELO I MENDOZA N' son la misma persona).\n\n"
-        "Para cada nombre:\n"
-        "1. Si dos o más nombres son claramente la misma persona (mismo apellido + al menos "
-        "   una inicial del nombre coincide), devolvé el MISMO valor normalizado para todos.\n"
-        "2. Si son personas distintas, devolvé valores distintos.\n"
-        "3. El formato normalizado debe ser: APELLIDO, NOMBRE (en MAYÚSCULAS).\n"
-        "   Expandí abreviaturas si podés inferirlas (ej: 'IGN' → 'IGNACIO').\n\n"
-        'Devolvé ÚNICAMENTE un JSON válido: {"nombre_original": "NOMBRE_NORMALIZADO", ...}\n\n'
-        f"Nombres: {json.dumps(persons, ensure_ascii=False)}"
-    )
-    from google.genai import types as genai_types
-
-    try:
-        resp = await client.aio.models.generate_content(
-            model="gemini-flash-latest",
-            contents=prompt,
-            config=genai_types.GenerateContentConfig(response_mime_type="application/json"),
-        )
-        result = json.loads(resp.text)
-        if isinstance(result, dict):
-            return result
-    except Exception:
-        pass
-    return {p: p for p in persons}
 
 
 def _detect_installment_pattern(description: str) -> tuple[int, int] | None:
