@@ -77,7 +77,8 @@ export default function NotificationsPanel({ onClose }: Props) {
   });
 
   const handleAccept = (n: Notification) => {
-    const inviterName = (n.data.inviter_name as string) || "el invitante";
+    const inviterName =
+      ("inviter_name" in n.data ? (n.data.inviter_name as string) : undefined) || "el invitante";
     setDisclaimer({ notifId: n.id, inviterName });
   };
 
@@ -255,7 +256,7 @@ export default function NotificationsPanel({ onClose }: Props) {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          const jobId = n.data.job_id;
+                          const jobId = "job_id" in n.data ? (n.data.job_id as number) : undefined;
                           if (jobId) {
                             setConfirmDelete({ jobId, notifId: n.id });
                           }
