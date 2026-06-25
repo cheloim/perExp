@@ -215,7 +215,7 @@ def create_expense(
 
     # Auto-categorize if needed
     if data.get("category_id") is None:
-        cats = db.query(Category).all()
+    cats = db.query(Category).filter(Category.user_id == current_user.id).all()
         data["category_id"] = auto_categorize(data["description"], cats)
 
     # Detect if this is income based on category parent

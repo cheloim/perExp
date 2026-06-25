@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getCategories,
@@ -30,10 +30,11 @@ const COLORS = [
 /* ─── Category Form modal ─── */
 interface CategoryFormProps {
   initial?: Category;
-  isParentForm: boolean; // true = creating/editing a parent category
+  isParentForm: boolean;
   parentCategories: Category[];
   onClose: () => void;
   onSave: (data: Omit<Category, "id">) => void;
+  isSaving?: boolean;
 }
 
 function CategoryForm({
@@ -42,6 +43,7 @@ function CategoryForm({
   parentCategories,
   onClose,
   onSave,
+  isSaving = false,
 }: CategoryFormProps) {
   const [form, setForm] = useState<Omit<Category, "id">>(
     initial
@@ -165,10 +167,10 @@ function CategoryForm({
           </button>
           <button
             onClick={() => onSave({ ...form, keywords: isParentForm ? "" : form.keywords })}
-            disabled={!form.name}
+            disabled={!form.name || isSaving}
             className="gnome-btn-primary"
           >
-            Guardar
+            {isSaving ? "Guardando..." : "Guardar"}
           </button>
         </div>
       </div>
@@ -280,6 +282,15 @@ export default function CategoriesPage() {
   const [browsing, setBrowsing] = useState<Category | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Category | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    if (successMsg) {
+      const t = setTimeout(() => setSuccessMsg(null), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [successMsg]);
 
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ["categories"],
@@ -291,10 +302,10 @@ export default function CategoriesPage() {
     queryFn: () => getExpenses({ limit: 500 }),
   });
 
-  const countMap = allExpenses.reduce<Record<number, number>>((acc, e) => {
+  const countMap = useMemo(() => allExpenses.reduce<Record<number, number>>((acc, e) => {
     if (e.category_id != null) acc[e.category_id] = (acc[e.category_id] ?? 0) + 1;
     return acc;
-  }, {});
+  }, {}), [allExpenses]);
 
   // Classify categories
   const childParentIds = new Set(categories.filter((c) => c.parent_id).map((c) => c.parent_id!));
@@ -302,6 +313,16 @@ export default function CategoriesPage() {
   const standaloneLeaves = categories.filter((c) => !c.parent_id && !childParentIds.has(c.id));
   const childCats = categories.filter((c) => !!c.parent_id);
   const hasHierarchy = parentCats.length > 0;
+
+  // Filter by search query
+  const filteredParentCats = useMemo(
+    () => parentCats.filter((c) => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase())),
+    [parentCats, searchQuery],
+  );
+  const filteredChildCats = useMemo(
+    () => childCats.filter((c) => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase())),
+    [childCats, searchQuery],
+  );
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["categories"] });
@@ -314,6 +335,7 @@ export default function CategoriesPage() {
     onSuccess: () => {
       invalidate();
       setEditing(undefined);
+      setSuccessMsg("Categoría creada");
     },
   });
   const updateMut = useMutation({
@@ -322,6 +344,7 @@ export default function CategoriesPage() {
     onSuccess: () => {
       invalidate();
       setEditing(undefined);
+      setSuccessMsg("Categoría actualizada");
     },
   });
   const deleteMut = useMutation({
@@ -409,7 +432,7 @@ export default function CategoriesPage() {
             </p>
           )}
         </div>
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+        <div className="flex gap-1 flex-shrink-0">
           <button
             onClick={() => setEditing({ cat, isParent: false })}
             className="text-tertiary hover:text-primary text-xs p-1.5 transition-colors rounded"
@@ -533,6 +556,12 @@ export default function CategoriesPage() {
 
   return (
     <div className="space-y-4">
+      {/* Success toast */}
+      {successMsg && (
+        <div className="px-4 py-2 rounded-lg bg-success/20 text-success text-sm font-medium animate-pulse">
+          {successMsg}
+        </div>
+      )}
       {/* Top bar */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
@@ -635,6 +664,18 @@ export default function CategoriesPage() {
         ))}
       </div>
 
+      {/* Search input */}
+      <div className="relative">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Buscar categoría..."
+          className="w-full px-4 py-2 pl-9 text-sm rounded-lg border border-[var(--border-color)] bg-[var(--color-base-container)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+        />
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]">🔍</span>
+      </div>
+
       {isLoading ? (
         <div className="flex items-center justify-center h-40">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -651,7 +692,7 @@ export default function CategoriesPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {parentCats.map((cat) => (
+              {filteredParentCats.map((cat) => (
                 <ParentCard key={cat.id} cat={cat} />
               ))}
             </div>
@@ -661,8 +702,8 @@ export default function CategoriesPage() {
         /* ── Subcategories tab ── */
         <div className="space-y-6">
           {/* Children grouped by parent */}
-          {parentCats.map((parent) => {
-            const children = categories.filter((c) => c.parent_id === parent.id);
+          {filteredParentCats.map((parent) => {
+            const children = filteredChildCats.filter((c) => c.parent_id === parent.id);
             if (children.length === 0) return null;
             return (
               <div key={parent.id} className="space-y-2">
@@ -718,6 +759,7 @@ export default function CategoriesPage() {
           parentCategories={parentCats}
           onClose={() => setEditing(undefined)}
           onSave={handleSave}
+          isSaving={createMut.isPending || updateMut.isPending}
         />
       )}
 

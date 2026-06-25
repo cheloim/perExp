@@ -92,6 +92,7 @@ class Category(Base):
     __table_args__ = (
         Index("ix_categories_user_id", "user_id"),
         Index("ix_categories_parent_id", "parent_id"),
+        UniqueConstraint("name", "user_id", name="uq_category_name_user"),
     )
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)

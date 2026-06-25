@@ -48,6 +48,14 @@ def update_category(
     )
     if not db_cat:
         raise HTTPException(404, "Categoría no encontrada")
+    # Check for duplicate name (excluding self)
+    existing = (
+        db.query(Category)
+        .filter(Category.name == cat.name, Category.user_id == current_user.id, Category.id != cat_id)
+        .first()
+    )
+    if existing:
+        raise HTTPException(400, "Ya existe otra categoría con ese nombre")
     for k, v in cat.model_dump().items():
         setattr(db_cat, k, v)
     db.commit()
