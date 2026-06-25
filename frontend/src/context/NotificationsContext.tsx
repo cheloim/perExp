@@ -8,7 +8,12 @@ import {
   ReactNode,
 } from "react";
 import type { Notification } from "../types";
-import { markNotificationRead, markAllNotificationsRead } from "../api/client";
+import {
+  markNotificationRead,
+  markAllNotificationsRead,
+  deleteNotification as apiDeleteNotification,
+  deleteAllReadNotifications,
+} from "../api/client";
 
 interface NotificationsState {
   notifications: Notification[];
@@ -20,6 +25,8 @@ interface NotificationsState {
 interface NotificationsContextValue extends NotificationsState {
   markRead: (id: number) => Promise<void>;
   markAllRead: () => Promise<void>;
+  deleteNotification: (id: number) => Promise<void>;
+  deleteAllRead: () => Promise<void>;
   refresh: () => void;
 }
 
@@ -193,6 +200,32 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const deleteNotification = useCallback(async (id: number) => {
+    try {
+      const n = stateRef.current.notifications.find((n) => n.id === id);
+      await apiDeleteNotification(id);
+      setState((s) => ({
+        ...s,
+        notifications: s.notifications.filter((n) => n.id !== id),
+        unreadCount: n && !n.read ? Math.max(0, s.unreadCount - 1) : s.unreadCount,
+      }));
+    } catch (err) {
+      console.error("[NotificationsContext] deleteNotification failed", err);
+    }
+  }, []);
+
+  const deleteAllRead = useCallback(async () => {
+    try {
+      await deleteAllReadNotifications();
+      setState((s) => ({
+        ...s,
+        notifications: s.notifications.filter((n) => !n.read),
+      }));
+    } catch (err) {
+      console.error("[NotificationsContext] deleteAllRead failed", err);
+    }
+  }, []);
+
   const refresh = useCallback(() => {
     if (port) {
       port.postMessage({ type: "force_refresh" } as WorkerOutgoingMessage);
@@ -200,7 +233,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, [port]);
 
   return (
-    <NotificationsContext.Provider value={{ ...state, markRead, markAllRead, refresh }}>
+    <NotificationsContext.Provider
+      value={{ ...state, markRead, markAllRead, deleteNotification, deleteAllRead, refresh }}
+    >
       {children}
     </NotificationsContext.Provider>
   );

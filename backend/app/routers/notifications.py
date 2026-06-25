@@ -114,6 +114,16 @@ def mark_all_read(current_user: User = Depends(get_current_user), db: Session = 
     return {"ok": True}
 
 
+@router.delete("/read-all", status_code=200)
+def delete_all_read(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    db.query(Notification).filter(
+        Notification.user_id == current_user.id,
+        Notification.read == True,  # noqa: E712
+    ).delete()
+    db.commit()
+    return {"ok": True}
+
+
 @router.post("/{notif_id}/accept", status_code=200)
 def accept_invitation(
     notif_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
