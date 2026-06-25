@@ -1,12 +1,38 @@
-export interface Notification {
+export interface ImportNotificationData {
+  job_id: number;
+  filename?: string;
+}
+
+export interface GroupInvitationData {
+  member_id: number;
+  inviter_name?: string;
+  group_id?: number;
+}
+
+export interface BaseNotification {
   id: number;
-  type: string;
   title: string;
   body: string;
-  data: Record<string, unknown>;
   read: boolean;
   created_at: string;
 }
+
+export interface ImportNotification extends BaseNotification {
+  type: "import_ready" | "import_failed";
+  data: ImportNotificationData;
+}
+
+export interface GroupInvitationNotification extends BaseNotification {
+  type: "group_invitation";
+  data: GroupInvitationData;
+}
+
+export interface GenericNotification extends BaseNotification {
+  type: string;
+  data: Record<string, unknown>;
+}
+
+export type Notification = ImportNotification | GroupInvitationNotification | GenericNotification;
 
 export interface GroupMember {
   id: number;

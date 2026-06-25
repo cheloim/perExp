@@ -28,10 +28,13 @@ def cleanup_expired_import_jobs():
         count = 0
         expired_job_ids = {job.id for job in expired}
 
-        # Query all import notifications ONCE, then filter by job_id in memory
+        # Only query notifications older than cutoff that are import-related
         notifications = (
             db.query(Notification)
-            .filter(Notification.type.in_(["import_ready", "import_failed"]))
+            .filter(
+                Notification.type.in_(["import_ready", "import_failed"]),
+                Notification.created_at < cutoff,
+            )
             .all()
         )
 

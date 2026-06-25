@@ -516,11 +516,10 @@ export const getTopMerchants = (params?: {
 }) => api.get<TopMerchant[]>("/dashboard/top-merchants", { params }).then((r) => r.data);
 
 // Notifications
-export const getNotifications = () => api.get<Notification[]>("/notifications").then((r) => r.data);
-export const getUnreadCount = () =>
-  api.get<{ count: number }>("/notifications/unread-count").then((r) => r.data);
 export const markNotificationRead = (id: number) =>
   api.put(`/notifications/${id}/read`).then((r) => r.data);
+export const markAllNotificationsRead = () =>
+  api.put("/notifications/read-all").then((r) => r.data);
 export const acceptGroupInvitation = (id: number) =>
   api.post(`/notifications/${id}/accept`).then((r) => r.data);
 export const rejectGroupInvitation = (id: number) =>

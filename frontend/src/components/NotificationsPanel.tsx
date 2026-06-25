@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
-import { rejectGroupInvitation, getStoredToken } from "../api/client";
+import { rejectGroupInvitation } from "../api/client";
 import type { Notification } from "../types";
 import InvitationDisclaimer from "./InvitationDisclaimer";
 import { useUploadProgress } from "../context/UploadProgressContext";
@@ -13,6 +13,7 @@ interface Props {
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
+  if (diff < 0) return "Ahora";
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return "Ahora";
   if (mins < 60) return `Hace ${mins}m`;
@@ -26,14 +27,21 @@ export default function NotificationsPanel({ onClose }: Props) {
   const [disclaimer, setDisclaimer] = useState<{ notifId: number; inviterName: string } | null>(
     null,
   );
+  const [confirmDelete, setConfirmDelete] = useState<{ jobId: number; notifId: number } | null>(
+    null,
+  );
+  const [confirmReject, setConfirmReject] = useState<number | null>(null);
   const { uploads, removeUpload, cancelUpload } = useUploadProgress();
-  const { notifications, markRead, refresh } = useNotifications();
-  const [, forceUpdate] = useState({});
+  const { notifications, markRead, markAllRead, refresh, connected } = useNotifications();
+  const [, setTick] = useState(0);
+
+  const timeAgoValues = useMemo(
+    () => new Map(notifications.map((n) => [n.id, timeAgo(n.created_at)])),
+    [notifications],
+  );
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      forceUpdate({});
-    }, 60000);
+    const interval = setInterval(() => setTick((t) => t + 1), 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -69,7 +77,7 @@ export default function NotificationsPanel({ onClose }: Props) {
   };
 
   const handleDeleteJob = async (jobId: number) => {
-    const token = getStoredToken();
+    const token = localStorage.getItem("auth_token");
     if (!token) return;
     try {
       await fetch(`/api/import-jobs/${jobId}`, {
@@ -84,7 +92,7 @@ export default function NotificationsPanel({ onClose }: Props) {
 
   const handleNotificationClick = (n: Notification) => {
     if (n.type === "import_ready" || n.type === "import_failed") {
-      const jobId = n.data.job_id as number;
+      const jobId = n.data.job_id;
       if (jobId) {
         handleMarkRead(n.id);
         navigate(`/import-jobs/${jobId}`);
@@ -93,11 +101,24 @@ export default function NotificationsPanel({ onClose }: Props) {
     }
   };
 
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
   return (
     <>
-      <div className="fixed inset-0 z-30" onClick={onClose} />
+      <div
+        className="fixed inset-0 z-30 bg-black/10"
+        onClick={onClose}
+        onKeyDown={(e) => e.key === "Escape" && onClose()}
+        role="button"
+        tabIndex={-1}
+        aria-label="Cerrar notificaciones"
+      />
 
-      <div className="fixed bottom-20 left-4 z-40 w-80 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-gnome-lg flex flex-col max-h-[480px]">
+      <div
+        className="fixed bottom-20 left-4 z-40 w-80 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-gnome-lg flex flex-col max-h-[480px]"
+        role="dialog"
+        aria-label="Notificaciones"
+      >
         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)]">
           <div className="flex items-center gap-2 text-[var(--text-primary)] font-semibold">
             <svg
@@ -116,15 +137,35 @@ export default function NotificationsPanel({ onClose }: Props) {
             </svg>
             Notificaciones
           </div>
-          <button
-            onClick={onClose}
-            className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors text-lg leading-none"
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-2">
+            {unreadCount > 0 && (
+              <button
+                onClick={() => markAllRead()}
+                className="text-xs text-[var(--color-primary)] hover:underline transition-colors"
+              >
+                Marcar todo leído
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors text-lg leading-none"
+              aria-label="Cerrar"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         <div className="overflow-y-auto flex-1">
+          {!connected && (
+            <div className="px-4 py-3 bg-[var(--color-primary)]/5 border-b border-[var(--border-color)]">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                <p className="text-[var(--text-tertiary)] text-xs">Conectando...</p>
+              </div>
+            </div>
+          )}
+
           {uploads.map((upload) => (
             <div
               key={upload.id}
@@ -171,6 +212,9 @@ export default function NotificationsPanel({ onClose }: Props) {
               <div
                 key={n.id}
                 onClick={() => isImportNotif && handleNotificationClick(n)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && isImportNotif) handleNotificationClick(n);
+                }}
                 className={`px-4 py-3 border-b border-[var(--border-color)] last:border-0 ${
                   !n.read ? "bg-[var(--color-primary)]/8" : ""
                 } ${
@@ -178,6 +222,8 @@ export default function NotificationsPanel({ onClose }: Props) {
                     ? "cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
                     : ""
                 }`}
+                role={isImportNotif ? "button" : undefined}
+                tabIndex={isImportNotif ? 0 : undefined}
               >
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <p className="text-[var(--text-primary)] text-sm font-medium leading-tight">
@@ -185,15 +231,15 @@ export default function NotificationsPanel({ onClose }: Props) {
                   </p>
                   <div className="flex items-center gap-2">
                     <span className="text-[var(--text-tertiary)] text-xs whitespace-nowrap">
-                      {timeAgo(n.created_at)}
+                      {timeAgoValues.get(n.id) ?? timeAgo(n.created_at)}
                     </span>
                     {isImportNotif && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          const jobId = n.data.job_id as number;
+                          const jobId = n.data.job_id;
                           if (jobId) {
-                            handleDeleteJob(jobId);
+                            setConfirmDelete({ jobId, notifId: n.id });
                           }
                         }}
                         className="text-[var(--text-tertiary)] hover:text-red-500 transition-colors"
@@ -204,7 +250,7 @@ export default function NotificationsPanel({ onClose }: Props) {
                     )}
                   </div>
                 </div>
-                <p className="text-[var(--text-secondary)] text-xs mb-2">{n.body}</p>
+                <p className="text-[var(--text-secondary)] text-xs mb-2 line-clamp-2">{n.body}</p>
 
                 {n.type === "group_invitation" &&
                   (() => {
@@ -220,7 +266,7 @@ export default function NotificationsPanel({ onClose }: Props) {
                           ✓ Aceptar
                         </button>
                         <button
-                          onClick={() => reject.mutate(n.id)}
+                          onClick={() => setConfirmReject(n.id)}
                           disabled={reject.isPending}
                           className="text-xs px-3 py-1 rounded-md border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition-colors disabled:opacity-50"
                         >
@@ -234,6 +280,68 @@ export default function NotificationsPanel({ onClose }: Props) {
           })}
         </div>
       </div>
+
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
+            <h2 className="text-[var(--text-primary)] font-semibold text-lg mb-2">
+              Eliminar importación
+            </h2>
+            <p className="text-[var(--text-secondary)] text-sm mb-4">
+              Se eliminará la importación y su notificación. Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="flex-1 py-2 rounded-lg border border-[var(--border-color)] text-[var(--text-secondary)] text-sm hover:bg-[var(--color-base-alt)] transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  handleDeleteJob(confirmDelete.jobId);
+                  setConfirmDelete(null);
+                }}
+                className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmReject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
+            <h2 className="text-[var(--text-primary)] font-semibold text-lg mb-2">
+              Rechazar invitación
+            </h2>
+            <p className="text-[var(--text-secondary)] text-sm mb-4">
+              ¿Seguro que querés rechazar esta invitación? No podrás unirte a este grupo más
+              adelante a menos que te vuelvan a invitar.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmReject(null)}
+                className="flex-1 py-2 rounded-lg border border-[var(--border-color)] text-[var(--text-secondary)] text-sm hover:bg-[var(--color-base-alt)] transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  reject.mutate(confirmReject);
+                  setConfirmReject(null);
+                }}
+                disabled={reject.isPending}
+                className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                {reject.isPending ? "Rechazando..." : "Rechazar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {disclaimer && (
         <InvitationDisclaimer

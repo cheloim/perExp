@@ -1,4 +1,3 @@
-// @ts-nocheck
 /// <reference lib="webworker" />
 
 interface NotifWorkerMessage {
@@ -33,12 +32,15 @@ interface NotificationPayload {
   created_at: string;
 }
 
-const ports = new Map();
-let eventSource = null;
-let currentToken = null;
-let reconnectTimer = null;
+const ports = new Map<string, MessagePort>();
+let eventSource: EventSource | null = null;
+let currentToken: string | null = null;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let reconnectAttempt = 0;
+const MAX_RECONNECT_DELAY = 30000;
+const INITIAL_RECONNECT_DELAY = 1000;
 
-function broadcastToPorts(data, excludePortId) {
+function broadcastToPorts(data: NotifWorkerResponse, excludePortId?: string) {
   for (const [portId, port] of ports) {
     if (portId !== excludePortId) {
       try {
@@ -61,15 +63,17 @@ function closeEventSource() {
   }
 }
 
-function connectEventSource(token) {
+function connectEventSource(token: string) {
   closeEventSource();
   currentToken = token;
+  reconnectAttempt = 0;
 
   const url = `/api/notifications/stream?token=${encodeURIComponent(token)}`;
   eventSource = new EventSource(url);
 
   eventSource.onopen = () => {
-    const connectedMsg = { type: "connected" };
+    reconnectAttempt = 0;
+    const connectedMsg: NotifWorkerResponse = { type: "connected" };
     for (const port of ports.values()) {
       try {
         port.postMessage(connectedMsg);
@@ -81,7 +85,7 @@ function connectEventSource(token) {
 
   eventSource.onmessage = (event) => {
     try {
-      const data = JSON.parse(event.data);
+      const data = JSON.parse(event.data) as NotifWorkerResponse;
 
       if (data.type === "ping") {
         return;
@@ -100,28 +104,36 @@ function connectEventSource(token) {
       message: "SSE connection lost",
     });
 
-    reconnectTimer = setTimeout(() => {
-      if (currentToken && ports.size > 0) {
-        connectEventSource(currentToken);
-      }
-    }, 5000);
+    if (currentToken && ports.size > 0) {
+      const delay = Math.min(
+        INITIAL_RECONNECT_DELAY * Math.pow(2, reconnectAttempt),
+        MAX_RECONNECT_DELAY,
+      );
+      reconnectAttempt++;
+      reconnectTimer = setTimeout(() => {
+        if (currentToken && ports.size > 0) {
+          connectEventSource(currentToken);
+        }
+      }, delay);
+    }
   };
 }
 
-self.onconnect = (event) => {
+self.onconnect = (event: MessageEvent) => {
   const port = event.ports[0];
   const portId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
   ports.set(portId, port);
 
-  port.onmessage = (e) => {
-    const msg = e.data;
+  port.onmessage = (e: MessageEvent) => {
+    const msg = e.data as NotifWorkerMessage;
 
     if (msg.type === "new_token" && msg.token) {
       connectEventSource(msg.token);
     } else if (msg.type === "force_refresh") {
       if (currentToken) {
         closeEventSource();
+        reconnectAttempt = 0;
         connectEventSource(currentToken);
       }
     } else if (msg.type === "disconnect") {
@@ -135,7 +147,7 @@ self.onconnect = (event) => {
   port.start();
 
   if (currentToken) {
-    const initialMsg = { type: "connected" };
+    const initialMsg: NotifWorkerResponse = { type: "connected" };
     port.postMessage(initialMsg);
   }
 };

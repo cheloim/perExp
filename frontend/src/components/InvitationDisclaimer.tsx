@@ -12,19 +12,11 @@ export default function InvitationDisclaimer({ notificationId, inviterName, onCl
   const { mutate, isPending, isError } = useMutation({
     mutationFn: () => acceptGroupInvitation(notificationId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications-count"] });
       queryClient.invalidateQueries({ queryKey: ["my-group"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["card-summary"] });
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       queryClient.invalidateQueries({ queryKey: ["cards"] });
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["scheduled-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["top-merchants"] });
-      queryClient.invalidateQueries({ queryKey: ["distinct-values"] });
-      queryClient.invalidateQueries({ queryKey: ["credit-card-pasivos"] });
-      queryClient.invalidateQueries({ queryKey: ["installments-monthly-load"] });
       onClose();
     },
   });

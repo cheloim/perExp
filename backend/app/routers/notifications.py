@@ -105,6 +105,15 @@ def mark_read(
     return {"ok": True}
 
 
+@router.put("/read-all", status_code=200)
+def mark_all_read(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    db.query(Notification).filter(
+        Notification.user_id == current_user.id, Notification.read == False  # noqa: E712
+    ).update({Notification.read: True})
+    db.commit()
+    return {"ok": True}
+
+
 @router.post("/{notif_id}/accept", status_code=200)
 def accept_invitation(
     notif_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
@@ -228,9 +237,10 @@ async def notifications_stream(request: Request):
         )
 
     async def generate():
-        poll_timeout = 60
+        PING_INTERVAL = 30
         poll_interval = 0.5
         last_check = datetime.now()
+        last_ping = datetime.now()
         default_page_size = 50
 
         db = SessionLocal()
@@ -269,13 +279,6 @@ async def notifications_stream(request: Request):
                 if await request.is_disconnected():
                     break
 
-                now = datetime.now()
-                elapsed = (now - last_check).total_seconds()
-                if elapsed < poll_timeout:
-                    remaining = poll_timeout - elapsed
-                else:
-                    remaining = 0
-
                 new_notifs = (
                     db.query(Notification)
                     .filter(
@@ -307,10 +310,10 @@ async def notifications_stream(request: Request):
                     yield f"data: {json.dumps({'type': 'counts_update', 'unread_count': unread_count, 'pending_count': pending_count})}\n\n"
                     last_check = datetime.now()
 
-                if remaining <= 0:
+                now = datetime.now()
+                if (now - last_ping).total_seconds() >= PING_INTERVAL:
                     yield f"data: {json.dumps({'type': 'ping'})}\n\n"
-                    last_check = datetime.now()
-                    poll_timeout = min(poll_timeout * 1.2, 120)
+                    last_ping = now
 
                 await asyncio.sleep(poll_interval)
         finally:
