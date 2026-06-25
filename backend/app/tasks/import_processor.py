@@ -6,6 +6,8 @@ Processes uploaded files asynchronously and creates notifications when ready.
 import asyncio
 import gc
 import json
+import warnings
+from contextlib import suppress
 from datetime import datetime
 
 from app.database import SessionLocal
@@ -42,7 +44,11 @@ def process_import_job(job_id: int):
                 file_content=file_content, filename=job.filename, db=db, user_id=job.user_id
             )
         )
-        loop.close()
+        # Suppress RuntimeError from async GenAI client cleanup after loop close
+        with suppress(RuntimeError):
+            loop.close()
+        # Also suppress deferred cleanup warnings from GC
+        warnings.filterwarnings("ignore", message=".*Event loop is closed.*")
         del file_content
         job.file_content = None
 
