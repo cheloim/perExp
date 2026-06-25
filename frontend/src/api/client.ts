@@ -19,7 +19,6 @@ import type {
   Investment,
   InvestmentCreate,
   TopMerchant,
-  Notification,
   FamilyGroup,
   ScheduledExpense,
   ImportJob,
