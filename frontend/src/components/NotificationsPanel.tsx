@@ -68,7 +68,8 @@ export default function NotificationsPanel({ onClose }: Props) {
   });
 
   const handleAccept = (n: Notification) => {
-    const inviterName = ("inviter_name" in n.data ? (n.data.inviter_name as string) : undefined) || "el invitante";
+    const inviterName =
+      ("inviter_name" in n.data ? (n.data.inviter_name as string) : undefined) || "el invitante";
     setDisclaimer({ notifId: n.id, inviterName });
   };
 
