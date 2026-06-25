@@ -69,6 +69,12 @@ export const getMe = () => api.get<User>("/auth/me").then((r) => r.data);
 export const changePassword = (current_password: string, new_password: string) =>
   api.put("/auth/password", { current_password, new_password });
 
+export const forgotPassword = (email: string) =>
+  api.post("/auth/forgot-password", { email }).then((r) => r.data);
+
+export const resetPassword = (token: string, new_password: string) =>
+  api.post("/auth/reset-password", { token, new_password }).then((r) => r.data);
+
 export const getTelegramKey = () =>
   api.get<{ telegram_key: string }>("/auth/me/telegram-key").then((r) => r.data);
 export const getTelegramStatus = () =>

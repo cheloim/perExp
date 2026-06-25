@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { login, register, storeToken } from "../api/client";
+import { forgotPassword, login, register, storeToken } from "../api/client";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register" | "forgot">("login");
 
   return (
     <div className="min-h-screen bg-base flex items-center justify-center px-4">
@@ -18,17 +18,31 @@ export default function LoginPage() {
           </h1>
         </div>
 
-        {mode === "login" ? (
-          <LoginForm onRegister={() => setMode("register")} onSuccess={() => navigate("/")} />
-        ) : (
+        {mode === "login" && (
+          <LoginForm
+            onRegister={() => setMode("register")}
+            onForgotPassword={() => setMode("forgot")}
+            onSuccess={() => navigate("/")}
+          />
+        )}
+        {mode === "register" && (
           <RegisterForm onLogin={() => setMode("login")} onSuccess={() => navigate("/")} />
         )}
+        {mode === "forgot" && <ForgotPasswordForm onBack={() => setMode("login")} />}
       </div>
     </div>
   );
 }
 
-function LoginForm({ onRegister, onSuccess }: { onRegister: () => void; onSuccess: () => void }) {
+function LoginForm({
+  onRegister,
+  onForgotPassword,
+  onSuccess,
+}: {
+  onRegister: () => void;
+  onForgotPassword: () => void;
+  onSuccess: () => void;
+}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -85,6 +99,16 @@ function LoginForm({ onRegister, onSuccess }: { onRegister: () => void; onSucces
           />
         </div>
 
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={onForgotPassword}
+            className="text-xs text-[var(--color-primary)] hover:underline"
+          >
+            ¿Olvidaste tu contraseña?
+          </button>
+        </div>
+
         {error && <div className="alert-error">{error}</div>}
 
         <button type="submit" disabled={loading} className="gnome-btn-primary w-full mt-1">
@@ -102,6 +126,120 @@ function LoginForm({ onRegister, onSuccess }: { onRegister: () => void; onSucces
           Registrarse
         </button>
       </p>
+    </div>
+  );
+}
+
+function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      await forgotPassword(email.trim().toLowerCase());
+      setSent(true);
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail;
+      setError(typeof detail === "string" ? detail : "Error al enviar el email. Intentá de nuevo.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-gnome p-6 flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={onBack}
+          className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition flex items-center gap-1"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path
+              d="M10 12L6 8l4-4"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          Volver
+        </button>
+      </div>
+
+      {sent ? (
+        <div className="text-center py-4">
+          <div className="w-12 h-12 rounded-full bg-[var(--green-5,#26a269)]/10 flex items-center justify-center mx-auto mb-3">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              className="text-[var(--green-5,#26a269)]"
+            >
+              <path
+                d="M5 13l4 4L19 7"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+          <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Email enviado</h2>
+          <p className="text-sm text-[var(--text-secondary)] mb-4">
+            Si el email <strong>{email}</strong> está registrado, recibirás un enlace para
+            restablecer tu contraseña.
+          </p>
+          <button type="button" onClick={onBack} className="gnome-btn-primary w-full">
+            Volver al inicio de sesión
+          </button>
+        </div>
+      ) : (
+        <>
+          <div>
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+              Restablecer contraseña
+            </h2>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">
+              Ingresá tu email y te enviaremos un enlace para crear una nueva contraseña.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <label
+                className="text-sm font-medium text-[var(--text-primary)]"
+                htmlFor="forgot-email"
+              >
+                Correo electrónico
+              </label>
+              <input
+                id="forgot-email"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="tu@email.com"
+                required
+                className="input"
+              />
+            </div>
+
+            {error && <div className="alert-error">{error}</div>}
+
+            <button type="submit" disabled={loading} className="gnome-btn-primary w-full mt-1">
+              {loading ? "Enviando..." : "Enviar enlace"}
+            </button>
+          </form>
+        </>
+      )}
     </div>
   );
 }
