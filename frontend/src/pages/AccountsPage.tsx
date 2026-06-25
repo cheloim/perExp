@@ -20,12 +20,7 @@ import {
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
 import { ExpenseModal } from "../components/ExpenseModals";
-import {
-  formatCurrency,
-  toUpperCase,
-  getContrastTextColor,
-  formatDateDMY,
-} from "../utils/format";
+import { formatCurrency, toUpperCase, getContrastTextColor, formatDateDMY } from "../utils/format";
 import EmptyState from "../components/ui/EmptyState";
 
 type CardNetwork = "visa" | "mastercard" | "amex" | "unknown";
@@ -574,10 +569,10 @@ export default function AccountsPage() {
                       const barColor = isActive
                         ? "bg-[var(--color-primary)]"
                         : card.card_type === "credito"
-                          ? "bg-gnomeBlue5"
-                          : card.card_type === "debito"
-                            ? "bg-gnomeGreen5"
-                            : "bg-gnomeOrange5";
+                        ? "bg-gnomeBlue5"
+                        : card.card_type === "debito"
+                        ? "bg-gnomeGreen5"
+                        : "bg-gnomeOrange5";
                       return (
                         <button
                           key={ckey}
@@ -595,8 +590,8 @@ export default function AccountsPage() {
                                   card.card_type === "credito"
                                     ? "bg-gnomeBlue5"
                                     : card.card_type === "debito"
-                                      ? "bg-gnomeGreen5"
-                                      : "bg-gnomeOrange5"
+                                    ? "bg-gnomeGreen5"
+                                    : "bg-gnomeOrange5"
                                 }`}
                               />
                               <span className="text-sm font-medium text-primary truncate">
