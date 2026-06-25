@@ -12,7 +12,6 @@ import {
   Legend,
 } from "recharts";
 import { getDashboard, getCategoryTrend, getTopMerchants } from "../api/client";
-import type { TopMerchant } from "../types";
 import { formatCurrency, MonthSelector, toUpperCase } from "../utils/format";
 import CategoryTreemap from "../components/CategoryTreemap";
 import { useFamilyGroup } from "../context/FamilyGroupContext";

@@ -13,7 +13,6 @@ import type { InstallmentGroup, ExpenseCreate } from "../types";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ExpenseModal } from "../components/ExpenseModals";
 import { formatCurrency, toUpperCase, formatDateDMY, MONTHS_ES_SHORT } from "../utils/format";
-import { useFamilyGroup } from "../context/FamilyGroupContext";
 
 export default function InstallmentsPage() {
   const queryClient = useQueryClient();

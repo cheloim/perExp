@@ -56,7 +56,7 @@ function getMissingDataFields(exp: Expense): string[] {
 }
 
 function groupSmallCategories(
-  data: { category_name: string; category_color: string | null; total: number; count: number }[],
+  data: { category_name: string; category_color: string | null; total: number; count: number; category_id: number | null }[],
   maxItems = 5,
 ) {
   if (data.length <= maxItems) return { shown: data, hidden: [], hiddenTotal: 0 };
@@ -170,11 +170,6 @@ export default function ExpensesPage() {
     queryFn: getMyGroup,
     staleTime: 300_000,
   });
-
-  const hasFamilyGroup =
-    myGroup &&
-    myGroup.members &&
-    myGroup.members.filter((m: any) => m.status === "accepted").length > 1;
 
   // Combined card/account list for bulk selection
   const cardAccountOptions = useMemo(() => {
@@ -881,8 +876,8 @@ export default function ExpensesPage() {
                       checked={expenses.length > 0 && selectedIds.size === expenses.length}
                       onChange={(e) => {
                         const next = e.target.checked
-                          ? new Set(expenses.map((x) => x.id))
-                          : new Set();
+                          ? new Set<number>(expenses.map((x) => x.id))
+                          : new Set<number>();
                         setSelectedIds(next);
                         setDrawerOpen(next.size > 0);
                       }}

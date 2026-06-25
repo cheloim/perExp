@@ -208,7 +208,7 @@ export default function NotificationsPanel({ onClose }: Props) {
 
                 {n.type === "group_invitation" &&
                   (() => {
-                    const data = JSON.parse(n.data || "{}");
+                    const data = n.data;
                     const hasPendingInvite = data.member_id && !n.read;
                     if (!hasPendingInvite) return null;
                     return (

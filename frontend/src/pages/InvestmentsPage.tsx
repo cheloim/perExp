@@ -735,7 +735,7 @@ export default function InvestmentsPage() {
   // ── Aggregate by ticker ───────────────────────────────────────────────────────
   type AggregatedInv = Investment & { brokers: string[]; investments: Investment[] };
 
-  const { aggregated, visible, sorted } = useMemo(() => {
+  const { sorted } = useMemo(() => {
     const tickerMap = new Map<string, AggregatedInv>();
 
     for (const inv of brokerFiltered) {

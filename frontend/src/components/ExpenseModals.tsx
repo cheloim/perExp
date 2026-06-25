@@ -246,7 +246,7 @@ export function ExpenseModal({
   const selectedBank = selectedCard?.bank ?? "";
   const availableCards = cards.filter((c) => !selectedBank || c.bank === selectedBank);
 
-  const handleBankChange = (b: string) => {
+  const handleBankChange = (_b: string) => {
     setForm((prev) => ({ ...prev, card_id: null }));
   };
 

@@ -21,6 +21,14 @@ interface LayoutRect {
   depth: number;
 }
 
+// d3 treemap layout adds x0/y0/x1/y1 to hierarchy nodes at runtime
+type TreemapNode = ReturnType<typeof hierarchy<TreemapDatum>> & {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+};
+
 interface CategoryTreemapProps {
   categories: CategorySummary[];
   selectedCategoryName: string | null;
@@ -76,10 +84,10 @@ function buildHierarchy(categories: CategorySummary[]): TreemapDatum[] {
   return result.sort((a, b) => b.total - a.total);
 }
 
-function flattenLayout(node: ReturnType<typeof hierarchy<TreemapDatum>>): LayoutRect[] {
+function flattenLayout(node: TreemapNode): LayoutRect[] {
   const rects: LayoutRect[] = [];
 
-  function walk(n: ReturnType<typeof hierarchy<TreemapDatum>>) {
+  function walk(n: TreemapNode) {
     rects.push({
       x0: n.x0 ?? 0,
       y0: n.y0 ?? 0,
@@ -91,7 +99,7 @@ function flattenLayout(node: ReturnType<typeof hierarchy<TreemapDatum>>): Layout
 
     if (n.children) {
       for (const child of n.children) {
-        walk(child);
+        walk(child as TreemapNode);
       }
     }
   }
@@ -147,14 +155,16 @@ export default function CategoryTreemap({
   const rects = useMemo(() => {
     if (size.width === 0 || size.height === 0 || data.length === 0) return [];
 
-    const root = hierarchy({
+    const rootData: TreemapDatum = {
       name: "root",
       color: "",
       total: 0,
       count: 0,
       category_id: null,
       children: data,
-    })
+    };
+
+    const root = hierarchy(rootData)
       .sum((d) => d.total)
       .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
 
@@ -167,7 +177,7 @@ export default function CategoryTreemap({
 
     treemapLayout(root);
 
-    return flattenLayout(root);
+    return flattenLayout(root as TreemapNode);
   }, [data, size, grandTotal]);
 
   const leaves = useMemo(

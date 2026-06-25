@@ -14,7 +14,6 @@ import {
   getCardSummary,
   createExpense,
   updateExpense,
-  deleteExpense,
   getExpenseStats,
   getCards,
   getAccounts,
@@ -24,19 +23,10 @@ import { ExpenseModal } from "../components/ExpenseModals";
 import {
   formatCurrency,
   toUpperCase,
-  titleCase,
   getContrastTextColor,
   formatDateDMY,
 } from "../utils/format";
 import EmptyState from "../components/ui/EmptyState";
-
-function TrendIcon({ current, previous }: { current: number; previous: number }) {
-  if (!previous || previous === 0) return null;
-  const pct = ((current - previous) / Math.abs(previous)) * 100;
-  if (Math.abs(pct) < 5) return <span className="text-tertiary text-xs">→</span>;
-  if (pct > 0) return <span className="text-red-500 text-xs font-bold">▲{pct.toFixed(2)}%</span>;
-  return <span className="text-green-500 text-xs font-bold">▼{Math.abs(pct).toFixed(2)}%</span>;
-}
 
 type CardNetwork = "visa" | "mastercard" | "amex" | "unknown";
 
@@ -321,7 +311,7 @@ export default function AccountsPage() {
   const activeAccountId = activeCardEntry?.account_id || null;
 
   // Aggregated stats (lightweight)
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats } = useQuery({
     queryKey: ["expense-stats", month, activeCardKey, activeAccountId],
     queryFn: () =>
       getExpenseStats({
@@ -575,7 +565,7 @@ export default function AccountsPage() {
                       })
                       .sort((a, b) => b.total_amount - a.total_amount);
                     const maxTotal = Math.max(...sorted.map((c) => c.total_amount), 1);
-                    return sorted.map((card, idx) => {
+                    return sorted.map((card) => {
                       const monthEntry = card.monthly?.find((m) => m.month === month);
                       const monthTotal = monthEntry?.total ?? 0;
                       const pct = maxTotal > 0 ? (monthTotal / maxTotal) * 100 : 0;
