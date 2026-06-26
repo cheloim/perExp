@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { createImportJob } from "../api/client";
 import { sidebarIcons } from "./SidebarIcons";
 import { useUploadProgress } from "../context/UploadProgressContext";
+import { showToast } from "../utils/toast";
 
 export default function ImportUploadButton() {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -28,6 +29,8 @@ export default function ImportUploadButton() {
         const job = await createImportJob(file, abortController.signal);
         // Actualizar a processing (el backend ya tiene el job)
         updateUpload(uploadId, { status: "processing", jobId: job.id });
+        // Show toast notification
+        showToast(`Procesando ${file.name}...`, "info", 5000);
       } catch (error: any) {
         // Handle abort error
         if (error.name === "AbortError" || error.name === "CanceledError") {
@@ -35,6 +38,7 @@ export default function ImportUploadButton() {
         } else {
           // Marcar como fallido
           updateUpload(uploadId, { status: "failed", error: error.message });
+          showToast(`Error: ${error.message}`, "error", 5000);
         }
       }
     }

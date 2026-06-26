@@ -12,6 +12,7 @@ import { FamilyGroupProvider } from "./context/FamilyGroupContext";
 import { sidebarIcons } from "./components/SidebarIcons";
 import { getStoredToken } from "./api/client";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { useUndoToast } from "./hooks/useUndoToast";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const AccountsPage = lazy(() => import("./pages/AccountsPage"));
@@ -73,6 +74,7 @@ function MainLayout() {
   const [userPanelOpen, setUserPanelOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [showMoreNav, setShowMoreNav] = useState(false);
+  const { ToastContainer } = useUndoToast();
 
   useEffect(() => {
     const main = document.querySelector("main");
@@ -446,6 +448,7 @@ function MainLayout() {
           {notifOpen && <NotificationsPanel onClose={() => setNotifOpen(false)} />}
         </div>
       </FamilyGroupProvider>
+      <ToastContainer />
     </UploadProgressProvider>
   );
 }
