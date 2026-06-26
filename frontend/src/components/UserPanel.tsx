@@ -553,7 +553,15 @@ export default function UserPanel({ open, onClose }: Props) {
                       </span>
                     </div>
                     <p className="text-xs text-[var(--text-tertiary)]">
-                      Tu bot de Telegram está vinculado y funcionando.
+                      Tu bot de Telegram está vinculado y funcionando.{" "}
+                      <a
+                        href="https://t.me/NikoFin_bot"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        Abrir @NikoFin_bot
+                      </a>
                     </p>
                     <button
                       onClick={() => setShowRegenTelegramConfirm(true)}
