@@ -97,7 +97,7 @@ export function useUndoToast() {
           </div>
         ))}
       </div>
-    ) : null;
+    ) : <></>;
 
   return { show, showInfo, ToastContainer };
 }
