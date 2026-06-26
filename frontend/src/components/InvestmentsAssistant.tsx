@@ -419,6 +419,27 @@ export default function InvestmentsAssistant() {
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Handle keyboard visibility on mobile
+  useEffect(() => {
+    const vp = window.visualViewport;
+    if (!vp) return;
+
+    const update = () => {
+      if (panelRef.current && window.innerWidth < 640) {
+        panelRef.current.style.height = `${vp.height}px`;
+        panelRef.current.style.top = `${vp.offsetTop}px`;
+      }
+    };
+
+    vp.addEventListener("resize", update);
+    vp.addEventListener("scroll", update);
+    return () => {
+      vp.removeEventListener("resize", update);
+      vp.removeEventListener("scroll", update);
+    };
+  }, []);
 
   const { data: investments = [] } = useQuery({
     queryKey: ["investments"],
@@ -725,7 +746,7 @@ export default function InvestmentsAssistant() {
       {isCollapsed && (
         <button
           onClick={() => setIsCollapsed(false)}
-          className="fixed right-4 bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] md:bottom-6 z-50 w-10 h-10 bg-[var(--color-primary)] hover:brightness-110 rounded-full shadow-lg flex items-center justify-center text-[var(--color-on-primary)] transition-all duration-200"
+          className="fixed right-4 bottom-[calc(3.5rem+var(--browser-bottom-inset,0px))] md:bottom-6 z-50 w-10 h-10 bg-[var(--color-primary)] hover:brightness-110 rounded-full shadow-lg flex items-center justify-center text-[var(--color-on-primary)] transition-all duration-200"
           title="Abrir Asistente de Inversiones"
         >
           <BoltIcon />

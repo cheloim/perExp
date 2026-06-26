@@ -13,7 +13,7 @@
     display: none;
   }
   .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-bottom: var(--browser-bottom-inset, env(safe-area-inset-bottom, 0px));
   }
 }
 
