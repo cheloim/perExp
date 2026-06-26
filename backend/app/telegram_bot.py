@@ -422,12 +422,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     finally:
         db.close()
 
-    await update.message.reply_text(
-        "👋 ¡Hola! Soy *NikoFin*\\, tu asistente de finanzas personales\\.\n\n"
-        "Para conectarte con tu cuenta\\, ingresá tu clave de 12 caracteres\\.\n"
-        "La encontrás en la app → Configuración → Telegram Bot\\.",
-        parse_mode="MarkdownV2",
-    )
+        await update.message.reply_text(
+            "👋 ¡Hola! Soy *NikoFin*\\, tu asistente de finanzas personales\\.\n\n"
+            "Para conectarte con tu cuenta\\, ingresá tu clave de 12 caracteres\\.\n"
+            "La encontrás en la app → Configuración → Telegram Bot\\.",
+            parse_mode="Markdown",
+        )
     return WAITING_AUTH
 
 
@@ -453,7 +453,7 @@ async def handle_auth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             '• _"Netflix USD 5"_\n\n'
             "Yo me encargo del resto 📊\n"
             "Te voy a mostrar el gasto parseado y te voy a pedir que confirmes el medio de pago\\.",
-            parse_mode="MarkdownV2",
+            parse_mode="Markdown",
         )
         return ConversationHandler.END
     finally:

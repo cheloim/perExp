@@ -572,11 +572,19 @@ export default function UserPanel({ open, onClose }: Props) {
                       </span>
                     </div>
                     <p className="text-xs text-[var(--text-tertiary)]">
-                      Enviá{" "}
+                      Abrí{" "}
+                      <a
+                        href="https://t.me/NikoFin_bot"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        @NikoFin_bot
+                      </a>{" "}
+                      y enviá{" "}
                       <span className="font-mono bg-[var(--color-base-alt)] px-1 rounded">
                         /start
-                      </span>{" "}
-                      al bot y pegá esta clave para autenticarte.
+                      </span>
                     </p>
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
