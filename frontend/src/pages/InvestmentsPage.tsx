@@ -896,9 +896,9 @@ export default function InvestmentsPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen">
-      {/* Fixed header section */}
-      <div className="flex-shrink-0 max-h-[45vh] overflow-y-auto space-y-6 px-6 pt-6">
+    <div className="flex flex-col min-h-0 h-full">
+      {/* Header section */}
+      <div className="space-y-6 px-6 pt-6 pb-4">
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold text-primary">Inversiones</h1>
@@ -1282,11 +1282,11 @@ export default function InvestmentsPage() {
         )}
       </div>
 
-      {/* Scrollable table area */}
-      <div className="flex-1 min-h-0 px-6 pb-6 pt-4">
+      {/* Table area */}
+      <div className="px-6 pb-6 pt-4">
         {/* Holdings table */}
-        <div className="card h-full overflow-hidden flex flex-col">
-          <div className="overflow-y-auto flex-1">
+        <div className="card overflow-hidden flex flex-col">
+          <div className="overflow-y-auto">
             <table className="w-full text-sm">
               <thead className="bg-[var(--color-surface)] border-b border-[var(--border-color)] sticky top-0 z-10 flex-none">
                 <tr>
