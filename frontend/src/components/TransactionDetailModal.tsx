@@ -3,17 +3,16 @@ import type { SmartImportRow } from "../types";
 import { toUpperCase } from "../utils/format";
 
 interface TransactionDetailModalProps {
-  isOpen: boolean;
   row: SmartImportRow | null;
   onClose: () => void;
 }
 
-export function TransactionDetailModal({ isOpen, row, onClose }: TransactionDetailModalProps) {
+export function TransactionDetailModal({ row, onClose }: TransactionDetailModalProps) {
   if (!row) return null;
 
   return (
     <DetailModal
-      isOpen={isOpen}
+      isOpen={!!row}
       onClose={onClose}
       title={toUpperCase(row.description)}
       subtitle={row.date}
