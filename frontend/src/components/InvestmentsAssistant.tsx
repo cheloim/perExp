@@ -725,7 +725,7 @@ export default function InvestmentsAssistant() {
       {isCollapsed && (
         <button
           onClick={() => setIsCollapsed(false)}
-          className="fixed right-4 bottom-6 z-50 w-10 h-10 bg-[var(--color-primary)] hover:brightness-110 rounded-full shadow-lg flex items-center justify-center text-[var(--color-on-primary)] transition-all duration-200"
+          className="fixed right-4 bottom-20 md:bottom-6 z-50 w-10 h-10 bg-[var(--color-primary)] hover:brightness-110 rounded-full shadow-lg flex items-center justify-center text-[var(--color-on-primary)] transition-all duration-200"
           title="Abrir Asistente"
         >
           <BoltIcon />

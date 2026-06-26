@@ -340,7 +340,10 @@ export default function Dashboard() {
           </p>
         </div>
         {(savingsArs > 0 || totalUsd > 0) && (
-          <div className="card p-4">
+          <div
+            className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
+            onClick={() => navigate("/investments")}
+          >
             <p className="text-[10px] text-tertiary uppercase mb-1">Inversiones</p>
             <div className="space-y-0.5">
               <p className="text-sm font-bold text-primary">

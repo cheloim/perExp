@@ -438,7 +438,7 @@ function MainLayout() {
             {!aiDrawerOpen && !isInvestments && (
               <button
                 onClick={() => toggleDrawer(true)}
-                className="fixed bottom-4 md:bottom-6 right-4 md:right-6 z-50 flex items-center justify-center w-10 h-10 bg-primary hover:brightness-110 text-white rounded-md shadow-gnome hover:shadow-gnome-lg scale-100 hover:scale-105 transition-all duration-150"
+                className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-50 flex items-center justify-center w-10 h-10 bg-primary hover:brightness-110 text-white rounded-md shadow-gnome hover:shadow-gnome-lg scale-100 hover:scale-105 transition-all duration-150"
                 title="Abrir asistente IA"
               >
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
