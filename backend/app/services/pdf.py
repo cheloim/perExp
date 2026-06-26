@@ -205,6 +205,65 @@ def filter_text_by_section(text: str, section_start: int, section_end: int) -> s
     return "\n".join(lines[section_start:section_end])
 
 
+def extract_holder_from_header(header_text: str) -> str:
+    """
+    Extract holder name from card section header text.
+    Examples:
+      "TARJETA ADICIONAL - PEREZ, JUAN - Mastercard terminada en 1108" → "PEREZ, JUAN"
+      "Visa terminada en 8130 - MARCELO MENDOZA" → "MARCELO MENDOZA"
+      "Visa terminada en 8130" → ""
+    """
+    if not header_text:
+        return ""
+
+    # Pattern 1: "TARJETA ADICIONAL - NAME - ..."
+    m = re.search(r"adicional\s*[-:]\s*(.+?)\s*[-:]", header_text, re.IGNORECASE)
+    if m:
+        name = m.group(1).strip()
+        # Skip if it's just "TARJETA" or a card type
+        if name.lower() not in ("tarjeta", "visa", "mastercard", "amex", "naranja", "cabal"):
+            return name
+
+    # Pattern 2: "CardType terminada en XXXX - NAME" or "CardType terminada en XXXX NAME"
+    m = re.search(r"terminad[oa]\s+en\s+\d{4}\s*[-:]\s*(.+)", header_text, re.IGNORECASE)
+    if m:
+        name = m.group(1).strip()
+        # Skip if it's just a card type or bank
+        if name.lower() not in ("", "visa", "mastercard", "amex", "naranja", "cabal"):
+            return name
+
+    # Pattern 3: "CardType terminada en XXXX NAME" (no separator)
+    m = re.search(r"terminad[oa]\s+en\s+\d{4}\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)*)", header_text)
+    if m:
+        name = m.group(1).strip()
+        if name.lower() not in ("visa", "mastercard", "amex", "naranja", "cabal"):
+            return name
+
+    return ""
+
+
+def get_section_headers(text: str) -> list[str]:
+    """
+    Get the header text for each card section.
+    Returns list of header texts in order of appearance.
+    """
+    lines = text.split("\n")
+    marker_re = re.compile(r"\[TARJETA_LAST4:\s*(\d{4})\]")
+    headers = []
+
+    for i, line in enumerate(lines):
+        if marker_re.search(line):
+            # Look back for the header (up to 5 lines before the marker)
+            header_lines = []
+            for j in range(max(0, i - 5), i):
+                stripped = lines[j].strip()
+                if stripped and not marker_re.search(stripped):
+                    header_lines.insert(0, stripped)
+            headers.append(" ".join(header_lines) if header_lines else "")
+
+    return headers
+
+
 def _clean_text_for_llm(text: str) -> str:
     """
     Pre-process text before sending to LLM to reduce token usage.

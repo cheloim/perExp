@@ -32,6 +32,10 @@ from app.services.pdf import (
     _extract_pdf_text,
     _inject_card_markers,
     _normalize_santander_dates,
+    extract_card_sections,
+    extract_holder_from_header,
+    filter_text_by_section,
+    get_section_headers,
 )
 
 
@@ -195,8 +199,42 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
     if not raw_text.strip():
         raise ValueError("No se pudo extraer contenido del archivo.")
 
-    # Step 2: Clean text for LLM
-    # Note: Section filtering is done AFTER LLM returns, using card_holder matching
+    # Step 2: Filter by holder name BEFORE LLM
+    # Identify card sections and keep only those matching user's full_name
+    user = db.query(User).filter(User.id == user_id).first()
+    if user and user.full_name:
+        user_first, user_last = _parse_full_name(user.full_name)
+        sections = extract_card_sections(raw_text)
+        headers = get_section_headers(raw_text)
+
+        if len(sections) > 1 and (user_first or user_last):
+            # Multiple sections found - filter to matching sections only
+            matching_sections = []
+            for idx, section in enumerate(sections):
+                header = headers[idx] if idx < len(headers) else ""
+                holder = extract_holder_from_header(header)
+
+                if not holder:
+                    # No holder name in header - check if any transaction in this section has a holder
+                    # If not, assume it's the main card (keep it)
+                    matching_sections.append(section)
+                elif _holder_matches_user(holder, user_first, user_last):
+                    matching_sections.append(section)
+
+            if matching_sections:
+                # Filter to keep only matching sections (and everything before first section for metadata)
+                first_section_start = matching_sections[0]["start"]
+                # Keep header content (closing dates, totals) before first section
+                header_lines = raw_text.split("\n")[:first_section_start]
+                # Build filtered text: header + matching sections
+                filtered_parts = header_lines
+                for section in matching_sections:
+                    section_text = filter_text_by_section(raw_text, section["start"], section["end"])
+                    filtered_parts.extend(section_text.split("\n"))
+                raw_text = "\n".join(filtered_parts)
+                _log(f"[HOLDER FILTER] Kept {len(matching_sections)}/{len(sections)} sections (filtered by user name)")
+
+    # Step 3: Clean text for LLM
     raw_text = _clean_text_for_llm(raw_text)
 
     closing_info = {
@@ -332,9 +370,8 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
         raw_currency = str(r.get("currency", "") or "").strip().upper()
         currency = "USD" if raw_currency == "USD" else "ARS"
 
-        # Use card_header and card_holder from LLM
+        # Use card_header from LLM
         card_header = str(r.get("card_header", "") or "").strip()
-        card_holder = str(r.get("card_holder", "") or "").strip()
 
         parsed.append(
             {
@@ -344,7 +381,6 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
                 "amount": amount,
                 "currency": currency,
                 "card_header": card_header,
-                "card_holder": card_holder,
                 "transaction_id": txn_id,
                 "installment_number": inst_num,
                 "installment_total": inst_total,
@@ -363,25 +399,7 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
             p["_date_obj"] = last_known_date
             p["date"] = last_known_raw
 
-    # Step 5: Filter by card_holder matching user's full_name
-    user = db.query(User).filter(User.id == user_id).first()
-    if user and user.full_name:
-        user_first, user_last = _parse_full_name(user.full_name)
-        if user_first or user_last:
-            # Check if any rows have card_holder data
-            has_holders = any(p.get("card_holder") for p in parsed)
-            if has_holders:
-                original_count = len(parsed)
-                parsed = [
-                    p for p in parsed
-                    if not p.get("card_holder")  # Keep rows without holder (single card)
-                    or _holder_matches_user(p["card_holder"], user_first, user_last)
-                ]
-                filtered_count = original_count - len(parsed)
-                if filtered_count > 0:
-                    _log(f"[HOLDER FILTER] Filtered {filtered_count} extension transactions (kept {len(parsed)})")
-
-    # Step 6: Expand installments (generates future scheduled expenses)
+    # Step 5: Expand installments (generates future scheduled expenses)
     expenses_list, scheduled_list = _expand_installments(
         parsed, db, user_id, closing_date=closing_info.get("closing_date")
     )

@@ -366,7 +366,6 @@ def parse_csv_expenses(content: bytes, filename: str, db, user_id: int):
             )
 
     summary = {
-        "card_last4": list(unique_last4)[0] if unique_last4 else "",
         "card_type": "Visa",
         "bank": card_lookup.get(list(unique_last4)[0], {}).get("bank", "") if unique_last4 else "",
         "closing_date": closing_date.isoformat() if closing_date else None,
