@@ -117,6 +117,13 @@ function MainLayout() {
     };
   }, []);
 
+  // VirtualKeyboard API — overlay keyboard instead of resizing viewport
+  useEffect(() => {
+    if ("virtualKeyboard" in navigator) {
+      (navigator as any).virtualKeyboard.overlaysContent = true;
+    }
+  }, []);
+
   const toggleDrawer = (open: boolean) => {
     setAiDrawerOpen(open);
     try {
