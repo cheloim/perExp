@@ -898,10 +898,10 @@ export default function InvestmentsPage() {
   return (
     <div className="flex flex-col h-screen">
       {/* Fixed header section */}
-      <div className="px-6 pt-6 pb-4 space-y-4">
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Inversiones</h1>
+          <h1 className="text-2xl font-semibold text-primary">Inversiones</h1>
           <div className="flex flex-wrap items-center gap-2">
             {/* Sync status toast */}
             {syncMsg && (
