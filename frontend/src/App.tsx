@@ -29,7 +29,7 @@ const TABS = [
   { path: "/", label: "Inicio", icon: "home", exact: true },
   { path: "/accounts", label: "Cuentas", icon: "accounts", exact: false },
   { path: "/expenses", label: "Gastos", icon: "expenses", exact: false },
-  { path: "/cat-dashboard", label: "Por Categoría", icon: "catDashboard", exact: false },
+  { path: "/cat-dashboard", label: "Categorías", icon: "catDashboard", exact: false },
   { path: "/installments", label: "Cuotas", icon: "installments", exact: false },
   { path: "/investments", label: "Inversiones", icon: "investments", exact: false },
   { path: "/categories", label: "Config. Categorías", icon: "settings", exact: false },
@@ -247,7 +247,7 @@ function MainLayout() {
 
           {/* Main content */}
           <div
-            className={`pl-16 flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ${
+            className={`md:pl-16 flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ${
               isInvestments ? (isCollapsed ? "mr-0" : `mr-0 sm:mr-[${panelWidth}px]`) : "mr-0"
             }`}
             style={isInvestments && !isCollapsed ? { marginRight: panelWidth } : undefined}
@@ -396,6 +396,18 @@ function MainLayout() {
                 <>
                   <div className="fixed inset-0 z-30" onClick={() => setShowMoreNav(false)} />
                   <div className="absolute bottom-full right-2 mb-2 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-lg py-2 min-w-[180px] z-40">
+                    {/* User account button */}
+                    <button
+                      onClick={() => {
+                        setShowMoreNav(false);
+                        setUserPanelOpen(true);
+                      }}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--text-primary)] hover:bg-[var(--color-base-alt)] transition-colors w-full"
+                    >
+                      <span className="w-5 h-5">{sidebarIcons.user}</span>
+                      <span>Mi cuenta</span>
+                    </button>
+                    <div className="border-t border-[var(--border-color)] my-1" />
                     {TABS.slice(4).map((tab) => (
                       <NavLink
                         key={tab.path}

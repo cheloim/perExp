@@ -248,7 +248,7 @@ export default function CategoryDashboard() {
       <div className="flex items-center justify-between gap-4 px-1">
         <div className="flex items-center gap-3">
           <h1 className="text-lg font-semibold text-[var(--text-primary)] tracking-tight">
-            Por Categoría
+            Categorías
           </h1>
           {activeSelection && (
             <span className="text-sm text-[var(--text-tertiary)]">/ {activeSelection.name}</span>
