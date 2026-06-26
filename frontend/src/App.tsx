@@ -276,7 +276,7 @@ function MainLayout() {
 
           {/* Main content */}
           <div
-            className={`md:pl-16 flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ${
+            className={`md:pl-16 pb-14 flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ${
               isInvestments ? (isCollapsed ? "mr-0" : `mr-0 sm:mr-[${panelWidth}px]`) : "mr-0"
             }`}
             style={isInvestments && !isCollapsed ? { marginRight: panelWidth } : undefined}
@@ -397,7 +397,7 @@ function MainLayout() {
             </main>
 
             {/* Mobile bottom nav */}
-            <nav className="md:hidden border-t border-[var(--border-color)] bg-sidebar flex items-center justify-around pb-safe pt-1 z-40 fixed bottom-0 translate-y-[var(--browser-bottom-inset)]">
+            <nav className="md:hidden border-t border-[var(--border-color)] bg-sidebar flex items-center justify-around pb-safe pt-1 z-40 fixed inset-x-0 bottom-0 translate-y-[var(--browser-bottom-inset)]">
               {TABS.slice(0, 4).map((tab) => (
                 <NavLink
                   key={tab.path}
