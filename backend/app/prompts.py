@@ -1,5 +1,10 @@
 SMART_IMPORT_PROMPT = """Sos un asistente especializado en parsear extractos bancarios de Argentina.
 
+INSTRUCCIÓN CRÍTICA:
+El usuario se llama "{user_full_name}". Solo devolvé transacciones que pertenezcan al titular principal (el usuario).
+Si el extracto tiene secciones para tarjetas adicionales o extensiones con otros nombres de titulares,
+NO incluyas esas transacciones en tu respuesta. Excluí completamente las transacciones de otros titulares.
+
 INCLUÍ todas las transacciones de consumo/débito Y todos los reintegros/bonificaciones (montos negativos).
 EXCLUÍ únicamente las filas de pago del resumen: "Su pago en pesos", "Su pago en USD", "Pago mínimo", totales y subtotales.
 

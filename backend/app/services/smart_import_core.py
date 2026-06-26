@@ -22,7 +22,6 @@ from app.services.import_utils import (
     _is_duplicate,
     _is_scheduled_duplicate,
     _load_dataframe,
-    _log,
 )
 from app.services.normalizers import (
     normalize_bank,
@@ -32,10 +31,6 @@ from app.services.pdf import (
     _extract_pdf_text,
     _inject_card_markers,
     _normalize_santander_dates,
-    extract_card_sections,
-    extract_holder_from_header,
-    filter_text_by_section,
-    get_section_headers,
 )
 
 
@@ -199,42 +194,9 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
     if not raw_text.strip():
         raise ValueError("No se pudo extraer contenido del archivo.")
 
-    # Step 2: Filter by holder name BEFORE LLM
-    # Identify card sections and keep only those matching user's full_name
+    # Step 2: Get user's full name for LLM filtering
     user = db.query(User).filter(User.id == user_id).first()
-    if user and user.full_name:
-        user_first, user_last = _parse_full_name(user.full_name)
-        sections = extract_card_sections(raw_text)
-        headers = get_section_headers(raw_text)
-
-        if len(sections) > 1 and (user_first or user_last):
-            # Multiple sections found - filter to matching sections only
-            matching_sections = []
-            for idx, section in enumerate(sections):
-                header = headers[idx] if idx < len(headers) else ""
-                holder = extract_holder_from_header(header)
-
-                # Only keep sections where holder name matches user's full_name
-                if holder and _holder_matches_user(holder, user_first, user_last):
-                    matching_sections.append(section)
-
-            if matching_sections:
-                # Filter to keep only matching sections (and everything before first section for metadata)
-                first_section_start = matching_sections[0]["start"]
-                # Keep header content (closing dates, totals) before first section
-                header_lines = raw_text.split("\n")[:first_section_start]
-                # Build filtered text: header + matching sections
-                filtered_parts = header_lines
-                for section in matching_sections:
-                    section_text = filter_text_by_section(raw_text, section["start"], section["end"])
-                    filtered_parts.extend(section_text.split("\n"))
-                raw_text = "\n".join(filtered_parts)
-                _log(f"[HOLDER FILTER] Kept {len(matching_sections)}/{len(sections)} sections (filtered by user name)")
-            else:
-                # No sections matched user's name - keep only header (no transactions)
-                header_lines = raw_text.split("\n")[:sections[0]["start"]]
-                raw_text = "\n".join(header_lines)
-                _log("[HOLDER FILTER] No sections matched user name - keeping header only")
+    user_full_name = user.full_name if user else ""
 
     # Step 3: Clean text for LLM
     raw_text = _clean_text_for_llm(raw_text)
@@ -252,14 +214,15 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
         "future_charges_usd": None,
     }
 
-    # Step 2: Call LLM
+    # Step 4: Call LLM with user name for filtering
     client = genai.Client(api_key=api_key)
+    prompt_with_context = SMART_IMPORT_PROMPT.replace("{user_full_name}", user_full_name)
     try:
         response = await client.aio.models.generate_content(
             model="gemini-flash-latest",
             contents=f"Extracto bancario:\n\n{raw_text[:20000]}",
             config=genai_types.GenerateContentConfig(
-                system_instruction=SMART_IMPORT_PROMPT,
+                system_instruction=prompt_with_context,
                 response_mime_type="application/json",
             ),
         )
