@@ -329,13 +329,16 @@ async def confirm_import_job(
                 card_obj, _ = find_or_create_card(
                     mapping_entry.get("bank", ""),
                     mapping_entry.get("card_name", ""),
-                    mapping_entry.get("holder", user.full_name.split()[0] if user.full_name else ""),
+                    mapping_entry.get(
+                        "holder", user.full_name.split()[0] if user.full_name else ""
+                    ),
                     mapping_entry.get("card_type", "credito"),
                 )
                 card_id = card_obj.id
             else:
                 # Fallback: create card from card_header
                 from app.services.smart_import_core import _parse_card_header
+
                 detected_bank, detected_card = _parse_card_header(card_header)
                 card_obj, _ = find_or_create_card(
                     detected_bank or "",

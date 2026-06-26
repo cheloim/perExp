@@ -59,7 +59,9 @@ def _parse_card_header(header: str) -> tuple[str, str]:
             # Remove card type from header to get bank
             remainder = re.sub(ct, "", header, flags=re.IGNORECASE).strip()
             # Remove "terminada en XXXX" pattern
-            remainder = re.sub(r"terminad[oa]\s+en\s+\d+", "", remainder, flags=re.IGNORECASE).strip()
+            remainder = re.sub(
+                r"terminad[oa]\s+en\s+\d+", "", remainder, flags=re.IGNORECASE
+            ).strip()
             if remainder:
                 detected_bank = normalize_bank(remainder)
             break
@@ -394,7 +396,9 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
                 "detected_card": detected_card,
                 "card_type": card_type,
                 "matched_card_id": matched_card.id if matched_card else None,
-                "matched_card_name": f"{matched_card.card_name} {matched_card.bank}" if matched_card else None,
+                "matched_card_name": f"{matched_card.card_name} {matched_card.bank}"
+                if matched_card
+                else None,
                 "transaction_count": len(txns),
             }
         )

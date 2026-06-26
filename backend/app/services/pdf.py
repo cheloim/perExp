@@ -233,7 +233,10 @@ def extract_holder_from_header(header_text: str) -> str:
             return name
 
     # Pattern 3: "CardType terminada en XXXX NAME" (no separator)
-    m = re.search(r"terminad[oa]\s+en\s+\d{4}\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)*)", header_text)
+    m = re.search(
+        r"terminad[oa]\s+en\s+\d{4}\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)*)",
+        header_text,
+    )
     if m:
         name = m.group(1).strip()
         if name.lower() not in ("visa", "mastercard", "amex", "naranja", "cabal"):
