@@ -214,11 +214,8 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
                 header = headers[idx] if idx < len(headers) else ""
                 holder = extract_holder_from_header(header)
 
-                if not holder:
-                    # No holder name in header - check if any transaction in this section has a holder
-                    # If not, assume it's the main card (keep it)
-                    matching_sections.append(section)
-                elif _holder_matches_user(holder, user_first, user_last):
+                # Only keep sections where holder name matches user's full_name
+                if holder and _holder_matches_user(holder, user_first, user_last):
                     matching_sections.append(section)
 
             if matching_sections:
@@ -233,6 +230,11 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
                     filtered_parts.extend(section_text.split("\n"))
                 raw_text = "\n".join(filtered_parts)
                 _log(f"[HOLDER FILTER] Kept {len(matching_sections)}/{len(sections)} sections (filtered by user name)")
+            else:
+                # No sections matched user's name - keep only header (no transactions)
+                header_lines = raw_text.split("\n")[:sections[0]["start"]]
+                raw_text = "\n".join(header_lines)
+                _log("[HOLDER FILTER] No sections matched user name - keeping header only")
 
     # Step 3: Clean text for LLM
     raw_text = _clean_text_for_llm(raw_text)

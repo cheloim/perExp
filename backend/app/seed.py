@@ -193,16 +193,6 @@ BASE_HIERARCHY = [
             },
         ],
     },
-    {
-        "parent": {"name": "Ingresos", "color": "#10b981"},
-        "children": [
-            {
-                "name": "Haberes",
-                "color": "#34d399",
-                "keywords": "sueldo,salario,cobro,nómina,nomina,haberes,pago,ingreso,salary",
-            },
-        ],
-    },
 ]
 
 

@@ -37,6 +37,11 @@ export default function ImportJobPreview() {
     queryFn: () => getImportJob(Number(jobId)),
     enabled: !!jobId,
     retry: false,
+    refetchInterval: (query) => {
+      const job = query.state.data;
+      if (job?.status === "PROCESSING") return 3000;
+      return false;
+    },
   });
 
   const { data: userCards = [] } = useQuery({
@@ -64,6 +69,7 @@ export default function ImportJobPreview() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["import-jobs"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-count"] });
       navigate("/expenses");
     },
   });
