@@ -116,7 +116,7 @@ function MainLayout() {
                 A
               </div>
               <span className="text-sm font-semibold text-[var(--color-on-sidebar)] whitespace-nowrap overflow-hidden w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300 tracking-tight">
-                Financial Planning
+                NikoFin
               </span>
             </div>
 
@@ -259,7 +259,7 @@ function MainLayout() {
                   A
                 </div>
                 <span className="font-semibold text-[var(--color-on-sidebar)] tracking-tight">
-                  Financial Planning
+                  NikoFin
                 </span>
               </div>
             </header>

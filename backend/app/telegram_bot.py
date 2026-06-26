@@ -416,7 +416,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         user = db.query(User).filter(User.telegram_chat_id == chat_id).first()
         if user:
             await update.message.reply_text(
-                f"Ya estás autenticado como *{user.full_name}*. Enviame un gasto.",
+                f"¡Hola de nuevo, *{user.full_name}*! 🎉 ¿Qué gastaste hoy?",
                 parse_mode="Markdown",
             )
             return ConversationHandler.END
@@ -424,8 +424,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         db.close()
 
     await update.message.reply_text(
-        "Hola! Para usar el bot, ingresá tu clave de 12 caracteres.\n"
-        "La encontrás en la app → Configuración → Telegram Bot."
+        "👋 ¡Hola! Soy *NikoFin*\\, tu asistente de finanzas personales\\.\n\n"
+        "Para conectarte con tu cuenta\\, ingresá tu clave de 12 caracteres\\.\n"
+        "La encontrás en la app → Configuración → Telegram Bot\\.",
+        parse_mode="MarkdownV2",
     )
     return WAITING_AUTH
 
@@ -444,17 +446,14 @@ async def handle_auth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         db.commit()
         db.refresh(user)
         await update.message.reply_text(
-            f"✅ Autenticado como *{user.full_name}*\\.\n\n"
-            "Para registrar un gasto, mandame un mensaje describiendo lo que gastaste\\. "
-            "Podés ser tan informal como quieras:\n\n"
+            f"🎉 ¡Listo\\, *{user.full_name}*! Ya podés mandarme tus gastos\\.\n\n"
+            "Escribime como le contarías a un amigo:\n\n"
             '• _"gasté 1500 en farmacity"_\n'
             '• _"uber 3200 ayer"_\n'
             '• _"almuerzo con Pedro 8500 pesos"_\n'
             '• _"Netflix USD 5"_\n\n'
-            "Te voy a mostrar el gasto parseado y te voy a pedir que confirmes el medio de pago\\. "
-            'Por ejemplo, si mandás *"uber 3200"* te respondo así:\n\n'
-            "▸ *Uber* — $3\\.200 \\(hoy\\)\n"
-            "  ¿Cómo pagaste?  💵 Efectivo · 🔁 Transferencia · 💳 Tarjeta",
+            "Yo me encargo del resto 📊\n"
+            "Te voy a mostrar el gasto parseado y te voy a pedir que confirmes el medio de pago\\.",
             parse_mode="MarkdownV2",
         )
         return ConversationHandler.END
@@ -463,14 +462,15 @@ async def handle_auth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
 
 _HELP_TEXT = (
-    "Registrá tus gastos escribiéndome de forma natural, como le contarías a alguien:\n\n"
+    "📝 *Así registrás tus gastos con NikoFin:*\n\n"
+    "Escribime de forma natural\\, como le contarías a un amigo:\n\n"
     '• _"farmacity 3200"_\n'
     '• _"almuerzo con el equipo 8500 pesos"_\n'
     '• _"uber ayer 1800"_\n'
     '• _"Netflix USD 5"_\n'
     '• _"cargué nafta 15000 el viernes"_\n\n'
-    "No hace falta ser preciso con el formato. "
-    "Te voy a pedir el medio de pago y antes de guardar te muestro un resumen para que confirmes."
+    "No hace falta ser preciso con el formato\\.\n"
+    "Yo te voy a pedir el medio de pago y antes de guardar te muestro un resumen para que confirmes\\."
 )
 
 _UNRECOGNIZED_MESSAGES = [
