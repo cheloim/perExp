@@ -726,7 +726,7 @@ export default function InvestmentsAssistant() {
         <button
           onClick={() => setIsCollapsed(false)}
           className="fixed right-4 bottom-20 md:bottom-6 z-50 w-10 h-10 bg-[var(--color-primary)] hover:brightness-110 rounded-full shadow-lg flex items-center justify-center text-[var(--color-on-primary)] transition-all duration-200"
-          title="Abrir Asistente"
+          title="Abrir Asistente de Inversiones"
         >
           <BoltIcon />
         </button>
@@ -734,7 +734,7 @@ export default function InvestmentsAssistant() {
 
       {/* Side panel - floating above content */}
       {!isCollapsed && !isExpanded && (
-        <div className="fixed right-0 top-0 h-full bg-[var(--color-surface)] border-l border-[var(--border-color)] shadow-lg z-50 flex flex-col w-full sm:w-96 overflow-hidden">
+        <div className="fixed inset-x-0 bottom-0 sm:inset-auto sm:right-0 sm:top-0 h-[60dvh] sm:h-full bg-[var(--color-surface)] border-t sm:border-t-0 sm:border-l border-[var(--border-color)] shadow-lg z-50 flex flex-col w-full sm:w-96 overflow-hidden rounded-t-lg sm:rounded-none">
           {headerJsx}
           {toolbarJsx}
           <div className="flex-1 overflow-y-auto min-h-0">
