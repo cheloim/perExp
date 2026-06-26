@@ -898,7 +898,7 @@ export default function InvestmentsPage() {
   return (
     <div className="flex flex-col h-screen">
       {/* Fixed header section */}
-      <div className="flex-shrink-0 space-y-6 px-6 pt-6">
+      <div className="flex-shrink-0 max-h-[45vh] overflow-y-auto space-y-6 px-6 pt-6">
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold text-primary">Inversiones</h1>
