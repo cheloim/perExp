@@ -169,3 +169,171 @@ def _inject_card_markers(text: str) -> str:
 def _inject_csv_card_markers(text: str) -> str:
     """Eliminado - markers de ultimos 4 digitos ya no necesarios"""
     return text
+
+
+def extract_card_sections(text: str) -> list[dict]:
+    """
+    Identify card sections in text by [TARJETA_LAST4: XXXX] markers.
+    Returns a list of sections: [{ last4: str, start: int, end: int }]
+    where start/end are line numbers (0-indexed).
+    """
+    lines = text.split("\n")
+    sections = []
+    marker_re = re.compile(r"\[TARJETA_LAST4:\s*(\d{4})\]")
+
+    for i, line in enumerate(lines):
+        m = marker_re.search(line)
+        if m:
+            sections.append({"last4": m.group(1), "start": i, "end": None})
+
+    # Set end for each section
+    for idx in range(len(sections)):
+        if idx + 1 < len(sections):
+            sections[idx]["end"] = sections[idx + 1]["start"]
+        else:
+            sections[idx]["end"] = len(lines)
+
+    return sections
+
+
+def filter_text_by_section(text: str, section_start: int, section_end: int) -> str:
+    """
+    Keep only lines within a specific section (by line numbers).
+    section_start is inclusive, section_end is exclusive.
+    """
+    lines = text.split("\n")
+    return "\n".join(lines[section_start:section_end])
+
+
+def extract_holder_from_header(header_text: str) -> str:
+    """
+    Extract holder name from card section header text.
+    Examples:
+      "TARJETA ADICIONAL - PEREZ, JUAN - Mastercard terminada en 1108" → "PEREZ, JUAN"
+      "Visa terminada en 8130 - MARCELO MENDOZA" → "MARCELO MENDOZA"
+      "Visa terminada en 8130" → ""
+    """
+    if not header_text:
+        return ""
+
+    # Pattern 1: "TARJETA ADICIONAL - NAME - ..."
+    m = re.search(r"adicional\s*[-:]\s*(.+?)\s*[-:]", header_text, re.IGNORECASE)
+    if m:
+        name = m.group(1).strip()
+        # Skip if it's just "TARJETA" or a card type
+        if name.lower() not in ("tarjeta", "visa", "mastercard", "amex", "naranja", "cabal"):
+            return name
+
+    # Pattern 2: "CardType terminada en XXXX - NAME" or "CardType terminada en XXXX NAME"
+    m = re.search(r"terminad[oa]\s+en\s+\d{4}\s*[-:]\s*(.+)", header_text, re.IGNORECASE)
+    if m:
+        name = m.group(1).strip()
+        # Skip if it's just a card type or bank
+        if name.lower() not in ("", "visa", "mastercard", "amex", "naranja", "cabal"):
+            return name
+
+    # Pattern 3: "CardType terminada en XXXX NAME" (no separator)
+    m = re.search(
+        r"terminad[oa]\s+en\s+\d{4}\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)*)",
+        header_text,
+    )
+    if m:
+        name = m.group(1).strip()
+        if name.lower() not in ("visa", "mastercard", "amex", "naranja", "cabal"):
+            return name
+
+    return ""
+
+
+def get_section_headers(text: str) -> list[str]:
+    """
+    Get the header text for each card section.
+    Returns list of header texts in order of appearance.
+    """
+    lines = text.split("\n")
+    marker_re = re.compile(r"\[TARJETA_LAST4:\s*(\d{4})\]")
+    headers = []
+
+    for i, line in enumerate(lines):
+        if marker_re.search(line):
+            # Look back for the header (up to 5 lines before the marker)
+            header_lines = []
+            for j in range(max(0, i - 5), i):
+                stripped = lines[j].strip()
+                if stripped and not marker_re.search(stripped):
+                    header_lines.insert(0, stripped)
+            headers.append(" ".join(header_lines) if header_lines else "")
+
+    return headers
+
+
+def _clean_text_for_llm(text: str) -> str:
+    """
+    Pre-process text before sending to LLM to reduce token usage.
+    1. Filter non-transaction lines (payments, totals, footers)
+    2. Remove redundant headers/footers
+    3. Compress whitespace
+
+    Note: TARJETA ADICIONAL filtering is now handled by section-based
+    filtering before this function is called.
+    """
+    lines = text.split("\n")
+    cleaned = []
+
+    # Patterns to skip (non-transaction lines)
+    skip_patterns = [
+        r"^su\s+pago",
+        r"^pago\s+m[ií]nimo",
+        r"^total\s+consumos",
+        r"^total\s+del\s+per[ií]odo",
+        r"^total\s+en\s+pesos",
+        r"^total\s+en\s+d[oó]lares",
+        r"^total\s+usd",
+        r"^subtotal",
+        r"^saldo\s+anterior",
+        r"^cr[eé]ditos",
+        r"^pagos\s+realizados",
+        r"^consumos\s+que\s+se\s+debitar[aá]n",
+        r"^saldo\s+de\s+cuotas\s+a\s+vencer",
+        r"^consumos\s+futuros",
+        r"^resumen\s+de\s+cuenta",
+        r"^extracto\s+mensual",
+        r"^extracto\s+bancario",
+        r"^website:",
+        r"^email:",
+        r"^tel[eé]fono:",
+        r"^CUIT:",
+        r"^ingresos\s+brutos:",
+    ]
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        # Skip non-transaction lines
+        skip = False
+        for pattern in skip_patterns:
+            if re.match(pattern, stripped, re.IGNORECASE):
+                skip = True
+                break
+        if skip:
+            continue
+
+        # Skip lines that are only decorative characters
+        if re.match(r"^[\s\-=─│╔╗╚╝═╠╣╦╩╬]+$", stripped):
+            continue
+
+        # Skip lines that are only numbers (page numbers, etc.)
+        if re.match(r"^\d+$", stripped):
+            continue
+
+        # Skip lines that look like URLs or email addresses
+        if re.match(r"^(https?://|www\.|[\w.-]+@[\w.-]+\.\w+)", stripped, re.IGNORECASE):
+            continue
+
+        # Compress multiple spaces to single space
+        compressed = re.sub(r"\s+", " ", stripped)
+        cleaned.append(compressed)
+
+    return "\n".join(cleaned)

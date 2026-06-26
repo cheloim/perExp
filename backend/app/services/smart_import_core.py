@@ -13,7 +13,7 @@ from google import genai
 from google.genai import types as genai_types
 from sqlalchemy.orm import Session
 
-from app.models import Category
+from app.models import Card, Category, User
 from app.prompts import SMART_IMPORT_PROMPT
 from app.services.categorization import _resolve_category, _should_skip
 from app.services.date_utils import _normalize_date_str
@@ -22,19 +22,133 @@ from app.services.import_utils import (
     _is_duplicate,
     _is_scheduled_duplicate,
     _load_dataframe,
-    _normalize_persons_llm,
 )
 from app.services.normalizers import (
-    first_card_word,
     normalize_bank,
-    title_case_single,
 )
 from app.services.pdf import (
+    _clean_text_for_llm,
     _extract_pdf_text,
     _inject_card_markers,
-    _inject_csv_card_markers,
     _normalize_santander_dates,
 )
+
+
+def _parse_card_header(header: str) -> tuple[str, str]:
+    """
+    Parse card_header to extract bank and card_type.
+    Examples:
+      "Visa Galicia" → ("Galicia", "Visa")
+      "Mastercard Santander" → ("Santander", "Mastercard")
+      "Visa terminada en 8130" → ("", "Visa")
+      "" → ("", "")
+    """
+    if not header:
+        return "", ""
+
+    header = header.strip()
+
+    # Known card types (Visa, Mastercard, Amex, Naranja, etc.)
+    card_types = ["visa", "mastercard", "amex", "naranja", "cabal", "maestro"]
+    detected_card = ""
+    detected_bank = ""
+
+    for ct in card_types:
+        if ct in header.lower():
+            detected_card = ct.title()
+            # Remove card type from header to get bank
+            remainder = re.sub(ct, "", header, flags=re.IGNORECASE).strip()
+            # Remove "terminada en XXXX" pattern
+            remainder = re.sub(
+                r"terminad[oa]\s+en\s+\d+", "", remainder, flags=re.IGNORECASE
+            ).strip()
+            if remainder:
+                detected_bank = normalize_bank(remainder)
+            break
+
+    # If no card type found, try to extract bank
+    if not detected_card:
+        detected_bank = normalize_bank(header)
+
+    return detected_bank, detected_card
+
+
+def _match_card_to_existing(
+    detected_bank: str,
+    detected_card: str,
+    user_cards: list[Card],
+) -> Card | None:
+    """
+    Match detected bank+card to an existing user card.
+    Returns the matched Card or None.
+    """
+    if not detected_bank or not detected_card:
+        return None
+
+    for card in user_cards:
+        card_bank = normalize_bank(card.bank or "")
+        card_name = (card.card_name or "").lower()
+
+        if card_bank == detected_bank and detected_card.lower() in card_name:
+            return card
+
+    return None
+
+
+def _parse_full_name(full_name: str) -> tuple[str, str]:
+    """
+    Parse full_name into (first_name, last_name).
+    Handles both formats:
+      "Marcelo Mendoza" → ("Marcelo", "Mendoza")
+      "Mendoza, Marcelo" → ("Marcelo", "Mendoza")
+    """
+    if not full_name:
+        return "", ""
+
+    full_name = full_name.strip()
+    if "," in full_name:
+        parts = full_name.split(",", 1)
+        last_name = parts[0].strip()
+        first_name = parts[1].strip().split()[0] if parts[1].strip() else ""
+    else:
+        parts = full_name.split()
+        first_name = parts[0] if parts else ""
+        last_name = parts[1] if len(parts) > 1 else ""
+
+    return first_name, last_name
+
+
+def _holder_matches_user(card_holder: str, user_first_name: str, user_last_name: str) -> bool:
+    """
+    Check if a card holder name matches the user's full name.
+    Partial match: first name OR last name must match (case-insensitive).
+    Examples:
+      "MARCELO IGN MENDOZA" vs ("Marcelo", "Mendoza") → True
+      "PEREZ, JUAN" vs ("Marcelo", "Mendoza") → False
+      "MENDOZA, NATALIA" vs ("Marcelo", "Mendoza") → True (Mendoza matches)
+    """
+    if not card_holder or not user_first_name:
+        return False
+
+    card_holder_lower = card_holder.lower()
+    user_first_lower = user_first_name.lower()
+    user_last_lower = user_last_name.lower()
+
+    # Check if first name appears in holder
+    if user_first_lower and user_first_lower in card_holder_lower:
+        return True
+
+    # Check if last name appears in holder
+    if user_last_lower and user_last_lower in card_holder_lower:
+        return True
+
+    # Also check reverse: holder's name parts in user's full name
+    holder_parts = card_holder_lower.replace(",", " ").split()
+    for part in holder_parts:
+        if len(part) >= 3 and part in (user_first_lower, user_last_lower):
+            return True
+
+    return False
 
 
 async def run_smart_import(file_content: bytes, filename: str, db: Session, user_id: int) -> dict:
@@ -69,11 +183,9 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
         elif is_csv:
             if filename_lower.endswith(".csv"):
                 raw_text = file_content.decode("utf-8", errors="replace")
-                raw_text = _inject_csv_card_markers(raw_text)
             else:
                 df = _load_dataframe(file_content, filename)
                 raw_text = df.to_string(index=False, max_rows=1000)
-                raw_text = _inject_csv_card_markers(raw_text)
         else:
             raise ValueError(f"Formato no soportado: {filename}. Usá PDF, CSV o Excel.")
     except ValueError:
@@ -83,6 +195,13 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
 
     if not raw_text.strip():
         raise ValueError("No se pudo extraer contenido del archivo.")
+
+    # Step 2: Get user's full name for LLM filtering
+    user = db.query(User).filter(User.id == user_id).first()
+    user_full_name = user.full_name if user else ""
+
+    # Step 3: Clean text for LLM
+    raw_text = _clean_text_for_llm(raw_text)
 
     closing_info = {
         "closing_date": None,
@@ -97,14 +216,15 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
         "future_charges_usd": None,
     }
 
-    # Step 2: Call LLM
+    # Step 4: Call LLM with user name for filtering
     client = genai.Client(api_key=api_key)
+    prompt_with_context = SMART_IMPORT_PROMPT.replace("{user_full_name}", user_full_name)
     try:
         response = await client.aio.models.generate_content(
             model="gemini-flash-latest",
             contents=f"Extracto bancario:\n\n{raw_text[:20000]}",
             config=genai_types.GenerateContentConfig(
-                system_instruction=SMART_IMPORT_PROMPT,
+                system_instruction=prompt_with_context,
                 response_mime_type="application/json",
             ),
         )
@@ -171,21 +291,6 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
                 ):
                     closing_info["future_charges_usd"] = _parse_amount(r["future_charges_usd"])
 
-        # Fallback values
-        fallback_card = closing_info["card_type"]
-        fallback_bank = closing_info["bank"]
-        fallback_person = ""
-        for r in rows_raw:
-            if r:
-                if not fallback_card and r.get("card"):
-                    fallback_card = str(r["card"]).strip()
-                if not fallback_bank and r.get("bank"):
-                    fallback_bank = str(r["bank"]).strip()
-                if not fallback_person and r.get("person"):
-                    fallback_person = str(r["person"]).strip()
-            if fallback_card and fallback_bank and fallback_person:
-                break
-
     except json.JSONDecodeError as e:
         raise ValueError(
             f"La IA no pudo parsear las transacciones. Intentá con importación manual. ({e})"
@@ -231,13 +336,9 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
 
         raw_currency = str(r.get("currency", "") or "").strip().upper()
         currency = "USD" if raw_currency == "USD" else "ARS"
-        row_card = str(r.get("card", "") or "").strip() or fallback_card
-        row_bank = str(r.get("bank", "") or "").strip() or fallback_bank
-        row_person = str(r.get("person", "") or "").strip() or fallback_person
 
-        row_card = first_card_word(row_card)
-        row_bank = normalize_bank(row_bank)
-        row_person = title_case_single(row_person)
+        # Use card_header from LLM
+        card_header = str(r.get("card_header", "") or "").strip()
 
         parsed.append(
             {
@@ -246,9 +347,7 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
                 "description": desc,
                 "amount": amount,
                 "currency": currency,
-                "card": row_card,
-                "bank": row_bank,
-                "person": row_person,
+                "card_header": card_header,
                 "transaction_id": txn_id,
                 "installment_number": inst_num,
                 "installment_total": inst_total,
@@ -256,16 +355,7 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
             }
         )
 
-    # Step 4: Normalize person names with LLM
-    unique_persons = list({r["person"] for r in parsed if r.get("person", "").strip()})
-    if len(unique_persons) >= 1:
-        norm_map = await _normalize_persons_llm(unique_persons, client)
-        for r in parsed:
-            raw_p = r.get("person", "")
-            if raw_p in norm_map:
-                r["person"] = norm_map[raw_p]
-
-    # Step 5: Fill missing dates
+    # Step 4: Fill missing dates
     last_known_date: date | None = None
     last_known_raw: str = ""
     for p in parsed:
@@ -276,37 +366,42 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
             p["_date_obj"] = last_known_date
             p["date"] = last_known_raw
 
-    # Step 6: Expand installments (generates future scheduled expenses)
+    # Step 5: Expand installments (generates future scheduled expenses)
     expenses_list, scheduled_list = _expand_installments(
         parsed, db, user_id, closing_date=closing_info.get("closing_date")
     )
     parsed = expenses_list
 
-    # Step 7: Detect unique cards and generate suggested custom_naming
+    # Step 7: Detect unique cards and auto-match to existing cards
     from collections import defaultdict
+
+    # Query user's existing cards for auto-matching
+    user_cards = db.query(Card).filter(Card.user_id == user_id).all()
 
     card_groups: dict = defaultdict(list)
     for p in parsed:
-        key = (p.get("bank") or "", p.get("card") or "", p.get("person") or "")
-        if key[1]:
-            card_groups[key].append(p)
+        card_header = p.get("card_header") or ""
+        card_groups[card_header].append(p)
 
     detected_cards = []
     card_type = closing_info.get("card_type") or "credito"
-    for (bank, card, _person), txns in card_groups.items():
-        if bank and card:
-            unique_persons = list({p.get("person") or "" for p in txns if p.get("person")})
-            suggested = ""
-            detected_cards.append(
-                {
-                    "bank": bank,
-                    "card": card,
-                    "card_type": card_type,
-                    "holders": unique_persons,
-                    "suggested_custom_naming": suggested,
-                    "transaction_count": len(txns),
-                }
-            )
+    for card_header, txns in card_groups.items():
+        detected_bank, detected_card = _parse_card_header(card_header)
+        matched_card = _match_card_to_existing(detected_bank, detected_card, user_cards)
+
+        detected_cards.append(
+            {
+                "card_header": card_header,
+                "detected_bank": detected_bank,
+                "detected_card": detected_card,
+                "card_type": card_type,
+                "matched_card_id": matched_card.id if matched_card else None,
+                "matched_card_name": f"{matched_card.card_name} {matched_card.bank}"
+                if matched_card
+                else None,
+                "transaction_count": len(txns),
+            }
+        )
 
     # Step 8: Build response rows with duplicate detection
     rows = []
@@ -320,9 +415,7 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
                 "description": p["description"],
                 "amount": p["amount"],
                 "currency": p["currency"],
-                "card": p["card"],
-                "bank": p["bank"],
-                "person": p["person"],
+                "card_header": p["card_header"],
                 "transaction_id": p["transaction_id"],
                 "installment_number": p["installment_number"],
                 "installment_total": p["installment_total"],
@@ -354,9 +447,7 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
                 "description": s["description"],
                 "amount": s["amount"],
                 "currency": s["currency"],
-                "card": s["card"],
-                "bank": s["bank"],
-                "person": s["person"],
+                "card_header": s.get("card_header", ""),
                 "transaction_id": s["transaction_id"],
                 "installment_number": s["installment_number"],
                 "installment_total": s["installment_total"],
@@ -383,16 +474,9 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
             "No se encontraron transacciones en el archivo. El resumen puede estar vacío o sin consumos."
         )
 
-    # Fallback: obtener person de la primera transacción si no está en closing_info
-    person_value = closing_info.get("person", "") or ""
-    if not person_value and rows:
-        first_row = rows[0]
-        person_value = first_row.get("person", "")
-
     summary = {
         "card_type": closing_info["card_type"] or "",
         "bank": closing_info["bank"] or "",
-        "person": person_value,
         "closing_date": closing_info["closing_date"].isoformat()
         if closing_info["closing_date"]
         else None,
@@ -403,12 +487,7 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
         "future_charges_usd": closing_info["future_charges_usd"],
     }
 
-    has_missing_data = any(
-        not (r.get("bank") or "").strip()
-        or not (r.get("card") or "").strip()
-        or not (r.get("person") or "").strip()
-        for r in rows
-    )
+    has_missing_data = any(not (r.get("card_header") or "").strip() for r in rows)
 
     return {
         "rows": rows,

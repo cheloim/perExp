@@ -6,6 +6,8 @@ Processes uploaded files asynchronously and creates notifications when ready.
 import asyncio
 import gc
 import json
+import warnings
+from contextlib import suppress
 from datetime import datetime
 
 from app.database import SessionLocal
@@ -42,7 +44,11 @@ def process_import_job(job_id: int):
                 file_content=file_content, filename=job.filename, db=db, user_id=job.user_id
             )
         )
-        loop.close()
+        # Suppress RuntimeError from async GenAI client cleanup after loop close
+        with suppress(RuntimeError):
+            loop.close()
+        # Also suppress deferred cleanup warnings from GC
+        warnings.filterwarnings("ignore", message=".*Event loop is closed.*")
         del file_content
         job.file_content = None
 
@@ -68,67 +74,6 @@ def process_import_job(job_id: int):
         gc.collect()
 
         _log(f"[IMPORT JOB] Job {job_id} completed successfully: {row_count} rows")
-
-    except Exception as e:
-        _log(f"[IMPORT JOB] Job {job_id} failed: {e}")
-        import traceback
-
-        traceback.print_exc()
-
-        job.status = "FAILED"
-        job.error_message = str(e)
-        job.completed_at = datetime.utcnow()
-
-        notification = Notification(
-            user_id=job.user_id,
-            type="import_failed",
-            title=f"Error al importar: {job.filename}",
-            body=f"Error: {str(e)[:100]}",
-            data=json.dumps({"job_id": job.id, "filename": job.filename, "error": str(e)}),
-            read=False,
-        )
-        db.add(notification)
-        db.commit()
-
-    finally:
-        db.close()
-
-
-async def _async_process_import_job(job_id: int):
-    """
-    Async version for direct invocation (not via Celery).
-    """
-    db = SessionLocal()
-    try:
-        job = db.query(ImportJob).filter(ImportJob.id == job_id).first()
-        if not job:
-            _log(f"[IMPORT JOB] Job {job_id} not found")
-            return
-
-        _log(f"[IMPORT JOB] Processing job {job_id}: {job.filename}")
-
-        preview = await run_smart_import(
-            file_content=job.file_content, filename=job.filename, db=db, user_id=job.user_id
-        )
-
-        job.preview_data = json.dumps(preview, default=str)
-        job.status = "READY_PREVIEW"
-        job.completed_at = datetime.utcnow()
-
-        notification = Notification(
-            user_id=job.user_id,
-            type="import_ready",
-            title=f"Importación lista: {job.filename}",
-            body=f"{len(preview['rows'])} transacciones encontradas",
-            data=json.dumps(
-                {"job_id": job.id, "filename": job.filename, "row_count": len(preview["rows"])}
-            ),
-            read=False,
-        )
-        db.add(notification)
-        db.commit()
-
-        _log(f"[IMPORT JOB] Job {job_id} completed successfully: {len(preview['rows'])} rows")
 
     except Exception as e:
         _log(f"[IMPORT JOB] Job {job_id} failed: {e}")

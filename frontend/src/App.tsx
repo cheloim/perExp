@@ -12,11 +12,11 @@ import { FamilyGroupProvider } from "./context/FamilyGroupContext";
 import { sidebarIcons } from "./components/SidebarIcons";
 import { getStoredToken } from "./api/client";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { useUndoToast } from "./hooks/useUndoToast";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const AccountsPage = lazy(() => import("./pages/AccountsPage"));
 const ExpensesPage = lazy(() => import("./pages/ExpensesPage"));
-const ImportPage = lazy(() => import("./pages/ImportPage"));
 const ImportJobPreview = lazy(() => import("./pages/ImportJobPreview"));
 const CategoriesPage = lazy(() => import("./pages/CategoriesPage"));
 const CategoryDashboard = lazy(() => import("./pages/CategoryDashboard"));
@@ -74,6 +74,7 @@ function MainLayout() {
   const [userPanelOpen, setUserPanelOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [showMoreNav, setShowMoreNav] = useState(false);
+  const { ToastContainer } = useUndoToast();
 
   useEffect(() => {
     const main = document.querySelector("main");
@@ -337,14 +338,6 @@ function MainLayout() {
                         }
                       />
                       <Route
-                        path="/import"
-                        element={
-                          <RequireAuth>
-                            <ImportPage />
-                          </RequireAuth>
-                        }
-                      />
-                      <Route
                         path="/categories"
                         element={
                           <RequireAuth>
@@ -455,6 +448,7 @@ function MainLayout() {
           {notifOpen && <NotificationsPanel onClose={() => setNotifOpen(false)} />}
         </div>
       </FamilyGroupProvider>
+      {ToastContainer}
     </UploadProgressProvider>
   );
 }

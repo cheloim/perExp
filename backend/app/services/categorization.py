@@ -94,9 +94,4 @@ def _resolve_category(db: Session, amount: float, description: str, cats: list) 
             if cat:
                 return cat.id
 
-        # Generic income → Haberes
-        cat = next((c for c in cats if c.name == "Haberes"), None)
-        if cat:
-            return cat.id
-
     return auto_categorize(description, cats)

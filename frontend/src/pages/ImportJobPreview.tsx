@@ -1,153 +1,36 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  getImportJob,
-  confirmImportJob,
-  deleteImportJob,
-  updateImportPreview,
-  getDistinctValues,
-} from "../api/client";
+import { getImportJob, confirmImportJob, deleteImportJob, getCards } from "../api/client";
 import { useState, useEffect } from "react";
-import type { SmartImportRow, ImportSummary, DetectedCard, CardsMapping } from "../types";
-import { toUpperCase, titleCase } from "../utils/format";
+import type { SmartImportRow, DetectedCard, CardsMapping, Card } from "../types";
+import { formatCurrency } from "../utils/format";
 import { useModalWithData } from "../hooks/useModal";
 import { TransactionDetailModal } from "../components/TransactionDetailModal";
-
-// Helper functions (copied from ImportPage)
-function getCardKey(bank: string, card: string, holder: string): string {
-  return `${bank}|${card}|${titleCase(holder)}`;
-}
-
-type CardNamingEdit = { bank?: string; card_name?: string; holder?: string };
-
-function generateCardsMapping(
-  detectedCards: DetectedCard[],
-  edits: Record<string, CardNamingEdit>,
-): CardsMapping {
-  const mapping: CardsMapping = {};
-  for (const dc of detectedCards) {
-    if (dc.card_type) {
-      mapping[`_card_type_${dc.bank}_${dc.card}`] = { card_name: dc.card_type };
-    }
-    for (const holder of dc.holders) {
-      const key = getCardKey(dc.bank, dc.card, holder);
-      const entry = edits[key] || { bank: dc.bank, card_name: dc.card };
-      mapping[key] = {
-        bank: entry.bank || dc.bank,
-        card_name: entry.card_name || dc.card,
-      };
-    }
-  }
-  return mapping;
-}
-
-// Validation helpers (copied from ImportPage)
-function validateRows(rows: SmartImportRow[]): { valid: boolean; missingCount: number } {
-  const missing = rows.filter((r) => !r.bank || !r.card || !r.person).length;
-  return { valid: missing === 0, missingCount: missing };
-}
-
-function applyBulkEdit(
-  rows: SmartImportRow[],
-  bank: string,
-  card: string,
-  person: string,
-  onlyEmpty: boolean,
-): SmartImportRow[] {
-  return rows.map((r) => ({
-    ...r,
-    bank: onlyEmpty && r.bank ? r.bank : bank,
-    card: onlyEmpty && r.card ? r.card : card,
-    person: onlyEmpty && r.person ? r.person : person,
-  }));
-}
-
-function deriveSummaryFromRows(rows: SmartImportRow[]): Partial<ImportSummary> {
-  const nonDuplicateRows = rows.filter((r) => !r.is_duplicate);
-
-  if (nonDuplicateRows.length === 0) return {};
-
-  // Get consensus value (most common)
-  const getConsensus = (field: keyof SmartImportRow) => {
-    const counts = new Map<string, number>();
-    nonDuplicateRows.forEach((r) => {
-      const value = r[field] as string;
-      if (value && value.trim()) {
-        counts.set(value, (counts.get(value) || 0) + 1);
-      }
-    });
-
-    let maxCount = 0;
-    let consensus = "";
-    counts.forEach((count, value) => {
-      if (count > maxCount) {
-        maxCount = count;
-        consensus = value;
-      }
-    });
-
-    return consensus;
-  };
-
-  return {
-    bank: getConsensus("bank"),
-    card_type: getConsensus("card"), // 'card' in rows maps to 'card_type' in summary
-    person: getConsensus("person"),
-  };
-}
+import { Select } from "../components/ui/Select";
 
 export default function ImportJobPreview() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [editedRows, setEditedRows] = useState<SmartImportRow[]>([]);
-  const [editedSummary, setEditedSummary] = useState<ImportSummary | null>(null);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
-  const [showCancelModal, setShowCancelModal] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
   const [importResult, setImportResult] = useState<{
     imported: number;
     scheduled: number;
     skipped: number;
   } | null>(null);
-  const [editForm, setEditForm] = useState({ bank: "", card: "", person: "", onlyEmpty: true });
-
-  const [spotlightNaming, setSpotlightNaming] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
-  const [customNamingEdits, setCustomNamingEdits] = useState<
-    Record<string, { bank?: string; card_name?: string; holder?: string }>
-  >({});
+  const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
+  const [showNewCard, setShowNewCard] = useState(false);
+  const [newBank, setNewBank] = useState("");
+  const [newCardName, setNewCardName] = useState("");
   const {
     data: selectedRow,
     openWithData: openRowDetail,
     close: closeRowDetail,
     isOpen: isRowDetailOpen,
   } = useModalWithData<SmartImportRow>();
-
-  // Persist custom naming edits to localStorage
-  useEffect(() => {
-    if (!jobId) return;
-    try {
-      const stored = localStorage.getItem(`import_job_${jobId}_custom_naming`);
-      const storedEdits = stored ? JSON.parse(stored) : {};
-      if (Object.keys(storedEdits).length > 0) {
-        setCustomNamingEdits(storedEdits);
-      }
-    } catch {
-      // ignore
-    }
-  }, [jobId]);
-
-  useEffect(() => {
-    if (!jobId || Object.keys(customNamingEdits).length === 0) return;
-    try {
-      localStorage.setItem(`import_job_${jobId}_custom_naming`, JSON.stringify(customNamingEdits));
-    } catch {
-      // ignore
-    }
-  }, [customNamingEdits, jobId]);
 
   const {
     data: job,
@@ -158,11 +41,16 @@ export default function ImportJobPreview() {
     queryFn: () => getImportJob(Number(jobId)),
     enabled: !!jobId,
     retry: false,
+    refetchInterval: (query) => {
+      const job = query.state.data;
+      if (job?.status === "PROCESSING") return 3000;
+      return false;
+    },
   });
 
-  const { data: distinctValues } = useQuery({
-    queryKey: ["distinct-values"],
-    queryFn: getDistinctValues,
+  const { data: userCards = [] } = useQuery({
+    queryKey: ["cards"],
+    queryFn: getCards,
   });
 
   const confirmMutation = useMutation({
@@ -174,13 +62,9 @@ export default function ImportJobPreview() {
       queryClient.invalidateQueries({ queryKey: ["cards"] });
       setImportResult(result);
       setShowResultModal(true);
-      // Clean up localStorage after successful import
-      try {
-        localStorage.removeItem(`import_job_${jobId}_custom_naming`);
-        localStorage.removeItem(`import_job_${jobId}_custom_naming_saved`);
-      } catch {
-        // ignore
-      }
+    },
+    onError: (err: any) => {
+      setPageError(err?.response?.data?.detail || err.message || "Error al importar");
     },
   });
 
@@ -189,180 +73,99 @@ export default function ImportJobPreview() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["import-jobs"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      navigate("/expenses");
+      queryClient.invalidateQueries({ queryKey: ["notifications-count"] });
+      navigate("/");
     },
   });
 
-  const updatePreviewMutation = useMutation({
-    mutationFn: (previewData: any) => updateImportPreview(Number(jobId), previewData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["import-job", Number(jobId)] });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: () => deleteImportJob(Number(jobId)),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["import-jobs"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      navigate("/expenses");
-    },
-  });
-
-  // Validation
-  const rows = editedRows.length > 0 ? editedRows : job?.preview_data?.rows || [];
-  const validation = validateRows(rows);
-  const dataComplete = validation.valid;
-
-  // Detected cards from job preview
+  const rows = job?.preview_data?.rows || [];
   const detectedCards: DetectedCard[] = job?.preview_data?.detected_cards || [];
 
-  // Cards mapping derived from custom naming edits
-  const cardsMapping: CardsMapping = generateCardsMapping(detectedCards, customNamingEdits);
+  // Auto-select first matched card if available
+  useEffect(() => {
+    if (detectedCards.length > 0 && selectedCardId === null) {
+      const matched = detectedCards.find((dc) => dc.matched_card_id);
+      if (matched?.matched_card_id) {
+        setSelectedCardId(matched.matched_card_id);
+      }
+    }
+  }, [detectedCards, selectedCardId]);
 
-  // Compute current summary (use edited summary if available, otherwise job summary)
-  const currentSummary = editedSummary || job?.preview_data?.summary;
-
-  // Check if custom naming is complete
-  const customNamingRequired = detectedCards.length > 0;
-  const customNamingComplete =
-    customNamingRequired &&
-    detectedCards.every((dc) => {
-      const key = getCardKey(dc.bank, dc.card, dc.holders[0] || "");
-      return customNamingEdits[key]?.card_name?.trim();
-    });
-  const canImport = dataComplete && (!customNamingRequired || customNamingComplete);
+  const nonDuplicateCount = rows.filter((r) => !r.is_duplicate).length;
+  const duplicateCount = rows.filter((r) => r.is_duplicate).length;
+  const scheduledCount = rows.filter((r) => r.is_scheduled || r.installment_total).length;
+  const uniqueCards = [...new Set(rows.map((r) => r.card_header).filter(Boolean))];
 
   const handleConfirm = () => {
-    const finalValidation = validateRows(rows);
-
-    if (!finalValidation.valid) {
-      setPageError(
-        `Faltan datos en ${finalValidation.missingCount} fila(s). Completalos antes de importar.`,
-      );
-      return;
+    const cardsMapping: CardsMapping = {};
+    if (detectedCards.length > 0) {
+      if (showNewCard && newBank && newCardName) {
+        // Create new card
+        for (const dc of detectedCards) {
+          cardsMapping[dc.card_header] = {
+            bank: newBank,
+            card_name: newCardName,
+            card_type: dc.card_type,
+          };
+        }
+      } else if (selectedCardId) {
+        // Use existing card
+        for (const dc of detectedCards) {
+          cardsMapping[dc.card_header] = { card_id: selectedCardId };
+        }
+      }
     }
-
-    if (customNamingRequired && !customNamingComplete) {
-      setPageError("Tenés que completar los nombres de las tarjetas antes de importar.");
-      return;
-    }
-
-    confirmMutation.mutate({ rows, cardsMapping: customNamingComplete ? cardsMapping : undefined });
-  };
-
-  const handleSpotlightNaming = () => {
-    if (customNamingComplete) return;
-    setSpotlightNaming(true);
-    setTimeout(() => setSpotlightNaming(false), 3000);
-  };
-
-  const handleDiscard = () => {
-    setShowDiscardModal(true);
-  };
-
-  const confirmDiscard = () => {
-    setShowDiscardModal(false);
-    discardMutation.mutate();
-  };
-
-  const handleOpenEditModal = () => {
-    const summary = job?.preview_data?.summary;
-    const firstRow = rows.find((r: SmartImportRow) => !r.is_duplicate);
-
-    setEditForm({
-      bank: summary?.bank || firstRow?.bank || "",
-      card: summary?.card_type || firstRow?.card || "",
-      person: summary?.person || firstRow?.person || "",
-      onlyEmpty: true,
+    confirmMutation.mutate({
+      rows,
+      cardsMapping: Object.keys(cardsMapping).length > 0 ? cardsMapping : undefined,
     });
-
-    setShowEditModal(true);
-  };
-
-  const handleApplyEdit = () => {
-    if (!editForm.bank || !editForm.card || !editForm.person) {
-      setPageError("Completá todos los campos");
-      return;
-    }
-
-    const currentRows = editedRows.length > 0 ? editedRows : job?.preview_data?.rows || [];
-    const updated = applyBulkEdit(
-      currentRows,
-      editForm.bank,
-      editForm.card,
-      editForm.person,
-      editForm.onlyEmpty,
-    );
-
-    setEditedRows(updated);
-
-    // Update summary derived from edited rows
-    const derivedSummary = deriveSummaryFromRows(updated);
-    const newSummary = {
-      ...currentSummary,
-      ...derivedSummary,
-    } as ImportSummary;
-    setEditedSummary(newSummary);
-
-    // Persist changes to backend
-    updatePreviewMutation.mutate({
-      rows: updated,
-      summary: newSummary,
-      raw_count: job?.preview_data?.raw_count || updated.length,
-      has_missing_data: updated.some((r) => !r.bank || !r.card || !r.person),
-    });
-
-    setShowEditModal(false);
   };
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-[var(--text-secondary)]">Cargando preview...</div>
-      </div>
-    );
-  }
-
-  // Handle 410 Gone (TTL expired)
-  if ((error as any)?.response?.status === 410) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-4">
-        <div className="text-6xl">⏰</div>
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
-            Importación expirada
-          </h2>
-          <p className="text-[var(--text-secondary)] text-sm mb-4">
-            Este preview expiró después de 24 horas y fue eliminado automáticamente.
-          </p>
-          <button onClick={() => navigate("/expenses")} className="gnome-btn-primary">
-            Volver a Gastos
-          </button>
+      <div className="flex items-center justify-center h-64">
+        <div className="flex items-center gap-3 text-[var(--text-tertiary)]">
+          <div className="w-5 h-5 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm">Cargando...</span>
         </div>
       </div>
     );
   }
 
-  if (!job) {
+  if (error || !job) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-[var(--text-secondary)]">Import job no encontrado</div>
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <div className="text-4xl opacity-30">📄</div>
+        <p className="text-[var(--text-secondary)] text-sm">
+          {(error as any)?.status === 410
+            ? "Esta importación expiró (TTL: 24h)"
+            : "Error al cargar la importación"}
+        </p>
+        <button
+          onClick={() => navigate("/")}
+          className="px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm"
+        >
+          Volver
+        </button>
       </div>
     );
   }
 
   if (job.status === "PROCESSING") {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-4">
-        <div className="text-[var(--text-secondary)]">
-          Procesando {job.filename}... Recibirás una notificación cuando esté listo.
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <div className="w-10 h-10 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
+        <div className="text-center">
+          <p className="text-[var(--text-primary)] font-medium">Procesando archivo</p>
+          <p className="text-[var(--text-tertiary)] text-sm mt-1">
+            La IA está analizando tus transacciones...
+          </p>
         </div>
         <button
-          onClick={() => setShowCancelModal(true)}
-          className="px-4 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+          onClick={() => discardMutation.mutate()}
+          className="text-sm text-[var(--text-tertiary)] hover:text-red-500 transition-colors"
         >
-          Cancelar procesamiento
+          Cancelar
         </button>
       </div>
     );
@@ -370,513 +173,320 @@ export default function ImportJobPreview() {
 
   if (job.status === "FAILED") {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-red-500">
-          Error al procesar {job.filename}: {job.error_message}
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <div className="text-4xl opacity-30">⚠️</div>
+        <div className="text-center">
+          <p className="text-red-500 font-medium">Error al procesar</p>
+          <p className="text-[var(--text-tertiary)] text-sm mt-1 max-w-md">{job.error_message}</p>
         </div>
-      </div>
-    );
-  }
-
-  if (!job.preview_data) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-[var(--text-secondary)]">No hay preview disponible</div>
+        <button
+          onClick={() => navigate("/")}
+          className="px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm"
+        >
+          Volver
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden p-2.5 gap-3">
-      {/* Header con botones */}
-      <div className="flex-shrink-0 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-[var(--text-primary)]">
-          Preview: {job.filename}
-        </h1>
-        <div className="flex gap-2">
-          <button
-            onClick={handleDiscard}
-            disabled={discardMutation.isPending}
-            className="gnome-btn-outline-danger"
-          >
-            {discardMutation.isPending ? "Descartando..." : "Descartar"}
-          </button>
-          <button
-            onClick={() =>
-              customNamingRequired && !customNamingComplete
-                ? handleSpotlightNaming()
-                : handleConfirm()
-            }
-            disabled={confirmMutation.isPending || !canImport}
-            className="gnome-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {confirmMutation.isPending
-              ? "Confirmando..."
-              : customNamingRequired && !customNamingComplete
-                ? "Completá nombres primero"
-                : "Confirmar importación"}
-          </button>
-        </div>
-      </div>
-
+    <div className="max-w-5xl mx-auto px-4 py-6">
       {pageError && (
-        <div className="flex items-start gap-2 bg-danger/10 border border-danger/30 rounded-lg px-4 py-3 text-sm text-danger">
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-center justify-between">
           <span>{pageError}</span>
-          <button onClick={() => setPageError(null)} className="ml-auto hover:opacity-70">
+          <button onClick={() => setPageError(null)} className="text-red-500 hover:text-red-700">
             ✕
           </button>
         </div>
       )}
 
-      {!dataComplete && (
-        <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 flex items-start gap-3">
-          <span className="text-warning text-xl">⚠️</span>
-          <div className="flex-1">
-            <p className="text-sm font-medium text-warning">Datos incompletos</p>
-            <p className="text-xs text-warning mt-1">
-              Faltan datos en {validation.missingCount} transacción(es). Completá banco, tarjeta y
-              persona antes de confirmar.
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-semibold text-[var(--text-primary)]">{job.filename}</h1>
+          <p className="text-sm text-[var(--text-tertiary)]">
+            {nonDuplicateCount} transacciones
+            {duplicateCount > 0 && ` · ${duplicateCount} duplicadas`}
+            {scheduledCount > 0 && ` · ${scheduledCount} cuotas`}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowDiscardModal(true)}
+            className="px-3 py-1.5 text-sm text-[var(--text-tertiary)] hover:text-red-500 border border-[var(--border-color)] rounded-lg transition-colors"
+          >
+            Descartar
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={
+              (!selectedCardId && !(showNewCard && newBank && newCardName)) ||
+              confirmMutation.isPending
+            }
+            className="px-4 py-1.5 text-sm bg-[var(--color-primary)] text-white rounded-lg disabled:opacity-50 transition-opacity"
+          >
+            {confirmMutation.isPending ? "Importando..." : "Importar"}
+          </button>
+        </div>
+      </div>
+
+      {/* Import Summary Card */}
+      <div className="mb-6 p-4 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg">
+        <div className="flex items-center gap-2 mb-3">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 20 20"
+            fill="none"
+            className="text-[var(--color-primary)]"
+          >
+            <path
+              d="M9 16H4a2 2 0 01-2-2V6a2 2 0 012-2h12a2 2 0 012 2v5M15 11l-5 5m0 0l-5-5m5 5V3"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span className="text-sm font-medium text-[var(--text-primary)]">
+            Resumen de importación
+          </span>
+        </div>
+
+        <p className="text-sm text-[var(--text-secondary)] mb-3">
+          Se importarán <strong>{nonDuplicateCount} transacciones</strong>
+          {scheduledCount > 0 && `, de las cuales ${scheduledCount} son cuotas futuras`}
+          {duplicateCount > 0 && (
+            <span className="text-[var(--text-tertiary)]">
+              {" "}
+              ({duplicateCount} duplicadas serán omitidas)
+            </span>
+          )}
+        </p>
+
+        {/* Card Selection */}
+        {detectedCards.length > 0 && (
+          <div className="mt-3">
+            <label className="text-xs text-[var(--text-tertiary)] mb-1 block">
+              Tarjeta de destino
+            </label>
+            <Select
+              value={showNewCard ? "new" : selectedCardId?.toString() || ""}
+              onChange={(val) => {
+                if (val === "new") {
+                  setShowNewCard(true);
+                  setSelectedCardId(null);
+                } else {
+                  setShowNewCard(false);
+                  setSelectedCardId(Number(val) || null);
+                  setNewBank("");
+                  setNewCardName("");
+                }
+              }}
+              options={[
+                ...userCards.map((card: Card) => ({
+                  value: card.id.toString(),
+                  label: `${card.card_name}${card.bank ? ` - ${card.bank}` : ""}`,
+                })),
+                { value: "new", label: "Otro (crear nueva)" },
+              ]}
+              placeholder="Seleccionar tarjeta..."
+              className="max-w-md"
+            />
+            {showNewCard && (
+              <div className="mt-2 flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Banco"
+                  value={newBank}
+                  onChange={(e) => setNewBank(e.target.value)}
+                  className="flex-1 text-sm px-3 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--color-surface)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30"
+                />
+                <input
+                  type="text"
+                  placeholder="Tarjeta"
+                  value={newCardName}
+                  onChange={(e) => setNewCardName(e.target.value)}
+                  className="flex-1 text-sm px-3 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--color-surface)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {uniqueCards.length > 0 && (
+          <div className="mt-2 text-xs text-[var(--text-tertiary)]">
+            Tarjeta detectada: {uniqueCards.join(", ")}
+          </div>
+        )}
+      </div>
+
+      {/* Transactions Table */}
+      <div className="overflow-x-auto border border-[var(--border-color)] rounded-lg">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-[var(--border-color)] bg-[var(--color-base-alt)]">
+              <th className="text-left py-2.5 px-4 text-[var(--text-tertiary)] font-medium text-xs uppercase tracking-wide">
+                Fecha
+              </th>
+              <th className="text-left py-2.5 px-4 text-[var(--text-tertiary)] font-medium text-xs uppercase tracking-wide">
+                Descripción
+              </th>
+              <th className="text-right py-2.5 px-4 text-[var(--text-tertiary)] font-medium text-xs uppercase tracking-wide">
+                Monto
+              </th>
+              <th className="text-left py-2.5 px-4 text-[var(--text-tertiary)] font-medium text-xs uppercase tracking-wide">
+                Categoría
+              </th>
+              <th className="text-center py-2.5 px-4 text-[var(--text-tertiary)] font-medium text-xs uppercase tracking-wide">
+                Estado
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, idx) => (
+              <tr
+                key={idx}
+                onClick={() => openRowDetail(row)}
+                className={`border-b border-[var(--border-color)] last:border-0 cursor-pointer transition-colors ${
+                  row.is_duplicate
+                    ? "opacity-50 bg-[var(--color-base-alt)]"
+                    : "hover:bg-[var(--color-base-alt)]"
+                }`}
+              >
+                <td className="py-2.5 px-4 text-[var(--text-secondary)]">{row.date}</td>
+                <td className="py-2.5 px-4 text-[var(--text-primary)] max-w-xs truncate">
+                  {row.description}
+                </td>
+                <td className="py-2.5 px-4 text-right font-medium text-[var(--text-primary)]">
+                  {formatCurrency(row.amount, row.currency)}
+                </td>
+                <td className="py-2.5 px-4 text-[var(--text-secondary)]">
+                  {row.suggested_category || <span className="text-[var(--text-tertiary)]">—</span>}
+                </td>
+                <td className="py-2.5 px-4 text-center">
+                  {row.is_duplicate && (
+                    <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">
+                      Duplicado
+                    </span>
+                  )}
+                  {row.is_auto_generated && !row.is_duplicate && (
+                    <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                      Cuota
+                    </span>
+                  )}
+                  {!row.is_duplicate && !row.is_auto_generated && (
+                    <span className="text-xs text-[var(--text-tertiary)]">—</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t border-[var(--border-color)] bg-[var(--color-base-alt)]">
+              <td
+                colSpan={2}
+                className="py-2.5 px-4 text-xs text-[var(--text-tertiary)] font-medium"
+              >
+                Total ({nonDuplicateCount} transacciones)
+              </td>
+              <td className="py-2.5 px-4 text-right font-semibold text-[var(--text-primary)]">
+                {formatCurrency(
+                  rows.filter((r) => !r.is_duplicate).reduce((sum, r) => sum + r.amount, 0),
+                  "ARS",
+                )}
+              </td>
+              <td colSpan={2}></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      {rows.length === 0 && (
+        <div className="text-center py-12">
+          <div className="text-4xl opacity-30 mb-3">📭</div>
+          <p className="text-[var(--text-tertiary)] text-sm">No se encontraron transacciones</p>
+        </div>
+      )}
+
+      {/* Modals */}
+      {isRowDetailOpen && selectedRow && (
+        <TransactionDetailModal row={selectedRow} onClose={closeRowDetail} />
+      )}
+
+      {showDiscardModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl">
+            <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+              Descartar importación
+            </h2>
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
+              Se eliminará esta importación y su notificación. Esta acción no se puede deshacer.
             </p>
-            <button onClick={handleOpenEditModal} className="gnome-btn-warning">
-              Completar datos
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDiscardModal(false)}
+                className="flex-1 py-2 rounded-lg border border-[var(--border-color)] text-sm hover:bg-[var(--color-base-alt)] transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  setShowDiscardModal(false);
+                  discardMutation.mutate();
+                }}
+                className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm transition-colors"
+              >
+                Descartar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showResultModal && importResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl">
+            <div className="text-center mb-4">
+              <div className="text-4xl mb-2">✅</div>
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+                Importación completada
+              </h2>
+            </div>
+            <div className="space-y-2 text-sm text-[var(--text-secondary)] mb-4">
+              <div className="flex justify-between">
+                <span>Importados</span>
+                <span className="font-medium text-[var(--text-primary)]">
+                  {importResult.imported}
+                </span>
+              </div>
+              {importResult.scheduled > 0 && (
+                <div className="flex justify-between">
+                  <span>Cuotas programadas</span>
+                  <span className="font-medium text-[var(--text-primary)]">
+                    {importResult.scheduled}
+                  </span>
+                </div>
+              )}
+              {importResult.skipped > 0 && (
+                <div className="flex justify-between">
+                  <span>Duplicados omitidos</span>
+                  <span className="text-[var(--text-tertiary)]">{importResult.skipped}</span>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                setShowResultModal(false);
+                navigate("/");
+              }}
+              className="w-full py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm hover:brightness-110 transition-all"
+            >
+              Ver gastos
             </button>
           </div>
         </div>
       )}
-
-      {/* Warning si falta custom naming */}
-      {customNamingRequired && !customNamingComplete && (
-        <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 flex items-start gap-3">
-          <span className="text-warning text-xl">⚠️</span>
-          <div className="flex-1">
-            <p className="text-sm font-medium text-warning">Nombres de tarjetas requeridos</p>
-            <p className="text-xs text-warning mt-1">
-              Completá el nombre personalizado para las tarjetas listadas abajo.
-            </p>
-            <ul className="mt-1 text-xs text-warning list-disc list-inside">
-              {detectedCards
-                .filter((dc) => {
-                  const key = getCardKey(dc.bank, dc.card, dc.holders[0] || "");
-                  return !customNamingEdits[key]?.card_name?.trim();
-                })
-                .map((dc, i) => (
-                  <li key={i}>
-                    {dc.bank} · {dc.card}
-                  </li>
-                ))}
-            </ul>
-          </div>
-        </div>
-      )}
-
-      {/* Summary card */}
-      {currentSummary && (
-        <div className="bg-[var(--color-base-container)] rounded-lg p-4 border border-[var(--border-color)] space-y-3">
-          <h2 className="text-sm font-medium text-[var(--text-primary)]">Resumen</h2>
-
-          {/* Tarjetas a crear */}
-          {detectedCards.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {detectedCards.map((dc, idx) => {
-                const key = getCardKey(dc.bank, dc.card, dc.holders[0] || "");
-                const entry = customNamingEdits[key] || {
-                  bank: dc.bank,
-                  card_name: dc.card,
-                  holder: dc.holders[0],
-                };
-                return (
-                  <div
-                    key={idx}
-                    className={`p-3 bg-[var(--color-surface)] rounded-md border ${
-                      spotlightNaming && !entry.card_name?.trim()
-                        ? "border-yellow-500 ring-2 ring-yellow-500/50"
-                        : "border-[var(--border-color)]"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold bg-[var(--color-primary)] text-[var(--color-on-primary)]">
-                        💳
-                      </div>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--color-base-alt)] text-[var(--text-secondary)]">
-                        {dc.transaction_count} gastos
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-[var(--text-secondary)] w-16">Tarjeta:</span>
-                        <input
-                          type="text"
-                          value={entry.card_name || dc.card}
-                          onChange={(e) =>
-                            setCustomNamingEdits((prev) => ({
-                              ...prev,
-                              [key]: { ...prev[key], card_name: e.target.value },
-                            }))
-                          }
-                          className="flex-1 px-2 py-1 border border-[var(--border-color)] rounded text-sm bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30"
-                          placeholder="Tarjeta"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-[var(--text-secondary)] w-16">Banco:</span>
-                        <input
-                          type="text"
-                          value={entry.bank || dc.bank}
-                          onChange={(e) =>
-                            setCustomNamingEdits((prev) => ({
-                              ...prev,
-                              [key]: { ...prev[key], bank: e.target.value },
-                            }))
-                          }
-                          className="flex-1 px-2 py-1 border border-[var(--border-color)] rounded text-sm bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30"
-                          placeholder="Banco"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-[var(--text-secondary)] w-16">Titular:</span>
-                        <input
-                          type="text"
-                          value={titleCase(entry.holder || dc.holders[0] || "")}
-                          onChange={(e) =>
-                            setCustomNamingEdits((prev) => ({
-                              ...prev,
-                              [key]: { ...prev[key], holder: e.target.value },
-                            }))
-                          }
-                          className="flex-1 px-2 py-1 border border-[var(--border-color)] rounded text-sm bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30"
-                          placeholder="Titular"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Info adicional */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs pt-2 border-t border-[var(--border-color)]">
-            <div>
-              <span className="text-[var(--text-secondary)]">Cierre:</span>
-              <span className="ml-2 text-[var(--text-primary)] font-medium">
-                {currentSummary.closing_date || "-"}
-              </span>
-            </div>
-            <div>
-              <span className="text-[var(--text-secondary)]">Vencimiento:</span>
-              <span className="ml-2 text-[var(--text-primary)] font-medium">
-                {currentSummary.due_date || "-"}
-              </span>
-            </div>
-            {currentSummary.total_ars !== null && (
-              <div>
-                <span className="text-[var(--text-secondary)]">Total ARS:</span>
-                <span className="ml-2 text-[var(--text-primary)] font-medium">
-                  ${currentSummary.total_ars.toFixed(2)}
-                </span>
-              </div>
-            )}
-            {currentSummary.total_usd !== null && (
-              <div>
-                <span className="text-[var(--text-secondary)]">Total USD:</span>
-                <span className="ml-2 text-[var(--text-primary)] font-medium">
-                  ${currentSummary.total_usd.toFixed(2)}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Transactions table */}
-      <div className="flex-1 overflow-y-auto min-h-0">
-        <div className="bg-[var(--color-base-container)] rounded-lg border border-[var(--border-color)] overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-[var(--color-base-alt)] border-b border-[var(--border-color)]">
-                <tr className="text-left text-[var(--text-secondary)]">
-                  <th className="py-3 px-4">Fecha</th>
-                  <th className="py-3 px-4">Descripción</th>
-                  <th className="py-3 px-4">Monto</th>
-                  <th className="py-3 px-4">Tarjeta</th>
-                  <th className="py-3 px-4">Banco</th>
-                  <th className="py-3 px-4">Persona</th>
-                  <th className="py-3 px-4">Categoría</th>
-                  <th className="py-3 px-4">Cuotas</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row: SmartImportRow, idx: number) => (
-                  <tr
-                    key={idx}
-                    onClick={() => openRowDetail(row)}
-                    className={`cursor-pointer border-b border-[var(--border-color)] hover:bg-[var(--color-base-alt)] transition ${
-                      row.is_duplicate ? "opacity-50 bg-yellow-500/10" : ""
-                    } ${row.is_auto_generated ? "bg-blue-500/5" : ""}`}
-                  >
-                    <td className="py-2 px-4 whitespace-nowrap">{row.date}</td>
-                    <td className="py-2 px-4">{toUpperCase(row.description)}</td>
-                    <td className="py-2 px-4 whitespace-nowrap">
-                      {row.amount} {row.currency}
-                    </td>
-                    <td className="py-2 px-4">{row.card || "-"}</td>
-                    <td className="py-2 px-4">{row.bank || "-"}</td>
-                    <td className="py-2 px-4">{titleCase(row.person) || "-"}</td>
-                    <td className="py-2 px-4">{row.suggested_category || "-"}</td>
-                    <td className="py-2 px-4 whitespace-nowrap">
-                      {row.installment_number && row.installment_total
-                        ? `${row.installment_number}/${row.installment_total}`
-                        : "-"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="flex-shrink-0 flex items-center gap-4 text-xs text-[var(--text-secondary)]">
-        <span>Total: {rows.length}</span>
-        <span>Duplicadas: {rows.filter((r: SmartImportRow) => r.is_duplicate).length}</span>
-        <span>
-          Programadas: {rows.filter((r: SmartImportRow) => (r as any).is_scheduled).length}
-        </span>
-        <span>
-          Auto-generadas: {rows.filter((r: SmartImportRow) => r.is_auto_generated).length}
-        </span>
-      </div>
-
-      {/* Modal de bulk edit */}
-      {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-[var(--color-surface)] rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
-            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">
-              Completar datos faltantes
-            </h3>
-
-            {/* Banco */}
-            <div className="space-y-1 mb-3">
-              <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
-              <input
-                type="text"
-                value={editForm.bank}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, bank: e.target.value }))}
-                list="banks-list"
-                className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30"
-                placeholder="Ej: Galicia"
-              />
-              <datalist id="banks-list">
-                {distinctValues?.banks.map((bank) => (
-                  <option key={bank} value={bank} />
-                ))}
-              </datalist>
-            </div>
-
-            {/* Tarjeta */}
-            <div className="space-y-1 mb-3">
-              <label className="text-xs font-medium text-[var(--text-secondary)]">Tarjeta</label>
-              <input
-                type="text"
-                value={editForm.card}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, card: e.target.value }))}
-                list="cards-list"
-                className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30"
-                placeholder="Ej: Visa Signature"
-              />
-              <datalist id="cards-list">
-                {distinctValues?.cards.map((card) => (
-                  <option key={card} value={card} />
-                ))}
-              </datalist>
-            </div>
-
-            {/* Persona */}
-            <div className="space-y-1 mb-3">
-              <label className="text-xs font-medium text-[var(--text-secondary)]">Titular</label>
-              <input
-                type="text"
-                value={editForm.person}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, person: e.target.value }))}
-                list="persons-list"
-                className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30"
-                placeholder="Ej: Marcelo"
-              />
-              <datalist id="persons-list">
-                {distinctValues?.persons.map((person) => (
-                  <option key={person} value={titleCase(person)} />
-                ))}
-              </datalist>
-            </div>
-
-            {/* Checkbox */}
-            <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)] mb-4">
-              <input
-                type="checkbox"
-                checked={editForm.onlyEmpty}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, onlyEmpty: e.target.checked }))}
-                className="rounded"
-              />
-              Aplicar solo a campos vacíos (recomendado)
-            </label>
-
-            {/* Botones */}
-            <div className="flex gap-2">
-              <button
-                onClick={handleApplyEdit}
-                disabled={!editForm.bank || !editForm.card || !editForm.person}
-                className="gnome-btn-primary flex-1"
-              >
-                Aplicar
-              </button>
-              <button onClick={() => setShowEditModal(false)} className="gnome-btn-secondary">
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de confirmación de descarte */}
-      {showDiscardModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => setShowDiscardModal(false)}
-        >
-          <div
-            className="bg-[var(--color-surface)] rounded-lg shadow-xl w-full max-w-md mx-4 p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start gap-3 mb-4">
-              <span className="text-3xl">⚠️</span>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
-                  ¿Descartar importación?
-                </h3>
-                <p className="text-sm text-[var(--text-secondary)]">
-                  Se descartará el preview de <strong>{job?.filename}</strong>. Esta acción no se
-                  puede deshacer.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setShowDiscardModal(false)} className="gnome-btn-secondary">
-                Cancelar
-              </button>
-              <button
-                onClick={confirmDiscard}
-                disabled={discardMutation.isPending}
-                className="gnome-btn-danger"
-              >
-                {discardMutation.isPending ? "Descartando..." : "Descartar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de cancelar procesamiento */}
-      {showCancelModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => setShowCancelModal(false)}
-        >
-          <div
-            className="bg-[var(--color-surface)] rounded-lg shadow-xl w-full max-w-md mx-4 p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start gap-3 mb-4">
-              <span className="text-3xl">⚠️</span>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
-                  ¿Cancelar procesamiento?
-                </h3>
-                <p className="text-sm text-[var(--text-secondary)]">
-                  Se cancelará el procesamiento de <strong>{job?.filename}</strong> y se descartará
-                  el archivo. Esta acción no se puede deshacer.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setShowCancelModal(false)} className="gnome-btn-secondary">
-                No, continuar
-              </button>
-              <button
-                onClick={() => {
-                  deleteMutation.mutate();
-                  setShowCancelModal(false);
-                }}
-                disabled={deleteMutation.isPending}
-                className="gnome-btn-danger"
-              >
-                {deleteMutation.isPending ? "Cancelando..." : "Sí, cancelar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de resultado de importación */}
-      {showResultModal && importResult && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => {
-            setShowResultModal(false);
-            navigate("/expenses");
-          }}
-        >
-          <div
-            className="bg-[var(--color-surface)] rounded-lg shadow-xl w-full max-w-md mx-4 p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start gap-3 mb-4">
-              <span className="text-3xl">✅</span>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
-                  Importación completada
-                </h3>
-                <div className="space-y-2 text-sm text-[var(--text-secondary)]">
-                  <div className="flex justify-between">
-                    <span>Gastos importados:</span>
-                    <span className="font-semibold text-[var(--text-primary)]">
-                      {importResult.imported}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Cuotas programadas:</span>
-                    <span className="font-semibold text-[var(--text-primary)]">
-                      {importResult.scheduled}
-                    </span>
-                  </div>
-                  {importResult.skipped > 0 && (
-                    <div className="flex justify-between">
-                      <span>Duplicados omitidos:</span>
-                      <span className="font-semibold text-yellow-600">{importResult.skipped}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => {
-                  setShowResultModal(false);
-                  navigate("/expenses");
-                }}
-                className="gnome-btn-primary"
-              >
-                Ver gastos
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <TransactionDetailModal isOpen={isRowDetailOpen} row={selectedRow} onClose={closeRowDetail} />
     </div>
   );
 }

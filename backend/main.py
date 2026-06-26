@@ -27,7 +27,6 @@ from app.routers import (
     dashboard,
     expenses,
     groups,
-    import_,
     import_jobs,
     investments,
     notifications,
@@ -103,7 +102,6 @@ app.include_router(categories.router)
 app.include_router(card_closings.router)
 app.include_router(expenses.router)
 app.include_router(investments.router)
-app.include_router(import_.router)
 app.include_router(import_jobs.router)
 app.include_router(dashboard.router)
 app.include_router(analysis.router)
