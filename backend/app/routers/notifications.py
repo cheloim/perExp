@@ -250,8 +250,8 @@ async def notifications_stream(request: Request):
     async def generate():
         PING_INTERVAL = 30
         poll_interval = 0.5
-        last_check = datetime.now()
-        last_ping = datetime.now()
+        last_check = datetime.utcnow()
+        last_ping = datetime.utcnow()
         default_page_size = 50
 
         db = SessionLocal()
@@ -319,9 +319,9 @@ async def notifications_stream(request: Request):
                         .count()
                     )
                     yield f"data: {json.dumps({'type': 'counts_update', 'unread_count': unread_count, 'pending_count': pending_count})}\n\n"
-                    last_check = datetime.now()
+                    last_check = datetime.utcnow()
 
-                now = datetime.now()
+                now = datetime.utcnow()
                 if (now - last_ping).total_seconds() >= PING_INTERVAL:
                     yield f"data: {json.dumps({'type': 'ping'})}\n\n"
                     last_ping = now
