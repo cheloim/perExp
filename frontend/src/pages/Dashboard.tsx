@@ -289,7 +289,7 @@ export default function Dashboard() {
       {/* Page header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold text-primary">Finanzas Personales</h1>
+          <h1 className="text-2xl font-bold text-primary">NikoFin</h1>
           {myGroup && myGroup.members.length > 1 && (
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
               Grupo familiar
