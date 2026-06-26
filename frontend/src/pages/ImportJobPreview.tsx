@@ -1,41 +1,17 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  getImportJob,
-  confirmImportJob,
-  deleteImportJob,
-  updateImportPreview,
-} from "../api/client";
+import { getImportJob, confirmImportJob, deleteImportJob, getCards } from "../api/client";
 import { useState, useEffect } from "react";
-import type { SmartImportRow, DetectedCard, CardsMapping } from "../types";
-import { titleCase } from "../utils/format";
+import type { SmartImportRow, DetectedCard, CardsMapping, Card } from "../types";
+import { titleCase, formatCurrency } from "../utils/format";
 import { useModalWithData } from "../hooks/useModal";
 import { TransactionDetailModal } from "../components/TransactionDetailModal";
-
-function deriveCardHeader(rows: SmartImportRow[]): string {
-  const counts = new Map<string, number>();
-  rows
-    .filter((r) => !r.is_duplicate && r.card_header)
-    .forEach((r) => {
-      counts.set(r.card_header, (counts.get(r.card_header) || 0) + 1);
-    });
-  let maxCount = 0;
-  let consensus = "";
-  counts.forEach((count, value) => {
-    if (count > maxCount) {
-      maxCount = count;
-      consensus = value;
-    }
-  });
-  return consensus;
-}
 
 export default function ImportJobPreview() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [editedRows, setEditedRows] = useState<SmartImportRow[]>([]);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
   const [importResult, setImportResult] = useState<{
@@ -44,30 +20,13 @@ export default function ImportJobPreview() {
     skipped: number;
   } | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
-  const [cardMappings, setCardMappings] = useState<
-    Record<string, { card_id?: number; bank?: string; card_name?: string }>
-  >({});
+  const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const {
     data: selectedRow,
     openWithData: openRowDetail,
     close: closeRowDetail,
     isOpen: isRowDetailOpen,
   } = useModalWithData<SmartImportRow>();
-
-  useEffect(() => {
-    if (!jobId) return;
-    try {
-      const stored = localStorage.getItem(`import_job_${jobId}_card_mappings`);
-      if (stored) setCardMappings(JSON.parse(stored));
-    } catch {}
-  }, [jobId]);
-
-  useEffect(() => {
-    if (!jobId || Object.keys(cardMappings).length === 0) return;
-    try {
-      localStorage.setItem(`import_job_${jobId}_card_mappings`, JSON.stringify(cardMappings));
-    } catch {}
-  }, [cardMappings, jobId]);
 
   const {
     data: job,
@@ -80,6 +39,11 @@ export default function ImportJobPreview() {
     retry: false,
   });
 
+  const { data: userCards = [] } = useQuery({
+    queryKey: ["cards"],
+    queryFn: getCards,
+  });
+
   const confirmMutation = useMutation({
     mutationFn: ({ rows, cardsMapping }: { rows: SmartImportRow[]; cardsMapping?: CardsMapping }) =>
       confirmImportJob(Number(jobId), rows, cardsMapping),
@@ -89,9 +53,6 @@ export default function ImportJobPreview() {
       queryClient.invalidateQueries({ queryKey: ["cards"] });
       setImportResult(result);
       setShowResultModal(true);
-      try {
-        localStorage.removeItem(`import_job_${jobId}_card_mappings`);
-      } catch {}
     },
     onError: (err: any) => {
       setPageError(err?.response?.data?.detail || err.message || "Error al importar");
@@ -107,33 +68,30 @@ export default function ImportJobPreview() {
     },
   });
 
-  const rows = editedRows.length > 0 ? editedRows : job?.preview_data?.rows || [];
+  const rows = job?.preview_data?.rows || [];
   const detectedCards: DetectedCard[] = job?.preview_data?.detected_cards || [];
 
-  const cardsMapping: CardsMapping = {};
-  for (const dc of detectedCards) {
-    const mapping = cardMappings[dc.card_header] || {};
-    if (mapping.card_id) {
-      cardsMapping[dc.card_header] = { card_id: mapping.card_id };
-    } else if (mapping.bank && mapping.card_name) {
-      cardsMapping[dc.card_header] = {
-        bank: mapping.bank,
-        card_name: mapping.card_name,
-        card_type: dc.card_type,
-      };
+  // Auto-select first matched card if available
+  useEffect(() => {
+    if (detectedCards.length > 0 && selectedCardId === null) {
+      const matched = detectedCards.find((dc) => dc.matched_card_id);
+      if (matched?.matched_card_id) {
+        setSelectedCardId(matched.matched_card_id);
+      }
     }
-  }
+  }, [detectedCards, selectedCardId]);
 
-  const allMapped = detectedCards.every((dc) => {
-    const m = cardMappings[dc.card_header];
-    return m && (m.card_id || (m.bank && m.card_name));
-  });
-  const canImport = allMapped || detectedCards.length === 0;
+  const nonDuplicateCount = rows.filter((r) => !r.is_duplicate).length;
+  const duplicateCount = rows.filter((r) => r.is_duplicate).length;
+  const scheduledCount = rows.filter((r) => r.is_scheduled || r.installment_total).length;
+  const uniqueCards = [...new Set(rows.map((r) => r.card_header).filter(Boolean))];
 
   const handleConfirm = () => {
-    if (!canImport) {
-      setPageError("Mapeá todas las tarjetas antes de importar.");
-      return;
+    const cardsMapping: CardsMapping = {};
+    if (detectedCards.length > 0 && selectedCardId) {
+      for (const dc of detectedCards) {
+        cardsMapping[dc.card_header] = { card_id: selectedCardId };
+      }
     }
     confirmMutation.mutate({
       rows,
@@ -141,17 +99,13 @@ export default function ImportJobPreview() {
     });
   };
 
-  const handleMappingChange = (cardHeader: string, field: string, value: string | number) => {
-    setCardMappings((prev) => ({
-      ...prev,
-      [cardHeader]: { ...prev[cardHeader], [field]: value },
-    }));
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-[var(--text-tertiary)]">Cargando...</div>
+        <div className="flex items-center gap-3 text-[var(--text-tertiary)]">
+          <div className="w-5 h-5 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm">Cargando...</span>
+        </div>
       </div>
     );
   }
@@ -159,7 +113,8 @@ export default function ImportJobPreview() {
   if (error || !job) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <p className="text-[var(--text-secondary)]">
+        <div className="text-4xl opacity-30">📄</div>
+        <p className="text-[var(--text-secondary)] text-sm">
           {(error as any)?.status === 410
             ? "Esta importación expiró (TTL: 24h)"
             : "Error al cargar la importación"}
@@ -177,13 +132,18 @@ export default function ImportJobPreview() {
   if (job.status === "PROCESSING") {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <div className="w-8 h-8 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
-        <p className="text-[var(--text-secondary)]">Procesando archivo...</p>
+        <div className="w-10 h-10 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
+        <div className="text-center">
+          <p className="text-[var(--text-primary)] font-medium">Procesando archivo</p>
+          <p className="text-[var(--text-tertiary)] text-sm mt-1">
+            La IA está analizando tus transacciones...
+          </p>
+        </div>
         <button
           onClick={() => discardMutation.mutate()}
-          className="text-sm text-[var(--text-tertiary)] hover:text-red-500"
+          className="text-sm text-[var(--text-tertiary)] hover:text-red-500 transition-colors"
         >
-          Cancelar procesamiento
+          Cancelar
         </button>
       </div>
     );
@@ -192,7 +152,11 @@ export default function ImportJobPreview() {
   if (job.status === "FAILED") {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <p className="text-red-500">Error al procesar: {job.error_message}</p>
+        <div className="text-4xl opacity-30">⚠️</div>
+        <div className="text-center">
+          <p className="text-red-500 font-medium">Error al procesar</p>
+          <p className="text-[var(--text-tertiary)] text-sm mt-1 max-w-md">{job.error_message}</p>
+        </div>
         <button
           onClick={() => navigate("/expenses")}
           className="px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm"
@@ -203,12 +167,8 @@ export default function ImportJobPreview() {
     );
   }
 
-  const nonDuplicateCount = rows.filter((r) => !r.is_duplicate).length;
-  const duplicateCount = rows.filter((r) => r.is_duplicate).length;
-  const scheduledCount = rows.filter((r) => r.is_scheduled || r.installment_total).length;
-
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
+    <div className="max-w-5xl mx-auto px-4 py-6">
       {pageError && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-center justify-between">
           <span>{pageError}</span>
@@ -218,136 +178,113 @@ export default function ImportJobPreview() {
         </div>
       )}
 
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-[var(--text-primary)]">{job.filename}</h1>
           <p className="text-sm text-[var(--text-tertiary)]">
-            {nonDuplicateCount} transacciones · {duplicateCount} duplicadas
+            {nonDuplicateCount} transacciones
+            {duplicateCount > 0 && ` · ${duplicateCount} duplicadas`}
             {scheduledCount > 0 && ` · ${scheduledCount} cuotas`}
           </p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => setShowDiscardModal(true)}
-            className="px-3 py-1.5 text-sm text-[var(--text-tertiary)] hover:text-red-500 border border-[var(--border-color)] rounded-lg"
+            className="px-3 py-1.5 text-sm text-[var(--text-tertiary)] hover:text-red-500 border border-[var(--border-color)] rounded-lg transition-colors"
           >
             Descartar
           </button>
           <button
             onClick={handleConfirm}
-            disabled={!canImport || confirmMutation.isPending}
-            className="px-4 py-1.5 text-sm bg-[var(--color-primary)] text-white rounded-lg disabled:opacity-50"
+            disabled={!selectedCardId || confirmMutation.isPending}
+            className="px-4 py-1.5 text-sm bg-[var(--color-primary)] text-white rounded-lg disabled:opacity-50 transition-opacity"
           >
             {confirmMutation.isPending ? "Importando..." : "Importar"}
           </button>
         </div>
       </div>
 
-      {detectedCards.length > 0 && (
-        <div className="mb-6 p-4 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg">
-          <h2 className="text-sm font-medium text-[var(--text-primary)] mb-1">Tarjeta detectada</h2>
-          <p className="text-xs text-[var(--text-tertiary)] mb-3">
-            Estos gastos se importarán a la tarjeta indicada
-          </p>
-          <div className="space-y-3">
-            {detectedCards.map((dc) => {
-              const mapping = cardMappings[dc.card_header] || {};
-              const isMapped = mapping.card_id || (mapping.bank && mapping.card_name);
-              return (
-                <div
-                  key={dc.card_header}
-                  className={`p-3 rounded-lg border ${
-                    isMapped
-                      ? "border-green-200 bg-green-50"
-                      : "border-[var(--border-color)] bg-[var(--color-base-alt)]"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-[var(--text-primary)]">
-                      {dc.card_header || "Sin identificar"}
-                    </span>
-                    <span className="text-xs text-[var(--text-tertiary)]">
-                      {dc.transaction_count} transacciones
-                    </span>
-                  </div>
-                  <div className="flex gap-2 items-center">
-                    {dc.matched_card_id ? (
-                      <span className="text-xs text-green-600">✓ {dc.matched_card_name}</span>
-                    ) : (
-                      <>
-                        <select
-                          value={mapping.card_id || ""}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === "new") {
-                              handleMappingChange(dc.card_header, "bank", dc.detected_bank || "");
-                              handleMappingChange(
-                                dc.card_header,
-                                "card_name",
-                                dc.detected_card || "",
-                              );
-                            } else if (val) {
-                              setCardMappings((prev) => ({
-                                ...prev,
-                                [dc.card_header]: { card_id: Number(val) },
-                              }));
-                            }
-                          }}
-                          className="text-xs px-2 py-1 border border-[var(--border-color)] rounded bg-[var(--color-surface)]"
-                        >
-                          <option value="">Seleccionar tarjeta...</option>
-                          <option value="new">Crear nueva</option>
-                        </select>
-                        {!mapping.card_id && (
-                          <div className="flex gap-1">
-                            <input
-                              type="text"
-                              placeholder="Banco"
-                              value={mapping.bank || dc.detected_bank || ""}
-                              onChange={(e) =>
-                                handleMappingChange(dc.card_header, "bank", e.target.value)
-                              }
-                              className="text-xs px-2 py-1 border border-[var(--border-color)] rounded w-24"
-                            />
-                            <input
-                              type="text"
-                              placeholder="Tarjeta"
-                              value={mapping.card_name || dc.detected_card || ""}
-                              onChange={(e) =>
-                                handleMappingChange(dc.card_header, "card_name", e.target.value)
-                              }
-                              className="text-xs px-2 py-1 border border-[var(--border-color)] rounded w-24"
-                            />
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {/* Import Summary Card */}
+      <div className="mb-6 p-4 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg">
+        <div className="flex items-center gap-2 mb-3">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 20 20"
+            fill="none"
+            className="text-[var(--color-primary)]"
+          >
+            <path
+              d="M9 16H4a2 2 0 01-2-2V6a2 2 0 012-2h12a2 2 0 012 2v5M15 11l-5 5m0 0l-5-5m5 5V3"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span className="text-sm font-medium text-[var(--text-primary)]">
+            Resumen de importación
+          </span>
         </div>
-      )}
 
-      <div className="overflow-x-auto">
+        <p className="text-sm text-[var(--text-secondary)] mb-3">
+          Se importarán <strong>{nonDuplicateCount} transacciones</strong>
+          {scheduledCount > 0 && `, de las cuales ${scheduledCount} son cuotas futuras`}
+          {duplicateCount > 0 && (
+            <span className="text-[var(--text-tertiary)]">
+              {" "}
+              ({duplicateCount} duplicadas serán omitidas)
+            </span>
+          )}
+        </p>
+
+        {/* Card Selection */}
+        {detectedCards.length > 0 && (
+          <div className="mt-3">
+            <label className="text-xs text-[var(--text-tertiary)] mb-1 block">
+              Tarjeta de destino
+            </label>
+            <select
+              value={selectedCardId || ""}
+              onChange={(e) => setSelectedCardId(Number(e.target.value) || null)}
+              className="w-full max-w-md text-sm px-3 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--color-surface)] text-[var(--text-primary)]"
+            >
+              <option value="">Seleccionar tarjeta...</option>
+              {userCards.map((card: Card) => (
+                <option key={card.id} value={card.id}>
+                  {card.card_name} {card.bank && `- ${card.bank}`}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {uniqueCards.length > 0 && (
+          <div className="mt-2 text-xs text-[var(--text-tertiary)]">
+            Tarjeta detectada: {uniqueCards.join(", ")}
+          </div>
+        )}
+      </div>
+
+      {/* Transactions Table */}
+      <div className="overflow-x-auto border border-[var(--border-color)] rounded-lg">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[var(--border-color)]">
-              <th className="text-left py-2 px-4 text-[var(--text-tertiary)] font-medium">Fecha</th>
-              <th className="text-left py-2 px-4 text-[var(--text-tertiary)] font-medium">
+            <tr className="border-b border-[var(--border-color)] bg-[var(--color-base-alt)]">
+              <th className="text-left py-2.5 px-4 text-[var(--text-tertiary)] font-medium text-xs uppercase tracking-wide">
+                Fecha
+              </th>
+              <th className="text-left py-2.5 px-4 text-[var(--text-tertiary)] font-medium text-xs uppercase tracking-wide">
                 Descripción
               </th>
-              <th className="text-right py-2 px-4 text-[var(--text-tertiary)] font-medium">
+              <th className="text-right py-2.5 px-4 text-[var(--text-tertiary)] font-medium text-xs uppercase tracking-wide">
                 Monto
               </th>
-              <th className="text-left py-2 px-4 text-[var(--text-tertiary)] font-medium">
-                Tarjeta
-              </th>
-              <th className="text-left py-2 px-4 text-[var(--text-tertiary)] font-medium">
+              <th className="text-left py-2.5 px-4 text-[var(--text-tertiary)] font-medium text-xs uppercase tracking-wide">
                 Categoría
               </th>
-              <th className="text-center py-2 px-4 text-[var(--text-tertiary)] font-medium">
+              <th className="text-center py-2.5 px-4 text-[var(--text-tertiary)] font-medium text-xs uppercase tracking-wide">
                 Estado
               </th>
             </tr>
@@ -357,45 +294,75 @@ export default function ImportJobPreview() {
               <tr
                 key={idx}
                 onClick={() => openRowDetail(row)}
-                className={`border-b border-[var(--border-color)] cursor-pointer hover:bg-[var(--color-base-alt)] ${
-                  row.is_duplicate ? "opacity-50" : ""
+                className={`border-b border-[var(--border-color)] last:border-0 cursor-pointer transition-colors ${
+                  row.is_duplicate
+                    ? "opacity-50 bg-[var(--color-base-alt)]"
+                    : "hover:bg-[var(--color-base-alt)]"
                 }`}
               >
-                <td className="py-2 px-4">{row.date}</td>
-                <td className="py-2 px-4 max-w-xs truncate">{row.description}</td>
-                <td className="py-2 px-4 text-right">
-                  {row.amount.toLocaleString("es-AR", {
-                    style: "currency",
-                    currency: row.currency === "USD" ? "USD" : "ARS",
-                  })}
+                <td className="py-2.5 px-4 text-[var(--text-secondary)]">{row.date}</td>
+                <td className="py-2.5 px-4 text-[var(--text-primary)] max-w-xs truncate">
+                  {row.description}
                 </td>
-                <td className="py-2 px-4">{row.card_header || "-"}</td>
-                <td className="py-2 px-4">{row.suggested_category || "-"}</td>
-                <td className="py-2 px-4 text-center">
+                <td className="py-2.5 px-4 text-right font-medium text-[var(--text-primary)]">
+                  {formatCurrency(row.amount, row.currency)}
+                </td>
+                <td className="py-2.5 px-4 text-[var(--text-secondary)]">
+                  {row.suggested_category || <span className="text-[var(--text-tertiary)]">—</span>}
+                </td>
+                <td className="py-2.5 px-4 text-center">
                   {row.is_duplicate && (
-                    <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded">
+                    <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">
                       Duplicado
                     </span>
                   )}
                   {row.is_auto_generated && !row.is_duplicate && (
-                    <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                    <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
                       Cuota
                     </span>
+                  )}
+                  {!row.is_duplicate && !row.is_auto_generated && (
+                    <span className="text-xs text-[var(--text-tertiary)]">—</span>
                   )}
                 </td>
               </tr>
             ))}
           </tbody>
+          <tfoot>
+            <tr className="border-t border-[var(--border-color)] bg-[var(--color-base-alt)]">
+              <td
+                colSpan={2}
+                className="py-2.5 px-4 text-xs text-[var(--text-tertiary)] font-medium"
+              >
+                Total ({nonDuplicateCount} transacciones)
+              </td>
+              <td className="py-2.5 px-4 text-right font-semibold text-[var(--text-primary)]">
+                {formatCurrency(
+                  rows.filter((r) => !r.is_duplicate).reduce((sum, r) => sum + r.amount, 0),
+                  "ARS",
+                )}
+              </td>
+              <td colSpan={2}></td>
+            </tr>
+          </tfoot>
         </table>
       </div>
 
+      {rows.length === 0 && (
+        <div className="text-center py-12">
+          <div className="text-4xl opacity-30 mb-3">📭</div>
+          <p className="text-[var(--text-tertiary)] text-sm">No se encontraron transacciones</p>
+        </div>
+      )}
+
+      {/* Modals */}
       {isRowDetailOpen && selectedRow && (
         <TransactionDetailModal row={selectedRow} onClose={closeRowDetail} />
       )}
 
       {showDiscardModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl p-6 w-full max-w-sm mx-4">
+          <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl">
             <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
               Descartar importación
             </h2>
@@ -405,7 +372,7 @@ export default function ImportJobPreview() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDiscardModal(false)}
-                className="flex-1 py-2 rounded-lg border border-[var(--border-color)] text-sm"
+                className="flex-1 py-2 rounded-lg border border-[var(--border-color)] text-sm hover:bg-[var(--color-base-alt)] transition-colors"
               >
                 Cancelar
               </button>
@@ -414,7 +381,7 @@ export default function ImportJobPreview() {
                   setShowDiscardModal(false);
                   discardMutation.mutate();
                 }}
-                className="flex-1 py-2 rounded-lg bg-red-600 text-white text-sm"
+                className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm transition-colors"
               >
                 Descartar
               </button>
@@ -425,21 +392,41 @@ export default function ImportJobPreview() {
 
       {showResultModal && importResult && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl p-6 w-full max-w-sm mx-4">
-            <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
-              Importación completada
-            </h2>
-            <div className="space-y-1 text-sm text-[var(--text-secondary)] mb-4">
-              <p>Importados: {importResult.imported}</p>
-              <p>Cuotas programadas: {importResult.scheduled}</p>
-              <p>Omitidos (duplicados): {importResult.skipped}</p>
+          <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl">
+            <div className="text-center mb-4">
+              <div className="text-4xl mb-2">✅</div>
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+                Importación completada
+              </h2>
+            </div>
+            <div className="space-y-2 text-sm text-[var(--text-secondary)] mb-4">
+              <div className="flex justify-between">
+                <span>Importados</span>
+                <span className="font-medium text-[var(--text-primary)]">
+                  {importResult.imported}
+                </span>
+              </div>
+              {importResult.scheduled > 0 && (
+                <div className="flex justify-between">
+                  <span>Cuotas programadas</span>
+                  <span className="font-medium text-[var(--text-primary)]">
+                    {importResult.scheduled}
+                  </span>
+                </div>
+              )}
+              {importResult.skipped > 0 && (
+                <div className="flex justify-between">
+                  <span>Duplicados omitidos</span>
+                  <span className="text-[var(--text-tertiary)]">{importResult.skipped}</span>
+                </div>
+              )}
             </div>
             <button
               onClick={() => {
                 setShowResultModal(false);
                 navigate("/expenses");
               }}
-              className="w-full py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm"
+              className="w-full py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm hover:brightness-110 transition-all"
             >
               Ver gastos
             </button>
