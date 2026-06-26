@@ -397,7 +397,7 @@ function MainLayout() {
             </main>
 
             {/* Mobile bottom nav */}
-            <nav className="md:hidden border-t border-[var(--border-color)] bg-sidebar flex items-center justify-around pb-safe pt-1 z-40 relative">
+            <nav className="md:hidden border-t border-[var(--border-color)] bg-sidebar flex items-center justify-around pb-safe pt-1 z-40 fixed bottom-0 translate-y-[var(--browser-bottom-inset)]">
               {TABS.slice(0, 4).map((tab) => (
                 <NavLink
                   key={tab.path}
