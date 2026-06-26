@@ -29,7 +29,7 @@ const TABS = [
   { path: "/", label: "Inicio", icon: "home", exact: true },
   { path: "/accounts", label: "Cuentas", icon: "accounts", exact: false },
   { path: "/expenses", label: "Gastos", icon: "expenses", exact: false },
-  { path: "/cat-dashboard", label: "Por Categoría", icon: "catDashboard", exact: false },
+  { path: "/cat-dashboard", label: "Categorías", icon: "catDashboard", exact: false },
   { path: "/installments", label: "Cuotas", icon: "installments", exact: false },
   { path: "/investments", label: "Inversiones", icon: "investments", exact: false },
   { path: "/categories", label: "Config. Categorías", icon: "settings", exact: false },
@@ -95,6 +95,35 @@ function MainLayout() {
     return () => document.removeEventListener("keydown", handleEscape);
   }, [aiDrawerOpen, userPanelOpen, notifOpen]);
 
+  // Global viewport tracking for Firefox bottom bar and mobile keyboard
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const update = () => {
+      const inset = window.innerHeight - vv.height - vv.offsetTop;
+      document.documentElement.style.setProperty(
+        "--browser-bottom-inset",
+        `${Math.max(0, inset)}px`,
+      );
+    };
+
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    update();
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
+
+  // VirtualKeyboard API — overlay keyboard instead of resizing viewport
+  useEffect(() => {
+    if ("virtualKeyboard" in navigator) {
+      (navigator as any).virtualKeyboard.overlaysContent = true;
+    }
+  }, []);
+
   const toggleDrawer = (open: boolean) => {
     setAiDrawerOpen(open);
     try {
@@ -116,7 +145,7 @@ function MainLayout() {
                 A
               </div>
               <span className="text-sm font-semibold text-[var(--color-on-sidebar)] whitespace-nowrap overflow-hidden w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300 tracking-tight">
-                Financial Planning
+                NikoFin
               </span>
             </div>
 
@@ -247,7 +276,7 @@ function MainLayout() {
 
           {/* Main content */}
           <div
-            className={`pl-16 flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ${
+            className={`md:pl-16 pb-14 flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ${
               isInvestments ? (isCollapsed ? "mr-0" : `mr-0 sm:mr-[${panelWidth}px]`) : "mr-0"
             }`}
             style={isInvestments && !isCollapsed ? { marginRight: panelWidth } : undefined}
@@ -259,7 +288,7 @@ function MainLayout() {
                   A
                 </div>
                 <span className="font-semibold text-[var(--color-on-sidebar)] tracking-tight">
-                  Financial Planning
+                  NikoFin
                 </span>
               </div>
             </header>
@@ -368,7 +397,7 @@ function MainLayout() {
             </main>
 
             {/* Mobile bottom nav */}
-            <nav className="md:hidden border-t border-[var(--border-color)] bg-sidebar flex items-center justify-around pb-safe pt-1 z-40 relative">
+            <nav className="md:hidden border-t border-[var(--border-color)] bg-sidebar flex items-center justify-around pb-safe pt-1 z-40 fixed inset-x-0 bottom-0 translate-y-[var(--browser-bottom-inset)]">
               {TABS.slice(0, 4).map((tab) => (
                 <NavLink
                   key={tab.path}
@@ -396,6 +425,18 @@ function MainLayout() {
                 <>
                   <div className="fixed inset-0 z-30" onClick={() => setShowMoreNav(false)} />
                   <div className="absolute bottom-full right-2 mb-2 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-lg py-2 min-w-[180px] z-40">
+                    {/* User account button */}
+                    <button
+                      onClick={() => {
+                        setShowMoreNav(false);
+                        setUserPanelOpen(true);
+                      }}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--text-primary)] hover:bg-[var(--color-base-alt)] transition-colors w-full"
+                    >
+                      <span className="w-5 h-5">{sidebarIcons.user}</span>
+                      <span>Mi cuenta</span>
+                    </button>
+                    <div className="border-t border-[var(--border-color)] my-1" />
                     {TABS.slice(4).map((tab) => (
                       <NavLink
                         key={tab.path}
@@ -426,7 +467,7 @@ function MainLayout() {
             {!aiDrawerOpen && !isInvestments && (
               <button
                 onClick={() => toggleDrawer(true)}
-                className="fixed bottom-4 md:bottom-6 right-4 md:right-6 z-50 flex items-center justify-center w-10 h-10 bg-primary hover:brightness-110 text-white rounded-md shadow-gnome hover:shadow-gnome-lg scale-100 hover:scale-105 transition-all duration-150"
+                className="fixed bottom-[calc(3.5rem+var(--browser-bottom-inset,0px))] md:bottom-6 right-4 md:right-6 z-50 flex items-center justify-center w-10 h-10 bg-primary hover:brightness-110 text-white rounded-md shadow-gnome hover:shadow-gnome-lg scale-100 hover:scale-105 transition-all duration-150"
                 title="Abrir asistente IA"
               >
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">

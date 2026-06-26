@@ -14,7 +14,7 @@ export default function LoginPage() {
             F
           </div>
           <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
-            Financial <span className="text-[var(--color-primary)]">Planning</span>
+            Niko<span className="text-[var(--color-primary)]">Fin</span>
           </h1>
         </div>
 

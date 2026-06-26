@@ -896,12 +896,12 @@ export default function InvestmentsPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen">
-      {/* Fixed header section */}
-      <div className="px-6 pt-6 pb-4 space-y-4">
+    <div className="flex flex-col min-h-0 h-full">
+      {/* Header section */}
+      <div className="space-y-6 px-6 pt-6 pb-4">
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Inversiones</h1>
+          <h1 className="text-2xl font-semibold text-primary">Inversiones</h1>
           <div className="flex flex-wrap items-center gap-2">
             {/* Sync status toast */}
             {syncMsg && (
@@ -965,7 +965,7 @@ export default function InvestmentsPage() {
         </div>
 
         {/* Hero portfolio value */}
-        <div className="card p-5">
+        <div className="card p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-[var(--text-secondary)] font-medium uppercase tracking-wider mb-1">
@@ -1282,16 +1282,13 @@ export default function InvestmentsPage() {
         )}
       </div>
 
-      {/* Scrollable table area */}
-      <div className="px-6 pb-6">
+      {/* Table area */}
+      <div className="px-6 pb-6 pt-4">
         {/* Holdings table */}
-        <div
-          className="card overflow-hidden flex flex-col"
-          style={{ maxHeight: "calc(100vh - 60px)" }}
-        >
-          <div className="overflow-y-auto flex-1">
+        <div className="card flex flex-col">
+          <div className="overflow-y-auto">
             <table className="w-full text-sm">
-              <thead className="bg-surface border-b border-border-color sticky top-0 z-10 flex-none">
+              <thead className="bg-[var(--color-surface)] border-b border-[var(--border-color)] sticky top-0 z-10 flex-none">
                 <tr>
                   <th
                     className="px-3 py-3 text-left text-secondary font-medium cursor-pointer hover:text-[var(--text-primary)] whitespace-nowrap"

@@ -289,7 +289,7 @@ export default function Dashboard() {
       {/* Page header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold text-primary">Finanzas Personales</h1>
+          <h1 className="text-2xl font-semibold text-primary">NikoFin</h1>
           {myGroup && myGroup.members.length > 1 && (
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
               Grupo familiar
@@ -340,7 +340,10 @@ export default function Dashboard() {
           </p>
         </div>
         {(savingsArs > 0 || totalUsd > 0) && (
-          <div className="card p-4">
+          <div
+            className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
+            onClick={() => navigate("/investments")}
+          >
             <p className="text-[10px] text-tertiary uppercase mb-1">Inversiones</p>
             <div className="space-y-0.5">
               <p className="text-sm font-bold text-primary">

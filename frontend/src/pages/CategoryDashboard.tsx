@@ -245,11 +245,9 @@ export default function CategoryDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 px-1">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h1 className="text-lg font-semibold text-[var(--text-primary)] tracking-tight">
-            Por Categoría
-          </h1>
+          <h1 className="text-2xl font-semibold text-primary tracking-tight">Categorías</h1>
           {activeSelection && (
             <span className="text-sm text-[var(--text-tertiary)]">/ {activeSelection.name}</span>
           )}
@@ -476,8 +474,8 @@ export default function CategoryDashboard() {
             ) : visibleCategories.length === 0 ? (
               <p className="text-[var(--text-secondary)] text-sm text-center py-12">Sin datos</p>
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={chartData} margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={chartData} margin={{ top: 4, right: 8, left: 4, bottom: 4 }}>
                   <defs>
                     {topTrendCategories.map((cat) => {
                       const gradId = `grad-${cat.name.replace(/[^a-zA-Z0-9]/g, "-")}`;
@@ -531,13 +529,13 @@ export default function CategoryDashboard() {
                     }}
                   />
                   <Legend
-                    wrapperStyle={{ fontSize: 11, paddingTop: 12 }}
+                    wrapperStyle={{ fontSize: 10, paddingTop: 8 }}
                     iconType="circle"
-                    iconSize={8}
+                    iconSize={6}
                     onClick={(e) => handleCategorySelect(e.value as string)}
                     formatter={(value: string) => (
                       <span
-                        className={`cursor-pointer text-xs ${
+                        className={`cursor-pointer text-[10px] ${
                           selectedCategoryName && selectedCategoryName !== value
                             ? "opacity-40"
                             : "text-[var(--text-secondary)]"
