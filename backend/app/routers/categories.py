@@ -81,7 +81,13 @@ def delete_category(
         raise HTTPException(
             400, f"No se puede eliminar: tiene {len(children)} subcategorías. Elimínalas primero."
         )
+    # Update expenses and scheduled_expenses to null category
+    from app.models import ScheduledExpense
+
     db.query(Expense).filter(Expense.category_id == cat_id).update({"category_id": None})
+    db.query(ScheduledExpense).filter(ScheduledExpense.category_id == cat_id).update(
+        {"category_id": None}
+    )
     db.delete(db_cat)
     db.commit()
     return {"ok": True}
