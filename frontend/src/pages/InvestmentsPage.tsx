@@ -1283,7 +1283,7 @@ export default function InvestmentsPage() {
       </div>
 
       {/* Scrollable table area */}
-      <div className="px-6 pb-6">
+      <div className="px-6 pb-6 pt-4">
         {/* Holdings table */}
         <div
           className="card overflow-hidden flex flex-col"
