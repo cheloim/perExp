@@ -277,6 +277,7 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
     const onResize = () => {
       if (panelRef.current && window.innerWidth < 640) {
         panelRef.current.style.height = `${vp.height}px`;
+        panelRef.current.style.top = `${vp.offsetTop}px`;
       }
     };
 
@@ -782,7 +783,7 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
       {!isCollapsed && !isExpanded && (
         <div
           ref={panelRef}
-          className="fixed inset-x-0 bottom-0 sm:inset-auto sm:right-0 sm:top-0 h-dvh sm:h-full bg-[var(--color-surface)] border-t sm:border-t-0 sm:border-l border-[var(--border-color)] shadow-lg z-50 flex flex-col w-full sm:w-96 overflow-hidden rounded-t-lg sm:rounded-none"
+          className="fixed inset-x-0 top-0 sm:inset-auto sm:right-0 sm:top-0 h-dvh sm:h-full bg-[var(--color-surface)] border-t sm:border-t-0 sm:border-l border-[var(--border-color)] shadow-lg z-50 flex flex-col w-full sm:w-96 overflow-hidden rounded-t-lg sm:rounded-none"
         >
           {headerJsx}
           {toolbarJsx}
