@@ -2,7 +2,6 @@ import asyncio
 import json
 import logging
 import os
-import random
 import uuid
 from datetime import date, datetime
 
@@ -501,10 +500,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
     if not parsed or not parsed.get("amount"):
-        await update.message.reply_text(
-            random.choice(_UNRECOGNIZED_MESSAGES),
-            parse_mode="Markdown",
-        )
+        # Show help text instead of generic error
+        await update.message.reply_text(_HELP_TEXT, parse_mode="Markdown")
         return ConversationHandler.END
 
     context.user_data["parsed"] = parsed
