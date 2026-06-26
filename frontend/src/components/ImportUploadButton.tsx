@@ -29,8 +29,8 @@ export default function ImportUploadButton() {
         const job = await createImportJob(file, abortController.signal);
         // Actualizar a processing (el backend ya tiene el job)
         updateUpload(uploadId, { status: "processing", jobId: job.id });
-        // Show toast notification
-        showToast(`Procesando ${file.name}...`, "info", 5000);
+        // Show toast notification in top-right
+        showToast(`Procesando ${file.name}...`, "info", 5000, "top-right");
       } catch (error: any) {
         // Handle abort error
         if (error.name === "AbortError" || error.name === "CanceledError") {
@@ -38,7 +38,7 @@ export default function ImportUploadButton() {
         } else {
           // Marcar como fallido
           updateUpload(uploadId, { status: "failed", error: error.message });
-          showToast(`Error: ${error.message}`, "error", 5000);
+          showToast(`Error: ${error.message}`, "error", 5000, "top-right");
         }
       }
     }

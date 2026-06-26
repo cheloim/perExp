@@ -3,9 +3,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getImportJob, confirmImportJob, deleteImportJob, getCards } from "../api/client";
 import { useState, useEffect } from "react";
 import type { SmartImportRow, DetectedCard, CardsMapping, Card } from "../types";
-import { titleCase, formatCurrency } from "../utils/format";
+import { formatCurrency } from "../utils/format";
 import { useModalWithData } from "../hooks/useModal";
 import { TransactionDetailModal } from "../components/TransactionDetailModal";
+import { Select } from "../components/ui/Select";
 
 export default function ImportJobPreview() {
   const { jobId } = useParams<{ jobId: string }>();
@@ -21,6 +22,9 @@ export default function ImportJobPreview() {
   } | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
+  const [showNewCard, setShowNewCard] = useState(false);
+  const [newBank, setNewBank] = useState("");
+  const [newCardName, setNewCardName] = useState("");
   const {
     data: selectedRow,
     openWithData: openRowDetail,
@@ -70,7 +74,7 @@ export default function ImportJobPreview() {
       queryClient.invalidateQueries({ queryKey: ["import-jobs"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["notifications-count"] });
-      navigate("/expenses");
+      navigate("/");
     },
   });
 
@@ -94,9 +98,21 @@ export default function ImportJobPreview() {
 
   const handleConfirm = () => {
     const cardsMapping: CardsMapping = {};
-    if (detectedCards.length > 0 && selectedCardId) {
-      for (const dc of detectedCards) {
-        cardsMapping[dc.card_header] = { card_id: selectedCardId };
+    if (detectedCards.length > 0) {
+      if (showNewCard && newBank && newCardName) {
+        // Create new card
+        for (const dc of detectedCards) {
+          cardsMapping[dc.card_header] = {
+            bank: newBank,
+            card_name: newCardName,
+            card_type: dc.card_type,
+          };
+        }
+      } else if (selectedCardId) {
+        // Use existing card
+        for (const dc of detectedCards) {
+          cardsMapping[dc.card_header] = { card_id: selectedCardId };
+        }
       }
     }
     confirmMutation.mutate({
@@ -126,7 +142,7 @@ export default function ImportJobPreview() {
             : "Error al cargar la importación"}
         </p>
         <button
-          onClick={() => navigate("/expenses")}
+          onClick={() => navigate("/")}
           className="px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm"
         >
           Volver
@@ -164,7 +180,7 @@ export default function ImportJobPreview() {
           <p className="text-[var(--text-tertiary)] text-sm mt-1 max-w-md">{job.error_message}</p>
         </div>
         <button
-          onClick={() => navigate("/expenses")}
+          onClick={() => navigate("/")}
           className="px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm"
         >
           Volver
@@ -203,7 +219,10 @@ export default function ImportJobPreview() {
           </button>
           <button
             onClick={handleConfirm}
-            disabled={!selectedCardId || confirmMutation.isPending}
+            disabled={
+              (!selectedCardId && !(showNewCard && newBank && newCardName)) ||
+              confirmMutation.isPending
+            }
             className="px-4 py-1.5 text-sm bg-[var(--color-primary)] text-white rounded-lg disabled:opacity-50 transition-opacity"
           >
             {confirmMutation.isPending ? "Importando..." : "Importar"}
@@ -251,18 +270,47 @@ export default function ImportJobPreview() {
             <label className="text-xs text-[var(--text-tertiary)] mb-1 block">
               Tarjeta de destino
             </label>
-            <select
-              value={selectedCardId || ""}
-              onChange={(e) => setSelectedCardId(Number(e.target.value) || null)}
-              className="w-full max-w-md text-sm px-3 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--color-surface)] text-[var(--text-primary)]"
-            >
-              <option value="">Seleccionar tarjeta...</option>
-              {userCards.map((card: Card) => (
-                <option key={card.id} value={card.id}>
-                  {card.card_name} {card.bank && `- ${card.bank}`}
-                </option>
-              ))}
-            </select>
+            <Select
+              value={showNewCard ? "new" : selectedCardId?.toString() || ""}
+              onChange={(val) => {
+                if (val === "new") {
+                  setShowNewCard(true);
+                  setSelectedCardId(null);
+                } else {
+                  setShowNewCard(false);
+                  setSelectedCardId(Number(val) || null);
+                  setNewBank("");
+                  setNewCardName("");
+                }
+              }}
+              options={[
+                ...userCards.map((card: Card) => ({
+                  value: card.id.toString(),
+                  label: `${card.card_name}${card.bank ? ` - ${card.bank}` : ""}`,
+                })),
+                { value: "new", label: "Otro (crear nueva)" },
+              ]}
+              placeholder="Seleccionar tarjeta..."
+              className="max-w-md"
+            />
+            {showNewCard && (
+              <div className="mt-2 flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Banco"
+                  value={newBank}
+                  onChange={(e) => setNewBank(e.target.value)}
+                  className="flex-1 text-sm px-3 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--color-surface)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30"
+                />
+                <input
+                  type="text"
+                  placeholder="Tarjeta"
+                  value={newCardName}
+                  onChange={(e) => setNewCardName(e.target.value)}
+                  className="flex-1 text-sm px-3 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--color-surface)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30"
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -430,7 +478,7 @@ export default function ImportJobPreview() {
             <button
               onClick={() => {
                 setShowResultModal(false);
-                navigate("/expenses");
+                navigate("/");
               }}
               className="w-full py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm hover:brightness-110 transition-all"
             >
