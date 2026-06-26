@@ -423,9 +423,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         db.close()
 
         await update.message.reply_text(
-            "👋 ¡Hola! Soy *NikoFin*\\, tu asistente de finanzas personales\\.\n\n"
-            "Para conectarte con tu cuenta\\, ingresá tu clave de 12 caracteres\\.\n"
-            "La encontrás en la app → Configuración → Telegram Bot\\.",
+            "👋 ¡Hola! Soy *NikoFin*, tu asistente de finanzas personales.\n\n"
+            "Para conectarte con tu cuenta, ingresá tu clave de 12 caracteres.\n"
+            "La encontrás en la app → Configuración → Telegram Bot.",
             parse_mode="Markdown",
         )
     return WAITING_AUTH
@@ -445,14 +445,14 @@ async def handle_auth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         db.commit()
         db.refresh(user)
         await update.message.reply_text(
-            f"🎉 ¡Listo\\, *{user.full_name}*! Ya podés mandarme tus gastos\\.\n\n"
+            f"🎉 ¡Listo, *{user.full_name}*! Ya podés mandarme tus gastos.\n\n"
             "Escribime como le contarías a un amigo:\n\n"
             '• _"gasté 1500 en farmacity"_\n'
             '• _"uber 3200 ayer"_\n'
             '• _"almuerzo con Pedro 8500 pesos"_\n'
             '• _"Netflix USD 5"_\n\n'
             "Yo me encargo del resto 📊\n"
-            "Te voy a mostrar el gasto parseado y te voy a pedir que confirmes el medio de pago\\.",
+            "Te voy a mostrar el gasto parseado y te voy a pedir que confirmes el medio de pago.",
             parse_mode="Markdown",
         )
         return ConversationHandler.END
@@ -462,14 +462,14 @@ async def handle_auth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
 _HELP_TEXT = (
     "📝 *Así registrás tus gastos con NikoFin:*\n\n"
-    "Escribime de forma natural\\, como le contarías a un amigo:\n\n"
+    "Escribime de forma natural, como le contarías a un amigo:\n\n"
     '• _"farmacity 3200"_\n'
     '• _"almuerzo con el equipo 8500 pesos"_\n'
     '• _"uber ayer 1800"_\n'
     '• _"Netflix USD 5"_\n'
     '• _"cargué nafta 15000 el viernes"_\n\n'
-    "No hace falta ser preciso con el formato\\.\n"
-    "Yo te voy a pedir el medio de pago y antes de guardar te muestro un resumen para que confirmes\\."
+    "No hace falta ser preciso con el formato.\n"
+    "Yo te voy a pedir el medio de pago y antes de guardar te muestro un resumen para que confirmes."
 )
 
 _UNRECOGNIZED_MESSAGES = [
