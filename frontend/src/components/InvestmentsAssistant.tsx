@@ -419,6 +419,26 @@ export default function InvestmentsAssistant() {
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Handle keyboard visibility on mobile
+  useEffect(() => {
+    const vp = window.visualViewport;
+    if (!vp) return;
+
+    const onResize = () => {
+      if (panelRef.current && window.innerWidth < 640) {
+        panelRef.current.style.height = `${vp.height}px`;
+      }
+    };
+
+    vp.addEventListener("resize", onResize);
+    vp.addEventListener("scroll", onResize);
+    return () => {
+      vp.removeEventListener("resize", onResize);
+      vp.removeEventListener("scroll", onResize);
+    };
+  }, []);
 
   const { data: investments = [] } = useQuery({
     queryKey: ["investments"],
@@ -734,7 +754,10 @@ export default function InvestmentsAssistant() {
 
       {/* Side panel - floating above content */}
       {!isCollapsed && !isExpanded && (
-        <div className="fixed inset-x-0 bottom-0 sm:inset-auto sm:right-0 sm:top-0 h-dvh sm:h-full bg-[var(--color-surface)] border-t sm:border-t-0 sm:border-l border-[var(--border-color)] shadow-lg z-50 flex flex-col w-full sm:w-96 overflow-hidden rounded-t-lg sm:rounded-none">
+        <div
+          ref={panelRef}
+          className="fixed inset-x-0 bottom-0 sm:inset-auto sm:right-0 sm:top-0 h-dvh sm:h-full bg-[var(--color-surface)] border-t sm:border-t-0 sm:border-l border-[var(--border-color)] shadow-lg z-50 flex flex-col w-full sm:w-96 overflow-hidden rounded-t-lg sm:rounded-none"
+        >
           {headerJsx}
           {toolbarJsx}
           <div className="flex-1 overflow-y-auto min-h-0">

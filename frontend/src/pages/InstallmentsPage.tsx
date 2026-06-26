@@ -140,11 +140,9 @@ export default function InstallmentsPage() {
   }
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
-          Gastos en Cuotas
-        </h1>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold text-primary">Gastos en Cuotas</h1>
         <button onClick={() => setEditing(null)} className="gnome-btn-primary-round text-sm">
           <span className="text-base leading-none">+</span>
           <span>Nuevo gasto</span>
