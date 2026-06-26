@@ -448,7 +448,7 @@ function MainLayout() {
           {notifOpen && <NotificationsPanel onClose={() => setNotifOpen(false)} />}
         </div>
       </FamilyGroupProvider>
-      <ToastContainer />
+      {ToastContainer}
     </UploadProgressProvider>
   );
 }
