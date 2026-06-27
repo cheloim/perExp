@@ -1,6 +1,6 @@
-# Credit Card Analyzer
+# NikoFin
 
-Personal expense management with intelligent bank statement import.
+Personal finance management with intelligent bank statement import.
 
 ## Stack
 
@@ -11,83 +11,143 @@ Personal expense management with intelligent bank statement import.
 | Charts | Recharts |
 | LLM | Google Gemini Flash |
 | PDF parsing | pdfplumber |
+| Task queue | Celery + Redis |
+| Telegram | python-telegram-bot |
+
+## Features
+
+- **Smart Import**: PDF (LLM-powered) and CSV/XLSX (deterministic) bank statement import
+- **Card Management**: Credit/debit card CRUD
+- **Account Management**: Cash and bank accounts for tracking transfers
+- **Payment Methods**: Select account (cash/transfer) or card per expense
+- **Auto-categorization**: By keywords and transaction type
+- **Installments**: Track installment purchases with automatic expansion
+- **Investments**: Sync with IOL and Portfolio Personal
+- **AI Analysis**: Chat with AI to query expenses
+- **Family Groups**: Share expenses with your family
+- **Telegram Bot**: Log expenses via Telegram (@NikoFin_bot)
+
+## Import Protection
+
+### Per-User FIFO Queue
+
+Import jobs are processed sequentially per user using Redis locks. This prevents duplicate expenses when importing multiple files.
+
+```
+User A uploads File 1 → Lock(A) → Process → Release
+User A uploads File 2 → Lock(A) → WAIT → Process (FIFO)
+
+User B uploads File 3 → Lock(B) → Process (parallel with A)
+```
+
+### Duplicate Validation
+
+Two layers of protection:
+1. **During LLM processing**: `_is_duplicate()` checks against existing expenses
+2. **At confirm time**: Re-checks `_is_duplicate()` as safety net for parallel imports
+
+### Deterministic CSV/XLSX
+
+CSV and XLSX files bypass the LLM entirely — parsed deterministically with pandas. Faster (<1s), cheaper ($0), and more reliable.
 
 ## Requirements
 
 - Python 3.11+
 - Node.js 18+
-- npm or yarn
+- PostgreSQL 14+
+- Redis 7+
+- Docker or Podman
 
-## Installation
+## Local Development with Podman
 
-```bash
-# Backend
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env  # Configure environment variables
-
-# Frontend
-cd frontend
-npm install
-```
-
-## Running
+### Prerequisites
 
 ```bash
-# Backend (from backend/)
-source .venv/bin/activate
-uvicorn main:app --reload  # http://localhost:8000
+# Install Podman (Fedora/RHEL)
+sudo dnf install -y podman podman-docker podman-compose
 
-# Frontend (from frontend/)
-npm run dev  # http://localhost:5173
+# Install Podman (Ubuntu/Debian)
+sudo apt install -y podman podman-compose
+
+# Or via pip
+pip install podman-compose
 ```
 
-## Features
+### Environment Setup
 
-- **Smart Import**: PDF and CSV with LLM (Gemini) analysis
-- **Card Management**: Credit/debit card CRUD
-- **Account Management**: Cash and bank accounts for tracking transfers
-- **Payment Methods**: Select account (cash/transfer) or card per expense
-- **Auto-categorization**: By keywords and transaction type
-- **Installments**: Track installment purchases
-- **Investments**: Sync with IOL and Portfolio Personal
-- **AI Analysis**: Chat with AI to query expenses
-- **Family Groups**: Share expenses with your family
-- **Telegram Bot**: Receive notifications and log expenses from Telegram
+```bash
+# Create secrets directory
+mkdir -p backend/secrets/dev
 
-## Structure
+# Create password file for PostgreSQL
+echo -n "your-postgres-password" > backend/secrets/dev/postgres_password.txt
 
-```
-backend/
-  main.py              # FastAPI app entry
-  app/
-    models.py          # SQLAlchemy models
-    routers/           # API endpoints
-    services/          # Business logic
-
-frontend/
-  src/
-    api/               # Axios API client
-    pages/             # React pages
-    components/        # Reusable components
-    types/             # TypeScript interfaces
+# Create .env file in backend/
+cat > backend/.env << 'EOF'
+DATABASE_URL=postgresql://expenses_user:your-postgres-password@db:5432/expenses
+REDIS_URL=redis://redis:6379/0
+LLM_API_KEY=your-gemini-api-key
+SECRET_KEY=your-jwt-secret-key
+TELEGRAM_BOT_TOKEN=your-telegram-bot-token
+EOF
 ```
 
-## Configuration
+### Build and Run
 
-The project uses environment variables. Copy `.env.example` to `.env` and configure as needed:
+```bash
+# Build images
+podman-compose build
 
-- `SECRET_KEY`: JWT secret key
-- `GEMINI_API_KEY`: Google Gemini API key
-- `IOL_API_KEY` / `PPI_API_KEY`: For investment sync
+# Start all services
+podman-compose up -d
 
-## GitHub Actions Deployment
+# View logs
+podman-compose logs -f backend_dev
+podman-compose logs -f celery_worker_dev
+
+# Stop services
+podman-compose down
+```
+
+### Services
+
+| Service | Port | Description |
+|---------|------|-------------|
+| `backend_dev` | 8001 | FastAPI backend |
+| `celery_worker_dev` | - | Background task processor |
+| `frontend_dev` | 8082 | Vite dev server |
+| `db` | 5432 | PostgreSQL database |
+| `redis` | 6379 | Redis (Celery broker) |
+
+### First Run
+
+```bash
+# Run database migrations
+podman-compose run --rm backend_dev python -m scripts.migrate_add_reset_token
+podman-compose run --rm backend_dev python -m scripts.migrate_remove_haberes
+
+# Seed default categories
+podman-compose run --rm backend_dev python -c "from app.database import SessionLocal; from app.seed import _apply_base_hierarchy; db = SessionLocal(); _apply_base_hierarchy(db); db.commit()"
+```
+
+### Access
+
+- **App**: http://localhost:8082
+- **API docs**: http://localhost:8001/docs
+
+## Production Deployment
+
+### GitHub Actions
+
+Push to `main` branch triggers automatic deployment:
+
+1. Build Docker images → push to GHCR
+2. SSH into server → pull images
+3. Run migrations → restart services
 
 ### Required Secrets
 
-Add these secrets in `Settings → Secrets → Actions`:
+Add in `Settings → Secrets → Actions`:
 
 | Secret | Description |
 |--------|-------------|
@@ -98,8 +158,6 @@ Add these secrets in `Settings → Secrets → Actions`:
 
 ### APP_SECRETS Template
 
-Create a JSON file with your secrets:
-
 ```json
 {
   "POSTGRES_PASSWORD": "your-postgres-password",
@@ -109,27 +167,53 @@ Create a JSON file with your secrets:
   "TELEGRAM_BOT_TOKEN": "your-telegram-bot-token",
   "GOOGLE_CLIENT_ID": "your-google-client-id",
   "GOOGLE_CLIENT_SECRET": "your-google-client-secret",
-  "SECRET_KEY": "your-jwt-secret-key"
+  "SECRET_KEY": "your-jwt-secret-key",
+  "RESEND_API_KEY": "your-resend-api-key"
 }
 ```
 
 ### Generate Base64 Secret
 
 ```bash
-# Option 1: From file
 cat app-secrets.json | base64 -w 0
-
-# Option 2: Inline
-echo '{"POSTGRES_PASSWORD":"xxx","LLM_API_KEY":"xxx"}' | base64 -w 0
 ```
 
-### Add to GitHub
+### Manual Deploy
 
-1. Copy the base64 output
-2. Go to `Settings → Secrets → Actions`
-3. Click `New repository secret`
-4. Name: `APP_SECRETS_B64`
-5. Value: paste the base64 string
+```bash
+# On the server
+cd /opt/creditcardanalyzer
+source .env
+
+# Run migrations
+podman-compose run --rm --no-deps backend python -m scripts.migrate_add_reset_token
+podman-compose run --rm --no-deps backend python -m scripts.migrate_remove_haberes
+
+# Restart services
+podman-compose down
+podman-compose up -d
+```
+
+## Telegram Bot
+
+The bot is available at [@NikoFin_bot](https://t.me/NikoFin_bot).
+
+1. Open the bot in Telegram
+2. Send `/start`
+3. Go to the app → Settings → Telegram Bot
+4. Copy the key and paste it in the bot
+
+### Bot Commands
+
+- `/start` — Authenticate with your account
+- `/help` — Show usage instructions
+
+### Logging Expenses
+
+Just send a message describing your expense:
+- "gasté 1500 en farmacity"
+- "uber 3200 ayer"
+- "Netflix USD 5"
 
 ## License
 
