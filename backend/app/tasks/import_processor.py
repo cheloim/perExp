@@ -74,9 +74,7 @@ def process_import_job(job_id: int):
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 preview = loop.run_until_complete(
-                    run_deterministic_import(
-                        file_content, job.filename, db, job.user_id
-                    )
+                    run_deterministic_import(file_content, job.filename, db, job.user_id)
                 )
                 with suppress(RuntimeError):
                     loop.close()

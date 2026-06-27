@@ -400,9 +400,7 @@ def _csv_split(line: str) -> list[str]:
     return result
 
 
-async def run_deterministic_import(
-    content: bytes, filename: str, db, user_id: int
-) -> dict:
+async def run_deterministic_import(content: bytes, filename: str, db, user_id: int) -> dict:
     """
     Deterministic CSV/XLSX import without LLM.
     Returns same structure as run_smart_import().
@@ -590,7 +588,9 @@ async def run_deterministic_import(
                 "detected_card": detected_card_type,
                 "card_type": "credito",
                 "matched_card_id": matched_card.id if matched_card else None,
-                "matched_card_name": f"{matched_card.card_name} {matched_card.bank}" if matched_card else None,
+                "matched_card_name": f"{matched_card.card_name} {matched_card.bank}"
+                if matched_card
+                else None,
                 "transaction_count": len(txns),
             }
         )
