@@ -255,6 +255,26 @@ def create_expense(
             },
         )
 
+    # Validate card belongs to user
+    if data.get("card_id"):
+        card = db.query(Card).filter(
+            Card.id == data["card_id"],
+            Card.user_id == current_user.id,
+        ).first()
+        if not card:
+            raise HTTPException(404, "Tarjeta no encontrada")
+
+    # Validate account belongs to user
+    if data.get("account_id"):
+        from app.models import Account
+
+        account = db.query(Account).filter(
+            Account.id == data["account_id"],
+            Account.user_id == current_user.id,
+        ).first()
+        if not account:
+            raise HTTPException(404, "Cuenta no encontrada")
+
     db_exp = Expense(**data, user_id=current_user.id)
     db.add(db_exp)
     db.commit()
@@ -296,10 +316,32 @@ def update_expense(
     return db_exp
 
 
+@router.post("/bulk-delete")
+def bulk_delete_expenses(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    ids: list = payload.get("ids", [])
+    if not ids:
+        return {"deleted": 0}
+    deleted = (
+        db.query(Expense)
+        .filter(Expense.id.in_(ids), Expense.user_id == current_user.id)
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return {"deleted": deleted}
+
+
 @router.delete("/all")
 def delete_all_expenses(
-    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
+    if payload.get("confirm") != "DELETE_ALL":
+        raise HTTPException(400, detail='Send {"confirm": "DELETE_ALL"} to proceed')
     count = db.query(Expense).filter(Expense.user_id == current_user.id).count()
     db.query(Expense).filter(Expense.user_id == current_user.id).delete()
     db.commit()
@@ -329,7 +371,7 @@ def recategorize_expenses(
     if payload is None:
         payload = {}
     only_uncategorized = (payload or {}).get("only_uncategorized", False)
-    cats = db.query(Category).all()
+    cats = db.query(Category).filter(Category.user_id == current_user.id).all()
     q = db.query(Expense).filter(Expense.user_id == current_user.id)
     if only_uncategorized:
         q = q.filter(Expense.category_id.is_(None))
@@ -381,11 +423,23 @@ def bulk_update_category(
     category_id = payload.get("category_id")
     if not ids:
         return {"updated": 0}
-    db.query(Expense).filter(Expense.id.in_(ids), Expense.user_id == current_user.id).update(
-        {"category_id": category_id}, synchronize_session=False
+
+    # Validate category belongs to this user (or is null)
+    if category_id is not None:
+        cat = db.query(Category).filter(
+            Category.id == category_id,
+            Category.user_id == current_user.id,
+        ).first()
+        if not cat:
+            raise HTTPException(404, "Categoría no encontrada")
+
+    updated = (
+        db.query(Expense)
+        .filter(Expense.id.in_(ids), Expense.user_id == current_user.id)
+        .update({"category_id": category_id}, synchronize_session=False)
     )
     db.commit()
-    return {"updated": len(ids)}
+    return {"updated": updated}
 
 
 @router.post("/detect-installments")

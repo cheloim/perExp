@@ -137,6 +137,12 @@ async def verify_apple_token(code: str) -> dict:
 def _generate_apple_client_secret() -> str:
     from jose import jwt as jose_jwt
 
+    apple_private_key = os.getenv("APPLE_PRIVATE_KEY", "")
+    if not apple_private_key:
+        raise RuntimeError(
+            "APPLE_PRIVATE_KEY environment variable is required for Sign in with Apple"
+        )
+
     now = datetime.now(UTC)
     payload = {
         "iss": APPLE_TEAM_ID,
@@ -145,4 +151,4 @@ def _generate_apple_client_secret() -> str:
         "aud": "https://appleid.apple.com",
         "sub": APPLE_CLIENT_ID,
     }
-    return jose_jwt.encode(payload, "", algorithm="RS256", headers={"kid": APPLE_KEY_ID})
+    return jose_jwt.encode(payload, apple_private_key, algorithm="RS256", headers={"kid": APPLE_KEY_ID})

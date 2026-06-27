@@ -186,6 +186,9 @@ export const updateExpense = (id: number, data: Partial<ExpenseCreate>) =>
 
 export const deleteExpense = (id: number) => api.delete(`/expenses/${id}`).then((r) => r.data);
 
+export const bulkDeleteExpenses = (ids: number[]) =>
+  api.post("/expenses/bulk-delete", { ids }).then((r) => r.data);
+
 // Dashboard
 export const getDashboard = (params?: {
   month?: string;
