@@ -29,6 +29,11 @@ redis_client = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0")
 LOCK_TIMEOUT = 600
 
 
+def _is_structured_file(filename: str) -> bool:
+    """Check if file is CSV/XLSX (structured, no LLM needed)."""
+    return filename.lower().endswith((".csv", ".xls", ".xlsx"))
+
+
 @celery_app.task(name="app.tasks.import_processor.process_import_job")
 def process_import_job(job_id: int):
     """
@@ -59,18 +64,39 @@ def process_import_job(job_id: int):
 
         try:
             file_content = job.file_content
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            preview = loop.run_until_complete(
-                run_smart_import(
-                    file_content=file_content, filename=job.filename, db=db, user_id=job.user_id
+            is_structured = _is_structured_file(job.filename)
+
+            if is_structured:
+                # CSV/XLSX: deterministic parsing (no LLM)
+                from app.services.csv_parser import run_deterministic_import
+
+                _log(f"[IMPORT JOB] Using deterministic parser for {job.filename}")
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                preview = loop.run_until_complete(
+                    run_deterministic_import(
+                        file_content, job.filename, db, job.user_id
+                    )
                 )
-            )
-            # Suppress RuntimeError from async GenAI client cleanup after loop close
-            with suppress(RuntimeError):
-                loop.close()
-            # Also suppress deferred cleanup warnings from GC
-            warnings.filterwarnings("ignore", message=".*Event loop is closed.*")
+                with suppress(RuntimeError):
+                    loop.close()
+                warnings.filterwarnings("ignore", message=".*Event loop is closed.*")
+            else:
+                # PDF: LLM-based parsing
+                _log(f"[IMPORT JOB] Using LLM parser for {job.filename}")
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                preview = loop.run_until_complete(
+                    run_smart_import(
+                        file_content=file_content,
+                        filename=job.filename,
+                        db=db,
+                        user_id=job.user_id,
+                    )
+                )
+                with suppress(RuntimeError):
+                    loop.close()
+                warnings.filterwarnings("ignore", message=".*Event loop is closed.*")
             del file_content
             job.file_content = None
 
