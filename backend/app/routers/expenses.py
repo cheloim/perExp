@@ -257,10 +257,14 @@ def create_expense(
 
     # Validate card belongs to user
     if data.get("card_id"):
-        card = db.query(Card).filter(
-            Card.id == data["card_id"],
-            Card.user_id == current_user.id,
-        ).first()
+        card = (
+            db.query(Card)
+            .filter(
+                Card.id == data["card_id"],
+                Card.user_id == current_user.id,
+            )
+            .first()
+        )
         if not card:
             raise HTTPException(404, "Tarjeta no encontrada")
 
@@ -268,10 +272,14 @@ def create_expense(
     if data.get("account_id"):
         from app.models import Account
 
-        account = db.query(Account).filter(
-            Account.id == data["account_id"],
-            Account.user_id == current_user.id,
-        ).first()
+        account = (
+            db.query(Account)
+            .filter(
+                Account.id == data["account_id"],
+                Account.user_id == current_user.id,
+            )
+            .first()
+        )
         if not account:
             raise HTTPException(404, "Cuenta no encontrada")
 
@@ -426,10 +434,14 @@ def bulk_update_category(
 
     # Validate category belongs to this user (or is null)
     if category_id is not None:
-        cat = db.query(Category).filter(
-            Category.id == category_id,
-            Category.user_id == current_user.id,
-        ).first()
+        cat = (
+            db.query(Category)
+            .filter(
+                Category.id == category_id,
+                Category.user_id == current_user.id,
+            )
+            .first()
+        )
         if not cat:
             raise HTTPException(404, "Categoría no encontrada")
 
