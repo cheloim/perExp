@@ -42,6 +42,8 @@ Formatos: "C.12/12", "C.01/03", "Cta 2/6", sufijo "NN/NN" (Galicia: "KEL03/03"鈫
 REGLAS:
 - Solo es cuota si installment_total >= 2. "01/01" NO es cuota.
 - NO es cuota si NN/NN est谩 dentro de c贸digo largo con guiones (ej: "COO0951898-05/06-000-314")
+- NO es cuota si NN/NN es parte de un c贸digo de producto o ID (ej: "BON01205731 01/2", "REF123456 03/12")
+- Solo considerar NN/NN como cuota si est谩 precedido por "C.", "Cta", o si es un patr贸n claro de cuotas (ej: "MERPAGO*TIENDA01/12")
 - La fecha es la ORIGINAL DE COMPRA, NO la de cobro (el backend calcula la real).
 - Descripci贸n limpia: sin parte de cuotas ni separador.
 

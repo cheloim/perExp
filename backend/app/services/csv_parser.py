@@ -398,3 +398,287 @@ def _csv_split(line: str) -> list[str]:
             current += ch
     result.append(current)
     return result
+
+
+async def run_deterministic_import(content: bytes, filename: str, db, user_id: int) -> dict:
+    """
+    Deterministic CSV/XLSX import without LLM.
+    Returns same structure as run_smart_import().
+    """
+    from app.models import Card, Category
+    from app.services.categorization import _resolve_category
+    from app.services.import_utils import _expand_installments, _is_duplicate
+    from app.services.smart_import_core import _match_card_to_existing, _parse_card_header
+
+    # 1. Load data
+    if filename.lower().endswith(".csv"):
+        raw_text = content.decode("utf-8", errors="replace")
+    else:
+        df_xlsx = _load_dataframe(content, filename)
+        raw_text = df_xlsx.to_csv(index=False)
+
+    lines = raw_text.splitlines()
+
+    # 2. Detect header row
+    header_idx = None
+    header_col_idx = {}
+    for i, line in enumerate(lines):
+        ll = line.lower()
+        if "fecha" in ll and "descripci" in ll:
+            header_idx = i
+            parts = _csv_split(line)
+            for j, p in enumerate(parts):
+                p_lower = p.lower().strip()
+                if "fecha" in p_lower:
+                    header_col_idx["date"] = j
+                elif "descripci" in p_lower:
+                    header_col_idx["desc"] = j
+                elif "cuota" in p_lower:
+                    header_col_idx["cuotas"] = j
+                elif "comprob" in p_lower:
+                    header_col_idx["comprob"] = j
+                elif (
+                    "monto en pesos" in p_lower
+                    or "importe en pesos" in p_lower
+                    or (p_lower == "pesos" and "monto" not in ll)
+                ):
+                    header_col_idx["pesos"] = j
+                elif (
+                    "dólares" in p_lower
+                    or "dolares" in p_lower
+                    or "us$" in p_lower
+                    or "u$s" in p_lower
+                ):
+                    header_col_idx["dolares"] = j
+            break
+
+    if header_idx is None:
+        raise ValueError("No se encontró la fila de encabezado con 'Fecha' y 'Descripción'.")
+
+    # 3. Extract closing dates from headers
+    closing_date = None
+    due_date = None
+    for i in range(header_idx):
+        ll = lines[i].lower()
+        m = re.search(r"fecha\s+de\s+cierre[:\s]*(\d{2}/\d{2}/\d{4})", ll)
+        if m:
+            closing_date = _parse_date(m.group(1))
+        m = re.search(r"fecha\s+de\s+vencimiento[:\s]*(\d{2}/\d{2}/\d{4})", ll)
+        if m:
+            due_date = _parse_date(m.group(1))
+
+    # 4. Parse rows
+    current_last4: str | None = None
+    previous_date: date | None = None
+
+    raw_rows: list = []
+
+    for i in range(header_idx + 1, len(lines)):
+        line = lines[i].strip()
+        if not line:
+            continue
+
+        parts = _csv_split(line)
+        card_match = _extract_card_from_text(line)
+        if card_match:
+            current_last4 = card_match
+
+        date_idx = header_col_idx.get("date")
+        date_raw = parts[date_idx].strip() if date_idx is not None and date_idx < len(parts) else ""
+        date_obj = _parse_date(date_raw)
+
+        desc_idx = header_col_idx.get("desc")
+        desc_raw = parts[desc_idx].strip() if desc_idx is not None and desc_idx < len(parts) else ""
+
+        comprob_idx = header_col_idx.get("comprob")
+        comprob_raw = (
+            parts[comprob_idx].strip()
+            if comprob_idx is not None and comprob_idx < len(parts)
+            else ""
+        )
+
+        if date_obj is None:
+            comp_str = str(comprob_raw or "").strip()
+            if not (re.match(r"^\d{4,}$", comp_str) and desc_raw):
+                continue
+        if not desc_raw:
+            continue
+
+        pesos_idx = header_col_idx.get("pesos")
+        dolares_idx = header_col_idx.get("dolares")
+        pesos_raw = (
+            parts[pesos_idx].strip() if pesos_idx is not None and pesos_idx < len(parts) else ""
+        )
+        dolares_raw = (
+            parts[dolares_idx].strip()
+            if dolares_idx is not None and dolares_idx < len(parts)
+            else ""
+        )
+
+        amount: float | None = None
+        currency = "ARS"
+        if dolares_raw and dolares_raw not in ("", "-"):
+            amount = _parse_amount(dolares_raw)
+            currency = "USD"
+        if amount is None and pesos_raw and pesos_raw not in ("", "-"):
+            amount = _parse_amount(pesos_raw)
+
+        if amount is None or amount == 0:
+            continue
+
+        amount = abs(amount)
+
+        txn_id: str | None = None
+        if re.match(r"^\d{4,}$", comprob_raw) and comprob_raw not in ("", "-"):
+            txn_id = comprob_raw
+            if txn_id:
+                txn_id = txn_id.lstrip("0") or "0"
+
+        cuotas_idx = header_col_idx.get("cuotas")
+        inst_num, inst_total = None, None
+        if cuotas_idx is not None and cuotas_idx < len(parts):
+            inst_num, inst_total = _parse_installments(parts[cuotas_idx])
+
+        effective_date = date_obj or previous_date
+        if date_obj:
+            previous_date = date_obj
+
+        # Build card_header from last4 info
+        card_header = f"Tarjeta {current_last4}" if current_last4 else ""
+
+        raw_rows.append(
+            {
+                "date": effective_date.strftime("%d-%m-%Y") if effective_date else "",
+                "_date_obj": effective_date,
+                "description": desc_raw,
+                "amount": amount,
+                "currency": currency,
+                "card_header": card_header,
+                "transaction_id": txn_id,
+                "installment_number": inst_num,
+                "installment_total": inst_total,
+                "installment_group_id": None,
+            }
+        )
+
+    if not raw_rows:
+        raise ValueError("No se encontraron transacciones en el archivo.")
+
+    # 5. Expand installments
+    parsed, scheduled_list = _expand_installments(raw_rows, db, user_id)
+
+    # 6. Build detected_cards
+    from collections import defaultdict
+
+    card_groups = defaultdict(list)
+    for p in parsed:
+        card_groups[p.get("card_header", "")].append(p)
+
+    user_cards_list = db.query(Card).filter(Card.user_id == user_id).all()
+
+    detected_cards = []
+    for card_header, txns in card_groups.items():
+        detected_bank, detected_card_type = _parse_card_header(card_header)
+        matched_card = _match_card_to_existing(detected_bank, detected_card_type, user_cards_list)
+
+        detected_cards.append(
+            {
+                "card_header": card_header,
+                "detected_bank": detected_bank,
+                "detected_card": detected_card_type,
+                "card_type": "credito",
+                "matched_card_id": matched_card.id if matched_card else None,
+                "matched_card_name": f"{matched_card.card_name} {matched_card.bank}"
+                if matched_card
+                else None,
+                "transaction_count": len(txns),
+            }
+        )
+
+    # 7. Build response rows
+    cats = db.query(Category).all()
+    rows = []
+    for p in parsed:
+        row_date = p["_date_obj"]
+        cat_id = _resolve_category(db, p["amount"], p["description"], cats)
+        cat_name = next((c.name for c in cats if c.id == cat_id), None)
+
+        is_dup = (
+            _is_duplicate(
+                db,
+                row_date,
+                p["amount"],
+                p["description"],
+                p.get("transaction_id"),
+                p.get("installment_number"),
+                p.get("installment_total"),
+                p.get("installment_group_id"),
+            )
+            if row_date
+            else False
+        )
+
+        rows.append(
+            {
+                "date": p["date"],
+                "description": p["description"],
+                "amount": p["amount"],
+                "currency": p.get("currency", "ARS"),
+                "card_header": p.get("card_header", ""),
+                "transaction_id": p.get("transaction_id"),
+                "installment_number": p.get("installment_number"),
+                "installment_total": p.get("installment_total"),
+                "installment_group_id": p.get("installment_group_id"),
+                "suggested_category": cat_name,
+                "is_duplicate": is_dup,
+                "is_auto_generated": p.get("_auto_generated", False),
+                "is_scheduled": False,
+            }
+        )
+
+    # 8. Add scheduled installments
+    for s in scheduled_list:
+        cat_id = _resolve_category(db, s["amount"], s["description"], cats)
+        cat_name = next((c.name for c in cats if c.id == cat_id), None)
+        rows.append(
+            {
+                "date": s["scheduled_date"].strftime("%d-%m-%Y"),
+                "description": s["description"],
+                "amount": s["amount"],
+                "currency": s.get("currency", "ARS"),
+                "card_header": s.get("card_header", ""),
+                "transaction_id": s.get("transaction_id"),
+                "installment_number": s.get("installment_number"),
+                "installment_total": s.get("installment_total"),
+                "installment_group_id": s.get("installment_group_id"),
+                "suggested_category": cat_name,
+                "is_duplicate": False,
+                "is_auto_generated": True,
+                "is_scheduled": True,
+            }
+        )
+
+    non_auto = [r for r in rows if not r.get("is_auto_generated")]
+    if not non_auto:
+        raise ValueError("No se encontraron transacciones en el archivo.")
+
+    summary = {
+        "card_type": "credito",
+        "bank": detected_cards[0]["detected_bank"] if detected_cards else "",
+        "closing_date": closing_date.isoformat() if closing_date else None,
+        "due_date": due_date.isoformat() if due_date else None,
+        "total_ars": None,
+        "total_usd": None,
+        "future_charges_ars": None,
+        "future_charges_usd": None,
+    }
+
+    has_missing_data = any(not (r.get("card_header") or "").strip() for r in rows)
+
+    return {
+        "rows": rows,
+        "raw_count": len(raw_rows),
+        "summary": summary,
+        "has_missing_data": has_missing_data,
+        "detected_cards": detected_cards,
+    }
