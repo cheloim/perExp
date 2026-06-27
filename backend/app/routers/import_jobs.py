@@ -293,6 +293,41 @@ async def confirm_import_job(
         if txn_id:
             txn_id = txn_id.lstrip("0") or "0"
 
+        # Re-check for duplicates against DB (safety net for parallel imports)
+        from app.services.import_utils import _is_duplicate, _is_scheduled_duplicate
+
+        if is_scheduled:
+            if _is_scheduled_duplicate(
+                db,
+                row_date,
+                amount_value,
+                r.get("description", ""),
+                r.get("installment_number"),
+                r.get("installment_total"),
+                user.id,
+                r.get("installment_group_id"),
+            ):
+                skipped_count += 1
+                continue
+        else:
+            if _is_duplicate(
+                db,
+                row_date,
+                amount_value,
+                r.get("description", ""),
+                txn_id,
+                r.get("installment_number"),
+                r.get("installment_total"),
+                r.get("installment_group_id"),
+            ):
+                skipped_count += 1
+                continue
+
+        raw_txn_id = r.get("transaction_id")
+        txn_id = str(raw_txn_id).strip() if raw_txn_id else None
+        if txn_id:
+            txn_id = txn_id.lstrip("0") or "0"
+
         # Card matching via card_header
         card_header = str(r.get("card_header", "") or "").strip()
         mapping_entry = cards_mapping.get(card_header, {})
