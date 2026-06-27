@@ -167,10 +167,14 @@ def delete_card(
     # Check if card has expenses
     from app.models import Expense
 
-    has_expenses = db.query(Expense).filter(
-        Expense.card_id == card_id,
-        Expense.user_id == current_user.id,
-    ).first()
+    has_expenses = (
+        db.query(Expense)
+        .filter(
+            Expense.card_id == card_id,
+            Expense.user_id == current_user.id,
+        )
+        .first()
+    )
     if has_expenses:
         raise HTTPException(status_code=400, detail="Cannot delete card with associated expenses")
 

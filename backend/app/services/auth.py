@@ -151,4 +151,6 @@ def _generate_apple_client_secret() -> str:
         "aud": "https://appleid.apple.com",
         "sub": APPLE_CLIENT_ID,
     }
-    return jose_jwt.encode(payload, apple_private_key, algorithm="RS256", headers={"kid": APPLE_KEY_ID})
+    return jose_jwt.encode(
+        payload, apple_private_key, algorithm="RS256", headers={"kid": APPLE_KEY_ID}
+    )
