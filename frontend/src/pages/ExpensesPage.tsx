@@ -12,6 +12,7 @@ import {
   createExpense,
   updateExpense,
   deleteExpense,
+  bulkDeleteExpenses,
   bulkUpdateFields,
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
@@ -308,7 +309,7 @@ export default function ExpensesPage() {
   };
 
   const bulkDeleteMut = useMutation({
-    mutationFn: (ids: number[]) => Promise.all(ids.map((id) => deleteExpense(id))),
+    mutationFn: (ids: number[]) => bulkDeleteExpenses(ids),
     onSuccess: () => {
       invalidate();
       clearBulkState();
