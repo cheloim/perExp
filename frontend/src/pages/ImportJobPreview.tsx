@@ -393,10 +393,24 @@ export default function ImportJobPreview() {
                 Total ({nonDuplicateCount} transacciones)
               </td>
               <td className="py-2.5 px-4 text-right font-semibold text-[var(--text-primary)]">
-                {formatCurrency(
-                  rows.filter((r) => !r.is_duplicate).reduce((sum, r) => sum + r.amount, 0),
-                  "ARS",
-                )}
+                {(() => {
+                  const nonDupRows = rows.filter((r) => !r.is_duplicate);
+                  const arsTotal = nonDupRows
+                    .filter((r) => r.currency === "ARS")
+                    .reduce((sum, r) => sum + r.amount, 0);
+                  const usdTotal = nonDupRows
+                    .filter((r) => r.currency === "USD")
+                    .reduce((sum, r) => sum + r.amount, 0);
+
+                  if (arsTotal > 0 && usdTotal > 0) {
+                    return (
+                      <span className="text-xs">
+                        {formatCurrency(arsTotal, "ARS")} + {formatCurrency(usdTotal, "USD")}
+                      </span>
+                    );
+                  }
+                  return formatCurrency(arsTotal || usdTotal, arsTotal > 0 ? "ARS" : "USD");
+                })()}
               </td>
               <td colSpan={2}></td>
             </tr>

@@ -1286,7 +1286,7 @@ export default function InvestmentsPage() {
       <div className="px-6 pb-6 pt-4">
         {/* Holdings table */}
         <div className="card flex flex-col">
-          <div className="overflow-y-auto">
+          <div className="overflow-y-auto overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-[var(--color-surface)] border-b border-[var(--border-color)] sticky top-0 z-10 flex-none">
                 <tr>

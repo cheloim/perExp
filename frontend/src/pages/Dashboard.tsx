@@ -365,7 +365,7 @@ export default function Dashboard() {
       {/* Gastos por Categoría + Transacciones — side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Gastos por Categoría */}
-        <div className="card p-4 h-[313px] flex flex-col">
+        <div className="card p-4 min-h-[200px] flex flex-col">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-primary">Gastos por Categoría</h2>
@@ -506,7 +506,7 @@ export default function Dashboard() {
         </div>
 
         {/* Right: Transacciones */}
-        <div className="card h-[313px] flex flex-col">
+        <div className="card min-h-[200px] flex flex-col">
           <div className="px-4 py-3 border-b border-border-color flex items-center justify-between flex-shrink-0">
             <h2 className="text-sm font-semibold text-primary">
               Transacciones — Mes corriente
