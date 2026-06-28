@@ -504,6 +504,12 @@ async def run_deterministic_import(content: bytes, filename: str, db, user_id: i
         if not desc_raw:
             continue
 
+        # Skip payment summary lines (e.g., "Su pago en pesos", "Su pago en usd")
+        from app.services.categorization import _should_skip
+
+        if _should_skip(desc_raw):
+            continue
+
         pesos_idx = header_col_idx.get("pesos")
         dolares_idx = header_col_idx.get("dolares")
         pesos_raw = (
