@@ -7,11 +7,13 @@ import { formatCurrency } from "../utils/format";
 import { useModalWithData } from "../hooks/useModal";
 import { TransactionDetailModal } from "../components/TransactionDetailModal";
 import { Select } from "../components/ui/Select";
+import { useNotifications } from "../context/NotificationsContext";
 
 export default function ImportJobPreview() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { refresh } = useNotifications();
 
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
@@ -62,6 +64,7 @@ export default function ImportJobPreview() {
       queryClient.invalidateQueries({ queryKey: ["cards"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["notifications-count"] });
+      refresh();
       setImportResult(result);
       setShowResultModal(true);
     },
