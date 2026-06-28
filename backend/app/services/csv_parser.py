@@ -35,14 +35,25 @@ def _parse_amount(raw: str) -> float | None:
     s = s.lstrip("-")
     if not s or s in ("", "NaN"):
         return None
+
     comma_idx = s.rfind(",")
-    s.rfind(".")
+    dot_idx = s.rfind(".")
+
     if comma_idx != -1:
         digits_after_comma = len(s) - comma_idx - 1
         if digits_after_comma >= 3:
+            # Argentine format: 1.234.567,89
             s = s.replace(".", "").replace(",", ".")
         else:
+            # Decimal: 1234,56
             s = s.replace(",", ".")
+    elif dot_idx != -1:
+        # Check if dot is thousands separator (3+ digits after)
+        digits_after_dot = len(s) - dot_idx - 1
+        if digits_after_dot >= 3:
+            # Thousands separator: 1.234.567
+            s = s.replace(".", "")
+
     clean = "".join(c for c in s if c.isdigit() or c == ".")
     try:
         val = float(clean)
@@ -385,19 +396,24 @@ def parse_csv_expenses(content: bytes, filename: str, db, user_id: int):
 
 
 def _csv_split(line: str) -> list[str]:
-    result = []
-    current = ""
-    in_quotes = False
-    for ch in line:
-        if ch == '"':
-            in_quotes = not in_quotes
-        elif ch == "," and not in_quotes:
-            result.append(current)
+    # Auto-detect delimiter: try tab, semicolon, comma
+    for sep in ["\t", ";", ","]:
+        if sep in line:
+            result = []
             current = ""
-        else:
-            current += ch
-    result.append(current)
-    return result
+            in_quotes = False
+            for ch in line:
+                if ch == '"':
+                    in_quotes = not in_quotes
+                elif ch == sep and not in_quotes:
+                    result.append(current)
+                    current = ""
+                else:
+                    current += ch
+            result.append(current)
+            if len(result) > 1:
+                return result
+    return [line]
 
 
 async def run_deterministic_import(content: bytes, filename: str, db, user_id: int) -> dict:
