@@ -506,7 +506,7 @@ export default function Dashboard() {
         </div>
 
         {/* Right: Transacciones */}
-        <div className="card min-h-[200px] flex flex-col">
+        <div className="card min-h-[200px] max-h-[340px] flex flex-col">
           <div className="px-4 py-3 border-b border-border-color flex items-center justify-between flex-shrink-0">
             <h2 className="text-sm font-semibold text-primary">
               Transacciones — Mes corriente
