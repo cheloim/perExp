@@ -221,10 +221,14 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         ...s,
         notifications: s.notifications.filter((n) => !n.read),
       }));
+      // Force SSE stream to re-sync after deletion
+      if (port) {
+        port.postMessage({ type: "force_refresh" } as WorkerOutgoingMessage);
+      }
     } catch (err) {
       console.error("[NotificationsContext] deleteAllRead failed", err);
     }
-  }, []);
+  }, [port]);
 
   const refresh = useCallback(() => {
     if (port) {

@@ -1010,7 +1010,7 @@ export default function ExpensesPage() {
                               : "hover:bg-[var(--color-base-alt)]/30"
                           } ${selectedIds.has(exp.id) ? "bg-[var(--color-primary)]/10" : ""}`}
                           style={missing ? { borderLeft: "3px solid #f6d32d" } : undefined}
-                          onClick={selectMode ? () => toggleSelect(exp.id) : undefined}
+                          onClick={() => (selectMode ? toggleSelect(exp.id) : setEditing(exp))}
                         >
                           {selectMode && (
                             <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>

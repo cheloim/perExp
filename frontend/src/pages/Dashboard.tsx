@@ -212,14 +212,30 @@ export default function Dashboard() {
     return nativeUsd + arsTotal / usdRate.rate;
   }, [investments, usdRate]);
 
-  // All categories sorted by spending
-  const categories = useMemo(
-    () =>
-      [...(dashData?.by_category ?? [])]
-        .filter((c) => c.total > 0)
-        .sort((a, b) => b.total - a.total),
-    [dashData?.by_category],
-  );
+  // All categories sorted by spending (top 7 + Otros)
+  const categories = useMemo(() => {
+    const allCats = [...(dashData?.by_category ?? [])]
+      .filter((c) => c.total > 0)
+      .sort((a, b) => b.total - a.total);
+
+    if (allCats.length <= 7) return allCats;
+
+    const top7 = allCats.slice(0, 7);
+    const othersTotal = allCats.slice(7).reduce((sum, c) => sum + c.total, 0);
+
+    if (othersTotal > 0) {
+      return [
+        ...top7,
+        {
+          category_name: "Otros",
+          category_color: "#94a3b8",
+          total: othersTotal,
+          category_id: null,
+        },
+      ];
+    }
+    return top7;
+  }, [dashData?.by_category]);
 
   const maxCatTotal = categories[0]?.total ?? 1;
 

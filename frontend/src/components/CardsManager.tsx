@@ -421,7 +421,7 @@ export default function CardsManager() {
           )}
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--text-secondary)]">Nombre</label>
+            <label className="text-xs font-medium text-[var(--text-secondary)]">Tarjeta</label>
             <input
               type="text"
               value={cardName}

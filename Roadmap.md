@@ -1,8 +1,29 @@
-Doing:
-    - Rework Investment site.
-    - Permitir agregar tickers a los ya existentes y que calcule promedios.
+# Bugs
 
-Todo:
+## Fixed
 
+1. ~~el boton de eliminar todas las notificaciones no hace nada.~~ → Added `refresh()` call after `deleteAllRead` to force SSE re-sync
+2. ~~Cuando agregas una subcategoría deberia seleccionarte la categoria padre desde la que fue seleccionado~~ → Fixed `initial={editing.cat || undefined}` (was `editing.cat?.id` which is falsy for new subcategories)
+3. ~~En /main el graph de gastos por categoria puede crecer infinito~~ → Limited to top 7 categories + "Otros" grouping
+4. ~~Cuando abris un expense debería abrir un modal~~ → Added row-level click handler to open edit modal
+5. ~~Cuando creas tarjeta desde UserPanel, no debería decir Nombre sino Tarjeta~~ → Changed label to "Tarjeta" in AccountsManager, CardsManager, CardAccountModal
 
-Done:
+## Pending
+
+6) El boton de crear tarjeta desde Tarjetas de credito en /index te lleva a /accounts pero no te abre un modal para cargar, y deberia llamarse Account y mostrar tanto las cards como las accounts.
+7) Cuando cargas un gasto en Efectivo/Transferencia pero no tenes una cuenta que corresponda, debería abrirte el warning para crear un account.
+8) En /expenses los gastos en USD aparecen como $.
+9) Cuando estas seleccionando una categoría desde el modal de Create Expenses, debería permitir crear una categoría si no está la que buscamos.
+10) No está estimando correctamente la "Deuda Tarjeta" — muestra en 0 cuando hay installments configurados.
+11) Filtro by card/account en /expenses no funciona. No filtra.
+
+# Roadmap
+
+## Todo:
+
+## Backlog:
+ - Create Income module and integrate with dashboards. Effort High.
+    - Dashboard comparison saving from last months.
+ - Create ticket scan feature to analyze market buys. Effort Medium.
+    - Allow comparison same items last month.
+ - Allow creation of budgets for expenses.
