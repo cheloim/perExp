@@ -62,6 +62,7 @@ export default function ImportJobPreview() {
       queryClient.invalidateQueries({ queryKey: ["cards"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["notifications-count"] });
+      refresh();
       setImportResult(result);
       setShowResultModal(true);
     },
