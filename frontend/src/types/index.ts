@@ -1,6 +1,7 @@
 export interface ImportNotificationData {
   job_id: number;
   filename?: string;
+  row_count?: number;
 }
 
 export interface GroupInvitationData {
@@ -384,7 +385,7 @@ export interface AITrendsResponse {
 export interface ImportJob {
   id: number;
   filename: string;
-  status: "PROCESSING" | "READY_PREVIEW" | "COMPLETED" | "FAILED";
+  status: "PROCESSING" | "QUEUED" | "READY_PREVIEW" | "COMPLETED" | "FAILED";
   created_at: string;
   completed_at: string | null;
   error_message: string | null;
@@ -394,8 +395,10 @@ export interface ImportJob {
 export interface UploadProgress {
   id: string; // UUID generado localmente
   filename: string;
-  status: "uploading" | "processing" | "ready" | "failed";
+  status: "uploading" | "queued" | "processing" | "ready" | "failed";
   jobId?: number; // Solo disponible después del upload
   error?: string;
   abortController?: AbortController; // Para cancelar upload
+  progress?: number; // 0-100 for uploading
+  startedAt?: number; // timestamp
 }

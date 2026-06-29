@@ -142,7 +142,7 @@ export default function ImportJobPreview() {
       <div className="flex flex-col items-center justify-center h-64 gap-4">
         <div className="text-4xl opacity-30">📄</div>
         <p className="text-[var(--text-secondary)] text-sm">
-          {(error as any)?.status === 410
+          {"status" in (error || {}) && (error as { status?: number }).status === 410
             ? "Esta importación expiró (TTL: 24h)"
             : "Error al cargar la importación"}
         </p>

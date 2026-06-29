@@ -3,11 +3,12 @@ Cleanup expired import jobs (TTL: 24 hours)
 """
 
 import json
+import logging
 from datetime import datetime, timedelta
 
 from app.database import SessionLocal
 
-_log = lambda msg: print(f"{datetime.now().isoformat()} {msg}")
+logger = logging.getLogger(__name__)
 from app.celery_app import celery_app
 from app.models import ImportJob, Notification
 
@@ -57,12 +58,12 @@ def cleanup_expired_import_jobs():
             count += 1
 
         db.commit()
-        _log(f"[CLEANUP] Eliminados {count} import jobs expirados (TTL: 24h)")
+        logger.info("[CLEANUP] Eliminados %d import jobs expirados (TTL: 24h)", count)
         return count
 
     except Exception as e:
         db.rollback()
-        _log(f"[CLEANUP ERROR] {e}")
+        logger.error("[CLEANUP ERROR] %s", e)
         raise
     finally:
         db.close()

@@ -101,6 +101,7 @@ export default function Dashboard() {
   const [editing, setEditing] = useState<Expense | null | undefined>(undefined);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [daysFilter, setDaysFilter] = useState(7);
   const createMut = useMutation({
     mutationFn: (data: ExpenseCreate) => createExpense(data),
     onSuccess: () => {
@@ -247,21 +248,38 @@ export default function Dashboard() {
     setSelectedCategory(selectedCategory === name ? null : name);
   };
 
-  // Filtered expenses by selected category (frontend filtering)
+  // Filtered expenses by selected category and days range (frontend filtering)
   const filteredExpenses = useMemo(() => {
-    if (!selectedCategory) return monthExpenses;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - daysFilter);
+    cutoff.setHours(0, 0, 0, 0);
 
-    // "Otros (N)" = categories with category_id null or small slices
-    if (selectedCategory.startsWith("Otros")) {
-      const bigCategoryNames = new Set(categories.map((c) => c.category_name));
-      return monthExpenses.filter(
-        (exp) => !exp.category_id || !bigCategoryNames.has(exp.category_name ?? ""),
-      );
+    const parseDDMMYYYY = (s: string) => {
+      const [d, m, y] = s.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    };
+
+    let result = monthExpenses.filter((e) => {
+      try {
+        return parseDDMMYYYY(e.date) >= cutoff;
+      } catch {
+        return true;
+      }
+    });
+
+    if (selectedCategory) {
+      if (selectedCategory.startsWith("Otros")) {
+        const bigCategoryNames = new Set(categories.map((c) => c.category_name));
+        result = result.filter(
+          (exp) => !exp.category_id || !bigCategoryNames.has(exp.category_name ?? ""),
+        );
+      } else {
+        result = result.filter((exp) => exp.category_name === selectedCategory);
+      }
     }
 
-    // Normal category — filter by category_name
-    return monthExpenses.filter((exp) => exp.category_name === selectedCategory);
-  }, [monthExpenses, selectedCategory, categories]);
+    return result;
+  }, [monthExpenses, selectedCategory, categories, daysFilter]);
 
   // Pie chart data — group small slices into "Otros"
   const pieData = useMemo(() => {
@@ -385,7 +403,7 @@ export default function Dashboard() {
       {/* Gastos por Categoría + Transacciones — side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Gastos por Categoría */}
-        <div className="card p-4 min-h-[200px] flex flex-col">
+        <div className="card p-4 min-h-[200px] h-full flex flex-col">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-primary">Gastos por Categoría</h2>
@@ -526,16 +544,33 @@ export default function Dashboard() {
         </div>
 
         {/* Right: Transacciones */}
-        <div className="card min-h-[200px] max-h-[340px] flex flex-col">
+        <div className="card min-h-[200px] h-full flex flex-col">
           <div className="px-4 py-3 border-b border-border-color flex items-center justify-between flex-shrink-0">
-            <h2 className="text-sm font-semibold text-primary">
-              Transacciones — Mes corriente
-              {selectedCategory && (
-                <span className="ml-2 text-xs font-normal text-secondary">
-                  ({selectedCategory})
-                </span>
-              )}
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-primary">
+                Transacciones
+                {selectedCategory && (
+                  <span className="ml-2 text-xs font-normal text-secondary">
+                    ({selectedCategory})
+                  </span>
+                )}
+              </h2>
+              <div className="flex items-center gap-1 ml-2">
+                {[3, 5, 7, 10].map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => setDaysFilter(d)}
+                    className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+                      daysFilter === d
+                        ? "bg-primary/15 text-primary font-medium"
+                        : "text-tertiary hover:text-secondary"
+                    }`}
+                  >
+                    {d}d
+                  </button>
+                ))}
+              </div>
+            </div>
             <button
               onClick={() => navigate("/expenses")}
               className="text-xs text-secondary hover:text-primary transition-colors"

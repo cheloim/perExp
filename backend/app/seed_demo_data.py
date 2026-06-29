@@ -6,6 +6,7 @@ Run from the backend directory: python -m app.seed_demo_data
 import random
 import uuid
 from datetime import date, timedelta
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -222,7 +223,7 @@ AMOUNT_RANGES = {
 
 # ─── Installment product templates ──────────────────────────────────────────
 
-INSTALLMENT_TEMPLATES = [
+INSTALLMENT_TEMPLATES: list[dict[str, Any]] = [
     {
         "desc": "SAMSUNG GALAXY S24",
         "base_amount": 1200000,

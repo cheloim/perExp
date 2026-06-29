@@ -345,7 +345,8 @@ export default function AccountsPage() {
       setEditing(undefined);
       setSaveError(null);
     },
-    onError: (e: any) => setSaveError(e?.response?.data?.detail || e.message),
+    onError: (e: { response?: { data?: { detail?: string } }; message?: string }) =>
+      setSaveError(e?.response?.data?.detail || e.message || "Error al guardar"),
   });
 
   const updateMut = useMutation({
@@ -356,7 +357,8 @@ export default function AccountsPage() {
       setEditing(undefined);
       setSaveError(null);
     },
-    onError: (e: any) => setSaveError(e?.response?.data?.detail || e.message),
+    onError: (e: { response?: { data?: { detail?: string } }; message?: string }) =>
+      setSaveError(e?.response?.data?.detail || e.message || "Error al guardar"),
   });
 
   const evolutionChartData = useMemo(() => {
@@ -663,7 +665,9 @@ export default function AccountsPage() {
                         />
                         <YAxis
                           tickFormatter={(v) =>
-                            new Intl.NumberFormat("es-AR", { notation: "compact" } as any).format(v)
+                            new Intl.NumberFormat("es-AR", {
+                              notation: "compact",
+                            } as Intl.NumberFormatOptions).format(v)
                           }
                           tick={{ fontSize: 11, fill: "var(--chart-text)" }}
                           width={50}

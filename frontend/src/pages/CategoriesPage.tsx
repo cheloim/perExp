@@ -363,7 +363,8 @@ export default function CategoriesPage() {
       invalidate();
       setDeleteError(null);
     },
-    onError: (err: any) => setDeleteError(err?.response?.data?.detail ?? "Error al eliminar"),
+    onError: (err: { response?: { data?: { detail?: string } } }) =>
+      setDeleteError(err?.response?.data?.detail ?? "Error al eliminar"),
   });
 
   const [recatResult, setRecatResult] = useState<{ updated: number; total: number } | null>(null);

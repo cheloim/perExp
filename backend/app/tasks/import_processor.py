@@ -8,6 +8,7 @@ Different users can process in parallel.
 import asyncio
 import gc
 import json
+import logging
 import os
 import warnings
 from contextlib import suppress
@@ -17,7 +18,7 @@ import redis
 
 from app.database import SessionLocal
 
-_log = lambda msg: print(f"{datetime.now().isoformat()} {msg}")
+logger = logging.getLogger(__name__)
 from app.celery_app import celery_app
 from app.models import ImportJob, Notification
 from app.services.smart_import_core import run_smart_import
@@ -40,17 +41,28 @@ def process_import_job(job_id: int):
     try:
         job = db.query(ImportJob).filter(ImportJob.id == job_id).first()
         if not job:
-            _log(f"[IMPORT JOB] Job {job_id} not found")
+            logger.info("[IMPORT JOB] Job %d not found", job_id)
             return
 
-        _log(f"[IMPORT JOB] Processing job {job_id}: {job.filename}")
+        logger.info("[IMPORT JOB] Processing job %d: %s", job_id, job.filename)
 
-        # Acquire lock for this user (blocks if another job is running for same user)
+        # Check if another job is already running for this user (queued state)
         lock_key = f"import_lock:user:{job.user_id}"
         lock = redis_client.lock(lock_key, timeout=LOCK_TIMEOUT)
 
+        is_locked = redis_client.exists(lock_key)
+        if is_locked:
+            job.status = "QUEUED"
+            db.commit()
+            logger.info(
+                "[IMPORT JOB] Job %d queued — waiting for lock for user %d", job_id, job.user_id
+            )
+
+        # Acquire lock for this user (blocks if another job is running for same user)
         if not lock.acquire(blocking=True, blocking_timeout=LOCK_TIMEOUT):
-            _log(f"[IMPORT JOB] Job {job_id} timed out waiting for lock for user {job.user_id}")
+            logger.info(
+                "[IMPORT JOB] Job %d timed out waiting for lock for user %d", job_id, job.user_id
+            )
             job.status = "FAILED"
             job.error_message = "Timeout: another import is still processing for this user"
             job.completed_at = datetime.utcnow()
@@ -58,10 +70,15 @@ def process_import_job(job_id: int):
             return
 
         try:
+            # Mark as actively processing
+            if job.status == "QUEUED":
+                job.status = "PROCESSING"
+                db.commit()
+
             file_content = job.file_content
 
             # Always use LLM-based parsing (works for PDF, CSV, XLSX)
-            _log(f"[IMPORT JOB] Processing {job.filename} with LLM")
+            logger.info("[IMPORT JOB] Processing %s with LLM", job.filename)
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             preview = loop.run_until_complete(
@@ -85,8 +102,8 @@ def process_import_job(job_id: int):
             notification = Notification(
                 user_id=job.user_id,
                 type="import_ready",
-                title=f"Importación lista: {job.filename}",
-                body=f"{len(preview['rows'])} transacciones encontradas",
+                title=f"✅ Importación lista: {job.filename}",
+                body=f"{len(preview['rows'])} transacciones listas para revisar",
                 data=json.dumps(
                     {"job_id": job.id, "filename": job.filename, "row_count": len(preview["rows"])}
                 ),
@@ -99,13 +116,13 @@ def process_import_job(job_id: int):
             del preview
             gc.collect()
 
-            _log(f"[IMPORT JOB] Job {job_id} completed successfully: {row_count} rows")
+            logger.info("[IMPORT JOB] Job %d completed successfully: %d rows", job_id, row_count)
 
         finally:
             lock.release()
 
     except Exception as e:
-        _log(f"[IMPORT JOB] Job {job_id} failed: {e}")
+        logger.error("[IMPORT JOB] Job %d failed: %s", job_id, e)
         import traceback
 
         traceback.print_exc()
@@ -117,8 +134,8 @@ def process_import_job(job_id: int):
         notification = Notification(
             user_id=job.user_id,
             type="import_failed",
-            title=f"Error al importar: {job.filename}",
-            body=f"Error: {str(e)[:100]}",
+            title=f"❌ Error al importar: {job.filename}",
+            body=f"No se pudo procesar: {str(e)[:100]}",
             data=json.dumps({"job_id": job.id, "filename": job.filename, "error": str(e)}),
             read=False,
         )
