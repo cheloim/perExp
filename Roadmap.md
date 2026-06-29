@@ -23,6 +23,7 @@
 
 ## On-Going
 - ~~Allow edit card/account by clicking in that account in UserPanel --> Accounts, not only touching the 3 dots~~ → Made card/account rows clickable to enter edit mode; `···` menu now only shows Delete option
+- Click on expense row in /expenses opens summary modal with Cerrar/Editar buttons
 
 # Roadmap
 
