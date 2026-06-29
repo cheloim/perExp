@@ -571,7 +571,11 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         # Show accounts list
         keyboard = [
-            [InlineKeyboardButton(f"{acc['name']} ({acc['type']})", callback_data=f"account:{acc['id']}")]
+            [
+                InlineKeyboardButton(
+                    f"{acc['name']} ({acc['type']})", callback_data=f"account:{acc['id']}"
+                )
+            ]
             for acc in accounts
         ]
         keyboard.append(

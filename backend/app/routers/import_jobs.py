@@ -171,7 +171,9 @@ async def confirm_import_job(
     from app.models import Card, Category, Expense, ScheduledExpense
     from app.services.normalizers import first_card_word, normalize_bank, title_case_single
 
-    logger.info("[IMPORT CONFIRM] User %d confirming job %d with %d rows", user.id, job_id, len(body.rows))
+    logger.info(
+        "[IMPORT CONFIRM] User %d confirming job %d with %d rows", user.id, job_id, len(body.rows)
+    )
 
     # SECURITY: Only user's own jobs
     job = db.query(ImportJob).filter(ImportJob.id == job_id, ImportJob.user_id == user.id).first()
