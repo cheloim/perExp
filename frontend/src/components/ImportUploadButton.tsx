@@ -31,9 +31,10 @@ export default function ImportUploadButton() {
         updateUpload(uploadId, { status: "processing", jobId: job.id });
         // Show toast notification in top-right
         showToast(`Procesando ${file.name}...`, "info", 5000, "top-right");
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const err = error as { name?: string; message?: string };
         // Handle abort error
-        if (error.name === "AbortError" || error.name === "CanceledError") {
+        if (err.name === "AbortError" || err.name === "CanceledError") {
           updateUpload(uploadId, { status: "failed", error: "Cancelado" });
         } else {
           // Marcar como fallido

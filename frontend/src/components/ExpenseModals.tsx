@@ -203,7 +203,7 @@ export function ExpenseModal({
         installment_total: prev.installment_total ?? 1,
       }));
     }
-  }, [isInstallmentsOnly]);
+  }, [isInstallmentsOnly, form.installment_group_id]);
 
   const isValid =
     form.description.trim().length > 0 && form.amount > 0 && form.date.trim().length > 0;

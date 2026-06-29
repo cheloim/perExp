@@ -78,21 +78,21 @@ export default function CardsManager() {
       setHolder("");
       setCardType("credito");
     },
-    onError: (error: any) => {
+    onError: (error: { response?: { status?: number; data?: { detail?: string } } }) => {
       if (error.response?.status === 409) {
-        const detail = error.response.data.detail;
+        const detail = error.response.data?.detail;
         setDuplicateFound({
-          id: detail.existing_id,
-          card_name: detail.existing_card_name || "",
-          bank: detail.existing_bank || "",
-          card_type: detail.existing_card_type || "credito",
+          id: (detail as unknown as { existing_id: number })?.existing_id ?? 0,
+          card_name: (detail as unknown as { existing_card_name?: string })?.existing_card_name ?? "",
+          bank: (detail as unknown as { existing_bank?: string })?.existing_bank ?? "",
+          card_type: (detail as unknown as { existing_card_type?: string })?.existing_card_type ?? "credito",
         });
       }
     },
   });
 
   const updateMut = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: any }) => updateCard(id, data),
+    mutationFn: ({ id, data }: { id: number; data: { card_name?: string; bank?: string; card_type?: string; closing_day?: number | null } }) => updateCard(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cards"] });
       setEditId(null);

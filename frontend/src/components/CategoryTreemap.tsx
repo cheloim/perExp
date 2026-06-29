@@ -178,7 +178,7 @@ export default function CategoryTreemap({
     treemapLayout(root);
 
     return flattenLayout(root as TreemapNode);
-  }, [data, size, grandTotal]);
+  }, [data, size]);
 
   const leaves = useMemo(
     () => rects.filter((r) => r.depth === 2 || (r.depth === 1 && !r.data.children?.length)),

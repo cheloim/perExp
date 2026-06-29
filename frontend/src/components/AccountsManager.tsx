@@ -58,13 +58,13 @@ export default function AccountsManager() {
       setName("");
       setType("efectivo");
     },
-    onError: (error: any) => {
+    onError: (error: { response?: { status?: number; data?: { detail?: string; existing_id?: number; existing_name?: string; existing_type?: string } } }) => {
       if (error.response?.status === 409) {
-        const detail = error.response.data.detail;
+        const detail = error.response.data;
         setDuplicateFound({
-          id: detail.existing_id,
-          name: detail.existing_name,
-          type: detail.existing_type,
+          id: detail?.existing_id ?? 0,
+          name: detail?.existing_name ?? "",
+          type: detail?.existing_type ?? "",
         });
       }
     },
