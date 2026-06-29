@@ -73,11 +73,17 @@ export default function ExpenseDetailModal({ expense, onClose, onEdit }: Props) 
         </dl>
 
         {/* Notas */}
-        <div className="border-t border-[var(--border-color)] pt-3">
-          <p className="text-[var(--text-tertiary)] text-xs uppercase mb-1">Notas</p>
-          <p className="text-sm" style={{ color: "var(--text-primary)" }}>
-            {expense.notes || "—"}
-          </p>
+        <div className="flex items-center justify-between px-1 py-2 border-t border-[var(--border-color)]">
+          <span className="text-xs text-[var(--text-tertiary)] uppercase">Notas</span>
+          <span
+            className={`text-sm text-right max-w-[60%] truncate ${
+              expense.notes ? "" : "italic text-[var(--text-tertiary)]"
+            }`}
+            style={expense.notes ? { color: "var(--text-primary)" } : undefined}
+            title={expense.notes || undefined}
+          >
+            {expense.notes || "Sin notas"}
+          </span>
         </div>
 
         {/* Actions */}
