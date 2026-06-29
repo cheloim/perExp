@@ -519,12 +519,22 @@ export const updateCard = (
 export const deleteCard = (id: number) => api.delete(`/cards/${id}`).then((r) => r.data);
 
 // Import Jobs
-export async function createImportJob(file: File, signal?: AbortSignal): Promise<ImportJob> {
+export async function createImportJob(
+  file: File,
+  signal?: AbortSignal,
+  onUploadProgress?: (progress: number) => void,
+): Promise<ImportJob> {
   const formData = new FormData();
   formData.append("file", file);
   const res = await api.post("/import-jobs", formData, {
     headers: { "Content-Type": "multipart/form-data" },
     signal, // Pass abort signal to axios
+    onUploadProgress: (progressEvent) => {
+      if (onUploadProgress && progressEvent.total) {
+        const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        onUploadProgress(progress);
+      }
+    },
   });
   return res.data;
 }

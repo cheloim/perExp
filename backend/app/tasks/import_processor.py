@@ -45,10 +45,17 @@ def process_import_job(job_id: int):
 
         _log(f"[IMPORT JOB] Processing job {job_id}: {job.filename}")
 
-        # Acquire lock for this user (blocks if another job is running for same user)
+        # Check if another job is already running for this user (queued state)
         lock_key = f"import_lock:user:{job.user_id}"
         lock = redis_client.lock(lock_key, timeout=LOCK_TIMEOUT)
 
+        is_locked = redis_client.exists(lock_key)
+        if is_locked:
+            job.status = "QUEUED"
+            db.commit()
+            _log(f"[IMPORT JOB] Job {job_id} queued — waiting for lock for user {job.user_id}")
+
+        # Acquire lock for this user (blocks if another job is running for same user)
         if not lock.acquire(blocking=True, blocking_timeout=LOCK_TIMEOUT):
             _log(f"[IMPORT JOB] Job {job_id} timed out waiting for lock for user {job.user_id}")
             job.status = "FAILED"
@@ -58,6 +65,11 @@ def process_import_job(job_id: int):
             return
 
         try:
+            # Mark as actively processing
+            if job.status == "QUEUED":
+                job.status = "PROCESSING"
+                db.commit()
+
             file_content = job.file_content
 
             # Always use LLM-based parsing (works for PDF, CSV, XLSX)
@@ -85,8 +97,8 @@ def process_import_job(job_id: int):
             notification = Notification(
                 user_id=job.user_id,
                 type="import_ready",
-                title=f"Importación lista: {job.filename}",
-                body=f"{len(preview['rows'])} transacciones encontradas",
+                title=f"✅ Importación lista: {job.filename}",
+                body=f"{len(preview['rows'])} transacciones listas para revisar",
                 data=json.dumps(
                     {"job_id": job.id, "filename": job.filename, "row_count": len(preview["rows"])}
                 ),
@@ -117,8 +129,8 @@ def process_import_job(job_id: int):
         notification = Notification(
             user_id=job.user_id,
             type="import_failed",
-            title=f"Error al importar: {job.filename}",
-            body=f"Error: {str(e)[:100]}",
+            title=f"❌ Error al importar: {job.filename}",
+            body=f"No se pudo procesar: {str(e)[:100]}",
             data=json.dumps({"job_id": job.id, "filename": job.filename, "error": str(e)}),
             read=False,
         )

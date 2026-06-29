@@ -25,10 +25,18 @@ export default function ImportUploadButton() {
       updateUpload(uploadId, { abortController });
 
       try {
-        // Pass abort signal to createImportJob
-        const job = await createImportJob(file, abortController.signal);
-        // Actualizar a processing (el backend ya tiene el job)
-        updateUpload(uploadId, { status: "processing", jobId: job.id });
+        // Pass abort signal and upload progress callback to createImportJob
+        const job = await createImportJob(file, abortController.signal, (progress) => {
+          updateUpload(uploadId, { progress });
+        });
+        // Set status based on backend response (QUEUED or PROCESSING)
+        const initialStatus = job.status === "QUEUED" ? "queued" : "processing";
+        updateUpload(uploadId, {
+          status: initialStatus,
+          jobId: job.id,
+          progress: undefined,
+          startedAt: Date.now(),
+        });
         // Show toast notification in top-right
         showToast(`Procesando ${file.name}...`, "info", 5000, "top-right");
       } catch (error: unknown) {

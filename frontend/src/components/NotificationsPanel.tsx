@@ -188,13 +188,102 @@ export default function NotificationsPanel({ onClose }: Props) {
           {uploads.map((upload) => (
             <div
               key={upload.id}
-              className="px-4 py-3 border-b border-[var(--border-color)] bg-[var(--color-primary)]/5"
+              className={`px-4 py-3 border-b border-[var(--border-color)] bg-[var(--color-primary)]/5 border-l-4 ${
+                upload.status === "failed"
+                  ? "border-l-red-500"
+                  : upload.status === "queued"
+                    ? "border-l-amber-500"
+                    : "border-l-[var(--color-primary)]"
+              }`}
             >
               <div className="flex items-center gap-2 mb-1.5">
-                <p className="text-[var(--text-primary)] text-sm font-medium flex-1">
+                {/* Status icon */}
+                <span className="flex-shrink-0">
+                  {upload.status === "uploading" && (
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      className="text-[var(--color-primary)]"
+                    >
+                      <path
+                        d="M8 2v8M5 7l3 3 3-3"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  )}
+                  {upload.status === "queued" && (
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      className="text-amber-500"
+                    >
+                      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
+                      <path
+                        d="M8 4.5V8l2.5 1.5"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  )}
+                  {upload.status === "processing" && (
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      className="text-[var(--color-primary)] animate-spin"
+                    >
+                      <circle
+                        cx="8"
+                        cy="8"
+                        r="6"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeDasharray="28"
+                        strokeDashoffset="8"
+                      />
+                    </svg>
+                  )}
+                  {upload.status === "failed" && (
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      className="text-red-500"
+                    >
+                      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
+                      <path
+                        d="M6 6l4 4M10 6l-4 4"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  )}
+                </span>
+                <p className="text-[var(--text-primary)] text-sm font-medium flex-1 truncate">
                   {upload.filename}
                 </p>
-                {upload.status === "failed" && <span className="text-red-600 text-xs">✕</span>}
+                {upload.status === "uploading" && (
+                  <span className="text-[var(--color-primary)] text-xs font-medium">
+                    {upload.progress ?? 0}%
+                  </span>
+                )}
                 {upload.status === "uploading" && (
                   <button
                     onClick={() => cancelUpload(upload.id)}
@@ -206,14 +295,29 @@ export default function NotificationsPanel({ onClose }: Props) {
                 )}
               </div>
 
-              {upload.status !== "failed" && (
-                <div className="relative w-full h-1 bg-[var(--color-base-alt)] rounded-full overflow-hidden mb-1.5">
+              {/* Progress bar */}
+              {upload.status === "uploading" && upload.progress != null && (
+                <div className="relative w-full h-1.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden mb-1.5">
+                  <div
+                    className="absolute inset-y-0 left-0 bg-[var(--color-primary)] rounded-full transition-all duration-300"
+                    style={{ width: `${upload.progress}%` }}
+                  />
+                </div>
+              )}
+              {upload.status === "queued" && (
+                <div className="relative w-full h-1.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden mb-1.5">
+                  <div className="absolute inset-0 bg-amber-500/60 animate-progress-indeterminate" />
+                </div>
+              )}
+              {upload.status === "processing" && (
+                <div className="relative w-full h-1.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden mb-1.5">
                   <div className="absolute inset-0 bg-[var(--color-primary)] animate-progress-indeterminate" />
                 </div>
               )}
 
               <p className="text-[var(--text-tertiary)] text-xs">
-                {upload.status === "uploading" && "Subiendo archivo..."}
+                {upload.status === "uploading" && `Subiendo archivo...`}
+                {upload.status === "queued" && "En cola — esperando turno..."}
                 {upload.status === "processing" && "Procesando con IA..."}
                 {upload.status === "failed" && `Error: ${upload.error || "Falló el upload"}`}
               </p>
@@ -227,6 +331,7 @@ export default function NotificationsPanel({ onClose }: Props) {
           )}
           {notifications.map((n) => {
             const isImportNotif = n.type === "import_ready" || n.type === "import_failed";
+            const isFailed = n.type === "import_failed";
             return (
               <div
                 key={n.id}
@@ -240,14 +345,77 @@ export default function NotificationsPanel({ onClose }: Props) {
                   isImportNotif
                     ? "cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
                     : ""
-                }`}
+                } ${isImportNotif ? "border-l-4 " + (isFailed ? "border-l-red-500" : "border-l-green-500") : ""}`}
                 role={isImportNotif ? "button" : undefined}
                 tabIndex={isImportNotif ? 0 : undefined}
               >
                 <div className="flex items-start justify-between gap-2 mb-1">
-                  <p className="text-[var(--text-primary)] text-sm font-medium leading-tight">
-                    {n.title}
-                  </p>
+                  <div className="flex items-center gap-2 min-w-0">
+                    {/* Notification icon */}
+                    <span className="flex-shrink-0">
+                      {isImportNotif && !isFailed && (
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          className="text-green-500"
+                        >
+                          <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
+                          <path
+                            d="M5.5 8l2 2 3-3.5"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
+                      {isFailed && (
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          className="text-red-500"
+                        >
+                          <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
+                          <path
+                            d="M6 6l4 4M10 6l-4 4"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      )}
+                      {n.type === "group_invitation" && (
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          className="text-[var(--color-primary)]"
+                        >
+                          <circle cx="6" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+                          <path
+                            d="M2 13c0-2.2 1.8-4 4-4s4 1.8 4 4"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                          />
+                          <path
+                            d="M11 6v4M9 8h4"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      )}
+                    </span>
+                    <p className="text-[var(--text-primary)] text-sm font-medium leading-tight truncate">
+                      {n.title}
+                    </p>
+                  </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[var(--text-tertiary)] text-xs whitespace-nowrap">
                       {timeAgoValues.get(n.id) ?? timeAgo(n.created_at)}
@@ -281,6 +449,12 @@ export default function NotificationsPanel({ onClose }: Props) {
                   </div>
                 </div>
                 <p className="text-[var(--text-secondary)] text-xs mb-2 line-clamp-2">{n.body}</p>
+
+                {isImportNotif && (
+                  <p className="text-[var(--color-primary)] text-xs font-medium">
+                    Ver importación →
+                  </p>
+                )}
 
                 {n.type === "group_invitation" &&
                   (() => {

@@ -14,6 +14,7 @@ import {
   deleteNotification as apiDeleteNotification,
   deleteAllReadNotifications,
 } from "../api/client";
+import { showToast } from "../utils/toast";
 
 interface NotificationsState {
   notifications: Notification[];
@@ -66,6 +67,13 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   stateRef.current = state;
 
   const handleNewNotification = useCallback((notification: Notification) => {
+    // Show toast for import notifications
+    if (notification.type === "import_ready") {
+      showToast(notification.title, "success", 5000, "top-right");
+    } else if (notification.type === "import_failed") {
+      showToast(notification.title, "error", 5000, "top-right");
+    }
+
     setState((s) => {
       const exists = s.notifications.some((n) => n.id === notification.id);
       if (exists) {
