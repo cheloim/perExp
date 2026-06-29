@@ -252,9 +252,20 @@ export default function Dashboard() {
   const filteredExpenses = useMemo(() => {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - daysFilter);
-    const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, "0")}-${String(cutoff.getDate()).padStart(2, "0")}`;
+    cutoff.setHours(0, 0, 0, 0);
 
-    let result = monthExpenses.filter((e) => e.date >= cutoffStr);
+    const parseDDMMYYYY = (s: string) => {
+      const [d, m, y] = s.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    };
+
+    let result = monthExpenses.filter((e) => {
+      try {
+        return parseDDMMYYYY(e.date) >= cutoff;
+      } catch {
+        return true;
+      }
+    });
 
     if (selectedCategory) {
       if (selectedCategory.startsWith("Otros")) {
