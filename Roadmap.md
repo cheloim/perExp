@@ -11,11 +11,8 @@
 7. ~~En /expenses los gastos en USD aparecen como $~~ → Prefix USD with "USD " in formatCurrency (e.g., "USD $1,234.56")
 8. ~~No está estimando correctamente la "Deuda Tarjeta" — muestra en 0 cuando hay installments configurados~~ → Removed scheduled_date >= today filter, now includes ALL pending installments
 9. ~~Filtro by card/account en /expenses no funciona. No filtra.~~ → Fixed currentCuenta to use IDs instead of names, reconstruct Select value from URL params
-
-## Pending
-
-10) Cuando cargas un gasto en Efectivo/Transferencia pero no tenes una cuenta que corresponda, debería abrirte el warning para crear un account.
-11) Cuando estas seleccionando una categoría desde el modal de Create Expenses, debería permitir crear una categoría si no está la que buscamos.
+10. ~~Cuando cargas un gasto en Efectivo/Transferencia pero no tenes una cuenta que corresponda, debería abrirte el warning para crear un account~~ → Added warning when payMethod is 'cash' and no accounts exist, with 'Crear cuenta' button
+11. ~~Cuando estas seleccionando una categoría desde el modal de Create Expenses, debería permitir crear una categoría si no está la que buscamos~~ → Added createCategory API call in category onChange handler
 
 # Roadmap
 
