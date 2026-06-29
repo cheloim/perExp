@@ -41,78 +41,57 @@ export default function ExpenseDetailModal({ expense, onClose, onEdit }: Props) 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-backdrop">
       <div className="fixed inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative card w-full max-w-md p-6 space-y-4 animate-modal-content">
+      <div className="relative card w-full max-w-sm p-5 space-y-4 animate-modal-content">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)] truncate pr-4">
+          <h2 className="text-base font-semibold text-[var(--text-primary)] truncate pr-4">
             {toUpperCase(expense.description)}
           </h2>
           <button
             onClick={onClose}
             aria-label="Cerrar"
-            className="text-[var(--text-tertiary)] hover:text-[var(--color-primary)] flex-shrink-0"
+            className="w-7 h-7 flex items-center justify-center rounded text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--color-base-alt)] transition"
           >
             ✕
           </button>
         </div>
 
-        {/* Detail grid */}
+        {/* Monto - highlighted block */}
+        <div className="bg-[var(--color-base-alt)] rounded-lg p-4 text-center">
+          <span className="text-2xl font-bold text-[var(--text-primary)]">
+            {formatCurrency(expense.amount, expense.currency)}
+          </span>
+        </div>
+
+        {/* Detail rows */}
         <div className="space-y-0">
-          {/* Monto */}
-          <div className="flex items-center justify-between p-3 bg-[var(--color-primary)]/10 rounded-lg mb-3">
-            <span className="text-xs text-[var(--text-secondary)]">Monto</span>
-            <span className="text-base font-bold text-[var(--color-primary)]">
-              {formatCurrency(expense.amount, expense.currency)}
-            </span>
-          </div>
-
-          {/* Fecha */}
-          <div className="flex items-center justify-between px-1 py-2.5 border-b border-[var(--border-color)]">
-            <span className="text-xs text-[var(--text-secondary)]">Fecha</span>
-            <span className="text-sm text-[var(--text-primary)]">{formatDateDMY(expense.date)}</span>
-          </div>
-
-          {/* Categoría */}
-          <div className="flex items-center justify-between px-1 py-2.5 border-b border-[var(--border-color)]">
-            <span className="text-xs text-[var(--text-secondary)]">Categoría</span>
-            {expense.category_name ? (
-              <span
-                className="px-2 py-0.5 rounded text-xs font-medium"
-                style={{
-                  backgroundColor: categoryColor + "20",
-                  color: categoryColor,
-                }}
-              >
-                {expense.category_name}
-              </span>
-            ) : (
-              <span className="text-xs text-[var(--text-tertiary)]">—</span>
-            )}
-          </div>
-
-          {/* Cuenta */}
-          <div className="flex items-center justify-between px-1 py-2.5 border-b border-[var(--border-color)]">
-            <span className="text-xs text-[var(--text-secondary)]">Cuenta</span>
-            <span className="text-sm text-[var(--text-primary)]">{accountLabel}</span>
-          </div>
-
-          {/* Cuotas */}
+          <DetailRow label="Fecha" value={formatDateDMY(expense.date)} />
+          <DetailRow
+            label="Categoría"
+            value={
+              expense.category_name ? (
+                <span
+                  className="px-2 py-0.5 rounded text-xs font-medium"
+                  style={{
+                    backgroundColor: categoryColor + "20",
+                    color: categoryColor,
+                  }}
+                >
+                  {expense.category_name}
+                </span>
+              ) : (
+                "—"
+              )
+            }
+          />
+          <DetailRow label="Cuenta" value={accountLabel} />
           {expense.installment_number && expense.installment_total && (
-            <div className="flex items-center justify-between px-1 py-2.5 border-b border-[var(--border-color)]">
-              <span className="text-xs text-[var(--text-secondary)]">Cuotas</span>
-              <span className="text-sm text-[var(--text-primary)]">
-                {expense.installment_number} / {expense.installment_total}
-              </span>
-            </div>
+            <DetailRow
+              label="Cuotas"
+              value={`${expense.installment_number} / ${expense.installment_total}`}
+            />
           )}
-
-          {/* Notas */}
-          <div className="flex items-center justify-between px-1 py-2.5">
-            <span className="text-xs text-[var(--text-secondary)]">Notas</span>
-            <span className="text-sm text-[var(--text-primary)] text-right max-w-[60%] truncate" title={expense.notes || "—"}>
-              {expense.notes || "—"}
-            </span>
-          </div>
+          <DetailRow label="Notas" value={expense.notes || "—"} truncate />
         </div>
 
         {/* Actions */}
@@ -131,6 +110,28 @@ export default function ExpenseDetailModal({ expense, onClose, onEdit }: Props) 
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  truncate,
+}: {
+  label: string;
+  value: React.ReactNode;
+  truncate?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between px-1 py-2 border-b border-[var(--border-color)] last:border-b-0">
+      <span className="text-xs text-[var(--text-secondary)]">{label}</span>
+      <span
+        className={`text-sm text-[var(--text-primary)] text-right ${truncate ? "max-w-[60%] truncate" : ""}`}
+        title={typeof value === "string" ? value : undefined}
+      >
+        {value}
+      </span>
     </div>
   );
 }
