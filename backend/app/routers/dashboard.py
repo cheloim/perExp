@@ -763,7 +763,6 @@ def get_credit_card_pasivos(
     from app.models import ScheduledExpense
 
     uid_list = get_group_user_ids(current_user.id, db)
-    today = date.today()
 
     credit_cards = (
         db.query(Card).filter(Card.user_id.in_(uid_list), Card.card_type == "credito").all()
@@ -775,7 +774,6 @@ def get_credit_card_pasivos(
         .filter(
             ScheduledExpense.user_id.in_(uid_list),
             ScheduledExpense.status == "PENDING",
-            ScheduledExpense.scheduled_date >= today,
         )
         .all()
     )
