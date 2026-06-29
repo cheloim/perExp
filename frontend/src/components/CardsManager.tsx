@@ -83,16 +83,24 @@ export default function CardsManager() {
         const detail = error.response.data?.detail;
         setDuplicateFound({
           id: (detail as unknown as { existing_id: number })?.existing_id ?? 0,
-          card_name: (detail as unknown as { existing_card_name?: string })?.existing_card_name ?? "",
+          card_name:
+            (detail as unknown as { existing_card_name?: string })?.existing_card_name ?? "",
           bank: (detail as unknown as { existing_bank?: string })?.existing_bank ?? "",
-          card_type: (detail as unknown as { existing_card_type?: string })?.existing_card_type ?? "credito",
+          card_type:
+            (detail as unknown as { existing_card_type?: string })?.existing_card_type ?? "credito",
         });
       }
     },
   });
 
   const updateMut = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: { card_name?: string; bank?: string; card_type?: string; closing_day?: number | null } }) => updateCard(id, data),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: number;
+      data: { card_name?: string; bank?: string; card_type?: string; closing_day?: number | null };
+    }) => updateCard(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cards"] });
       setEditId(null);
@@ -305,8 +313,8 @@ export default function CardsManager() {
                     {card.card_type === "credito"
                       ? "Crédito"
                       : card.card_type === "debito"
-                        ? "Débito"
-                        : card.card_type}{" "}
+                      ? "Débito"
+                      : card.card_type}{" "}
                     — {card.bank}
                   </div>
                   <div className="text-xs text-tertiary mt-0.5">Titular: {card.holder || "—"}</div>
@@ -359,12 +367,12 @@ export default function CardsManager() {
               {accountType === "efectivo"
                 ? "💵"
                 : accountType === "mercadopago"
-                  ? "📱"
-                  : accountType === "cuenta_corriente"
-                    ? "🏦"
-                    : accountType === "caja_ahorro"
-                      ? "💳"
-                      : "💳"}
+                ? "📱"
+                : accountType === "cuenta_corriente"
+                ? "🏦"
+                : accountType === "caja_ahorro"
+                ? "💳"
+                : "💳"}
             </div>
             <span className="text-xs font-medium text-secondary">
               {accountType === "tarjeta"

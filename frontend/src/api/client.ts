@@ -204,9 +204,9 @@ export const getInstallmentsDashboard = () =>
 
 export const getInstallmentsMonthlyLoad = () =>
   api
-    .get<
-      { month: string; total: number; count: number; is_past: boolean; is_current: boolean }[]
-    >("/dashboard/installments/monthly-load")
+    .get<{ month: string; total: number; count: number; is_past: boolean; is_current: boolean }[]>(
+      "/dashboard/installments/monthly-load",
+    )
     .then((r) => r.data);
 
 export const getScheduledSummary = () =>
@@ -397,9 +397,10 @@ export const fetchUsdRate = () =>
 
 export const lookupSymbols = (symbols: string[]) =>
   api
-    .get<
-      Record<string, { symbol: string; name: string; price: number | null; currency: string }>
-    >("/investments/lookup-batch", { params: { symbols: symbols.join(",") } })
+    .get<Record<string, { symbol: string; name: string; price: number | null; currency: string }>>(
+      "/investments/lookup-batch",
+      { params: { symbols: symbols.join(",") } },
+    )
     .then((r) => r.data);
 
 export const deleteInvestment = (id: number) =>
@@ -438,9 +439,9 @@ export const refreshManualPrices = () =>
 
 export const getManualCashBalances = () =>
   api
-    .get<
-      Record<string, { ars: number | null; usd: number | null }>
-    >("/investments/manual-cash-balances")
+    .get<Record<string, { ars: number | null; usd: number | null }>>(
+      "/investments/manual-cash-balances",
+    )
     .then((r) => r.data);
 
 export const putManualCashBalance = (broker: string, ars: number | null, usd: number | null) =>

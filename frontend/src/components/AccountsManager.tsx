@@ -58,7 +58,17 @@ export default function AccountsManager() {
       setName("");
       setType("efectivo");
     },
-    onError: (error: { response?: { status?: number; data?: { detail?: string; existing_id?: number; existing_name?: string; existing_type?: string } } }) => {
+    onError: (error: {
+      response?: {
+        status?: number;
+        data?: {
+          detail?: string;
+          existing_id?: number;
+          existing_name?: string;
+          existing_type?: string;
+        };
+      };
+    }) => {
       if (error.response?.status === 409) {
         const detail = error.response.data;
         setDuplicateFound({
@@ -217,12 +227,12 @@ export default function AccountsManager() {
                       {type === "efectivo"
                         ? "💵"
                         : type === "mercadopago"
-                          ? "📱"
-                          : type === "cuenta_corriente"
-                            ? "🏦"
-                            : type === "caja_ahorro"
-                              ? "💳"
-                              : "💰"}
+                        ? "📱"
+                        : type === "cuenta_corriente"
+                        ? "🏦"
+                        : type === "caja_ahorro"
+                        ? "💳"
+                        : "💰"}
                     </div>
                     <select
                       value={type}
@@ -305,12 +315,12 @@ export default function AccountsManager() {
                   {account.type === "efectivo"
                     ? "💵"
                     : account.type === "mercadopago"
-                      ? "📱"
-                      : account.type === "cuenta_corriente"
-                        ? "🏦"
-                        : account.type === "caja_ahorro"
-                          ? "💳"
-                          : "💰"}
+                    ? "📱"
+                    : account.type === "cuenta_corriente"
+                    ? "🏦"
+                    : account.type === "caja_ahorro"
+                    ? "💳"
+                    : "💰"}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-primary truncate">{account.name}</div>

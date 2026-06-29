@@ -380,20 +380,23 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
     }
   };
 
-  const summarizeSession = useCallback(async (sessionId: string, sessionMessages: ChatMessage[]) => {
-    if (sessionMessages.length === 0) return;
-    setSummarizing(true);
-    try {
-      let summary = "";
-      await streamTo("/api/analysis/summarize", { messages: sessionMessages }, (full) => {
-        summary = full;
-      });
-      if (summary) updateSession(sessionId, (s) => ({ ...s, summary }));
-    } catch {
-    } finally {
-      setSummarizing(false);
-    }
-  }, [updateSession]);
+  const summarizeSession = useCallback(
+    async (sessionId: string, sessionMessages: ChatMessage[]) => {
+      if (sessionMessages.length === 0) return;
+      setSummarizing(true);
+      try {
+        let summary = "";
+        await streamTo("/api/analysis/summarize", { messages: sessionMessages }, (full) => {
+          summary = full;
+        });
+        if (summary) updateSession(sessionId, (s) => ({ ...s, summary }));
+      } catch {
+      } finally {
+        setSummarizing(false);
+      }
+    },
+    [updateSession],
+  );
 
   const analyzeMonth = async () => {
     if (streaming) return;
@@ -411,8 +414,8 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
         data.trend === "up"
           ? "Tendencia alcista"
           : data.trend === "down"
-            ? "Tendencia bajista"
-            : "Estable";
+          ? "Tendencia bajista"
+          : "Estable";
 
       let responseText = `${trendIcon} ${trendLabel}\n\n${data.trend_explanation}`;
       if (data.top_rising_category) responseText += `\n\n↑ Subió: ${data.top_rising_category}`;

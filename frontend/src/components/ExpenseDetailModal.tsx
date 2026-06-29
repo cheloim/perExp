@@ -127,7 +127,9 @@ function DetailRow({
     <div className="flex items-center justify-between px-1 py-2 border-b border-[var(--border-color)] last:border-b-0">
       <span className="text-xs text-[var(--text-secondary)]">{label}</span>
       <span
-        className={`text-sm text-[var(--text-primary)] text-right ${truncate ? "max-w-[60%] truncate" : ""}`}
+        className={`text-sm text-[var(--text-primary)] text-right ${
+          truncate ? "max-w-[60%] truncate" : ""
+        }`}
         title={typeof value === "string" ? value : undefined}
       >
         {value}
