@@ -561,8 +561,8 @@ export default function ExpensesPage() {
                       filterUncategorized
                         ? "__none__"
                         : filterCategory
-                          ? String(filterCategory)
-                          : ""
+                        ? String(filterCategory)
+                        : ""
                     }
                     onChange={(v) => handleCategoryFilter(v)}
                     options={[{ value: "__none__", label: "Sin categoría" }]}
@@ -596,8 +596,8 @@ export default function ExpensesPage() {
                 const currentCuenta = matchedCard
                   ? `card:${matchedCard.id}`
                   : matchedAccount
-                    ? `account:${matchedAccount.id}`
-                    : "";
+                  ? `account:${matchedAccount.id}`
+                  : "";
                 return (
                   <Select
                     value={currentCuenta}
@@ -762,8 +762,8 @@ export default function ExpensesPage() {
                                 const isHighlighted = selectedDonutCategory
                                   ? isSelected
                                   : filterSearch
-                                    ? isSearchMatch
-                                    : true;
+                                  ? isSearchMatch
+                                  : true;
                                 return (
                                   <Cell
                                     key={i}
@@ -797,10 +797,10 @@ export default function ExpensesPage() {
                                 selectedDonutCategory === cat.category_name
                                   ? "bg-[var(--color-primary)]/10"
                                   : filterSearch &&
-                                      cat.category_id != null &&
-                                      matchingCategories.has(cat.category_id)
-                                    ? "bg-[var(--color-primary)]/5"
-                                    : "hover:bg-[var(--color-base-alt)]"
+                                    cat.category_id != null &&
+                                    matchingCategories.has(cat.category_id)
+                                  ? "bg-[var(--color-primary)]/5"
+                                  : "hover:bg-[var(--color-base-alt)]"
                               }`}
                             >
                               <span
@@ -1019,7 +1019,9 @@ export default function ExpensesPage() {
                               : "hover:bg-[var(--color-base-alt)]/30"
                           } ${selectedIds.has(exp.id) ? "bg-[var(--color-primary)]/10" : ""}`}
                           style={missing ? { borderLeft: "3px solid #f6d32d" } : undefined}
-                          onClick={() => (selectMode ? toggleSelect(exp.id) : setDetailExpense(exp))}
+                          onClick={() =>
+                            selectMode ? toggleSelect(exp.id) : setDetailExpense(exp)
+                          }
                         >
                           {selectMode && (
                             <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
@@ -1031,7 +1033,7 @@ export default function ExpensesPage() {
                               />
                             </td>
                           )}
-                            <td className="px-4 py-3 text-[var(--text-tertiary)] whitespace-nowrap">
+                          <td className="px-4 py-3 text-[var(--text-tertiary)] whitespace-nowrap">
                             <button
                               type="button"
                               onClick={(e) => {
@@ -1079,7 +1081,7 @@ export default function ExpensesPage() {
                               {exp.person && <span>{titleCase(exp.person)}</span>}
                             </div>
                           </td>
-                            <td className="px-4 py-3">
+                          <td className="px-4 py-3">
                             <button
                               type="button"
                               onClick={(e) => {
@@ -1103,7 +1105,7 @@ export default function ExpensesPage() {
                               )}
                             </button>
                           </td>
-                            <td className="px-4 py-3 text-right">
+                          <td className="px-4 py-3 text-right">
                             <button
                               type="button"
                               onClick={(e) => {
