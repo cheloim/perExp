@@ -313,7 +313,7 @@ export default function CategoriesPage() {
 
   // Classify categories
   const childParentIds = new Set(categories.filter((c) => c.parent_id).map((c) => c.parent_id!));
-  const parentCats = categories.filter((c) => !c.parent_id && childParentIds.has(c.id));
+  const parentCats = categories.filter((c) => !c.parent_id);
   const standaloneLeaves = categories.filter((c) => !c.parent_id && !childParentIds.has(c.id));
   const childCats = categories.filter((c) => !!c.parent_id);
   const hasHierarchy = parentCats.length > 0;

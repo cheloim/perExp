@@ -295,7 +295,10 @@ export default function AccountsManager() {
                 </div>
               </form>
             ) : (
-              <div className="group relative flex items-center gap-3 p-3 bg-surface border border-border-color rounded-lg hover:border-border-color transition-colors">
+              <div
+                className="group relative flex items-center gap-3 p-3 bg-surface border border-border-color rounded-lg hover:border-border-color transition-colors cursor-pointer"
+                onClick={() => handleEdit(account)}
+              >
                 <div
                   className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${typeInfo.color}`}
                 >
@@ -315,7 +318,10 @@ export default function AccountsManager() {
                 </div>
                 <div className="relative">
                   <button
-                    onClick={() => setMenuOpen(isMenuOpen ? null : account.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuOpen(isMenuOpen ? null : account.id);
+                    }}
                     className="w-7 h-7 flex items-center justify-center rounded text-tertiary hover:text-primary hover:bg-base-alt transition-colors"
                   >
                     ···
@@ -325,19 +331,14 @@ export default function AccountsManager() {
                       <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(null)} />
                       <div className="absolute right-0 top-8 z-50 w-28 bg-surface border border-border-color rounded-lg shadow-lg overflow-hidden">
                         <button
-                          onClick={() => handleEdit(account)}
-                          className="w-full px-3 py-2 text-xs text-left text-primary hover:bg-base-alt transition-colors"
-                        >
-                          ✏️ Editar
-                        </button>
-                        <button
-                          onClick={() =>
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setDeleteConfirm({
                               type: "account",
                               id: account.id,
                               name: account.name,
-                            })
-                          }
+                            });
+                          }}
                           disabled={deleteMut.isPending}
                           className="w-full px-3 py-2 text-xs text-left text-danger hover:bg-danger/10 transition-colors disabled:opacity-50"
                         >

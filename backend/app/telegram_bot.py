@@ -261,7 +261,7 @@ def _build_cat_levels(category_id: int | None, db) -> list[str]:
 
 
 def _confirm_text(parsed: dict, payment_label: str, cat_levels: list[str] = None) -> str:
-    desc = parsed.get("description", "")
+    desc = _escape_md(parsed.get("description", ""))
     amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
     date_str = _format_date_es(parsed.get("date", date.today().strftime("%Y-%m-%d")))
     cat_tree = ""
@@ -334,6 +334,13 @@ _CAT_EMOJI: dict[str, str] = {
 }
 
 
+def _escape_md(text: str) -> str:
+    """Escape Telegram Markdown special characters to prevent parse errors."""
+    for ch in ("*", "_", "[", "`"):
+        text = text.replace(ch, f"\\{ch}")
+    return text
+
+
 def _cat_emoji(name: str) -> str:
     return _CAT_EMOJI.get(name.lower(), "📂")
 
@@ -351,7 +358,7 @@ def _saved_text(expense: "Expense", payment_label: str) -> str:
         tree_lines.append(f"{indent}{_cat_emoji(name)} {name}")
     # Description as final leaf
     leaf_indent = indents[min(len(levels), len(indents) - 1)]
-    tree_lines.append(f"{leaf_indent}📝 {expense.description}")
+    tree_lines.append(f"{leaf_indent}📝 {_escape_md(expense.description)}")
     cat_tree = "\n".join(tree_lines)
 
     return (
@@ -509,7 +516,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         update.effective_user.full_name or update.effective_user.username or ""
     )
 
-    desc = parsed.get("description", "")
+    desc = _escape_md(parsed.get("description", ""))
     amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
     date_str = parsed.get("date", date.today().strftime("%Y-%m-%d"))
 
