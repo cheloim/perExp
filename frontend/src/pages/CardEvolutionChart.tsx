@@ -114,7 +114,9 @@ export function CardEvolutionChart({ cardData, activeCard, filterMonth }: Props)
           />
           <YAxis
             tickFormatter={(v) =>
-              new Intl.NumberFormat("es-AR", { notation: "compact" } as any).format(v as number)
+              new Intl.NumberFormat("es-AR", {
+                notation: "compact",
+              } as Intl.NumberFormatOptions).format(v as number)
             }
             tick={{ fontSize: 11, fill: "var(--chart-text)" }}
             width={55}

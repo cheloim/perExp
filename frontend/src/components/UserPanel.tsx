@@ -119,7 +119,7 @@ export default function UserPanel({ open, onClose }: Props) {
       // Auto-hide success message after 3 seconds
       setTimeout(() => setInviteSuccess(false), 3000);
     },
-    onError: (e: any) => {
+    onError: (e: { response?: { data?: { detail?: string } } }) => {
       setInviteError(e?.response?.data?.detail ?? "Error al enviar invitación");
       setInviteSuccess(false);
     },
@@ -144,7 +144,7 @@ export default function UserPanel({ open, onClose }: Props) {
       setLeaveError(null);
       setInviteCode("");
     },
-    onError: (e: any) => {
+    onError: (e: { response?: { data?: { detail?: string } } }) => {
       setLeaveError(e?.response?.data?.detail ?? "Error al salir del grupo");
     },
   });
@@ -158,7 +158,7 @@ export default function UserPanel({ open, onClose }: Props) {
       setNewPw("");
       setConfirmPw("");
     },
-    onError: (e: any) => {
+    onError: (e: { response?: { data?: { detail?: string } } }) => {
       setPwError(e?.response?.data?.detail ?? "Error al cambiar contraseña");
     },
   });

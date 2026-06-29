@@ -75,21 +75,24 @@ export function Select({
       )
     : allOptions;
 
-  const handleSelect = (val: string) => {
-    onChange(val);
-    setIsOpen(false);
-    setSearch("");
-    setHighlightedIndex(-1);
-  };
+  const handleSelect = useCallback(
+    (val: string) => {
+      onChange(val);
+      setIsOpen(false);
+      setSearch("");
+      setHighlightedIndex(-1);
+    },
+    [onChange],
+  );
 
-  const handleCustomValue = () => {
+  const handleCustomValue = useCallback(() => {
     if (search.trim()) {
       onChange(search.trim());
       setIsOpen(false);
       setSearch("");
       setHighlightedIndex(-1);
     }
-  };
+  }, [onChange, search]);
 
   const flatOptions = useMemo(() => {
     const result: { value: string; label: string }[] = [];
@@ -146,7 +149,15 @@ export function Select({
           break;
       }
     },
-    [isOpen, highlightedIndex, flatOptions, search, allowCustomValue],
+    [
+      isOpen,
+      highlightedIndex,
+      flatOptions,
+      search,
+      allowCustomValue,
+      handleCustomValue,
+      handleSelect,
+    ],
   );
 
   useEffect(() => {

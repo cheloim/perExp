@@ -289,13 +289,13 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
     };
   }, []);
 
-  const updateSession = (id: string, updater: (s: Session) => Session) => {
+  const updateSession = useCallback((id: string, updater: (s: Session) => Session) => {
     setSessions((prev) => {
       const next = prev.map((s) => (s.id === id ? updater(s) : s));
       saveSessions(next);
       return next;
     });
-  };
+  }, []);
 
   const setMessages = (updater: (prev: ChatMessage[]) => ChatMessage[]) => {
     updateSession(activeId, (s) => ({
