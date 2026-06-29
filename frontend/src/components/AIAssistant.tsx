@@ -305,6 +305,24 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
     }));
   };
 
+  const summarizeSession = useCallback(
+    async (sessionId: string, sessionMessages: ChatMessage[]) => {
+      if (sessionMessages.length === 0) return;
+      setSummarizing(true);
+      try {
+        let summary = "";
+        await streamTo("/api/analysis/summarize", { messages: sessionMessages }, (full) => {
+          summary = full;
+        });
+        if (summary) updateSession(sessionId, (s) => ({ ...s, summary }));
+      } catch {
+      } finally {
+        setSummarizing(false);
+      }
+    },
+    [updateSession],
+  );
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -379,24 +397,6 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
       setStreaming(false);
     }
   };
-
-  const summarizeSession = useCallback(
-    async (sessionId: string, sessionMessages: ChatMessage[]) => {
-      if (sessionMessages.length === 0) return;
-      setSummarizing(true);
-      try {
-        let summary = "";
-        await streamTo("/api/analysis/summarize", { messages: sessionMessages }, (full) => {
-          summary = full;
-        });
-        if (summary) updateSession(sessionId, (s) => ({ ...s, summary }));
-      } catch {
-      } finally {
-        setSummarizing(false);
-      }
-    },
-    [updateSession],
-  );
 
   const analyzeMonth = async () => {
     if (streaming) return;
