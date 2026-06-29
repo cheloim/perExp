@@ -101,6 +101,7 @@ export default function Dashboard() {
   const [editing, setEditing] = useState<Expense | null | undefined>(undefined);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [daysFilter, setDaysFilter] = useState(7);
   const createMut = useMutation({
     mutationFn: (data: ExpenseCreate) => createExpense(data),
     onSuccess: () => {
@@ -247,21 +248,27 @@ export default function Dashboard() {
     setSelectedCategory(selectedCategory === name ? null : name);
   };
 
-  // Filtered expenses by selected category (frontend filtering)
+  // Filtered expenses by selected category and days range (frontend filtering)
   const filteredExpenses = useMemo(() => {
-    if (!selectedCategory) return monthExpenses;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - daysFilter);
+    const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, "0")}-${String(cutoff.getDate()).padStart(2, "0")}`;
 
-    // "Otros (N)" = categories with category_id null or small slices
-    if (selectedCategory.startsWith("Otros")) {
-      const bigCategoryNames = new Set(categories.map((c) => c.category_name));
-      return monthExpenses.filter(
-        (exp) => !exp.category_id || !bigCategoryNames.has(exp.category_name ?? ""),
-      );
+    let result = monthExpenses.filter((e) => e.date >= cutoffStr);
+
+    if (selectedCategory) {
+      if (selectedCategory.startsWith("Otros")) {
+        const bigCategoryNames = new Set(categories.map((c) => c.category_name));
+        result = result.filter(
+          (exp) => !exp.category_id || !bigCategoryNames.has(exp.category_name ?? ""),
+        );
+      } else {
+        result = result.filter((exp) => exp.category_name === selectedCategory);
+      }
     }
 
-    // Normal category — filter by category_name
-    return monthExpenses.filter((exp) => exp.category_name === selectedCategory);
-  }, [monthExpenses, selectedCategory, categories]);
+    return result;
+  }, [monthExpenses, selectedCategory, categories, daysFilter]);
 
   // Pie chart data — group small slices into "Otros"
   const pieData = useMemo(() => {
@@ -528,14 +535,31 @@ export default function Dashboard() {
         {/* Right: Transacciones */}
         <div className="card min-h-[200px] h-full flex flex-col">
           <div className="px-4 py-3 border-b border-border-color flex items-center justify-between flex-shrink-0">
-            <h2 className="text-sm font-semibold text-primary">
-              Transacciones — Mes corriente
-              {selectedCategory && (
-                <span className="ml-2 text-xs font-normal text-secondary">
-                  ({selectedCategory})
-                </span>
-              )}
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-primary">
+                Transacciones
+                {selectedCategory && (
+                  <span className="ml-2 text-xs font-normal text-secondary">
+                    ({selectedCategory})
+                  </span>
+                )}
+              </h2>
+              <div className="flex items-center gap-1 ml-2">
+                {[3, 5, 7, 10].map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => setDaysFilter(d)}
+                    className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+                      daysFilter === d
+                        ? "bg-primary/15 text-primary font-medium"
+                        : "text-tertiary hover:text-secondary"
+                    }`}
+                  >
+                    {d}d
+                  </button>
+                ))}
+              </div>
+            </div>
             <button
               onClick={() => navigate("/expenses")}
               className="text-xs text-secondary hover:text-primary transition-colors"
@@ -560,7 +584,7 @@ export default function Dashboard() {
             />
           ) : (
             <div className="divide-y divide-border-color overflow-y-auto flex-1 min-h-0">
-              {filteredExpenses.slice(0, 8).map((exp) => (
+              {filteredExpenses.map((exp) => (
                 <div
                   key={exp.id}
                   className="flex items-center justify-between px-4 py-2.5 hover:bg-base-alt transition-colors"
