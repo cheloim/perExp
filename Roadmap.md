@@ -7,15 +7,15 @@
 3. ~~En /main el graph de gastos por categoria puede crecer infinito~~ → Limited to top 7 categories + "Otros" grouping
 4. ~~Cuando abris un expense debería abrir un modal~~ → Added row-level click handler to open edit modal
 5. ~~Cuando creas tarjeta desde UserPanel, no debería decir Nombre sino Tarjeta~~ → Changed label to "Tarjeta" in AccountsManager, CardsManager, CardAccountModal
+6. ~~El boton de crear tarjeta desde Tarjetas de credito en /index te lleva a /accounts pero no te abre un modal para cargar~~ → Added "Crear tarjeta o cuenta" button to AccountsPage that opens CardAccountModal
+7. ~~En /expenses los gastos en USD aparecen como $~~ → Prefix USD with "USD " in formatCurrency (e.g., "USD $1,234.56")
+8. ~~No está estimando correctamente la "Deuda Tarjeta" — muestra en 0 cuando hay installments configurados~~ → Removed scheduled_date >= today filter, now includes ALL pending installments
+9. ~~Filtro by card/account en /expenses no funciona. No filtra.~~ → Fixed currentCuenta to use IDs instead of names, reconstruct Select value from URL params
 
 ## Pending
 
-6) El boton de crear tarjeta desde Tarjetas de credito en /index te lleva a /accounts pero no te abre un modal para cargar, y deberia llamarse Account y mostrar tanto las cards como las accounts.
-7) Cuando cargas un gasto en Efectivo/Transferencia pero no tenes una cuenta que corresponda, debería abrirte el warning para crear un account.
-8) En /expenses los gastos en USD aparecen como $.
-9) Cuando estas seleccionando una categoría desde el modal de Create Expenses, debería permitir crear una categoría si no está la que buscamos.
-10) No está estimando correctamente la "Deuda Tarjeta" — muestra en 0 cuando hay installments configurados.
-11) Filtro by card/account en /expenses no funciona. No filtra.
+10) Cuando cargas un gasto en Efectivo/Transferencia pero no tenes una cuenta que corresponda, debería abrirte el warning para crear un account.
+11) Cuando estas seleccionando una categoría desde el modal de Create Expenses, debería permitir crear una categoría si no está la que buscamos.
 
 # Roadmap
 
