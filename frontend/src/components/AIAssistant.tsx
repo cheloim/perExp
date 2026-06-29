@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { getDashboardAITrends } from "../api/client";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { formatAIResponse } from "../utils/formatText";
@@ -267,7 +267,7 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
   const panelRef = useRef<HTMLDivElement>(null);
 
   const activeSession = sessions.find((s) => s.id === activeId);
-  const messages = activeSession?.messages ?? [];
+  const messages = useMemo(() => activeSession?.messages ?? [], [activeSession]);
 
   // Handle keyboard visibility on mobile
   useEffect(() => {
@@ -304,6 +304,24 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
       lastMessageTs: Date.now(),
     }));
   };
+
+  const summarizeSession = useCallback(
+    async (sessionId: string, sessionMessages: ChatMessage[]) => {
+      if (sessionMessages.length === 0) return;
+      setSummarizing(true);
+      try {
+        let summary = "";
+        await streamTo("/api/analysis/summarize", { messages: sessionMessages }, (full) => {
+          summary = full;
+        });
+        if (summary) updateSession(sessionId, (s) => ({ ...s, summary }));
+      } catch {
+      } finally {
+        setSummarizing(false);
+      }
+    },
+    [updateSession],
+  );
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -350,7 +368,7 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
     };
     const interval = setInterval(checkInactivity, 60_000);
     return () => clearInterval(interval);
-  }, [sessions, activeId]);
+  }, [sessions, activeId, summarizeSession]);
 
   const sendMessage = async () => {
     const text = input.trim();
@@ -377,21 +395,6 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
       });
     } finally {
       setStreaming(false);
-    }
-  };
-
-  const summarizeSession = async (sessionId: string, sessionMessages: ChatMessage[]) => {
-    if (sessionMessages.length === 0) return;
-    setSummarizing(true);
-    try {
-      let summary = "";
-      await streamTo("/api/analysis/summarize", { messages: sessionMessages }, (full) => {
-        summary = full;
-      });
-      if (summary) updateSession(sessionId, (s) => ({ ...s, summary }));
-    } catch {
-    } finally {
-      setSummarizing(false);
     }
   };
 

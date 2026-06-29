@@ -120,7 +120,9 @@ function MainLayout() {
   // VirtualKeyboard API — overlay keyboard instead of resizing viewport
   useEffect(() => {
     if ("virtualKeyboard" in navigator) {
-      (navigator as any).virtualKeyboard.overlaysContent = true;
+      (
+        navigator as unknown as { virtualKeyboard: { overlaysContent: boolean } }
+      ).virtualKeyboard.overlaysContent = true;
     }
   }, []);
 

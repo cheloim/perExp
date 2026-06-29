@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getInvestments } from "../api/client";
 import type { Investment } from "../types";
@@ -448,7 +448,7 @@ export default function InvestmentsAssistant() {
   });
 
   const activeSession = sessions.find((s) => s.id === activeId);
-  const messages = activeSession?.messages ?? [];
+  const messages = useMemo(() => activeSession?.messages ?? [], [activeSession]);
 
   const updateSession = (id: string, updater: (s: Session) => Session) => {
     setSessions((prev) => {
