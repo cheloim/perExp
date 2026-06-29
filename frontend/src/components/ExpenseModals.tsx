@@ -161,10 +161,10 @@ export function ExpenseModal({
     isInstallmentsOnly
       ? "card"
       : initial
-      ? isCash(initial.card_id)
-        ? "cash"
-        : "card"
-      : lastPayment.payMethod,
+        ? isCash(initial.card_id)
+          ? "cash"
+          : "card"
+        : lastPayment.payMethod,
   );
   const [showCardModal, setShowCardModal] = useState(false);
 
