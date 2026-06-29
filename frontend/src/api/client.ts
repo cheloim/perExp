@@ -95,6 +95,7 @@ export const getExpenses = (params?: {
   category_ids?: string;
   uncategorized?: boolean;
   month?: string;
+  billing_view?: boolean;
   bank?: string;
   person?: string;
   card?: string;
@@ -192,6 +193,7 @@ export const bulkDeleteExpenses = (ids: number[]) =>
 // Dashboard
 export const getDashboard = (params?: {
   month?: string;
+  billing_view?: boolean;
   group_by?: "week" | "month" | "year";
   search?: string;
   person?: string;
@@ -554,3 +556,35 @@ export async function confirmImportJob(
 export async function deleteImportJob(jobId: number): Promise<void> {
   await api.delete(`/import-jobs/${jobId}`);
 }
+
+// Billing periods
+export interface BillingPeriod {
+  card_id: number;
+  card_name: string;
+  bank: string;
+  holder: string;
+  period_start: string | null;
+  period_end: string | null;
+  label: string | null;
+  is_predicted?: boolean;
+}
+
+export interface BillingPeriodDetail {
+  start: string;
+  end: string;
+  label: string;
+  is_predicted?: boolean;
+}
+
+export const getCurrentBillingPeriods = () =>
+  api.get<BillingPeriod[]>("/billing/current").then((r) => r.data);
+
+export const getBillingPeriods = (cardId: number, count: number = 6) =>
+  api.get<BillingPeriodDetail[]>("/billing/periods", {
+    params: { card_id: cardId, count },
+  }).then((r) => r.data);
+
+export const getBillingPeriodForDate = (cardId: number, refDate: string) =>
+  api.get<BillingPeriod>("/billing/period-for-date", {
+    params: { card_id: cardId, ref_date: refDate },
+  }).then((r) => r.data);

@@ -52,8 +52,68 @@ def _load_cards_and_accounts(uid_list: list[int], expenses: list[Expense], db: S
     return cards_by_id, accounts_by_id
 
 
-def _apply_filters(q, month_val, search_val, person_val, cat_id_val, bank_val=None):
-    if month_val:
+def _apply_filters(q, month_val, search_val, person_val, cat_id_val, bank_val=None, billing_view=False, db=None, uid_list=None):
+    if billing_view and month_val and db and uid_list:
+        # Billing view: filter expenses per card using each card's billing period
+        from sqlalchemy import and_, or_
+
+        from app.services.date_utils import get_billing_period_for_card
+
+        try:
+            if "-" in month_val:
+                parts = month_val.split("-")
+                if len(parts[0]) == 4:
+                    y, m = int(parts[0]), int(parts[1])
+                else:
+                    m, y = int(parts[0]), int(parts[1])
+            else:
+                y, m = int(month_val[:4]), int(month_val[5:7])
+        except (ValueError, IndexError):
+            return q
+
+        ref_date = date(y, m, 15)  # Mid-month as reference
+
+        # Get all credit cards for the user
+        cards = db.query(Card).filter(Card.user_id.in_(uid_list), Card.card_type == "credito").all()
+
+        conditions = []
+        for card_item in cards:
+            period = get_billing_period_for_card(card_item.id, ref_date, db)
+            if period:
+                period_start, period_end = period
+                conditions.append(
+                    and_(
+                        Expense.card_id == card_item.id,
+                        Expense.date >= period_start,
+                        Expense.date <= period_end,
+                    )
+                )
+
+        # For expenses without a card, fall back to calendar month
+        fallback_start = date(y, m, 1)
+        fallback_end = date(y, m, monthrange(y, m)[1])
+        conditions.append(
+            and_(
+                Expense.card_id.is_(None),
+                Expense.date >= fallback_start,
+                Expense.date <= fallback_end,
+            )
+        )
+
+        # Include expenses on cards without billing period data
+        card_ids_with_periods = {c.id for c in cards if get_billing_period_for_card(c.id, ref_date, db)}
+        cards_without_periods = [c for c in cards if c.id not in card_ids_with_periods]
+        if cards_without_periods:
+            conditions.append(
+                and_(
+                    Expense.card_id.in_([c.id for c in cards_without_periods]),
+                    Expense.date >= fallback_start,
+                    Expense.date <= fallback_end,
+                )
+            )
+
+        q = q.filter(or_(*conditions))
+    elif month_val:
         try:
             if "-" in month_val:
                 parts = month_val.split("-")
@@ -86,6 +146,7 @@ def _apply_filters(q, month_val, search_val, person_val, cat_id_val, bank_val=No
 @router.get("/summary")
 def get_summary(
     month: str | None = None,
+    billing_view: bool = False,
     group_by: str = "month",
     search: str | None = None,
     person: str | None = None,
@@ -102,7 +163,7 @@ def get_summary(
         .filter(Expense.user_id.in_(uid_list))
     )
     expenses = (
-        _apply_filters(base_q, month, search, person, category_id, bank)
+        _apply_filters(base_q, month, search, person, category_id, bank, billing_view=billing_view, db=db, uid_list=uid_list)
         .order_by(desc(Expense.date))
         .all()
     )

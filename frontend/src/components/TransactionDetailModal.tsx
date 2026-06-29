@@ -1,26 +1,22 @@
 import { DetailModal } from "./DetailModal";
 import type { SmartImportRow } from "../types";
-import { toUpperCase } from "../utils/format";
+import { formatCurrency } from "../utils/format";
 
 interface TransactionDetailModalProps {
   row: SmartImportRow | null;
   onClose: () => void;
+  onEdit?: () => void;
 }
 
-export function TransactionDetailModal({ row, onClose }: TransactionDetailModalProps) {
+export function TransactionDetailModal({ row, onClose, onEdit }: TransactionDetailModalProps) {
   if (!row) return null;
 
   return (
-    <DetailModal
-      isOpen={!!row}
-      onClose={onClose}
-      title={toUpperCase(row.description)}
-      subtitle={row.date}
-    >
+    <DetailModal isOpen={!!row} onClose={onClose} title={row.description} subtitle={row.date}>
       <div className="space-y-4">
         <div className="flex items-baseline gap-2">
           <span className="text-2xl font-bold text-[var(--text-primary)]">
-            {row.amount.toLocaleString("es-AR")} {row.currency}
+            {formatCurrency(row.amount, row.currency)}
           </span>
         </div>
 
@@ -35,23 +31,40 @@ export function TransactionDetailModal({ row, onClose }: TransactionDetailModalP
                 : "-"
             }
           />
-          <DetailField label="Transaction ID" value={row.transaction_id || "-"} />
+          <DetailField label="Referencia" value={row.transaction_id || "-"} />
         </dl>
 
         {(row.is_duplicate || row.is_auto_generated) && (
           <div className="flex gap-2 flex-wrap pt-2">
             {row.is_duplicate && (
-              <span className="text-xs bg-warning/10 text-warning px-2 py-1 rounded">
+              <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded">
                 Duplicada
               </span>
             )}
             {row.is_auto_generated && (
-              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
-                Auto-generada
+              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                Cuota auto-generada
               </span>
             )}
           </div>
         )}
+
+        <div className="flex gap-2 pt-4 border-t border-[var(--border-color)]">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2 rounded-lg border border-[var(--border-color)] text-sm text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition-colors"
+          >
+            Cerrar
+          </button>
+          {onEdit && (
+            <button
+              onClick={onEdit}
+              className="flex-1 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm hover:brightness-110 transition-colors"
+            >
+              Editar
+            </button>
+          )}
+        </div>
       </div>
     </DetailModal>
   );

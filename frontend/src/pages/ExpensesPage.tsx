@@ -18,6 +18,7 @@ import {
 import type { Expense, ExpenseCreate } from "../types";
 import { Select } from "../components/ui/Select";
 import { ExpenseModal } from "../components/ExpenseModals";
+import { ExpenseDetailModal } from "../components/ExpenseDetailModal";
 import EmptyState from "../components/ui/EmptyState";
 import {
   PieChart,
@@ -216,6 +217,7 @@ export default function ExpensesPage() {
   }, [filterSearch, expenses]);
 
   const [editing, setEditing] = useState<Expense | null | undefined>(undefined);
+  const [viewing, setViewing] = useState<Expense | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState(filterSearch ?? "");
   const [filtersExpanded, setFiltersExpanded] = useState(false);
@@ -1017,7 +1019,7 @@ export default function ExpensesPage() {
                               : "hover:bg-[var(--color-base-alt)]/30"
                           } ${selectedIds.has(exp.id) ? "bg-[var(--color-primary)]/10" : ""}`}
                           style={missing ? { borderLeft: "3px solid #f6d32d" } : undefined}
-                          onClick={() => (selectMode ? toggleSelect(exp.id) : setEditing(exp))}
+                          onClick={() => (selectMode ? toggleSelect(exp.id) : setViewing(exp))}
                         >
                           {selectMode && (
                             <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
@@ -1302,6 +1304,17 @@ export default function ExpensesPage() {
             setBulkDeleteConfirm(false);
           }}
           onCancel={() => setBulkDeleteConfirm(false)}
+        />
+      )}
+
+      {viewing && (
+        <ExpenseDetailModal
+          expense={viewing}
+          onClose={() => setViewing(null)}
+          onEdit={() => {
+            setViewing(null);
+            setEditing(viewing);
+          }}
         />
       )}
 

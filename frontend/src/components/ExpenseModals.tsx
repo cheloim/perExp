@@ -167,6 +167,9 @@ export function ExpenseModal({
         : lastPayment.payMethod,
   );
   const [showCardModal, setShowCardModal] = useState(false);
+  const [showParentSelector, setShowParentSelector] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryParent, setNewCategoryParent] = useState<number | null>(null);
 
   const [form, setForm] = useState<ExpenseCreate>(() => {
     if (initial) {
@@ -390,25 +393,17 @@ export function ExpenseModal({
             onChange={async (v) => {
               if (!v) {
                 set("category_id", null);
+                setNewCategoryParent(null);
                 return;
               }
               const parsed = parseInt(v);
               if (!isNaN(parsed)) {
                 set("category_id", parsed);
+                setNewCategoryParent(null);
               } else {
-                // Create new category
-                try {
-                  const newCat = await createCategory({
-                    name: v,
-                    color: "#6366f1",
-                    keywords: "",
-                    parent_id: null,
-                  });
-                  queryClient.invalidateQueries({ queryKey: ["categories"] });
-                  set("category_id", newCat.id);
-                } catch {
-                  // Duplicate name or other error - leave category_id as null
-                }
+                // Show parent selector for new category
+                setShowParentSelector(true);
+                setNewCategoryName(v);
               }
             }}
             groups={(() => {
@@ -436,6 +431,44 @@ export function ExpenseModal({
             })()}
             placeholder="Sin categoría"
           />
+
+          {/* Parent selector for new category */}
+          {showParentSelector && (
+            <div className="mt-2 p-3 bg-[var(--color-base-alt)] rounded-lg space-y-2">
+              <p className="text-xs text-[var(--text-secondary)]">
+                Crear "<strong>{newCategoryName}</strong>" como:
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    try {
+                      const newCat = await createCategory({
+                        name: newCategoryName,
+                        color: "#6366f1",
+                        keywords: "",
+                        parent_id: null,
+                      });
+                      queryClient.invalidateQueries({ queryKey: ["categories"] });
+                      set("category_id", newCat.id);
+                      setShowParentSelector(false);
+                      setNewCategoryName("");
+                    } catch {
+                      // Duplicate name
+                    }
+                  }}
+                  className="flex-1 py-1.5 text-xs rounded border border-[var(--border-color)] hover:bg-[var(--color-base-alt)]"
+                >
+                  Categoría padre
+                </button>
+                <button
+                  onClick={() => setShowParentSelector(false)}
+                  className="flex-1 py-1.5 text-xs rounded border border-[var(--border-color)] hover:bg-[var(--color-base-alt)]"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Cascading: Banco → Tarjeta */}
