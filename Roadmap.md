@@ -1,5 +1,8 @@
 # Bugs
 
+## Todo
+
+
 ## Fixed
 
 1. ~~el boton de eliminar todas las notificaciones no hace nada.~~ → Added `refresh()` call after `deleteAllRead` to force SSE re-sync
@@ -13,6 +16,13 @@
 9. ~~Filtro by card/account en /expenses no funciona. No filtra.~~ → Fixed currentCuenta to use IDs instead of names, reconstruct Select value from URL params
 10. ~~Cuando cargas un gasto en Efectivo/Transferencia pero no tenes una cuenta que corresponda, debería abrirte el warning para crear un account~~ → Added warning when payMethod is 'cash' and no accounts exist, with 'Crear cuenta' button
 11. ~~Cuando estas seleccionando una categoría desde el modal de Create Expenses, debería permitir crear una categoría si no está la que buscamos~~ → Added createCategory API call in category onChange handler
+12. ~~Unable to add Main Categories.~~ → Fixed `parentCats` filter to show all root categories (removed `childParentIds.has(c.id)` requirement)
+13. ~~Unable to add expense from Telegram in caja_ahorro account.~~ → Added `_escape_md()` helper to escape Markdown special characters in LLM-generated descriptions
+
+# Features
+
+## On-Going
+- ~~Allow edit card/account by clicking in that account in UserPanel --> Accounts, not only touching the 3 dots~~ → Made card/account rows clickable to enter edit mode; `···` menu now only shows Delete option
 
 # Roadmap
 
