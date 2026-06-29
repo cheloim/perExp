@@ -645,6 +645,23 @@ async def handle_card_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     context.user_data["card_selected"] = card
     context.user_data["payment_label"] = label
 
+    # Look up card_id from DB so the expense is linked to the card
+    db_card = SessionLocal()
+    try:
+        card_obj = (
+            db_card.query(Card)
+            .filter(
+                Card.user_id == context.user_data["user_id"],
+                func.lower(Card.card_name) == card.lower(),
+                func.lower(Card.bank) == bank.lower(),
+            )
+            .first()
+        )
+        if card_obj:
+            context.user_data["card_id"] = card_obj.id
+    finally:
+        db_card.close()
+
     # Run early categorization to determine if we need to ask about installments
     parsed = context.user_data["parsed"]
     db = SessionLocal()
@@ -1188,6 +1205,23 @@ async def handle_card_manual(update: Update, context: ContextTypes.DEFAULT_TYPE)
     label = f"{bank} {card_name}".strip() if bank else card_name
     context.user_data["card_selected"] = card_name
     context.user_data["payment_label"] = label
+
+    # Look up card_id from DB if the card exists
+    db_card = SessionLocal()
+    try:
+        card_obj = (
+            db_card.query(Card)
+            .filter(
+                Card.user_id == context.user_data["user_id"],
+                func.lower(Card.card_name) == card_name.lower(),
+                func.lower(Card.bank) == bank.lower() if bank else True,
+            )
+            .first()
+        )
+        if card_obj:
+            context.user_data["card_id"] = card_obj.id
+    finally:
+        db_card.close()
 
     # Run early categorization
     parsed = context.user_data["parsed"]
