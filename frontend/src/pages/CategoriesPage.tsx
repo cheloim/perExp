@@ -770,7 +770,7 @@ export default function CategoriesPage() {
       {/* Modals */}
       {editing !== undefined && (
         <CategoryForm
-          initial={editing.cat?.id ? editing.cat : undefined}
+          initial={editing.cat || undefined}
           isParentForm={editing.isParent}
           parentCategories={parentCats}
           onClose={() => setEditing(undefined)}

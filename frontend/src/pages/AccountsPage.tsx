@@ -18,6 +18,7 @@ import {
   getCards,
   getAccounts,
 } from "../api/client";
+import CardAccountModal from "../components/CardAccountModal";
 import type { Expense, ExpenseCreate } from "../types";
 import { ExpenseModal } from "../components/ExpenseModals";
 import { formatCurrency, toUpperCase, getContrastTextColor, formatDateDMY } from "../utils/format";
@@ -283,6 +284,7 @@ export default function AccountsPage() {
   const [activeCard, setActiveCard] = useState<string | null>(null);
   const [bankFilter, setBankFilter] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const queryClient = useQueryClient();
 
   // Modal states
@@ -413,6 +415,12 @@ export default function AccountsPage() {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-primary">Cuentas</h1>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="gnome-btn-primary-round text-sm"
+            >
+              + Crear tarjeta o cuenta
+            </button>
             <button
               onClick={prevMonth}
               className="p-1.5 rounded-md hover:bg-[var(--color-base-alt)] text-[var(--text-secondary)] transition"
@@ -852,6 +860,8 @@ export default function AccountsPage() {
             isSaving={createMut.isPending || updateMut.isPending}
           />
         )}
+
+        {showCreateModal && <CardAccountModal onClose={() => setShowCreateModal(false)} />}
       </div>
     </>
   );

@@ -584,10 +584,17 @@ export default function ExpensesPage() {
                 accounts.forEach((a) => {
                   cuentaOptions.push({ value: `account:${a.id}`, label: a.name });
                 });
-                const currentCuenta = filterCard
-                  ? `card:${filterCard}`
-                  : filterAccount
-                    ? `account:${filterAccount}`
+                // Reconstruct current value from URL params by looking up matching card/account
+                const matchedCard = filterCard
+                  ? cards.find((c) => c.card_name === filterCard)
+                  : null;
+                const matchedAccount = filterAccount
+                  ? accounts.find((a) => a.name === filterAccount)
+                  : null;
+                const currentCuenta = matchedCard
+                  ? `card:${matchedCard.id}`
+                  : matchedAccount
+                    ? `account:${matchedAccount.id}`
                     : "";
                 return (
                   <Select
@@ -1010,7 +1017,7 @@ export default function ExpensesPage() {
                               : "hover:bg-[var(--color-base-alt)]/30"
                           } ${selectedIds.has(exp.id) ? "bg-[var(--color-primary)]/10" : ""}`}
                           style={missing ? { borderLeft: "3px solid #f6d32d" } : undefined}
-                          onClick={selectMode ? () => toggleSelect(exp.id) : undefined}
+                          onClick={() => (selectMode ? toggleSelect(exp.id) : setEditing(exp))}
                         >
                           {selectMode && (
                             <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
