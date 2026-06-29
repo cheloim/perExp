@@ -18,6 +18,7 @@ import {
 import type { Expense, ExpenseCreate } from "../types";
 import { Select } from "../components/ui/Select";
 import { ExpenseModal } from "../components/ExpenseModals";
+import ExpenseDetailModal from "../components/ExpenseDetailModal";
 import EmptyState from "../components/ui/EmptyState";
 import {
   PieChart,
@@ -216,6 +217,7 @@ export default function ExpensesPage() {
   }, [filterSearch, expenses]);
 
   const [editing, setEditing] = useState<Expense | null | undefined>(undefined);
+  const [detailExpense, setDetailExpense] = useState<Expense | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState(filterSearch ?? "");
   const [filtersExpanded, setFiltersExpanded] = useState(false);
@@ -1017,7 +1019,9 @@ export default function ExpensesPage() {
                               : "hover:bg-[var(--color-base-alt)]/30"
                           } ${selectedIds.has(exp.id) ? "bg-[var(--color-primary)]/10" : ""}`}
                           style={missing ? { borderLeft: "3px solid #f6d32d" } : undefined}
-                          onClick={() => (selectMode ? toggleSelect(exp.id) : setEditing(exp))}
+                          onClick={() =>
+                            selectMode ? toggleSelect(exp.id) : setDetailExpense(exp)
+                          }
                         >
                           {selectMode && (
                             <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
@@ -1034,7 +1038,7 @@ export default function ExpensesPage() {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setEditing(exp);
+                                setDetailExpense(exp);
                               }}
                               className="text-left hover:text-primary transition"
                             >
@@ -1055,7 +1059,7 @@ export default function ExpensesPage() {
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setEditing(exp);
+                                  setDetailExpense(exp);
                                 }}
                                 className="text-left hover:text-primary transition"
                               >
@@ -1082,7 +1086,7 @@ export default function ExpensesPage() {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setEditing(exp);
+                                setDetailExpense(exp);
                               }}
                               className="text-left"
                             >
@@ -1106,7 +1110,7 @@ export default function ExpensesPage() {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setEditing(exp);
+                                setDetailExpense(exp);
                               }}
                               className="text-right hover:text-primary transition"
                             >
@@ -1260,6 +1264,17 @@ export default function ExpensesPage() {
             </div>
           </div>
         </>
+      )}
+
+      {detailExpense && (
+        <ExpenseDetailModal
+          expense={detailExpense}
+          onClose={() => setDetailExpense(null)}
+          onEdit={() => {
+            setDetailExpense(null);
+            setEditing(detailExpense);
+          }}
+        />
       )}
 
       {editing !== undefined && (
