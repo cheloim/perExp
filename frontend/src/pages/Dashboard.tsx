@@ -224,12 +224,14 @@ export default function Dashboard() {
     const othersTotal = allCats.slice(7).reduce((sum, c) => sum + c.total, 0);
 
     if (othersTotal > 0) {
+      const othersPreviousTotal = allCats.slice(7).reduce((sum, c) => sum + (c.previous_total ?? 0), 0);
       return [
         ...top7,
         {
           category_name: "Otros",
           category_color: "#94a3b8",
           total: othersTotal,
+          previous_total: othersPreviousTotal,
           category_id: null,
         },
       ];
