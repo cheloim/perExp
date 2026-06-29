@@ -1,12 +1,19 @@
 import { useEffect } from "react";
 import type { Expense } from "../types";
-import { formatCurrency, toUpperCase, formatDateDMY, getContrastTextColor } from "../utils/format";
+import { formatCurrency, toUpperCase, formatDateDMY } from "../utils/format";
 
 interface Props {
   expense: Expense;
   onClose: () => void;
   onEdit: () => void;
 }
+
+const ACCOUNT_TYPE_LABELS: Record<string, string> = {
+  efectivo: "Efectivo",
+  cuenta_corriente: "Cta. Corriente",
+  caja_ahorro: "Caja de Ahorro",
+  mercadopago: "MercadoPago",
+};
 
 export default function ExpenseDetailModal({ expense, onClose, onEdit }: Props) {
   useEffect(() => {
@@ -17,9 +24,19 @@ export default function ExpenseDetailModal({ expense, onClose, onEdit }: Props) 
     return () => document.removeEventListener("keydown", handleEscape);
   }, [onClose]);
 
-  const accountLabel = expense.card
-    ? `${expense.card}${expense.bank ? ` · ${expense.bank}` : ""}`
-    : expense.bank || "—";
+  const accountLabel = (() => {
+    if (expense.card) {
+      return `${expense.card}${expense.bank ? ` · ${expense.bank}` : ""}`;
+    }
+    if (expense.account_rel?.name) {
+      const typeLabel = ACCOUNT_TYPE_LABELS[expense.account_rel.type] || expense.account_rel.type;
+      return `${expense.account_rel.name} (${typeLabel})`;
+    }
+    if (expense.bank) return expense.bank;
+    return "—";
+  })();
+
+  const categoryColor = expense.category_color || "#9a9996";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-backdrop">
@@ -40,9 +57,9 @@ export default function ExpenseDetailModal({ expense, onClose, onEdit }: Props) 
         </div>
 
         {/* Detail grid */}
-        <div className="space-y-3">
+        <div className="space-y-0">
           {/* Monto */}
-          <div className="flex items-center justify-between p-3 bg-[var(--color-base-alt)] rounded-lg">
+          <div className="flex items-center justify-between p-3 bg-[var(--color-base-alt)] rounded-lg mb-3">
             <span className="text-xs text-[var(--text-secondary)]">Monto</span>
             <span className="text-base font-bold text-[var(--text-primary)]">
               {formatCurrency(expense.amount, expense.currency)}
@@ -50,20 +67,20 @@ export default function ExpenseDetailModal({ expense, onClose, onEdit }: Props) 
           </div>
 
           {/* Fecha */}
-          <div className="flex items-center justify-between px-1 py-2 border-b border-[var(--border-color)]">
+          <div className="flex items-center justify-between px-1 py-2.5 border-b border-[var(--border-color)]">
             <span className="text-xs text-[var(--text-secondary)]">Fecha</span>
             <span className="text-sm text-[var(--text-primary)]">{formatDateDMY(expense.date)}</span>
           </div>
 
           {/* Categoría */}
-          <div className="flex items-center justify-between px-1 py-2 border-b border-[var(--border-color)]">
+          <div className="flex items-center justify-between px-1 py-2.5 border-b border-[var(--border-color)]">
             <span className="text-xs text-[var(--text-secondary)]">Categoría</span>
             {expense.category_name ? (
               <span
                 className="px-2 py-0.5 rounded text-xs font-medium"
                 style={{
-                  backgroundColor: (expense.category_color || "#9a9996") + "20",
-                  color: getContrastTextColor(expense.category_color || "#9a9996"),
+                  backgroundColor: categoryColor + "20",
+                  color: categoryColor,
                 }}
               >
                 {expense.category_name}
@@ -74,14 +91,14 @@ export default function ExpenseDetailModal({ expense, onClose, onEdit }: Props) 
           </div>
 
           {/* Cuenta */}
-          <div className="flex items-center justify-between px-1 py-2 border-b border-[var(--border-color)]">
+          <div className="flex items-center justify-between px-1 py-2.5 border-b border-[var(--border-color)]">
             <span className="text-xs text-[var(--text-secondary)]">Cuenta</span>
             <span className="text-sm text-[var(--text-primary)]">{accountLabel}</span>
           </div>
 
           {/* Cuotas */}
           {expense.installment_number && expense.installment_total && (
-            <div className="flex items-center justify-between px-1 py-2 border-b border-[var(--border-color)]">
+            <div className="flex items-center justify-between px-1 py-2.5 border-b border-[var(--border-color)]">
               <span className="text-xs text-[var(--text-secondary)]">Cuotas</span>
               <span className="text-sm text-[var(--text-primary)]">
                 {expense.installment_number} / {expense.installment_total}
@@ -90,16 +107,16 @@ export default function ExpenseDetailModal({ expense, onClose, onEdit }: Props) 
           )}
 
           {/* Notas */}
-          {expense.notes && (
-            <div className="px-1 py-2 border-b border-[var(--border-color)]">
-              <span className="text-xs text-[var(--text-secondary)]">Notas</span>
-              <p className="text-sm text-[var(--text-primary)] mt-1 whitespace-pre-wrap">{expense.notes}</p>
-            </div>
-          )}
+          <div className="px-1 py-2.5">
+            <span className="text-xs text-[var(--text-secondary)]">Notas</span>
+            <p className="text-sm text-[var(--text-primary)] mt-1 whitespace-pre-wrap">
+              {expense.notes || "—"}
+            </p>
+          </div>
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2 pt-2">
+        <div className="flex gap-2 pt-1">
           <button
             onClick={onClose}
             className="flex-1 px-4 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
