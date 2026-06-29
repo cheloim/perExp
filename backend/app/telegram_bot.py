@@ -265,6 +265,7 @@ def _confirm_text(parsed: dict, payment_label: str, cat_levels: list[str] = None
     desc = _escape_md(parsed.get("description", ""))
     amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
     date_str = _format_date_es(parsed.get("date", date.today().strftime("%Y-%m-%d")))
+    safe_label = _escape_md(payment_label)
     cat_tree = ""
     if cat_levels:
         indents = ["", "  └ ", "      └ "]
@@ -276,7 +277,7 @@ def _confirm_text(parsed: dict, payment_label: str, cat_levels: list[str] = None
         f"🛒 *{desc}*\n"
         f"💰 {amount_str}\n"
         f"📅 {date_str}\n"
-        f"💳 {payment_label}\n"
+        f"💳 {safe_label}\n"
         f"{cat_tree}"
         f"\n¿Lo guardamos?"
     )
@@ -349,6 +350,7 @@ def _cat_emoji(name: str) -> str:
 def _saved_text(expense: "Expense", payment_label: str) -> str:
     amount_str = _format_amount(expense.amount, expense.currency)
     date_str = _format_date_es(expense.date.strftime("%Y-%m-%d"))
+    safe_label = _escape_md(payment_label)
     levels = getattr(expense, "_cat_levels", [])
 
     # Build category tree with emojis; description is always the leaf with 📝
@@ -365,7 +367,7 @@ def _saved_text(expense: "Expense", payment_label: str) -> str:
     return (
         f"✅ ¡Listo! Guardé el gasto.\n\n"
         f"💰 {amount_str}\n"
-        f"💳 {payment_label}\n"
+        f"💳 {safe_label}\n"
         f"📅 {date_str}\n\n"
         f"{cat_tree}"
     )
@@ -1003,10 +1005,10 @@ async def handle_card_create_name(update: Update, context: ContextTypes.DEFAULT_
 
     await update.message.reply_text(
         "🔍 *Detectado*\n\n"
-        f"💳 Tarjeta: *{card_name}*\n"
-        f"🏦 Banco: *{bank_display}*\n"
-        f"👤 Titular: *{holder}*\n"
-        f"💳 Tipo: *{card_type}*\n\n"
+        f"💳 Tarjeta: *{_escape_md(card_name)}*\n"
+        f"🏦 Banco: *{_escape_md(bank_display)}*\n"
+        f"👤 Titular: *{_escape_md(holder)}*\n"
+        f"💳 Tipo: *{_escape_md(card_type)}*\n\n"
         "¿Confirmás la creación de esta tarjeta?",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(
@@ -1101,7 +1103,7 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
                 ]
             ]
             await query.edit_message_text(
-                f"✅ *Tarjeta {card_name} creada!*\n\n¿Lo pagaste en cuotas?",
+                f"✅ *Tarjeta {_escape_md(card_name)} creada!*\n\n¿Lo pagaste en cuotas?",
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup(installment_keyboard),
             )
@@ -1115,7 +1117,7 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
                 ]
             ]
             await query.edit_message_text(
-                f"✅ *Tarjeta {card_name} creada!*\n\n"
+                f"✅ *Tarjeta {_escape_md(card_name)} creada!*\n\n"
                 + _confirm_text(parsed, context.user_data["payment_label"], cat_levels),
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup(confirm_keyboard),
