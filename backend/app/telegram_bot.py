@@ -102,11 +102,12 @@ def _extract_card_info(raw_input: str, card_type: str) -> dict:
         return {"card_name": raw_input, "bank": ""}
 
 
-def _get_accounts(user_id: int) -> list[Account]:
-    """Returns list of accounts for the authenticated user."""
+def _get_accounts(user_id: int) -> list[dict]:
+    """Returns list of account dicts for the authenticated user."""
     db = SessionLocal()
     try:
-        return db.query(Account).filter(Account.user_id == user_id).all()
+        accounts = db.query(Account).filter(Account.user_id == user_id).all()
+        return [{"id": a.id, "name": a.name, "type": a.type} for a in accounts]
     finally:
         db.close()
 
@@ -429,12 +430,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     finally:
         db.close()
 
-        await update.message.reply_text(
-            "👋 ¡Hola! Soy *NikoFin*, tu asistente de finanzas personales.\n\n"
-            "Para conectarte con tu cuenta, ingresá tu clave de 12 caracteres.\n"
-            "La encontrás en la app → Configuración → Telegram Bot.",
-            parse_mode="Markdown",
-        )
+    await update.message.reply_text(
+        "👋 ¡Hola! Soy *NikoFin*, tu asistente de finanzas personales.\n\n"
+        "Para conectarte con tu cuenta, ingresá tu clave de 12 caracteres.\n"
+        "La encontrás en la app → Configuración → Telegram Bot.",
+        parse_mode="Markdown",
+    )
     return WAITING_AUTH
 
 
@@ -972,7 +973,6 @@ async def handle_card_create_name(update: Update, context: ContextTypes.DEFAULT_
     """Handle card name input, extract info with LLM, ask for confirmation"""
     raw_input = update.message.text.strip()
     card_type = context.user_data.get("new_card_type", "credito")
-    context.user_data.get("user_id")
 
     db = SessionLocal()
     try:

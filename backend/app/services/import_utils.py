@@ -1,11 +1,12 @@
 import hashlib
 import io
+import logging
 import re
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 import pandas as pd
 
-_log = lambda msg: print(f"{datetime.now().isoformat()} {msg}")
+logger = logging.getLogger(__name__)
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -41,7 +42,7 @@ def _normalize_text(text: str | None) -> str:
     cleaned = re.sub(r"\s*-\s*Pendiente\s*$", "", text.strip(), flags=re.IGNORECASE)
     result = cleaned.upper()
     if result:
-        _log(f"[DEBUG NORMALIZE] '{text}' -> '{result}'")
+        logger.debug("[DEBUG NORMALIZE] '%s' -> '%s'", text, result)
     return result
 
 
@@ -49,7 +50,7 @@ def _title_case(text: str | None) -> str:
     if not text:
         return ""
     result = text.strip().title()
-    _log(f"[DEBUG TITLE_CASE] '{text}' -> '{result}'")
+    logger.debug("[DEBUG TITLE_CASE] '%s' -> '%s'", text, result)
     return result
 
 
@@ -98,15 +99,19 @@ def _is_duplicate(
                 .first()
             )
             if existing:
-                _log(
-                    f"[DUP by txn_id+installment] txn_id={transaction_id} inst={installment_number}/{installment_total} matched id={existing.id}"
+                logger.debug(
+                    "[DUP by txn_id+installment] txn_id=%s inst=%d/%d matched id=%d",
+                    transaction_id,
+                    installment_number,
+                    installment_total,
+                    existing.id,
                 )
                 return True
             # Fall through to check ScheduledExpense and installment_group_id
         else:
             existing = db.query(Expense).filter(Expense.transaction_id == transaction_id).first()
             if existing:
-                _log(f"[DUP by txn_id] txn_id={transaction_id} matched id={existing.id}")
+                logger.debug("[DUP by txn_id] txn_id=%s matched id=%d", transaction_id, existing.id)
                 return True
 
         # Always check ScheduledExpense by installment_group_id if provided
@@ -122,8 +127,13 @@ def _is_duplicate(
                 .first()
             )
             if existing_scheduled:
-                _log(
-                    f"[DUP by txn_id+installment_group_id in ScheduledExpense] txn_id={transaction_id} inst={installment_number}/{installment_total} group_id={installment_group_id} matched id={existing_scheduled.id}"
+                logger.debug(
+                    "[DUP by txn_id+installment_group_id in ScheduledExpense] txn_id=%s inst=%d/%d group_id=%s matched id=%d",
+                    transaction_id,
+                    installment_number,
+                    installment_total,
+                    installment_group_id,
+                    existing_scheduled.id,
                 )
                 return True
         return False
@@ -145,8 +155,14 @@ def _is_duplicate(
             .first()
         )
         if existing:
-            _log(
-                f"[DUP by installment] amt={amount} desc={description} inst={installment_number}/{installment_total} month={month_start.strftime('%Y-%m')} matched id={existing.id}"
+            logger.debug(
+                "[DUP by installment] amt=%s desc=%s inst=%d/%d month=%s matched id=%d",
+                amount,
+                description,
+                installment_number,
+                installment_total,
+                month_start.strftime("%Y-%m"),
+                existing.id,
             )
             return True
 
@@ -159,8 +175,12 @@ def _is_duplicate(
         q = q.filter(Expense.installment_number == installment_number)
     existing = q.first()
     if existing:
-        _log(
-            f"[DUP by triple] date={exp_date} amt={amount} desc={description} matched id={existing.id}"
+        logger.debug(
+            "[DUP by triple] date=%s amt=%s desc=%s matched id=%d",
+            exp_date,
+            amount,
+            description,
+            existing.id,
         )
         return True
 
@@ -176,8 +196,12 @@ def _is_duplicate(
             .first()
         )
         if existing_scheduled:
-            _log(
-                f"[DUP by installment_group_id in ScheduledExpense] group_id={installment_group_id} inst={installment_number}/{installment_total} matched id={existing_scheduled.id}"
+            logger.debug(
+                "[DUP by installment_group_id in ScheduledExpense] group_id=%s inst=%d/%d matched id=%d",
+                installment_group_id,
+                installment_number,
+                installment_total,
+                existing_scheduled.id,
             )
             return True
 

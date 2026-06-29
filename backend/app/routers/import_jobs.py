@@ -3,6 +3,7 @@ Import Jobs API - Asynchronous file import with background processing
 """
 
 import json
+import logging
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
@@ -10,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 
-_log = lambda msg: print(f"{datetime.now().isoformat()} {msg}")
+logger = logging.getLogger(__name__)
 from app.models import ImportJob, User
 from app.schemas import ImportJobResponse, RowsConfirmBody
 from app.services.auth import get_current_user
@@ -170,7 +171,7 @@ async def confirm_import_job(
     from app.models import Card, Category, Expense, ScheduledExpense
     from app.services.normalizers import first_card_word, normalize_bank, title_case_single
 
-    _log(f"[IMPORT CONFIRM] User {user.id} confirming job {job_id} with {len(body.rows)} rows")
+    logger.info("[IMPORT CONFIRM] User %d confirming job %d with %d rows", user.id, job_id, len(body.rows))
 
     # SECURITY: Only user's own jobs
     job = db.query(ImportJob).filter(ImportJob.id == job_id, ImportJob.user_id == user.id).first()
@@ -190,11 +191,11 @@ async def confirm_import_job(
     # Log sample row for debugging
     if body.rows:
         sample = body.rows[0]
-        _log(f"[IMPORT CONFIRM] Sample row keys: {list(sample.keys())}")
+        logger.info("[IMPORT CONFIRM] Sample row keys: %s", list(sample.keys()))
 
     cards_mapping = body.cards_mapping or {}
-    _log(f"[IMPORT CONFIRM] Received cards_mapping: {cards_mapping}")
-    _log(f"[IMPORT CONFIRM] cards_mapping length: {len(cards_mapping)}")
+    logger.info("[IMPORT CONFIRM] Received cards_mapping: %s", cards_mapping)
+    logger.info("[IMPORT CONFIRM] cards_mapping length: %d", len(cards_mapping))
 
     def get_card_key(bank: str, card: str, holder: str) -> str:
         return f"{bank}|{card}|{holder}"
@@ -204,11 +205,17 @@ async def confirm_import_job(
         norm_card = first_card_word(card)
         norm_holder = title_case_single(holder)
 
-        _log(
-            f"[FIND_OR_CREATE_CARD] bank={norm_bank}, card={norm_card}, holder={norm_holder}, card_type={card_type}"
+        logger.info(
+            "[FIND_OR_CREATE_CARD] bank=%s, card=%s, holder=%s, card_type=%s",
+            norm_bank,
+            norm_card,
+            norm_holder,
+            card_type,
         )
-        _log(
-            f"[FIND_OR_CREATE_CARD] user_cards count={len(user_cards)}, names: {[c.card_name for c in user_cards]}"
+        logger.info(
+            "[FIND_OR_CREATE_CARD] user_cards count=%d, names: %s",
+            len(user_cards),
+            [c.card_name for c in user_cards],
         )
 
         existing = next(
@@ -222,7 +229,7 @@ async def confirm_import_job(
             None,
         )
         if existing:
-            _log(f"[FIND_OR_CREATE_CARD] Found existing card: {existing.card_name}")
+            logger.info("[FIND_OR_CREATE_CARD] Found existing card: %s", existing.card_name)
             if existing.holder.lower() != norm_holder.lower():
                 existing.holder = norm_holder
             if existing.card_type != card_type:
@@ -239,8 +246,11 @@ async def confirm_import_job(
         db.add(new_card)
         db.flush()
         user_cards.append(new_card)
-        _log(
-            f"[FIND_OR_CREATE_CARD] Created new card: card_name={norm_card}, bank={norm_bank}, holder={norm_holder}"
+        logger.info(
+            "[FIND_OR_CREATE_CARD] Created new card: card_name=%s, bank=%s, holder=%s",
+            norm_card,
+            norm_bank,
+            norm_holder,
         )
         return new_card, True
 
@@ -433,12 +443,15 @@ async def confirm_import_job(
         db.rollback()
         import traceback
 
-        _log(f"[ERROR] Failed to commit import: {e}")
-        _log(traceback.format_exc())
+        logger.error("[ERROR] Failed to commit import: %s", e)
+        logger.error(traceback.format_exc())
         raise HTTPException(500, f"Database error: {str(e)}")
 
-    _log(
-        f"[IMPORT CONFIRM] Success: imported={imported_count}, scheduled={scheduled_count}, skipped={skipped_count}"
+    logger.info(
+        "[IMPORT CONFIRM] Success: imported=%d, scheduled=%d, skipped=%d",
+        imported_count,
+        scheduled_count,
+        skipped_count,
     )
 
     return {"imported": imported_count, "skipped": skipped_count, "scheduled": scheduled_count}
@@ -473,9 +486,9 @@ def delete_import_job(
             data = json.loads(notif.data)
             if data.get("job_id") == job_id:
                 db.delete(notif)
-                _log(f"[DELETE JOB] Deleted associated notification {notif.id}")
+                logger.info("[DELETE JOB] Deleted associated notification %d", notif.id)
         except Exception as e:
-            _log(f"[DELETE JOB] Error checking notification: {e}")
+            logger.error("[DELETE JOB] Error checking notification: %s", e)
 
     db.delete(job)
     db.commit()
