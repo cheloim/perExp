@@ -21,17 +21,15 @@
 
 # Features
 
-## On-Going
-- ~~Allow edit card/account by clicking in that account in UserPanel --> Accounts, not only touching the 3 dots~~ → Made card/account rows clickable to enter edit mode; `···` menu now only shows Delete option
-- Click on expense row in /expenses opens summary modal with Cerrar/Editar buttons
-
-# Roadmap
-
-## Todo:
-
 ## Backlog:
- - Create Income module and integrate with dashboards. Effort High.
+- Add notifications more visual. Use the same as Import-job started for finish.
+- Add Weekly and Resume by telegram bot, Adjustable from UserPanel.
+- Create Income module and integrate with dashboards. Effort High.
     - Dashboard comparison saving from last months.
- - Create ticket scan feature to analyze market buys. Effort Medium.
+- Create ticket scan feature to analyze market buys. Effort Medium.
     - Allow comparison same items last month.
  - Allow creation of budgets for expenses.
+
+## Done
+1. ~~Allow edit card/account by clicking in that account in UserPanel --> Accounts~~ → Made card/account rows clickable to enter edit mode; ··· menu now only shows Delete option
+2. ~~Click on expense row in /expenses opens summary modal~~ → New ExpenseDetailModal showing category, account, date, description, amount, notes with Cerrar/Editar buttons
