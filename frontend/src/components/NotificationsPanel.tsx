@@ -86,7 +86,7 @@ export default function NotificationsPanel({ onClose }: Props) {
     await markRead(id);
   };
 
-  const handleDeleteJob = async (jobId: number) => {
+  const handleDeleteJob = async (jobId: number, notifId: number) => {
     const token = localStorage.getItem("auth_token");
     if (!token) return;
     try {
@@ -94,6 +94,7 @@ export default function NotificationsPanel({ onClose }: Props) {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
+      await deleteNotification(notifId);
       refresh();
     } catch (err) {
       console.error("[NotificationsPanel] deleteJob failed", err);
@@ -439,6 +440,7 @@ export default function NotificationsPanel({ onClose }: Props) {
                         onClick={(e) => {
                           e.stopPropagation();
                           deleteNotification(n.id);
+                          refresh();
                         }}
                         className="text-[var(--text-tertiary)] hover:text-red-500 transition-colors"
                         title="Eliminar notificación"
@@ -503,7 +505,7 @@ export default function NotificationsPanel({ onClose }: Props) {
               </button>
               <button
                 onClick={() => {
-                  handleDeleteJob(confirmDelete.jobId);
+                  handleDeleteJob(confirmDelete.jobId, confirmDelete.notifId);
                   setConfirmDelete(null);
                 }}
                 className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
