@@ -560,7 +560,7 @@ export default function Dashboard() {
             />
           ) : (
             <div className="divide-y divide-border-color overflow-y-auto flex-1 min-h-0">
-              {filteredExpenses.map((exp) => (
+              {filteredExpenses.slice(0, 8).map((exp) => (
                 <div
                   key={exp.id}
                   className="flex items-center justify-between px-4 py-2.5 hover:bg-base-alt transition-colors"
