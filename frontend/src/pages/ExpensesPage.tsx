@@ -1031,12 +1031,12 @@ export default function ExpensesPage() {
                               />
                             </td>
                           )}
-                          <td className="px-4 py-3 text-[var(--text-tertiary)] whitespace-nowrap">
+                            <td className="px-4 py-3 text-[var(--text-tertiary)] whitespace-nowrap">
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setEditing(exp);
+                                setDetailExpense(exp);
                               }}
                               className="text-left hover:text-primary transition"
                             >
@@ -1057,7 +1057,7 @@ export default function ExpensesPage() {
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setEditing(exp);
+                                  setDetailExpense(exp);
                                 }}
                                 className="text-left hover:text-primary transition"
                               >
@@ -1079,12 +1079,12 @@ export default function ExpensesPage() {
                               {exp.person && <span>{titleCase(exp.person)}</span>}
                             </div>
                           </td>
-                          <td className="px-4 py-3">
+                            <td className="px-4 py-3">
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setEditing(exp);
+                                setDetailExpense(exp);
                               }}
                               className="text-left"
                             >
@@ -1103,12 +1103,12 @@ export default function ExpensesPage() {
                               )}
                             </button>
                           </td>
-                          <td className="px-4 py-3 text-right">
+                            <td className="px-4 py-3 text-right">
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setEditing(exp);
+                                setDetailExpense(exp);
                               }}
                               className="text-right hover:text-primary transition"
                             >
