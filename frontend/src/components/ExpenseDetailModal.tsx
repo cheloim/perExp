@@ -59,9 +59,9 @@ export default function ExpenseDetailModal({ expense, onClose, onEdit }: Props) 
         {/* Detail grid */}
         <div className="space-y-0">
           {/* Monto */}
-          <div className="flex items-center justify-between p-3 bg-[var(--color-base-alt)] rounded-lg mb-3">
+          <div className="flex items-center justify-between p-3 bg-[var(--color-primary)]/10 rounded-lg mb-3">
             <span className="text-xs text-[var(--text-secondary)]">Monto</span>
-            <span className="text-base font-bold text-[var(--text-primary)]">
+            <span className="text-base font-bold text-[var(--color-primary)]">
               {formatCurrency(expense.amount, expense.currency)}
             </span>
           </div>
@@ -107,11 +107,11 @@ export default function ExpenseDetailModal({ expense, onClose, onEdit }: Props) 
           )}
 
           {/* Notas */}
-          <div className="px-1 py-2.5">
+          <div className="flex items-center justify-between px-1 py-2.5">
             <span className="text-xs text-[var(--text-secondary)]">Notas</span>
-            <p className="text-sm text-[var(--text-primary)] mt-1 whitespace-pre-wrap">
+            <span className="text-sm text-[var(--text-primary)] text-right max-w-[60%] truncate" title={expense.notes || "—"}>
               {expense.notes || "—"}
-            </p>
+            </span>
           </div>
         </div>
 
