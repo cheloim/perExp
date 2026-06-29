@@ -338,7 +338,7 @@ _CAT_EMOJI: dict[str, str] = {
 
 def _escape_md(text: str) -> str:
     """Escape Telegram Markdown special characters to prevent parse errors."""
-    for ch in ("*", "_", "[", "`"):
+    for ch in ("\\", "*", "_", "[", "`"):
         text = text.replace(ch, f"\\{ch}")
     return text
 
@@ -868,7 +868,7 @@ async def handle_account_create_name(update: Update, context: ContextTypes.DEFAU
         [InlineKeyboardButton("💰 Otro", callback_data="acctype:otro")],
     ]
     await update.message.reply_text(
-        f"✅ Perfecto, *{account_name}*\n\nAhora elegí el tipo de cuenta:",
+        f"✅ Perfecto, *{_escape_md(account_name)}*\n\nAhora elegí el tipo de cuenta:",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard),
     )
