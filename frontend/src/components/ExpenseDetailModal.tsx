@@ -44,7 +44,7 @@ export default function ExpenseDetailModal({ expense, onClose, onEdit }: Props) 
       <div className="relative card w-full max-w-sm p-5 space-y-4 animate-modal-content">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-[var(--text-primary)] truncate pr-4">
+          <h2 className="text-base font-semibold text-primary truncate pr-4">
             {toUpperCase(expense.description)}
           </h2>
           <button
