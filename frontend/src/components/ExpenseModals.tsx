@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DayPicker } from "react-day-picker";
 import { es } from "date-fns/locale";
-import { getCategories, getAccounts, getCards } from "../api/client";
+import { getCategories, getAccounts, getCards, createCategory } from "../api/client";
 import type { Expense, ExpenseCreate, Card } from "../types";
 import { Select } from "./ui/Select";
 import CardAccountModal from "./CardAccountModal";
@@ -140,6 +140,7 @@ export function ExpenseModal({
   isSaving,
   mode,
 }: ExpenseModalProps) {
+  const queryClient = useQueryClient();
   const { data: categories = [] } = useQuery({ queryKey: ["categories"], queryFn: getCategories });
   const { data: cards = [] } = useQuery({ queryKey: ["cards"], queryFn: getCards });
   const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: getAccounts });
@@ -386,7 +387,30 @@ export function ExpenseModal({
           <label className="text-xs font-medium text-[var(--text-secondary)]">Categoría</label>
           <Select
             value={form.category_id ? String(form.category_id) : ""}
-            onChange={(v) => set("category_id", v ? parseInt(v) : null)}
+            onChange={async (v) => {
+              if (!v) {
+                set("category_id", null);
+                return;
+              }
+              const parsed = parseInt(v);
+              if (!isNaN(parsed)) {
+                set("category_id", parsed);
+              } else {
+                // Create new category
+                try {
+                  const newCat = await createCategory({
+                    name: v,
+                    color: "#6366f1",
+                    keywords: "",
+                    parent_id: null,
+                  });
+                  queryClient.invalidateQueries({ queryKey: ["categories"] });
+                  set("category_id", newCat.id);
+                } catch {
+                  // Duplicate name or other error - leave category_id as null
+                }
+              }
+            }}
             groups={(() => {
               const parentIds = new Set(
                 categories.filter((c) => c.parent_id).map((c) => c.parent_id!),
@@ -451,6 +475,21 @@ export function ExpenseModal({
         <div
           className={`space-y-3 ${payMethod === "card" ? "opacity-40 pointer-events-none" : ""}`}
         >
+          {/* Warning when no accounts for cash/transfer */}
+          {payMethod === "cash" && accounts.filter((a) => a.type !== "credito").length === 0 && (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
+              <span className="mt-0.5">⚠️</span>
+              <div className="flex-1">
+                <p>No tenés cuentas creadas para efectivo/transferencia.</p>
+                <button
+                  onClick={() => setShowCardModal(true)}
+                  className="mt-1 text-xs font-semibold underline hover:text-amber-800"
+                >
+                  Crear cuenta
+                </button>
+              </div>
+            </div>
+          )}
           <div>
             <label className="text-xs font-medium text-[var(--text-secondary)]">
               Cuenta de origen
