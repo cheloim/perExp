@@ -544,7 +544,7 @@ export default function Dashboard() {
         </div>
 
         {/* Right: Transacciones */}
-        <div className="card min-h-[200px] max-h-[400px] h-full flex flex-col overflow-y-auto">
+        <div className="card min-h-[200px] h-full flex flex-col">
           <div className="px-4 py-3 border-b border-border-color flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-primary">
