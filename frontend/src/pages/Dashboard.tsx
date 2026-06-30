@@ -401,9 +401,9 @@ export default function Dashboard() {
       </div>
 
       {/* Gastos por Categoría + Transacciones — side by side */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-h-[420px]">
         {/* Left: Gastos por Categoría */}
-        <div className="card p-4 min-h-[200px] h-full flex flex-col">
+        <div className="card p-4 min-h-[200px] h-full flex flex-col overflow-hidden">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-primary">Gastos por Categoría</h2>
