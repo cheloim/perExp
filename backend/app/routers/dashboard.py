@@ -663,7 +663,10 @@ def get_installments_monthly_load(
             scheduled_count_by_gid.get(se.installment_group_id, 0) + 1
         )
         # Track the last scheduled date per group
-        if se.installment_group_id not in scheduled_last_date_by_gid or se.scheduled_date > scheduled_last_date_by_gid[se.installment_group_id]:
+        if (
+            se.installment_group_id not in scheduled_last_date_by_gid
+            or se.scheduled_date > scheduled_last_date_by_gid[se.installment_group_id]
+        ):
             scheduled_last_date_by_gid[se.installment_group_id] = se.scheduled_date
 
     groups: dict = {}
