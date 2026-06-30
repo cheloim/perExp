@@ -219,6 +219,12 @@ jobs:
             set -a
             source .env
             set +a
+
+            # Login to GHCR for private repo support
+            echo "Logging in to GHCR..."
+            echo "${{ secrets.GHCR_PAT }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin || echo "WARN: GHCR login failed (may be public repo)"
+
+            echo "Pulling new images..."
             podman-compose pull
 
             # Run database migration before starting new containers
