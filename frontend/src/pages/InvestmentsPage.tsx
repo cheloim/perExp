@@ -520,7 +520,8 @@ function CredentialsModal({
                 ¿Borrar configuración de {confirmDelete === "iol" ? "IOL" : "PPI"}?
               </p>
               <p className="text-xs text-[var(--text-secondary)]">
-                Se eliminarán las credenciales guardadas. Esta acción no se puede deshacer.
+                Se eliminarán las credenciales y todos los inversiones de este broker. Esta acción
+                no se puede deshacer.
               </p>
               <div className="flex gap-3">
                 <button
@@ -535,7 +536,7 @@ function CredentialsModal({
                   className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors disabled:opacity-40"
                   disabled={saving}
                 >
-                  {saving ? "Borrando..." : "Borrar"}
+                  {saving ? "Borrando..." : "Borrar todo"}
                 </button>
               </div>
             </div>

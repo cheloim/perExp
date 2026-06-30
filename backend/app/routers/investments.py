@@ -239,8 +239,23 @@ def delete_broker_settings(
     for key in broker_keys[broker]:
         scoped_key = f"{target_user_id}:{key}"
         deleted_count += db.query(Setting).filter(Setting.key == scoped_key).delete()
+
+    # Also delete all investments for this broker
+    investments_deleted = (
+        db.query(Investment)
+        .filter(
+            Investment.user_id == target_user_id,
+            Investment.broker == broker,
+        )
+        .delete()
+    )
+
     db.commit()
-    return {"ok": True, "deleted": deleted_count}
+    return {
+        "ok": True,
+        "deleted_settings": deleted_count,
+        "deleted_investments": investments_deleted,
+    }
 
 
 # ─── Investments CRUD ─────────────────────────────────────────────────────────
