@@ -831,25 +831,27 @@ def get_credit_card_pasivos(
 
         if is_credit_card:
             total_pasivos += s.amount
+
+        # Always track group to prevent Expense projection double-counting
+        scheduled_gids.add(s.installment_group_id)
+
         card_name, card_bank = "", ""
         if s.card_id and s.card_id in cards_by_id:
             c = cards_by_id[s.card_id]
             card_name, card_bank = c.card_name, c.bank or ""
-            # Track group to avoid double-counting with Expense projection
-            scheduled_gids.add(s.installment_group_id)
-            pasivos_detail.append(
-                {
-                    "id": s.id,
-                    "description": s.description,
-                    "amount": s.amount,
-                    "currency": s.currency or "ARS",
-                    "scheduled_date": s.scheduled_date.isoformat(),
-                    "installment_number": s.installment_number,
-                    "installment_total": s.installment_total,
-                    "card": card_name,
-                    "bank": card_bank,
-                }
-            )
+        pasivos_detail.append(
+            {
+                "id": s.id,
+                "description": s.description,
+                "amount": s.amount,
+                "currency": s.currency or "ARS",
+                "scheduled_date": s.scheduled_date.isoformat(),
+                "installment_number": s.installment_number,
+                "installment_total": s.installment_total,
+                "card": card_name,
+                "bank": card_bank,
+            }
+        )
 
     # 2) Project future installments from Expenses for credit cards
     #    (only for groups that don't already have ScheduledExpenses)
