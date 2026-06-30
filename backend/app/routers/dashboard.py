@@ -647,6 +647,7 @@ def get_installments_monthly_load(
 
     # Add ScheduledExpense amounts directly to their months
     scheduled_gids: set = set()
+    scheduled_count_by_gid: dict = {}
     for se in scheduled:
         smonth = (
             se.scheduled_date.strftime("%Y-%m")
@@ -657,6 +658,9 @@ def get_installments_monthly_load(
             monthly[smonth]["total"] += abs(se.amount)
             monthly[smonth]["count"] += 1
         scheduled_gids.add(se.installment_group_id)
+        scheduled_count_by_gid[se.installment_group_id] = (
+            scheduled_count_by_gid.get(se.installment_group_id, 0) + 1
+        )
 
     groups: dict = {}
     for e in exps:
@@ -669,18 +673,22 @@ def get_installments_monthly_load(
             }
         groups[gid]["paid"].append((e.installment_number or 0, e.date))
 
-    # Project remaining installments ONLY for groups without ScheduledExpenses
+    # Project remaining installments for ALL groups with unpaid balance
+    # For groups with ScheduledExpenses: project only the unprojected portion
+    # For groups without ScheduledExpenses: project all remaining
     for gid, g in groups.items():
-        if gid in scheduled_gids:
-            continue
         paid = len(g["paid"])
         remaining = max(0, g["installment_total"] - paid)
         if remaining == 0 or not g["paid"]:
             continue
+        scheduled_count = scheduled_count_by_gid.get(gid, 0)
+        unprojected = max(0, remaining - scheduled_count)
+        if unprojected == 0:
+            continue
         max_num, max_date = max(g["paid"], key=lambda x: x[0])
         next_date = add_months(max_date, 1)
-        for i in range(remaining):
-            charge_date = add_months(next_date, i)
+        for i in range(unprojected):
+            charge_date = add_months(next_date, scheduled_count + i)
             key = charge_date.strftime("%Y-%m")
             if key >= current_month and key in monthly:
                 monthly[key]["total"] += g["amount"]
