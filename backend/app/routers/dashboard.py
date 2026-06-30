@@ -44,9 +44,10 @@ def _load_cards_and_accounts(uid_list: list[int], expenses: list[Expense], db: S
     # Cards: only from group members
     cards_by_id = {c.id: c for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
 
-    # Accounts: only from group members
+    # Accounts: only from group members — return name + type for display
     accounts_by_id = {
-        a.id: a.type for a in db.query(Account).filter(Account.user_id.in_(uid_list)).all()
+        a.id: {"name": a.name, "type": a.type}
+        for a in db.query(Account).filter(Account.user_id.in_(uid_list)).all()
     }
 
     return cards_by_id, accounts_by_id
@@ -557,17 +558,20 @@ def get_installments_dashboard(
         next_dates = sorted(g["next_dates"])
         next_date = next_dates[0] if next_dates else None
 
+        # CORRECT: remaining = total - paid (not count of ScheduledExpenses)
+        remaining = max(0, g["installment_total"] - g["installments_paid"])
+
         result.append(
             {
                 "installment_group_id": g["installment_group_id"],
                 "description": g["description"],
                 "installment_total": g["installment_total"],
                 "installments_paid": g["installments_paid"],
-                "remaining_installments": g["remaining_installments"],
+                "remaining_installments": remaining,
                 "total_amount": g["total_amount"],
                 "installment_amount": g["installment_amount"],
                 "next_date": next_date,
-                "next_dates": next_dates,  # NUEVO: array de todas las fechas
+                "next_dates": next_dates,
                 "category_id": g["category_id"],
                 "category_name": g["category_name"],
                 "category_color": g["category_color"],
@@ -592,13 +596,7 @@ def get_installments_monthly_load(
     current_month = today.strftime("%Y-%m")
     uid_list = get_group_user_ids(current_user.id, db)
 
-    # Build window: 3 months back to 3 months forward
-    window_start = add_months(today, -3)
-    window_end = add_months(today, 3)
-    window_start.strftime("%Y-%m")
-    window_end.strftime("%Y-%m")
-
-    # Initialize all 7 months in window with zeros
+    # Initialize all 7 months in window with zeros (3 past, current, 3 future)
     monthly: dict = {}
     for offset in range(-3, 4):
         m = add_months(today, offset)
@@ -649,6 +647,8 @@ def get_installments_monthly_load(
 
     # Add ScheduledExpense amounts directly to their months
     scheduled_gids: set = set()
+    scheduled_count_by_gid: dict = {}
+    scheduled_last_date_by_gid: dict = {}
     for se in scheduled:
         smonth = (
             se.scheduled_date.strftime("%Y-%m")
@@ -659,6 +659,15 @@ def get_installments_monthly_load(
             monthly[smonth]["total"] += abs(se.amount)
             monthly[smonth]["count"] += 1
         scheduled_gids.add(se.installment_group_id)
+        scheduled_count_by_gid[se.installment_group_id] = (
+            scheduled_count_by_gid.get(se.installment_group_id, 0) + 1
+        )
+        # Track the last scheduled date per group
+        if (
+            se.installment_group_id not in scheduled_last_date_by_gid
+            or se.scheduled_date > scheduled_last_date_by_gid[se.installment_group_id]
+        ):
+            scheduled_last_date_by_gid[se.installment_group_id] = se.scheduled_date
 
     groups: dict = {}
     for e in exps:
@@ -671,17 +680,24 @@ def get_installments_monthly_load(
             }
         groups[gid]["paid"].append((e.installment_number or 0, e.date))
 
-    # Project remaining installments ONLY for groups without ScheduledExpenses
+    # Project remaining installments for ALL groups with unpaid balance
     for gid, g in groups.items():
-        if gid in scheduled_gids:
-            continue
         paid = len(g["paid"])
         remaining = max(0, g["installment_total"] - paid)
         if remaining == 0 or not g["paid"]:
             continue
-        max_num, max_date = max(g["paid"], key=lambda x: x[0])
-        next_date = add_months(max_date, 1)
-        for i in range(remaining):
+        scheduled_count = scheduled_count_by_gid.get(gid, 0)
+        unprojected = max(0, remaining - scheduled_count)
+        if unprojected == 0:
+            continue
+        # Start projection after the last ScheduledExpense date (or last paid date)
+        if gid in scheduled_last_date_by_gid:
+            start_date = scheduled_last_date_by_gid[gid]
+        else:
+            max_num, max_date = max(g["paid"], key=lambda x: x[0])
+            start_date = max_date
+        next_date = add_months(start_date, 1)
+        for i in range(unprojected):
             charge_date = add_months(next_date, i)
             key = charge_date.strftime("%Y-%m")
             if key >= current_month and key in monthly:
@@ -828,26 +844,32 @@ def get_credit_card_pasivos(
     for s in pending_pasivos:
         is_credit_card = s.card_id is not None and s.card_id in credit_card_ids
 
-        if is_credit_card:
-            total_pasivos += s.amount
-            scheduled_gids.add(s.installment_group_id)
+        # Always track group to prevent Expense projection double-counting
+        scheduled_gids.add(s.installment_group_id)
+
+        # Only count credit card scheduled expenses
+        if not is_credit_card:
+            continue
+
+        total_pasivos += s.amount
+
         card_name, card_bank = "", ""
         if s.card_id and s.card_id in cards_by_id:
             c = cards_by_id[s.card_id]
             card_name, card_bank = c.card_name, c.bank or ""
-            pasivos_detail.append(
-                {
-                    "id": s.id,
-                    "description": s.description,
-                    "amount": s.amount,
-                    "currency": s.currency or "ARS",
-                    "scheduled_date": s.scheduled_date.isoformat(),
-                    "installment_number": s.installment_number,
-                    "installment_total": s.installment_total,
-                    "card": card_name,
-                    "bank": card_bank,
-                }
-            )
+        pasivos_detail.append(
+            {
+                "id": s.id,
+                "description": s.description,
+                "amount": s.amount,
+                "currency": s.currency or "ARS",
+                "scheduled_date": s.scheduled_date.isoformat(),
+                "installment_number": s.installment_number,
+                "installment_total": s.installment_total,
+                "card": card_name,
+                "bank": card_bank,
+            }
+        )
 
     # 2) Project future installments from Expenses for credit cards
     #    (only for groups that don't already have ScheduledExpenses)
@@ -882,7 +904,7 @@ def get_credit_card_pasivos(
         if remaining == 0:
             continue
         total_pasivos += g["amount"] * remaining
-        # Add to detail
+        # Add to detail — one entry per remaining installment
         card_name, card_bank = "", ""
         if g["card_id"] and g["card_id"] in cards_by_id:
             c = cards_by_id[g["card_id"]]
@@ -892,19 +914,22 @@ def get_credit_card_pasivos(
             if c:
                 card_name, card_bank = c.card_name, c.bank or ""
                 cards_by_id[c.id] = c
-        pasivos_detail.append(
-            {
-                "id": None,
-                "description": f"Cuotas {paid + 1}-{g['installment_total']}",
-                "amount": g["amount"] * remaining,
-                "currency": "ARS",
-                "scheduled_date": None,
-                "installment_number": paid + 1,
-                "installment_total": g["installment_total"],
-                "card": card_name,
-                "bank": card_bank,
-            }
-        )
+        for i in range(remaining):
+            pasivos_detail.append(
+                {
+                    "id": None,
+                    "description": g.get(
+                        "description", f"Cuota {paid + i + 1}/{g['installment_total']}"
+                    ),
+                    "amount": g["amount"],
+                    "currency": "ARS",
+                    "scheduled_date": None,
+                    "installment_number": paid + i + 1,
+                    "installment_total": g["installment_total"],
+                    "card": card_name,
+                    "bank": card_bank,
+                }
+            )
 
     return {
         "total_pasivos": total_pasivos,
@@ -1033,11 +1058,13 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
                 }
             else:
                 acct_id = int(key.split(":")[1])
-                acct_type = user_accounts_by_id.get(acct_id, "efectivo")
+                acct_info = user_accounts_by_id.get(
+                    acct_id, {"name": "Efectivo", "type": "efectivo"}
+                )
                 by_card[key] = {
                     "bank": "",
                     "network": "unknown",
-                    "card_name": acct_type.replace("_", " ").title(),
+                    "card_name": acct_info["name"],
                     "holder": "",
                     "card_type": "debito",
                     "total_amount": 0.0,

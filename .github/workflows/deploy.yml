@@ -231,6 +231,7 @@ jobs:
             echo "Running database migrations..."
             podman-compose run --rm --no-deps backend python -m scripts.migrate_add_reset_token || echo "Migration skipped or failed (non-fatal)"
             podman-compose run --rm --no-deps backend python -m scripts.migrate_remove_haberes || echo "Haberes cleanup skipped or failed (non-fatal)"
+            podman-compose run --rm --no-deps backend python -m scripts.migrate_encrypt_settings || echo "Encryption migration skipped or failed (non-fatal)"
 
             # Clean shutdown of old containers before starting new ones
             echo "Stopping old containers..."

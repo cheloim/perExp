@@ -1,4 +1,5 @@
 import contextlib
+import hashlib
 import os
 from datetime import date, datetime, timedelta
 
@@ -12,6 +13,40 @@ from app.schemas import InvestmentCreate
 from app.services.auth import get_current_user
 
 router = APIRouter(tags=["investments"])
+
+# Sensitive setting keys that should be encrypted at rest
+SENSITIVE_KEYS = {"iol_password", "ppi_api_key", "ppi_api_secret"}
+
+
+def _get_encryptor():
+    """Get Fernet encryptor using SECRET_KEY."""
+    from cryptography.fernet import Fernet
+
+    secret = os.getenv("SECRET_KEY", "fallback-dev-key-change-in-prod")
+    key = hashlib.sha256(secret.encode()).digest()
+    fernet_key = __import__("base64").urlsafe_b64encode(key)
+    return Fernet(fernet_key)
+
+
+def _encrypt_value(value: str) -> str:
+    """Encrypt a sensitive value for storage."""
+    if not value:
+        return ""
+    fernet = _get_encryptor()
+    return fernet.encrypt(value.encode()).decode()
+
+
+def _decrypt_value(encrypted: str) -> str:
+    """Decrypt a sensitive value from storage."""
+    if not encrypted:
+        return ""
+    try:
+        fernet = _get_encryptor()
+        return fernet.decrypt(encrypted.encode()).decode()
+    except Exception:
+        # If decryption fails, value might be plaintext (migration)
+        return encrypted
+
 
 _IOL_TYPE_MAP = {
     "ACCIONES": "Acción",
@@ -81,16 +116,23 @@ def _inv_response(inv: Investment, user_name: str | None = None) -> dict:
 def _get_setting(db: Session, key: str, user_id: int | None = None) -> str:
     scoped_key = f"{user_id}:{key}" if user_id is not None else key
     row = db.query(Setting).filter(Setting.key == scoped_key).first()
-    return row.value if row else ""
+    if not row:
+        return ""
+    # Decrypt sensitive values
+    if key in SENSITIVE_KEYS:
+        return _decrypt_value(row.value)
+    return row.value
 
 
 def _set_setting(db: Session, key: str, value: str, user_id: int | None = None):
     scoped_key = f"{user_id}:{key}" if user_id is not None else key
+    # Encrypt sensitive values before storage
+    stored_value = _encrypt_value(value) if key in SENSITIVE_KEYS else value
     row = db.query(Setting).filter(Setting.key == scoped_key).first()
     if row:
-        row.value = value
+        row.value = stored_value
     else:
-        db.add(Setting(key=scoped_key, value=value))
+        db.add(Setting(key=scoped_key, value=stored_value))
     db.commit()
 
 
@@ -104,11 +146,29 @@ def _get_user_creds(db: Session, user_id: int) -> dict:
 
 
 @router.get("/settings")
-def get_settings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    prefix = f"{current_user.id}:"
+def get_settings(
+    user_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    # Allow family group members to view other member's settings
+    target_user_id = user_id if user_id else current_user.id
+    if user_id and user_id != current_user.id:
+        uid_list = get_group_user_ids(current_user.id, db)
+        if user_id not in uid_list:
+            raise HTTPException(403, "No tenés acceso a la configuración de otro usuario")
+
+    prefix = f"{target_user_id}:"
     rows = db.query(Setting).filter(Setting.key.like(f"{prefix}%")).all()
-    result = {r.key[len(prefix) :]: r.value for r in rows}
-    creds = _get_user_creds(db, current_user.id)
+    # Decrypt sensitive values for display
+    result = {}
+    for r in rows:
+        key = r.key[len(prefix) :]
+        if key in SENSITIVE_KEYS:
+            result[key] = _decrypt_value(r.value)
+        else:
+            result[key] = r.value
+    creds = _get_user_creds(db, target_user_id)
     result["iol_configured"] = bool(creds["iol_username"] and creds["iol_password"])
     result["ppi_configured"] = bool(creds["ppi_api_key"] and creds["ppi_api_secret"])
     return result
@@ -118,12 +178,84 @@ def get_settings(db: Session = Depends(get_db), current_user: User = Depends(get
 def put_setting(
     key: str,
     payload: dict,
+    user_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Allow family group members to update other member's settings
+    target_user_id = user_id if user_id else current_user.id
+    if user_id and user_id != current_user.id:
+        uid_list = get_group_user_ids(current_user.id, db)
+        if user_id not in uid_list:
+            raise HTTPException(403, "No tenés acceso para modificar configuración de otro usuario")
+
     value = payload.get("value", "")
-    _set_setting(db, key, value, user_id=current_user.id)
+    _set_setting(db, key, value, user_id=target_user_id)
     return {"ok": True}
+
+
+@router.delete("/settings/{key}")
+def delete_setting(
+    key: str,
+    user_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete a single setting by key."""
+    target_user_id = user_id if user_id else current_user.id
+    if user_id and user_id != current_user.id:
+        uid_list = get_group_user_ids(current_user.id, db)
+        if user_id not in uid_list:
+            raise HTTPException(403, "No tenés acceso para modificar configuración de otro usuario")
+
+    scoped_key = f"{target_user_id}:{key}"
+    deleted = db.query(Setting).filter(Setting.key == scoped_key).delete()
+    db.commit()
+    return {"ok": True, "deleted": deleted > 0}
+
+
+@router.delete("/settings/broker/{broker}")
+def delete_broker_settings(
+    broker: str,
+    user_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete all settings for a broker (iol or ppi)."""
+    target_user_id = user_id if user_id else current_user.id
+    if user_id and user_id != current_user.id:
+        uid_list = get_group_user_ids(current_user.id, db)
+        if user_id not in uid_list:
+            raise HTTPException(403, "No tenés acceso para modificar configuración de otro usuario")
+
+    broker_keys = {
+        "iol": ["iol_username", "iol_password"],
+        "ppi": ["ppi_api_key", "ppi_api_secret"],
+    }
+    if broker not in broker_keys:
+        raise HTTPException(400, f"Broker desconocido: {broker}")
+
+    deleted_count = 0
+    for key in broker_keys[broker]:
+        scoped_key = f"{target_user_id}:{key}"
+        deleted_count += db.query(Setting).filter(Setting.key == scoped_key).delete()
+
+    # Also delete all investments for this broker
+    investments_deleted = (
+        db.query(Investment)
+        .filter(
+            Investment.user_id == target_user_id,
+            Investment.broker == broker,
+        )
+        .delete()
+    )
+
+    db.commit()
+    return {
+        "ok": True,
+        "deleted_settings": deleted_count,
+        "deleted_investments": investments_deleted,
+    }
 
 
 # ─── Investments CRUD ─────────────────────────────────────────────────────────
