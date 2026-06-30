@@ -640,7 +640,7 @@ export default function Dashboard() {
         {/* Credit cards */}
         <div className="card p-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-primary">Tarjetas de Crédito</h2>
+            <h2 className="text-sm font-semibold text-primary">Métodos de Pago</h2>
             <button
               onClick={() => navigate("/accounts")}
               className="text-xs text-secondary hover:text-primary transition-colors"
@@ -651,27 +651,25 @@ export default function Dashboard() {
           {cardData.length === 0 ? (
             <EmptyState
               icon="💳"
-              title="Sin tarjetas registradas"
-              description="Creá una tarjeta para ver el resumen de gastos"
-              action={{ label: "Crear tarjeta", onClick: () => navigate("/accounts") }}
+              title="Sin tarjetas ni cuentas"
+              description="Creá una tarjeta o cuenta para ver el resumen"
+              action={{ label: "Crear cuenta", onClick: () => navigate("/accounts") }}
             />
           ) : (
             <div className="divide-y divide-border-color">
-              {cardData
-                .filter((c) => c.card_type === "credito")
-                .map((card, i) => {
-                  const monthEntry = card.monthly?.find((m) => m.month === month);
-                  return (
-                    <CardRow
-                      key={i}
-                      cardName={card.card_name}
-                      bank={card.bank}
-                      total={monthEntry?.total ?? 0}
-                      cardType={card.card_type}
-                      holder={card.holder}
-                    />
-                  );
-                })}
+              {cardData.map((card, i) => {
+                const monthEntry = card.monthly?.find((m) => m.month === month);
+                return (
+                  <CardRow
+                    key={i}
+                    cardName={card.card_name}
+                    bank={card.bank}
+                    total={monthEntry?.total ?? 0}
+                    cardType={card.card_type}
+                    holder={card.holder}
+                  />
+                );
+              })}
             </div>
           )}
         </div>
