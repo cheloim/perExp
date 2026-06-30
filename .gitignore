@@ -23,7 +23,6 @@ frontend/.vite/
 Thumbs.db
 
 # Misc
-Plan.md
 *.log
 *.txt
 last_check
