@@ -219,17 +219,17 @@ export default function Dashboard() {
       .filter((c) => c.total > 0)
       .sort((a, b) => b.total - a.total);
 
-    if (allCats.length <= 7) return allCats;
+    if (allCats.length <= 6) return allCats;
 
-    const top7 = allCats.slice(0, 7);
-    const othersTotal = allCats.slice(7).reduce((sum, c) => sum + c.total, 0);
+    const top6 = allCats.slice(0, 6);
+    const othersTotal = allCats.slice(6).reduce((sum, c) => sum + c.total, 0);
 
     if (othersTotal > 0) {
       const othersPreviousTotal = allCats
-        .slice(7)
+        .slice(6)
         .reduce((sum, c) => sum + (c.previous_total ?? 0), 0);
       return [
-        ...top7,
+        ...top6,
         {
           category_name: "Otros",
           category_color: "#94a3b8",
@@ -239,7 +239,7 @@ export default function Dashboard() {
         },
       ];
     }
-    return top7;
+    return top6;
   }, [dashData?.by_category]);
 
   const maxCatTotal = categories[0]?.total ?? 1;
@@ -432,7 +432,7 @@ export default function Dashboard() {
               description="Los gastos por categoría aparecerán aquí"
             />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto flex-1 min-h-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1">
               {/* Pie chart */}
               <div className="flex items-center justify-center">
                 <ResponsiveContainer width="100%" height={220}>
@@ -480,7 +480,7 @@ export default function Dashboard() {
               </div>
 
               {/* Bars */}
-              <div className="space-y-2 overflow-y-auto flex-1 min-h-0 p-1">
+              <div className="space-y-1.5 p-1">
                 {categories.map((cat, i) => {
                   const pct = (cat.total / maxCatTotal) * 100;
                   const color = cat.category_color || FALLBACK_COLORS[i % FALLBACK_COLORS.length];
