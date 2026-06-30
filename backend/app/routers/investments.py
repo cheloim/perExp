@@ -146,11 +146,29 @@ def _get_user_creds(db: Session, user_id: int) -> dict:
 
 
 @router.get("/settings")
-def get_settings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    prefix = f"{current_user.id}:"
+def get_settings(
+    user_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    # Allow family group members to view other member's settings
+    target_user_id = user_id if user_id else current_user.id
+    if user_id and user_id != current_user.id:
+        uid_list = get_group_user_ids(current_user.id, db)
+        if user_id not in uid_list:
+            raise HTTPException(403, "No tenés acceso a la configuración de otro usuario")
+
+    prefix = f"{target_user_id}:"
     rows = db.query(Setting).filter(Setting.key.like(f"{prefix}%")).all()
-    result = {r.key[len(prefix) :]: r.value for r in rows}
-    creds = _get_user_creds(db, current_user.id)
+    # Decrypt sensitive values for display
+    result = {}
+    for r in rows:
+        key = r.key[len(prefix) :]
+        if key in SENSITIVE_KEYS:
+            result[key] = _decrypt_value(r.value)
+        else:
+            result[key] = r.value
+    creds = _get_user_creds(db, target_user_id)
     result["iol_configured"] = bool(creds["iol_username"] and creds["iol_password"])
     result["ppi_configured"] = bool(creds["ppi_api_key"] and creds["ppi_api_secret"])
     return result
@@ -160,11 +178,19 @@ def get_settings(db: Session = Depends(get_db), current_user: User = Depends(get
 def put_setting(
     key: str,
     payload: dict,
+    user_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Allow family group members to update other member's settings
+    target_user_id = user_id if user_id else current_user.id
+    if user_id and user_id != current_user.id:
+        uid_list = get_group_user_ids(current_user.id, db)
+        if user_id not in uid_list:
+            raise HTTPException(403, "No tenés acceso para modificar configuración de otro usuario")
+
     value = payload.get("value", "")
-    _set_setting(db, key, value, user_id=current_user.id)
+    _set_setting(db, key, value, user_id=target_user_id)
     return {"ok": True}
 
 
