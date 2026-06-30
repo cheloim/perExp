@@ -831,11 +831,12 @@ def get_credit_card_pasivos(
 
         if is_credit_card:
             total_pasivos += s.amount
-            scheduled_gids.add(s.installment_group_id)
         card_name, card_bank = "", ""
         if s.card_id and s.card_id in cards_by_id:
             c = cards_by_id[s.card_id]
             card_name, card_bank = c.card_name, c.bank or ""
+            # Track group to avoid double-counting with Expense projection
+            scheduled_gids.add(s.installment_group_id)
             pasivos_detail.append(
                 {
                     "id": s.id,
