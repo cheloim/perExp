@@ -804,6 +804,7 @@ def get_credit_card_pasivos(
     )
     credit_card_ids = {c.id for c in credit_cards}
 
+    # 1) Sum PENDING ScheduledExpenses for credit cards
     pending_pasivos = (
         db.query(ScheduledExpense)
         .filter(
@@ -822,12 +823,14 @@ def get_credit_card_pasivos(
 
     total_pasivos = 0.0
     pasivos_detail = []
+    scheduled_gids: set = set()
 
     for s in pending_pasivos:
         is_credit_card = s.card_id is not None and s.card_id in credit_card_ids
 
         if is_credit_card:
             total_pasivos += s.amount
+            scheduled_gids.add(s.installment_group_id)
         card_name, card_bank = "", ""
         if s.card_id and s.card_id in cards_by_id:
             c = cards_by_id[s.card_id]
@@ -845,6 +848,63 @@ def get_credit_card_pasivos(
                     "bank": card_bank,
                 }
             )
+
+    # 2) Project future installments from Expenses for credit cards
+    #    (only for groups that don't already have ScheduledExpenses)
+    installment_exp = (
+        db.query(Expense)
+        .filter(
+            Expense.user_id.in_(uid_list),
+            Expense.installment_group_id != None,
+            Expense.installment_group_id != "",
+            Expense.card_id.in_(credit_card_ids),
+        )
+        .all()
+    )
+
+    groups: dict = {}
+    for e in installment_exp:
+        gid = e.installment_group_id
+        if gid not in groups:
+            groups[gid] = {
+                "installment_total": e.installment_total or 0,
+                "amount": abs(e.amount),
+                "paid": [],
+                "card_id": e.card_id,
+            }
+        groups[gid]["paid"].append(e.installment_number or 0)
+
+    for gid, g in groups.items():
+        if gid in scheduled_gids:
+            continue  # Already counted via ScheduledExpenses
+        paid = len(g["paid"])
+        remaining = max(0, g["installment_total"] - paid)
+        if remaining == 0:
+            continue
+        total_pasivos += g["amount"] * remaining
+        # Add to detail
+        card_name, card_bank = "", ""
+        if g["card_id"] and g["card_id"] in cards_by_id:
+            c = cards_by_id[g["card_id"]]
+            card_name, card_bank = c.card_name, c.bank or ""
+        elif g["card_id"]:
+            c = db.query(Card).filter(Card.id == g["card_id"]).first()
+            if c:
+                card_name, card_bank = c.card_name, c.bank or ""
+                cards_by_id[c.id] = c
+        pasivos_detail.append(
+            {
+                "id": None,
+                "description": f"Cuotas {paid + 1}-{g['installment_total']}",
+                "amount": g["amount"] * remaining,
+                "currency": "ARS",
+                "scheduled_date": None,
+                "installment_number": paid + 1,
+                "installment_total": g["installment_total"],
+                "card": card_name,
+                "bank": card_bank,
+            }
+        )
 
     return {
         "total_pasivos": total_pasivos,
