@@ -436,9 +436,9 @@ function CredentialsModal({
               {iolOk && (
                 <button
                   onClick={() => setConfirmDelete("iol")}
-                  className="text-xs text-danger hover:underline transition-colors"
+                  className="text-[10px] px-2 py-0.5 rounded border border-red-300 text-red-600 hover:bg-red-50 transition-colors"
                 >
-                  Borrar
+                  ✕ Borrar
                 </button>
               )}
             </div>
@@ -474,9 +474,9 @@ function CredentialsModal({
               {ppiOk && (
                 <button
                   onClick={() => setConfirmDelete("ppi")}
-                  className="text-xs text-danger hover:underline transition-colors"
+                  className="text-[10px] px-2 py-0.5 rounded border border-red-300 text-red-600 hover:bg-red-50 transition-colors"
                 >
-                  Borrar
+                  ✕ Borrar
                 </button>
               )}
             </div>
