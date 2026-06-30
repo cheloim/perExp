@@ -883,7 +883,7 @@ def get_credit_card_pasivos(
         if remaining == 0:
             continue
         total_pasivos += g["amount"] * remaining
-        # Add to detail
+        # Add to detail — one entry per remaining installment
         card_name, card_bank = "", ""
         if g["card_id"] and g["card_id"] in cards_by_id:
             c = cards_by_id[g["card_id"]]
@@ -893,19 +893,22 @@ def get_credit_card_pasivos(
             if c:
                 card_name, card_bank = c.card_name, c.bank or ""
                 cards_by_id[c.id] = c
-        pasivos_detail.append(
-            {
-                "id": None,
-                "description": f"Cuotas {paid + 1}-{g['installment_total']}",
-                "amount": g["amount"] * remaining,
-                "currency": "ARS",
-                "scheduled_date": None,
-                "installment_number": paid + 1,
-                "installment_total": g["installment_total"],
-                "card": card_name,
-                "bank": card_bank,
-            }
-        )
+        for i in range(remaining):
+            pasivos_detail.append(
+                {
+                    "id": None,
+                    "description": g.get(
+                        "description", f"Cuota {paid + i + 1}/{g['installment_total']}"
+                    ),
+                    "amount": g["amount"],
+                    "currency": "ARS",
+                    "scheduled_date": None,
+                    "installment_number": paid + i + 1,
+                    "installment_total": g["installment_total"],
+                    "card": card_name,
+                    "bank": card_bank,
+                }
+            )
 
     return {
         "total_pasivos": total_pasivos,
