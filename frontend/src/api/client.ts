@@ -410,6 +410,11 @@ export const getSettings = () => api.get<Record<string, string>>("/settings").th
 export const putSetting = (key: string, value: string) =>
   api.put(`/settings/${key}`, { value }).then((r) => r.data);
 
+export const deleteSetting = (key: string) => api.delete(`/settings/${key}`).then((r) => r.data);
+
+export const deleteBrokerSettings = (broker: string) =>
+  api.delete(`/settings/broker/${broker}`).then((r) => r.data);
+
 export const syncIOL = () =>
   api
     .post<{

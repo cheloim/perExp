@@ -194,6 +194,55 @@ def put_setting(
     return {"ok": True}
 
 
+@router.delete("/settings/{key}")
+def delete_setting(
+    key: str,
+    user_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete a single setting by key."""
+    target_user_id = user_id if user_id else current_user.id
+    if user_id and user_id != current_user.id:
+        uid_list = get_group_user_ids(current_user.id, db)
+        if user_id not in uid_list:
+            raise HTTPException(403, "No tenés acceso para modificar configuración de otro usuario")
+
+    scoped_key = f"{target_user_id}:{key}"
+    deleted = db.query(Setting).filter(Setting.key == scoped_key).delete()
+    db.commit()
+    return {"ok": True, "deleted": deleted > 0}
+
+
+@router.delete("/settings/broker/{broker}")
+def delete_broker_settings(
+    broker: str,
+    user_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete all settings for a broker (iol or ppi)."""
+    target_user_id = user_id if user_id else current_user.id
+    if user_id and user_id != current_user.id:
+        uid_list = get_group_user_ids(current_user.id, db)
+        if user_id not in uid_list:
+            raise HTTPException(403, "No tenés acceso para modificar configuración de otro usuario")
+
+    broker_keys = {
+        "iol": ["iol_username", "iol_password"],
+        "ppi": ["ppi_api_key", "ppi_api_secret"],
+    }
+    if broker not in broker_keys:
+        raise HTTPException(400, f"Broker desconocido: {broker}")
+
+    deleted_count = 0
+    for key in broker_keys[broker]:
+        scoped_key = f"{target_user_id}:{key}"
+        deleted_count += db.query(Setting).filter(Setting.key == scoped_key).delete()
+    db.commit()
+    return {"ok": True, "deleted": deleted_count}
+
+
 # ─── Investments CRUD ─────────────────────────────────────────────────────────
 
 

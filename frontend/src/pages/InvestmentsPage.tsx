@@ -13,6 +13,7 @@ import {
   getCashBalances,
   getManualCashBalances,
   putSetting,
+  deleteBrokerSettings,
   lookupSymbol,
   lookupSymbols,
 } from "../api/client";
@@ -356,6 +357,7 @@ function CredentialsModal({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const handleSave = async () => {
     setSaving(true);
@@ -375,6 +377,21 @@ function CredentialsModal({
       onSaved();
     } catch (err: any) {
       setError(err?.response?.data?.detail ?? "Error al guardar credenciales");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteBroker = async (broker: string) => {
+    setSaving(true);
+    setError(null);
+    try {
+      await deleteBrokerSettings(broker);
+      setConfirmDelete(null);
+      setSaved(true);
+      onSaved();
+    } catch (err: any) {
+      setError(err?.response?.data?.detail ?? "Error al borrar configuración");
     } finally {
       setSaving(false);
     }
@@ -412,9 +429,19 @@ function CredentialsModal({
             <p className="text-xs font-semibold text-tertiary uppercase tracking-wider">
               InvertirOnline
             </p>
-            <span className={`text-xs font-medium ${iolOk ? "text-success" : "text-tertiary"}`}>
-              {iolOk ? "✓ configurado" : "✗ sin credenciales"}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-medium ${iolOk ? "text-success" : "text-tertiary"}`}>
+                {iolOk ? "✓ configurado" : "✗ sin credenciales"}
+              </span>
+              {iolOk && (
+                <button
+                  onClick={() => setConfirmDelete("iol")}
+                  className="text-xs text-danger hover:underline transition-colors"
+                >
+                  Borrar
+                </button>
+              )}
+            </div>
           </div>
           <input
             type="email"
@@ -440,9 +467,19 @@ function CredentialsModal({
             <p className="text-xs font-semibold text-tertiary uppercase tracking-wider">
               Portfolio Personal
             </p>
-            <span className={`text-xs font-medium ${ppiOk ? "text-success" : "text-tertiary"}`}>
-              {ppiOk ? "✓ configurado" : "✗ sin credenciales"}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-medium ${ppiOk ? "text-success" : "text-tertiary"}`}>
+                {ppiOk ? "✓ configurado" : "✗ sin credenciales"}
+              </span>
+              {ppiOk && (
+                <button
+                  onClick={() => setConfirmDelete("ppi")}
+                  className="text-xs text-danger hover:underline transition-colors"
+                >
+                  Borrar
+                </button>
+              )}
+            </div>
           </div>
           <input
             type="password"
@@ -474,6 +511,36 @@ function CredentialsModal({
             {saving ? "Guardando..." : "Guardar"}
           </button>
         </div>
+
+        {/* Delete confirmation dialog */}
+        {confirmDelete && (
+          <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center z-10">
+            <div className="card p-5 mx-4 max-w-sm space-y-4">
+              <p className="text-sm text-[var(--text-primary)] font-medium">
+                ¿Borrar configuración de {confirmDelete === "iol" ? "IOL" : "PPI"}?
+              </p>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Se eliminarán las credenciales guardadas. Esta acción no se puede deshacer.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setConfirmDelete(null)}
+                  className="gnome-btn-secondary flex-1"
+                  disabled={saving}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => handleDeleteBroker(confirmDelete)}
+                  className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors disabled:opacity-40"
+                  disabled={saving}
+                >
+                  {saving ? "Borrando..." : "Borrar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
