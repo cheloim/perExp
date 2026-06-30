@@ -15,6 +15,7 @@
 | 9 | Ticket scan | ⏳ Backlog | Medium | - | OCR receipt analysis, compare same items last month |
 | 10 | Expense budgets | ⏳ Backlog | Medium | - | Set spending limits per category |
 | 11 | Make index.html interactive | ⏳ Backlog | Medium | - | Filter transactions/categories when clicking Deuda Tarjetas or Cuotas este mes |
+| 12 | Billing period tracking | ⏳ In Progress | Medium | #36 | closing_day on Card, billing API, billing view toggle in Dashboard |
 
 ## Backlog Details
 

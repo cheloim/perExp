@@ -89,6 +89,7 @@ export interface Card {
   bank: string;
   holder: string;
   card_type: string;
+  closing_day: number | null;
   user_id: number;
   created_at: string;
 }
@@ -226,6 +227,7 @@ export interface ScheduledExpense {
 }
 
 export interface CardSummary {
+  id?: number;
   holder: string;
   bank: string;
   card_name: string;

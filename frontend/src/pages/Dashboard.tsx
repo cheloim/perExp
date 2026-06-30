@@ -14,6 +14,7 @@ import {
   getCreditCardPasivos,
   getInstallmentsMonthlyLoad,
   getTopMerchants,
+  getCurrentBillingPeriods,
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
 import { formatCurrency, toUpperCase, formatDateDMYSlash, MONTHS_ES_SHORT } from "../utils/format";
@@ -102,6 +103,18 @@ export default function Dashboard() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [daysFilter, setDaysFilter] = useState(7);
+  const [billingView, setBillingView] = useState(() => {
+    return localStorage.getItem("billing_view") === "true";
+  });
+
+  const toggleBillingView = () => {
+    const newValue = !billingView;
+    setBillingView(newValue);
+    localStorage.setItem("billing_view", newValue.toString());
+    queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    queryClient.invalidateQueries({ queryKey: ["expenses-month"] });
+  };
+
   const createMut = useMutation({
     mutationFn: (data: ExpenseCreate) => createExpense(data),
     onSuccess: () => {
@@ -118,8 +131,8 @@ export default function Dashboard() {
   };
 
   const { data: dashData } = useQuery({
-    queryKey: ["dashboard", month],
-    queryFn: () => getDashboard({ month }),
+    queryKey: ["dashboard", month, billingView],
+    queryFn: () => getDashboard({ month, billing_view: billingView }),
     placeholderData: (prev) => prev,
   });
 
@@ -129,12 +142,20 @@ export default function Dashboard() {
     staleTime: 60_000,
   });
 
+  // Current billing periods for credit cards
+  const { data: billingPeriods = [] } = useQuery({
+    queryKey: ["billing-periods"],
+    queryFn: getCurrentBillingPeriods,
+    staleTime: 60_000,
+  });
+
   // Expenses for current month
   const { data: monthExpenses = [] } = useQuery({
-    queryKey: ["expenses-month", month],
+    queryKey: ["expenses-month", month, billingView],
     queryFn: () =>
       getExpenses({
         month,
+        billing_view: billingView,
         limit: 500,
       }),
     staleTime: 30_000,
@@ -334,10 +355,22 @@ export default function Dashboard() {
             </span>
           )}
         </div>
-        <button onClick={() => setEditing(null)} className="gnome-btn-primary-round text-sm">
-          <span className="text-base leading-none">+</span>
-          <span>Nuevo gasto</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleBillingView}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              billingView
+                ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
+                : "bg-[var(--color-surface)] border border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--color-primary)]"
+            }`}
+          >
+            {billingView ? "📊 Facturación" : "📅 Calendario"}
+          </button>
+          <button onClick={() => setEditing(null)} className="gnome-btn-primary-round text-sm">
+            <span className="text-base leading-none">+</span>
+            <span>Nuevo gasto</span>
+          </button>
+        </div>
       </div>
 
       {/* KPI Row */}
@@ -659,15 +692,29 @@ export default function Dashboard() {
             <div className="divide-y divide-border-color">
               {cardData.map((card, i) => {
                 const monthEntry = card.monthly?.find((m) => m.month === month);
+                const billingPeriod = billingView
+                  ? billingPeriods.find((bp) => bp.card_id === card.id)
+                  : null;
                 return (
-                  <CardRow
-                    key={i}
-                    cardName={card.card_name}
-                    bank={card.bank}
-                    total={monthEntry?.total ?? 0}
-                    cardType={card.card_type}
-                    holder={card.holder}
-                  />
+                  <div key={i}>
+                    <CardRow
+                      cardName={card.card_name}
+                      bank={card.bank}
+                      total={monthEntry?.total ?? 0}
+                      cardType={card.card_type}
+                      holder={card.holder}
+                    />
+                    {billingView && billingPeriod?.label && (
+                      <div className="px-3 pb-2 -mt-1">
+                        <p className="text-[10px] text-tertiary">
+                          📅 {billingPeriod.label}
+                          {billingPeriod.is_predicted && (
+                            <span className="ml-1 text-[var(--color-primary)]">(estimado)</span>
+                          )}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>

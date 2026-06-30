@@ -27,6 +27,7 @@ class CardCreate(BaseModel):
     bank: str = ""
     holder: str = ""
     card_type: str = "credito"  # credito, debito
+    closing_day: int | None = None  # Day of month card closes (1-31)
 
 
 class CardUpdate(BaseModel):
@@ -34,6 +35,7 @@ class CardUpdate(BaseModel):
     bank: str | None = None
     holder: str | None = None
     card_type: str | None = None
+    closing_day: int | None = None
 
 
 class CardResponse(BaseModel):
@@ -42,6 +44,7 @@ class CardResponse(BaseModel):
     bank: str
     holder: str
     card_type: str
+    closing_day: int | None = None
     user_id: int
     created_at: datetime
 
@@ -105,6 +108,7 @@ def create_card(
         bank=bank,
         holder=holder,
         card_type=card.card_type,
+        closing_day=card.closing_day,
         user_id=current_user.id,
     )
     db.add(db_card)

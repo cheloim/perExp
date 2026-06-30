@@ -49,6 +49,7 @@ export default function CardsManager() {
   const [bank, setBank] = useState("");
   const [holder, setHolder] = useState("");
   const [cardType, setCardType] = useState("credito");
+  const [closingDay, setClosingDay] = useState<string>("");
   const [accountType, setAccountType] = useState("efectivo");
 
   const { data: cards = [], isLoading } = useQuery({
@@ -77,6 +78,7 @@ export default function CardsManager() {
       setBank("");
       setHolder("");
       setCardType("credito");
+      setClosingDay("");
     },
     onError: (error: { response?: { status?: number; data?: { detail?: string } } }) => {
       if (error.response?.status === 409) {
@@ -108,6 +110,7 @@ export default function CardsManager() {
       setBank("");
       setHolder("");
       setCardType("credito");
+      setClosingDay("");
     },
   });
 
@@ -137,6 +140,7 @@ export default function CardsManager() {
     setBank(card.bank || "");
     setHolder(card.holder || "");
     setCardType(card.card_type);
+    setClosingDay(card.closing_day?.toString() || "");
     setAccountType("tarjeta");
     setMenuOpen(null);
   };
@@ -147,6 +151,7 @@ export default function CardsManager() {
     setBank("");
     setHolder("");
     setCardType("credito");
+    setClosingDay("");
     setAccountType("tarjeta");
   };
 
@@ -156,6 +161,7 @@ export default function CardsManager() {
     setBank("");
     setHolder(currentUser ? getFirstName(currentUser.full_name) : "");
     setCardType("credito");
+    setClosingDay("");
     setAccountType("efectivo");
     setMenuOpen(null);
   };
@@ -178,10 +184,11 @@ export default function CardsManager() {
     setErrors({});
 
     if (accountType === "tarjeta") {
-      const data: { card_name: string; bank?: string; holder?: string; card_type?: string } = {
+      const data: { card_name: string; bank?: string; holder?: string; card_type?: string; closing_day?: number | null } = {
         card_name: cardName.trim(),
         bank: bank.trim(),
         card_type: cardType,
+        closing_day: closingDay ? parseInt(closingDay, 10) : null,
       };
       if (editId && editId > 0) {
         updateMut.mutate({ id: editId, data });
@@ -277,6 +284,25 @@ export default function CardsManager() {
                     ]}
                   />
                 </div>
+                {cardType === "credito" && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-[var(--text-secondary)]">
+                      Día de cierre (opcional)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="31"
+                      value={closingDay}
+                      onChange={(e) => setClosingDay(e.target.value)}
+                      className="w-full px-3 py-2 rounded-md border text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 transition border-[var(--border-color)] focus:border-primary"
+                      placeholder="Ej: 27"
+                    />
+                    <p className="text-xs text-tertiary">
+                      Día del mes en que cierra la tarjeta. Se usa como respaldo si no tenés resúmenes importados.
+                    </p>
+                  </div>
+                )}
                 <div className="flex gap-2 pt-2">
                   <button
                     type="submit"
@@ -317,7 +343,12 @@ export default function CardsManager() {
                         : card.card_type}{" "}
                     — {card.bank}
                   </div>
-                  <div className="text-xs text-tertiary mt-0.5">Titular: {card.holder || "—"}</div>
+                  <div className="text-xs text-tertiary mt-0.5">
+                    Titular: {card.holder || "—"}
+                    {card.closing_day && card.card_type === "credito" && (
+                      <span className="ml-2">· Cierra día {card.closing_day}</span>
+                    )}
+                  </div>
                 </div>
                 <div className="relative">
                   <button

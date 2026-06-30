@@ -128,6 +128,7 @@ class Card(Base):
         String, default=""
     )  # Primer nombre del usuario (para agrupar en grupo familiar)
     card_type = Column(String, default="credito")  # credito, debito
+    closing_day = Column(Integer, nullable=True)  # Day of month card closes (1-31), NULL = use CardClosing records
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
