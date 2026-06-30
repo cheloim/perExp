@@ -2,6 +2,8 @@
 
 Personal finance management with intelligent bank statement import.
 
+> **[Technical Documentation](docs/Home.md)** — Architecture, API reference, data model, and more.
+
 ## Stack
 
 | Layer | Tech |
