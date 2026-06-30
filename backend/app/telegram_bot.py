@@ -1191,6 +1191,29 @@ async def handle_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 predicted_category_id=predicted_category_id,
             )
 
+        # Create ScheduledExpenses for future installments (2..N)
+        if installment_total and installment_group_id and installment_total >= 2:
+            from app.models import ScheduledExpense
+            from app.services.date_utils import add_months
+
+            for i in range(2, installment_total + 1):
+                scheduled = ScheduledExpense(
+                    installment_group_id=installment_group_id,
+                    installment_number=i,
+                    installment_total=installment_total,
+                    scheduled_date=add_months(expense.date, i - 1),
+                    amount=expense.amount,
+                    currency=expense.currency,
+                    description=expense.description,
+                    card_id=expense.card_id,
+                    account_id=expense.account_id,
+                    category_id=expense.category_id,
+                    status="PENDING",
+                    user_id=user_id,
+                )
+                db.add(scheduled)
+            db.commit()
+
         await query.edit_message_text(
             _saved_text(expense, payment_label),
             parse_mode="Markdown",

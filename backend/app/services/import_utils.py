@@ -456,13 +456,13 @@ def _detect_installment_pattern(description: str) -> tuple[int, int] | None:
     m = re.search(r"(\d{1,2})/(\d{1,2})$", s)
     if m:
         num, total = int(m.group(1)), int(m.group(2))
-        if total >= 2 and num >= 2 and 1 <= num <= total:
+        if total >= 2 and 1 <= num <= total:
             return (num, total)
 
     m = re.search(r"(\d{1,2})/(\d{1,2})(?:\s|$)", s)
     if m:
         num, total = int(m.group(1)), int(m.group(2))
-        if total >= 2 and num >= 2 and 1 <= num <= total:
+        if total >= 2 and 1 <= num <= total:
             return (num, total)
 
     return None
