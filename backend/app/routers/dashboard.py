@@ -326,8 +326,31 @@ def get_summary(
             groups[e.installment_group_id] = []
         groups[e.installment_group_id].append(e)
 
+    # Also query ScheduledExpenses to avoid double-counting
+    from app.models import ScheduledExpense
+
+    scheduled = (
+        db.query(ScheduledExpense)
+        .filter(
+            ScheduledExpense.user_id.in_(uid_list),
+            ScheduledExpense.status == "PENDING",
+            ScheduledExpense.installment_group_id.isnot(None),
+        )
+        .all()
+    )
+    scheduled_months: dict = {}
+    for se in scheduled:
+        if se.installment_group_id not in scheduled_months:
+            scheduled_months[se.installment_group_id] = set()
+        smonth = (
+            se.scheduled_date.strftime("%Y-%m")
+            if isinstance(se.scheduled_date, date)
+            else str(se.scheduled_date)[:7]
+        )
+        scheduled_months[se.installment_group_id].add(smonth)
+
     trend_future: dict = {}
-    for _gid, exps in groups.items():
+    for gid, exps in groups.items():
         exps_sorted = sorted(exps, key=lambda x: x.installment_number or 0)
         total_inst = exps_sorted[0].installment_total or 0
         paid = len(exps_sorted)
@@ -340,6 +363,9 @@ def get_summary(
         for i in range(1, remaining + 1):
             future_date = add_months(last_date, i)
             future_key = future_date.strftime("%Y-%m")
+            # Skip months that already have scheduled expenses
+            if gid in scheduled_months and future_key in scheduled_months[gid]:
+                continue
             if future_key not in trend_future:
                 trend_future[future_key] = 0.0
             trend_future[future_key] += inst_amount
@@ -632,7 +658,7 @@ def get_installments_monthly_load(
             }
         groups[gid]["paid"].append((e.installment_number or 0, e.date))
 
-    for g in groups.values():
+    for gid, g in groups.items():
         paid = len(g["paid"])
         remaining = max(0, g["installment_total"] - paid)
         if remaining == 0 or not g["paid"]:
@@ -643,11 +669,7 @@ def get_installments_monthly_load(
             charge_date = add_months(next_date, i)
             key = charge_date.strftime("%Y-%m")
             # Skip months that already have scheduled expenses
-            gid = max(
-                (k for k, v in groups.items() if v["paid"] == g["paid"]),
-                default=None,
-            )
-            if gid and gid in scheduled_months and key in scheduled_months[gid]:
+            if gid in scheduled_months and key in scheduled_months[gid]:
                 continue
             if key >= current_month and key in monthly:
                 monthly[key]["total"] += g["amount"]

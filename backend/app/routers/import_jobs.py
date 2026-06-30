@@ -347,6 +347,18 @@ async def confirm_import_job(
         if is_scheduled:
             # Create ScheduledExpense
             try:
+                # Resolve card_id from mapping
+                scheduled_card_id = None
+                if isinstance(mapping_entry, dict) and mapping_entry.get("card_id"):
+                    scheduled_card_id = mapping_entry["card_id"]
+                elif isinstance(mapping_entry, dict) and mapping_entry.get("bank"):
+                    card_obj, _ = find_or_create_card(
+                        mapping_entry.get("bank", ""),
+                        mapping_entry.get("card_name", ""),
+                        mapping_entry.get("card_type", "credito"),
+                    )
+                    scheduled_card_id = card_obj.id if card_obj else None
+
                 scheduled = ScheduledExpense(
                     scheduled_date=row_date,
                     description=_normalize_text(r.get("description", "")),
@@ -359,6 +371,7 @@ async def confirm_import_job(
                     installment_group_id=r.get("installment_group_id"),
                     status="PENDING",
                     user_id=user.id,
+                    card_id=scheduled_card_id,
                 )
                 db.add(scheduled)
                 scheduled_count += 1
