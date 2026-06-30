@@ -829,11 +829,14 @@ def get_credit_card_pasivos(
     for s in pending_pasivos:
         is_credit_card = s.card_id is not None and s.card_id in credit_card_ids
 
-        if is_credit_card:
-            total_pasivos += s.amount
-
         # Always track group to prevent Expense projection double-counting
         scheduled_gids.add(s.installment_group_id)
+
+        # Only count credit card scheduled expenses
+        if not is_credit_card:
+            continue
+
+        total_pasivos += s.amount
 
         card_name, card_bank = "", ""
         if s.card_id and s.card_id in cards_by_id:
