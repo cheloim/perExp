@@ -558,17 +558,20 @@ def get_installments_dashboard(
         next_dates = sorted(g["next_dates"])
         next_date = next_dates[0] if next_dates else None
 
+        # CORRECT: remaining = total - paid (not count of ScheduledExpenses)
+        remaining = max(0, g["installment_total"] - g["installments_paid"])
+
         result.append(
             {
                 "installment_group_id": g["installment_group_id"],
                 "description": g["description"],
                 "installment_total": g["installment_total"],
                 "installments_paid": g["installments_paid"],
-                "remaining_installments": g["remaining_installments"],
+                "remaining_installments": remaining,
                 "total_amount": g["total_amount"],
                 "installment_amount": g["installment_amount"],
                 "next_date": next_date,
-                "next_dates": next_dates,  # NUEVO: array de todas las fechas
+                "next_dates": next_dates,
                 "category_id": g["category_id"],
                 "category_name": g["category_name"],
                 "category_color": g["category_color"],
@@ -593,13 +596,7 @@ def get_installments_monthly_load(
     current_month = today.strftime("%Y-%m")
     uid_list = get_group_user_ids(current_user.id, db)
 
-    # Build window: 3 months back to 3 months forward
-    window_start = add_months(today, -3)
-    window_end = add_months(today, 3)
-    window_start.strftime("%Y-%m")
-    window_end.strftime("%Y-%m")
-
-    # Initialize all 7 months in window with zeros
+    # Initialize all 7 months in window with zeros (3 past, current, 3 future)
     monthly: dict = {}
     for offset in range(-3, 4):
         m = add_months(today, offset)

@@ -1,4 +1,5 @@
 import contextlib
+import hashlib
 import os
 from datetime import date, datetime, timedelta
 
@@ -12,6 +13,40 @@ from app.schemas import InvestmentCreate
 from app.services.auth import get_current_user
 
 router = APIRouter(tags=["investments"])
+
+# Sensitive setting keys that should be encrypted at rest
+SENSITIVE_KEYS = {"iol_password", "ppi_api_key", "ppi_api_secret"}
+
+
+def _get_encryptor():
+    """Get Fernet encryptor using SECRET_KEY."""
+    from cryptography.fernet import Fernet
+
+    secret = os.getenv("SECRET_KEY", "fallback-dev-key-change-in-prod")
+    key = hashlib.sha256(secret.encode()).digest()
+    fernet_key = __import__("base64").urlsafe_b64encode(key)
+    return Fernet(fernet_key)
+
+
+def _encrypt_value(value: str) -> str:
+    """Encrypt a sensitive value for storage."""
+    if not value:
+        return ""
+    fernet = _get_encryptor()
+    return fernet.encrypt(value.encode()).decode()
+
+
+def _decrypt_value(encrypted: str) -> str:
+    """Decrypt a sensitive value from storage."""
+    if not encrypted:
+        return ""
+    try:
+        fernet = _get_encryptor()
+        return fernet.decrypt(encrypted.encode()).decode()
+    except Exception:
+        # If decryption fails, value might be plaintext (migration)
+        return encrypted
+
 
 _IOL_TYPE_MAP = {
     "ACCIONES": "Acción",
@@ -81,16 +116,23 @@ def _inv_response(inv: Investment, user_name: str | None = None) -> dict:
 def _get_setting(db: Session, key: str, user_id: int | None = None) -> str:
     scoped_key = f"{user_id}:{key}" if user_id is not None else key
     row = db.query(Setting).filter(Setting.key == scoped_key).first()
-    return row.value if row else ""
+    if not row:
+        return ""
+    # Decrypt sensitive values
+    if key in SENSITIVE_KEYS:
+        return _decrypt_value(row.value)
+    return row.value
 
 
 def _set_setting(db: Session, key: str, value: str, user_id: int | None = None):
     scoped_key = f"{user_id}:{key}" if user_id is not None else key
+    # Encrypt sensitive values before storage
+    stored_value = _encrypt_value(value) if key in SENSITIVE_KEYS else value
     row = db.query(Setting).filter(Setting.key == scoped_key).first()
     if row:
-        row.value = value
+        row.value = stored_value
     else:
-        db.add(Setting(key=scoped_key, value=value))
+        db.add(Setting(key=scoped_key, value=stored_value))
     db.commit()
 
 
