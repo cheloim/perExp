@@ -343,12 +343,12 @@ function CredentialsModal({
   onClose,
   onSaved,
 }: {
-  settings: Record<string, string>;
+  settings: Record<string, string | boolean>;
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const iolOk = settings.iol_configured === "true";
-  const ppiOk = settings.ppi_configured === "true";
+  const iolOk = settings.iol_configured === "true" || settings.iol_configured === true;
+  const ppiOk = settings.ppi_configured === "true" || settings.ppi_configured === true;
 
   const [iolUser, setIolUser] = useState("");
   const [iolPass, setIolPass] = useState("");
@@ -708,8 +708,8 @@ export default function InvestmentsPage() {
 
   const syncAllMut = useMutation({
     mutationFn: async () => {
-      const iolOk = settings.iol_configured === "true";
-      const ppiOk = settings.ppi_configured === "true";
+      const iolOk = settings.iol_configured === "true" || settings.iol_configured === true;
+      const ppiOk = settings.ppi_configured === "true" || settings.ppi_configured === true;
       const results: string[] = [];
       const errors: string[] = [];
       if (iolOk) {

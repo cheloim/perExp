@@ -405,7 +405,8 @@ export const lookupSymbols = (symbols: string[]) =>
 export const deleteInvestment = (id: number) =>
   api.delete(`/investments/${id}`).then((r) => r.data);
 
-export const getSettings = () => api.get<Record<string, string>>("/settings").then((r) => r.data);
+export const getSettings = () =>
+  api.get<Record<string, string | boolean>>("/settings").then((r) => r.data);
 
 export const putSetting = (key: string, value: string) =>
   api.put(`/settings/${key}`, { value }).then((r) => r.data);
