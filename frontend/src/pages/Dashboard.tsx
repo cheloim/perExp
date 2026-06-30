@@ -67,7 +67,7 @@ function CardRow({
   };
 
   const network = getNetwork(cardName);
-  const displayName = cardType === "debito" ? "Débito" : network;
+  const displayName = cardType === "debito" ? cardName : network;
 
   return (
     <div className="flex items-center justify-between py-2.5 px-1">

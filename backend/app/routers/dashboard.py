@@ -44,9 +44,10 @@ def _load_cards_and_accounts(uid_list: list[int], expenses: list[Expense], db: S
     # Cards: only from group members
     cards_by_id = {c.id: c for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
 
-    # Accounts: only from group members
+    # Accounts: only from group members — return name + type for display
     accounts_by_id = {
-        a.id: a.type for a in db.query(Account).filter(Account.user_id.in_(uid_list)).all()
+        a.id: {"name": a.name, "type": a.type}
+        for a in db.query(Account).filter(Account.user_id.in_(uid_list)).all()
     }
 
     return cards_by_id, accounts_by_id
@@ -1033,11 +1034,13 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
                 }
             else:
                 acct_id = int(key.split(":")[1])
-                acct_type = user_accounts_by_id.get(acct_id, "efectivo")
+                acct_info = user_accounts_by_id.get(
+                    acct_id, {"name": "Efectivo", "type": "efectivo"}
+                )
                 by_card[key] = {
                     "bank": "",
                     "network": "unknown",
-                    "card_name": acct_type.replace("_", " ").title(),
+                    "card_name": acct_info["name"],
                     "holder": "",
                     "card_type": "debito",
                     "total_amount": 0.0,
