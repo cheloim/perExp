@@ -58,7 +58,7 @@ jobs:
     needs: build-and-push
 
     steps:
-      - name: Install dependencies on server
+      - name: Setup server (podman, podman-compose, dirs)
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.LINODE_SERVER_IP }}
@@ -68,25 +68,139 @@ jobs:
           script: |
             # Install podman if not exists
             if ! command -v podman &> /dev/null; then
+                echo "Installing podman..."
                 sudo dnf install -y podman podman-docker
                 sudo systemctl enable --now podman.socket
+            else
+                echo "podman already installed, skipping"
             fi
 
             # Install podman-compose if not exists
             if ! command -v podman-compose &> /dev/null; then
+                echo "Installing podman-compose..."
                 sudo dnf install -y python3-pip
                 pip3 install --user podman-compose
+            else
+                echo "podman-compose already installed, skipping"
             fi
 
             # Create app directory
             sudo mkdir -p /opt/creditcardanalyzer
             sudo chown -R $USER:$USER /opt/creditcardanalyzer
 
+      - name: Setup SSL certificates
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.LINODE_SERVER_IP }}
+          username: ${{ secrets.LINODE_SSH_USER }}
+          key: ${{ secrets.LINODE_SSH_KEY }}
+          port: 43422
+          script: |
+            # Create certbot directories
+            mkdir -p /opt/creditcardanalyzer/certbot/{conf,work,logs}
+
+            # Get SSL certificate if not already present
+            if [ -f /opt/creditcardanalyzer/certbot/conf/live/okinomonia.freeddns.org/fullchain.pem ]; then
+                echo "SSL certificate already exists, skipping"
+            else
+                echo "Requesting SSL certificate..."
+                podman run --rm \
+                  -v /opt/creditcardanalyzer/certbot/conf:/etc/letsencrypt:Z \
+                  -v /opt/creditcardanalyzer/certbot/work:/var/lib/letsencrypt:Z \
+                  -v /opt/creditcardanalyzer/certbot/logs:/var/log/letsencrypt:Z \
+                  -p 80:80 \
+                  docker.io/certbot/certbot certonly --standalone \
+                  -d okinomonia.freeddns.org \
+                  --email mmendoza0989@gmail.com \
+                  --agree-tos --non-interactive
+                echo "SSL certificate obtained"
+            fi
+
+            # Fix cert permissions for nginx container (SELinux + nginx user access)
+            chmod 755 /opt/creditcardanalyzer/certbot/conf/archive 2>/dev/null || true
+            chmod 755 /opt/creditcardanalyzer/certbot/conf/archive/okinomonia.freeddns.org 2>/dev/null || true
+            chmod 644 /opt/creditcardanalyzer/certbot/conf/archive/okinomonia.freeddns.org/*.pem 2>/dev/null || true
+            echo "Cert permissions fixed"
+
+      - name: Setup certbot renewal timer
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.LINODE_SERVER_IP }}
+          username: ${{ secrets.LINODE_SSH_USER }}
+          key: ${{ secrets.LINODE_SSH_KEY }}
+          port: 43422
+          script: |
+            # Only create if not already present
+            if [ -f /etc/systemd/system/certbot-renew.timer ]; then
+                echo "Certbot renewal timer already exists, skipping"
+            else
+                echo "Creating certbot renewal timer..."
+                cat > /etc/systemd/system/certbot-renew.service << 'UNIT'
+            [Unit]
+            Description=Certbot SSL Certificate Renewal
+            After=network-online.target
+
+            [Service]
+            Type=oneshot
+            ExecStart=/usr/bin/podman run --rm \
+              -v /opt/creditcardanalyzer/certbot/conf:/etc/letsencrypt:Z \
+              -v /opt/creditcardanalyzer/certbot/work:/var/lib/letsencrypt:Z \
+              -v /opt/creditcardanalyzer/certbot/logs:/var/log/letsencrypt:Z \
+              docker.io/certbot/certbot renew --quiet
+            UNIT
+
+                cat > /etc/systemd/system/certbot-renew.timer << 'UNIT'
+            [Unit]
+            Description=Run certbot renewal twice daily
+
+            [Timer]
+            OnCalendar=daily
+            RandomizedDelaySec=3600
+            Persistent=true
+
+            [Install]
+            WantedBy=timers.target
+            UNIT
+
+                systemctl daemon-reload
+                systemctl enable --now certbot-renew.timer
+                echo "Certbot renewal timer installed"
+            fi
+
+      - name: Open firewall ports
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.LINODE_SERVER_IP }}
+          username: ${{ secrets.LINODE_SSH_USER }}
+          key: ${{ secrets.LINODE_SSH_KEY }}
+          port: 43422
+          script: |
+            # Open ports 80 and 443 if not already open
+            if firewall-cmd --list-ports | grep -q "80/tcp"; then
+                echo "Port 80 already open, skipping"
+            else
+                echo "Opening port 80..."
+                sudo firewall-cmd --permanent --add-port=80/tcp
+            fi
+
+            if firewall-cmd --list-ports | grep -q "443/tcp"; then
+                echo "Port 443 already open, skipping"
+            else
+                echo "Opening port 443..."
+                sudo firewall-cmd --permanent --add-port=443/tcp
+            fi
+
+            sudo firewall-cmd --reload
+            echo "Firewall ports: $(firewall-cmd --list-ports)"
+
   deploy:
     runs-on: ubuntu-latest
     needs: setup-server
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
       - name: Deploy to server via SSH
         uses: appleboy/ssh-action@v1
         with:
@@ -99,6 +213,45 @@ jobs:
             BACKEND_IMAGE="${{ env.BACKEND_IMAGE }}"
             FRONTEND_IMAGE="${{ env.FRONTEND_IMAGE }}"
             IMAGE_TAG="${{ github.sha }}"
+
+            # Write nginx.conf
+            mkdir -p /opt/creditcardanalyzer/nginx
+            cat > /opt/creditcardanalyzer/nginx/nginx.conf << 'NGINXEOF'
+            server {
+                listen 80 default_server;
+                server_name _;
+                return 301 https://okinomonia.freeddns.org$request_uri;
+            }
+
+            server {
+                listen 443 ssl default_server;
+                server_name _;
+
+                ssl_certificate /etc/letsencrypt/live/okinomonia.freeddns.org/fullchain.pem;
+                ssl_certificate_key /etc/letsencrypt/live/okinomonia.freeddns.org/privkey.pem;
+
+                ssl_protocols TLSv1.2 TLSv1.3;
+                ssl_ciphers HIGH:!aNULL:!MD5;
+                ssl_prefer_server_ciphers on;
+                ssl_session_cache shared:SSL:10m;
+                ssl_session_timeout 10m;
+
+                add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+                add_header X-Content-Type-Options nosniff;
+                add_header X-Frame-Options DENY;
+
+                gzip on;
+                gzip_types text/plain text/css application/json application/javascript text/xml;
+
+                location / {
+                    proxy_pass http://frontend:80;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                }
+            }
+            NGINXEOF
 
             # Write docker-compose.yml
             cat > /opt/creditcardanalyzer/docker-compose.yml << 'EOF'
@@ -155,7 +308,8 @@ jobs:
                   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
                   SECRET_KEY: ${SECRET_KEY}
                   RESEND_API_KEY: ${RESEND_API_KEY}
-                  FRONTEND_URL: https://expensas.chelo.ar
+                  FRONTEND_URL: https://okinomonia.freeddns.org
+                  CORS_ORIGINS: https://okinomonia.freeddns.org
                 restart: unless-stopped
 
               celery_worker:
@@ -185,11 +339,27 @@ jobs:
 
               frontend:
                 image: ${FRONTEND_IMAGE}:${IMAGE_TAG}
-                ports:
-                  - "8080:80"
                 depends_on:
                   backend:
                     condition: service_healthy
+                restart: unless-stopped
+
+              nginx:
+                image: docker.io/library/nginx:alpine
+                ports:
+                  - "80:80"
+                  - "443:443"
+                volumes:
+                  - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+                  - ./certbot/conf:/etc/letsencrypt:ro,Z
+                depends_on:
+                  - frontend
+                healthcheck:
+                  test: ["CMD-SHELL", "wget -qO- --no-check-certificate https://127.0.0.1/ || exit 1"]
+                  interval: 30s
+                  timeout: 5s
+                  start_period: 10s
+                  retries: 3
                 restart: unless-stopped
 
             volumes:
@@ -243,4 +413,6 @@ jobs:
             # Verify deployment
             echo "Waiting for services to start..."
             sleep 5
-            curl -sf http://localhost:8080/api/health && echo "Deploy OK" || echo "WARN: health check failed"
+            curl -sk https://okinomonia.freeddns.org/api/docs -o /dev/null -w "%{http_code}" | grep -q 200 && echo "Deploy OK (domain)" || \
+              (echo "Domain check failed, trying localhost..." && curl -sf http://localhost/api/docs -o /dev/null -w "%{http_code}" | grep -q 200 && echo "Deploy OK (local)") || \
+              echo "WARN: health check failed"
