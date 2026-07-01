@@ -98,6 +98,8 @@ export const getExpenses = (params?: {
   bank?: string;
   person?: string;
   card?: string;
+  card_type?: string;
+  installment?: boolean;
   account?: string;
   search?: string;
   date_from?: string;
@@ -121,6 +123,9 @@ export const getExpenseStats = (params?: {
       last_used: string | null;
     }>("/expenses/stats", { params })
     .then((r) => r.data);
+
+export const getUncategorizedCount = () =>
+  api.get<{ count: number }>("/expenses/uncategorized-count").then((r) => r.data);
 
 export const getExpensesByCategory = (params?: {
   month?: string;

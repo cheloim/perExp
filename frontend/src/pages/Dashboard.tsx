@@ -14,6 +14,7 @@ import {
   getCreditCardPasivos,
   getInstallmentsMonthlyLoad,
   getTopMerchants,
+  getUncategorizedCount,
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
 import { formatCurrency, toUpperCase, formatDateDMYSlash, MONTHS_ES_SHORT } from "../utils/format";
@@ -189,6 +190,13 @@ export default function Dashboard() {
     staleTime: 60_000,
   });
 
+  // Check for uncategorized expenses (triggers notification on login)
+  useQuery({
+    queryKey: ["uncategorized-count"],
+    queryFn: getUncategorizedCount,
+    staleTime: 300_000,
+  });
+
   // Calculate savings by currency
   const savingsArs = useMemo(
     () =>
@@ -346,19 +354,30 @@ export default function Dashboard() {
           savingsArs > 0 || totalUsd > 0 ? "md:grid-cols-5" : "md:grid-cols-4"
         } gap-4`}
       >
-        <div className="card p-4">
+        <div
+          className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
+          onClick={() => navigate("/expenses")}
+        >
           <p className="text-[10px] text-tertiary uppercase mb-1">Total gastado</p>
           <p className="text-lg font-bold text-primary">{formatCurrency(totalSpent)}</p>
           <p className="text-xs text-tertiary mt-1">
             {dashData?.total_expenses ?? 0} transacciones
           </p>
         </div>
-        <div className="card p-4">
+        <div
+          className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
+          onClick={() => navigate("/expenses?card_type=credito")}
+        >
           <p className="text-[10px] text-tertiary uppercase mb-1">Deuda tarjetas</p>
           <p className="text-lg font-bold text-danger">{formatCurrency(totalPasivos)}</p>
           <p className="text-xs text-tertiary mt-1">{pasivosData?.count ?? 0} cuotas pendientes</p>
         </div>
-        <div className="card p-4">
+        <div
+          className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
+          onClick={() =>
+            navigate(`/expenses?installment=1&date_from=${month}-01&date_to=${month}-31`)
+          }
+        >
           <p className="text-[10px] text-tertiary uppercase mb-1">Cuotas este mes</p>
           <p className="text-lg font-bold text-primary">{formatCurrency(cuotasComprometidas)}</p>
           <p className="text-xs text-tertiary mt-1">{currentMonthLoad?.count ?? 0} cuotas</p>

@@ -82,6 +82,8 @@ export default function ExpensesPage() {
   const filterBank = filters.bank;
   const filterPerson = filters.person;
   const filterCard = filters.card;
+  const filterCardType = filters.cardType;
+  const filterInstallment = filters.installment;
   const filterAccount = filters.account;
   const filterDateFrom = filters.dateFrom;
   const filterDateTo = filters.dateTo;
@@ -113,6 +115,8 @@ export default function ExpensesPage() {
     filterBank,
     filterPerson,
     filterCard,
+    filterCardType,
+    filterInstallment || undefined,
     filterAccount,
     filterDateFrom,
     filterDateTo,
@@ -122,7 +126,7 @@ export default function ExpensesPage() {
   const [visibleCount, setVisibleCount] = useState(100);
 
   // Reset visible count when filters change
-  const filterKey = `${filterCategory}-${filterUncategorized}-${filterBank}-${filterPerson}-${filterCard}-${filterAccount}-${filterDateFrom}-${filterDateTo}-${filterSearch}`;
+  const filterKey = `${filterCategory}-${filterUncategorized}-${filterBank}-${filterPerson}-${filterCard}-${filterCardType}-${filterInstallment}-${filterAccount}-${filterDateFrom}-${filterDateTo}-${filterSearch}`;
   const prevFilterKey = useRef(filterKey);
   if (filterKey !== prevFilterKey.current) {
     prevFilterKey.current = filterKey;
@@ -139,6 +143,8 @@ export default function ExpensesPage() {
       filterBank,
       filterPerson,
       filterCard,
+      filterCardType,
+      filterInstallment,
       filterAccount,
       filterDateFrom,
       filterDateTo,
@@ -151,6 +157,8 @@ export default function ExpensesPage() {
         bank: filterBank,
         person: filterPerson,
         card: filterCard,
+        card_type: filterCardType,
+        installment: filterInstallment || undefined,
         account: filterAccount,
         date_from: filterDateFrom,
         date_to: filterDateTo,

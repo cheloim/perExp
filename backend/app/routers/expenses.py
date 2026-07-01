@@ -9,7 +9,7 @@ from sqlalchemy import desc, func
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
-from app.models import Card, Category, Expense, User
+from app.models import Card, Category, Expense, Notification, User
 from app.routers.groups import get_group_user_ids
 from app.schemas import ExpenseCreate, ExpenseResponse, ExpenseUpdate
 from app.services.auth import get_current_user
@@ -31,6 +31,8 @@ def get_expenses(
     bank: str | None = None,
     person: str | None = None,
     card: str | None = None,
+    card_type: str | None = None,
+    installment: bool | None = None,
     account: str | None = None,
     account_id: int | None = None,
     search: str | None = None,
@@ -81,6 +83,14 @@ def get_expenses(
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
             Card.card_name.ilike(f"%{card}%")
         )
+    if card_type:
+        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
+            Card.card_type == card_type
+        )
+    if installment is True:
+        q = q.filter(Expense.installment_group_id.isnot(None))
+    elif installment is False:
+        q = q.filter(Expense.installment_group_id.is_(None))
     if account_id:
         q = q.filter(Expense.account_id == account_id)
     if account:
@@ -94,6 +104,52 @@ def get_expenses(
     # Exclude future installments (they belong in /installments)
     q = q.filter((Expense.installment_group_id.is_(None)) | (Expense.date <= date.today()))
     return q.order_by(desc(Expense.date)).offset(skip).limit(limit).all()
+
+
+@router.get("/uncategorized-count")
+def get_uncategorized_count(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Check for uncategorized expenses and create notification if any exist."""
+    import json
+
+    uid_list = get_group_user_ids(current_user.id, db)
+
+    count = (
+        db.query(func.count(Expense.id))
+        .filter(
+            Expense.user_id.in_(uid_list),
+            Expense.category_id.is_(None),
+        )
+        .scalar()
+    )
+
+    # Create notification if there are uncategorized expenses and no existing unread one
+    if count > 0:
+        existing = (
+            db.query(Notification)
+            .filter(
+                Notification.user_id == current_user.id,
+                Notification.type == "uncategorized_expenses",
+                Notification.read == False,
+            )
+            .first()
+        )
+
+        if not existing:
+            notification = Notification(
+                user_id=current_user.id,
+                type="uncategorized_expenses",
+                title=f"⚠ {count} gasto{'s' if count != 1 else ''} sin categorí{'as' if count != 1 else 'a'}",
+                body="Asigná categorías para un mejor análisis de tus gastos.",
+                data=json.dumps({"count": count}),
+                read=False,
+            )
+            db.add(notification)
+            db.commit()
+
+    return {"count": count}
 
 
 @router.get("/distinct-values")
@@ -287,6 +343,22 @@ def create_expense(
     db.add(db_exp)
     db.commit()
     db.refresh(db_exp)
+
+    # Notify if expense has no category
+    if db_exp.category_id is None:
+        import json
+
+        notification = Notification(
+            user_id=current_user.id,
+            type="uncategorized_expense",
+            title=f"⚠ Gasto sin categoría: {db_exp.description[:50]}",
+            body=f"Monto: ${db_exp.amount:,.2f} — Asigná una categoría para un mejor análisis.",
+            data=json.dumps({"expense_id": db_exp.id, "description": db_exp.description}),
+            read=False,
+        )
+        db.add(notification)
+        db.commit()
+
     return db_exp
 
 
