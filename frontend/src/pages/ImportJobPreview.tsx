@@ -56,8 +56,17 @@ export default function ImportJobPreview() {
   });
 
   const confirmMutation = useMutation({
-    mutationFn: ({ rows, cardsMapping }: { rows: SmartImportRow[]; cardsMapping?: CardsMapping }) =>
-      confirmImportJob(Number(jobId), rows, cardsMapping),
+    mutationFn: ({
+      rows,
+      cardsMapping,
+      closingDate,
+      dueDate,
+    }: {
+      rows: SmartImportRow[];
+      cardsMapping?: CardsMapping;
+      closingDate?: string | null;
+      dueDate?: string | null;
+    }) => confirmImportJob(Number(jobId), rows, cardsMapping, closingDate, dueDate),
     onSuccess: (result: { imported: number; scheduled: number; skipped: number }) => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
@@ -85,6 +94,9 @@ export default function ImportJobPreview() {
 
   const rows = job?.preview_data?.rows || [];
   const detectedCards: DetectedCard[] = job?.preview_data?.detected_cards || [];
+  const summary = job?.preview_data?.summary;
+  const closingDateStr = summary?.closing_date ?? null;
+  const dueDateStr = summary?.due_date ?? null;
 
   // Auto-select first matched card if available
   useEffect(() => {
@@ -123,6 +135,8 @@ export default function ImportJobPreview() {
     confirmMutation.mutate({
       rows,
       cardsMapping: Object.keys(cardsMapping).length > 0 ? cardsMapping : undefined,
+      closingDate: job?.preview_data?.summary?.closing_date ?? null,
+      dueDate: job?.preview_data?.summary?.due_date ?? null,
     });
   };
 
@@ -268,6 +282,18 @@ export default function ImportJobPreview() {
             </span>
           )}
         </p>
+
+        {/* Billing period info */}
+        {(closingDateStr || dueDateStr) && (
+          <div className="flex items-center gap-4 mb-3 px-3 py-2 bg-[var(--color-base-alt)] rounded-md text-xs text-[var(--text-secondary)]">
+            {closingDateStr && (
+              <span>📅 Cierra: <strong>{closingDateStr}</strong></span>
+            )}
+            {dueDateStr && (
+              <span>💳 Vence: <strong>{dueDateStr}</strong></span>
+            )}
+          </div>
+        )}
 
         {/* Card Selection */}
         {detectedCards.length > 0 && (

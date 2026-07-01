@@ -267,10 +267,13 @@ class RowsConfirmBody(BaseModel):
     cards_mapping: dict[str, dict[str, Any]] | None = (
         None  # key: "bank|card|holder" -> value: { bank?, card_name? }
     )
+    closing_date: str | None = None
+    due_date: str | None = None
 
 
 class CardClosingResponse(BaseModel):
     id: int
+    card_id: int | None = None
     card: str
     card_type: str = ""
     bank: str

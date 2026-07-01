@@ -171,13 +171,14 @@ def get_billing_period_for_card(card_id: int, ref_date: date, db) -> tuple[date,
 def get_billing_periods_history(card_id: int, count: int, db) -> list[dict]:
     """
     Return the last N billing periods for a card, using CardClosing records.
+    Falls back to Card.closing_day if no records exist.
     For the current (latest) period, predict the end date.
 
-    Returns list of {"start": date, "end": date, "label": str}
+    Returns list of {"start": date, "end": date, "label": str, "is_predicted": bool}
     """
     from datetime import timedelta
 
-    from app.models import CardClosing
+    from app.models import Card, CardClosing
 
     closings = (
         db.query(CardClosing)
@@ -187,41 +188,58 @@ def get_billing_periods_history(card_id: int, count: int, db) -> list[dict]:
         .all()
     )
 
-    if not closings:
-        return []
+    if closings:
+        # Reverse to chronological order
+        closings = list(reversed(closings))
 
-    # Reverse to chronological order
-    closings = list(reversed(closings))
+        periods = []
+        for i, closing in enumerate(closings):
+            period_end = closing.closing_date
+            if i == 0:
+                period_start = period_end
+            else:
+                period_start = closings[i - 1].closing_date + timedelta(days=1)
 
-    periods = []
-    for i, closing in enumerate(closings):
-        period_end = closing.closing_date
-        if i == 0:
-            # First closing - we don't know the period start
-            # Use previous closing if available, otherwise just use the closing date
-            period_start = period_end  # Will be adjusted if we have more history
-        else:
-            period_start = closings[i - 1].closing_date + timedelta(days=1)
+            label = _format_period_label(period_start, period_end)
+            periods.append({"start": period_start, "end": period_end, "label": label, "is_predicted": False})
 
-        label = _format_period_label(period_start, period_end)
-        periods.append({"start": period_start, "end": period_end, "label": label})
+        # Add predicted current period
+        last_closing = closings[-1].closing_date
+        predicted_next = predict_next_closing(last_closing)
+        current_start = last_closing + timedelta(days=1)
 
-    # Add predicted current period if the last closing is old enough
-    last_closing = closings[-1].closing_date
-    predicted_next = predict_next_closing(last_closing)
-    current_start = last_closing + timedelta(days=1)
+        if predicted_next >= date.today() - timedelta(days=7):
+            label = _format_period_label(current_start, predicted_next)
+            periods.append({
+                "start": current_start,
+                "end": predicted_next,
+                "label": label,
+                "is_predicted": True,
+            })
 
-    # Only add if it makes sense (predicted end is in the future or recent)
-    if predicted_next >= date.today() - timedelta(days=7):
-        label = _format_period_label(current_start, predicted_next)
-        periods.append({
-            "start": current_start,
-            "end": predicted_next,
-            "label": label,
-            "is_predicted": True,
-        })
+        return periods
 
-    return periods
+    # No CardClosing records — fallback to card.closing_day
+    card = db.query(Card).filter(Card.id == card_id).first()
+    if card and card.closing_day:
+        periods = []
+        ref = date.today()
+        for _ in range(count):
+            period_end = get_closing_day_approx(card.closing_day, ref)
+            prev_month = add_months(ref, -1)
+            period_start = get_closing_day_approx(card.closing_day, prev_month) + timedelta(days=1)
+            label = _format_period_label(period_start, period_end)
+            periods.append({
+                "start": period_start,
+                "end": period_end,
+                "label": label,
+                "is_predicted": True,
+            })
+            ref = prev_month
+        periods.reverse()
+        return periods
+
+    return []
 
 
 def get_current_billing_periods(db, user_id: int) -> list[dict]:

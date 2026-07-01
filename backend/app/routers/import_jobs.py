@@ -432,6 +432,65 @@ async def confirm_import_job(
     # Mark job as completed
     job.status = "COMPLETED"
 
+    # Auto-create CardClosing record from statement closing date
+    if body.closing_date:
+        try:
+            from datetime import date as date_type
+
+            from app.models import CardClosing
+
+            closing_dt = date_type.fromisoformat(body.closing_date)
+            due_dt = date_type.fromisoformat(body.due_date) if body.due_date else None
+
+            # Find the most common card_id from processed rows to link the closing
+            card_ids_used = {}
+            for r in body.rows:
+                if r.get("is_duplicate"):
+                    continue
+                card_header = str(r.get("card_header", "") or "").strip()
+                mapping_entry = cards_mapping.get(card_header, {})
+                cid = None
+                if isinstance(mapping_entry, dict):
+                    cid = mapping_entry.get("card_id")
+                if cid:
+                    card_ids_used[cid] = card_ids_used.get(cid, 0) + 1
+
+            most_common_card_id = max(card_ids_used, key=card_ids_used.get) if card_ids_used else None
+
+            if most_common_card_id:
+                # Check for duplicate (same card + same closing date)
+                existing_closing = (
+                    db.query(CardClosing)
+                    .filter(
+                        CardClosing.card_id == most_common_card_id,
+                        CardClosing.closing_date == closing_dt,
+                        CardClosing.user_id == user.id,
+                    )
+                    .first()
+                )
+                if not existing_closing:
+                    # Get card info for string fields
+                    card_obj = db.query(Card).filter(Card.id == most_common_card_id).first()
+                    db.add(
+                        CardClosing(
+                            card_id=most_common_card_id,
+                            card=card_obj.card_name if card_obj else "",
+                            bank=card_obj.bank if card_obj else "",
+                            card_type="credito",
+                            closing_date=closing_dt,
+                            due_date=due_dt,
+                            user_id=user.id,
+                        )
+                    )
+                    logger.info(
+                        "[IMPORT CONFIRM] Created CardClosing: card_id=%d, closing=%s, due=%s",
+                        most_common_card_id,
+                        closing_dt,
+                        due_dt,
+                    )
+        except Exception as e:
+            logger.warning("[IMPORT CONFIRM] Failed to create CardClosing: %s", e)
+
     # Delete associated notification (job is completed, no longer needed)
     from app.models import Notification
 

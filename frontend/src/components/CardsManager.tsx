@@ -8,6 +8,7 @@ import {
   createAccount,
   getCardSummary,
   getMe,
+  getCardClosings,
 } from "../api/client";
 import { useQuery as useCardDataQuery } from "@tanstack/react-query";
 import type { Card } from "../types";
@@ -60,6 +61,13 @@ export default function CardsManager() {
   const { data: currentUser } = useQuery({
     queryKey: ["me"],
     queryFn: getMe,
+  });
+
+  // Closing history for the card being edited
+  const { data: closingHistory = [] } = useQuery({
+    queryKey: ["card-closings", editId],
+    queryFn: () => getCardClosings(editId!),
+    enabled: !!editId && cardType === "credito",
   });
 
   // Card data from expenses (for future extension - show spending by card)
@@ -301,6 +309,25 @@ export default function CardsManager() {
                     <p className="text-xs text-tertiary">
                       Día del mes en que cierra la tarjeta. Se usa como respaldo si no tenés resúmenes importados.
                     </p>
+                    {closingHistory.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        <p className="text-xs font-medium text-[var(--text-secondary)]">
+                          Historial de cierres
+                        </p>
+                        {closingHistory.map((c) => (
+                          <div
+                            key={c.id}
+                            className="flex items-center gap-2 text-xs text-[var(--text-tertiary)]"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary)]" />
+                            <span>{c.closing_date}</span>
+                            {c.due_date && (
+                              <span className="text-[var(--text-quaternary)]">· vence {c.due_date}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="flex gap-2 pt-2">

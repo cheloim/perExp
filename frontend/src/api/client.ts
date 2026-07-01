@@ -561,10 +561,14 @@ export async function confirmImportJob(
   jobId: number,
   rows: SmartImportRow[],
   cardsMapping?: CardsMapping,
+  closingDate?: string | null,
+  dueDate?: string | null,
 ): Promise<{ imported: number; skipped: number; scheduled: number }> {
   const res = await api.post(`/import-jobs/${jobId}/confirm`, {
     rows,
     cards_mapping: cardsMapping,
+    closing_date: closingDate,
+    due_date: dueDate,
   });
   return res.data;
 }
@@ -603,4 +607,15 @@ export const getBillingPeriods = (cardId: number, count: number = 6) =>
 export const getBillingPeriodForDate = (cardId: number, refDate: string) =>
   api.get<BillingPeriod>("/billing/period-for-date", {
     params: { card_id: cardId, ref_date: refDate },
+  }).then((r) => r.data);
+
+export interface CardClosingRecord {
+  id: number;
+  closing_date: string;
+  due_date: string | null;
+}
+
+export const getCardClosings = (cardId: number, count: number = 12) =>
+  api.get<CardClosingRecord[]>("/billing/closings", {
+    params: { card_id: cardId, count },
   }).then((r) => r.data);

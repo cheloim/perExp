@@ -103,3 +103,37 @@ def period_for_date(
         bank=card.bank,
         holder=card.holder,
     )
+
+
+@router.get("/closings")
+def get_card_closings_history(
+    card_id: int,
+    count: int = Query(default=12, ge=1, le=48),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get closing date history for a specific card."""
+    uid_list = get_group_user_ids(current_user.id, db)
+
+    from app.models import Card, CardClosing
+
+    card = db.query(Card).filter(Card.id == card_id, Card.user_id.in_(uid_list)).first()
+    if not card:
+        return []
+
+    closings = (
+        db.query(CardClosing)
+        .filter(CardClosing.card_id == card_id)
+        .order_by(CardClosing.closing_date.desc())
+        .limit(count)
+        .all()
+    )
+
+    return [
+        {
+            "id": c.id,
+            "closing_date": c.closing_date.isoformat(),
+            "due_date": c.due_date.isoformat() if c.due_date else None,
+        }
+        for c in closings
+    ]
