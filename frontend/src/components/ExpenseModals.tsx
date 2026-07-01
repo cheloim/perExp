@@ -261,14 +261,14 @@ export function ExpenseModal({
   const trapRef = useFocusTrap(true);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-backdrop">
-      <div className="fixed inset-0 bg-black/60" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-backdrop bg-black/60" onClick={onClose}>
       <div
         ref={trapRef}
         role="dialog"
         aria-modal="true"
         aria-label={initial ? "Editar gasto" : "Nuevo gasto"}
         className="relative card w-full max-w-lg max-h-[90vh] overflow-auto p-6 space-y-4 animate-modal-content"
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">
