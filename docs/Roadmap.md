@@ -15,6 +15,8 @@
 | 9 | Ticket scan | ⏳ Backlog | Medium | - | OCR receipt analysis, compare same items last month |
 | 10 | Expense budgets | ⏳ Backlog | Medium | - | Set spending limits per category |
 | 11 | Make index.html interactive | ⏳ Backlog | Medium | - | Filter transactions/categories when clicking Deuda Tarjetas or Cuotas este mes |
+| 12 | Billing period tracking | ⏳ In Progress | Medium | #36 | closing_day on Card, billing API, billing view toggle in Dashboard |
+| 13 | Missing categories notification | ⏳ Backlog | Medium | - | Notify when expenses lack category assignment |
 
 ## Backlog Details
 
@@ -51,3 +53,8 @@ Generate a monthly summary report with:
 - Click on "Deuda Tarjetas" card → filter to credit card expenses
 - Click on "Cuotas este mes" card → filter to installment expenses
 - Make dashboard info boxes clickable and interactive
+
+### Missing Categories Notification
+- Alert user when expenses are created without a category
+- Notification via Telegram bot or dashboard toast
+- Help ensure all expenses are properly categorized for better analysis
