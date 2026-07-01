@@ -1,7 +1,6 @@
 import { useState, useMemo, useRef, useEffect, useCallback, Fragment } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUndoToast } from "../hooks/useUndoToast";
-import { showToast } from "../utils/toast";
 import {
   getExpenses,
   getCategories,
@@ -388,13 +387,7 @@ export default function ExpensesPage() {
     if (editing && editing.id) {
       updateMut.mutate({ id: editing.id, data });
     } else {
-      createMut.mutate(data, {
-        onSuccess: () => {
-          if (!data.category_id) {
-            showToast("Gasto guardado sin categoría", "info");
-          }
-        },
-      });
+      createMut.mutate(data);
     }
   };
 

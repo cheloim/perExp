@@ -17,7 +17,6 @@ import {
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
 import { formatCurrency, toUpperCase, formatDateDMYSlash, MONTHS_ES_SHORT } from "../utils/format";
-import { showToast } from "../utils/toast";
 import { ExpenseModal } from "../components/ExpenseModals";
 import EmptyState from "../components/ui/EmptyState";
 
@@ -115,13 +114,7 @@ export default function Dashboard() {
 
   const handleSave = (data: ExpenseCreate) => {
     setSaveError(null);
-    createMut.mutate(data, {
-      onSuccess: () => {
-        if (!data.category_id) {
-          showToast("Gasto guardado sin categoría", "info");
-        }
-      },
-    });
+    createMut.mutate(data);
   };
 
   const { data: dashData } = useQuery({
@@ -320,7 +313,6 @@ export default function Dashboard() {
   const totalPasivos = pasivosData?.total_pasivos ?? 0;
   const currentMonthLoad = monthlyLoad.find((m) => m.is_current);
   const cuotasComprometidas = currentMonthLoad?.total ?? 0;
-  const uncategorizedCount = monthExpenses.filter((e) => !e.category_id).length;
 
   // MoM comparison: total this month vs total of all previous_total in categories
   const prevMonthTotal = (dashData?.by_category ?? []).reduce(
@@ -347,25 +339,6 @@ export default function Dashboard() {
           <span>Nuevo gasto</span>
         </button>
       </div>
-
-      {/* Uncategorized expenses warning */}
-      {uncategorizedCount > 0 && (
-        <button
-          onClick={() => navigate("/expenses?uncategorized=1")}
-          className="w-full flex items-center gap-3 p-3 rounded-lg border border-warning/30 bg-warning/5 hover:bg-warning/10 transition-colors cursor-pointer text-left"
-        >
-          <span className="text-warning text-lg">⚠</span>
-          <div className="flex-1">
-            <p className="text-sm font-medium text-warning">
-              {uncategorizedCount} gasto{uncategorizedCount !== 1 ? "s" : ""} sin categorí{uncategorizedCount !== 1 ? "as" : "a"}
-            </p>
-            <p className="text-xs text-tertiary mt-0.5">
-              Asigná categorías para un mejor análisis de tus gastos
-            </p>
-          </div>
-          <span className="text-xs text-tertiary">→</span>
-        </button>
-      )}
 
       {/* KPI Row */}
       <div

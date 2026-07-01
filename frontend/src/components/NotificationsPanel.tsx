@@ -109,6 +109,10 @@ export default function NotificationsPanel({ onClose }: Props) {
         navigate(`/import-jobs/${jobId}`);
         onClose();
       }
+    } else if (n.type === "uncategorized_expense") {
+      handleMarkRead(n.id);
+      navigate("/expenses?uncategorized=1");
+      onClose();
     }
   };
 
@@ -332,23 +336,25 @@ export default function NotificationsPanel({ onClose }: Props) {
           )}
           {notifications.map((n) => {
             const isImportNotif = n.type === "import_ready" || n.type === "import_failed";
+            const isUncategorizedNotif = n.type === "uncategorized_expense";
+            const isClickable = isImportNotif || isUncategorizedNotif;
             const isFailed = n.type === "import_failed";
             return (
               <div
                 key={n.id}
-                onClick={() => isImportNotif && handleNotificationClick(n)}
+                onClick={() => isClickable && handleNotificationClick(n)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && isImportNotif) handleNotificationClick(n);
+                  if (e.key === "Enter" && isClickable) handleNotificationClick(n);
                 }}
                 className={`px-4 py-3 border-b border-[var(--border-color)] last:border-0 ${
                   !n.read ? "bg-[var(--color-primary)]/8" : ""
                 } ${
-                  isImportNotif
+                  isClickable
                     ? "cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
                     : ""
-                } ${isImportNotif ? "border-l-4 " + (isFailed ? "border-l-red-500" : "border-l-green-500") : ""}`}
-                role={isImportNotif ? "button" : undefined}
-                tabIndex={isImportNotif ? 0 : undefined}
+                } ${isImportNotif ? "border-l-4 " + (isFailed ? "border-l-red-500" : "border-l-green-500") : ""} ${isUncategorizedNotif ? "border-l-4 border-l-amber-500" : ""}`}
+                role={isClickable ? "button" : undefined}
+                tabIndex={isClickable ? 0 : undefined}
               >
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <div className="flex items-center gap-2 min-w-0">
@@ -412,6 +418,29 @@ export default function NotificationsPanel({ onClose }: Props) {
                           />
                         </svg>
                       )}
+                      {isUncategorizedNotif && (
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          className="text-amber-500"
+                        >
+                          <path
+                            d="M8 1.5l6.5 13H1.5L8 1.5z"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinejoin="round"
+                          />
+                          <path
+                            d="M8 6.5v3"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                          />
+                          <circle cx="8" cy="12" r="0.75" fill="currentColor" />
+                        </svg>
+                      )}
                     </span>
                     <p className="text-[var(--text-primary)] text-sm font-medium leading-tight truncate">
                       {n.title}
@@ -455,6 +484,12 @@ export default function NotificationsPanel({ onClose }: Props) {
                 {isImportNotif && (
                   <p className="text-[var(--color-primary)] text-xs font-medium">
                     Ver importación →
+                  </p>
+                )}
+
+                {isUncategorizedNotif && (
+                  <p className="text-[var(--color-primary)] text-xs font-medium">
+                    Ver gastos sin categoría →
                   </p>
                 )}
 

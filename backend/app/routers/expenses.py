@@ -9,7 +9,7 @@ from sqlalchemy import desc, func
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
-from app.models import Card, Category, Expense, User
+from app.models import Card, Category, Expense, Notification, User
 from app.routers.groups import get_group_user_ids
 from app.schemas import ExpenseCreate, ExpenseResponse, ExpenseUpdate
 from app.services.auth import get_current_user
@@ -297,6 +297,22 @@ def create_expense(
     db.add(db_exp)
     db.commit()
     db.refresh(db_exp)
+
+    # Notify if expense has no category
+    if db_exp.category_id is None:
+        import json
+
+        notification = Notification(
+            user_id=current_user.id,
+            type="uncategorized_expense",
+            title=f"⚠ Gasto sin categoría: {db_exp.description[:50]}",
+            body=f"Monto: ${db_exp.amount:,.2f} — Asigná una categoría para un mejor análisis.",
+            data=json.dumps({"expense_id": db_exp.id, "description": db_exp.description}),
+            read=False,
+        )
+        db.add(notification)
+        db.commit()
+
     return db_exp
 
 
