@@ -113,7 +113,6 @@ def get_uncategorized_count(
 ):
     """Check for uncategorized expenses and create notification if any exist."""
     import json
-    from datetime import datetime
 
     uid_list = get_group_user_ids(current_user.id, db)
 

@@ -374,7 +374,9 @@ export default function Dashboard() {
         </div>
         <div
           className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
-          onClick={() => navigate(`/expenses?installment=1&date_from=${month}-01&date_to=${month}-31`)}
+          onClick={() =>
+            navigate(`/expenses?installment=1&date_from=${month}-01&date_to=${month}-31`)
+          }
         >
           <p className="text-[10px] text-tertiary uppercase mb-1">Cuotas este mes</p>
           <p className="text-lg font-bold text-primary">{formatCurrency(cuotasComprometidas)}</p>
