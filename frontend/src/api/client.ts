@@ -124,6 +124,9 @@ export const getExpenseStats = (params?: {
     }>("/expenses/stats", { params })
     .then((r) => r.data);
 
+export const getUncategorizedCount = () =>
+  api.get<{ count: number }>("/expenses/uncategorized-count").then((r) => r.data);
+
 export const getExpensesByCategory = (params?: {
   month?: string;
   card?: string;

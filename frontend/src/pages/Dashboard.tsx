@@ -14,6 +14,7 @@ import {
   getCreditCardPasivos,
   getInstallmentsMonthlyLoad,
   getTopMerchants,
+  getUncategorizedCount,
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
 import { formatCurrency, toUpperCase, formatDateDMYSlash, MONTHS_ES_SHORT } from "../utils/format";
@@ -187,6 +188,13 @@ export default function Dashboard() {
     queryKey: ["top-merchants", month],
     queryFn: () => getTopMerchants({ month, limit: 5 }),
     staleTime: 60_000,
+  });
+
+  // Check for uncategorized expenses (triggers notification on login)
+  useQuery({
+    queryKey: ["uncategorized-count"],
+    queryFn: getUncategorizedCount,
+    staleTime: 300_000,
   });
 
   // Calculate savings by currency

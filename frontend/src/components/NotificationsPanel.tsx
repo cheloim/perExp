@@ -109,7 +109,7 @@ export default function NotificationsPanel({ onClose }: Props) {
         navigate(`/import-jobs/${jobId}`);
         onClose();
       }
-    } else if (n.type === "uncategorized_expense") {
+    } else if (n.type === "uncategorized_expense" || n.type === "uncategorized_expenses") {
       handleMarkRead(n.id);
       navigate("/expenses?uncategorized=1");
       onClose();
@@ -336,7 +336,7 @@ export default function NotificationsPanel({ onClose }: Props) {
           )}
           {notifications.map((n) => {
             const isImportNotif = n.type === "import_ready" || n.type === "import_failed";
-            const isUncategorizedNotif = n.type === "uncategorized_expense";
+            const isUncategorizedNotif = n.type === "uncategorized_expense" || n.type === "uncategorized_expenses";
             const isClickable = isImportNotif || isUncategorizedNotif;
             const isFailed = n.type === "import_failed";
             return (

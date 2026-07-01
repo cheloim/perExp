@@ -72,7 +72,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       showToast(notification.title, "success", 5000, "top-right");
     } else if (notification.type === "import_failed") {
       showToast(notification.title, "error", 5000, "top-right");
-    } else if (notification.type === "uncategorized_expense") {
+    } else if (notification.type === "uncategorized_expense" || notification.type === "uncategorized_expenses") {
       showToast(notification.title, "info", 5000, "top-right");
     }
 
