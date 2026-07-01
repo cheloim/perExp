@@ -139,13 +139,50 @@ podman-compose run --rm backend_dev python -c "from app.database import SessionL
 
 ## Production Deployment
 
+### Architecture
+
+```
+Internet → :80 (redirect) → :443 (nginx SSL) → :80 (frontend nginx) → backend:8000
+```
+
+Production runs on a Linode server with the following services:
+
+| Service | Description |
+|---------|-------------|
+| `nginx` | Reverse proxy with SSL termination (ports 80/443) |
+| `frontend` | React SPA served by nginx (internal only) |
+| `backend` | FastAPI backend (internal only) |
+| `celery_worker` | Background task processor |
+| `db` | PostgreSQL 16 |
+| `redis` | Redis 7 |
+
 ### GitHub Actions
 
 Push to `main` branch triggers automatic deployment:
 
 1. Build Docker images → push to GHCR
-2. SSH into server → pull images
-3. Run migrations → restart services
+2. Setup server (podman, SSL certs, firewall)
+3. Deploy containers → run migrations → verify health
+
+### SSL Certificates
+
+SSL is handled by Let's Encrypt via certbot:
+
+- Certs stored at `/opt/creditcardanalyzer/certbot/conf/`
+- Auto-renewal via systemd timer (`certbot-renew.timer`)
+- Nginx mounts certs as read-only with SELinux `:Z` flag
+
+### Idempotent Setup Steps
+
+Each setup step validates before acting:
+
+| Step | Validation | Action |
+|------|------------|--------|
+| Podman | `command -v podman` | Install via dnf |
+| podman-compose | `command -v podman-compose` | Install via pip |
+| SSL cert | `ls certbot/conf/live/.../fullchain.pem` | Run certbot container |
+| Certbot timer | `ls /etc/systemd/system/certbot-renew.timer` | Create systemd timer |
+| Firewall | `firewall-cmd --list-ports` | Open 80/443 |
 
 ### Required Secrets
 
@@ -156,6 +193,7 @@ Add in `Settings → Secrets → Actions`:
 | `LINODE_SERVER_IP` | Server IP address |
 | `LINODE_SSH_USER` | SSH username |
 | `LINODE_SSH_KEY` | SSH private key |
+| `GHCR_PAT` | GitHub PAT for GHCR login |
 | `APP_SECRETS_B64` | Base64-encoded JSON with app secrets |
 
 ### APP_SECRETS Template
@@ -194,6 +232,21 @@ podman-compose run --rm --no-deps backend python -m scripts.migrate_remove_haber
 # Restart services
 podman-compose down
 podman-compose up -d
+
+# Verify
+curl -sk https://okinomonia.freeddns.org/api/docs
+```
+
+### Health Checks
+
+Deployment verifies the full stack:
+
+```bash
+# Primary: domain-based (validates DNS + SSL + nginx + backend)
+curl -sk https://okinomonia.freeddns.org/api/docs
+
+# Fallback: localhost (validates nginx container only)
+curl -sf http://localhost/api/docs
 ```
 
 ## Telegram Bot
