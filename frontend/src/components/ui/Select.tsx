@@ -57,10 +57,7 @@ export function Select({
     }
   }, [isOpen]);
 
-  const allOptions =
-    groups.length > 0
-      ? [...options] // Don't include group options in flat list when groups exist
-      : [...options, ...groups.flatMap((g) => g.options)];
+  const allOptions = [...options, ...groups.flatMap((g) => g.options)];
   const selectedOption = [...options, ...groups.flatMap((g) => g.options)].find(
     (o) => o.value === value,
   );
@@ -233,7 +230,7 @@ export function Select({
 
             {allowCustomValue &&
               search.trim() &&
-              !filteredOptions.some((o) => o.label.toLowerCase() === search.toLowerCase()) && (
+              !allOptions.some((o) => o.label.toLowerCase() === search.toLowerCase()) && (
                 <button
                   type="button"
                   data-option
