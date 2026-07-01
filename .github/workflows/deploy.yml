@@ -97,7 +97,10 @@ jobs:
           key: ${{ secrets.LINODE_SSH_KEY }}
           port: 43422
           script: |
-            RESOLVED_IP=$(dig +short ${{ vars.DOMAIN_NAME }} | tail -1)
+            RESOLVED_IP=$(nslookup ${{ vars.DOMAIN_NAME }} 2>/dev/null | awk '/^Address: / { print $2 }' | tail -1)
+            if [ -z "$RESOLVED_IP" ]; then
+              RESOLVED_IP=$(host ${{ vars.DOMAIN_NAME }} 2>/dev/null | awk '/has address/ { print $NF }' | head -1)
+            fi
             SERVER_IP=$(curl -s --connect-timeout 5 https://api.ipify.org || curl -s --connect-timeout 5 https://ifconfig.me)
 
             echo "Domain: ${{ vars.DOMAIN_NAME }}"
