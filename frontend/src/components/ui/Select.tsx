@@ -99,9 +99,10 @@ export function Select({
     // Add group options (only when groups exist, since they're not in filteredOptions)
     if (groups.length > 0) {
       groups.forEach((group) => {
+        const groupMatches = !search || group.label.toLowerCase().includes(search.toLowerCase());
         const groupFiltered = group.options.filter(
           (o) =>
-            !search ||
+            groupMatches ||
             o.label.toLowerCase().includes(search.toLowerCase()) ||
             o.value.toLowerCase().includes(search.toLowerCase()),
         );
@@ -267,9 +268,11 @@ export function Select({
             {/* Render grouped options with headers */}
             {groups.length > 0 &&
               groups.map((group) => {
+                const groupMatches =
+                  !search || group.label.toLowerCase().includes(search.toLowerCase());
                 const groupFiltered = group.options.filter(
                   (o) =>
-                    !search ||
+                    groupMatches ||
                     o.label.toLowerCase().includes(search.toLowerCase()) ||
                     o.value.toLowerCase().includes(search.toLowerCase()),
                 );
