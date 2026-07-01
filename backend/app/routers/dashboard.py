@@ -398,6 +398,98 @@ def get_summary(
     }
 
 
+@router.get("/monthly-report")
+def get_monthly_report(
+    month: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Generate a monthly analysis report with income vs expenses, savings rate, top categories, MoM comparison."""
+    uid_list = get_group_user_ids(current_user.id, db)
+
+    # Determine target month
+    if month:
+        try:
+            y, m = int(month[:4]), int(month[5:7])
+            target_start = date(y, m, 1)
+        except (ValueError, IndexError):
+            target_start = date.today().replace(day=1)
+    else:
+        target_start = date.today().replace(day=1)
+
+    target_end = date(target_start.year, target_start.month, monthrange(target_start.year, target_start.month)[1])
+
+    # Previous month for comparison
+    prev_start = add_months(target_start, -1)
+    prev_end = date(prev_start.year, prev_start.month, monthrange(prev_start.year, prev_start.month)[1])
+
+    def _query_totals(start: date, end: date):
+        expenses = (
+            db.query(Expense)
+            .filter(Expense.user_id.in_(uid_list), Expense.date >= start, Expense.date <= end)
+            .all()
+        )
+        total_expenses = sum(abs(e.amount) for e in expenses if not e.is_income)
+        total_income = sum(abs(e.amount) for e in expenses if e.is_income)
+        count = sum(1 for e in expenses if not e.is_income)
+
+        # By category (only expenses, not income)
+        by_cat = defaultdict(lambda: {"total": 0.0, "count": 0, "name": "", "color": ""})
+        for e in expenses:
+            if e.is_income:
+                continue
+            cat_name = "Sin categoría"
+            cat_color = "#6b7280"
+            if e.category_id:
+                cat = db.query(Category).filter(Category.id == e.category_id).first()
+                if cat:
+                    cat_name = cat.name
+                    cat_color = cat.color or "#6b7280"
+                    # Use parent name if it's a subcategory
+                    if cat.parent_id:
+                        parent = db.query(Category).filter(Category.id == cat.parent_id).first()
+                        if parent:
+                            cat_name = f"{parent.name} > {cat.name}"
+            by_cat[e.category_id or 0]["total"] += abs(e.amount)
+            by_cat[e.category_id or 0]["count"] += 1
+            by_cat[e.category_id or 0]["name"] = cat_name
+            by_cat[e.category_id or 0]["color"] = cat_color
+
+        top_categories = sorted(by_cat.values(), key=lambda x: x["total"], reverse=True)[:5]
+
+        return {
+            "total_expenses": total_expenses,
+            "total_income": total_income,
+            "count": count,
+            "top_categories": top_categories,
+        }
+
+    current = _query_totals(target_start, target_end)
+    previous = _query_totals(prev_start, prev_end)
+
+    # Savings rate
+    savings_rate = 0.0
+    if current["total_income"] > 0:
+        savings_rate = ((current["total_income"] - current["total_expenses"]) / current["total_income"]) * 100
+
+    # MoM change
+    mom_change = 0.0
+    if previous["total_expenses"] > 0:
+        mom_change = ((current["total_expenses"] - previous["total_expenses"]) / previous["total_expenses"]) * 100
+
+    return {
+        "month": target_start.strftime("%Y-%m"),
+        "total_expenses": current["total_expenses"],
+        "total_income": current["total_income"],
+        "savings_rate": round(savings_rate, 1),
+        "expense_count": current["count"],
+        "top_categories": current["top_categories"],
+        "previous_total": previous["total_expenses"],
+        "previous_income": previous["total_income"],
+        "mom_change": round(mom_change, 1),
+    }
+
+
 @router.get("/account-expenses")
 def get_account_expenses(
     month: str | None = None,

@@ -204,6 +204,21 @@ export const getDashboard = (params?: {
   bank?: string;
 }) => api.get<DashboardSummary>("/dashboard/summary", { params }).then((r) => r.data);
 
+export const getMonthlyReport = (params?: { month?: string }) =>
+  api
+    .get<{
+      month: string;
+      total_expenses: number;
+      total_income: number;
+      savings_rate: number;
+      expense_count: number;
+      top_categories: { total: number; count: number; name: string; color: string }[];
+      previous_total: number;
+      previous_income: number;
+      mom_change: number;
+    }>("/dashboard/monthly-report", { params })
+    .then((r) => r.data);
+
 export const getInstallmentsDashboard = () =>
   api.get<InstallmentGroup[]>("/dashboard/installments").then((r) => r.data);
 

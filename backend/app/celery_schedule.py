@@ -11,4 +11,8 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.cleanup_import_jobs.cleanup_expired_import_jobs",
         "schedule": crontab(hour=3, minute=30),
     },
+    "send-weekly-summary-sunday": {
+        "task": "app.tasks.weekly_summary.send_weekly_summaries",
+        "schedule": crontab(hour=20, minute=0, day_of_week="sunday"),
+    },
 }

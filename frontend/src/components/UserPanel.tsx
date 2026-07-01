@@ -12,6 +12,8 @@ import {
   regenerateTelegramKey,
   getMyInviteCode,
   generateInviteCode,
+  getSettings,
+  putSetting,
 } from "../api/client";
 import { useNavigate } from "react-router-dom";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -84,6 +86,19 @@ export default function UserPanel({ open, onClose }: Props) {
     queryFn: getTelegramStatus,
     enabled: open,
     refetchInterval: open ? 5000 : false,
+  });
+
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: getSettings,
+    enabled: open,
+  });
+
+  const settingMut = useMutation({
+    mutationFn: ({ key, value }: { key: string; value: string }) => putSetting(key, value),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
   });
 
   const regenerateKeyMut = useMutation({
@@ -631,6 +646,42 @@ export default function UserPanel({ open, onClose }: Props) {
                   </div>
                 )}
               </div>
+
+              {/* Weekly Summary Settings */}
+              {tgStatus?.connected && (
+                <div>
+                  <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-3">
+                    Resumen Semanal
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-[var(--text-primary)]">Enviar resumen semanal</span>
+                      <button
+                        onClick={() => {
+                          const current = settings?.weekly_summary_enabled !== "false";
+                          settingMut.mutate({ key: "weekly_summary_enabled", value: current ? "false" : "true" });
+                        }}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                          settings?.weekly_summary_enabled !== "false"
+                            ? "bg-[var(--color-primary)]"
+                            : "bg-[var(--text-tertiary)]"
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+                            settings?.weekly_summary_enabled !== "false" ? "translate-x-4" : "translate-x-0.5"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    {settings?.weekly_summary_enabled !== "false" && (
+                      <p className="text-[10px] text-[var(--text-tertiary)]">
+                        Se envía todos los domingos a las 20:00 por Telegram
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <hr className="border-[var(--border-color)]" />
 

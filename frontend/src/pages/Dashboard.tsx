@@ -15,6 +15,7 @@ import {
   getInstallmentsMonthlyLoad,
   getTopMerchants,
   getUncategorizedCount,
+  getMonthlyReport,
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
 import { formatCurrency, toUpperCase, formatDateDMYSlash, MONTHS_ES_SHORT } from "../utils/format";
@@ -195,6 +196,13 @@ export default function Dashboard() {
     queryKey: ["uncategorized-count"],
     queryFn: getUncategorizedCount,
     staleTime: 300_000,
+  });
+
+  // Monthly report data
+  const { data: monthlyReport } = useQuery({
+    queryKey: ["monthly-report", month],
+    queryFn: () => getMonthlyReport({ month }),
+    staleTime: 60_000,
   });
 
   // Calculate savings by currency
@@ -850,6 +858,53 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* Monthly Report */}
+      {monthlyReport && (
+        <div className="card p-4">
+          <h2 className="text-sm font-semibold text-primary mb-3">
+            Reporte Mensual — {MONTHS_ES_SHORT[parseInt(month.split("-")[1]) - 1]} {month.split("-")[0]}
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div>
+              <p className="text-[10px] text-tertiary uppercase">Gastos</p>
+              <p className="text-lg font-bold text-danger">{formatCurrency(monthlyReport.total_expenses)}</p>
+              <p className="text-xs text-tertiary">{monthlyReport.expense_count} transacciones</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-tertiary uppercase">Ingresos</p>
+              <p className="text-lg font-bold text-success">{formatCurrency(monthlyReport.total_income)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-tertiary uppercase">Tasa de ahorro</p>
+              <p className={`text-lg font-bold ${monthlyReport.savings_rate >= 0 ? "text-success" : "text-danger"}`}>
+                {monthlyReport.savings_rate}%
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] text-tertiary uppercase">vs Mes anterior</p>
+              <p className={`text-lg font-bold ${monthlyReport.mom_change <= 0 ? "text-success" : "text-danger"}`}>
+                {monthlyReport.mom_change > 0 ? "↑" : monthlyReport.mom_change < 0 ? "↓" : "→"}{" "}
+                {Math.abs(monthlyReport.mom_change)}%
+              </p>
+            </div>
+          </div>
+          {monthlyReport.top_categories.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-tertiary mb-2">Top categorías</p>
+              <div className="space-y-2">
+                {monthlyReport.top_categories.map((cat, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                    <span className="text-xs text-secondary flex-1 truncate">{cat.name}</span>
+                    <span className="text-xs font-semibold text-primary">{formatCurrency(cat.total)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {editing !== undefined && (
         <ExpenseModal
