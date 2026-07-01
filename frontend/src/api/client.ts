@@ -216,6 +216,13 @@ export const getMonthlyReport = (params?: { month?: string }) =>
       previous_total: number;
       previous_income: number;
       mom_change: number;
+      trend_history: { month: string; expenses: number; income: number }[];
+      analysis: {
+        summary: string;
+        highlights: string[];
+        concern: string | null;
+        tip: string;
+      } | null;
     }>("/dashboard/monthly-report", { params })
     .then((r) => r.data);
 

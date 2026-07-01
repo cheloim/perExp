@@ -399,12 +399,12 @@ def get_summary(
 
 
 @router.get("/monthly-report")
-def get_monthly_report(
+async def get_monthly_report(
     month: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Generate a monthly analysis report with income vs expenses, savings rate, top categories, MoM comparison."""
+    """Generate a monthly analysis report with income vs expenses, savings rate, top categories, MoM comparison, trend history, and LLM analysis."""
     uid_list = get_group_user_ids(current_user.id, db)
 
     # Determine target month
@@ -477,6 +477,87 @@ def get_monthly_report(
     if previous["total_expenses"] > 0:
         mom_change = ((current["total_expenses"] - previous["total_expenses"]) / previous["total_expenses"]) * 100
 
+    # 6-month trend history for charts
+    trend_history = []
+    for i in range(5, -1, -1):
+        m = add_months(target_start, -i)
+        m_start = date(m.year, m.month, 1)
+        m_end = date(m.year, m.month, monthrange(m.year, m.month)[1])
+        expenses = (
+            db.query(Expense)
+            .filter(Expense.user_id.in_(uid_list), Expense.date >= m_start, Expense.date <= m_end)
+            .all()
+        )
+        total_exp = sum(abs(e.amount) for e in expenses if not e.is_income)
+        total_inc = sum(abs(e.amount) for e in expenses if e.is_income)
+        trend_history.append({
+            "month": m.strftime("%Y-%m"),
+            "expenses": round(total_exp, 2),
+            "income": round(total_inc, 2),
+        })
+
+    # LLM analysis
+    analysis = None
+    api_key = os.getenv("LLM_API_KEY")
+    today = date.today()
+    if api_key:
+        try:
+            from google import genai
+            from google.genai import types as genai_types
+
+            # Build context for LLM
+            trend_lines = []
+            for t in trend_history:
+                trend_lines.append(
+                    f"  {t['month']}: gastos=${t['expenses']:,.0f}, ingresos=${t['income']:,.0f}"
+                )
+
+            cat_lines = []
+            for cat in current["top_categories"]:
+                cat_lines.append(f"  - {cat['name']}: ${cat['total']:,.0f} ({cat['count']} transacciones)")
+
+            llm_context = f"""ANÁLISIS MENSUAL - {target_start.strftime('%B %Y').capitalize()}
+
+RESUMEN DEL MES:
+- Gastos totales: ${current['total_expenses']:,.0f}
+- Ingresos totales: ${current['total_income']:,.0f}
+- Tasa de ahorro: {savings_rate:.1f}%
+- Cantidad de transacciones: {current['count']}
+- Variación vs mes anterior: {mom_change:+.1f}%
+
+TOP CATEGORÍAS:
+{chr(10).join(cat_lines) or '  Sin datos'}
+
+HISTORIAL (últimos 6 meses):
+{chr(10).join(trend_lines)}
+
+Fecha actual: {today.isoformat()}"""
+
+            prompt = """Sos un analista financiero personal. Analizá el resumen mensual y devolvé UNICAMENTE JSON válido.
+
+El JSON debe tener esta estructura:
+{
+  "summary": "<resumen ejecutivo de 2-3 líneas del mes, con emojis>",
+  "highlights": ["<highlight 1>", "<highlight 2>", "<highlight 3>"],
+  "concern": "<preocupación o área de mejora, o null si todo está bien>",
+  "tip": "<consejo concreto de ahorro basado en los datos>"
+}
+
+Sé específico con los números. Respondé en español, de forma clara y amigable. Usá emojis para hacerlo más visual."""
+
+            client = genai.Client(api_key=api_key)
+            response = await client.aio.models.generate_content(
+                model="gemini-flash-latest",
+                contents=llm_context,
+                config=genai_types.GenerateContentConfig(
+                    system_instruction=prompt,
+                    response_mime_type="application/json",
+                ),
+            )
+            analysis = json.loads(response.text)
+        except Exception:
+            analysis = None  # Don't fail the endpoint if LLM fails
+
     return {
         "month": target_start.strftime("%Y-%m"),
         "total_expenses": current["total_expenses"],
@@ -487,6 +568,8 @@ def get_monthly_report(
         "previous_total": previous["total_expenses"],
         "previous_income": previous["total_income"],
         "mom_change": round(mom_change, 1),
+        "trend_history": trend_history,
+        "analysis": analysis,
     }
 
 
