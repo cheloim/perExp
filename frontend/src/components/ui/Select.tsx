@@ -99,8 +99,7 @@ export function Select({
     // Add group options (only when groups exist, since they're not in filteredOptions)
     if (groups.length > 0) {
       groups.forEach((group) => {
-        const groupMatches =
-          !search || group.label.toLowerCase().includes(search.toLowerCase());
+        const groupMatches = !search || group.label.toLowerCase().includes(search.toLowerCase());
         const groupFiltered = group.options.filter(
           (o) =>
             groupMatches ||
