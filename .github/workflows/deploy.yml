@@ -100,7 +100,7 @@ jobs:
             mkdir -p /opt/creditcardanalyzer/certbot/{conf,work,logs}
 
             # Get SSL certificate if not already present
-            if [ -f /opt/creditcardanalyzer/certbot/conf/live/okinomonia.freeddns.org/fullchain.pem ]; then
+            if [ -f /opt/creditcardanalyzer/certbot/conf/live/${{ secrets.DOMAIN_NAME }}/fullchain.pem ]; then
                 echo "SSL certificate already exists, skipping"
             else
                 echo "Requesting SSL certificate..."
@@ -110,7 +110,7 @@ jobs:
                   -v /opt/creditcardanalyzer/certbot/logs:/var/log/letsencrypt:Z \
                   -p 80:80 \
                   docker.io/certbot/certbot certonly --standalone \
-                  -d okinomonia.freeddns.org \
+                  -d ${{ secrets.DOMAIN_NAME }} \
                   --email mmendoza0989@gmail.com \
                   --agree-tos --non-interactive
                 echo "SSL certificate obtained"
@@ -118,8 +118,8 @@ jobs:
 
             # Fix cert permissions for nginx container (SELinux + nginx user access)
             chmod 755 /opt/creditcardanalyzer/certbot/conf/archive 2>/dev/null || true
-            chmod 755 /opt/creditcardanalyzer/certbot/conf/archive/okinomonia.freeddns.org 2>/dev/null || true
-            chmod 644 /opt/creditcardanalyzer/certbot/conf/archive/okinomonia.freeddns.org/*.pem 2>/dev/null || true
+            chmod 755 /opt/creditcardanalyzer/certbot/conf/archive/${{ secrets.DOMAIN_NAME }} 2>/dev/null || true
+            chmod 644 /opt/creditcardanalyzer/certbot/conf/archive/${{ secrets.DOMAIN_NAME }}/*.pem 2>/dev/null || true
             echo "Cert permissions fixed"
 
       - name: Setup certbot renewal timer
@@ -220,15 +220,15 @@ jobs:
             server {
                 listen 80 default_server;
                 server_name _;
-                return 301 https://okinomonia.freeddns.org$request_uri;
+                return 301 https://${{ secrets.DOMAIN_NAME }}$request_uri;
             }
 
             server {
                 listen 443 ssl default_server;
                 server_name _;
 
-                ssl_certificate /etc/letsencrypt/live/okinomonia.freeddns.org/fullchain.pem;
-                ssl_certificate_key /etc/letsencrypt/live/okinomonia.freeddns.org/privkey.pem;
+                ssl_certificate /etc/letsencrypt/live/${{ secrets.DOMAIN_NAME }}/fullchain.pem;
+                ssl_certificate_key /etc/letsencrypt/live/${{ secrets.DOMAIN_NAME }}/privkey.pem;
 
                 ssl_protocols TLSv1.2 TLSv1.3;
                 ssl_ciphers HIGH:!aNULL:!MD5;
@@ -308,8 +308,8 @@ jobs:
                   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
                   SECRET_KEY: ${SECRET_KEY}
                   RESEND_API_KEY: ${RESEND_API_KEY}
-                  FRONTEND_URL: https://okinomonia.freeddns.org
-                  CORS_ORIGINS: https://okinomonia.freeddns.org
+                  FRONTEND_URL: https://${{ secrets.DOMAIN_NAME }}
+                  CORS_ORIGINS: https://${{ secrets.DOMAIN_NAME }}
                 restart: unless-stopped
 
               celery_worker:
@@ -413,6 +413,6 @@ jobs:
             # Verify deployment
             echo "Waiting for services to start..."
             sleep 5
-            curl -sk https://okinomonia.freeddns.org/api/docs -o /dev/null -w "%{http_code}" | grep -q 200 && echo "Deploy OK (domain)" || \
+            curl -sk https://${{ secrets.DOMAIN_NAME }}/api/docs -o /dev/null -w "%{http_code}" | grep -q 200 && echo "Deploy OK (domain)" || \
               (echo "Domain check failed, trying localhost..." && curl -sf http://localhost/api/docs -o /dev/null -w "%{http_code}" | grep -q 200 && echo "Deploy OK (local)") || \
               echo "WARN: health check failed"

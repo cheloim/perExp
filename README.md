@@ -234,7 +234,7 @@ podman-compose down
 podman-compose up -d
 
 # Verify
-curl -sk https://okinomonia.freeddns.org/api/docs
+curl -sk https://yourdomain.com/api/docs
 ```
 
 ### Health Checks
@@ -243,7 +243,7 @@ Deployment verifies the full stack:
 
 ```bash
 # Primary: domain-based (validates DNS + SSL + nginx + backend)
-curl -sk https://okinomonia.freeddns.org/api/docs
+curl -sk https://yourdomain.com/api/docs
 
 # Fallback: localhost (validates nginx container only)
 curl -sf http://localhost/api/docs
