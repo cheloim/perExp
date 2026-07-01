@@ -14,9 +14,9 @@
 | 8 | Income module | ⏳ Backlog | High | - | Track income, dashboard comparison vs last months |
 | 9 | Ticket scan | ⏳ Backlog | Medium | - | OCR receipt analysis, compare same items last month |
 | 10 | Expense budgets | ⏳ Backlog | Medium | - | Set spending limits per category |
-| 11 | Make index.html interactive | ⏳ Backlog | Medium | - | Filter transactions/categories when clicking Deuda Tarjetas or Cuotas este mes |
+| 11 | Make index.html interactive | ✅ Done | Medium | #73 | Click KPI cards to filter expenses, uncategorized warnings |
 | 12 | Billing period tracking | ⏳ In Progress | Medium | #36 | closing_day on Card, billing API, billing view toggle in Dashboard |
-| 13 | Missing categories notification | ⏳ Backlog | Medium | - | Notify when expenses lack category assignment |
+| 13 | Missing categories notification | ✅ Done | Medium | #73 | Real-time notifications for uncategorized expenses on save + login |
 
 ## Backlog Details
 

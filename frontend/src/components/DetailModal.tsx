@@ -24,14 +24,17 @@ export function DetailModal({ isOpen, onClose, title, subtitle, children }: Deta
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-modal-backdrop">
-      <div className="fixed inset-0 bg-black/60" onClick={onClose} />
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-modal-backdrop bg-black/60"
+      onClick={onClose}
+    >
       <div
         ref={trapRef}
         role="dialog"
         aria-modal="true"
         aria-label={title}
         className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-t-lg sm:rounded-lg shadow-xl w-full sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col animate-modal-content"
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-color)]">
           <div className="min-w-0 flex-1">
