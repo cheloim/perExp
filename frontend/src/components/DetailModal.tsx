@@ -24,7 +24,10 @@ export function DetailModal({ isOpen, onClose, title, subtitle, children }: Deta
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-modal-backdrop bg-black/60" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-modal-backdrop bg-black/60"
+      onClick={onClose}
+    >
       <div
         ref={trapRef}
         role="dialog"

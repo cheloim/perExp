@@ -261,7 +261,10 @@ export function ExpenseModal({
   const trapRef = useFocusTrap(true);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-backdrop bg-black/60" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-backdrop bg-black/60"
+      onClick={onClose}
+    >
       <div
         ref={trapRef}
         role="dialog"
