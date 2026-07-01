@@ -98,6 +98,8 @@ export const getExpenses = (params?: {
   bank?: string;
   person?: string;
   card?: string;
+  card_type?: string;
+  installment?: boolean;
   account?: string;
   search?: string;
   date_from?: string;

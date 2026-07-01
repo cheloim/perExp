@@ -17,6 +17,7 @@ import {
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
 import { formatCurrency, toUpperCase, formatDateDMYSlash, MONTHS_ES_SHORT } from "../utils/format";
+import { showToast } from "../utils/toast";
 import { ExpenseModal } from "../components/ExpenseModals";
 import EmptyState from "../components/ui/EmptyState";
 
@@ -114,7 +115,13 @@ export default function Dashboard() {
 
   const handleSave = (data: ExpenseCreate) => {
     setSaveError(null);
-    createMut.mutate(data);
+    createMut.mutate(data, {
+      onSuccess: () => {
+        if (!data.category_id) {
+          showToast("Gasto guardado sin categoría", "info");
+        }
+      },
+    });
   };
 
   const { data: dashData } = useQuery({
@@ -353,12 +360,18 @@ export default function Dashboard() {
             {dashData?.total_expenses ?? 0} transacciones
           </p>
         </div>
-        <div className="card p-4">
+        <div
+          className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
+          onClick={() => navigate("/expenses?card_type=credito")}
+        >
           <p className="text-[10px] text-tertiary uppercase mb-1">Deuda tarjetas</p>
           <p className="text-lg font-bold text-danger">{formatCurrency(totalPasivos)}</p>
           <p className="text-xs text-tertiary mt-1">{pasivosData?.count ?? 0} cuotas pendientes</p>
         </div>
-        <div className="card p-4">
+        <div
+          className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
+          onClick={() => navigate(`/expenses?installment=1&date_from=${month}-01&date_to=${month}-31`)}
+        >
           <p className="text-[10px] text-tertiary uppercase mb-1">Cuotas este mes</p>
           <p className="text-lg font-bold text-primary">{formatCurrency(cuotasComprometidas)}</p>
           <p className="text-xs text-tertiary mt-1">{currentMonthLoad?.count ?? 0} cuotas</p>

@@ -31,6 +31,8 @@ def get_expenses(
     bank: str | None = None,
     person: str | None = None,
     card: str | None = None,
+    card_type: str | None = None,
+    installment: bool | None = None,
     account: str | None = None,
     account_id: int | None = None,
     search: str | None = None,
@@ -81,6 +83,14 @@ def get_expenses(
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
             Card.card_name.ilike(f"%{card}%")
         )
+    if card_type:
+        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
+            Card.card_type == card_type
+        )
+    if installment is True:
+        q = q.filter(Expense.installment_group_id.isnot(None))
+    elif installment is False:
+        q = q.filter(Expense.installment_group_id.is_(None))
     if account_id:
         q = q.filter(Expense.account_id == account_id)
     if account:
