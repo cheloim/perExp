@@ -320,6 +320,7 @@ export default function Dashboard() {
   const totalPasivos = pasivosData?.total_pasivos ?? 0;
   const currentMonthLoad = monthlyLoad.find((m) => m.is_current);
   const cuotasComprometidas = currentMonthLoad?.total ?? 0;
+  const uncategorizedCount = monthExpenses.filter((e) => !e.category_id).length;
 
   // MoM comparison: total this month vs total of all previous_total in categories
   const prevMonthTotal = (dashData?.by_category ?? []).reduce(
@@ -347,13 +348,35 @@ export default function Dashboard() {
         </button>
       </div>
 
+      {/* Uncategorized expenses warning */}
+      {uncategorizedCount > 0 && (
+        <button
+          onClick={() => navigate("/expenses?uncategorized=1")}
+          className="w-full flex items-center gap-3 p-3 rounded-lg border border-warning/30 bg-warning/5 hover:bg-warning/10 transition-colors cursor-pointer text-left"
+        >
+          <span className="text-warning text-lg">⚠</span>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-warning">
+              {uncategorizedCount} gasto{uncategorizedCount !== 1 ? "s" : ""} sin categorí{uncategorizedCount !== 1 ? "as" : "a"}
+            </p>
+            <p className="text-xs text-tertiary mt-0.5">
+              Asigná categorías para un mejor análisis de tus gastos
+            </p>
+          </div>
+          <span className="text-xs text-tertiary">→</span>
+        </button>
+      )}
+
       {/* KPI Row */}
       <div
         className={`grid grid-cols-2 ${
           savingsArs > 0 || totalUsd > 0 ? "md:grid-cols-5" : "md:grid-cols-4"
         } gap-4`}
       >
-        <div className="card p-4">
+        <div
+          className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
+          onClick={() => navigate("/expenses")}
+        >
           <p className="text-[10px] text-tertiary uppercase mb-1">Total gastado</p>
           <p className="text-lg font-bold text-primary">{formatCurrency(totalSpent)}</p>
           <p className="text-xs text-tertiary mt-1">
