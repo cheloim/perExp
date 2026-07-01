@@ -1,5 +1,6 @@
 from app.tasks.cleanup_import_jobs import cleanup_expired_import_jobs
 from app.tasks.import_processor import process_import_job
+from app.tasks.monthly_report import generate_monthly_reports
 from app.tasks.scheduled_expenses import execute_due_installments
 from app.tasks.weekly_summary import send_weekly_summaries
 
@@ -8,4 +9,5 @@ __all__ = [
     "execute_due_installments",
     "cleanup_expired_import_jobs",
     "send_weekly_summaries",
+    "generate_monthly_reports",
 ]

@@ -226,6 +226,11 @@ export const getMonthlyReport = (params?: { month?: string }) =>
     }>("/dashboard/monthly-report", { params })
     .then((r) => r.data);
 
+export const downloadMonthlyReport = (params?: { month?: string }) => {
+  const query = params?.month ? `?month=${params.month}` : "";
+  window.open(`/api/dashboard/monthly-report/download${query}`, "_blank");
+};
+
 export const getInstallmentsDashboard = () =>
   api.get<InstallmentGroup[]>("/dashboard/installments").then((r) => r.data);
 

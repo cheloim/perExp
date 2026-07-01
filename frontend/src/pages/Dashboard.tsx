@@ -16,6 +16,7 @@ import {
   getTopMerchants,
   getUncategorizedCount,
   getMonthlyReport,
+  downloadMonthlyReport,
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
 import { formatCurrency, toUpperCase, formatDateDMYSlash, MONTHS_ES_SHORT } from "../utils/format";
@@ -863,9 +864,18 @@ export default function Dashboard() {
       {monthlyReport && (
         <div className="space-y-4">
           <div className="card p-4">
-            <h2 className="text-sm font-semibold text-primary mb-3">
-              Reporte Mensual — {MONTHS_ES_SHORT[parseInt(month.split("-")[1]) - 1]} {month.split("-")[0]}
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-primary">
+                Reporte Mensual — {MONTHS_ES_SHORT[parseInt(month.split("-")[1]) - 1]} {month.split("-")[0]}
+              </h2>
+              <button
+                onClick={() => downloadMonthlyReport({ month })}
+                className="text-xs px-3 py-1.5 rounded-md border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition flex items-center gap-1.5"
+              >
+                <span>📥</span>
+                <span>Descargar</span>
+              </button>
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <div>
                 <p className="text-[10px] text-tertiary uppercase">Gastos</p>

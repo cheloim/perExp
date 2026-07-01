@@ -15,4 +15,8 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.weekly_summary.send_weekly_summaries",
         "schedule": crontab(hour=20, minute=0, day_of_week="sunday"),
     },
+    "generate-monthly-reports": {
+        "task": "app.tasks.monthly_report.generate_monthly_reports",
+        "schedule": crontab(hour=23, minute=0, day_of_month="1"),  # 20:00 UTC-3 = 23:00 UTC
+    },
 }
