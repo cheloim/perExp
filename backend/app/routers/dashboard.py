@@ -742,39 +742,25 @@ def list_monthly_reports(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List available monthly reports for the current user (last 6 months)."""
-    from datetime import timedelta
+    """List generated monthly reports for the current user."""
+    reports = (
+        db.query(MonthlyReport)
+        .filter(MonthlyReport.user_id == current_user.id)
+        .order_by(MonthlyReport.month.desc())
+        .all()
+    )
 
-    today = date.today()
-    reports = []
+    result = []
+    for r in reports:
+        report_data = json.loads(r.report_data) if r.report_data else {}
+        result.append({
+            "month": r.month,
+            "status": r.status or "READY",
+            "total_expenses": report_data.get("total_expenses", 0) if r.status == "READY" else None,
+            "generated_at": r.generated_at.isoformat() if r.generated_at else None,
+        })
 
-    for i in range(6):
-        m = add_months(today.replace(day=1), -i)
-        month_str = m.strftime("%Y-%m")
-
-        existing = (
-            db.query(MonthlyReport)
-            .filter(MonthlyReport.user_id == current_user.id, MonthlyReport.month == month_str)
-            .first()
-        )
-
-        if existing:
-            report_data = json.loads(existing.report_data)
-            reports.append({
-                "month": month_str,
-                "status": "ready",
-                "total_expenses": report_data.get("total_expenses", 0),
-                "generated_at": existing.generated_at.isoformat() if existing.generated_at else None,
-            })
-        else:
-            reports.append({
-                "month": month_str,
-                "status": "pending",
-                "total_expenses": None,
-                "generated_at": None,
-            })
-
-    return {"reports": reports}
+    return {"reports": result}
 
 
 @router.post("/monthly-reports/generate")
