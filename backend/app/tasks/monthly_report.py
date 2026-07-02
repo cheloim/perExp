@@ -464,6 +464,9 @@ Usa flags para tendencias preocupantes a monitorear."""
             print(f"[MONTHLY REPORT] LLM analysis failed: {e}")
             analysis = None
 
+    if analysis is None:
+        raise ValueError("No se pudo generar el analisis LLM. Verifique la configuracion de la API key.")
+
     return {
         "month": month_str,
         "total_expenses": total_expenses,
