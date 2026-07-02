@@ -179,8 +179,8 @@
 
   /* Legend */
   .legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-  .legend-item { display: flex; align-items: center; gap: 3px; font-size: 7px; color: rgba(255,255,255,0.8); }
-  .legend-dot { width: 6px; height: 6px; border-radius: 2px; flex-shrink: 0; }
+  .legend-item { display: flex; align-items: center; gap: 3px; font-size: 8px; color: rgba(255,255,255,0.8); }
+  .legend-dot { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
 
   /* Full-width section */
   .full-width { grid-column: 1 / -1; padding: 14px 16px; }
@@ -216,8 +216,8 @@
 
   <!-- Horizontal Bar: Current vs Last Month -->
   <div class="section">
-    <div class="section-title">Gastos: Mes Corriente vs Anterior</div>
-    <canvas id="hbarCompare" width="500" height="120"></canvas>
+    <div class="section-title">Gastos Mes Corriente vs Anterior</div>
+    <canvas id="hbarCompare" width="350" height="100"></canvas>
     {% if analysis and analysis.hbar_notes %}
     <div class="graph-note">{{ analysis.hbar_notes }}</div>
     {% endif %}
@@ -227,8 +227,8 @@
 
   <!-- Vertical Bar: Categories + Line Comparison -->
   <div class="section">
-    <div class="section-title">Gastos por Categoria vs Mes Anterior</div>
-    <canvas id="vbarCategory" width="500" height="160"></canvas>
+    <div class="section-title">Gastos por Categoria</div>
+    <canvas id="vbarCategory" width="350" height="140"></canvas>
     {% if analysis and analysis.vbar_notes %}
     <div class="graph-note">{{ analysis.vbar_notes }}</div>
     {% endif %}
@@ -424,7 +424,7 @@ function makeLegend(containerId, labels, colors) {
 }
 
 function renderCharts() {
-  const chartOpts = { responsive: false, animation: false };
+  const chartOpts = { responsive: false, animation: false, devicePixelRatio: 2 };
 
   // Left: Horizontal Bar - Current vs Last Month
   const hbarEl = document.getElementById('hbarCompare');
