@@ -1,4 +1,5 @@
 import json
+import re
 from calendar import monthrange
 from collections import defaultdict
 from datetime import date, datetime
@@ -409,6 +410,10 @@ Usa flags para tendencias preocupantes a monitorear."""
             response = asyncio.run(_call_llm())
             raw_text = response.text.strip()
             print(f"[MONTHLY REPORT] LLM raw response ({len(raw_text)} chars)")
+            # Print last 500 chars to see what's after the JSON
+            print(f"[MONTHLY REPORT] Last 500 chars: {raw_text[-500:]}")
+            # Also print first 200 chars
+            print(f"[MONTHLY REPORT] First 200 chars: {raw_text[:200]}")
 
             analysis = None
             # Strategy 1: Direct parse
@@ -457,6 +462,27 @@ Usa flags para tendencias preocupantes a monitorear."""
                         cleaned = cleaned[:last_brace + 1]
                     analysis = json.loads(cleaned)
                     print(f"[MONTHLY REPORT] Strategy 4 (clean) succeeded")
+                except json.JSONDecodeError as e:
+                    print(f"[MONTHLY REPORT] Strategy 4 failed: {e}")
+
+            # Strategy 5: Fix common JSON issues (missing commas, trailing commas)
+            if analysis is None:
+                try:
+                    cleaned = raw_text.strip()
+                    if cleaned.startswith("```"):
+                        lines = cleaned.split("\n")
+                        cleaned = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+                    cleaned = cleaned.strip()
+                    last_brace = cleaned.rfind("}")
+                    if last_brace > 0:
+                        cleaned = cleaned[:last_brace + 1]
+                    # Fix missing commas between JSON values
+                    cleaned = re.sub(r'(".*?")\s*\n\s*"', r'\1,\n"', cleaned)
+                    # Remove trailing commas before closing braces
+                    cleaned = re.sub(r',\s*}', '}', cleaned)
+                    cleaned = re.sub(r',\s*]', ']', cleaned)
+                    analysis = json.loads(cleaned)
+                    print(f"[MONTHLY REPORT] Strategy 5 (fix JSON) succeeded")
                 except json.JSONDecodeError as e:
                     print(f"[MONTHLY REPORT] All JSON strategies failed: {e}")
                     analysis = None
