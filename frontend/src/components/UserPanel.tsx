@@ -38,6 +38,12 @@ function ReportsTab() {
   const { data: reportsData, isLoading } = useQuery({
     queryKey: ["monthly-reports"],
     queryFn: getMonthlyReports,
+    refetchInterval: (query) => {
+      // Refetch every 3s if there are pending reports
+      const reports = query.state.data?.reports ?? [];
+      const hasPending = reports.some((r) => r.status === "pending");
+      return hasPending ? 3000 : false;
+    },
   });
 
   const generateMut = useMutation({
@@ -49,20 +55,22 @@ function ReportsTab() {
     },
   });
 
-  const reports = reportsData?.reports ?? [];
+  // Only show reports that are ready or currently generating
+  const allReports = reportsData?.reports ?? [];
+  const displayReports = allReports.filter((r) => r.status === "ready" || r.status === "pending");
 
-  // Generate month options for last 12 months
+  // Month options for modal — last 12 months
   const monthOptions = [];
   const now = new Date();
   for (let i = 0; i < 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     const monthName = MONTHS_ES[d.getMonth()];
-    const existing = reports.find((r) => r.month === monthStr);
+    const existing = allReports.find((r) => r.month === monthStr);
     monthOptions.push({
       value: monthStr,
       label: `${monthName} ${d.getFullYear()}`,
-      status: existing?.status ?? "pending",
+      status: existing?.status ?? "available",
     });
   }
 
@@ -79,7 +87,7 @@ function ReportsTab() {
         </div>
         <button
           onClick={() => setShowGenerateModal(true)}
-          className="px-3 py-1.5 rounded-md bg-[var(--color-primary)] text-white text-xs font-medium hover:opacity-90 transition flex items-center gap-1.5"
+          className="gnome-btn-primary-round text-xs"
         >
           <span>+</span>
           <span>Generar</span>
@@ -90,17 +98,18 @@ function ReportsTab() {
         <div className="flex justify-center py-8">
           <div className="animate-spin rounded-full h-6 w-6 border-2 border-[var(--color-primary)] border-t-transparent" />
         </div>
-      ) : reports.length === 0 ? (
+      ) : displayReports.length === 0 ? (
         <p className="text-xs text-[var(--text-tertiary)] text-center py-8">
-          No hay reportes disponibles. Generá uno haciendo click en "Generar".
+          No hay reportes generados. Hacé click en "Generar" para crear uno.
         </p>
       ) : (
         <div className="space-y-2">
-          {reports.map((r) => {
+          {displayReports.map((r) => {
             const [y, m] = r.month.split("-");
             const monthNum = parseInt(m);
             const monthName = MONTHS_ES[monthNum - 1] || m;
             const isReady = r.status === "ready";
+            const isPending = r.status === "pending";
 
             return (
               <div
@@ -129,7 +138,10 @@ function ReportsTab() {
                       </button>
                     </>
                   ) : (
-                    <span className="text-[10px] text-[var(--text-tertiary)]">Pendiente</span>
+                    <span className="text-[10px] text-[var(--text-tertiary)] flex items-center gap-1">
+                      <span className="animate-spin inline-block h-3 w-3 border border-[var(--text-tertiary)] border-t-transparent rounded-full" />
+                      Generando...
+                    </span>
                   )}
                 </div>
               </div>
@@ -173,6 +185,9 @@ function ReportsTab() {
                     <span>{opt.label}</span>
                     {opt.status === "ready" && (
                       <span className="text-[10px] text-success">Listo</span>
+                    )}
+                    {opt.status === "pending" && (
+                      <span className="text-[10px] text-[var(--text-tertiary)]">Generando...</span>
                     )}
                   </div>
                 </button>

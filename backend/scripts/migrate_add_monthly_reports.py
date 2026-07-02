@@ -43,7 +43,7 @@ def main():
             """)).scalar()
 
             if exists:
-                print("Table already exists. Checking for pdf_data column...")
+                print("Table already exists. Checking for columns...")
                 has_pdf_data = conn.execute(text("""
                     SELECT EXISTS (
                         SELECT 1 FROM information_schema.columns
@@ -58,6 +58,40 @@ def main():
                     print("pdf_data column added!")
                 else:
                     print("pdf_data column already exists.")
+
+                has_status = conn.execute(text("""
+                    SELECT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'monthly_reports' AND column_name = 'status'
+                    )
+                """)).scalar()
+                if not has_status:
+                    print("Adding status column...")
+                    conn.execute(text("""
+                        ALTER TABLE monthly_reports ADD COLUMN status VARCHAR(20) DEFAULT 'READY'
+                    """))
+                    # Set existing reports to READY
+                    conn.execute(text("""
+                        UPDATE monthly_reports SET status = 'READY' WHERE status IS NULL
+                    """))
+                    print("status column added!")
+                else:
+                    print("status column already exists.")
+
+                has_error = conn.execute(text("""
+                    SELECT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'monthly_reports' AND column_name = 'error_message'
+                    )
+                """)).scalar()
+                if not has_error:
+                    print("Adding error_message column...")
+                    conn.execute(text("""
+                        ALTER TABLE monthly_reports ADD COLUMN error_message TEXT
+                    """))
+                    print("error_message column added!")
+                else:
+                    print("error_message column already exists.")
             else:
                 print("Creating monthly_reports table...")
                 conn.execute(text("""
@@ -65,8 +99,10 @@ def main():
                         id SERIAL PRIMARY KEY,
                         user_id INTEGER NOT NULL REFERENCES users.id ON DELETE CASCADE,
                         month VARCHAR(7) NOT NULL,
-                        report_data TEXT NOT NULL,
+                        status VARCHAR(20) DEFAULT 'READY',
+                        report_data TEXT,
                         pdf_data BYTEA,
+                        error_message TEXT,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         generated_at TIMESTAMP
                     )

@@ -783,58 +783,40 @@ def generate_monthly_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Generate a monthly report on-demand and store it."""
-    from app.services.pdf_report import _build_report_data, generate_pdf
-
+    """Generate a monthly report on-demand. Dispatches Celery task for async generation."""
     try:
         y, m_int = int(month[:4]), int(month[5:7])
         month_str = f"{y}-{m_int:02d}"
     except (ValueError, IndexError):
         raise HTTPException(400, "Invalid month format. Use YYYY-MM.")
 
-    # Check if already exists
+    # Check if already exists and ready
     existing = (
         db.query(MonthlyReport)
         .filter(MonthlyReport.user_id == current_user.id, MonthlyReport.month == month_str)
         .first()
     )
-    if existing:
+    if existing and existing.status == "READY":
         return {"month": month_str, "status": "already_exists"}
+    if existing and existing.status == "PENDING":
+        return {"month": month_str, "status": "already_generating"}
 
-    # Generate report data
-    report_data = _build_report_data(current_user.id, month_str, db)
-
-    # Generate PDF
-    user_name = current_user.full_name or current_user.email
-    pdf_bytes = generate_pdf(report_data, user_name)
-
-    # Store in DB
+    # Create PENDING record
     report = MonthlyReport(
         user_id=current_user.id,
         month=month_str,
-        report_data=json.dumps(report_data),
-        pdf_data=pdf_bytes,
-        generated_at=date.today(),
+        status="PENDING",
+        report_data="{}",
     )
     db.add(report)
-
-    # Create notification
-    from datetime import datetime
-
-    y_n, m_n = int(month_str[:4]), int(month_str[5:7])
-    month_name = MONTHS_ES.get(m_n, str(m_n))
-    notification = Notification(
-        user_id=current_user.id,
-        type="monthly_report_ready",
-        title=f"Reporte listo: {month_name} {y_n}",
-        body="Tu reporte mensual PDF está listo para descargar.",
-        data=json.dumps({"month": month_str}),
-        read=False,
-    )
-    db.add(notification)
     db.commit()
 
-    return {"month": month_str, "status": "generated"}
+    # Dispatch Celery task
+    from app.tasks.monthly_report import generate_single_report
+
+    generate_single_report.delay(current_user.id, month_str)
+
+    return {"month": month_str, "status": "queued"}
 
 
 @router.get("/monthly-reports/{month}/download")

@@ -248,8 +248,15 @@ export const generateMonthlyReport = (month: string) =>
     .post<{ month: string; status: string }>(`/dashboard/monthly-reports/generate?month=${month}`)
     .then((r) => r.data);
 
-export const downloadReportPdf = (month: string) => {
-  window.open(`/api/dashboard/monthly-reports/${month}/download`, "_blank");
+export const downloadReportPdf = async (month: string) => {
+  const token = localStorage.getItem("auth_token");
+  const res = await fetch(`/api/dashboard/monthly-reports/${month}/download`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Failed to download report");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
 };
 
 export const getInstallmentsDashboard = () =>

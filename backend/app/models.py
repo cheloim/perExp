@@ -274,7 +274,9 @@ class MonthlyReport(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     month = Column(String(7), nullable=False)  # YYYY-MM format
-    report_data = Column(Text, nullable=False)  # JSON with full report data
+    status = Column(String(20), default="READY")  # PENDING | READY | FAILED
+    report_data = Column(Text, nullable=True)  # JSON with full report data
     pdf_data = Column(LargeBinary, nullable=True)  # Generated PDF bytes
+    error_message = Column(Text, nullable=True)  # Error if FAILED
     created_at = Column(DateTime, default=datetime.utcnow)
     generated_at = Column(DateTime, nullable=True)

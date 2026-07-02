@@ -1,16 +1,24 @@
 import json
 from calendar import monthrange
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime
 
 from app.celery_app import celery_app
 from app.database import SessionLocal
-from app.models import Category, Expense, MonthlyReport, User
+from app.models import Category, Expense, MonthlyReport, Notification, User
 from app.routers.groups import get_group_user_ids
+
+MONTHS_ES = {
+    1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
+    5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
+    9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre",
+}
 
 
 def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     """Generate the monthly report data for a user and month."""
+    from app.services.date_utils import add_months
+
     y, m = int(month_str[:4]), int(month_str[5:7])
     target_start = date(y, m, 1)
     target_end = date(y, m, monthrange(y, m)[1])
@@ -51,8 +59,6 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     top_categories = sorted(by_cat.values(), key=lambda x: x["total"], reverse=True)[:5]
 
     # Previous month for comparison
-    from app.services.date_utils import add_months
-
     prev_start = add_months(target_start, -1)
     prev_end = date(prev_start.year, prev_start.month, monthrange(prev_start.year, prev_start.month)[1])
     prev_expenses = (
@@ -63,12 +69,10 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     previous_total = sum(abs(e.amount) for e in prev_expenses if not e.is_income)
     previous_income = sum(abs(e.amount) for e in prev_expenses if e.is_income)
 
-    # Savings rate
     savings_rate = 0.0
     if total_income > 0:
         savings_rate = ((total_income - total_expenses) / total_income) * 100
 
-    # MoM change
     mom_change = 0.0
     if previous_total > 0:
         mom_change = ((total_expenses - previous_total) / previous_total) * 100
@@ -106,6 +110,99 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     }
 
 
+@celery_app.task(name="app.tasks.monthly_report.generate_single_report")
+def generate_single_report(user_id: int, month_str: str):
+    """
+    Generate a single monthly report for a user.
+    Called on-demand from the API. Creates notification when done.
+    """
+    db = SessionLocal()
+    try:
+        from app.services.pdf_report import generate_pdf
+
+        # Find the pending report
+        report = (
+            db.query(MonthlyReport)
+            .filter(
+                MonthlyReport.user_id == user_id,
+                MonthlyReport.month == month_str,
+                MonthlyReport.status == "PENDING",
+            )
+            .first()
+        )
+        if not report:
+            print(f"[MONTHLY REPORT] No pending report found for user {user_id}, month {month_str}")
+            return
+
+        # Generate report data
+        report_data = _generate_report_data(user_id, month_str, db)
+
+        # Generate PDF
+        user = db.query(User).filter(User.id == user_id).first()
+        user_name = user.full_name if user and user.full_name else (user.email if user else "Usuario")
+        pdf_bytes = generate_pdf(report_data, user_name)
+
+        # Update report
+        report.report_data = json.dumps(report_data)
+        report.pdf_data = pdf_bytes
+        report.status = "READY"
+        report.generated_at = datetime.utcnow()
+
+        # Create notification
+        y_n, m_n = int(month_str[:4]), int(month_str[5:7])
+        month_name = MONTHS_ES.get(m_n, str(m_n))
+        notification = Notification(
+            user_id=user_id,
+            type="monthly_report_ready",
+            title=f"Reporte listo: {month_name} {y_n}",
+            body="Tu reporte mensual PDF está listo para descargar.",
+            data=json.dumps({"month": month_str}),
+            read=False,
+        )
+        db.add(notification)
+        db.commit()
+        print(f"[MONTHLY REPORT] Generated report for user {user_id}, month {month_str}")
+
+    except Exception as e:
+        print(f"[MONTHLY REPORT] Error generating report for user {user_id}: {e}")
+        import traceback
+        traceback.print_exc()
+
+        # Mark as failed
+        try:
+            report = (
+                db.query(MonthlyReport)
+                .filter(
+                    MonthlyReport.user_id == user_id,
+                    MonthlyReport.month == month_str,
+                )
+                .first()
+            )
+            if report:
+                report.status = "FAILED"
+                report.error_message = str(e)[:500]
+                db.commit()
+
+            # Create error notification
+            y_n, m_n = int(month_str[:4]), int(month_str[5:7])
+            month_name = MONTHS_ES.get(m_n, str(m_n))
+            notification = Notification(
+                user_id=user_id,
+                type="monthly_report_failed",
+                title=f"Error al generar reporte: {month_name} {y_n}",
+                body=f"No se pudo generar: {str(e)[:100]}",
+                data=json.dumps({"month": month_str, "error": str(e)[:200]}),
+                read=False,
+            )
+            db.add(notification)
+            db.commit()
+        except Exception:
+            db.rollback()
+
+    finally:
+        db.close()
+
+
 @celery_app.task(name="app.tasks.monthly_report.generate_monthly_reports")
 def generate_monthly_reports():
     """
@@ -114,7 +211,6 @@ def generate_monthly_reports():
     """
     db = SessionLocal()
     try:
-        # Generate for previous month
         from app.services.date_utils import add_months
 
         today = date.today()
@@ -136,14 +232,37 @@ def generate_monthly_reports():
 
             try:
                 report_data = _generate_report_data(user.id, month_str, db)
+
+                # Generate PDF
+                from app.services.pdf_report import generate_pdf
+
+                user_name = user.full_name if user.full_name else user.email
+                pdf_bytes = generate_pdf(report_data, user_name)
+
                 report = MonthlyReport(
                     user_id=user.id,
                     month=month_str,
+                    status="READY",
                     report_data=json.dumps(report_data),
-                    generated_at=date.today(),
+                    pdf_data=pdf_bytes,
+                    generated_at=datetime.utcnow(),
                 )
                 db.add(report)
                 generated_count += 1
+
+                # Create notification
+                y_n, m_n = int(month_str[:4]), int(month_str[5:7])
+                month_name = MONTHS_ES.get(m_n, str(m_n))
+                notification = Notification(
+                    user_id=user.id,
+                    type="monthly_report_ready",
+                    title=f"Reporte listo: {month_name} {y_n}",
+                    body="Tu reporte mensual PDF está listo para descargar.",
+                    data=json.dumps({"month": month_str}),
+                    read=False,
+                )
+                db.add(notification)
+
             except Exception as e:
                 print(f"[MONTHLY REPORT] Error generating for user {user.id}: {e}")
                 continue
@@ -153,32 +272,5 @@ def generate_monthly_reports():
     except Exception as e:
         print(f"[MONTHLY REPORT] Error: {e}")
         db.rollback()
-    finally:
-        db.close()
-
-
-def generate_user_report(user_id: int, month_str: str) -> dict:
-    """Generate and store a report for a specific user and month. Used for on-demand generation."""
-    db = SessionLocal()
-    try:
-        # Check if report already exists
-        existing = (
-            db.query(MonthlyReport)
-            .filter(MonthlyReport.user_id == user_id, MonthlyReport.month == month_str)
-            .first()
-        )
-        if existing:
-            return json.loads(existing.report_data)
-
-        report_data = _generate_report_data(user_id, month_str, db)
-        report = MonthlyReport(
-            user_id=user_id,
-            month=month_str,
-            report_data=json.dumps(report_data),
-            generated_at=date.today(),
-        )
-        db.add(report)
-        db.commit()
-        return report_data
     finally:
         db.close()
