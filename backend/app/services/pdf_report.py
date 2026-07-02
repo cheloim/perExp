@@ -48,15 +48,17 @@ def _fmt(amount: float) -> str:
 # ---------------------------------------------------------------------------
 
 def _build_doughnut_data(categories: list[dict], total: float) -> dict:
-    """Build Chart.js doughnut data for category distribution."""
+    """Build Chart.js doughnut data for category distribution with vivid colors."""
     labels, values, colors = [], [], []
-    for cat in categories[:8]:
+    # Vivid color palette - unique for category doughnut
+    vivid_palette = ["#8b5cf6", "#06b6d4", "#f43f5e", "#f97316", "#14b8a6", "#ec4899", "#eab308", "#6366f1"]
+    for i, cat in enumerate(categories[:8]):
         pct = cat["total"] / total if total > 0 else 0
         if pct < 0.02:
             continue
         labels.append(cat["name"][:20])
         values.append(round(cat["total"], 2))
-        colors.append(cat.get("color", "#6b7280"))
+        colors.append(vivid_palette[i % len(vivid_palette)])
 
     shown = sum(values)
     if shown < total * 0.98:
@@ -87,43 +89,46 @@ def _build_trend_data(trend: list[dict]) -> dict:
 
 
 def _build_daily_data(pattern: list[dict]) -> dict:
-    """Build Chart.js bar data for daily spending pattern."""
+    """Build Chart.js bar data for daily spending pattern with vivid colors."""
     labels = [p["day"] for p in pattern]
     values = [round(p["total"], 2) for p in pattern]
     mx = max(values) if values else 1
-    colors = ["#6366f1" if v == mx else "#c7d2fe" for v in values]
+    # Cyan palette - unique for daily bar
+    colors = ["#06b6d4" if v == mx else "#a5f3fc" for v in values]
     return {"labels": labels, "values": values, "colors": colors}
 
 
 def _build_trends_bar_data(trends: list[dict]) -> dict:
-    """Build Chart.js horizontal bar data for category trends."""
+    """Build Chart.js horizontal bar data for category trends with vivid colors."""
     top = [t for t in trends if abs(t.get("change_pct", 0)) > 0][:5]
     if not top:
         return {"labels": [], "values": [], "colors": []}
     labels = [t["name"][:16] for t in top]
     values = [round(t["change_pct"], 1) for t in top]
-    colors = ["#22c55e" if v > 0 else "#ef4444" for v in values]
+    # Emerald for positive, rose for negative - unique for trends
+    colors = ["#10b981" if v > 0 else "#f43f5e" for v in values]
     return {"labels": labels, "values": values, "colors": colors}
 
 
 def _build_account_doughnut_data(accounts: list[dict], cards: list[dict]) -> dict:
-    """Build Chart.js doughnut data for account/card consumption."""
+    """Build Chart.js doughnut data for account/card consumption with vivid colors."""
     labels, values, colors = [], [], []
-    palette = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899", "#14b8a6"]
+    # Orange/amber palette - unique for account doughnut
+    account_palette = ["#f97316", "#f59e0b", "#ef4444", "#ec4899", "#8b5cf6", "#06b6d4", "#14b8a6", "#6366f1"]
     idx = 0
 
     for a in accounts:
         if a.get("total_raw", 0) > 0:
             labels.append(a["name"][:18])
             values.append(round(a["total_raw"], 2))
-            colors.append(palette[idx % len(palette)])
+            colors.append(account_palette[idx % len(account_palette)])
             idx += 1
 
     for c in cards:
         if c.get("total_raw", 0) > 0:
             labels.append(c["name"][:18])
             values.append(round(c["total_raw"], 2))
-            colors.append(palette[idx % len(palette)])
+            colors.append(account_palette[idx % len(account_palette)])
             idx += 1
 
     return {"labels": labels, "values": values, "colors": colors}

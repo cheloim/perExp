@@ -350,7 +350,11 @@ Fecha: {today.isoformat()}"""
   "alerts": ["<alerta critica o null, ej: gasto excesivo en X>"],
   "flags": ["<bandera de atencion o null, ej: tendencia preocupante en Y>"],
   "tip": "<consejo concreto de ahorro>",
-  "next_month_suggestion": "<sugerencia especifica para el proximo mes>"
+  "next_month_suggestion": "<sugerencia especifica para el proximo mes>",
+  "hbar_notes": "<nota breve sobre la comparativa de gastos corriente vs anterior, 1 linea>",
+  "vbar_notes": "<nota breve sobre la distribucion por categorias y cual cambio mas, 1 linea>",
+  "heatmap_notes": "<nota breve sobre que cuenta/tarjeta gasto mas, 1 linea>",
+  "cuotas_notes": "<nota breve sobre impacto de cuotas futuras, 1 linea>"
 }
 Sé especifico con numeros. Español, claro, amigable. Sin emojis.
 El resume debe ser un texto corrido y detallado, no solo oraciones sueltas.
