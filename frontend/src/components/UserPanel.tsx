@@ -118,9 +118,18 @@ function ReportsTab() {
                 className="flex items-center justify-between p-3 rounded-lg border border-[var(--border-color)] bg-[var(--color-base-container)]"
               >
                 <div className="min-w-0">
-                  <p className="text-xs font-medium text-[var(--text-primary)]">
-                    {monthName} {y}
-                  </p>
+                  {isReady ? (
+                    <button
+                      onClick={() => downloadReportPdf(r.month)}
+                      className="text-xs font-medium text-[var(--color-primary)] hover:underline text-left"
+                    >
+                      {monthName} {y}
+                    </button>
+                  ) : (
+                    <p className="text-xs font-medium text-[var(--text-primary)]">
+                      {monthName} {y}
+                    </p>
+                  )}
                   {isReady && r.total_expenses != null && (
                     <p className="text-[10px] text-[var(--text-tertiary)]">
                       {formatCurrency(r.total_expenses)}
@@ -129,15 +138,7 @@ function ReportsTab() {
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {isReady ? (
-                    <>
-                      <span className="text-[10px] text-success font-medium">Listo</span>
-                      <button
-                        onClick={() => downloadReportPdf(r.month)}
-                        className="px-2.5 py-1 rounded-md border border-[var(--border-color)] text-[10px] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition flex items-center gap-1"
-                      >
-                        <span>PDF</span>
-                      </button>
-                    </>
+                    <span className="text-[10px] text-success font-medium">Listo</span>
                   ) : (
                     <span className="text-[10px] text-[var(--text-tertiary)] flex items-center gap-1">
                       <span className="animate-spin inline-block h-3 w-3 border border-[var(--text-tertiary)] border-t-transparent rounded-full" />
