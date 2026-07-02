@@ -314,7 +314,8 @@ Usa flags para tendencias preocupantes a monitorear."""
 
             response = asyncio.run(_call_llm())
             analysis = json.loads(response.text)
-        except Exception:
+        except Exception as e:
+            print(f"[MONTHLY REPORT] LLM analysis failed: {e}")
             analysis = None
 
     return {
