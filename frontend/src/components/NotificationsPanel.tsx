@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
-import { rejectGroupInvitation } from "../api/client";
+import { rejectGroupInvitation, downloadReportPdf } from "../api/client";
 import type { Notification } from "../types";
 import InvitationDisclaimer from "./InvitationDisclaimer";
 import { useUploadProgress } from "../context/UploadProgressContext";
@@ -113,6 +113,13 @@ export default function NotificationsPanel({ onClose }: Props) {
       handleMarkRead(n.id);
       navigate("/expenses?uncategorized=1");
       onClose();
+    } else if (n.type === "monthly_report_ready") {
+      const month = n.data.month;
+      if (month) {
+        handleMarkRead(n.id);
+        downloadReportPdf(month);
+        onClose();
+      }
     }
   };
 
@@ -338,7 +345,7 @@ export default function NotificationsPanel({ onClose }: Props) {
             const isImportNotif = n.type === "import_ready" || n.type === "import_failed";
             const isUncategorizedNotif =
               n.type === "uncategorized_expense" || n.type === "uncategorized_expenses";
-            const isClickable = isImportNotif || isUncategorizedNotif;
+            const isClickable = isImportNotif || isUncategorizedNotif || n.type === "monthly_report_ready";
             const isFailed = n.type === "import_failed";
             return (
               <div
@@ -353,7 +360,7 @@ export default function NotificationsPanel({ onClose }: Props) {
                   isClickable
                     ? "cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
                     : ""
-                } ${isImportNotif ? "border-l-4 " + (isFailed ? "border-l-red-500" : "border-l-green-500") : ""} ${isUncategorizedNotif ? "border-l-4 border-l-amber-500" : ""}`}
+                } ${isImportNotif ? "border-l-4 " + (isFailed ? "border-l-red-500" : "border-l-green-500") : ""} ${isUncategorizedNotif ? "border-l-4 border-l-amber-500" : ""} ${n.type === "monthly_report_ready" ? "border-l-4 border-l-blue-500" : ""}`}
                 role={isClickable ? "button" : undefined}
                 tabIndex={isClickable ? 0 : undefined}
               >
@@ -442,6 +449,27 @@ export default function NotificationsPanel({ onClose }: Props) {
                           <circle cx="8" cy="12" r="0.75" fill="currentColor" />
                         </svg>
                       )}
+                      {n.type === "monthly_report_ready" && (
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          className="text-blue-500"
+                        >
+                          <path
+                            d="M4 1.5h8a1 1 0 011 1v11a1 1 0 01-1 1H4a1 1 0 01-1-1v-11a1 1 0 011-1z"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                          />
+                          <path
+                            d="M5 5h6M5 8h6M5 11h3"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      )}
                     </span>
                     <p className="text-[var(--text-primary)] text-sm font-medium leading-tight truncate">
                       {n.title}
@@ -492,6 +520,22 @@ export default function NotificationsPanel({ onClose }: Props) {
                   <p className="text-[var(--color-primary)] text-xs font-medium">
                     Ver gastos sin categoría →
                   </p>
+                )}
+
+                {n.type === "monthly_report_ready" && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const month = n.data.month;
+                      if (month) {
+                        handleMarkRead(n.id);
+                        downloadReportPdf(month);
+                      }
+                    }}
+                    className="text-[var(--color-primary)] text-xs font-medium hover:underline"
+                  >
+                    Descargar PDF →
+                  </button>
                 )}
 
                 {n.type === "group_invitation" &&
