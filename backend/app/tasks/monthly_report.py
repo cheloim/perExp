@@ -362,7 +362,13 @@ Usa flags para tendencias preocupantes a monitorear."""
                 )
 
             response = asyncio.run(_call_llm())
-            analysis = json.loads(response.text)
+            raw_text = response.text
+            # Extract JSON from markdown code blocks if present
+            if "```json" in raw_text:
+                raw_text = raw_text.split("```json")[1].split("```")[0].strip()
+            elif "```" in raw_text:
+                raw_text = raw_text.split("```")[1].strip()
+            analysis = json.loads(raw_text)
         except Exception as e:
             print(f"[MONTHLY REPORT] LLM analysis failed: {e}")
             analysis = None
