@@ -207,6 +207,12 @@
     color: #9a3412;
   }
 
+  .icon-alert { color: #ef4444; font-weight: bold; }
+  .icon-flag { color: #f97316; font-weight: bold; }
+  .icon-tip { color: #8b5cf6; font-weight: bold; }
+  .icon-info { color: #6366f1; font-weight: bold; }
+  .icon-check { color: #22c55e; font-weight: bold; }
+
   /* ── Summary Stats ──────────────────── */
   .stat-row {
     display: flex;
@@ -409,49 +415,49 @@
 
   {% if analysis.highlights %}
   {% for h in analysis.highlights %}
-  <div class="highlight-box">{{ h }}</div>
+  <div class="highlight-box"><span class="icon-check">✓</span> {{ h }}</div>
   {% endfor %}
   {% endif %}
 
   {% if analysis.category_notes %}
-  <div class="insight-box">{{ analysis.category_notes }}</div>
+  <div class="insight-box"><span class="icon-info">i</span> {{ analysis.category_notes }}</div>
   {% endif %}
 
   {% if analysis.comparison_notes %}
-  <div class="insight-box">{{ analysis.comparison_notes }}</div>
+  <div class="insight-box"><span class="icon-info">i</span> {{ analysis.comparison_notes }}</div>
   {% endif %}
 
   {% if analysis.accounts_notes %}
-  <div class="insight-box">{{ analysis.accounts_notes }}</div>
+  <div class="insight-box"><span class="icon-info">i</span> {{ analysis.accounts_notes }}</div>
   {% endif %}
 
   {% if analysis.future_notes %}
-  <div class="insight-box">{{ analysis.future_notes }}</div>
+  <div class="insight-box"><span class="icon-info">i</span> {{ analysis.future_notes }}</div>
   {% endif %}
 
   {% if analysis.concern %}
-  <div class="alert-box">⚠ {{ analysis.concern }}</div>
+  <div class="alert-box"><span class="icon-alert">!</span> {{ analysis.concern }}</div>
   {% endif %}
 
   {% if analysis.alerts %}
   {% for a in analysis.alerts %}
-  <div class="alert-box">🚨 {{ a }}</div>
+  <div class="alert-box"><span class="icon-alert">!!</span> {{ a }}</div>
   {% endfor %}
   {% endif %}
 
   {% if analysis.flags %}
   {% for f in analysis.flags %}
-  <div class="flag-box">🚩 {{ f }}</div>
+  <div class="flag-box"><span class="icon-flag">></span> {{ f }}</div>
   {% endfor %}
   {% endif %}
 
   {% if analysis.tip %}
-  <div class="tip-box">💡 {{ analysis.tip }}</div>
+  <div class="tip-box"><span class="icon-tip">*</span> {{ analysis.tip }}</div>
   {% endif %}
 
   {% if analysis.next_month_suggestion %}
   <div class="highlight-box">
-    <strong>Próximo mes:</strong> {{ analysis.next_month_suggestion }}
+    <span class="icon-check">→</span> <strong>Próximo mes:</strong> {{ analysis.next_month_suggestion }}
   </div>
   {% endif %}
 </div>
