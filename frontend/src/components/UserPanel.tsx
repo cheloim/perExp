@@ -59,19 +59,20 @@ function ReportsTab() {
   const allReports = reportsData?.reports ?? [];
   const displayReports = allReports.filter((r) => r.status === "ready" || r.status === "pending");
 
-  // Month options for modal — last 12 months
+  // Month options for modal — only months NOT yet generated
+  const generatedMonths = new Set(allReports.map((r) => r.month));
   const monthOptions = [];
   const now = new Date();
   for (let i = 0; i < 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const monthName = MONTHS_ES[d.getMonth()];
-    const existing = allReports.find((r) => r.month === monthStr);
-    monthOptions.push({
-      value: monthStr,
-      label: `${monthName} ${d.getFullYear()}`,
-      status: existing?.status ?? "available",
-    });
+    if (!generatedMonths.has(monthStr)) {
+      const monthName = MONTHS_ES[d.getMonth()];
+      monthOptions.push({
+        value: monthStr,
+        label: `${monthName} ${d.getFullYear()}`,
+      });
+    }
   }
 
   return (
@@ -170,28 +171,26 @@ function ReportsTab() {
               Seleccioná el mes para generar el reporte PDF.
             </p>
             <div className="space-y-1.5 max-h-60 overflow-y-auto">
-              {monthOptions.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setSelectedMonth(opt.value)}
-                  disabled={generateMut.isPending}
-                  className={`w-full text-left px-3 py-2 rounded-md text-xs transition ${
-                    selectedMonth === opt.value
-                      ? "bg-[var(--color-primary)]/10 border border-[var(--color-primary)] text-[var(--color-primary)]"
-                      : "border border-[var(--border-color)] hover:bg-[var(--color-base-alt)] text-[var(--text-primary)]"
-                  } disabled:opacity-50`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span>{opt.label}</span>
-                    {opt.status === "ready" && (
-                      <span className="text-[10px] text-success">Listo</span>
-                    )}
-                    {opt.status === "pending" && (
-                      <span className="text-[10px] text-[var(--text-tertiary)]">Generando...</span>
-                    )}
-                  </div>
-                </button>
-              ))}
+              {monthOptions.length === 0 ? (
+                <p className="text-xs text-[var(--text-tertiary)] text-center py-4">
+                  Ya tenés reportes para todos los meses disponibles.
+                </p>
+              ) : (
+                monthOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setSelectedMonth(opt.value)}
+                    disabled={generateMut.isPending}
+                    className={`w-full text-left px-3 py-2 rounded-md text-xs transition ${
+                      selectedMonth === opt.value
+                        ? "bg-[var(--color-primary)]/10 border border-[var(--color-primary)] text-[var(--color-primary)]"
+                        : "border border-[var(--border-color)] hover:bg-[var(--color-base-alt)] text-[var(--text-primary)]"
+                    } disabled:opacity-50`}
+                  >
+                    {opt.label}
+                  </button>
+                ))
+              )}
             </div>
             <div className="flex gap-2 pt-2">
               <button
