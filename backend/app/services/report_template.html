@@ -27,9 +27,28 @@
     border-right: 1px solid #e2e8f0;
   }
 
-  /* Right side - blue panel */
+  /* KPI Cards */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .kpi {
+    background: white;
+    border-radius: 8px;
+    padding: 10px 12px;
+    border-left: 3px solid #e2e8f0;
+  }
+  .kpi .label { font-size: 8px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 2px; }
+  .kpi .value { font-size: 18px; font-weight: 800; color: #1e293b; }
+  .kpi-red { border-left-color: #ef4444; }
+  .kpi-green { border-left-color: #22c55e; }
+  .kpi-blue { border-left-color: #3b82f6; }
+
+  /* Right side - deep navy panel */
   .right {
-    background: #93c5fd;
+    background: #1e3a5f;
     padding: 14px 16px 14px 14px;
     color: white;
     display: flex;
@@ -39,9 +58,29 @@
 
   /* Header */
   .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 10px;
     padding-bottom: 8px;
     border-bottom: 1px solid #e2e8f0;
+  }
+  .header .logo-area {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .header .logo {
+    width: 28px;
+    height: 28px;
+    background: #4f46e5;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
   }
   .header .company { font-size: 11px; font-weight: 700; color: #1e293b; }
   .header .subtitle { font-size: 9px; color: #64748b; }
@@ -83,10 +122,10 @@
 
   .divider {
     border: none;
-    border-top: 1px solid #e2e8f0;
+    border-top: 2px dotted #00bcd4;
     margin: 10px 0;
   }
-  .right .divider { border-top-color: rgba(255,255,255,0.2); }
+  .right .divider { border-top-color: rgba(0,188,212,0.4); }
 
   /* Summary text */
   .summary { font-size: 9px; color: #475569; line-height: 1.5; margin-bottom: 8px; }
@@ -158,8 +197,13 @@
 
   <!-- Header -->
   <div class="header">
-    <div class="company">NikoFin Okinomonia</div>
-    <div class="subtitle">Finanzas Personales</div>
+    <div class="logo-area">
+      <div class="logo">N</div>
+      <div>
+        <div class="company">NikoFin Okinomonia</div>
+        <div class="subtitle">Finanzas Personales</div>
+      </div>
+    </div>
     <div class="month">Reporte {{ month_name }} {{ year }}</div>
   </div>
 
