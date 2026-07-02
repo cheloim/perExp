@@ -2,57 +2,56 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    color: #1f2937;
+    color: #1e293b;
     font-size: 10px;
     line-height: 1.4;
+    width: 210mm;
+    height: 297mm;
+    overflow: hidden;
     background: #f8fafc;
-    padding: 12px;
   }
 
-  .page {
-    background: white;
-    border-radius: 10px;
-    padding: 16px;
-    margin-bottom: 12px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    page-break-after: always;
+  .report {
+    padding: 14px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
-  .page:last-child { page-break-after: avoid; }
 
   /* Header */
-  .report-header {
+  .header {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    margin-bottom: 8px;
-    padding-bottom: 6px;
+    padding-bottom: 8px;
     border-bottom: 2px solid #e2e8f0;
   }
-  .report-header .month { font-size: 14px; color: #6366f1; font-weight: 700; }
-  .report-header h1 { font-size: 13px; font-weight: 600; color: #64748b; margin: 0; }
-  .report-header .meta { font-size: 8px; color: #94a3b8; margin-top: 1px; }
+  .header .month { font-size: 15px; color: #6366f1; font-weight: 700; }
+  .header h1 { font-size: 14px; font-weight: 600; color: #64748b; margin: 0; }
+  .header .meta { font-size: 8px; color: #94a3b8; margin-top: 1px; }
 
   /* KPIs */
-  .kpi-grid {
+  .kpi-row {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 8px;
-    margin-bottom: 10px;
   }
-  .kpi-card {
-    border-radius: 8px;
-    padding: 8px 6px;
+  .kpi {
+    border-radius: 10px;
+    padding: 10px 8px;
     text-align: center;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
   }
-  .kpi-card .label { font-size: 7px; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 2px; font-weight: 500; }
-  .kpi-card .value { font-size: 13px; font-weight: 700; }
-  .kpi-card .sub { font-size: 7px; margin-top: 1px; opacity: 0.8; }
+  .kpi .label { font-size: 7px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; margin-bottom: 2px; }
+  .kpi .value { font-size: 16px; font-weight: 800; }
+  .kpi .sub { font-size: 7px; margin-top: 1px; opacity: 0.8; }
   .kpi-red { background: linear-gradient(135deg, #fef2f2, #fecaca); }
   .kpi-red .label { color: #991b1b; } .kpi-red .value { color: #dc2626; }
   .kpi-green { background: linear-gradient(135deg, #f0fdf4, #bbf7d0); }
@@ -62,198 +61,184 @@
   .kpi-amber { background: linear-gradient(135deg, #fffbeb, #fde68a); }
   .kpi-amber .label { color: #92400e; } .kpi-amber .value { color: #d97706; }
 
-  /* Sections */
-  .section { margin-bottom: 6px; page-break-inside: avoid; }
-  .section-title { font-size: 10px; font-weight: 600; color: #4f46e5; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px; margin-bottom: 4px; }
+  /* Grid */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
 
-  /* Grid layouts */
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px; }
-  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 6px; }
-
-  /* Charts */
-  .chart-container { text-align: center; margin-bottom: 2px; }
-  .chart-container img { max-width: 100%; height: auto; border-radius: 4px; }
+  /* Cards */
+  .card {
+    background: white;
+    border-radius: 10px;
+    padding: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+  .card-title {
+    font-size: 9px;
+    font-weight: 600;
+    color: #6366f1;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
 
   /* Tables */
-  table { width: 100%; border-collapse: collapse; font-size: 9px; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-  th { background: #f1f5f9; color: #475569; font-size: 8px; text-transform: uppercase; padding: 4px 6px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+  table { width: 100%; border-collapse: collapse; font-size: 9px; }
+  th { background: #f1f5f9; color: #475569; font-size: 7px; text-transform: uppercase; padding: 4px 6px; text-align: left; }
   td { padding: 3px 6px; border-bottom: 1px solid #f1f5f9; color: #334155; }
   tr:nth-child(even) { background: #f8fafc; }
-
   .text-right { text-align: right; }
   .text-red { color: #dc2626; font-weight: 600; }
   .text-green { color: #16a34a; font-weight: 600; }
   .text-muted { color: #94a3b8; }
 
-  /* Boxes */
-  .insight-box { background: linear-gradient(135deg, #eff6ff, #dbeafe); border-left: 3px solid #6366f1; border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; font-size: 9px; line-height: 1.4; color: #1e40af; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-  .highlight-box { background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-left: 3px solid #22c55e; border-radius: 6px; padding: 5px 8px; margin-bottom: 5px; font-size: 9px; color: #166534; }
-  .alert-box { background: linear-gradient(135deg, #fef2f2, #fee2e2); border-left: 3px solid #ef4444; border-radius: 6px; padding: 5px 8px; margin-bottom: 5px; font-size: 9px; color: #991b1b; }
-  .flag-box { background: linear-gradient(135deg, #fff7ed, #ffedd5); border-left: 3px solid #f97316; border-radius: 6px; padding: 5px 8px; margin-bottom: 5px; font-size: 9px; color: #9a3412; }
-  .tip-box { background: linear-gradient(135deg, #faf5ff, #f3e8ff); border-left: 3px solid #8b5cf6; border-radius: 6px; padding: 5px 8px; margin-bottom: 5px; font-size: 9px; color: #6b21a8; }
+  /* Insight boxes */
+  .insight { background: linear-gradient(135deg, #eff6ff, #dbeafe); border-left: 3px solid #6366f1; border-radius: 6px; padding: 6px 8px; font-size: 9px; line-height: 1.4; color: #1e40af; }
+  .highlight { background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-left: 3px solid #22c55e; border-radius: 6px; padding: 5px 8px; font-size: 8px; color: #166534; }
+  .alert { background: linear-gradient(135deg, #fef2f2, #fee2e2); border-left: 3px solid #ef4444; border-radius: 6px; padding: 5px 8px; font-size: 8px; color: #991b1b; }
+  .flag { background: linear-gradient(135deg, #fff7ed, #ffedd5); border-left: 3px solid #f97316; border-radius: 6px; padding: 5px 8px; font-size: 8px; color: #9a3412; }
+  .tip { background: linear-gradient(135deg, #faf5ff, #f3e8ff); border-left: 3px solid #8b5cf6; border-radius: 6px; padding: 5px 8px; font-size: 8px; color: #6b21a8; }
 
-  .icon-alert { color: #ef4444; font-weight: bold; }
-  .icon-flag { color: #f97316; font-weight: bold; }
-  .icon-tip { color: #8b5cf6; font-weight: bold; }
-  .icon-info { color: #6366f1; font-weight: bold; }
-  .icon-check { color: #22c55e; font-weight: bold; }
+  .icon { font-weight: bold; margin-right: 3px; }
+  .icon-check { color: #22c55e; } .icon-info { color: #6366f1; }
+  .icon-alert { color: #ef4444; } .icon-flag { color: #f97316; } .icon-tip { color: #8b5cf6; }
 </style>
 </head>
 <body>
 
-<!-- ════════════════════════════════════════════════════════════════
-     PAGE 1: Overview + Charts
-     ════════════════════════════════════════════════════════════════ -->
-<div class="page">
+<div class="report">
 
-<div class="report-header">
+<!-- Header -->
+<div class="header">
   <div>
     <div class="month">{{ month_name }} {{ year }}</div>
-    <div class="meta">{{ user_name }}  •  {{ generated_date }}</div>
+    <div class="meta">{{ user_name }}  ·  {{ generated_date }}</div>
   </div>
   <h1>Reporte Mensual</h1>
 </div>
 
-<div class="kpi-grid">
-  <div class="kpi-card kpi-red">
+<!-- KPIs -->
+<div class="kpi-row">
+  <div class="kpi kpi-red">
     <div class="label">Gastos</div>
     <div class="value">{{ total_expenses }}</div>
-    <div class="sub">{{ expense_count }} transacciones</div>
+    <div class="sub">{{ expense_count }} trans.</div>
   </div>
-  <div class="kpi-card kpi-blue">
+  <div class="kpi kpi-blue">
     <div class="label">Ahorro</div>
     <div class="value">{{ savings_rate }}%</div>
   </div>
-  <div class="kpi-card {{ mom_color_class }}">
+  <div class="kpi {{ mom_color_class }}">
     <div class="label">vs Mes Ant.</div>
     <div class="value">{{ mom_change_display }}</div>
     <div class="sub">{{ mom_label }}</div>
   </div>
   {% if last_year_total %}
-  <div class="kpi-card kpi-amber">
-    <div class="label">Mismo Mes Año Ant.</div>
+  <div class="kpi kpi-amber">
+    <div class="label">Año Anterior</div>
     <div class="value">{{ last_year_total }}</div>
     <div class="sub">{{ last_year_label }}</div>
   </div>
   {% endif %}
 </div>
 
+<!-- AI Summary -->
 {% if analysis and analysis.summary %}
-<div class="insight-box"><strong>Resumen:</strong> {{ analysis.summary }}</div>
+<div class="insight"><strong>Resumen:</strong> {{ analysis.summary }}</div>
 {% endif %}
 
-<div class="two-col">
-  <div>
-    {% if pie_chart_b64 %}
-    <div class="section-title">Distribución por Categoría</div>
-    <div class="chart-container"><img src="data:image/png;base64,{{ pie_chart_b64 }}"></div>
-    {% endif %}
-  </div>
-  <div>
-    {% if top_expenses %}
-    <div class="section-title">Mayores Gastos</div>
+<!-- Top Expenses + Doughnut -->
+<div class="grid-2">
+  <div class="card">
+    <div class="card-title">Mayores Gastos</div>
     <table>
-      <thead><tr><th>Fecha</th><th>Descripción</th><th class="text-right">Monto</th></tr></thead>
+      <thead><tr><th>Fecha</th><th>Gasto</th><th class="text-right">Monto</th></tr></thead>
       <tbody>
         {% for e in top_expenses %}
         <tr><td>{{ e.date }}</td><td>{{ e.description }}</td><td class="text-right text-red">{{ e.amount }}</td></tr>
         {% endfor %}
       </tbody>
     </table>
-    {% endif %}
+  </div>
+  <div class="card">
+    <div class="card-title">Por Categoria</div>
+    <div style="text-align:center;"><canvas id="doughnut" width="200" height="160"></canvas></div>
   </div>
 </div>
 
-{% if category_ref_b64 %}
-<div class="section">
-  <div class="section-title">Gastos por Categoría vs Mes Anterior</div>
-  <div class="chart-container"><img src="data:image/png;base64,{{ category_ref_b64 }}"></div>
-</div>
-{% endif %}
-
-{% if daily_pattern_b64 %}
-<div class="two-col">
-  <div>
-    <div class="section-title">Gasto por Día de Semana</div>
-    <div class="chart-container"><img src="data:image/png;base64,{{ daily_pattern_b64 }}"></div>
+<!-- Category Bar + Daily Pattern -->
+<div class="grid-2">
+  <div class="card">
+    <div class="card-title">Categorias vs Mes Anterior</div>
+    <canvas id="catBar" width="320" height="150"></canvas>
   </div>
-  <div>
-    {% if category_trends_b64 %}
-    <div class="section-title">Tendencia por Categoría</div>
-    <div class="chart-container"><img src="data:image/png;base64,{{ category_trends_b64 }}"></div>
-    {% endif %}
+  <div class="card">
+    <div class="card-title">Gasto por Dia</div>
+    <canvas id="dailyBar" width="320" height="150"></canvas>
   </div>
 </div>
-{% endif %}
 
+<!-- Trends + 6-Month -->
+<div class="grid-2">
+  <div class="card">
+    <div class="card-title">Tendencia Categorias</div>
+    <canvas id="trendsBar" width="320" height="150"></canvas>
+  </div>
+  <div class="card">
+    <div class="card-title">Evolucion 6 Meses</div>
+    <canvas id="trendLine" width="320" height="150"></canvas>
+  </div>
 </div>
 
-<!-- ════════════════════════════════════════════════════════════════
-     PAGE 2: Data + Analysis
-     ════════════════════════════════════════════════════════════════ -->
-<div class="page">
-
-{% if trend_chart_b64 %}
-<div class="section">
-  <div class="section-title">Evolución de Gastos (6 Meses)</div>
-  <div class="chart-container"><img src="data:image/png;base64,{{ trend_chart_b64 }}"></div>
-</div>
-{% endif %}
-
-<div class="two-col">
-  <div>
-    {% if accounts_summary %}
-    <div class="section-title">Cuentas</div>
+<!-- Accounts + Cards + Payment -->
+<div class="grid-3">
+  <div class="card">
+    <div class="card-title">Cuentas</div>
     <table>
-      <thead><tr><th>Cuenta</th><th>Tipo</th><th class="text-right">Monto</th></tr></thead>
+      <thead><tr><th>Cuenta</th><th class="text-right">Monto</th></tr></thead>
       <tbody>
         {% for a in accounts_summary %}
         {% if a.total_raw and a.total_raw > 0 %}
-        <tr><td>{{ a.name }}</td><td class="text-muted">{{ a.type }}</td><td class="text-right">{{ a.total }}</td></tr>
+        <tr><td>{{ a.name }}</td><td class="text-right">{{ a.total }}</td></tr>
         {% endif %}
         {% endfor %}
       </tbody>
     </table>
-    {% endif %}
   </div>
-  <div>
-    {% if cards_summary %}
-    <div class="section-title">Tarjetas</div>
+  <div class="card">
+    <div class="card-title">Tarjetas</div>
     <table>
-      <thead><tr><th>Tarjeta</th><th>Banco</th><th class="text-right">Monto</th></tr></thead>
+      <thead><tr><th>Tarjeta</th><th class="text-right">Monto</th></tr></thead>
       <tbody>
         {% for c in cards_summary %}
         {% if c.total_raw and c.total_raw > 0 %}
-        <tr><td>{{ c.name }}</td><td class="text-muted">{{ c.bank }}</td><td class="text-right">{{ c.total }}</td></tr>
+        <tr><td>{{ c.name }}</td><td class="text-right">{{ c.total }}</td></tr>
         {% endif %}
         {% endfor %}
       </tbody>
     </table>
-    {% endif %}
+  </div>
+  <div class="card">
+    <div class="card-title">Medios de Pago</div>
+    <table>
+      <thead><tr><th>Medio</th><th class="text-right">Monto</th></tr></thead>
+      <tbody>
+        {% for p in payment_methods %}
+        {% if p.total_raw and p.total_raw > 0 %}
+        <tr><td>{{ p.name }}</td><td class="text-right">{{ p.total }}</td></tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
 
-{% if payment_methods %}
-<div class="section">
-  <div class="section-title">Medios de Pago</div>
-  <table>
-    <thead><tr><th>Medio</th><th class="text-right">Monto</th><th class="text-right">Trans.</th></tr></thead>
-    <tbody>
-      {% for p in payment_methods %}
-      {% if p.total_raw and p.total_raw > 0 %}
-      <tr><td>{{ p.name }}</td><td class="text-right">{{ p.total }}</td><td class="text-right">{{ p.count }}</td></tr>
-      {% endif %}
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-{% endif %}
-
+<!-- Cuotas Futuras -->
 {% if future_installments %}
-<div class="section">
-  <div class="section-title">Cuotas Futuras ({{ future_installments_count }} — {{ future_installments_total }})</div>
+<div class="card">
+  <div class="card-title">Cuotas Futuras — {{ future_installments_count }} cuotas · {{ future_installments_total }}</div>
   <table>
-    <thead><tr><th>Fecha</th><th>Descripción</th><th class="text-right">Monto</th></tr></thead>
+    <thead><tr><th>Fecha</th><th>Descripcion</th><th class="text-right">Monto</th></tr></thead>
     <tbody>
       {% for fi in future_installments %}
       <tr><td>{{ fi.date }}</td><td>{{ fi.description }}</td><td class="text-right">{{ fi.amount }}</td></tr>
@@ -263,29 +248,120 @@
 </div>
 {% endif %}
 
+<!-- AI Analysis -->
 {% if analysis %}
-<div class="section">
-  <div class="section-title">Análisis IA</div>
-  {% if analysis.highlights %}
-  {% for h in analysis.highlights %}
-  <div class="highlight-box"><span class="icon-check">✓</span> {{ h }}</div>
-  {% endfor %}
-  {% endif %}
-  {% if analysis.category_notes %}<div class="insight-box"><span class="icon-info">i</span> {{ analysis.category_notes }}</div>{% endif %}
-  {% if analysis.comparison_notes %}<div class="insight-box"><span class="icon-info">i</span> {{ analysis.comparison_notes }}</div>{% endif %}
-  {% if analysis.accounts_notes %}<div class="insight-box"><span class="icon-info">i</span> {{ analysis.accounts_notes }}</div>{% endif %}
-  {% if analysis.future_notes %}<div class="insight-box"><span class="icon-info">i</span> {{ analysis.future_notes }}</div>{% endif %}
-  {% if analysis.concern %}<div class="alert-box"><span class="icon-alert">!</span> {{ analysis.concern }}</div>{% endif %}
-  {% if analysis.alerts %}{% for a in analysis.alerts %}<div class="alert-box"><span class="icon-alert">!!</span> {{ a }}</div>{% endfor %}{% endif %}
-  {% if analysis.flags %}{% for f in analysis.flags %}<div class="flag-box"><span class="icon-flag">></span> {{ f }}</div>{% endfor %}{% endif %}
-  {% if analysis.tip %}<div class="tip-box"><span class="icon-tip">*</span> {{ analysis.tip }}</div>{% endif %}
-  {% if analysis.next_month_suggestion %}
-  <div class="highlight-box"><span class="icon-check">→</span> <strong>Próximo mes:</strong> {{ analysis.next_month_suggestion }}</div>
-  {% endif %}
+<div class="card">
+  <div class="card-title">Analisis IA</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+    <div>
+      {% if analysis.highlights %}
+      {% for h in analysis.highlights %}
+      <div class="highlight"><span class="icon icon-check">✓</span> {{ h }}</div>
+      {% endfor %}
+      {% endif %}
+      {% if analysis.category_notes %}<div class="insight"><span class="icon icon-info">i</span> {{ analysis.category_notes }}</div>{% endif %}
+      {% if analysis.comparison_notes %}<div class="insight"><span class="icon icon-info">i</span> {{ analysis.comparison_notes }}</div>{% endif %}
+      {% if analysis.accounts_notes %}<div class="insight"><span class="icon icon-info">i</span> {{ analysis.accounts_notes }}</div>{% endif %}
+    </div>
+    <div>
+      {% if analysis.future_notes %}<div class="insight"><span class="icon icon-info">i</span> {{ analysis.future_notes }}</div>{% endif %}
+      {% if analysis.concern %}<div class="alert"><span class="icon icon-alert">!</span> {{ analysis.concern }}</div>{% endif %}
+      {% if analysis.alerts %}{% for a in analysis.alerts %}<div class="alert"><span class="icon icon-alert">!!</span> {{ a }}</div>{% endfor %}{% endif %}
+      {% if analysis.flags %}{% for f in analysis.flags %}<div class="flag"><span class="icon icon-flag">></span> {{ f }}</div>{% endfor %}{% endif %}
+      {% if analysis.tip %}<div class="tip"><span class="icon icon-tip">*</span> {{ analysis.tip }}</div>{% endif %}
+      {% if analysis.next_month_suggestion %}
+      <div class="highlight"><span class="icon icon-check">→</span> <strong>Proximo mes:</strong> {{ analysis.next_month_suggestion }}</div>
+      {% endif %}
+    </div>
+  </div>
 </div>
 {% endif %}
 
 </div>
+
+<!-- Chart.js Scripts -->
+<script>
+function renderCharts() {
+  // Doughnut
+  const doughnutEl = document.getElementById('doughnut');
+  if (doughnutEl && {{ doughnut_data | safe }}) {
+    const d = {{ doughnut_data | safe }};
+    new Chart(doughnutEl, {
+      type: 'doughnut',
+      data: {
+        labels: d.labels,
+        datasets: [{ data: d.values, backgroundColor: d.colors, borderWidth: 2, borderColor: '#fff', hoverOffset: 4 }]
+      },
+      options: { responsive: false, animation: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 8, font: { size: 7 } } } }, cutout: '55%' }
+    });
+  }
+
+  // Category Bar
+  const catBarEl = document.getElementById('catBar');
+  if (catBarEl && {{ category_bar_data | safe }}) {
+    const cb = {{ category_bar_data | safe }};
+    new Chart(catBarEl, {
+      type: 'bar',
+      data: {
+        labels: cb.labels,
+        datasets: [
+          { label: 'Este mes', data: cb.current, backgroundColor: '#6366f1', borderRadius: 4 },
+          { label: 'Mes anterior', data: cb.previous, backgroundColor: '#cbd5e1', borderRadius: 4 }
+        ]
+      },
+      options: { responsive: false, animation: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 8, font: { size: 7 } } } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 7 }, callback: v => '$' + v.toLocaleString() } }, x: { ticks: { font: { size: 7 }, maxRotation: 45 } } } }
+    });
+  }
+
+  // Daily Bar
+  const dailyEl = document.getElementById('dailyBar');
+  if (dailyEl && {{ daily_data | safe }}) {
+    const dd = {{ daily_data | safe }};
+    new Chart(dailyEl, {
+      type: 'bar',
+      data: { labels: dd.labels, datasets: [{ data: dd.values, backgroundColor: dd.colors, borderRadius: 4 }] },
+      options: { responsive: false, animation: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 7 }, callback: v => '$' + v.toLocaleString() } }, x: { ticks: { font: { size: 7 } } } } }
+    });
+  }
+
+  // Trends Bar
+  const trendsEl = document.getElementById('trendsBar');
+  if (trendsEl && {{ trends_bar_data | safe }}) {
+    const tb = {{ trends_bar_data | safe }};
+    if (tb.labels.length > 0) {
+      new Chart(trendsEl, {
+        type: 'bar',
+        data: { labels: tb.labels, datasets: [{ data: tb.values, backgroundColor: tb.colors, borderRadius: 4 }] },
+        options: { indexAxis: 'y', responsive: false, animation: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 7 } } }, y: { ticks: { font: { size: 7 } } } } }
+      });
+    }
+  }
+
+  // Trend Line
+  const trendEl = document.getElementById('trendLine');
+  if (trendEl && {{ trend_data | safe }}) {
+    const tl = {{ trend_data | safe }};
+    new Chart(trendEl, {
+      type: 'line',
+      data: {
+        labels: tl.labels,
+        datasets: [{
+          label: 'Gastos',
+          data: tl.expenses,
+          borderColor: '#ef4444',
+          backgroundColor: 'rgba(239,68,68,0.1)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 3,
+          pointBackgroundColor: '#ef4444'
+        }]
+      },
+      options: { responsive: false, animation: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: false, ticks: { font: { size: 7 }, callback: v => '$' + v.toLocaleString() } }, x: { ticks: { font: { size: 7 } } } } }
+    });
+  }
+}
+document.addEventListener('DOMContentLoaded', renderCharts);
+</script>
 
 </body>
 </html>

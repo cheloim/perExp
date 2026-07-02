@@ -1,16 +1,12 @@
-"""PDF report generation for monthly analysis using Playwright + matplotlib."""
+"""PDF report generation for monthly analysis using Playwright + Chart.js."""
 
-import base64
 import io
+import json
 import os
 import re
 from calendar import monthrange
 from datetime import date
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
 from jinja2 import Environment, FileSystemLoader
 from playwright.sync_api import sync_playwright
 
@@ -43,249 +39,71 @@ def _strip_emojis(text: str) -> str:
     return _EMOJI_RE.sub("", text).strip()
 
 
-def _hex_to_rgb(hex_color: str) -> tuple:
-    h = hex_color.lstrip("#")
-    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
-
-
 def _fmt(amount: float) -> str:
     return f"${amount:,.2f}"
 
 
-def _img_to_base64(png_bytes: bytes) -> str:
-    return base64.b64encode(png_bytes).decode("utf-8")
-
-
 # ---------------------------------------------------------------------------
-# Matplotlib chart generators
+# Chart data builders (for Chart.js)
 # ---------------------------------------------------------------------------
 
-def _create_pie_chart(categories: list[dict], total: float) -> bytes:
-    if not categories or total == 0:
-        return b""
-
-    labels, sizes, colors = [], [], []
+def _build_doughnut_data(categories: list[dict], total: float) -> dict:
+    """Build Chart.js doughnut data for category distribution."""
+    labels, values, colors = [], [], []
     for cat in categories[:8]:
-        pct = cat["total"] / total
+        pct = cat["total"] / total if total > 0 else 0
         if pct < 0.02:
             continue
-        labels.append(cat["name"][:18])
-        sizes.append(cat["total"])
-        r, g, b = _hex_to_rgb(cat.get("color", "#6b7280"))
-        colors.append((r / 255, g / 255, b / 255))
+        labels.append(cat["name"][:20])
+        values.append(round(cat["total"], 2))
+        colors.append(cat.get("color", "#6b7280"))
 
-    shown = sum(sizes)
+    shown = sum(values)
     if shown < total * 0.98:
         labels.append("Otros")
-        sizes.append(total - shown)
-        colors.append((0.75, 0.75, 0.75))
+        values.append(round(total - shown, 2))
+        colors.append("#94a3b8")
 
-    if not sizes:
-        return b""
-
-    fig, (ax_pie, ax_leg) = plt.subplots(1, 2, figsize=(6, 2.4),
-                                          gridspec_kw={"width_ratios": [1, 1]})
-    fig.patch.set_facecolor("white")
-
-    wedges, _, autotexts = ax_pie.pie(
-        sizes, labels=None,
-        autopct=lambda p: f"{p:.0f}%" if p > 4 else "",
-        colors=colors, startangle=90, pctdistance=0.72,
-        wedgeprops={"linewidth": 1.5, "edgecolor": "white"},
-    )
-    for t in autotexts:
-        t.set_fontsize(7)
-        t.set_color("white")
-        t.set_fontweight("bold")
-
-    centre = plt.Circle((0, 0), 0.50, fc="white", ec="none")
-    ax_pie.add_artist(centre)
-    ax_pie.text(0, 0, _fmt(total), ha="center", va="center",
-                fontsize=10, fontweight="bold", color="#374151")
-    ax_pie.set_aspect("equal")
-
-    ax_leg.axis("off")
-    for i, (label, size, color) in enumerate(zip(labels, sizes, colors)):
-        y = 1.0 - i * (1.0 / max(len(labels), 1))
-        pct = (size / total * 100) if total > 0 else 0
-        ax_leg.add_patch(plt.Rectangle((0.02, y - 0.04), 0.06, 0.06,
-                                       facecolor=color, edgecolor="none",
-                                       transform=ax_leg.transAxes))
-        ax_leg.text(0.12, y, label, fontsize=7.5, va="center", color="#374151",
-                    transform=ax_leg.transAxes)
-        ax_leg.text(0.70, y, _fmt(size), fontsize=6.5, va="center", ha="right",
-                    color="#6b7280", transform=ax_leg.transAxes)
-        ax_leg.text(0.88, y, f"{pct:.0f}%", fontsize=6.5, va="center", ha="right",
-                    color="#9ca3af", transform=ax_leg.transAxes)
-
-    plt.tight_layout(pad=0.3)
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=160, bbox_inches="tight", facecolor="white")
-    plt.close(fig)
-    return buf.getvalue()
+    return {"labels": labels, "values": values, "colors": colors}
 
 
-def _create_category_with_reference(category_comparison: list[dict]) -> bytes:
-    if not category_comparison:
-        return b""
-
-    labels = [d["name"][:14] for d in category_comparison]
-    current = [d["total"] for d in category_comparison]
-    previous = [d["previous"] for d in category_comparison]
-
-    fig, ax = plt.subplots(figsize=(7, 3.2))
-    fig.patch.set_facecolor("white")
-    ax.set_facecolor("white")
-
-    x = list(range(len(labels)))
-    mx = max(max(current), max(previous)) or 1
-
-    bars = ax.bar(x, current, color="#6366f1", alpha=0.85, edgecolor="white",
-                  linewidth=0.5, width=0.55, zorder=3, label="Este mes")
-    ax.plot(x, previous, marker="o", color="#94a3b8", linewidth=1.5,
-            markersize=5, linestyle="--", zorder=4, label="Mes anterior")
-
-    for bar, val in zip(bars, current):
-        if val > 0:
-            ax.text(bar.get_x() + bar.get_width() / 2, val + mx * 0.02,
-                    f"${val:,.0f}", ha="center", va="bottom", fontsize=6, color="#6b7280")
-    for i, val in enumerate(previous):
-        if val > 0:
-            ax.text(i, val + mx * 0.06, f"${val:,.0f}", ha="center", fontsize=5.5,
-                    color="#94a3b8", style="italic")
-
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels, fontsize=6.5, rotation=20, ha="right")
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"${v:,.0f}"))
-    ax.tick_params(axis="y", labelsize=6)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.legend(fontsize=7, loc="upper right", framealpha=0.8)
-    ax.grid(axis="y", alpha=0.3, zorder=0)
-
-    plt.tight_layout(pad=0.3)
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=160, bbox_inches="tight", facecolor="white")
-    plt.close(fig)
-    return buf.getvalue()
+def _build_category_bar_data(comparison: list[dict]) -> dict:
+    """Build Chart.js bar data for category comparison with reference line."""
+    labels = [c["name"][:16] for c in comparison]
+    current = [round(c["total"], 2) for c in comparison]
+    previous = [round(c["previous"], 2) for c in comparison]
+    return {"labels": labels, "current": current, "previous": previous}
 
 
-def _create_trend_chart(trend: list[dict]) -> bytes:
-    if not trend:
-        return b""
-
-    months, expenses = [], []
+def _build_trend_data(trend: list[dict]) -> dict:
+    """Build Chart.js line data for 6-month trend."""
+    labels, expenses = [], []
     for t in trend:
         y_t, m_t = t["month"].split("-")
         m_name = MONTHS_ES.get(int(m_t), m_t)[:3]
-        months.append(f"{m_name}\n{y_t}")
-        expenses.append(t["expenses"])
-
-    fig, ax = plt.subplots(figsize=(7, 2))
-    fig.patch.set_facecolor("white")
-    ax.set_facecolor("white")
-
-    x = list(range(len(months)))
-    ax.plot(x, expenses, marker="o", color="#ef4444", linewidth=2, markersize=5, label="Gastos", zorder=3)
-    ax.fill_between(x, expenses, alpha=0.06, color="#ef4444")
-
-    for i, e in enumerate(expenses):
-        mx = max(expenses) or 1
-        ax.text(i, e + mx * 0.04, f"${e:,.0f}", ha="center", fontsize=5.5, color="#ef4444")
-
-    ax.set_xticks(x)
-    ax.set_xticklabels(months, fontsize=6.5)
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"${v:,.0f}"))
-    ax.tick_params(axis="y", labelsize=6)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.legend(fontsize=7, loc="upper left")
-    ax.grid(axis="y", alpha=0.3, zorder=0)
-
-    plt.tight_layout(pad=0.3)
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=160, bbox_inches="tight", facecolor="white")
-    plt.close(fig)
-    return buf.getvalue()
+        labels.append(f"{m_name} {y_t}")
+        expenses.append(round(t["expenses"], 2))
+    return {"labels": labels, "expenses": expenses}
 
 
-def _create_daily_pattern(pattern: list[dict]) -> bytes:
-    """Bar chart showing spending by day of week."""
-    if not pattern:
-        return b""
-
-    days = [p["day"] for p in pattern]
-    totals = [p["total"] for p in pattern]
-
-    fig, ax = plt.subplots(figsize=(5, 1.8))
-    fig.patch.set_facecolor("white")
-    ax.set_facecolor("white")
-
-    colors = ["#6366f1" if t == max(totals) else "#c7d2fe" for t in totals]
-    bars = ax.bar(days, totals, color=colors, edgecolor="white", linewidth=0.5, width=0.6, zorder=3)
-
-    for bar, val in zip(bars, totals):
-        if val > 0:
-            ax.text(bar.get_x() + bar.get_width() / 2, val + max(totals) * 0.03,
-                    f"${val:,.0f}", ha="center", fontsize=5.5, color="#64748b")
-
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"${v:,.0f}"))
-    ax.tick_params(axis="y", labelsize=5)
-    ax.tick_params(axis="x", labelsize=6)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.grid(axis="y", alpha=0.2, zorder=0)
-
-    plt.tight_layout(pad=0.2)
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=160, bbox_inches="tight", facecolor="white")
-    plt.close(fig)
-    return buf.getvalue()
+def _build_daily_data(pattern: list[dict]) -> dict:
+    """Build Chart.js bar data for daily spending pattern."""
+    labels = [p["day"] for p in pattern]
+    values = [round(p["total"], 2) for p in pattern]
+    mx = max(values) if values else 1
+    colors = ["#6366f1" if v == mx else "#c7d2fe" for v in values]
+    return {"labels": labels, "values": values, "colors": colors}
 
 
-def _create_category_trends_bar(trends: list[dict]) -> bytes:
-    """Horizontal bar showing category trends (up/down arrows)."""
-    if not trends:
-        return b""
-
-    print(f"[CHART] category_trends type: {type(trends)}, len: {len(trends)}")
-    if trends:
-        print(f"[CHART] first item: {trends[0]}, type: {type(trends[0])}")
-
-    top_trends = [t for t in trends if isinstance(t, dict) and abs(t.get("change_pct", 0)) > 0][:5]
-    if not top_trends:
-        return b""
-
-    labels = [t["name"][:14] for t in top_trends]
-    values = [t["change_pct"] for t in top_trends]
-    colors = ["#22c55e" if v > 0 else "#ef4444" if v < 0 else "#94a3b8" for v in values]
-
-    fig, ax = plt.subplots(figsize=(5, 1.8))
-    fig.patch.set_facecolor("white")
-    ax.set_facecolor("white")
-
-    y = range(len(labels))
-    ax.barh(y, values, color=colors, edgecolor="white", linewidth=0.5, height=0.6, zorder=3)
-
-    for bar, val in zip(ax.patches, values):
-        sign = "+" if val > 0 else ""
-        ax.text(bar.get_width() + (1 if val >= 0 else -1), bar.get_y() + bar.get_height() / 2,
-                f"{sign}{val:.0f}%", va="center", fontsize=6, color="#334155",
-                ha="left" if val >= 0 else "right")
-
-    ax.set_yticks(list(y))
-    ax.set_yticklabels(labels, fontsize=6)
-    ax.axvline(x=0, color="#e2e8f0", linewidth=0.5, zorder=2)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["bottom"].set_visible(False)
-    ax.tick_params(axis="x", labelsize=5)
-
-    plt.tight_layout(pad=0.2)
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=160, bbox_inches="tight", facecolor="white")
-    plt.close(fig)
-    return buf.getvalue()
+def _build_trends_bar_data(trends: list[dict]) -> dict:
+    """Build Chart.js horizontal bar data for category trends."""
+    top = [t for t in trends if abs(t.get("change_pct", 0)) > 0][:5]
+    if not top:
+        return {"labels": [], "values": [], "colors": []}
+    labels = [t["name"][:16] for t in top]
+    values = [round(t["change_pct"], 1) for t in top]
+    colors = ["#22c55e" if v > 0 else "#ef4444" for v in values]
+    return {"labels": labels, "values": values, "colors": colors}
 
 
 # ---------------------------------------------------------------------------
@@ -293,45 +111,25 @@ def _create_category_trends_bar(trends: list[dict]) -> bytes:
 # ---------------------------------------------------------------------------
 
 def generate_pdf(report_data: dict, user_name: str) -> bytes:
-    """Generate PDF report using Playwright + Jinja2 template."""
-    # Generate charts
-    pie_b64 = ""
+    """Generate PDF report using Playwright + Chart.js + Jinja2."""
+
+    # Build Chart.js data
     all_cats = report_data.get("all_categories", [])
-    if all_cats and report_data["total_expenses"] > 0:
-        pie_png = _create_pie_chart(all_cats, report_data["total_expenses"])
-        if pie_png:
-            pie_b64 = _img_to_base64(pie_png)
+    doughnut_data = _build_doughnut_data(all_cats, report_data["total_expenses"]) if all_cats else None
 
-    cat_ref_b64 = ""
     cat_comp = report_data.get("category_comparison", [])
-    if cat_comp:
-        cat_ref_png = _create_category_with_reference(cat_comp)
-        if cat_ref_png:
-            cat_ref_b64 = _img_to_base64(cat_ref_png)
+    category_bar_data = _build_category_bar_data(cat_comp) if cat_comp else None
 
-    trend_b64 = ""
     trend = report_data.get("trend_history", [])
-    if trend:
-        trend_png = _create_trend_chart(trend)
-        if trend_png:
-            trend_b64 = _img_to_base64(trend_png)
+    trend_data = _build_trend_data(trend) if trend else None
 
-    # Daily pattern chart
-    daily_b64 = ""
     daily = report_data.get("daily_pattern", [])
-    if daily:
-        daily_png = _create_daily_pattern(daily)
-        if daily_png:
-            daily_b64 = _img_to_base64(daily_png)
+    daily_data = _build_daily_data(daily) if daily else None
 
-    # Category trends chart
-    cat_trends_b64 = ""
     cat_trends = report_data.get("category_trends", [])
-    if cat_trends:
-        cat_trends_png = _create_category_trends_bar(cat_trends)
-        if cat_trends_png:
-            cat_trends_b64 = _img_to_base64(cat_trends_png)
+    trends_bar_data = _build_trends_bar_data(cat_trends) if cat_trends else None
 
+    # Format amounts
     def _fmt_list(items, key="total"):
         return [{**item, f"{key}_raw": item[key], key: _fmt(item[key])} for item in items]
 
@@ -368,11 +166,11 @@ def generate_pdf(report_data: dict, user_name: str) -> bytes:
         "mom_label": mom_label,
         "last_year_total": _fmt(last_year_total) if last_year_total > 0 else None,
         "last_year_label": last_year_label,
-        "pie_chart_b64": pie_b64,
-        "category_ref_b64": cat_ref_b64,
-        "trend_chart_b64": trend_b64,
-        "daily_pattern_b64": daily_b64,
-        "category_trends_b64": cat_trends_b64,
+        "doughnut_data": json.dumps(doughnut_data) if doughnut_data else "null",
+        "category_bar_data": json.dumps(category_bar_data) if category_bar_data else "null",
+        "trend_data": json.dumps(trend_data) if trend_data else "null",
+        "daily_data": json.dumps(daily_data) if daily_data else "null",
+        "trends_bar_data": json.dumps(trends_bar_data) if trends_bar_data else "null",
         "top_expenses": _fmt_list(report_data.get("top_expenses", []), "amount"),
         "accounts_summary": _fmt_list(report_data.get("accounts_summary", [])),
         "cards_summary": _fmt_list(report_data.get("cards_summary", [])),
@@ -392,11 +190,12 @@ def generate_pdf(report_data: dict, user_name: str) -> bytes:
     # Generate PDF with Playwright
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--no-sandbox", "--disable-dev-shm-usage"])
-        page = browser.new_page()
+        page = browser.new_page(viewport={"width": 794, "height": 1123})
         page.set_content(html_content, wait_until="networkidle")
+        page.emulate_media(media="screen")
         pdf_bytes = page.pdf(
             format="A4",
-            margin={"top": "0.8cm", "bottom": "0.8cm", "left": "0.8cm", "right": "0.8cm"},
+            margin={"top": "0", "bottom": "0", "left": "0", "right": "0"},
             print_background=True,
         )
         browser.close()
