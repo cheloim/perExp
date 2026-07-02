@@ -32,6 +32,8 @@ const MONTHS_ES = [
 
 function ReportsTab() {
   const queryClient = useQueryClient();
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
 
   const { data: reportsData, isLoading } = useQuery({
     queryKey: ["monthly-reports"],
@@ -42,20 +44,46 @@ function ReportsTab() {
     mutationFn: generateMonthlyReport,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["monthly-reports"] });
+      setShowGenerateModal(false);
+      setSelectedMonth("");
     },
   });
 
   const reports = reportsData?.reports ?? [];
 
+  // Generate month options for last 12 months
+  const monthOptions = [];
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const monthName = MONTHS_ES[d.getMonth()];
+    const existing = reports.find((r) => r.month === monthStr);
+    monthOptions.push({
+      value: monthStr,
+      label: `${monthName} ${d.getFullYear()}`,
+      status: existing?.status ?? "pending",
+    });
+  }
+
   return (
     <div className="px-4 py-4 space-y-4">
-      <div>
-        <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-1">
-          Reportes Mensuales
-        </h3>
-        <p className="text-[10px] text-[var(--text-tertiary)]">
-          Generá y descargá reportes PDF con el análisis de tus gastos.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-1">
+            Reportes Mensuales
+          </h3>
+          <p className="text-[10px] text-[var(--text-tertiary)]">
+            Generá y descargá reportes PDF con el análisis de tus gastos.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowGenerateModal(true)}
+          className="px-3 py-1.5 rounded-md bg-[var(--color-primary)] text-white text-xs font-medium hover:opacity-90 transition flex items-center gap-1.5"
+        >
+          <span>+</span>
+          <span>Generar</span>
+        </button>
       </div>
 
       {isLoading ? (
@@ -64,7 +92,7 @@ function ReportsTab() {
         </div>
       ) : reports.length === 0 ? (
         <p className="text-xs text-[var(--text-tertiary)] text-center py-8">
-          No hay reportes disponibles.
+          No hay reportes disponibles. Generá uno haciendo click en "Generar".
         </p>
       ) : (
         <div className="space-y-2">
@@ -73,7 +101,6 @@ function ReportsTab() {
             const monthNum = parseInt(m);
             const monthName = MONTHS_ES[monthNum - 1] || m;
             const isReady = r.status === "ready";
-            const isGenerating = generateMut.isPending && generateMut.variables === r.month;
 
             return (
               <div
@@ -102,25 +129,80 @@ function ReportsTab() {
                       </button>
                     </>
                   ) : (
-                    <button
-                      onClick={() => generateMut.mutate(r.month)}
-                      disabled={isGenerating}
-                      className="px-2.5 py-1 rounded-md bg-[var(--color-primary)] text-white text-[10px] font-medium hover:opacity-90 transition disabled:opacity-50 flex items-center gap-1"
-                    >
-                      {isGenerating ? (
-                        <>
-                          <span className="animate-spin inline-block h-3 w-3 border border-white border-t-transparent rounded-full" />
-                          Generando...
-                        </>
-                      ) : (
-                        "Generar"
-                      )}
-                    </button>
+                    <span className="text-[10px] text-[var(--text-tertiary)]">Pendiente</span>
                   )}
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Generate Modal */}
+      {showGenerateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={() => setShowGenerateModal(false)}>
+          <div
+            className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-xl w-full max-w-sm p-5 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">Generar Reporte</h3>
+              <button
+                onClick={() => setShowGenerateModal(false)}
+                className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-xs text-[var(--text-secondary)]">
+              Seleccioná el mes para generar el reporte PDF.
+            </p>
+            <div className="space-y-1.5 max-h-60 overflow-y-auto">
+              {monthOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setSelectedMonth(opt.value)}
+                  disabled={generateMut.isPending}
+                  className={`w-full text-left px-3 py-2 rounded-md text-xs transition ${
+                    selectedMonth === opt.value
+                      ? "bg-[var(--color-primary)]/10 border border-[var(--color-primary)] text-[var(--color-primary)]"
+                      : "border border-[var(--border-color)] hover:bg-[var(--color-base-alt)] text-[var(--text-primary)]"
+                  } disabled:opacity-50`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span>{opt.label}</span>
+                    {opt.status === "ready" && (
+                      <span className="text-[10px] text-success">Listo</span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setShowGenerateModal(false)}
+                className="flex-1 px-3 py-2 rounded-md border border-[var(--border-color)] text-xs text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  if (selectedMonth) generateMut.mutate(selectedMonth);
+                }}
+                disabled={!selectedMonth || generateMut.isPending}
+                className="flex-1 px-3 py-2 rounded-md bg-[var(--color-primary)] text-white text-xs font-medium hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {generateMut.isPending ? (
+                  <>
+                    <span className="animate-spin inline-block h-3 w-3 border border-white border-t-transparent rounded-full" />
+                    Generando...
+                  </>
+                ) : (
+                  "Generar"
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

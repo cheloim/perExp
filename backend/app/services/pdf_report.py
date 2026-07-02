@@ -1,11 +1,32 @@
 """PDF report generation for monthly analysis using FPDF2."""
 
 import json
+import re
 from calendar import monthrange
 from collections import defaultdict
 from datetime import date
 
 from fpdf import FPDF
+
+# Emoji pattern - matches most common emojis
+_EMOJI_RE = re.compile(
+    "["
+    "\U0001F600-\U0001F64F"  # emoticons
+    "\U0001F300-\U0001F5FF"  # symbols & pictographs
+    "\U0001F680-\U0001F6FF"  # transport & map
+    "\U0001F1E0-\U0001F1FF"  # flags
+    "\U00002702-\U000027B0"  # dingbats
+    "\U000024C2-\U0001F251"  # enclosed characters
+    "\U0001f926-\U0001f937"
+    "\U00010000-\U0010ffff"
+    "]+",
+    flags=re.UNICODE,
+)
+
+
+def _strip_emojis(text: str) -> str:
+    """Remove emojis from text for FPDF2 compatibility."""
+    return _EMOJI_RE.sub("", text).strip()
 
 from app.database import SessionLocal
 from app.models import Category, Expense, MonthlyReport, User
@@ -142,7 +163,7 @@ class MonthlyReportPDF(FPDF):
         # Summary
         self.set_font("Helvetica", "", 9)
         self.set_text_color(55, 65, 81)
-        self.multi_cell(0, 5, analysis.get("summary", ""))
+        self.multi_cell(0, 5, _strip_emojis(analysis.get("summary", "")))
         self.ln(3)
 
         # Highlights
@@ -151,7 +172,7 @@ class MonthlyReportPDF(FPDF):
             self.set_text_color(5, 150, 105)
             self.cell(5, 5, "+")
             self.set_text_color(55, 65, 81)
-            self.cell(0, 5, f" {h}")
+            self.cell(0, 5, f" {_strip_emojis(h)}")
             self.ln(5)
 
         # Concern
@@ -166,7 +187,7 @@ class MonthlyReportPDF(FPDF):
             self.cell(5, 5, "!")
             self.set_font("Helvetica", "", 8)
             self.set_text_color(120, 80, 20)
-            self.cell(0, 5, f" {analysis['concern']}")
+            self.cell(0, 5, f" {_strip_emojis(analysis['concern'])}")
             self.ln(14)
 
         # Tip
@@ -181,7 +202,7 @@ class MonthlyReportPDF(FPDF):
             self.cell(5, 5, "*")
             self.set_font("Helvetica", "", 8)
             self.set_text_color(55, 55, 100)
-            self.cell(0, 5, f" {analysis['tip']}")
+            self.cell(0, 5, f" {_strip_emojis(analysis['tip'])}")
             self.ln(14)
 
 

@@ -10,7 +10,7 @@ from sqlalchemy import desc, func
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
-from app.models import Card, Category, Expense, MonthlyReport, User
+from app.models import Card, Category, Expense, MonthlyReport, Notification, User
 from app.routers.groups import get_group_user_ids
 from app.services.auth import get_current_user
 from app.services.date_utils import add_months
@@ -817,6 +817,21 @@ def generate_monthly_report(
         generated_at=date.today(),
     )
     db.add(report)
+
+    # Create notification
+    from datetime import datetime
+
+    y_n, m_n = int(month_str[:4]), int(month_str[5:7])
+    month_name = MONTHS_ES.get(m_n, str(m_n))
+    notification = Notification(
+        user_id=current_user.id,
+        type="monthly_report_ready",
+        title=f"Reporte listo: {month_name} {y_n}",
+        body="Tu reporte mensual PDF está listo para descargar.",
+        data=json.dumps({"month": month_str}),
+        read=False,
+    )
+    db.add(notification)
     db.commit()
 
     return {"month": month_str, "status": "generated"}
