@@ -78,8 +78,6 @@ services:
       dockerfile: Dockerfile.dev
     secrets:
       - creditcard_frontend_dev_google_client_id
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     volumes:
       - ./frontend/src:/app/src:Z
       - ./frontend/index.html:/app/index.html:Z
