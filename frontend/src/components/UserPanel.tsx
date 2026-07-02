@@ -14,12 +14,118 @@ import {
   generateInviteCode,
   getSettings,
   putSetting,
+  getMonthlyReports,
+  generateMonthlyReport,
+  downloadReportPdf,
 } from "../api/client";
 import { useNavigate } from "react-router-dom";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { useTheme } from "../context/ThemeContext";
 import AccountsManager from "./AccountsManager";
 import CardsManager from "./CardsManager";
+import { formatCurrency } from "../utils/format";
+
+const MONTHS_ES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
+
+function ReportsTab() {
+  const queryClient = useQueryClient();
+
+  const { data: reportsData, isLoading } = useQuery({
+    queryKey: ["monthly-reports"],
+    queryFn: getMonthlyReports,
+  });
+
+  const generateMut = useMutation({
+    mutationFn: generateMonthlyReport,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["monthly-reports"] });
+    },
+  });
+
+  const reports = reportsData?.reports ?? [];
+
+  return (
+    <div className="px-4 py-4 space-y-4">
+      <div>
+        <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-1">
+          Reportes Mensuales
+        </h3>
+        <p className="text-[10px] text-[var(--text-tertiary)]">
+          Generá y descargá reportes PDF con el análisis de tus gastos.
+        </p>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-8">
+          <div className="animate-spin rounded-full h-6 w-6 border-2 border-[var(--color-primary)] border-t-transparent" />
+        </div>
+      ) : reports.length === 0 ? (
+        <p className="text-xs text-[var(--text-tertiary)] text-center py-8">
+          No hay reportes disponibles.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {reports.map((r) => {
+            const [y, m] = r.month.split("-");
+            const monthNum = parseInt(m);
+            const monthName = MONTHS_ES[monthNum - 1] || m;
+            const isReady = r.status === "ready";
+            const isGenerating = generateMut.isPending && generateMut.variables === r.month;
+
+            return (
+              <div
+                key={r.month}
+                className="flex items-center justify-between p-3 rounded-lg border border-[var(--border-color)] bg-[var(--color-base-container)]"
+              >
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-[var(--text-primary)]">
+                    {monthName} {y}
+                  </p>
+                  {isReady && r.total_expenses != null && (
+                    <p className="text-[10px] text-[var(--text-tertiary)]">
+                      {formatCurrency(r.total_expenses)}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {isReady ? (
+                    <>
+                      <span className="text-[10px] text-success font-medium">Listo</span>
+                      <button
+                        onClick={() => downloadReportPdf(r.month)}
+                        className="px-2.5 py-1 rounded-md border border-[var(--border-color)] text-[10px] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition flex items-center gap-1"
+                      >
+                        <span>PDF</span>
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => generateMut.mutate(r.month)}
+                      disabled={isGenerating}
+                      className="px-2.5 py-1 rounded-md bg-[var(--color-primary)] text-white text-[10px] font-medium hover:opacity-90 transition disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <span className="animate-spin inline-block h-3 w-3 border border-white border-t-transparent rounded-full" />
+                          Generando...
+                        </>
+                      ) : (
+                        "Generar"
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface Props {
   open: boolean;
@@ -254,6 +360,16 @@ export default function UserPanel({ open, onClose }: Props) {
               }`}
             >
               Cuentas
+            </button>
+            <button
+              onClick={() => setActiveTab("reports")}
+              className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
+                activeTab === "reports"
+                  ? "bg-[var(--color-surface)] shadow-sm text-[var(--text-primary)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              }`}
+            >
+              Reportes
             </button>
           </div>
         </div>
@@ -774,6 +890,10 @@ export default function UserPanel({ open, onClose }: Props) {
               <AccountsManager />
               <CardsManager />
             </div>
+          )}
+
+          {activeTab === "reports" && (
+            <ReportsTab />
           )}
         </div>
 

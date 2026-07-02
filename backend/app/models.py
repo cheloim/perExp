@@ -275,6 +275,6 @@ class MonthlyReport(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     month = Column(String(7), nullable=False)  # YYYY-MM format
     report_data = Column(Text, nullable=False)  # JSON with full report data
-    pdf_path = Column(String, nullable=True)  # Path to generated PDF
+    pdf_data = Column(LargeBinary, nullable=True)  # Generated PDF bytes
     created_at = Column(DateTime, default=datetime.utcnow)
     generated_at = Column(DateTime, nullable=True)

@@ -737,6 +737,118 @@ def download_monthly_report(
     return HTMLResponse(content=html)
 
 
+@router.get("/monthly-reports")
+def list_monthly_reports(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List available monthly reports for the current user (last 6 months)."""
+    from datetime import timedelta
+
+    today = date.today()
+    reports = []
+
+    for i in range(6):
+        m = add_months(today.replace(day=1), -i)
+        month_str = m.strftime("%Y-%m")
+
+        existing = (
+            db.query(MonthlyReport)
+            .filter(MonthlyReport.user_id == current_user.id, MonthlyReport.month == month_str)
+            .first()
+        )
+
+        if existing:
+            report_data = json.loads(existing.report_data)
+            reports.append({
+                "month": month_str,
+                "status": "ready",
+                "total_expenses": report_data.get("total_expenses", 0),
+                "generated_at": existing.generated_at.isoformat() if existing.generated_at else None,
+            })
+        else:
+            reports.append({
+                "month": month_str,
+                "status": "pending",
+                "total_expenses": None,
+                "generated_at": None,
+            })
+
+    return {"reports": reports}
+
+
+@router.post("/monthly-reports/generate")
+def generate_monthly_report(
+    month: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Generate a monthly report on-demand and store it."""
+    from app.services.pdf_report import _build_report_data, generate_pdf
+
+    try:
+        y, m_int = int(month[:4]), int(month[5:7])
+        month_str = f"{y}-{m_int:02d}"
+    except (ValueError, IndexError):
+        raise HTTPException(400, "Invalid month format. Use YYYY-MM.")
+
+    # Check if already exists
+    existing = (
+        db.query(MonthlyReport)
+        .filter(MonthlyReport.user_id == current_user.id, MonthlyReport.month == month_str)
+        .first()
+    )
+    if existing:
+        return {"month": month_str, "status": "already_exists"}
+
+    # Generate report data
+    report_data = _build_report_data(current_user.id, month_str, db)
+
+    # Generate PDF
+    user_name = current_user.full_name or current_user.email
+    pdf_bytes = generate_pdf(report_data, user_name)
+
+    # Store in DB
+    report = MonthlyReport(
+        user_id=current_user.id,
+        month=month_str,
+        report_data=json.dumps(report_data),
+        pdf_data=pdf_bytes,
+        generated_at=date.today(),
+    )
+    db.add(report)
+    db.commit()
+
+    return {"month": month_str, "status": "generated"}
+
+
+@router.get("/monthly-reports/{month}/download")
+def download_report_pdf(
+    month: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Download the monthly report PDF."""
+    from fastapi.responses import Response
+
+    report = (
+        db.query(MonthlyReport)
+        .filter(MonthlyReport.user_id == current_user.id, MonthlyReport.month == month)
+        .first()
+    )
+
+    if not report or not report.pdf_data:
+        raise HTTPException(404, "Report not found or not generated yet.")
+
+    return Response(
+        content=bytes(report.pdf_data),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="reporte-{month}.pdf"'
+        },
+    )
+
+
 @router.get("/account-expenses")
 def get_account_expenses(
     month: str | None = None,

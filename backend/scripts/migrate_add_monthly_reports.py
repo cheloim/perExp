@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Migration: Create monthly_reports table.
+Migration: Create monthly_reports table with pdf_data column.
 
 Run with: python -m scripts.migrate_add_monthly_reports
 """
@@ -43,16 +43,30 @@ def main():
             """)).scalar()
 
             if exists:
-                print("Table already exists. Skipping.")
+                print("Table already exists. Checking for pdf_data column...")
+                has_pdf_data = conn.execute(text("""
+                    SELECT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'monthly_reports' AND column_name = 'pdf_data'
+                    )
+                """)).scalar()
+                if not has_pdf_data:
+                    print("Adding pdf_data column...")
+                    conn.execute(text("""
+                        ALTER TABLE monthly_reports ADD COLUMN pdf_data BYTEA
+                    """))
+                    print("pdf_data column added!")
+                else:
+                    print("pdf_data column already exists.")
             else:
                 print("Creating monthly_reports table...")
                 conn.execute(text("""
                     CREATE TABLE monthly_reports (
                         id SERIAL PRIMARY KEY,
-                        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        user_id INTEGER NOT NULL REFERENCES users.id ON DELETE CASCADE,
                         month VARCHAR(7) NOT NULL,
                         report_data TEXT NOT NULL,
-                        pdf_path VARCHAR,
+                        pdf_data BYTEA,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         generated_at TIMESTAMP
                     )

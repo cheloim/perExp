@@ -231,6 +231,27 @@ export const downloadMonthlyReport = (params?: { month?: string }) => {
   window.open(`/api/dashboard/monthly-report/download${query}`, "_blank");
 };
 
+export const getMonthlyReports = () =>
+  api
+    .get<{
+      reports: {
+        month: string;
+        status: "ready" | "pending";
+        total_expenses: number | null;
+        generated_at: string | null;
+      }[];
+    }>("/dashboard/monthly-reports")
+    .then((r) => r.data);
+
+export const generateMonthlyReport = (month: string) =>
+  api
+    .post<{ month: string; status: string }>(`/dashboard/monthly-reports/generate?month=${month}`)
+    .then((r) => r.data);
+
+export const downloadReportPdf = (month: string) => {
+  window.open(`/api/dashboard/monthly-reports/${month}/download`, "_blank");
+};
+
 export const getInstallmentsDashboard = () =>
   api.get<InstallmentGroup[]>("/dashboard/installments").then((r) => r.data);
 
