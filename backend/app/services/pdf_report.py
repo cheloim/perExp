@@ -209,6 +209,85 @@ def _create_trend_chart(trend: list[dict]) -> bytes:
     return buf.getvalue()
 
 
+def _create_daily_pattern(pattern: list[dict]) -> bytes:
+    """Bar chart showing spending by day of week."""
+    if not pattern:
+        return b""
+
+    days = [p["day"] for p in pattern]
+    totals = [p["total"] for p in pattern]
+
+    fig, ax = plt.subplots(figsize=(5, 1.8))
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("white")
+
+    colors = ["#6366f1" if t == max(totals) else "#c7d2fe" for t in totals]
+    bars = ax.bar(days, totals, color=colors, edgecolor="white", linewidth=0.5, width=0.6, zorder=3)
+
+    for bar, val in zip(bars, totals):
+        if val > 0:
+            ax.text(bar.get_x() + bar.get_width() / 2, val + max(totals) * 0.03,
+                    f"${val:,.0f}", ha="center", fontsize=5.5, color="#64748b")
+
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"${v:,.0f}"))
+    ax.tick_params(axis="y", labelsize=5)
+    ax.tick_params(axis="x", labelsize=6)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.grid(axis="y", alpha=0.2, zorder=0)
+
+    plt.tight_layout(pad=0.2)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=160, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    return buf.getvalue()
+
+
+def _create_category_trends_bar(trends: list[dict]) -> bytes:
+    """Horizontal bar showing category trends (up/down arrows)."""
+    if not trends:
+        return b""
+
+    print(f"[CHART] category_trends type: {type(trends)}, len: {len(trends)}")
+    if trends:
+        print(f"[CHART] first item: {trends[0]}, type: {type(trends[0])}")
+
+    top_trends = [t for t in trends if isinstance(t, dict) and abs(t.get("change_pct", 0)) > 0][:5]
+    if not top_trends:
+        return b""
+
+    labels = [t["name"][:14] for t in top_trends]
+    values = [t["change_pct"] for t in top_trends]
+    colors = ["#22c55e" if v > 0 else "#ef4444" if v < 0 else "#94a3b8" for v in values]
+
+    fig, ax = plt.subplots(figsize=(5, 1.8))
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("white")
+
+    y = range(len(labels))
+    ax.barh(y, values, color=colors, edgecolor="white", linewidth=0.5, height=0.6, zorder=3)
+
+    for bar, val in zip(ax.patches, values):
+        sign = "+" if val > 0 else ""
+        ax.text(bar.get_width() + (1 if val >= 0 else -1), bar.get_y() + bar.get_height() / 2,
+                f"{sign}{val:.0f}%", va="center", fontsize=6, color="#334155",
+                ha="left" if val >= 0 else "right")
+
+    ax.set_yticks(list(y))
+    ax.set_yticklabels(labels, fontsize=6)
+    ax.axvline(x=0, color="#e2e8f0", linewidth=0.5, zorder=2)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["bottom"].set_visible(False)
+    ax.tick_params(axis="x", labelsize=5)
+
+    plt.tight_layout(pad=0.2)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=160, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    return buf.getvalue()
+
+
 # ---------------------------------------------------------------------------
 # Main PDF generator
 # ---------------------------------------------------------------------------
@@ -236,6 +315,22 @@ def generate_pdf(report_data: dict, user_name: str) -> bytes:
         trend_png = _create_trend_chart(trend)
         if trend_png:
             trend_b64 = _img_to_base64(trend_png)
+
+    # Daily pattern chart
+    daily_b64 = ""
+    daily = report_data.get("daily_pattern", [])
+    if daily:
+        daily_png = _create_daily_pattern(daily)
+        if daily_png:
+            daily_b64 = _img_to_base64(daily_png)
+
+    # Category trends chart
+    cat_trends_b64 = ""
+    cat_trends = report_data.get("category_trends", [])
+    if cat_trends:
+        cat_trends_png = _create_category_trends_bar(cat_trends)
+        if cat_trends_png:
+            cat_trends_b64 = _img_to_base64(cat_trends_png)
 
     def _fmt_list(items, key="total"):
         return [{**item, f"{key}_raw": item[key], key: _fmt(item[key])} for item in items]
@@ -276,9 +371,12 @@ def generate_pdf(report_data: dict, user_name: str) -> bytes:
         "pie_chart_b64": pie_b64,
         "category_ref_b64": cat_ref_b64,
         "trend_chart_b64": trend_b64,
+        "daily_pattern_b64": daily_b64,
+        "category_trends_b64": cat_trends_b64,
         "top_expenses": _fmt_list(report_data.get("top_expenses", []), "amount"),
         "accounts_summary": _fmt_list(report_data.get("accounts_summary", [])),
         "cards_summary": _fmt_list(report_data.get("cards_summary", [])),
+        "payment_methods": _fmt_list(report_data.get("payment_methods", [])),
         "future_installments": _fmt_list(report_data.get("future_installments", []), "amount"),
         "future_installments_count": report_data.get("future_installments_count", 0),
         "future_installments_total": _fmt(report_data.get("future_installments_total", 0)),

@@ -33,7 +33,6 @@ const MONTHS_ES = [
 function ReportsTab() {
   const queryClient = useQueryClient();
   const [showGenerateModal, setShowGenerateModal] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState<string>("");
 
   const { data: reportsData, isLoading } = useQuery({
     queryKey: ["monthly-reports"],
@@ -51,7 +50,6 @@ function ReportsTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["monthly-reports"] });
       setShowGenerateModal(false);
-      setSelectedMonth("");
     },
   });
 
@@ -176,41 +174,23 @@ function ReportsTab() {
                 monthOptions.map((opt) => (
                   <button
                     key={opt.value}
-                    onClick={() => setSelectedMonth(opt.value)}
+                    onClick={() => {
+                      generateMut.mutate(opt.value);
+                    }}
                     disabled={generateMut.isPending}
-                    className={`w-full text-left px-4 py-3 rounded-lg text-sm transition ${
-                      selectedMonth === opt.value
-                        ? "bg-[var(--color-primary)]/10 border border-[var(--color-primary)] text-[var(--color-primary)] font-medium"
-                        : "border border-[var(--border-color)] hover:bg-[var(--color-base-alt)] text-[var(--text-primary)]"
-                    } disabled:opacity-50`}
+                    className="w-full text-left px-4 py-3 rounded-lg text-sm border border-[var(--border-color)] hover:bg-[var(--color-base-alt)] text-[var(--text-primary)] transition disabled:opacity-50"
                   >
                     {opt.label}
                   </button>
                 ))
               )}
             </div>
-            <div className="flex gap-2 pt-1">
+            <div className="pt-1">
               <button
                 onClick={() => setShowGenerateModal(false)}
-                className="flex-1 px-4 py-2.5 rounded-lg border border-[var(--border-color)] text-sm text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
+                className="w-full px-4 py-2.5 rounded-lg border border-[var(--border-color)] text-sm text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
               >
                 Cancelar
-              </button>
-              <button
-                onClick={() => {
-                  if (selectedMonth) generateMut.mutate(selectedMonth);
-                }}
-                disabled={!selectedMonth || generateMut.isPending}
-                className="flex-1 px-4 py-2.5 rounded-lg bg-[var(--color-primary)] text-white text-sm font-medium hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
-              >
-                {generateMut.isPending ? (
-                  <>
-                    <span className="animate-spin inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                    Generando...
-                  </>
-                ) : (
-                  "Generar"
-                )}
               </button>
             </div>
           </div>

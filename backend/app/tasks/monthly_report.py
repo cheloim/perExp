@@ -207,6 +207,55 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
             "amount": abs(s.amount),
         })
 
+    # Daily spending pattern (which days of week have most spending)
+    from collections import Counter
+    DAY_NAMES = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"]
+    day_totals = defaultdict(float)
+    for e in expenses:
+        if not e.is_income and e.date:
+            day_totals[e.date.weekday()] += abs(e.amount)
+    daily_pattern = [{"day": DAY_NAMES[d], "total": round(day_totals[d], 2)} for d in range(7)]
+
+    # Category trends (which categories increased vs last month)
+    category_trends = []
+    for cat_id, cat_data in by_cat.items():
+        cat_name = cat_data["name"]
+        current_val = cat_data["total"]
+        prev_val = prev_by_cat.get(cat_name, 0)
+        if prev_val > 0:
+            change_pct = ((current_val - prev_val) / prev_val) * 100
+        elif current_val > 0:
+            change_pct = 100.0  # New category
+        else:
+            change_pct = 0.0
+        category_trends.append({
+            "name": cat_name,
+            "current": round(current_val, 2),
+            "previous": round(prev_val, 2),
+            "change_pct": round(change_pct, 1),
+            "trend": "up" if change_pct > 5 else "down" if change_pct < -5 else "stable",
+        })
+    category_trends.sort(key=lambda x: abs(x["change_pct"]), reverse=True)
+
+    # Payment method breakdown
+    from app.models import Card
+    cards_map = {c.id: c for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
+    payment_methods = defaultdict(lambda: {"total": 0.0, "count": 0, "name": ""})
+    for e in expenses:
+        if e.is_income:
+            continue
+        if e.card_id and e.card_id in cards_map:
+            card = cards_map[e.card_id]
+            method = f"{card.bank or 'Tarjeta'} {card.card_name}"
+        elif e.account_id:
+            method = "Efectivo/Transferencia"
+        else:
+            method = "Otro"
+        payment_methods[method]["total"] += abs(e.amount)
+        payment_methods[method]["count"] += 1
+        payment_methods[method]["name"] = method
+    payment_list = sorted(payment_methods.values(), key=lambda x: x["total"], reverse=True)
+
     # LLM analysis
     analysis = None
     import os
@@ -339,6 +388,9 @@ Usa flags para tendencias preocupantes a monitorear."""
         "future_installments": future_installments,
         "future_installments_count": len(future_installments),
         "future_installments_total": round(sum(fi["amount"] for fi in future_installments), 2),
+        "daily_pattern": daily_pattern,
+        "category_trends": category_trends,
+        "payment_methods": payment_list,
         "analysis": analysis,
     }
 
