@@ -362,13 +362,49 @@ Usa flags para tendencias preocupantes a monitorear."""
                 )
 
             response = asyncio.run(_call_llm())
-            raw_text = response.text
-            # Extract JSON from markdown code blocks if present
-            if "```json" in raw_text:
-                raw_text = raw_text.split("```json")[1].split("```")[0].strip()
-            elif "```" in raw_text:
-                raw_text = raw_text.split("```")[1].strip()
-            analysis = json.loads(raw_text)
+            raw_text = response.text.strip()
+            print(f"[MONTHLY REPORT] LLM raw response ({len(raw_text)} chars): {raw_text[:300]}")
+
+            analysis = None
+            # Strategy 1: Direct parse
+            try:
+                analysis = json.loads(raw_text)
+            except json.JSONDecodeError:
+                pass
+
+            # Strategy 2: Extract from markdown code blocks
+            if analysis is None:
+                for marker in ["```json", "```"]:
+                    if marker in raw_text:
+                        try:
+                            extracted = raw_text.split(marker)[1].split("```")[0].strip()
+                            analysis = json.loads(extracted)
+                            break
+                        except (json.JSONDecodeError, IndexError):
+                            pass
+
+            # Strategy 3: Find first { ... } block
+            if analysis is None:
+                try:
+                    start = raw_text.find("{")
+                    end = raw_text.rfind("}") + 1
+                    if start >= 0 and end > start:
+                        analysis = json.loads(raw_text[start:end])
+                except json.JSONDecodeError:
+                    pass
+
+            # Strategy 4: Clean and retry
+            if analysis is None:
+                try:
+                    cleaned = raw_text.strip()
+                    if cleaned.startswith("```"):
+                        lines = cleaned.split("\n")
+                        cleaned = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+                    cleaned = cleaned.strip()
+                    analysis = json.loads(cleaned)
+                except json.JSONDecodeError:
+                    print(f"[MONTHLY REPORT] All JSON strategies failed. Raw: {raw_text[:200]}")
+                    analysis = None
         except Exception as e:
             print(f"[MONTHLY REPORT] LLM analysis failed: {e}")
             analysis = None
