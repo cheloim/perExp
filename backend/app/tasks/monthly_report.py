@@ -35,7 +35,7 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     total_income = sum(abs(e.amount) for e in expenses if e.is_income)
     count = sum(1 for e in expenses if not e.is_income)
 
-    # By category
+    # By category (all, for pie chart)
     by_cat = defaultdict(lambda: {"total": 0.0, "count": 0, "name": "", "color": ""})
     for e in expenses:
         if e.is_income:
@@ -56,7 +56,8 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
         by_cat[e.category_id or 0]["name"] = cat_name
         by_cat[e.category_id or 0]["color"] = cat_color
 
-    top_categories = sorted(by_cat.values(), key=lambda x: x["total"], reverse=True)[:5]
+    all_categories = sorted(by_cat.values(), key=lambda x: x["total"], reverse=True)
+    top_categories = all_categories[:5]
 
     # Previous month for comparison
     prev_start = add_months(target_start, -1)
@@ -68,6 +69,44 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     )
     previous_total = sum(abs(e.amount) for e in prev_expenses if not e.is_income)
     previous_income = sum(abs(e.amount) for e in prev_expenses if e.is_income)
+
+    # Same month last year for comparison
+    last_year_start = date(y - 1, m, 1)
+    last_year_end = date(y - 1, m, monthrange(y - 1, m)[1])
+    ly_expenses = (
+        db.query(Expense)
+        .filter(Expense.user_id.in_(uid_list), Expense.date >= last_year_start, Expense.date <= last_year_end)
+        .all()
+    )
+    last_year_total = sum(abs(e.amount) for e in ly_expenses if not e.is_income)
+    last_year_income = sum(abs(e.amount) for e in ly_expenses if e.is_income)
+
+    # Category comparison vs last month
+    prev_by_cat = defaultdict(float)
+    for e in prev_expenses:
+        if e.is_income:
+            continue
+        cat_name = "Sin categoría"
+        if e.category_id:
+            cat = db.query(Category).filter(Category.id == e.category_id).first()
+            if cat:
+                cat_name = cat.name
+                if cat.parent_id:
+                    parent = db.query(Category).filter(Category.id == cat.parent_id).first()
+                    if parent:
+                        cat_name = f"{parent.name} > {cat.name}"
+        prev_by_cat[cat_name] += abs(e.amount)
+
+    category_comparison = []
+    for cat in all_categories[:8]:
+        prev_val = prev_by_cat.get(cat["name"], 0.0)
+        change_pct = ((cat["total"] - prev_val) / prev_val * 100) if prev_val > 0 else 0
+        category_comparison.append({
+            "name": cat["name"],
+            "total": cat["total"],
+            "previous": round(prev_val, 2),
+            "change_pct": round(change_pct, 1),
+        })
 
     savings_rate = 0.0
     if total_income > 0:
@@ -96,17 +135,99 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
             "income": round(hist_income, 2),
         })
 
+    # Top 5 expenses (individual transactions)
+    top_expenses = sorted(
+        [e for e in expenses if not e.is_income],
+        key=lambda e: abs(e.amount),
+        reverse=True,
+    )[:5]
+    top_expenses_data = []
+    for e in top_expenses:
+        cat_name = "Sin categoría"
+        if e.category_id:
+            cat = db.query(Category).filter(Category.id == e.category_id).first()
+            if cat:
+                cat_name = cat.name
+        top_expenses_data.append({
+            "date": e.date.strftime("%d/%m"),
+            "description": (e.description or "")[:40],
+            "amount": abs(e.amount),
+            "category": cat_name,
+        })
+
+    # Accounts summary
+    from app.models import Account, Card
+
+    accounts = db.query(Account).filter(Account.user_id.in_(uid_list)).all()
+    accounts_summary = []
+    for acc in accounts:
+        acc_expenses = [e for e in expenses if e.account_id == acc.id and not e.is_income]
+        acc_total = sum(abs(e.amount) for e in acc_expenses)
+        accounts_summary.append({
+            "name": acc.name,
+            "type": acc.type,
+            "total": round(acc_total, 2),
+            "count": len(acc_expenses),
+        })
+    accounts_summary.sort(key=lambda x: x["total"], reverse=True)
+
+    # Cards summary
+    cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
+    cards_summary = []
+    for card in cards:
+        card_expenses = [e for e in expenses if e.card_id == card.id and not e.is_income]
+        card_total = sum(abs(e.amount) for e in card_expenses)
+        cards_summary.append({
+            "name": card.card_name,
+            "bank": card.bank or "",
+            "total": round(card_total, 2),
+            "count": len(card_expenses),
+        })
+    cards_summary.sort(key=lambda x: x["total"], reverse=True)
+
+    # Future installments
+    from app.models import ScheduledExpense
+
+    scheduled = (
+        db.query(ScheduledExpense)
+        .filter(
+            ScheduledExpense.user_id.in_(uid_list),
+            ScheduledExpense.status == "PENDING",
+            ScheduledExpense.scheduled_date > target_end,
+        )
+        .order_by(ScheduledExpense.scheduled_date)
+        .limit(20)
+        .all()
+    )
+    future_installments = []
+    for s in scheduled:
+        future_installments.append({
+            "date": s.scheduled_date.strftime("%d/%m/%Y"),
+            "description": (s.description or "")[:40],
+            "amount": abs(s.amount),
+        })
+
     return {
         "month": month_str,
         "total_expenses": total_expenses,
         "total_income": total_income,
         "savings_rate": round(savings_rate, 1),
         "expense_count": count,
+        "all_categories": all_categories,
         "top_categories": top_categories,
+        "category_comparison": category_comparison,
         "previous_total": previous_total,
         "previous_income": previous_income,
+        "last_year_total": last_year_total,
+        "last_year_income": last_year_income,
         "mom_change": round(mom_change, 1),
         "trend_history": trend_history,
+        "top_expenses": top_expenses_data,
+        "accounts_summary": accounts_summary,
+        "cards_summary": cards_summary,
+        "future_installments": future_installments,
+        "future_installments_count": len(future_installments),
+        "future_installments_total": round(sum(fi["amount"] for fi in future_installments), 2),
     }
 
 
