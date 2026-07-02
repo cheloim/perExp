@@ -1,4 +1,4 @@
-"""PDF report generation for monthly analysis using WeasyPrint + matplotlib."""
+"""PDF report generation for monthly analysis using Playwright + matplotlib."""
 
 import base64
 import io
@@ -12,7 +12,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from jinja2 import Environment, FileSystemLoader
-from weasyprint import HTML
+from playwright.sync_api import sync_playwright
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -23,11 +23,6 @@ MONTHS_ES = {
     5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
     9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre",
 }
-
-CHART_COLORS = [
-    "#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6",
-    "#06b6d4", "#ec4899", "#14b8a6", "#f97316", "#64748b",
-]
 
 _EMOJI_RE = re.compile(
     "["
@@ -131,7 +126,6 @@ def _create_pie_chart(categories: list[dict], total: float) -> bytes:
 
 
 def _create_category_with_reference(category_comparison: list[dict]) -> bytes:
-    """Unified chart: vertical bars by category + dashed line for last month reference."""
     if not category_comparison:
         return b""
 
@@ -146,21 +140,15 @@ def _create_category_with_reference(category_comparison: list[dict]) -> bytes:
     x = list(range(len(labels)))
     mx = max(max(current), max(previous)) or 1
 
-    # Bars for current month
     bars = ax.bar(x, current, color="#6366f1", alpha=0.85, edgecolor="white",
                   linewidth=0.5, width=0.55, zorder=3, label="Este mes")
-
-    # Dashed line for last month
     ax.plot(x, previous, marker="o", color="#94a3b8", linewidth=1.5,
             markersize=5, linestyle="--", zorder=4, label="Mes anterior")
 
-    # Value labels on bars
     for bar, val in zip(bars, current):
         if val > 0:
             ax.text(bar.get_x() + bar.get_width() / 2, val + mx * 0.02,
                     f"${val:,.0f}", ha="center", va="bottom", fontsize=6, color="#6b7280")
-
-    # Value labels on line points
     for i, val in enumerate(previous):
         if val > 0:
             ax.text(i, val + mx * 0.06, f"${val:,.0f}", ha="center", fontsize=5.5,
@@ -183,7 +171,6 @@ def _create_category_with_reference(category_comparison: list[dict]) -> bytes:
 
 
 def _create_trend_chart(trend: list[dict]) -> bytes:
-    """6-month expenses only (no income line)."""
     if not trend:
         return b""
 
@@ -227,7 +214,7 @@ def _create_trend_chart(trend: list[dict]) -> bytes:
 # ---------------------------------------------------------------------------
 
 def generate_pdf(report_data: dict, user_name: str) -> bytes:
-    """Generate PDF report using WeasyPrint + Jinja2 template."""
+    """Generate PDF report using Playwright + Jinja2 template."""
     # Generate charts
     pie_b64 = ""
     all_cats = report_data.get("all_categories", [])
@@ -236,7 +223,6 @@ def generate_pdf(report_data: dict, user_name: str) -> bytes:
         if pie_png:
             pie_b64 = _img_to_base64(pie_png)
 
-    # Unified category chart with reference line
     cat_ref_b64 = ""
     cat_comp = report_data.get("category_comparison", [])
     if cat_comp:
@@ -251,24 +237,22 @@ def generate_pdf(report_data: dict, user_name: str) -> bytes:
         if trend_png:
             trend_b64 = _img_to_base64(trend_png)
 
-    # Format amounts but keep raw values for filtering
     def _fmt_list(items, key="total"):
         return [{**item, f"{key}_raw": item[key], key: _fmt(item[key])} for item in items]
 
-    # Build template context
     month_str = report_data["month"]
     y, m = int(month_str[:4]), int(month_str[5:7])
 
     mom_change = report_data["mom_change"]
     mom_color_class = "kpi-green" if mom_change <= 0 else "kpi-red"
-    mom_arrow = "↓" if mom_change < 0 else "↑" if mom_change > 0 else "→"
-    mom_label = "Gastaste menos" if mom_change < 0 else "Gastaste más" if mom_change > 0 else "Sin cambio"
+    mom_arrow = "\u2193" if mom_change < 0 else "\u2191" if mom_change > 0 else "\u2192"
+    mom_label = "Gastaste menos" if mom_change < 0 else "Gastaste mas" if mom_change > 0 else "Sin cambio"
 
     last_year_total = report_data.get("last_year_total", 0)
     last_year_change = 0.0
     if last_year_total > 0:
         last_year_change = ((report_data["total_expenses"] - last_year_total) / last_year_total) * 100
-    last_year_arrow = "↑" if last_year_change > 0 else "↓" if last_year_change < 0 else "→"
+    last_year_arrow = "\u2191" if last_year_change > 0 else "\u2193" if last_year_change < 0 else "\u2192"
     last_year_label = f"{last_year_arrow} {abs(last_year_change):.1f}%" if last_year_total > 0 else ""
 
     analysis = report_data.get("analysis")
@@ -301,12 +285,22 @@ def generate_pdf(report_data: dict, user_name: str) -> bytes:
         "analysis": analysis,
     }
 
-    # Render template
+    # Render Jinja2 template
     template_dir = os.path.dirname(os.path.abspath(__file__))
     env = Environment(loader=FileSystemLoader(template_dir))
     template = env.get_template("report_template.html")
     html_content = template.render(**context)
 
-    # Generate PDF
-    pdf_bytes = HTML(string=html_content).write_pdf()
+    # Generate PDF with Playwright
+    with sync_playwright() as p:
+        browser = p.chromium.launch(args=["--no-sandbox", "--disable-dev-shm-usage"])
+        page = browser.new_page()
+        page.set_content(html_content, wait_until="networkidle")
+        pdf_bytes = page.pdf(
+            format="A4",
+            margin={"top": "0.8cm", "bottom": "0.8cm", "left": "0.8cm", "right": "0.8cm"},
+            print_background=True,
+        )
+        browser.close()
+
     return pdf_bytes
