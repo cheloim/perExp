@@ -106,6 +106,29 @@ def _build_trends_bar_data(trends: list[dict]) -> dict:
     return {"labels": labels, "values": values, "colors": colors}
 
 
+def _build_account_doughnut_data(accounts: list[dict], cards: list[dict]) -> dict:
+    """Build Chart.js doughnut data for account/card consumption."""
+    labels, values, colors = [], [], []
+    palette = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899", "#14b8a6"]
+    idx = 0
+
+    for a in accounts:
+        if a.get("total_raw", 0) > 0:
+            labels.append(a["name"][:18])
+            values.append(round(a["total_raw"], 2))
+            colors.append(palette[idx % len(palette)])
+            idx += 1
+
+    for c in cards:
+        if c.get("total_raw", 0) > 0:
+            labels.append(c["name"][:18])
+            values.append(round(c["total_raw"], 2))
+            colors.append(palette[idx % len(palette)])
+            idx += 1
+
+    return {"labels": labels, "values": values, "colors": colors}
+
+
 # ---------------------------------------------------------------------------
 # Main PDF generator
 # ---------------------------------------------------------------------------
@@ -128,6 +151,14 @@ def generate_pdf(report_data: dict, user_name: str) -> bytes:
 
     cat_trends = report_data.get("category_trends", [])
     trends_bar_data = _build_trends_bar_data(cat_trends) if cat_trends else None
+
+    # Account/Card doughnut data
+    accounts = report_data.get("accounts_summary", [])
+    cards = report_data.get("cards_summary", [])
+    account_doughnut_data = _build_account_doughnut_data(accounts, cards)
+
+    # Investment doughnut data
+    investment_doughnut_data = report_data.get("investment_doughnut_data")
 
     # Format amounts
     def _fmt_list(items, key="total"):
@@ -168,6 +199,10 @@ def generate_pdf(report_data: dict, user_name: str) -> bytes:
         "last_year_label": last_year_label,
         "doughnut_data": json.dumps(doughnut_data) if doughnut_data else "null",
         "category_bar_data": json.dumps(category_bar_data) if category_bar_data else "null",
+        "account_doughnut_data": json.dumps(account_doughnut_data) if account_doughnut_data else "null",
+        "investment_doughnut_data": json.dumps(investment_doughnut_data) if investment_doughnut_data else "null",
+        "total_expenses_num": report_data["total_expenses"],
+        "previous_total_num": report_data.get("previous_total", 0),
         "trend_data": json.dumps(trend_data) if trend_data else "null",
         "daily_data": json.dumps(daily_data) if daily_data else "null",
         "trends_bar_data": json.dumps(trends_bar_data) if trends_bar_data else "null",

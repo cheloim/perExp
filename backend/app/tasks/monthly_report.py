@@ -256,6 +256,17 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
         payment_methods[method]["name"] = method
     payment_list = sorted(payment_methods.values(), key=lambda x: x["total"], reverse=True)
 
+    # Investment data for right panel pie chart
+    from app.models import Investment
+    investments = db.query(Investment).filter(Investment.user_id.in_(uid_list)).all()
+    inv_by_broker = defaultdict(float)
+    for inv in investments:
+        value = (inv.quantity or 0) * (inv.current_price or inv.avg_cost or 0)
+        if value > 0:
+            inv_by_broker[inv.broker or "Otro"] += value
+    investment_list = [{"name": k, "total": round(v, 2)} for k, v in inv_by_broker.items() if v > 0]
+    investment_list.sort(key=lambda x: x["total"], reverse=True)
+
     # LLM analysis
     analysis = None
     import os
@@ -333,19 +344,16 @@ Fecha: {today.isoformat()}"""
 
             prompt = """Sos un analista financiero personal. Devolve UNICAMENTE JSON valido:
 {
-  "summary": "<resumen ejecutivo 3-4 lineas>",
+  "resume": "<resumen completo y detallado de 5-6 lineas que cubra: comparativa con mes anterior, distribucion de categorias, estado de cuentas/tarjetas, cuotas futuras, y tendencias. Usar numeros concretos.>",
   "highlights": ["<highlight 1>", "<highlight 2>", "<highlight 3>"],
   "concern": "<preocupacion o null>",
   "alerts": ["<alerta critica o null, ej: gasto excesivo en X>"],
   "flags": ["<bandera de atencion o null, ej: tendencia preocupante en Y>"],
-  "category_notes": "<nota sobre distribucion de categorias, 1-2 lineas>",
-  "comparison_notes": "<nota sobre comparativa con mes anterior, 1-2 lineas>",
-  "future_notes": "<nota sobre cuotas futuras, 1-2 lineas>",
-  "accounts_notes": "<nota sobre cuentas/tarjetas, 1-2 lineas>",
   "tip": "<consejo concreto de ahorro>",
   "next_month_suggestion": "<sugerencia especifica para el proximo mes>"
 }
 Sé especifico con numeros. Español, claro, amigable. Sin emojis.
+El resume debe ser un texto corrido y detallado, no solo oraciones sueltas.
 Usa alerts para gastos criticos o inusuales.
 Usa flags para tendencias preocupantes a monitorear."""
 
@@ -363,14 +371,15 @@ Usa flags para tendencias preocupantes a monitorear."""
 
             response = asyncio.run(_call_llm())
             raw_text = response.text.strip()
-            print(f"[MONTHLY REPORT] LLM raw response ({len(raw_text)} chars): {raw_text[:300]}")
+            print(f"[MONTHLY REPORT] LLM raw response ({len(raw_text)} chars)")
 
             analysis = None
             # Strategy 1: Direct parse
             try:
                 analysis = json.loads(raw_text)
-            except json.JSONDecodeError:
-                pass
+                print(f"[MONTHLY REPORT] Strategy 1 (direct) succeeded")
+            except json.JSONDecodeError as e:
+                print(f"[MONTHLY REPORT] Strategy 1 failed: {e}")
 
             # Strategy 2: Extract from markdown code blocks
             if analysis is None:
@@ -379,9 +388,10 @@ Usa flags para tendencias preocupantes a monitorear."""
                         try:
                             extracted = raw_text.split(marker)[1].split("```")[0].strip()
                             analysis = json.loads(extracted)
+                            print(f"[MONTHLY REPORT] Strategy 2 (markdown) succeeded")
                             break
-                        except (json.JSONDecodeError, IndexError):
-                            pass
+                        except (json.JSONDecodeError, IndexError) as e:
+                            print(f"[MONTHLY REPORT] Strategy 2 failed: {e}")
 
             # Strategy 3: Find first { ... } block
             if analysis is None:
@@ -389,9 +399,12 @@ Usa flags para tendencias preocupantes a monitorear."""
                     start = raw_text.find("{")
                     end = raw_text.rfind("}") + 1
                     if start >= 0 and end > start:
-                        analysis = json.loads(raw_text[start:end])
-                except json.JSONDecodeError:
-                    pass
+                        snippet = raw_text[start:end]
+                        print(f"[MONTHLY REPORT] Strategy 3 snippet ({len(snippet)} chars): {snippet[:100]}...")
+                        analysis = json.loads(snippet)
+                        print(f"[MONTHLY REPORT] Strategy 3 (find braces) succeeded")
+                except json.JSONDecodeError as e:
+                    print(f"[MONTHLY REPORT] Strategy 3 failed: {e}")
 
             # Strategy 4: Clean and retry
             if analysis is None:
@@ -402,8 +415,10 @@ Usa flags para tendencias preocupantes a monitorear."""
                         cleaned = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
                     cleaned = cleaned.strip()
                     analysis = json.loads(cleaned)
-                except json.JSONDecodeError:
-                    print(f"[MONTHLY REPORT] All JSON strategies failed. Raw: {raw_text[:200]}")
+                    print(f"[MONTHLY REPORT] Strategy 4 (clean) succeeded")
+                except json.JSONDecodeError as e:
+                    print(f"[MONTHLY REPORT] All JSON strategies failed: {e}")
+                    print(f"[MONTHLY REPORT] Raw text first 500: {raw_text[:500]}")
                     analysis = None
         except Exception as e:
             print(f"[MONTHLY REPORT] LLM analysis failed: {e}")
@@ -433,6 +448,7 @@ Usa flags para tendencias preocupantes a monitorear."""
         "daily_pattern": daily_pattern,
         "category_trends": category_trends,
         "payment_methods": payment_list,
+        "investments": investment_list,
         "analysis": analysis,
     }
 
