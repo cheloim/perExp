@@ -418,6 +418,25 @@ def send_disconnect_notification(chat_id: str) -> None:
         logger.warning("[TELEGRAM] Bot event loop not available")
 
 
+def send_message_to_chat(chat_id: str, text: str) -> None:
+    """Send an arbitrary message to a Telegram chat. Safe to call from any thread."""
+    if not _bot_app or not _bot_app.bot:
+        logger.warning("[TELEGRAM] Bot app not available, cannot send message")
+        return
+
+    async def _send():
+        try:
+            await _bot_app.bot.send_message(chat_id=chat_id, text=text, parse_mode="Markdown")
+        except Exception as e:
+            logger.warning(f"[TELEGRAM] Could not send message to {chat_id}: {e}")
+
+    loop = _bot_app.bot._local._loop if hasattr(_bot_app.bot, "_local") else None
+    if loop and loop.is_running():
+        asyncio.run_coroutine_threadsafe(_send(), loop)
+    else:
+        logger.warning("[TELEGRAM] Bot event loop not available")
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = str(update.effective_chat.id)
     db = SessionLocal()

@@ -381,6 +381,31 @@ jobs:
                       cpus: "1.0"
                 restart: unless-stopped
 
+              celery_beat:
+                image: ${BACKEND_IMAGE}:${IMAGE_TAG}
+                command: celery -A app.celery_app beat --loglevel=info --schedule=/tmp/celerybeat-schedule
+                depends_on:
+                  - db
+                  - redis
+                environment:
+                  DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses
+                  REDIS_URL: redis://redis:6379/0
+                  PYTHONUNBUFFERED: "1"
+                  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+                  LLM_API_KEY: ${LLM_API_KEY}
+                  INVESTMENTS_LLM_API_KEY: ${INVESTMENTS_LLM_API_KEY}
+                  MESSAGES_BOT_LLM_API_KEY: ${MESSAGES_BOT_LLM_API_KEY}
+                  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+                  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+                  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+                  SECRET_KEY: ${SECRET_KEY}
+                deploy:
+                  resources:
+                    limits:
+                      memory: 256M
+                      cpus: "0.5"
+                restart: unless-stopped
+
               frontend:
                 image: ${FRONTEND_IMAGE}:${IMAGE_TAG}
                 depends_on:
@@ -586,6 +611,7 @@ jobs:
             podman-compose run --rm --no-deps backend python -m scripts.migrate_add_reset_token
             podman-compose run --rm --no-deps backend python -m scripts.migrate_remove_haberes
             podman-compose run --rm --no-deps backend python -m scripts.migrate_encrypt_settings
+            podman-compose run --rm --no-deps backend python -m scripts.migrate_add_monthly_reports
             echo "Migrations complete"
 
   restart-and-verify:

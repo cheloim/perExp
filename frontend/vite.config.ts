@@ -25,16 +25,16 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://host.docker.internal:8001',
+        target: 'http://backend_dev:8000',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
       '/notifications': {
-        target: 'http://host.docker.internal:8001',
+        target: 'http://backend_dev:8000',
         changeOrigin: true,
       },
       '/auth': {
-        target: 'http://host.docker.internal:8001',
+        target: 'http://backend_dev:8000',
         changeOrigin: true,
       },
     },

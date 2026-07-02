@@ -9,8 +9,8 @@
 | 3 | Visual notifications | ✅ Done | Low | #41 | Icons, colored borders, progress bars, toast, QUEUED status |
 | 4 | Dashboard layout fixes | ✅ Done | Low | #47 | Equal height boxes, category limit, transaction scroll |
 | 5 | Installment system fixes | ✅ Done | Medium | #49, #50 | Telegram ScheduledExpenses, projection logic, charts |
-| 6 | Monthly analysis resume | ⏳ Backlog | Medium | - | Monthly spending summary report |
-| 7 | Weekly Telegram summary | ⏳ Backlog | Medium | - | Weekly digest via bot, adjustable from UserPanel |
+| 6 | Monthly analysis resume | ✅ Done | Medium | #76 | PDF report with KPIs, trends, LLM analysis + auto-generate monthly |
+| 7 | Weekly Telegram summary | ✅ Done | Medium | #76 | Weekly digest via bot, configurable from UserPanel |
 | 8 | Income module | ⏳ Backlog | High | - | Track income, dashboard comparison vs last months |
 | 9 | Ticket scan | ⏳ Backlog | Medium | - | OCR receipt analysis, compare same items last month |
 | 10 | Expense budgets | ⏳ Backlog | Medium | - | Set spending limits per category |
