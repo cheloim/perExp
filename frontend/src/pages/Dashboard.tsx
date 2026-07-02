@@ -15,8 +15,6 @@ import {
   getInstallmentsMonthlyLoad,
   getTopMerchants,
   getUncategorizedCount,
-  getMonthlyReport,
-  downloadMonthlyReport,
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
 import { formatCurrency, toUpperCase, formatDateDMYSlash, MONTHS_ES_SHORT } from "../utils/format";
@@ -197,13 +195,6 @@ export default function Dashboard() {
     queryKey: ["uncategorized-count"],
     queryFn: getUncategorizedCount,
     staleTime: 300_000,
-  });
-
-  // Monthly report data
-  const { data: monthlyReport } = useQuery({
-    queryKey: ["monthly-report", month],
-    queryFn: () => getMonthlyReport({ month }),
-    staleTime: 60_000,
   });
 
   // Calculate savings by currency
@@ -859,132 +850,6 @@ export default function Dashboard() {
           )}
         </div>
       </div>
-
-      {/* Monthly Report */}
-      {monthlyReport && (
-        <div className="space-y-4">
-          <div className="card p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-primary">
-                Reporte Mensual — {MONTHS_ES_SHORT[parseInt(month.split("-")[1]) - 1]} {month.split("-")[0]}
-              </h2>
-              <button
-                onClick={() => downloadMonthlyReport({ month })}
-                className="text-xs px-3 py-1.5 rounded-md border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition flex items-center gap-1.5"
-              >
-                <span>📥</span>
-                <span>Descargar</span>
-              </button>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-              <div>
-                <p className="text-[10px] text-tertiary uppercase">Gastos</p>
-                <p className="text-lg font-bold text-danger">{formatCurrency(monthlyReport.total_expenses)}</p>
-                <p className="text-xs text-tertiary">{monthlyReport.expense_count} transacciones</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-tertiary uppercase">Ingresos</p>
-                <p className="text-lg font-bold text-success">{formatCurrency(monthlyReport.total_income)}</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-tertiary uppercase">Tasa de ahorro</p>
-                <p className={`text-lg font-bold ${monthlyReport.savings_rate >= 0 ? "text-success" : "text-danger"}`}>
-                  {monthlyReport.savings_rate}%
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] text-tertiary uppercase">vs Mes anterior</p>
-                <p className={`text-lg font-bold ${monthlyReport.mom_change <= 0 ? "text-success" : "text-danger"}`}>
-                  {monthlyReport.mom_change > 0 ? "↑" : monthlyReport.mom_change < 0 ? "↓" : "→"}{" "}
-                  {Math.abs(monthlyReport.mom_change)}%
-                </p>
-              </div>
-            </div>
-
-            {/* Trend Chart */}
-            {monthlyReport.trend_history && monthlyReport.trend_history.length > 0 && (
-              <div className="mb-4">
-                <p className="text-xs font-medium text-tertiary mb-2">Evolución últimos 6 meses</p>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={monthlyReport.trend_history} barGap={2}>
-                    <XAxis
-                      dataKey="month"
-                      tick={{ fontSize: 10, fill: "var(--text-tertiary)" }}
-                      tickFormatter={(v) => {
-                        const [, m] = v.split("-");
-                        return MONTHS_ES_SHORT[parseInt(m) - 1];
-                      }}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        borderRadius: 10,
-                        fontSize: 12,
-                        padding: "8px 12px",
-                        boxShadow: "var(--shadow-md)",
-                      }}
-                      formatter={(v: number) => [formatCurrency(v), ""]}
-                      labelFormatter={(v) => {
-                        const [y, m] = v.split("-");
-                        return `${MONTHS_ES_SHORT[parseInt(m) - 1]} ${y}`;
-                      }}
-                    />
-                    <Bar dataKey="expenses" fill="var(--color-danger, #ef4444)" radius={[4, 4, 0, 0]} name="Gastos" />
-                    <Bar dataKey="income" fill="var(--color-success, #22c55e)" radius={[4, 4, 0, 0]} name="Ingresos" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-
-            {monthlyReport.top_categories.length > 0 && (
-              <div>
-                <p className="text-xs font-medium text-tertiary mb-2">Top categorías</p>
-                <div className="space-y-2">
-                  {monthlyReport.top_categories.map((cat, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
-                      <span className="text-xs text-secondary flex-1 truncate">{cat.name}</span>
-                      <span className="text-xs font-semibold text-primary">{formatCurrency(cat.total)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* LLM Analysis */}
-          {monthlyReport.analysis && (
-            <div className="card p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-base">✨</span>
-                <h2 className="text-sm font-semibold text-primary">Análisis IA</h2>
-              </div>
-              <p className="text-xs text-secondary leading-relaxed mb-3">{monthlyReport.analysis.summary}</p>
-              {monthlyReport.analysis.highlights && monthlyReport.analysis.highlights.length > 0 && (
-                <div className="space-y-1.5 mb-3">
-                  {monthlyReport.analysis.highlights.map((h, i) => (
-                    <div key={i} className="flex items-start gap-2">
-                      <span className="text-[10px] text-success mt-0.5">✓</span>
-                      <span className="text-xs text-secondary">{h}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {monthlyReport.analysis.concern && (
-                <div className="flex items-start gap-2 p-2 rounded-md bg-warning/10 border border-warning/20 mb-3">
-                  <span className="text-[10px] mt-0.5">⚠️</span>
-                  <span className="text-xs text-secondary">{monthlyReport.analysis.concern}</span>
-                </div>
-              )}
-              {monthlyReport.analysis.tip && (
-                <div className="flex items-start gap-2 p-2 rounded-md bg-primary/10 border border-primary/20">
-                  <span className="text-[10px] mt-0.5">💡</span>
-                  <span className="text-xs text-secondary">{monthlyReport.analysis.tip}</span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
 
       {editing !== undefined && (
         <ExpenseModal
