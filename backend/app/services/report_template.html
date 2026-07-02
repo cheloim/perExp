@@ -301,45 +301,25 @@
   </div>
 </div>
 
-<!-- Category Bar Chart + Comparison Line -->
-<div class="two-col">
-  <div>
-    {% if category_bar_b64 %}
-    <div class="section-title">Gastos por Categoría</div>
-    <div class="chart-container">
-      <img src="data:image/png;base64,{{ category_bar_b64 }}" alt="Gastos por categoría">
-    </div>
-    {% endif %}
-  </div>
-  <div>
-    {% if comparison_line_b64 %}
-    <div class="section-title">Comparativa Períodos</div>
-    <div class="chart-container">
-      <img src="data:image/png;base64,{{ comparison_line_b64 }}" alt="Comparativa períodos">
-    </div>
-    {% endif %}
-  </div>
-</div>
-
-<!-- ════════════════════════════════════════════════════════════════
-     PAGE 2: Charts + Comparison
-     ════════════════════════════════════════════════════════════════ -->
-<div style="page-break-before: always;"></div>
-
-<!-- Bar Comparison -->
-{% if bar_chart_b64 %}
+<!-- Unified Category Chart with Reference Line -->
+{% if category_ref_b64 %}
 <div class="section">
-  <div class="section-title">Comparativa vs Mes Anterior</div>
+  <div class="section-title">Gastos por Categoría vs Mes Anterior</div>
   <div class="chart-container">
-    <img src="data:image/png;base64,{{ bar_chart_b64 }}" alt="Comparativa por categoría">
+    <img src="data:image/png;base64,{{ category_ref_b64 }}" alt="Categorías con referencia">
   </div>
 </div>
 {% endif %}
 
+<!-- ════════════════════════════════════════════════════════════════
+     PAGE 2: Trend + Accounts + Analysis
+     ════════════════════════════════════════════════════════════════ -->
+<div style="page-break-before: always;"></div>
+
 <!-- Trend Chart -->
 {% if trend_chart_b64 %}
 <div class="section">
-  <div class="section-title">Evolución de Últimos 6 Meses</div>
+  <div class="section-title">Evolución de Gastos (6 Meses)</div>
   <div class="chart-container">
     <img src="data:image/png;base64,{{ trend_chart_b64 }}" alt="Evolución mensual">
   </div>

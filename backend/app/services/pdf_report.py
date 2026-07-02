@@ -130,40 +130,49 @@ def _create_pie_chart(categories: list[dict], total: float) -> bytes:
     return buf.getvalue()
 
 
-def _create_bar_comparison(data: list[dict]) -> bytes:
-    if not data:
+def _create_category_with_reference(category_comparison: list[dict]) -> bytes:
+    """Unified chart: vertical bars by category + dashed line for last month reference."""
+    if not category_comparison:
         return b""
 
-    labels = [d["name"][:14] for d in data]
-    current = [d["total"] for d in data]
-    previous = [d["previous"] for d in data]
+    labels = [d["name"][:14] for d in category_comparison]
+    current = [d["total"] for d in category_comparison]
+    previous = [d["previous"] for d in category_comparison]
 
-    fig, ax = plt.subplots(figsize=(6.5, 3))
+    fig, ax = plt.subplots(figsize=(7, 3.2))
     fig.patch.set_facecolor("white")
     ax.set_facecolor("white")
 
-    x = range(len(labels))
-    width = 0.35
+    x = list(range(len(labels)))
     mx = max(max(current), max(previous)) or 1
 
-    ax.bar([i - width / 2 for i in x], current, width, label="Este mes",
-           color="#6366f1", alpha=0.9, edgecolor="white", linewidth=0.5, zorder=3)
-    ax.bar([i + width / 2 for i in x], previous, width, label="Mes anterior",
-           color="#d1d5db", edgecolor="white", linewidth=0.5, zorder=3)
+    # Bars for current month
+    bars = ax.bar(x, current, color="#6366f1", alpha=0.85, edgecolor="white",
+                  linewidth=0.5, width=0.55, zorder=3, label="Este mes")
 
-    for bar in ax.patches[:len(current)]:
-        h = bar.get_height()
-        if h > 0:
-            ax.text(bar.get_x() + bar.get_width() / 2, h + mx * 0.02,
-                    f"${h:,.0f}", ha="center", va="bottom", fontsize=5.5, color="#6b7280")
+    # Dashed line for last month
+    ax.plot(x, previous, marker="o", color="#94a3b8", linewidth=1.5,
+            markersize=5, linestyle="--", zorder=4, label="Mes anterior")
 
-    ax.set_xticks(list(x))
+    # Value labels on bars
+    for bar, val in zip(bars, current):
+        if val > 0:
+            ax.text(bar.get_x() + bar.get_width() / 2, val + mx * 0.02,
+                    f"${val:,.0f}", ha="center", va="bottom", fontsize=6, color="#6b7280")
+
+    # Value labels on line points
+    for i, val in enumerate(previous):
+        if val > 0:
+            ax.text(i, val + mx * 0.06, f"${val:,.0f}", ha="center", fontsize=5.5,
+                    color="#94a3b8", style="italic")
+
+    ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=6.5, rotation=20, ha="right")
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"${v:,.0f}"))
-    ax.tick_params(axis="y", labelsize=6.5)
+    ax.tick_params(axis="y", labelsize=6)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    ax.legend(fontsize=7, loc="upper right")
+    ax.legend(fontsize=7, loc="upper right", framealpha=0.8)
     ax.grid(axis="y", alpha=0.3, zorder=0)
 
     plt.tight_layout(pad=0.3)
@@ -174,117 +183,36 @@ def _create_bar_comparison(data: list[dict]) -> bytes:
 
 
 def _create_trend_chart(trend: list[dict]) -> bytes:
+    """6-month expenses only (no income line)."""
     if not trend:
         return b""
 
-    months, expenses, incomes = [], [], []
+    months, expenses = [], []
     for t in trend:
         y_t, m_t = t["month"].split("-")
         m_name = MONTHS_ES.get(int(m_t), m_t)[:3]
         months.append(f"{m_name}\n{y_t}")
         expenses.append(t["expenses"])
-        incomes.append(t["income"])
 
-    fig, ax = plt.subplots(figsize=(6.5, 2.5))
+    fig, ax = plt.subplots(figsize=(7, 2.5))
     fig.patch.set_facecolor("white")
     ax.set_facecolor("white")
 
-    x = range(len(months))
+    x = list(range(len(months)))
     ax.plot(x, expenses, marker="o", color="#ef4444", linewidth=2, markersize=5, label="Gastos", zorder=3)
-    ax.plot(x, incomes, marker="o", color="#22c55e", linewidth=2, markersize=5, label="Ingresos", zorder=3)
     ax.fill_between(x, expenses, alpha=0.06, color="#ef4444")
-    ax.fill_between(x, incomes, alpha=0.06, color="#22c55e")
 
-    for i, (e, inc) in enumerate(zip(expenses, incomes)):
+    for i, e in enumerate(expenses):
         mx = max(expenses) or 1
         ax.text(i, e + mx * 0.04, f"${e:,.0f}", ha="center", fontsize=5.5, color="#ef4444")
-        ax.text(i, inc + mx * 0.04, f"${inc:,.0f}", ha="center", fontsize=5.5, color="#22c55e")
 
-    ax.set_xticks(list(x))
+    ax.set_xticks(x)
     ax.set_xticklabels(months, fontsize=6.5)
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"${v:,.0f}"))
-    ax.tick_params(axis="y", labelsize=6.5)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.legend(fontsize=7, loc="upper left")
-    ax.grid(axis="y", alpha=0.3, zorder=0)
-
-    plt.tight_layout(pad=0.3)
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=160, bbox_inches="tight", facecolor="white")
-    plt.close(fig)
-    return buf.getvalue()
-
-
-def _create_category_bar(categories: list[dict]) -> bytes:
-    """Generate a horizontal bar chart for categories."""
-    if not categories:
-        return b""
-
-    # Take top 6 categories
-    cats = categories[:6]
-    labels = [c["name"][:16] for c in cats]
-    values = [c["total"] for c in cats]
-    colors_hex = [c.get("color", "#6b7280") for c in cats]
-    colors = [tuple(c / 255 for c in _hex_to_rgb(h)) for h in colors_hex]
-
-    fig, ax = plt.subplots(figsize=(5, 2.8))
-    fig.patch.set_facecolor("white")
-    ax.set_facecolor("white")
-
-    y = range(len(labels))
-    bars = ax.barh(y, values, color=colors, edgecolor="white", linewidth=0.5, height=0.6, zorder=3)
-
-    for bar, val in zip(bars, values):
-        ax.text(bar.get_width() + max(values) * 0.02, bar.get_y() + bar.get_height() / 2,
-                f"${val:,.0f}", va="center", fontsize=6.5, color="#374151")
-
-    ax.set_yticks(list(y))
-    ax.set_yticklabels(labels, fontsize=7)
-    ax.invert_yaxis()
-    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"${v:,.0f}"))
-    ax.tick_params(axis="x", labelsize=6)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.grid(axis="x", alpha=0.3, zorder=0)
-
-    plt.tight_layout(pad=0.3)
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=160, bbox_inches="tight", facecolor="white")
-    plt.close(fig)
-    return buf.getvalue()
-
-
-def _create_comparison_line(data: dict) -> bytes:
-    """Generate a line chart comparing current month vs last month vs last year same month."""
-    periods = ["Hace 12 meses", "Mes anterior", "Este mes"]
-    current = data.get("last_year_total", 0)
-    previous = data.get("previous_total", 0)
-    now = data.get("total_expenses", 0)
-
-    if current == 0 and previous == 0 and now == 0:
-        return b""
-
-    values = [current, previous, now]
-    colors = ["#94a3b8", "#6366f1", "#ef4444"]
-
-    fig, ax = plt.subplots(figsize=(5, 2.2))
-    fig.patch.set_facecolor("white")
-    ax.set_facecolor("white")
-
-    x = range(len(periods))
-    ax.plot(x, values, marker="o", color="#6366f1", linewidth=2.5, markersize=8, zorder=3)
-
-    for i, (v, c) in enumerate(zip(values, colors)):
-        ax.plot(i, v, marker="o", color=c, markersize=10, zorder=4)
-        ax.text(i, v + max(values) * 0.06, f"${v:,.0f}", ha="center", fontsize=7, fontweight="bold", color=c)
-
-    ax.set_xticks(list(x))
-    ax.set_xticklabels(periods, fontsize=7.5)
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"${v:,.0f}"))
     ax.tick_params(axis="y", labelsize=6)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
+    ax.legend(fontsize=7, loc="upper left")
     ax.grid(axis="y", alpha=0.3, zorder=0)
 
     plt.tight_layout(pad=0.3)
@@ -308,12 +236,13 @@ def generate_pdf(report_data: dict, user_name: str) -> bytes:
         if pie_png:
             pie_b64 = _img_to_base64(pie_png)
 
-    bar_b64 = ""
+    # Unified category chart with reference line
+    cat_ref_b64 = ""
     cat_comp = report_data.get("category_comparison", [])
     if cat_comp:
-        bar_png = _create_bar_comparison(cat_comp)
-        if bar_png:
-            bar_b64 = _img_to_base64(bar_png)
+        cat_ref_png = _create_category_with_reference(cat_comp)
+        if cat_ref_png:
+            cat_ref_b64 = _img_to_base64(cat_ref_png)
 
     trend_b64 = ""
     trend = report_data.get("trend_history", [])
@@ -321,20 +250,6 @@ def generate_pdf(report_data: dict, user_name: str) -> bytes:
         trend_png = _create_trend_chart(trend)
         if trend_png:
             trend_b64 = _img_to_base64(trend_png)
-
-    # Category bar chart
-    cat_bar_b64 = ""
-    all_cats = report_data.get("all_categories", [])
-    if all_cats:
-        cat_bar_png = _create_category_bar(all_cats)
-        if cat_bar_png:
-            cat_bar_b64 = _img_to_base64(cat_bar_png)
-
-    # Comparison line chart
-    comp_line_b64 = ""
-    comp_png = _create_comparison_line(report_data)
-    if comp_png:
-        comp_line_b64 = _img_to_base64(comp_png)
 
     # Format amounts but keep raw values for filtering
     def _fmt_list(items, key="total"):
@@ -375,9 +290,7 @@ def generate_pdf(report_data: dict, user_name: str) -> bytes:
         "last_year_total": _fmt(last_year_total) if last_year_total > 0 else None,
         "last_year_label": last_year_label,
         "pie_chart_b64": pie_b64,
-        "bar_chart_b64": bar_b64,
-        "category_bar_b64": cat_bar_b64,
-        "comparison_line_b64": comp_line_b64,
+        "category_ref_b64": cat_ref_b64,
         "trend_chart_b64": trend_b64,
         "top_expenses": _fmt_list(report_data.get("top_expenses", []), "amount"),
         "accounts_summary": _fmt_list(report_data.get("accounts_summary", [])),
