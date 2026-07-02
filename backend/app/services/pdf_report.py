@@ -257,16 +257,19 @@ def generate_pdf(report_data: dict, user_name: str) -> bytes:
     template = env.get_template("report_template.html")
     html_content = template.render(**context)
 
-    # Generate PDF with Playwright
+    # Generate PDF with Playwright - one continuous page
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--no-sandbox", "--disable-dev-shm-usage"])
-        page = browser.new_page(viewport={"width": 794, "height": 1123})
+        # Use very large height so all content fits in one continuous page
+        page = browser.new_page(viewport={"width": 794, "height": 5000})
         page.set_content(html_content, wait_until="networkidle")
         page.emulate_media(media="screen")
         pdf_bytes = page.pdf(
-            format="A4",
+            width="210mm",
+            height="297mm",  # Will be ignored with prefer_css_page_size
             margin={"top": "0", "bottom": "0", "left": "0", "right": "0"},
             print_background=True,
+            prefer_css_page_size=False,
         )
         browser.close()
 
