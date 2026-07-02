@@ -795,6 +795,20 @@ def generate_monthly_report(
         report_data="{}",
     )
     db.add(report)
+
+    # Create queued notification
+    from datetime import datetime
+    y_n, m_n = int(month_str[:4]), int(month_str[5:7])
+    month_name = MONTHS_ES.get(m_n, str(m_n))
+    notification = Notification(
+        user_id=current_user.id,
+        type="monthly_report_queued",
+        title=f"Generando reporte: {month_name} {y_n}",
+        body="Tu reporte se está generando...",
+        data=json.dumps({"month": month_str}),
+        read=False,
+    )
+    db.add(notification)
     db.commit()
 
     # Dispatch Celery task

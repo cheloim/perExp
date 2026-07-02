@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  @page {
+    size: A4;
+    margin: 1.8cm 1.5cm;
+    @bottom-center {
+      content: "NikoFin  •  Página " counter(page) " de " counter(pages);
+      font-size: 9px;
+      color: #9ca3af;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    color: #374151;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  /* ── Header ─────────────────────────── */
+  .report-header {
+    text-align: center;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #e5e7eb;
+  }
+  .report-header h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 4px 0;
+  }
+  .report-header .month {
+    font-size: 16px;
+    color: #6366f1;
+    font-weight: 600;
+    margin: 0 0 6px 0;
+  }
+  .report-header .meta {
+    font-size: 10px;
+    color: #9ca3af;
+  }
+
+  /* ── KPI Cards ──────────────────────── */
+  .kpi-grid {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .kpi-card {
+    flex: 1;
+    border-radius: 10px;
+    padding: 14px 12px;
+    text-align: center;
+  }
+  .kpi-card .label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .kpi-card .value {
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .kpi-card .sub {
+    font-size: 9px;
+    margin-top: 2px;
+  }
+  .kpi-red { background: linear-gradient(135deg, #fef2f2, #fee2e2); }
+  .kpi-red .label { color: #991b1b; }
+  .kpi-red .value { color: #dc2626; }
+  .kpi-green { background: linear-gradient(135deg, #f0fdf4, #dcfce7); }
+  .kpi-green .label { color: #166534; }
+  .kpi-green .value { color: #16a34a; }
+  .kpi-blue { background: linear-gradient(135deg, #eff6ff, #dbeafe); }
+  .kpi-blue .label { color: #1e40af; }
+  .kpi-blue .value { color: #2563eb; }
+  .kpi-amber { background: linear-gradient(135deg, #fffbeb, #fef3c7); }
+  .kpi-amber .label { color: #92400e; }
+  .kpi-amber .value { color: #d97706; }
+
+  /* ── Sections ───────────────────────── */
+  .section {
+    margin-bottom: 18px;
+    page-break-inside: avoid;
+  }
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6366f1;
+    border-bottom: 2px solid #e5e7eb;
+    padding-bottom: 5px;
+    margin-bottom: 12px;
+  }
+
+  /* ── Two Column Layout ──────────────── */
+  .two-col {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .two-col > div { flex: 1; }
+
+  /* ── Charts ─────────────────────────── */
+  .chart-container {
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .chart-container img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* ── Tables ─────────────────────────── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10px;
+  }
+  th {
+    background: #f3f4f6;
+    color: #6b7280;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 2px solid #e5e7eb;
+  }
+  td {
+    padding: 7px 10px;
+    border-bottom: 1px solid #f3f4f6;
+    color: #374151;
+  }
+  tr:nth-child(even) { background: #f9fafb; }
+  .text-right { text-align: right; }
+  .text-red { color: #dc2626; font-weight: 600; }
+  .text-green { color: #16a34a; font-weight: 600; }
+  .text-muted { color: #9ca3af; }
+
+  /* ── Insight Box ────────────────────── */
+  .insight-box {
+    background: linear-gradient(135deg, #f0f9ff, #eff6ff);
+    border-left: 4px solid #6366f1;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    font-size: 11px;
+    line-height: 1.6;
+    color: #1e40af;
+  }
+  .insight-box strong { color: #4338ca; }
+
+  .highlight-box {
+    background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+    border-left: 4px solid #22c55e;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    font-size: 10px;
+    color: #166534;
+  }
+  .concern-box {
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border-left: 4px solid #f59e0b;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    font-size: 10px;
+    color: #92400e;
+  }
+  .tip-box {
+    background: linear-gradient(135deg, #faf5ff, #f3e8ff);
+    border-left: 4px solid #8b5cf6;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    font-size: 10px;
+    color: #6b21a8;
+  }
+
+  /* ── Summary Stats ──────────────────── */
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 10px;
+  }
+  .stat-row .stat-label { color: #6b7280; }
+  .stat-row .stat-value { font-weight: 600; color: #374151; }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════════
+     PAGE 1: Overview
+     ════════════════════════════════════════════════════════════════ -->
+
+<div class="report-header">
+  <h1>Reporte Mensual</h1>
+  <p class="month">{{ month_name }} {{ year }}</p>
+  <p class="meta">Generado para {{ user_name }}  •  {{ generated_date }}</p>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-grid">
+  <div class="kpi-card kpi-red">
+    <div class="label">Gastos Totales</div>
+    <div class="value">{{ total_expenses }}</div>
+    <div class="sub">{{ expense_count }} transacciones</div>
+  </div>
+  <div class="kpi-card kpi-green">
+    <div class="label">Ingresos</div>
+    <div class="value">{{ total_income }}</div>
+    <div class="sub">&nbsp;</div>
+  </div>
+  <div class="kpi-card kpi-blue">
+    <div class="label">Tasa de Ahorro</div>
+    <div class="value">{{ savings_rate }}%</div>
+    <div class="sub">&nbsp;</div>
+  </div>
+  <div class="kpi-card {{ mom_color_class }}">
+    <div class="label">vs Mes Anterior</div>
+    <div class="value">{{ mom_change_display }}</div>
+    <div class="sub">{{ mom_label }}</div>
+  </div>
+</div>
+
+<!-- Quick Summary -->
+{% if analysis and analysis.summary %}
+<div class="insight-box">
+  <strong>Resumen:</strong> {{ analysis.summary }}
+</div>
+{% endif %}
+
+<!-- Pie Chart + Top Expenses -->
+<div class="two-col">
+  <div>
+    {% if pie_chart_b64 %}
+    <div class="section-title">Distribución por Categoría</div>
+    <div class="chart-container">
+      <img src="data:image/png;base64,{{ pie_chart_b64 }}" alt="Distribución por categoría">
+    </div>
+    {% endif %}
+  </div>
+  <div>
+    {% if top_expenses %}
+    <div class="section-title">Mayores Gastos</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Descripción</th>
+          <th class="text-right">Monto</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in top_expenses %}
+        <tr>
+          <td>{{ e.date }}</td>
+          <td>{{ e.description }}</td>
+          <td class="text-right text-red">{{ e.amount }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     PAGE 2: Charts + Comparison
+     ════════════════════════════════════════════════════════════════ -->
+<div style="page-break-before: always;"></div>
+
+<!-- Bar Comparison -->
+{% if bar_chart_b64 %}
+<div class="section">
+  <div class="section-title">Comparativa vs Mes Anterior</div>
+  <div class="chart-container">
+    <img src="data:image/png;base64,{{ bar_chart_b64 }}" alt="Comparativa por categoría">
+  </div>
+</div>
+{% endif %}
+
+<!-- Trend Chart -->
+{% if trend_chart_b64 %}
+<div class="section">
+  <div class="section-title">Evolución de Últimos 6 Meses</div>
+  <div class="chart-container">
+    <img src="data:image/png;base64,{{ trend_chart_b64 }}" alt="Evolución mensual">
+  </div>
+</div>
+{% endif %}
+
+<!-- Accounts + Cards side by side -->
+<div class="two-col">
+  <div>
+    {% if accounts_summary %}
+    <div class="section-title">Resumen de Cuentas</div>
+    <table>
+      <thead>
+        <tr><th>Cuenta</th><th>Tipo</th><th class="text-right">Monto</th></tr>
+      </thead>
+      <tbody>
+        {% for a in accounts_summary %}
+        {% if a.total_raw and a.total_raw > 0 %}
+        <tr>
+          <td>{{ a.name }}</td>
+          <td class="text-muted">{{ a.type }}</td>
+          <td class="text-right">{{ a.total }}</td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+  <div>
+    {% if cards_summary %}
+    <div class="section-title">Resumen de Tarjetas</div>
+    <table>
+      <thead>
+        <tr><th>Tarjeta</th><th>Banco</th><th class="text-right">Monto</th></tr>
+      </thead>
+      <tbody>
+        {% for c in cards_summary %}
+        {% if c.total_raw and c.total_raw > 0 %}
+        <tr>
+          <td>{{ c.name }}</td>
+          <td class="text-muted">{{ c.bank }}</td>
+          <td class="text-right">{{ c.total }}</td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     PAGE 3: Future + Analysis
+     ════════════════════════════════════════════════════════════════ -->
+<div style="page-break-before: always;"></div>
+
+<!-- Future Installments -->
+{% if future_installments %}
+<div class="section">
+  <div class="section-title">Cuotas Futuras</div>
+  <div class="stat-row">
+    <span class="stat-label">{{ future_installments_count }} cuotas programadas</span>
+    <span class="stat-value">{{ future_installments_total }}</span>
+  </div>
+  <table>
+    <thead>
+      <tr><th>Fecha</th><th>Descripción</th><th class="text-right">Monto</th></tr>
+    </thead>
+    <tbody>
+      {% for fi in future_installments %}
+      <tr>
+        <td>{{ fi.date }}</td>
+        <td>{{ fi.description }}</td>
+        <td class="text-right">{{ fi.amount }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<!-- LLM Analysis -->
+{% if analysis %}
+<div class="section">
+  <div class="section-title">Análisis IA</div>
+
+  {% if analysis.highlights %}
+  {% for h in analysis.highlights %}
+  <div class="highlight-box">{{ h }}</div>
+  {% endfor %}
+  {% endif %}
+
+  {% if analysis.category_notes %}
+  <div class="insight-box">{{ analysis.category_notes }}</div>
+  {% endif %}
+
+  {% if analysis.comparison_notes %}
+  <div class="insight-box">{{ analysis.comparison_notes }}</div>
+  {% endif %}
+
+  {% if analysis.accounts_notes %}
+  <div class="insight-box">{{ analysis.accounts_notes }}</div>
+  {% endif %}
+
+  {% if analysis.future_notes %}
+  <div class="insight-box">{{ analysis.future_notes }}</div>
+  {% endif %}
+
+  {% if analysis.concern %}
+  <div class="concern-box">⚠ {{ analysis.concern }}</div>
+  {% endif %}
+
+  {% if analysis.tip %}
+  <div class="tip-box">💡 {{ analysis.tip }}</div>
+  {% endif %}
+
+  {% if analysis.next_month_suggestion %}
+  <div class="highlight-box">
+    <strong>Próximo mes:</strong> {{ analysis.next_month_suggestion }}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+</body>
+</html>

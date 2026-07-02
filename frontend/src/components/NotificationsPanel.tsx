@@ -113,13 +113,12 @@ export default function NotificationsPanel({ onClose }: Props) {
       handleMarkRead(n.id);
       navigate("/expenses?uncategorized=1");
       onClose();
-    } else if (n.type === "monthly_report_ready") {
-      const month = n.data.month;
-      if (month) {
-        handleMarkRead(n.id);
-        downloadReportPdf(month);
-        onClose();
+    } else if (n.type === "monthly_report_ready" || n.type === "monthly_report_queued") {
+      handleMarkRead(n.id);
+      if (n.type === "monthly_report_ready" && n.data.month) {
+        downloadReportPdf(n.data.month);
       }
+      onClose();
     }
   };
 
@@ -345,7 +344,7 @@ export default function NotificationsPanel({ onClose }: Props) {
             const isImportNotif = n.type === "import_ready" || n.type === "import_failed";
             const isUncategorizedNotif =
               n.type === "uncategorized_expense" || n.type === "uncategorized_expenses";
-            const isClickable = isImportNotif || isUncategorizedNotif || n.type === "monthly_report_ready";
+            const isClickable = isImportNotif || isUncategorizedNotif || n.type === "monthly_report_ready" || n.type === "monthly_report_queued";
             const isFailed = n.type === "import_failed";
             return (
               <div
@@ -360,7 +359,7 @@ export default function NotificationsPanel({ onClose }: Props) {
                   isClickable
                     ? "cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
                     : ""
-                } ${isImportNotif ? "border-l-4 " + (isFailed ? "border-l-red-500" : "border-l-green-500") : ""} ${isUncategorizedNotif ? "border-l-4 border-l-amber-500" : ""} ${n.type === "monthly_report_ready" ? "border-l-4 border-l-blue-500" : ""}`}
+                } ${isImportNotif ? "border-l-4 " + (isFailed ? "border-l-red-500" : "border-l-green-500") : ""} ${isUncategorizedNotif ? "border-l-4 border-l-amber-500" : ""} ${(n.type === "monthly_report_ready" || n.type === "monthly_report_queued") ? "border-l-4 border-l-blue-500" : ""}`}
                 role={isClickable ? "button" : undefined}
                 tabIndex={isClickable ? 0 : undefined}
               >
