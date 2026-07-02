@@ -418,11 +418,14 @@ Usa flags para tendencias preocupantes a monitorear."""
                         lines = cleaned.split("\n")
                         cleaned = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
                     cleaned = cleaned.strip()
+                    # Find the last closing brace and truncate
+                    last_brace = cleaned.rfind("}")
+                    if last_brace > 0:
+                        cleaned = cleaned[:last_brace + 1]
                     analysis = json.loads(cleaned)
                     print(f"[MONTHLY REPORT] Strategy 4 (clean) succeeded")
                 except json.JSONDecodeError as e:
                     print(f"[MONTHLY REPORT] All JSON strategies failed: {e}")
-                    print(f"[MONTHLY REPORT] Raw text first 500: {raw_text[:500]}")
                     analysis = None
         except Exception as e:
             print(f"[MONTHLY REPORT] LLM analysis failed: {e}")
