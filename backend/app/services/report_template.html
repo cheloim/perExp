@@ -12,7 +12,6 @@
     font-size: 11px;
     line-height: 1.5;
     width: 210mm;
-    min-height: 297mm;
     background: white;
   }
 
@@ -20,7 +19,6 @@
     display: grid;
     grid-template-columns: 60% 40%;
     gap: 0;
-    min-height: 297mm;
   }
 
   /* Left side */
@@ -95,8 +93,8 @@
   .right .summary { color: rgba(255,255,255,0.85); }
 
   /* Charts */
-  .chart-container { text-align: center; margin-bottom: 4px; }
-  .chart-container canvas { border: none; }
+  .chart-container { text-align: center; margin-bottom: 4px; width: 100%; }
+  .chart-container canvas { border: none; width: 100% !important; height: auto !important; }
 
   /* Tables */
   table { width: 100%; border-collapse: collapse; font-size: 9px; }

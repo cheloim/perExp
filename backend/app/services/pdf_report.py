@@ -137,17 +137,14 @@ def _build_account_doughnut_data(accounts: list[dict], cards: list[dict]) -> dic
     account_palette = ["#f97316", "#f59e0b", "#ef4444", "#ec4899", "#8b5cf6", "#06b6d4", "#14b8a6", "#6366f1"]
     idx = 0
 
-    for a in accounts:
-        if a.get("total_raw", 0) > 0:
-            labels.append(a["name"][:18])
-            values.append(round(a["total_raw"], 2))
-            colors.append(account_palette[idx % len(account_palette)])
-            idx += 1
-
+    # Use cards data (which has actual spending)
     for c in cards:
-        if c.get("total_raw", 0) > 0:
-            labels.append(c["name"][:18])
-            values.append(round(c["total_raw"], 2))
+        total_val = c.get("total_raw", 0) or c.get("total", 0)
+        if isinstance(total_val, str):
+            total_val = float(total_val.replace("$", "").replace(",", "")) if total_val else 0
+        if total_val > 0:
+            labels.append(f"{c['name']} {c.get('bank', '')}".strip()[:20])
+            values.append(round(total_val, 2))
             colors.append(account_palette[idx % len(account_palette)])
             idx += 1
 
