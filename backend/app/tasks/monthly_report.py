@@ -287,6 +287,8 @@ Fecha: {today.isoformat()}"""
   "summary": "<resumen ejecutivo 3-4 lineas>",
   "highlights": ["<highlight 1>", "<highlight 2>", "<highlight 3>"],
   "concern": "<preocupacion o null>",
+  "alerts": ["<alerta critica o null, ej: gasto excesivo en X>"],
+  "flags": ["<bandera de atencion o null, ej: tendencia preocupante en Y>"],
   "category_notes": "<nota sobre distribucion de categorias, 1-2 lineas>",
   "comparison_notes": "<nota sobre comparativa con mes anterior, 1-2 lineas>",
   "future_notes": "<nota sobre cuotas futuras, 1-2 lineas>",
@@ -294,7 +296,9 @@ Fecha: {today.isoformat()}"""
   "tip": "<consejo concreto de ahorro>",
   "next_month_suggestion": "<sugerencia especifica para el proximo mes>"
 }
-Sé especifico con numeros. Español, claro, amigable. Sin emojis."""
+Sé especifico con numeros. Español, claro, amigable. Sin emojis.
+Usa alerts para gastos criticos o inusuales.
+Usa flags para tendencias preocupantes a monitorear."""
 
             client = genai.Client(api_key=api_key)
 

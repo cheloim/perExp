@@ -216,6 +216,84 @@ def _create_trend_chart(trend: list[dict]) -> bytes:
     return buf.getvalue()
 
 
+def _create_category_bar(categories: list[dict]) -> bytes:
+    """Generate a horizontal bar chart for categories."""
+    if not categories:
+        return b""
+
+    # Take top 6 categories
+    cats = categories[:6]
+    labels = [c["name"][:16] for c in cats]
+    values = [c["total"] for c in cats]
+    colors_hex = [c.get("color", "#6b7280") for c in cats]
+    colors = [tuple(c / 255 for c in _hex_to_rgb(h)) for h in colors_hex]
+
+    fig, ax = plt.subplots(figsize=(5, 2.8))
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("white")
+
+    y = range(len(labels))
+    bars = ax.barh(y, values, color=colors, edgecolor="white", linewidth=0.5, height=0.6, zorder=3)
+
+    for bar, val in zip(bars, values):
+        ax.text(bar.get_width() + max(values) * 0.02, bar.get_y() + bar.get_height() / 2,
+                f"${val:,.0f}", va="center", fontsize=6.5, color="#374151")
+
+    ax.set_yticks(list(y))
+    ax.set_yticklabels(labels, fontsize=7)
+    ax.invert_yaxis()
+    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"${v:,.0f}"))
+    ax.tick_params(axis="x", labelsize=6)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.grid(axis="x", alpha=0.3, zorder=0)
+
+    plt.tight_layout(pad=0.3)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=160, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    return buf.getvalue()
+
+
+def _create_comparison_line(data: dict) -> bytes:
+    """Generate a line chart comparing current month vs last month vs last year same month."""
+    periods = ["Hace 12 meses", "Mes anterior", "Este mes"]
+    current = data.get("last_year_total", 0)
+    previous = data.get("previous_total", 0)
+    now = data.get("total_expenses", 0)
+
+    if current == 0 and previous == 0 and now == 0:
+        return b""
+
+    values = [current, previous, now]
+    colors = ["#94a3b8", "#6366f1", "#ef4444"]
+
+    fig, ax = plt.subplots(figsize=(5, 2.2))
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("white")
+
+    x = range(len(periods))
+    ax.plot(x, values, marker="o", color="#6366f1", linewidth=2.5, markersize=8, zorder=3)
+
+    for i, (v, c) in enumerate(zip(values, colors)):
+        ax.plot(i, v, marker="o", color=c, markersize=10, zorder=4)
+        ax.text(i, v + max(values) * 0.06, f"${v:,.0f}", ha="center", fontsize=7, fontweight="bold", color=c)
+
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(periods, fontsize=7.5)
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"${v:,.0f}"))
+    ax.tick_params(axis="y", labelsize=6)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.grid(axis="y", alpha=0.3, zorder=0)
+
+    plt.tight_layout(pad=0.3)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=160, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    return buf.getvalue()
+
+
 # ---------------------------------------------------------------------------
 # Main PDF generator
 # ---------------------------------------------------------------------------
@@ -244,6 +322,20 @@ def generate_pdf(report_data: dict, user_name: str) -> bytes:
         if trend_png:
             trend_b64 = _img_to_base64(trend_png)
 
+    # Category bar chart
+    cat_bar_b64 = ""
+    all_cats = report_data.get("all_categories", [])
+    if all_cats:
+        cat_bar_png = _create_category_bar(all_cats)
+        if cat_bar_png:
+            cat_bar_b64 = _img_to_base64(cat_bar_png)
+
+    # Comparison line chart
+    comp_line_b64 = ""
+    comp_png = _create_comparison_line(report_data)
+    if comp_png:
+        comp_line_b64 = _img_to_base64(comp_png)
+
     # Format amounts but keep raw values for filtering
     def _fmt_list(items, key="total"):
         return [{**item, f"{key}_raw": item[key], key: _fmt(item[key])} for item in items]
@@ -256,6 +348,13 @@ def generate_pdf(report_data: dict, user_name: str) -> bytes:
     mom_color_class = "kpi-green" if mom_change <= 0 else "kpi-red"
     mom_arrow = "↓" if mom_change < 0 else "↑" if mom_change > 0 else "→"
     mom_label = "Gastaste menos" if mom_change < 0 else "Gastaste más" if mom_change > 0 else "Sin cambio"
+
+    last_year_total = report_data.get("last_year_total", 0)
+    last_year_change = 0.0
+    if last_year_total > 0:
+        last_year_change = ((report_data["total_expenses"] - last_year_total) / last_year_total) * 100
+    last_year_arrow = "↑" if last_year_change > 0 else "↓" if last_year_change < 0 else "→"
+    last_year_label = f"{last_year_arrow} {abs(last_year_change):.1f}%" if last_year_total > 0 else ""
 
     analysis = report_data.get("analysis")
     if analysis:
@@ -273,8 +372,12 @@ def generate_pdf(report_data: dict, user_name: str) -> bytes:
         "mom_change_display": f"{mom_arrow} {abs(mom_change)}%",
         "mom_color_class": mom_color_class,
         "mom_label": mom_label,
+        "last_year_total": _fmt(last_year_total) if last_year_total > 0 else None,
+        "last_year_label": last_year_label,
         "pie_chart_b64": pie_b64,
         "bar_chart_b64": bar_b64,
+        "category_bar_b64": cat_bar_b64,
+        "comparison_line_b64": comp_line_b64,
         "trend_chart_b64": trend_b64,
         "top_expenses": _fmt_list(report_data.get("top_expenses", []), "amount"),
         "accounts_summary": _fmt_list(report_data.get("accounts_summary", [])),

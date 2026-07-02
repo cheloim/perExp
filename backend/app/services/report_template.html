@@ -25,26 +25,28 @@
 
   /* ── Header ─────────────────────────── */
   .report-header {
-    text-align: center;
-    margin-bottom: 20px;
-    padding-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
     border-bottom: 2px solid #e5e7eb;
-  }
-  .report-header h1 {
-    font-size: 24px;
-    font-weight: 700;
-    color: #111827;
-    margin: 0 0 4px 0;
   }
   .report-header .month {
     font-size: 16px;
     color: #6366f1;
     font-weight: 600;
-    margin: 0 0 6px 0;
+  }
+  .report-header h1 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
   }
   .report-header .meta {
-    font-size: 10px;
+    font-size: 9px;
     color: #9ca3af;
+    margin-top: 2px;
   }
 
   /* ── KPI Cards ──────────────────────── */
@@ -186,6 +188,25 @@
     color: #6b21a8;
   }
 
+  .alert-box {
+    background: linear-gradient(135deg, #fef2f2, #fee2e2);
+    border-left: 4px solid #ef4444;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    font-size: 10px;
+    color: #991b1b;
+  }
+  .flag-box {
+    background: linear-gradient(135deg, #fff7ed, #ffedd5);
+    border-left: 4px solid #f97316;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    font-size: 10px;
+    color: #9a3412;
+  }
+
   /* ── Summary Stats ──────────────────── */
   .stat-row {
     display: flex;
@@ -205,9 +226,11 @@
      ════════════════════════════════════════════════════════════════ -->
 
 <div class="report-header">
+  <div>
+    <div class="month">{{ month_name }} {{ year }}</div>
+    <div class="meta">Generado para {{ user_name }}  •  {{ generated_date }}</div>
+  </div>
   <h1>Reporte Mensual</h1>
-  <p class="month">{{ month_name }} {{ year }}</p>
-  <p class="meta">Generado para {{ user_name }}  •  {{ generated_date }}</p>
 </div>
 
 <!-- KPIs -->
@@ -216,11 +239,6 @@
     <div class="label">Gastos Totales</div>
     <div class="value">{{ total_expenses }}</div>
     <div class="sub">{{ expense_count }} transacciones</div>
-  </div>
-  <div class="kpi-card kpi-green">
-    <div class="label">Ingresos</div>
-    <div class="value">{{ total_income }}</div>
-    <div class="sub">&nbsp;</div>
   </div>
   <div class="kpi-card kpi-blue">
     <div class="label">Tasa de Ahorro</div>
@@ -232,6 +250,13 @@
     <div class="value">{{ mom_change_display }}</div>
     <div class="sub">{{ mom_label }}</div>
   </div>
+  {% if last_year_total %}
+  <div class="kpi-card kpi-amber">
+    <div class="label">Mismo Mes Año Anterior</div>
+    <div class="value">{{ last_year_total }}</div>
+    <div class="sub">{{ last_year_label }}</div>
+  </div>
+  {% endif %}
 </div>
 
 <!-- Quick Summary -->
@@ -272,6 +297,26 @@
         {% endfor %}
       </tbody>
     </table>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Category Bar Chart + Comparison Line -->
+<div class="two-col">
+  <div>
+    {% if category_bar_b64 %}
+    <div class="section-title">Gastos por Categoría</div>
+    <div class="chart-container">
+      <img src="data:image/png;base64,{{ category_bar_b64 }}" alt="Gastos por categoría">
+    </div>
+    {% endif %}
+  </div>
+  <div>
+    {% if comparison_line_b64 %}
+    <div class="section-title">Comparativa Períodos</div>
+    <div class="chart-container">
+      <img src="data:image/png;base64,{{ comparison_line_b64 }}" alt="Comparativa períodos">
+    </div>
     {% endif %}
   </div>
 </div>
@@ -405,7 +450,19 @@
   {% endif %}
 
   {% if analysis.concern %}
-  <div class="concern-box">⚠ {{ analysis.concern }}</div>
+  <div class="alert-box">⚠ {{ analysis.concern }}</div>
+  {% endif %}
+
+  {% if analysis.alerts %}
+  {% for a in analysis.alerts %}
+  <div class="alert-box">🚨 {{ a }}</div>
+  {% endfor %}
+  {% endif %}
+
+  {% if analysis.flags %}
+  {% for f in analysis.flags %}
+  <div class="flag-box">🚩 {{ f }}</div>
+  {% endfor %}
   {% endif %}
 
   {% if analysis.tip %}
