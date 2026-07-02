@@ -5,10 +5,10 @@
 <style>
   @page {
     size: A4;
-    margin: 1.8cm 1.5cm;
+    margin: 1.2cm 1.2cm;
     @bottom-center {
       content: "NikoFin  •  Página " counter(page) " de " counter(pages);
-      font-size: 9px;
+      font-size: 8px;
       color: #9ca3af;
       font-family: 'Helvetica Neue', Arial, sans-serif;
     }
@@ -19,8 +19,8 @@
   body {
     font-family: 'Helvetica Neue', Arial, sans-serif;
     color: #374151;
-    font-size: 11px;
-    line-height: 1.5;
+    font-size: 10px;
+    line-height: 1.4;
   }
 
   /* ── Header ─────────────────────────── */
@@ -28,52 +28,52 @@
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    margin-bottom: 10px;
-    padding-bottom: 8px;
+    margin-bottom: 6px;
+    padding-bottom: 5px;
     border-bottom: 2px solid #e5e7eb;
   }
   .report-header .month {
-    font-size: 16px;
+    font-size: 14px;
     color: #6366f1;
     font-weight: 600;
   }
   .report-header h1 {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 700;
     color: #111827;
     margin: 0;
   }
   .report-header .meta {
-    font-size: 9px;
+    font-size: 8px;
     color: #9ca3af;
-    margin-top: 2px;
+    margin-top: 1px;
   }
 
   /* ── KPI Cards ──────────────────────── */
   .kpi-grid {
     display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
+    gap: 8px;
+    margin-bottom: 10px;
   }
   .kpi-card {
     flex: 1;
-    border-radius: 10px;
-    padding: 14px 12px;
+    border-radius: 8px;
+    padding: 10px 8px;
     text-align: center;
   }
   .kpi-card .label {
-    font-size: 9px;
+    font-size: 8px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 4px;
+    letter-spacing: 0.3px;
+    margin-bottom: 2px;
   }
   .kpi-card .value {
-    font-size: 18px;
+    font-size: 14px;
     font-weight: 700;
   }
   .kpi-card .sub {
-    font-size: 9px;
-    margin-top: 2px;
+    font-size: 8px;
+    margin-top: 1px;
   }
   .kpi-red { background: linear-gradient(135deg, #fef2f2, #fee2e2); }
   .kpi-red .label { color: #991b1b; }
@@ -90,30 +90,30 @@
 
   /* ── Sections ───────────────────────── */
   .section {
-    margin-bottom: 18px;
+    margin-bottom: 8px;
     page-break-inside: avoid;
   }
   .section-title {
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
     color: #6366f1;
-    border-bottom: 2px solid #e5e7eb;
-    padding-bottom: 5px;
-    margin-bottom: 12px;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 3px;
+    margin-bottom: 6px;
   }
 
   /* ── Two Column Layout ──────────────── */
   .two-col {
     display: flex;
-    gap: 16px;
-    margin-bottom: 16px;
+    gap: 10px;
+    margin-bottom: 8px;
   }
   .two-col > div { flex: 1; }
 
   /* ── Charts ─────────────────────────── */
   .chart-container {
     text-align: center;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
   }
   .chart-container img {
     max-width: 100%;
@@ -124,20 +124,20 @@
   table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 10px;
+    font-size: 9px;
   }
   th {
     background: #f3f4f6;
     color: #6b7280;
-    font-size: 9px;
+    font-size: 8px;
     text-transform: uppercase;
     letter-spacing: 0.3px;
-    padding: 8px 10px;
+    padding: 5px 8px;
     text-align: left;
-    border-bottom: 2px solid #e5e7eb;
+    border-bottom: 1px solid #e5e7eb;
   }
   td {
-    padding: 7px 10px;
+    padding: 4px 8px;
     border-bottom: 1px solid #f3f4f6;
     color: #374151;
   }
@@ -150,60 +150,60 @@
   /* ── Insight Box ────────────────────── */
   .insight-box {
     background: linear-gradient(135deg, #f0f9ff, #eff6ff);
-    border-left: 4px solid #6366f1;
-    border-radius: 8px;
-    padding: 14px 16px;
-    margin-bottom: 14px;
-    font-size: 11px;
-    line-height: 1.6;
+    border-left: 3px solid #6366f1;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    font-size: 9px;
+    line-height: 1.4;
     color: #1e40af;
   }
   .insight-box strong { color: #4338ca; }
 
   .highlight-box {
     background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-    border-left: 4px solid #22c55e;
-    border-radius: 8px;
-    padding: 10px 14px;
-    margin-bottom: 10px;
-    font-size: 10px;
+    border-left: 3px solid #22c55e;
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    font-size: 9px;
     color: #166534;
   }
   .concern-box {
     background: linear-gradient(135deg, #fffbeb, #fef3c7);
-    border-left: 4px solid #f59e0b;
-    border-radius: 8px;
-    padding: 10px 14px;
-    margin-bottom: 10px;
-    font-size: 10px;
+    border-left: 3px solid #f59e0b;
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    font-size: 9px;
     color: #92400e;
   }
   .tip-box {
     background: linear-gradient(135deg, #faf5ff, #f3e8ff);
-    border-left: 4px solid #8b5cf6;
-    border-radius: 8px;
-    padding: 10px 14px;
-    margin-bottom: 10px;
-    font-size: 10px;
+    border-left: 3px solid #8b5cf6;
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    font-size: 9px;
     color: #6b21a8;
   }
 
   .alert-box {
     background: linear-gradient(135deg, #fef2f2, #fee2e2);
-    border-left: 4px solid #ef4444;
-    border-radius: 8px;
-    padding: 10px 14px;
-    margin-bottom: 10px;
-    font-size: 10px;
+    border-left: 3px solid #ef4444;
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    font-size: 9px;
     color: #991b1b;
   }
   .flag-box {
     background: linear-gradient(135deg, #fff7ed, #ffedd5);
-    border-left: 4px solid #f97316;
-    border-radius: 8px;
-    padding: 10px 14px;
-    margin-bottom: 10px;
-    font-size: 10px;
+    border-left: 3px solid #f97316;
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    font-size: 9px;
     color: #9a3412;
   }
 

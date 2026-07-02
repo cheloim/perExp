@@ -88,7 +88,7 @@ def _create_pie_chart(categories: list[dict], total: float) -> bytes:
     if not sizes:
         return b""
 
-    fig, (ax_pie, ax_leg) = plt.subplots(1, 2, figsize=(6.5, 2.8),
+    fig, (ax_pie, ax_leg) = plt.subplots(1, 2, figsize=(6, 2.4),
                                           gridspec_kw={"width_ratios": [1, 1]})
     fig.patch.set_facecolor("white")
 
@@ -194,7 +194,7 @@ def _create_trend_chart(trend: list[dict]) -> bytes:
         months.append(f"{m_name}\n{y_t}")
         expenses.append(t["expenses"])
 
-    fig, ax = plt.subplots(figsize=(7, 2.5))
+    fig, ax = plt.subplots(figsize=(7, 2))
     fig.patch.set_facecolor("white")
     ax.set_facecolor("white")
 
