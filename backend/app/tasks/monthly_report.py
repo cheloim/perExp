@@ -207,6 +207,112 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
             "amount": abs(s.amount),
         })
 
+    # LLM analysis
+    analysis = None
+    import os
+
+    api_key = os.getenv("LLM_API_KEY")
+    if api_key:
+        try:
+            import asyncio
+            from google import genai
+            from google.genai import types as genai_types
+
+            today = date.today()
+            trend_lines = []
+            for t in trend_history:
+                trend_lines.append(f"  {t['month']}: gastos=${t['expenses']:,.0f}, ingresos=${t['income']:,.0f}")
+
+            cat_lines = []
+            for cat in all_categories[:8]:
+                cat_lines.append(f"  - {cat['name']}: ${cat['total']:,.0f} ({cat['count']} transacciones)")
+
+            comp_lines = []
+            for c in category_comparison:
+                comp_lines.append(f"  - {c['name']}: actual=${c['total']:,.0f}, anterior=${c['previous']:,.0f}, cambio={c['change_pct']:+.1f}%")
+
+            expense_lines = []
+            for e in top_expenses_data:
+                expense_lines.append(f"  - {e['date']} {e['description']}: ${e['amount']:,.2f} ({e['category']})")
+
+            account_lines = []
+            for a in accounts_summary:
+                if a['total'] > 0:
+                    account_lines.append(f"  - {a['name']} ({a['type']}): ${a['total']:,.2f} ({a['count']} transacciones)")
+
+            card_lines = []
+            for c in cards_summary:
+                if c['total'] > 0:
+                    card_lines.append(f"  - {c['name']} {c['bank']}: ${c['total']:,.2f} ({c['count']} transacciones)")
+
+            future_lines = []
+            for fi in future_installments[:5]:
+                future_lines.append(f"  - {fi['date']}: {fi['description']} ${fi['amount']:,.2f}")
+
+            llm_context = f"""RESUMEN MENSUAL - {MONTHS_ES[m]} {y}
+
+RESUMEN:
+- Gastos totales: ${total_expenses:,.0f}
+- Ingresos totales: ${total_income:,.0f}
+- Tasa de ahorro: {savings_rate:.1f}%
+- Transacciones: {count}
+- Variacion vs mes anterior: {mom_change:+.1f}%
+- Gastos mismo mes ano anterior: ${last_year_total:,.0f}
+
+TOP CATEGORIAS:
+{chr(10).join(cat_lines) or '  Sin datos'}
+
+COMPARATIVA vs MES ANTERIOR:
+{chr(10).join(comp_lines) or '  Sin datos'}
+
+MAYORES GASTOS:
+{chr(10).join(expense_lines) or '  Sin datos'}
+
+CUENTAS:
+{chr(10).join(account_lines) or '  Sin datos'}
+
+TARJETAS:
+{chr(10).join(card_lines) or '  Sin datos'}
+
+CUOTAS FUTURAS ({len(future_installments)} cuotas, ${sum(fi['amount'] for fi in future_installments):,.2f} total):
+{chr(10).join(future_lines) or '  Sin cuotas futuras'}
+
+HISTORIAL (6 meses):
+{chr(10).join(trend_lines)}
+
+Fecha: {today.isoformat()}"""
+
+            prompt = """Sos un analista financiero personal. Devolve UNICAMENTE JSON valido:
+{
+  "summary": "<resumen ejecutivo 3-4 lineas>",
+  "highlights": ["<highlight 1>", "<highlight 2>", "<highlight 3>"],
+  "concern": "<preocupacion o null>",
+  "category_notes": "<nota sobre distribucion de categorias, 1-2 lineas>",
+  "comparison_notes": "<nota sobre comparativa con mes anterior, 1-2 lineas>",
+  "future_notes": "<nota sobre cuotas futuras, 1-2 lineas>",
+  "accounts_notes": "<nota sobre cuentas/tarjetas, 1-2 lineas>",
+  "tip": "<consejo concreto de ahorro>",
+  "next_month_suggestion": "<sugerencia especifica para el proximo mes>"
+}
+Sé especifico con numeros. Español, claro, amigable. Sin emojis."""
+
+            client = genai.Client(api_key=api_key)
+
+            async def _call_llm():
+                return await client.aio.models.generate_content(
+                    model="gemini-flash-latest",
+                    contents=llm_context,
+                    config=genai_types.GenerateContentConfig(
+                        system_instruction=prompt,
+                        response_mime_type="application/json",
+                    ),
+                )
+
+            response = asyncio.run(_call_llm())
+            analysis = json.loads(response.text)
+        except Exception:
+            analysis = None
+
     return {
         "month": month_str,
         "total_expenses": total_expenses,
@@ -228,6 +334,7 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
         "future_installments": future_installments,
         "future_installments_count": len(future_installments),
         "future_installments_total": round(sum(fi["amount"] for fi in future_installments), 2),
+        "analysis": analysis,
     }
 
 

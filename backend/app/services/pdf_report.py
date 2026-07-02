@@ -1,22 +1,56 @@
-"""PDF report generation for monthly analysis using FPDF2."""
+"""PDF report generation for monthly analysis using FPDF2 + matplotlib."""
 
+import io
 import json
 import re
 from calendar import monthrange
 from collections import defaultdict
 from datetime import date
 
+import matplotlib
+matplotlib.use("Agg")  # Non-interactive backend
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 from fpdf import FPDF
 
-# Emoji pattern - matches most common emojis
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+MONTHS_ES = {
+    1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
+    5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
+    9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre",
+}
+
+# Color palette (Tailwind-inspired)
+C_PRIMARY = "#6366f1"
+C_PRIMARY_RGB = (99/255, 102/255, 241/255)  # Matplotlib uses 0-1 range
+C_SUCCESS = "#22c55e"
+C_DANGER = "#ef4444"
+C_WARNING = "#f59e0b"
+C_GRAY_50 = "#f9fafb"
+C_GRAY_100 = "#f3f4f6"
+C_GRAY_200 = "#e5e7eb"
+C_GRAY_400 = "#9ca3af"
+C_GRAY_500 = "#6b7280"
+C_GRAY_700 = "#374151"
+C_GRAY_900 = "#111827"
+
+# Chart color palette
+CHART_COLORS = [
+    "#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6",
+    "#06b6d4", "#ec4899", "#14b8a6", "#f97316", "#64748b",
+]
+
 _EMOJI_RE = re.compile(
     "["
-    "\U0001F600-\U0001F64F"  # emoticons
-    "\U0001F300-\U0001F5FF"  # symbols & pictographs
-    "\U0001F680-\U0001F6FF"  # transport & map
-    "\U0001F1E0-\U0001F1FF"  # flags
-    "\U00002702-\U000027B0"  # dingbats
-    "\U000024C2-\U0001F251"  # enclosed characters
+    "\U0001F600-\U0001F64F"
+    "\U0001F300-\U0001F5FF"
+    "\U0001F680-\U0001F6FF"
+    "\U0001F1E0-\U0001F1FF"
+    "\U00002702-\U000027B0"
+    "\U000024C2-\U0001F251"
     "\U0001f926-\U0001f937"
     "\U00010000-\U0010ffff"
     "]+",
@@ -25,20 +59,195 @@ _EMOJI_RE = re.compile(
 
 
 def _strip_emojis(text: str) -> str:
-    """Remove emojis from text for FPDF2 compatibility."""
     return _EMOJI_RE.sub("", text).strip()
 
-from app.database import SessionLocal
-from app.models import Category, Expense, MonthlyReport, User
-from app.routers.groups import get_group_user_ids
-from app.services.date_utils import add_months
 
-MONTHS_ES = {
-    1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
-    5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
-    9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre",
-}
+def _hex_to_rgb(hex_color: str) -> tuple:
+    h = hex_color.lstrip("#")
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
 
+
+def _fmt_currency(amount: float) -> str:
+    """Format as $XX.XXX"""
+    return f"${amount:,.2f}"
+
+
+# ---------------------------------------------------------------------------
+# Matplotlib chart generators
+# ---------------------------------------------------------------------------
+
+def _create_pie_chart(categories: list[dict], total: float) -> bytes:
+    """Generate a professional pie chart as PNG bytes."""
+    if not categories or total == 0:
+        return b""
+
+    # Filter and prepare data
+    labels = []
+    sizes = []
+    colors = []
+    for cat in categories[:8]:
+        pct = cat["total"] / total
+        if pct < 0.02:
+            continue
+        labels.append(cat["name"][:18])
+        sizes.append(cat["total"])
+        r, g, b = _hex_to_rgb(cat.get("color", "#6b7280"))
+        colors.append((r / 255, g / 255, b / 255))
+
+    # Add "Otros" if needed
+    shown_total = sum(sizes)
+    if shown_total < total * 0.98:
+        labels.append("Otros")
+        sizes.append(total - shown_total)
+        colors.append((0.75, 0.75, 0.75))
+
+    if not sizes:
+        return b""
+
+    fig, (ax_pie, ax_legend) = plt.subplots(1, 2, figsize=(7.5, 3.2),
+                                             gridspec_kw={"width_ratios": [1.2, 1]})
+    fig.patch.set_facecolor("white")
+
+    # Pie chart
+    wedges, texts, autotexts = ax_pie.pie(
+        sizes, labels=None, autopct=lambda p: f"{p:.0f}%" if p > 4 else "",
+        colors=colors, startangle=90, pctdistance=0.75,
+        wedgeprops={"linewidth": 1.5, "edgecolor": "white"},
+    )
+    for t in autotexts:
+        t.set_fontsize(7)
+        t.set_color("white")
+        t.set_fontweight("bold")
+
+    # Center hole for donut effect
+    centre = plt.Circle((0, 0), 0.55, fc="white", ec="none")
+    ax_pie.add_artist(centre)
+    ax_pie.text(0, 0, _fmt_currency(total), ha="center", va="center",
+                fontsize=11, fontweight="bold", color=C_GRAY_700)
+    ax_pie.set_aspect("equal")
+
+    # Legend
+    ax_legend.axis("off")
+    for i, (label, size, color) in enumerate(zip(labels, sizes, colors)):
+        y = 1.0 - i * (1.0 / max(len(labels), 1))
+        pct = (size / total * 100) if total > 0 else 0
+        ax_legend.add_patch(plt.Rectangle((0.02, y - 0.04), 0.06, 0.06,
+                                          facecolor=color, edgecolor="none",
+                                          transform=ax_legend.transAxes))
+        ax_legend.text(0.12, y, f"{label}", fontsize=8, va="center",
+                       color=C_GRAY_700, transform=ax_legend.transAxes)
+        ax_legend.text(0.72, y, _fmt_currency(size), fontsize=7, va="center",
+                       ha="right", color=C_GRAY_500, transform=ax_legend.transAxes)
+        ax_legend.text(0.88, y, f"{pct:.0f}%", fontsize=7, va="center",
+                       ha="right", color=C_GRAY_400, transform=ax_legend.transAxes)
+
+    plt.tight_layout(pad=0.5)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=150, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    return buf.getvalue()
+
+
+def _create_bar_comparison(data: list[dict]) -> bytes:
+    """Generate a grouped bar chart comparing current vs last month."""
+    if not data:
+        return b""
+
+    labels = [d["name"][:14] for d in data]
+    current = [d["total"] for d in data]
+    previous = [d["previous"] for d in data]
+
+    fig, ax = plt.subplots(figsize=(7, 3.5))
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("white")
+
+    x = range(len(labels))
+    width = 0.35
+
+    bars1 = ax.bar([i - width / 2 for i in x], current, width, label="Este mes",
+                   color=C_PRIMARY, alpha=0.9, edgecolor="white", linewidth=0.5)
+    bars2 = ax.bar([i + width / 2 for i in x], previous, width, label="Mes anterior",
+                   color="#d1d5db", edgecolor="white", linewidth=0.5)
+
+    # Value labels on bars
+    for bar in bars1:
+        h = bar.get_height()
+        if h > 0:
+            ax.text(bar.get_x() + bar.get_width() / 2, h + max(current) * 0.02,
+                    f"${h:,.0f}", ha="center", va="bottom", fontsize=6, color=C_GRAY_500)
+    for bar in bars2:
+        h = bar.get_height()
+        if h > 0:
+            ax.text(bar.get_x() + bar.get_width() / 2, h + max(current) * 0.02,
+                    f"${h:,.0f}", ha="center", va="bottom", fontsize=6, color=C_GRAY_400)
+
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(labels, fontsize=7, rotation=25, ha="right")
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"${v:,.0f}"))
+    ax.tick_params(axis="y", labelsize=7)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.legend(fontsize=8, loc="upper right")
+    ax.set_ylabel("Monto ($)", fontsize=8, color=C_GRAY_500)
+
+    plt.tight_layout(pad=0.5)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=150, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    return buf.getvalue()
+
+
+def _create_trend_chart(trend: list[dict]) -> bytes:
+    """Generate a 6-month trend line chart."""
+    if not trend:
+        return b""
+
+    months = []
+    expenses = []
+    incomes = []
+    for t in trend:
+        y_t, m_t = t["month"].split("-")
+        m_name = MONTHS_ES.get(int(m_t), m_t)[:3]
+        months.append(f"{m_name}\n{y_t}")
+        expenses.append(t["expenses"])
+        incomes.append(t["income"])
+
+    fig, ax = plt.subplots(figsize=(7, 3))
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("white")
+
+    x = range(len(months))
+    ax.plot(x, expenses, marker="o", color=C_DANGER, linewidth=2, markersize=5, label="Gastos")
+    ax.plot(x, incomes, marker="o", color=C_SUCCESS, linewidth=2, markersize=5, label="Ingresos")
+
+    # Fill between
+    ax.fill_between(x, expenses, alpha=0.08, color=C_DANGER)
+    ax.fill_between(x, incomes, alpha=0.08, color=C_SUCCESS)
+
+    # Value labels
+    for i, (e, inc) in enumerate(zip(expenses, incomes)):
+        ax.text(i, e + max(expenses) * 0.03, f"${e:,.0f}", ha="center", fontsize=6, color=C_DANGER)
+        ax.text(i, inc + max(expenses) * 0.03, f"${inc:,.0f}", ha="center", fontsize=6, color=C_SUCCESS)
+
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(months, fontsize=7)
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"${v:,.0f}"))
+    ax.tick_params(axis="y", labelsize=7)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.legend(fontsize=8, loc="upper left")
+    ax.set_ylabel("Monto ($)", fontsize=8, color=C_GRAY_500)
+
+    plt.tight_layout(pad=0.5)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=150, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    return buf.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# PDF Class
+# ---------------------------------------------------------------------------
 
 class MonthlyReportPDF(FPDF):
     """Custom PDF class for monthly financial reports."""
@@ -48,634 +257,272 @@ class MonthlyReportPDF(FPDF):
         self.set_auto_page_break(auto=True, margin=20)
 
     def header(self):
-        self.set_font("Helvetica", "B", 10)
-        self.set_text_color(100, 100, 100)
-        self.cell(0, 8, "NikoFin - Reporte Mensual", align="R")
-        self.ln(10)
+        if self.page_no() > 1:
+            self.set_font("Helvetica", "B", 9)
+            self.set_text_color(*_hex_to_rgb(C_GRAY_400))
+            self.cell(0, 8, "NikoFin  -  Reporte Mensual", align="R")
+            self.ln(10)
 
     def footer(self):
         self.set_y(-15)
-        self.set_font("Helvetica", "I", 8)
-        self.set_text_color(150, 150, 150)
+        self.set_font("Helvetica", "I", 7)
+        self.set_text_color(*_hex_to_rgb(C_GRAY_400))
         self.cell(0, 10, f"Pagina {self.page_no()}/{{nb}}", align="C")
 
+    # -- Layout helpers ---------------------------------------------------
+
     def section_title(self, title: str):
-        self.set_font("Helvetica", "B", 12)
-        self.set_text_color(99, 102, 241)  # Primary color
-        self.cell(0, 10, title)
-        self.ln(8)
-        # Draw line
-        self.set_draw_color(99, 102, 241)
-        self.set_line_width(0.5)
+        if self.get_y() > 250:
+            self.add_page()
+        self.ln(4)
+        self.set_font("Helvetica", "B", 11)
+        self.set_text_color(*_hex_to_rgb(C_PRIMARY))
+        self.cell(0, 8, title)
+        self.ln(7)
+        self.set_draw_color(*_hex_to_rgb(C_PRIMARY))
+        self.set_line_width(0.4)
         self.line(10, self.get_y(), 200, self.get_y())
         self.ln(4)
 
+    def _check_page(self, needed: int = 30):
+        if self.get_y() + needed > 270:
+            self.add_page()
+
+    # -- KPI row ----------------------------------------------------------
+
     def kpi_row(self, items: list[tuple[str, str, str]]):
-        """Render a row of KPI cards. items = [(label, value, color), ...]"""
-        col_width = 190 / len(items)
+        col_w = 190 / len(items)
         for label, value, color in items:
-            x = self.get_x()
-            y = self.get_y()
-            # Background
+            x, y = self.get_x(), self.get_y()
             self.set_fill_color(248, 249, 250)
-            self.rect(x, y, col_width - 4, 22, "F")
-            # Label
-            self.set_font("Helvetica", "", 7)
-            self.set_text_color(107, 114, 128)
-            self.set_xy(x + 2, y + 2)
-            self.cell(col_width - 4, 5, label.upper())
-            # Value
+            self.rect(x, y, col_w - 4, 22, "F")
+            self.set_font("Helvetica", "", 6)
+            self.set_text_color(*_hex_to_rgb(C_GRAY_500))
+            self.set_xy(x + 3, y + 2)
+            self.cell(col_w - 6, 5, label.upper())
             self.set_font("Helvetica", "B", 11)
             if color == "green":
-                self.set_text_color(5, 150, 105)
+                self.set_text_color(*_hex_to_rgb(C_SUCCESS))
             elif color == "red":
-                self.set_text_color(220, 38, 38)
+                self.set_text_color(*_hex_to_rgb(C_DANGER))
             else:
-                self.set_text_color(31, 41, 55)
-            self.set_xy(x + 2, y + 9)
-            self.cell(col_width - 4, 8, value)
-            self.set_xy(x + col_width - 2, y)
+                self.set_text_color(*_hex_to_rgb(C_GRAY_900))
+            self.set_xy(x + 3, y + 9)
+            self.cell(col_w - 6, 8, value)
+            self.set_xy(x + col_w - 2, y)
         self.ln(26)
 
-    def category_table(self, categories: list[dict]):
-        """Render top categories as a table."""
-        self.set_font("Helvetica", "B", 8)
-        self.set_fill_color(249, 250, 251)
-        self.set_text_color(107, 114, 128)
-        self.cell(80, 7, "Categoria", border=1, fill=True)
-        self.cell(35, 7, "Monto", border=1, fill=True, align="R")
-        self.cell(25, 7, "Trans.", border=1, fill=True, align="R")
-        self.cell(25, 7, "Porcentaje", border=1, fill=True, align="R")
+    # -- Tables -----------------------------------------------------------
+
+    def _table_header(self, cols: list[tuple[str, int, str]]):
+        """cols = [(label, width, align), ...]"""
+        self.set_font("Helvetica", "B", 7)
+        self.set_fill_color(*_hex_to_rgb(C_GRAY_100))
+        self.set_text_color(*_hex_to_rgb(C_GRAY_500))
+        for label, w, align in cols:
+            self.cell(w, 7, label, border=1, fill=True, align=align)
+        self.ln()
+        self.set_font("Helvetica", "", 7)
+        self.set_text_color(*_hex_to_rgb(C_GRAY_700))
+
+    def _table_row(self, values: list[tuple[str, int, str, str | None]]):
+        """values = [(text, width, align, color), ...]"""
+        for text, w, align, color in values:
+            if color:
+                self.set_text_color(*_hex_to_rgb(color))
+            self.cell(w, 6, text, align=align)
+            if color:
+                self.set_text_color(*_hex_to_rgb(C_GRAY_700))
         self.ln()
 
-        self.set_font("Helvetica", "", 8)
-        self.set_text_color(31, 41, 55)
-        total = sum(c["total"] for c in categories) if categories else 1
+    def category_table(self, categories: list[dict]):
+        if not categories:
+            return
+        total = sum(c["total"] for c in categories) or 1
+        self._check_page(len(categories) * 6 + 20)
+        self._table_header([
+            ("Categoria", 75, ""), ("Monto", 30, "R"),
+            ("Trans.", 20, "R"), ("%", 20, "R"),
+        ])
         for cat in categories:
-            pct = (cat["total"] / total * 100) if total > 0 else 0
-            # Color dot
-            r, g, b = _hex_to_rgb(cat.get("color", "#6b7280"))
-            self.set_fill_color(r, g, b)
-            self.rect(self.get_x() + 2, self.get_y() + 2, 3, 3, "F")
-            self.set_x(self.get_x() + 7)
-            self.cell(73, 7, cat["name"][:35])
-            self.cell(35, 7, f"${cat['total']:,.2f}", align="R")
-            self.cell(25, 7, str(cat["count"]), align="R")
-            self.cell(25, 7, f"{pct:.1f}%", align="R")
-            self.ln()
+            pct = cat["total"] / total * 100
+            self._table_row([
+                (cat["name"][:35], 75, "", None),
+                (_fmt_currency(cat["total"]), 30, "R", None),
+                (str(cat["count"]), 20, "R", None),
+                (f"{pct:.1f}%", 20, "R", C_GRAY_500),
+            ])
         self.ln(4)
 
     def trend_table(self, trend: list[dict]):
-        """Render 6-month trend table."""
-        self.set_font("Helvetica", "B", 8)
-        self.set_fill_color(249, 250, 251)
-        self.set_text_color(107, 114, 128)
-        self.cell(40, 7, "Mes", border=1, fill=True)
-        self.cell(35, 7, "Gastos", border=1, fill=True, align="R")
-        self.cell(35, 7, "Ingresos", border=1, fill=True, align="R")
-        self.cell(35, 7, "Balance", border=1, fill=True, align="R")
-        self.ln()
-
-        self.set_font("Helvetica", "", 8)
+        if not trend:
+            return
+        self._check_page(len(trend) * 7 + 20)
+        self._table_header([
+            ("Mes", 40, ""), ("Gastos", 35, "R"),
+            ("Ingresos", 35, "R"), ("Balance", 35, "R"),
+        ])
         for t in trend:
             y_t, m_t = t["month"].split("-")
             m_name = MONTHS_ES.get(int(m_t), m_t)[:3]
-            balance = t["income"] - t["expenses"]
-            self.set_text_color(31, 41, 55)
-            self.cell(40, 7, f"{m_name} {y_t}")
-            self.cell(35, 7, f"${t['expenses']:,.2f}", align="R")
-            self.cell(35, 7, f"${t['income']:,.2f}", align="R")
-            if balance >= 0:
-                self.set_text_color(5, 150, 105)
-            else:
-                self.set_text_color(220, 38, 38)
-            self.cell(35, 7, f"${balance:,.2f}", align="R")
-            self.ln()
+            bal = t["income"] - t["expenses"]
+            bal_color = C_SUCCESS if bal >= 0 else C_DANGER
+            self._table_row([
+                (f"{m_name} {y_t}", 40, "", None),
+                (_fmt_currency(t["expenses"]), 35, "R", None),
+                (_fmt_currency(t["income"]), 35, "R", None),
+                (_fmt_currency(bal), 35, "R", bal_color),
+            ])
         self.ln(4)
 
-    def analysis_box(self, analysis: dict):
-        """Render LLM analysis section."""
-        self.set_font("Helvetica", "B", 10)
-        self.set_text_color(99, 102, 241)
-        self.cell(0, 8, "Analisis IA")
-        self.ln(8)
-
-        # Summary
-        self.set_font("Helvetica", "", 9)
-        self.set_text_color(55, 65, 81)
-        self.multi_cell(0, 5, _strip_emojis(analysis.get("summary", "")))
-        self.ln(3)
-
-        # Highlights
-        for h in analysis.get("highlights", []):
-            self.set_font("Helvetica", "", 9)
-            self.set_text_color(5, 150, 105)
-            self.cell(5, 5, "+")
-            self.set_text_color(55, 65, 81)
-            self.cell(0, 5, f" {_strip_emojis(h)}")
-            self.ln(5)
-
-        # Category notes
-        if analysis.get("category_notes"):
-            self.set_font("Helvetica", "I", 8)
-            self.set_text_color(107, 114, 128)
-            self.multi_cell(0, 4, _strip_emojis(analysis["category_notes"]))
-            self.ln(2)
-
-        # Comparison notes
-        if analysis.get("comparison_notes"):
-            self.set_font("Helvetica", "I", 8)
-            self.set_text_color(107, 114, 128)
-            self.multi_cell(0, 4, _strip_emojis(analysis["comparison_notes"]))
-            self.ln(2)
-
-        # Future notes
-        if analysis.get("future_notes"):
-            self.set_font("Helvetica", "I", 8)
-            self.set_text_color(107, 114, 128)
-            self.multi_cell(0, 4, _strip_emojis(analysis["future_notes"]))
-            self.ln(2)
-
-        # Accounts notes
-        if analysis.get("accounts_notes"):
-            self.set_font("Helvetica", "I", 8)
-            self.set_text_color(107, 114, 128)
-            self.multi_cell(0, 4, _strip_emojis(analysis["accounts_notes"]))
-            self.ln(2)
-
-        # Concern
-        if analysis.get("concern"):
-            self.set_fill_color(255, 251, 235)
-            self.set_draw_color(217, 119, 6)
-            y = self.get_y()
-            self.rect(10, y, 190, 12, "DF")
-            self.set_xy(12, y + 2)
-            self.set_font("Helvetica", "B", 8)
-            self.set_text_color(217, 119, 6)
-            self.cell(5, 5, "!")
-            self.set_font("Helvetica", "", 8)
-            self.set_text_color(120, 80, 20)
-            self.cell(0, 5, f" {_strip_emojis(analysis['concern'])}")
-            self.ln(14)
-
-        # Tip
-        if analysis.get("tip"):
-            self.set_fill_color(238, 242, 255)
-            self.set_draw_color(99, 102, 241)
-            y = self.get_y()
-            self.rect(10, y, 190, 12, "DF")
-            self.set_xy(12, y + 2)
-            self.set_font("Helvetica", "B", 8)
-            self.set_text_color(99, 102, 241)
-            self.cell(5, 5, "*")
-            self.set_font("Helvetica", "", 8)
-            self.set_text_color(55, 55, 100)
-            self.cell(0, 5, f" {_strip_emojis(analysis['tip'])}")
-            self.ln(14)
-
-        # Next month suggestion
-        if analysis.get("next_month_suggestion"):
-            self.set_fill_color(240, 253, 244)
-            self.set_draw_color(5, 150, 105)
-            y = self.get_y()
-            self.rect(10, y, 190, 12, "DF")
-            self.set_xy(12, y + 2)
-            self.set_font("Helvetica", "B", 8)
-            self.set_text_color(5, 150, 105)
-            self.cell(5, 5, ">")
-            self.set_font("Helvetica", "", 8)
-            self.set_text_color(20, 80, 50)
-            self.cell(0, 5, f" {_strip_emojis(analysis['next_month_suggestion'])}")
-            self.ln(14)
-
-    def pie_chart(self, categories: list[dict], total: float):
-        """Render a pie chart showing category distribution."""
-        if not categories or total == 0:
-            return
-
-        cx, cy = 60, 55  # Center of pie
-        radius = 35
-        start_angle = 0
-
-        for cat in categories[:8]:  # Max 8 slices
-            pct = cat["total"] / total
-            if pct < 0.01:
-                continue  # Skip tiny slices
-            end_angle = start_angle + pct * 360
-
-            r, g, b = _hex_to_rgb(cat.get("color", "#6b7280"))
-            self.set_fill_color(r, g, b)
-            self.set_draw_color(255, 255, 255)
-
-            # Draw arc using lines
-            import math
-            steps = max(3, int(abs(end_angle - start_angle) / 5))
-            points = [(cx, cy)]
-            for i in range(steps + 1):
-                angle = math.radians(start_angle + (end_angle - start_angle) * i / steps)
-                x = cx + radius * math.cos(angle)
-                y = cy + radius * math.sin(angle)
-                points.append((x, y))
-            points.append((cx, cy))
-
-            # Fill polygon
-            self.set_fill_color(r, g, b)
-            for i in range(len(points) - 2):
-                x1, y1 = points[i]
-                x2, y2 = points[i + 1]
-                x3, y3 = points[i + 2]
-                # Simple triangle fill using lines
-                self.set_line_width(0.3)
-                self.line(x1, y1, x2, y2)
-                self.line(x2, y2, x3, y3)
-                self.line(x3, y3, x1, y1)
-
-            start_angle = end_angle
-
-        # Legend
-        legend_x = 110
-        legend_y = 25
-        for i, cat in enumerate(categories[:8]):
-            pct = (cat["total"] / total * 100) if total > 0 else 0
-            r, g, b = _hex_to_rgb(cat.get("color", "#6b7280"))
-            self.set_fill_color(r, g, b)
-            self.rect(legend_x, legend_y + i * 7, 4, 4, "F")
-            self.set_font("Helvetica", "", 7)
-            self.set_text_color(55, 65, 81)
-            label = cat["name"][:20] if len(cat["name"]) > 20 else cat["name"]
-            self.set_xy(legend_x + 6, legend_y + i * 7 - 1)
-            self.cell(60, 5, f"{label}")
-            self.set_text_color(107, 114, 128)
-            self.cell(25, 5, f"${cat['total']:,.0f}", align="R")
-            self.cell(15, 5, f"{pct:.0f}%", align="R")
-
-        self.set_y(max(cy + radius + 5, legend_y + len(categories[:8]) * 7 + 5))
-
-    def bar_chart_comparison(self, data: list[dict]):
-        """Render bar chart comparing current vs last month."""
-        if not data:
-            return
-
-        chart_x = 15
-        chart_y = self.get_y() + 5
-        chart_w = 170
-        chart_h = 50
-        bar_w = 16
-        gap = (chart_w - len(data) * bar_w * 2) / (len(data) + 1)
-
-        max_val = max(max(d["total"], d["previous"]) for d in data) or 1
-
-        # Draw bars
-        for i, d in enumerate(data):
-            x = chart_x + gap + i * (bar_w * 2 + gap)
-
-            # Current month bar (blue)
-            h_current = (d["total"] / max_val) * chart_h
-            self.set_fill_color(99, 102, 241)
-            self.rect(x, chart_y + chart_h - h_current, bar_w, h_current, "F")
-
-            # Previous month bar (gray)
-            h_previous = (d["previous"] / max_val) * chart_h
-            self.set_fill_color(209, 213, 219)
-            self.rect(x + bar_w + 2, chart_y + chart_h - h_previous, bar_w, h_previous, "F")
-
-            # Label
-            self.set_font("Helvetica", "", 5)
-            self.set_text_color(107, 114, 128)
-            label = d["name"][:12] if len(d["name"]) > 12 else d["name"]
-            self.set_xy(x, chart_y + chart_h + 2)
-            self.cell(bar_w * 2 + 2, 4, label, align="C")
-
-        # Legend
-        self.set_fill_color(99, 102, 241)
-        self.rect(chart_x, chart_y - 5, 4, 4, "F")
-        self.set_font("Helvetica", "", 6)
-        self.set_text_color(55, 65, 81)
-        self.set_xy(chart_x + 6, chart_y - 5)
-        self.cell(20, 4, "Este mes")
-
-        self.set_fill_color(209, 213, 219)
-        self.rect(chart_x + 35, chart_y - 5, 4, 4, "F")
-        self.set_xy(chart_x + 41, chart_y - 5)
-        self.cell(20, 4, "Mes anterior")
-
-        self.set_y(chart_y + chart_h + 10)
-
     def top_expenses_table(self, expenses: list[dict]):
-        """Render top 5 expenses table."""
-        self.set_font("Helvetica", "B", 8)
-        self.set_fill_color(249, 250, 251)
-        self.set_text_color(107, 114, 128)
-        self.cell(20, 7, "Fecha", border=1, fill=True)
-        self.cell(80, 7, "Descripcion", border=1, fill=True)
-        self.cell(40, 7, "Categoria", border=1, fill=True)
-        self.cell(30, 7, "Monto", border=1, fill=True, align="R")
-        self.ln()
-
-        self.set_font("Helvetica", "", 7)
+        if not expenses:
+            return
+        self._check_page(len(expenses) * 6 + 20)
+        self._table_header([
+            ("Fecha", 20, ""), ("Descripcion", 75, ""),
+            ("Categoria", 40, ""), ("Monto", 30, "R"),
+        ])
         for e in expenses:
-            self.set_text_color(31, 41, 55)
-            self.cell(20, 6, e["date"])
-            self.cell(80, 6, e["description"][:35])
-            self.cell(40, 6, e["category"][:20])
-            self.set_text_color(220, 38, 38)
-            self.cell(30, 6, f"${e['amount']:,.2f}", align="R")
-            self.ln()
+            self._table_row([
+                (e["date"], 20, "", None),
+                (e["description"][:35], 75, "", None),
+                (e["category"][:20], 40, "", None),
+                (_fmt_currency(e["amount"]), 30, "R", C_DANGER),
+            ])
         self.ln(4)
 
     def accounts_table(self, accounts: list[dict]):
-        """Render accounts summary table."""
+        accounts = [a for a in accounts if a["total"] > 0]
         if not accounts:
             return
-        self.set_font("Helvetica", "B", 8)
-        self.set_fill_color(249, 250, 251)
-        self.set_text_color(107, 114, 128)
-        self.cell(60, 7, "Cuenta", border=1, fill=True)
-        self.cell(30, 7, "Tipo", border=1, fill=True)
-        self.cell(30, 7, "Trans.", border=1, fill=True, align="R")
-        self.cell(40, 7, "Monto", border=1, fill=True, align="R")
-        self.ln()
-
-        self.set_font("Helvetica", "", 7)
+        self._check_page(len(accounts) * 6 + 20)
+        self._table_header([
+            ("Cuenta", 55, ""), ("Tipo", 30, ""),
+            ("Trans.", 20, "R"), ("Monto", 35, "R"),
+        ])
         for a in accounts:
-            if a["total"] == 0:
-                continue
-            self.set_text_color(31, 41, 55)
-            self.cell(60, 6, a["name"][:30])
-            self.cell(30, 6, a["type"])
-            self.cell(30, 6, str(a["count"]), align="R")
-            self.cell(40, 6, f"${a['total']:,.2f}", align="R")
-            self.ln()
+            self._table_row([
+                (a["name"][:28], 55, "", None),
+                (a["type"], 30, "", None),
+                (str(a["count"]), 20, "R", None),
+                (_fmt_currency(a["total"]), 35, "R", None),
+            ])
         self.ln(4)
 
     def cards_table(self, cards: list[dict]):
-        """Render cards summary table."""
+        cards = [c for c in cards if c["total"] > 0]
         if not cards:
             return
-        self.set_font("Helvetica", "B", 8)
-        self.set_fill_color(249, 250, 251)
-        self.set_text_color(107, 114, 128)
-        self.cell(40, 7, "Tarjeta", border=1, fill=True)
-        self.cell(40, 7, "Banco", border=1, fill=True)
-        self.cell(25, 7, "Trans.", border=1, fill=True, align="R")
-        self.cell(40, 7, "Monto", border=1, fill=True, align="R")
-        self.ln()
-
-        self.set_font("Helvetica", "", 7)
+        self._check_page(len(cards) * 6 + 20)
+        self._table_header([
+            ("Tarjeta", 40, ""), ("Banco", 40, ""),
+            ("Trans.", 20, "R"), ("Monto", 35, "R"),
+        ])
         for c in cards:
-            if c["total"] == 0:
-                continue
-            self.set_text_color(31, 41, 55)
-            self.cell(40, 6, c["name"][:20])
-            self.cell(40, 6, c["bank"][:20])
-            self.cell(25, 6, str(c["count"]), align="R")
-            self.cell(40, 6, f"${c['total']:,.2f}", align="R")
-            self.ln()
+            self._table_row([
+                (c["name"][:20], 40, "", None),
+                (c["bank"][:20], 40, "", None),
+                (str(c["count"]), 20, "R", None),
+                (_fmt_currency(c["total"]), 35, "R", None),
+            ])
         self.ln(4)
 
     def future_installments_section(self, data: dict):
-        """Render future installments section."""
         installments = data.get("future_installments", [])
         total = data.get("future_installments_total", 0)
         count = data.get("future_installments_count", 0)
 
         if not installments:
             self.set_font("Helvetica", "", 8)
-            self.set_text_color(107, 114, 128)
+            self.set_text_color(*_hex_to_rgb(C_GRAY_500))
             self.cell(0, 6, "No hay cuotas futuras programadas.")
             self.ln(8)
             return
 
-        # Summary
+        self._check_page(min(len(installments), 10) * 6 + 25)
         self.set_font("Helvetica", "B", 8)
-        self.set_text_color(55, 65, 81)
-        self.cell(0, 6, f"{count} cuotas por un total de ${total:,.2f}")
+        self.set_text_color(*_hex_to_rgb(C_GRAY_700))
+        self.cell(0, 6, f"{count} cuotas por un total de {_fmt_currency(total)}")
         self.ln(8)
 
-        # Table
-        self.set_font("Helvetica", "B", 8)
-        self.set_fill_color(249, 250, 251)
-        self.set_text_color(107, 114, 128)
-        self.cell(30, 7, "Fecha", border=1, fill=True)
-        self.cell(90, 7, "Descripcion", border=1, fill=True)
-        self.cell(40, 7, "Monto", border=1, fill=True, align="R")
-        self.ln()
-
-        self.set_font("Helvetica", "", 7)
-        for inst in installments[:10]:  # Show max 10
-            self.set_text_color(31, 41, 55)
-            self.cell(30, 6, inst["date"])
-            self.cell(90, 6, inst["description"][:40])
-            self.cell(40, 6, f"${inst['amount']:,.2f}", align="R")
-            self.ln()
+        self._table_header([
+            ("Fecha", 30, ""), ("Descripcion", 85, ""), ("Monto", 35, "R"),
+        ])
+        for inst in installments[:10]:
+            self._table_row([
+                (inst["date"], 30, "", None),
+                (inst["description"][:40], 85, "", None),
+                (_fmt_currency(inst["amount"]), 35, "R", None),
+            ])
         self.ln(4)
 
+    # -- Analysis box -----------------------------------------------------
 
-def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
-    """Convert hex color to RGB tuple."""
-    hex_color = hex_color.lstrip("#")
-    return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
+    def analysis_box(self, analysis: dict):
+        self._check_page(60)
+
+        # Summary
+        if analysis.get("summary"):
+            self.set_font("Helvetica", "", 9)
+            self.set_text_color(*_hex_to_rgb(C_GRAY_700))
+            self.multi_cell(0, 5, _strip_emojis(analysis["summary"]))
+            self.ln(3)
+
+        # Highlights
+        for h in analysis.get("highlights", []):
+            self.set_font("Helvetica", "", 8)
+            self.set_text_color(*_hex_to_rgb(C_SUCCESS))
+            self.cell(5, 5, "+")
+            self.set_text_color(*_hex_to_rgb(C_GRAY_700))
+            self.cell(0, 5, f" {_strip_emojis(h)}")
+            self.ln(5)
+
+        # Notes sections
+        for key, label in [
+            ("category_notes", "Categorias"),
+            ("comparison_notes", "Comparativa"),
+            ("future_notes", "Cuotas futuras"),
+            ("accounts_notes", "Cuentas y tarjetas"),
+        ]:
+            if analysis.get(key):
+                self.set_font("Helvetica", "I", 8)
+                self.set_text_color(*_hex_to_rgb(C_GRAY_500))
+                self.multi_cell(0, 4, f"{label}: {_strip_emojis(analysis[key])}")
+                self.ln(2)
+
+        # Concern
+        if analysis.get("concern"):
+            self._draw_callout_box(analysis["concern"], C_WARNING, (255, 251, 235), "!")
+
+        # Tip
+        if analysis.get("tip"):
+            self._draw_callout_box(analysis["tip"], C_PRIMARY, (238, 242, 255), "*")
+
+        # Next month suggestion
+        if analysis.get("next_month_suggestion"):
+            self._draw_callout_box(analysis["next_month_suggestion"], C_SUCCESS, (240, 253, 244), ">")
+
+    def _draw_callout_box(self, text: str, border_color: str, bg_color: tuple, icon: str):
+        self._check_page(16)
+        r, g, b = _hex_to_rgb(border_color)
+        self.set_fill_color(*bg_color)
+        self.set_draw_color(r, g, b)
+        y = self.get_y()
+        self.rect(10, y, 190, 12, "DF")
+        self.set_xy(12, y + 2)
+        self.set_font("Helvetica", "B", 8)
+        self.set_text_color(r, g, b)
+        self.cell(5, 5, icon)
+        self.set_font("Helvetica", "", 8)
+        self.set_text_color(*_hex_to_rgb(C_GRAY_700))
+        self.cell(0, 5, f" {_strip_emojis(text)}")
+        self.ln(14)
 
 
-def _build_report_data(user_id: int, month_str: str, db) -> dict:
-    """Build report data for a user and month."""
-    y, m = int(month_str[:4]), int(month_str[5:7])
-    target_start = date(y, m, 1)
-    target_end = date(y, m, monthrange(y, m)[1])
-
-    uid_list = get_group_user_ids(user_id, db)
-
-    expenses = (
-        db.query(Expense)
-        .filter(Expense.user_id.in_(uid_list), Expense.date >= target_start, Expense.date <= target_end)
-        .all()
-    )
-
-    total_expenses = sum(abs(e.amount) for e in expenses if not e.is_income)
-    total_income = sum(abs(e.amount) for e in expenses if e.is_income)
-    count = sum(1 for e in expenses if not e.is_income)
-
-    # By category
-    by_cat = defaultdict(lambda: {"total": 0.0, "count": 0, "name": "", "color": ""})
-    for e in expenses:
-        if e.is_income:
-            continue
-        cat_name = "Sin categoria"
-        cat_color = "#6b7280"
-        if e.category_id:
-            cat = db.query(Category).filter(Category.id == e.category_id).first()
-            if cat:
-                cat_name = cat.name
-                cat_color = cat.color or "#6b7280"
-                if cat.parent_id:
-                    parent = db.query(Category).filter(Category.id == cat.parent_id).first()
-                    if parent:
-                        cat_name = f"{parent.name} > {cat.name}"
-        by_cat[e.category_id or 0]["total"] += abs(e.amount)
-        by_cat[e.category_id or 0]["count"] += 1
-        by_cat[e.category_id or 0]["name"] = cat_name
-        by_cat[e.category_id or 0]["color"] = cat_color
-
-    top_categories = sorted(by_cat.values(), key=lambda x: x["total"], reverse=True)[:5]
-
-    # Previous month
-    prev_start = add_months(target_start, -1)
-    prev_end = date(prev_start.year, prev_start.month, monthrange(prev_start.year, prev_start.month)[1])
-    prev_expenses = (
-        db.query(Expense)
-        .filter(Expense.user_id.in_(uid_list), Expense.date >= prev_start, Expense.date <= prev_end)
-        .all()
-    )
-    previous_total = sum(abs(e.amount) for e in prev_expenses if not e.is_income)
-    previous_income = sum(abs(e.amount) for e in prev_expenses if e.is_income)
-
-    savings_rate = 0.0
-    if total_income > 0:
-        savings_rate = ((total_income - total_expenses) / total_income) * 100
-
-    mom_change = 0.0
-    if previous_total > 0:
-        mom_change = ((total_expenses - previous_total) / previous_total) * 100
-
-    # Trend history (6 months)
-    trend_history = []
-    for i in range(5, -1, -1):
-        m_hist = add_months(target_start, -i)
-        m_start = date(m_hist.year, m_hist.month, 1)
-        m_end = date(m_hist.year, m_hist.month, monthrange(m_hist.year, m_hist.month)[1])
-        hist_expenses = (
-            db.query(Expense)
-            .filter(Expense.user_id.in_(uid_list), Expense.date >= m_start, Expense.date <= m_end)
-            .all()
-        )
-        hist_total = sum(abs(e.amount) for e in hist_expenses if not e.is_income)
-        hist_income = sum(abs(e.amount) for e in hist_expenses if e.is_income)
-        trend_history.append({
-            "month": m_hist.strftime("%Y-%m"),
-            "expenses": round(hist_total, 2),
-            "income": round(hist_income, 2),
-        })
-
-    # LLM analysis
-    analysis = None
-    import os
-
-    api_key = os.getenv("LLM_API_KEY")
-    if api_key:
-        try:
-            import asyncio
-            from google import genai
-            from google.genai import types as genai_types
-
-            today = date.today()
-            trend_lines = []
-            for t in trend_history:
-                trend_lines.append(f"  {t['month']}: gastos=${t['expenses']:,.0f}, ingresos=${t['income']:,.0f}")
-
-            cat_lines = []
-            for cat in all_categories[:8]:
-                cat_lines.append(f"  - {cat['name']}: ${cat['total']:,.0f} ({cat['count']} transacciones)")
-
-            comp_lines = []
-            for c in category_comparison:
-                comp_lines.append(f"  - {c['name']}: actual=${c['total']:,.0f}, anterior=${c['previous']:,.0f}, cambio={c['change_pct']:+.1f}%")
-
-            expense_lines = []
-            for e in top_expenses:
-                expense_lines.append(f"  - {e['date']} {e['description']}: ${e['amount']:,.2f} ({e['category']})")
-
-            account_lines = []
-            for a in accounts_summary:
-                if a['total'] > 0:
-                    account_lines.append(f"  - {a['name']} ({a['type']}): ${a['total']:,.2f} ({a['count']} transacciones)")
-
-            card_lines = []
-            for c in cards_summary:
-                if c['total'] > 0:
-                    card_lines.append(f"  - {c['name']} {c['bank']}: ${c['total']:,.2f} ({c['count']} transacciones)")
-
-            future_lines = []
-            for fi in future_installments[:5]:
-                future_lines.append(f"  - {fi['date']}: {fi['description']} ${fi['amount']:,.2f}")
-
-            llm_context = f"""RESUMEN MENSUAL - {MONTHS_ES[m]} {y}
-
-RESUMEN:
-- Gastos totales: ${total_expenses:,.0f}
-- Ingresos totales: ${total_income:,.0f}
-- Tasa de ahorro: {savings_rate:.1f}%
-- Transacciones: {count}
-- Variacion vs mes anterior: {mom_change:+.1f}%
-- Gastos mismo mes ano anterior: ${last_year_total:,.0f}
-
-TOP CATEGORIAS:
-{chr(10).join(cat_lines) or '  Sin datos'}
-
-COMPARATIVA vs MES ANTERIOR:
-{chr(10).join(comp_lines) or '  Sin datos'}
-
-MAYORES GASTOS:
-{chr(10).join(expense_lines) or '  Sin datos'}
-
-CUENTAS:
-{chr(10).join(account_lines) or '  Sin datos'}
-
-TARJETAS:
-{chr(10).join(card_lines) or '  Sin datos'}
-
-CUOTAS FUTURAS ({len(future_installments)} cuotas, ${sum(fi['amount'] for fi in future_installments):,.2f} total):
-{chr(10).join(future_lines) or '  Sin cuotas futuras'}
-
-HISTORIAL (6 meses):
-{chr(10).join(trend_lines)}
-
-Fecha: {today.isoformat()}"""
-
-            prompt = """Sos un analista financiero personal. Devolve UNICAMENTE JSON valido:
-{
-  "summary": "<resumen ejecutivo 3-4 lineas>",
-  "highlights": ["<highlight 1>", "<highlight 2>", "<highlight 3>"],
-  "concern": "<preocupacion o null>",
-  "category_notes": "<nota sobre distribucion de categorias, 1-2 lineas>",
-  "comparison_notes": "<nota sobre comparativa con mes anterior, 1-2 lineas>",
-  "future_notes": "<nota sobre cuotas futuras, 1-2 lineas>",
-  "accounts_notes": "<nota sobre cuentas/tarjetas, 1-2 lineas>",
-  "tip": "<consejo concreto de ahorro>",
-  "next_month_suggestion": "<sugerencia especifica para el proximo mes>"
-}
-Sé especifico con numeros. Español, claro, amigable. Sin emojis."""
-
-            client = genai.Client(api_key=api_key)
-
-            async def _call_llm():
-                return await client.aio.models.generate_content(
-                    model="gemini-flash-latest",
-                    contents=llm_context,
-                    config=genai_types.GenerateContentConfig(
-                        system_instruction=prompt,
-                        response_mime_type="application/json",
-                    ),
-                )
-
-            response = asyncio.run(_call_llm())
-            analysis = json.loads(response.text)
-        except Exception:
-            analysis = None
-
-    return {
-        "month": month_str,
-        "total_expenses": total_expenses,
-        "total_income": total_income,
-        "savings_rate": round(savings_rate, 1),
-        "expense_count": count,
-        "top_categories": top_categories,
-        "previous_total": previous_total,
-        "previous_income": previous_income,
-        "mom_change": round(mom_change, 1),
-        "trend_history": trend_history,
-        "analysis": analysis,
-    }
-
+# ---------------------------------------------------------------------------
+# Main PDF generator
+# ---------------------------------------------------------------------------
 
 def generate_pdf(report_data: dict, user_name: str) -> bytes:
     """Generate PDF report from report data. Returns PDF bytes."""
@@ -687,85 +534,102 @@ def generate_pdf(report_data: dict, user_name: str) -> bytes:
     y, m = int(month_str[:4]), int(month_str[5:7])
     month_name = MONTHS_ES.get(m, str(m))
 
-    # Title
-    pdf.set_font("Helvetica", "B", 18)
-    pdf.set_text_color(31, 41, 55)
-    pdf.cell(0, 12, f"Reporte Mensual", align="C")
-    pdf.ln(10)
+    # ── Title ──────────────────────────────────────────────────────────
+    pdf.set_font("Helvetica", "B", 20)
+    pdf.set_text_color(*_hex_to_rgb(C_GRAY_900))
+    pdf.cell(0, 14, "Reporte Mensual", align="C")
+    pdf.ln(12)
 
-    pdf.set_font("Helvetica", "", 11)
-    pdf.set_text_color(107, 114, 128)
+    pdf.set_font("Helvetica", "", 12)
+    pdf.set_text_color(*_hex_to_rgb(C_PRIMARY))
     pdf.cell(0, 8, f"{month_name} {y}", align="C")
     pdf.ln(6)
 
-    pdf.set_font("Helvetica", "I", 8)
-    pdf.set_text_color(156, 163, 175)
-    pdf.cell(0, 5, f"Generado para {user_name}", align="C")
-    pdf.ln(12)
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(*_hex_to_rgb(C_GRAY_400))
+    pdf.cell(0, 5, f"Generado para {user_name}  |  {date.today().strftime('%d/%m/%Y')}", align="C")
+    pdf.ln(14)
 
-    # KPIs
+    # ── KPIs ───────────────────────────────────────────────────────────
     savings_color = "green" if report_data["savings_rate"] >= 0 else "red"
     mom_color = "green" if report_data["mom_change"] <= 0 else "red"
-    mom_arrow = "B" if report_data["mom_change"] < 0 else "A" if report_data["mom_change"] > 0 else "-"
+    mom_arrow = "Baj" if report_data["mom_change"] < 0 else "Sub" if report_data["mom_change"] > 0 else "-"
 
     pdf.kpi_row([
-        ("Gastos", f"${report_data['total_expenses']:,.2f}", "red"),
-        ("Ingresos", f"${report_data['total_income']:,.2f}", "green"),
+        ("Gastos totales", _fmt_currency(report_data["total_expenses"]), "red"),
+        ("Ingresos totales", _fmt_currency(report_data["total_income"]), "green"),
         ("Tasa de ahorro", f"{report_data['savings_rate']}%", savings_color),
         ("vs Mes anterior", f"{mom_arrow} {abs(report_data['mom_change'])}%", mom_color),
     ])
 
-    pdf.set_font("Helvetica", "I", 8)
-    pdf.set_text_color(156, 163, 175)
-    pdf.cell(0, 5, f"{report_data['expense_count']} transacciones este mes")
+    pdf.set_font("Helvetica", "", 8)
+    pdf.set_text_color(*_hex_to_rgb(C_GRAY_400))
+    pdf.cell(0, 5, f"{report_data['expense_count']} transacciones este mes", align="C")
     pdf.ln(10)
 
-    # Pie chart - Category distribution
-    if report_data.get("all_categories"):
+    # ── Pie chart ──────────────────────────────────────────────────────
+    all_cats = report_data.get("all_categories", [])
+    if all_cats and report_data["total_expenses"] > 0:
         pdf.section_title("Distribucion por Categoria")
-        pdf.pie_chart(report_data["all_categories"], report_data["total_expenses"])
-        pdf.ln(4)
+        pie_png = _create_pie_chart(all_cats, report_data["total_expenses"])
+        if pie_png:
+            pdf.image(io.BytesIO(pie_png), x=10, w=190)
+            pdf.ln(4)
 
-    # Bar chart - Category comparison vs last month
-    if report_data.get("category_comparison"):
+    # ── Bar chart comparison ───────────────────────────────────────────
+    cat_comp = report_data.get("category_comparison", [])
+    if cat_comp:
         pdf.section_title("Comparativa vs Mes Anterior")
-        pdf.bar_chart_comparison(report_data["category_comparison"])
-        pdf.ln(4)
+        bar_png = _create_bar_comparison(cat_comp)
+        if bar_png:
+            pdf.image(io.BytesIO(bar_png), x=10, w=190)
+            pdf.ln(4)
 
-    # Trend
-    if report_data.get("trend_history"):
-        pdf.section_title("Evolucion (6 meses)")
-        pdf.trend_table(report_data["trend_history"])
+    # ── Trend chart ────────────────────────────────────────────────────
+    trend = report_data.get("trend_history", [])
+    if trend:
+        pdf.section_title("Evolucion de Ultimos 6 Meses")
+        trend_png = _create_trend_chart(trend)
+        if trend_png:
+            pdf.image(io.BytesIO(trend_png), x=10, w=190)
+            pdf.ln(2)
 
-    # Top 5 expenses
-    if report_data.get("top_expenses"):
+    # ── Trend table ────────────────────────────────────────────────────
+    if trend:
+        pdf.trend_table(trend)
+
+    # ── Top 5 expenses ─────────────────────────────────────────────────
+    top_exp = report_data.get("top_expenses", [])
+    if top_exp:
         pdf.section_title("Mayores Gastos")
-        pdf.top_expenses_table(report_data["top_expenses"])
+        pdf.top_expenses_table(top_exp)
 
-    # Accounts summary
-    if report_data.get("accounts_summary"):
-        pdf.section_title("Resumen Cuentas")
-        pdf.accounts_table(report_data["accounts_summary"])
+    # ── Accounts summary ───────────────────────────────────────────────
+    accts = report_data.get("accounts_summary", [])
+    if accts:
+        pdf.section_title("Resumen de Cuentas")
+        pdf.accounts_table(accts)
 
-    # Cards summary
-    if report_data.get("cards_summary"):
-        pdf.section_title("Resumen Tarjetas")
-        pdf.cards_table(report_data["cards_summary"])
+    # ── Cards summary ──────────────────────────────────────────────────
+    cards = report_data.get("cards_summary", [])
+    if cards:
+        pdf.section_title("Resumen de Tarjetas")
+        pdf.cards_table(cards)
 
-    # Future installments
+    # ── Future installments ────────────────────────────────────────────
     if report_data.get("future_installments"):
         pdf.section_title("Cuotas Futuras")
         pdf.future_installments_section(report_data)
 
-    # LLM Analysis
+    # ── LLM Analysis ───────────────────────────────────────────────────
     if report_data.get("analysis"):
         pdf.section_title("Analisis IA")
         pdf.analysis_box(report_data["analysis"])
 
-    # Footer
-    pdf.ln(10)
+    # ── Footer ─────────────────────────────────────────────────────────
+    pdf.ln(8)
     pdf.set_font("Helvetica", "I", 7)
-    pdf.set_text_color(156, 163, 175)
-    pdf.cell(0, 5, f"Generado por NikoFin - {date.today().strftime('%d/%m/%Y')}", align="C")
+    pdf.set_text_color(*_hex_to_rgb(C_GRAY_400))
+    pdf.cell(0, 5, "Generado por NikoFin", align="C")
 
     return bytes(pdf.output())
