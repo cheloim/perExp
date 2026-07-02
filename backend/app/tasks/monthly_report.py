@@ -267,6 +267,39 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     investment_list = [{"name": k, "total": round(v, 2)} for k, v in inv_by_broker.items() if v > 0]
     investment_list.sort(key=lambda x: x["total"], reverse=True)
 
+    # Spending velocity (daily average)
+    days_in_month = monthrange(y, m)[1]
+    daily_avg = total_expenses / max(days_in_month, 1)
+
+    # Previous month daily average for comparison
+    prev_y, prev_m = prev_start.year, prev_start.month
+    prev_days = monthrange(prev_y, prev_m)[1]
+    prev_daily_avg = previous_total / max(prev_days, 1) if previous_total > 0 else 0
+
+    velocity_data = {
+        "current_daily": round(daily_avg, 2),
+        "previous_daily": round(prev_daily_avg, 2),
+    }
+
+    # Recurring expenses (same description + amount, 2+ times)
+    from collections import Counter
+    merchant_amounts = [(e.description.strip(), abs(e.amount)) for e in expenses if not e.is_income]
+    recurring_counter = Counter(merchant_amounts)
+    recurring_list = [
+        {"description": desc, "total": round(total, 2), "count": count}
+        for (desc, total), count in recurring_counter.items()
+        if count >= 2
+    ]
+    recurring_list.sort(key=lambda x: x["total"], reverse=True)
+
+    # Weekend vs Weekday
+    weekend_total = sum(abs(e.amount) for e in expenses if not e.is_income and e.date and e.date.weekday() >= 5)
+    weekday_total = total_expenses - weekend_total
+    weekend_data = {
+        "weekend": round(weekend_total, 2),
+        "weekday": round(weekday_total, 2),
+    }
+
     # LLM analysis
     analysis = None
     import os
@@ -456,6 +489,9 @@ Usa flags para tendencias preocupantes a monitorear."""
         "category_trends": category_trends,
         "payment_methods": payment_list,
         "investments": investment_list,
+        "velocity_data": velocity_data,
+        "recurring_expenses": recurring_list,
+        "weekend_data": weekend_data,
         "analysis": analysis,
     }
 

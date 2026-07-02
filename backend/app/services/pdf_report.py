@@ -110,6 +110,26 @@ def _build_trends_bar_data(trends: list[dict]) -> dict:
     return {"labels": labels, "values": values, "colors": colors}
 
 
+def _build_velocity_data(velocity: dict) -> dict:
+    """Build Chart.js bar data for spending velocity."""
+    return {
+        "current_daily": round(velocity.get("current_daily", 0), 2),
+        "previous_daily": round(velocity.get("previous_daily", 0), 2),
+    }
+
+
+def _build_weekend_data(weekend_total: float, weekday_total: float) -> dict:
+    """Build Chart.js doughnut data for weekend vs weekday spending."""
+    total = weekend_total + weekday_total
+    if total == 0:
+        return {"labels": [], "values": [], "colors": []}
+    return {
+        "labels": ["Fin de Semana", "Dias de Semana"],
+        "values": [round(weekend_total, 2), round(weekday_total, 2)],
+        "colors": ["#f97316", "#06b6d4"],  # Orange for weekend, cyan for weekday
+    }
+
+
 def _build_account_doughnut_data(accounts: list[dict], cards: list[dict]) -> dict:
     """Build Chart.js doughnut data for account/card consumption with vivid colors."""
     labels, values, colors = [], [], []
@@ -165,6 +185,17 @@ def generate_pdf(report_data: dict, user_name: str) -> bytes:
     # Investment doughnut data
     investment_doughnut_data = report_data.get("investment_doughnut_data")
 
+    # Spending velocity data
+    velocity_data = report_data.get("velocity_data")
+    velocity_chart_data = _build_velocity_data(velocity_data) if velocity_data else None
+
+    # Weekend vs weekday data
+    weekend_data = report_data.get("weekend_data")
+    weekend_chart_data = _build_weekend_data(
+        weekend_data.get("weekend", 0) if weekend_data else 0,
+        weekend_data.get("weekday", 0) if weekend_data else 0,
+    ) if weekend_data else None
+
     # Format amounts
     def _fmt_list(items, key="total"):
         return [{**item, f"{key}_raw": item[key], key: _fmt(item[key])} for item in items]
@@ -211,6 +242,8 @@ def generate_pdf(report_data: dict, user_name: str) -> bytes:
         "trend_data": json.dumps(trend_data) if trend_data else "null",
         "daily_data": json.dumps(daily_data) if daily_data else "null",
         "trends_bar_data": json.dumps(trends_bar_data) if trends_bar_data else "null",
+        "velocity_data": json.dumps(velocity_chart_data) if velocity_chart_data else "null",
+        "weekend_data": json.dumps(weekend_chart_data) if weekend_chart_data else "null",
         "top_expenses": _fmt_list(report_data.get("top_expenses", []), "amount"),
         "accounts_summary": _fmt_list(report_data.get("accounts_summary", [])),
         "cards_summary": _fmt_list(report_data.get("cards_summary", [])),

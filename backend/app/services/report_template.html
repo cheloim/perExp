@@ -31,7 +31,7 @@
 
   /* Right side - blue panel */
   .right {
-    background: #bfdbfe;
+    background: #93c5fd;
     padding: 14px 16px 14px 14px;
     color: white;
     display: flex;
@@ -175,7 +175,7 @@
   <!-- Horizontal Bar: Current vs Last Month -->
   <div class="section">
     <div class="section-title">Gastos: Mes Corriente vs Anterior</div>
-    <canvas id="hbarCompare" width="360" height="100"></canvas>
+    <canvas id="hbarCompare" width="500" height="120"></canvas>
     {% if analysis and analysis.hbar_notes %}
     <div class="graph-note">{{ analysis.hbar_notes }}</div>
     {% endif %}
@@ -186,7 +186,7 @@
   <!-- Vertical Bar: Categories + Line Comparison -->
   <div class="section">
     <div class="section-title">Gastos por Categoria vs Mes Anterior</div>
-    <canvas id="vbarCategory" width="360" height="140"></canvas>
+    <canvas id="vbarCategory" width="500" height="160"></canvas>
     {% if analysis and analysis.vbar_notes %}
     <div class="graph-note">{{ analysis.vbar_notes }}</div>
     {% endif %}
@@ -240,6 +240,31 @@
   </div>
   {% endif %}
 
+  <hr class="divider">
+
+  <!-- Spending Velocity -->
+  <div class="section">
+    <div class="section-title">Velocidad de Gasto Diario</div>
+    <canvas id="velocityBar" width="500" height="100"></canvas>
+  </div>
+
+  <hr class="divider">
+
+  <!-- Recurring Expenses -->
+  {% if recurring_expenses %}
+  <div class="section">
+    <div class="section-title">Gastos Recurrentes</div>
+    <table>
+      <thead><tr><th>Descripcion</th><th class="text-right">Monto</th><th class="text-right">Veces</th></tr></thead>
+      <tbody>
+        {% for r in recurring_expenses %}
+        <tr><td>{{ r.description }}</td><td class="text-right">{{ r.total }}</td><td class="text-right">{{ r.count }}x</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
 </div>
 
 <!-- ══════════════════════════════════════════════════════════ -->
@@ -280,6 +305,15 @@
     {% else %}
     <p style="font-size:9px; color:rgba(255,255,255,0.5); text-align:center; padding:20px 0;">Sin inversiones registradas</p>
     {% endif %}
+  </div>
+
+  <hr class="divider">
+
+  <!-- Pie: Weekend vs Weekday -->
+  <div class="section">
+    <div class="section-title">Fin de Semana vs Semana</div>
+    <div class="chart-container"><canvas id="doughnutWeekend" width="180" height="120"></canvas></div>
+    <div class="legend" id="legendWeekend"></div>
   </div>
 
 </div>
@@ -361,7 +395,7 @@ function renderCharts() {
         labels: ['Mes Corriente', 'Mes Anterior'],
         datasets: [{ data: [currentTotal, prevTotal], backgroundColor: ['#6366f1', '#cbd5e1'], borderRadius: 4 }]
       },
-      options: { ...chartOpts, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 8 }, callback: v => '$' + v.toLocaleString() } }, y: { ticks: { font: { size: 8 } } } } }
+      options: { ...chartOpts, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 9 }, callback: v => '$' + v.toLocaleString() } }, y: { ticks: { font: { size: 9 } } } } }
     });
   }
 
@@ -374,11 +408,11 @@ function renderCharts() {
       data: {
         labels: cb.labels,
         datasets: [
-          { label: 'Este mes', data: cb.current, backgroundColor: '#6366f1', borderRadius: 3, order: 2 },
+          { label: 'Este mes', data: cb.current, backgroundColor: '#8b5cf6', borderRadius: 3, order: 2 },
           { label: 'Mes anterior', data: cb.previous, type: 'line', borderColor: '#94a3b8', borderWidth: 2, borderDash: [5, 5], pointRadius: 3, pointBackgroundColor: '#94a3b8', fill: false, order: 1 }
         ]
       },
-      options: { ...chartOpts, plugins: { legend: { position: 'bottom', labels: { boxWidth: 8, font: { size: 7 } } } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 7 }, callback: v => '$' + v.toLocaleString() } }, x: { ticks: { font: { size: 7 }, maxRotation: 45 } } } }
+      options: { ...chartOpts, plugins: { legend: { position: 'bottom', labels: { boxWidth: 8, font: { size: 9 } } } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 9 }, callback: v => '$' + v.toLocaleString() } }, x: { ticks: { font: { size: 9 }, maxRotation: 45 } } } }
     });
   }
 
@@ -416,6 +450,32 @@ function renderCharts() {
       options: { ...chartOpts, plugins: { legend: { display: false } }, cutout: '55%' }
     });
     makeLegend('legendInvest', inv.labels, inv.colors);
+  }
+
+  // Right: Doughnut - Weekend vs Weekday
+  const weEl = document.getElementById('doughnutWeekend');
+  if (weEl && {{ weekend_data | safe }}) {
+    const wd = {{ weekend_data | safe }};
+    new Chart(weEl, {
+      type: 'doughnut',
+      data: { labels: wd.labels, datasets: [{ data: wd.values, backgroundColor: wd.colors, borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)', hoverOffset: 3 }] },
+      options: { ...chartOpts, plugins: { legend: { display: false } }, cutout: '55%' }
+    });
+    makeLegend('legendWeekend', wd.labels, wd.colors);
+  }
+
+  // Left: Spending Velocity Bar
+  const velEl = document.getElementById('velocityBar');
+  if (velEl && {{ velocity_data | safe }}) {
+    const vd = {{ velocity_data | safe }};
+    new Chart(velEl, {
+      type: 'bar',
+      data: {
+        labels: ['Este mes (prom. diario)', 'Mes anterior (prom. diario)'],
+        datasets: [{ data: [vd.current_daily, vd.previous_daily], backgroundColor: ['#8b5cf6', '#cbd5e1'], borderRadius: 4 }]
+      },
+      options: { ...chartOpts, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 9 }, callback: v => '$' + v.toLocaleString() } }, y: { ticks: { font: { size: 9 } } } } }
+    });
   }
 }
 document.addEventListener('DOMContentLoaded', renderCharts);
