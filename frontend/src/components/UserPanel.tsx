@@ -41,7 +41,7 @@ function ReportsTab() {
     refetchInterval: (query) => {
       // Refetch every 3s if there are pending reports
       const reports = query.state.data?.reports ?? [];
-      const hasPending = reports.some((r) => r.status === "pending");
+      const hasPending = reports.some((r) => r.status === "pending" || r.status === "PENDING");
       return hasPending ? 3000 : false;
     },
   });
@@ -57,10 +57,10 @@ function ReportsTab() {
 
   // Only show reports that are ready or currently generating
   const allReports = reportsData?.reports ?? [];
-  const displayReports = allReports.filter((r) => r.status === "ready" || r.status === "pending");
+  const displayReports = allReports.filter((r) => r.status === "ready" || r.status === "READY" || r.status === "pending" || r.status === "PENDING");
 
   // Month options for modal — only months NOT yet generated
-  const generatedMonths = new Set(allReports.map((r) => r.month));
+  const generatedMonths = new Set(allReports.filter((r) => r.status === "ready" || r.status === "READY").map((r) => r.month));
   const monthOptions = [];
   const now = new Date();
   for (let i = 0; i < 12; i++) {
@@ -109,8 +109,8 @@ function ReportsTab() {
             const [y, m] = r.month.split("-");
             const monthNum = parseInt(m);
             const monthName = MONTHS_ES[monthNum - 1] || m;
-            const isReady = r.status === "ready";
-            const isPending = r.status === "pending";
+            const isReady = r.status === "ready" || r.status === "READY";
+            const isPending = r.status === "pending" || r.status === "PENDING";
 
             return (
               <div
