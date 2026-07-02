@@ -77,21 +77,20 @@ function ReportsTab() {
 
   return (
     <div className="px-4 py-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-1">
-            Reportes Mensuales
-          </h3>
-          <p className="text-[10px] text-[var(--text-tertiary)]">
-            Generá y descargá reportes PDF con el análisis de tus gastos.
-          </p>
-        </div>
+      {/* Header */}
+      <div className="text-center space-y-2">
+        <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+          Reportes Mensuales
+        </h3>
+        <p className="text-[10px] text-[var(--text-tertiary)]">
+          Generá y descargá reportes PDF con el análisis de tus gastos.
+        </p>
         <button
           onClick={() => setShowGenerateModal(true)}
-          className="gnome-btn-primary-round text-xs"
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-[var(--color-primary)] text-white text-sm font-medium hover:opacity-90 transition shadow-sm"
         >
-          <span>+</span>
-          <span>Generar</span>
+          <span className="text-base leading-none">+</span>
+          <span>Generar reporte</span>
         </button>
       </div>
 
@@ -101,7 +100,7 @@ function ReportsTab() {
         </div>
       ) : displayReports.length === 0 ? (
         <p className="text-xs text-[var(--text-tertiary)] text-center py-8">
-          No hay reportes generados. Hacé click en "Generar" para crear uno.
+          No hay reportes generados. Hacé click en "Generar reporte" para crear uno.
         </p>
       ) : (
         <div className="space-y-2">
@@ -115,37 +114,40 @@ function ReportsTab() {
             return (
               <div
                 key={r.month}
-                className="flex items-center justify-between p-3 rounded-lg border border-[var(--border-color)] bg-[var(--color-base-container)]"
+                className={`p-4 rounded-xl border transition-all ${
+                  isReady
+                    ? "border-[var(--border-color)] bg-[var(--color-base-container)] hover:bg-[var(--color-base-alt)] cursor-pointer"
+                    : "border-[var(--border-color)] bg-[var(--color-base-container)]"
+                }`}
+                onClick={() => isReady && downloadReportPdf(r.month)}
+                role={isReady ? "button" : undefined}
+                tabIndex={isReady ? 0 : undefined}
               >
-                <div className="min-w-0">
-                  {isReady ? (
-                    <button
-                      onClick={() => downloadReportPdf(r.month)}
-                      className="text-xs font-medium text-[var(--color-primary)] hover:underline text-left"
-                    >
-                      {monthName} {y}
-                    </button>
-                  ) : (
-                    <p className="text-xs font-medium text-[var(--text-primary)]">
-                      {monthName} {y}
-                    </p>
-                  )}
-                  {isReady && r.total_expenses != null && (
-                    <p className="text-[10px] text-[var(--text-tertiary)]">
-                      {formatCurrency(r.total_expenses)}
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {isReady ? (
-                    <span className="text-[10px] text-success font-medium">Listo</span>
-                  ) : (
-                    <span className="text-[10px] text-[var(--text-tertiary)] flex items-center gap-1">
-                      <span className="animate-spin inline-block h-3 w-3 border border-[var(--text-tertiary)] border-t-transparent rounded-full" />
-                      Generando...
-                    </span>
-                  )}
-                </div>
+                {isReady ? (
+                  <div className="flex items-center justify-center gap-3">
+                    <span className="text-lg">📥</span>
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--text-primary)] text-center">
+                        {monthName} {y}
+                      </p>
+                      <p className="text-[10px] text-[var(--color-primary)] text-center">
+                        Tocá para descargar PDF
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-[var(--text-tertiary)] border-t-transparent" />
+                    <div>
+                      <p className="text-sm font-medium text-[var(--text-primary)] text-center">
+                        {monthName} {y}
+                      </p>
+                      <p className="text-[10px] text-[var(--text-tertiary)] text-center">
+                        Generando...
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -156,22 +158,16 @@ function ReportsTab() {
       {showGenerateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={() => setShowGenerateModal(false)}>
           <div
-            className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-xl w-full max-w-sm p-5 space-y-4"
+            className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl shadow-xl w-full max-w-sm p-5 space-y-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between">
+            <div className="text-center">
               <h3 className="text-sm font-semibold text-[var(--text-primary)]">Generar Reporte</h3>
-              <button
-                onClick={() => setShowGenerateModal(false)}
-                className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
-              >
-                ×
-              </button>
+              <p className="text-[10px] text-[var(--text-tertiary)] mt-1">
+                Seleccioná el mes para generar el reporte PDF.
+              </p>
             </div>
-            <p className="text-xs text-[var(--text-secondary)]">
-              Seleccioná el mes para generar el reporte PDF.
-            </p>
-            <div className="space-y-1.5 max-h-60 overflow-y-auto">
+            <div className="space-y-2 max-h-48 overflow-y-auto">
               {monthOptions.length === 0 ? (
                 <p className="text-xs text-[var(--text-tertiary)] text-center py-4">
                   Ya tenés reportes para todos los meses disponibles.
@@ -182,9 +178,9 @@ function ReportsTab() {
                     key={opt.value}
                     onClick={() => setSelectedMonth(opt.value)}
                     disabled={generateMut.isPending}
-                    className={`w-full text-left px-3 py-2 rounded-md text-xs transition ${
+                    className={`w-full text-left px-4 py-3 rounded-lg text-sm transition ${
                       selectedMonth === opt.value
-                        ? "bg-[var(--color-primary)]/10 border border-[var(--color-primary)] text-[var(--color-primary)]"
+                        ? "bg-[var(--color-primary)]/10 border border-[var(--color-primary)] text-[var(--color-primary)] font-medium"
                         : "border border-[var(--border-color)] hover:bg-[var(--color-base-alt)] text-[var(--text-primary)]"
                     } disabled:opacity-50`}
                   >
@@ -193,10 +189,10 @@ function ReportsTab() {
                 ))
               )}
             </div>
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2 pt-1">
               <button
                 onClick={() => setShowGenerateModal(false)}
-                className="flex-1 px-3 py-2 rounded-md border border-[var(--border-color)] text-xs text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
+                className="flex-1 px-4 py-2.5 rounded-lg border border-[var(--border-color)] text-sm text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
               >
                 Cancelar
               </button>
@@ -205,11 +201,11 @@ function ReportsTab() {
                   if (selectedMonth) generateMut.mutate(selectedMonth);
                 }}
                 disabled={!selectedMonth || generateMut.isPending}
-                className="flex-1 px-3 py-2 rounded-md bg-[var(--color-primary)] text-white text-xs font-medium hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+                className="flex-1 px-4 py-2.5 rounded-lg bg-[var(--color-primary)] text-white text-sm font-medium hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 {generateMut.isPending ? (
                   <>
-                    <span className="animate-spin inline-block h-3 w-3 border border-white border-t-transparent rounded-full" />
+                    <span className="animate-spin inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
                     Generando...
                   </>
                 ) : (

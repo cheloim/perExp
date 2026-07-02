@@ -382,7 +382,7 @@ def generate_single_report(user_id: int, month_str: str):
         notification = Notification(
             user_id=user_id,
             type="monthly_report_ready",
-            title=f"Reporte listo: {month_name} {y_n}",
+            title=f"Reporte generado: {month_name} {y_n}",
             body="Tu reporte mensual PDF está listo para descargar.",
             data=json.dumps({"month": month_str}),
             read=False,
@@ -484,7 +484,7 @@ def generate_monthly_reports():
                 notification = Notification(
                     user_id=user.id,
                     type="monthly_report_ready",
-                    title=f"Reporte listo: {month_name} {y_n}",
+                    title=f"Reporte generado: {month_name} {y_n}",
                     body="Tu reporte mensual PDF está listo para descargar.",
                     data=json.dumps({"month": month_str}),
                     read=False,
