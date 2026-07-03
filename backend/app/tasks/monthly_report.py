@@ -476,8 +476,12 @@ Usa flags para tendencias preocupantes a monitorear."""
                     last_brace = cleaned.rfind("}")
                     if last_brace > 0:
                         cleaned = cleaned[:last_brace + 1]
-                    # Fix missing commas between JSON values
-                    cleaned = re.sub(r'(".*?")\s*\n\s*"', r'\1,\n"', cleaned)
+                    # Fix missing commas between JSON key-value pairs
+                    # Match: "value"\n  "key"  ->  "value",\n  "key"
+                    cleaned = re.sub(r'(".*?")\s*\n(\s*")', r'\1,\n\2', cleaned)
+                    # Fix missing commas after arrays/objects
+                    cleaned = re.sub(r'(\])\s*\n(\s*")', r'\1,\n\2', cleaned)
+                    cleaned = re.sub(r'(\})\s*\n(\s*")', r'\1,\n\2', cleaned)
                     # Remove trailing commas before closing braces
                     cleaned = re.sub(r',\s*}', '}', cleaned)
                     cleaned = re.sub(r',\s*]', ']', cleaned)
