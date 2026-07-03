@@ -176,6 +176,32 @@ def _build_polar_area_data(accounts: list[dict], cards: list[dict]) -> dict:
     return {"labels": labels, "values": values}
 
 
+def _build_account_comparison_data(accounts: list[dict], cards: list[dict]) -> dict:
+    """Build Chart.js line data for account/card spending: current vs previous month."""
+    labels, current, previous = [], [], []
+
+    # Add accounts with spending
+    for a in accounts:
+        total_val = a.get("total", 0)
+        prev_val = a.get("previous", 0)
+        if total_val > 0 or prev_val > 0:
+            labels.append(a["name"][:16])
+            current.append(round(total_val, 2))
+            previous.append(round(prev_val, 2))
+
+    # Add cards with spending
+    for c in cards:
+        total_val = c.get("total", 0)
+        prev_val = c.get("previous", 0)
+        if total_val > 0 or prev_val > 0:
+            name = f"{c['name']} {c.get('bank', '')}".strip()[:16]
+            labels.append(name)
+            current.append(round(total_val, 2))
+            previous.append(round(prev_val, 2))
+
+    return {"labels": labels, "current": current, "previous": previous}
+
+
 # ---------------------------------------------------------------------------
 # Main image generator
 # ---------------------------------------------------------------------------
@@ -206,6 +232,9 @@ def generate_report_image(report_data: dict, user_name: str) -> bytes:
 
     # Polar area data for account/card consumption
     polar_area_data = _build_polar_area_data(accounts, cards)
+
+    # Account comparison data (current vs previous month)
+    account_comparison_data = _build_account_comparison_data(accounts, cards)
 
     # Investment doughnut data
     investment_doughnut_data = report_data.get("investment_doughnut_data")
@@ -265,6 +294,7 @@ def generate_report_image(report_data: dict, user_name: str) -> bytes:
         "account_doughnut_data": json.dumps(account_doughnut_data) if account_doughnut_data else "null",
         "investment_doughnut_data": json.dumps(investment_doughnut_data) if investment_doughnut_data else "null",
         "polar_area_data": json.dumps(polar_area_data) if polar_area_data else "null",
+        "account_comparison_data": json.dumps(account_comparison_data) if account_comparison_data else "null",
         "total_expenses_num": report_data["total_expenses"],
         "previous_total_num": report_data.get("previous_total", 0),
         "trend_data": json.dumps(trend_data) if trend_data else "null",

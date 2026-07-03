@@ -532,7 +532,7 @@
     </div>
   </div>
 
-  <!-- Charts Row 2: Trend 6 Months + Top 5 Expenses -->
+  <!-- Charts Row 2: Trend 6 Months + Weekend vs Weekday -->
   <div class="charts-grid">
     <div class="chart-card">
       <div class="chart-title">Tendencia 6 Meses</div>
@@ -542,39 +542,37 @@
     </div>
 
     <div class="chart-card">
-      <div class="chart-title">Top 5 Gastos Mayores</div>
-      <table style="margin-top: 8px;">
-        <thead>
-          <tr>
-            <th>Fecha</th>
-            <th>Descripción</th>
-            <th>Categoría</th>
-            <th class="text-right">Monto</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for exp in top_expenses_detail %}
-          <tr>
-            <td>{{ exp.date }}</td>
-            <td>{{ exp.description }}</td>
-            <td>{{ exp.category }}</td>
-            <td class="text-right text-primary">{{ exp.amount }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Charts Row 3: Weekend vs Weekday -->
-  <div class="charts-grid" style="grid-template-columns: 1fr; max-width: 50%; margin: 0 auto 28px auto;">
-    <div class="chart-card">
       <div class="chart-title">Fin de Semana vs Días de Semana</div>
       <div class="chart-container" style="max-width: 220px; margin: 0 auto;">
         <canvas id="doughnutWeekend" height="220"></canvas>
       </div>
       <div class="chart-legend" id="legendWeekend"></div>
     </div>
+  </div>
+
+  <!-- Charts Row 3: Top 5 Expenses (FULL WIDTH) -->
+  <div class="chart-card" style="margin-bottom: 20px;">
+    <div class="chart-title">Top 5 Gastos Mayores</div>
+    <table style="margin-top: 8px;">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Descripción</th>
+          <th>Categoría</th>
+          <th class="text-right">Monto</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for exp in top_expenses_detail %}
+        <tr>
+          <td>{{ exp.date }}</td>
+          <td>{{ exp.description }}</td>
+          <td>{{ exp.category }}</td>
+          <td class="text-right text-primary">{{ exp.amount }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 
   <!-- Future Installments Table -->
@@ -637,14 +635,11 @@
     {% endif %}
   </div>
 
-  <!-- Polar Area: Account/Card Consumption -->
-  <div class="charts-grid" style="grid-template-columns: 1fr; max-width: 50%; margin: 0 auto 20px auto;">
-    <div class="chart-card">
-      <div class="chart-title">Consumo por Cuentas/Tarjetas</div>
-      <div class="chart-container" style="max-width: 300px; margin: 0 auto;">
-        <canvas id="polarArea" height="300"></canvas>
-      </div>
-      <div class="chart-legend" id="legendPolar"></div>
+  <!-- Account/Card Comparison: Current vs Previous Month (FULL WIDTH) -->
+  <div class="chart-card" style="margin-bottom: 20px;">
+    <div class="chart-title">Consumo por Cuentas/Tarjetas vs Mes Anterior</div>
+    <div class="chart-container">
+      <canvas id="accountComparison" height="200"></canvas>
     </div>
   </div>
 
@@ -926,38 +921,83 @@ function renderCharts() {
     });
   }
 
-  // Polar Area: Account/Card Consumption
-  const polarEl = document.getElementById('polarArea');
-  if (polarEl && {{ polar_area_data | safe }}) {
-    const pa = {{ polar_area_data | safe }};
-    new Chart(polarEl, {
-      type: 'polarArea',
+  // Area Chart: Account/Card Comparison (Current vs Previous Month)
+  const acctEl = document.getElementById('accountComparison');
+  if (acctEl && {{ account_comparison_data | safe }}) {
+    const ac = {{ account_comparison_data | safe }};
+    const ctxAcct = acctEl.getContext('2d');
+    const gradientAcct = ctxAcct.createLinearGradient(0, 0, 0, 200);
+    gradientAcct.addColorStop(0, 'rgba(53, 132, 228, 0.25)');
+    gradientAcct.addColorStop(1, 'rgba(53, 132, 228, 0.02)');
+    new Chart(acctEl, {
+      type: 'line',
       data: {
-        labels: pa.labels,
-        datasets: [{
-          data: pa.values,
-          backgroundColor: gnomePalette.map(c => c + 'cc'),
-          borderColor: gnomePalette,
-          borderWidth: 2
-        }]
+        labels: ac.labels,
+        datasets: [
+          {
+            label: 'Este mes',
+            data: ac.current,
+            borderColor: '#3584e4',
+            borderWidth: 3,
+            backgroundColor: gradientAcct,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 5,
+            pointBackgroundColor: '#3584e4',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            pointHoverRadius: 7
+          },
+          {
+            label: 'Mes anterior',
+            data: ac.previous,
+            borderColor: '#77767b',
+            borderWidth: 2,
+            borderDash: [6, 4],
+            pointRadius: 4,
+            pointBackgroundColor: '#77767b',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            fill: false
+          }
+        ]
       },
       options: {
         ...chartOpts,
         plugins: {
-          legend: { display: false }
+          legend: {
+            position: 'bottom',
+            labels: {
+              boxWidth: 12,
+              boxHeight: 12,
+              borderRadius: 3,
+              useBorderRadius: true,
+              font: { size: 11, family: 'Inter' },
+              padding: 16
+            }
+          }
         },
         scales: {
-          r: {
+          y: {
             beginAtZero: true,
-            grid: { color: 'rgba(0,0,6,0.08)' },
+            grid: { color: 'rgba(0,0,6,0.04)' },
             ticks: {
-              display: false
+              font: { size: 11, family: 'Inter' },
+              color: '#77767b',
+              callback: v => '$' + v.toLocaleString()
+            }
+          },
+          x: {
+            grid: { display: false },
+            ticks: {
+              font: { size: 10, family: 'Inter' },
+              color: '#5e5c64',
+              maxRotation: 45
             }
           }
         }
       }
     });
-    makeLegend('legendPolar', pa.labels, gnomePalette);
   }
 }
 

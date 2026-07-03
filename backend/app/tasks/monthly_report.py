@@ -159,6 +159,17 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     # Accounts summary
     from app.models import Account, Card
 
+    # Calculate previous month spending by account_id and card_id
+    prev_by_account = defaultdict(float)
+    prev_by_card = defaultdict(float)
+    for e in prev_expenses:
+        if e.is_income:
+            continue
+        if e.account_id:
+            prev_by_account[e.account_id] += abs(e.amount)
+        if e.card_id:
+            prev_by_card[e.card_id] += abs(e.amount)
+
     accounts = db.query(Account).filter(Account.user_id.in_(uid_list)).all()
     accounts_summary = []
     for acc in accounts:
@@ -168,6 +179,7 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
             "name": acc.name,
             "type": acc.type,
             "total": round(acc_total, 2),
+            "previous": round(prev_by_account.get(acc.id, 0), 2),
             "count": len(acc_expenses),
         })
     accounts_summary.sort(key=lambda x: x["total"], reverse=True)
@@ -182,6 +194,7 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
             "name": card.card_name,
             "bank": card.bank or "",
             "total": round(card_total, 2),
+            "previous": round(prev_by_card.get(card.id, 0), 2),
             "count": len(card_expenses),
         })
     cards_summary.sort(key=lambda x: x["total"], reverse=True)
@@ -521,6 +534,36 @@ Usa flags para tendencias preocupantes a monitorear."""
                     print(f"[MONTHLY REPORT] Strategy 6 (positional fix) succeeded")
                 except (json.JSONDecodeError, Exception) as e:
                     print(f"[MONTHLY REPORT] Strategy 6 failed: {e}")
+                    analysis = None
+
+            # Strategy 7: Aggressively clean trailing garbage after last closing brace
+            if analysis is None:
+                try:
+                    cleaned = raw_text.strip()
+                    if cleaned.startswith("```"):
+                        lines = cleaned.split("\n")
+                        cleaned = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+                    cleaned = cleaned.strip()
+                    # Find the last } that could be the end of a valid JSON object
+                    # Look for pattern: }\n or } at end of string
+                    last_valid = cleaned.rfind("}\n")
+                    if last_valid < 0:
+                        last_valid = cleaned.rfind("}\r\n")
+                    if last_valid < 0:
+                        last_valid = cleaned.rfind("}")
+                    if last_valid > 0:
+                        cleaned = cleaned[:last_valid + 1]
+                    # Remove any trailing whitespace/newlines
+                    cleaned = cleaned.strip()
+                    # Fix common trailing issues: extra quotes, dots, etc.
+                    cleaned = re.sub(r'["\']*\s*$', '', cleaned)
+                    # Ensure it ends with }
+                    if not cleaned.endswith("}"):
+                        cleaned += "}"
+                    analysis = json.loads(cleaned)
+                    print(f"[MONTHLY REPORT] Strategy 7 (aggressive clean) succeeded")
+                except (json.JSONDecodeError, Exception) as e:
+                    print(f"[MONTHLY REPORT] Strategy 7 failed: {e}")
                     analysis = None
         except Exception as e:
             print(f"[MONTHLY REPORT] LLM analysis failed: {e}")
