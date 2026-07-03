@@ -37,7 +37,6 @@ _EMOJI_RE = re.compile(
     "\U0001fa00-\U0001fa6f"
     "\U0001fa70-\U0001faff"
     "\U00002702-\U000027b0"
-    "\U000024c2-\U0001f251"
     "\U0001f926-\U0001f937"
     "]+",
     flags=re.UNICODE,
