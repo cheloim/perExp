@@ -532,15 +532,42 @@
     </div>
   </div>
 
-  <!-- Charts Row 2: Spending Velocity + Weekend vs Weekday -->
+  <!-- Charts Row 2: Trend 6 Months + Top 5 Expenses -->
   <div class="charts-grid">
     <div class="chart-card">
-      <div class="chart-title">Velocidad de Gasto Diario</div>
+      <div class="chart-title">Tendencia 6 Meses</div>
       <div class="chart-container">
-        <canvas id="velocityBar" height="120"></canvas>
+        <canvas id="trendLine" height="240"></canvas>
       </div>
     </div>
 
+    <div class="chart-card">
+      <div class="chart-title">Top 5 Gastos Mayores</div>
+      <table style="margin-top: 8px;">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Descripción</th>
+            <th>Categoría</th>
+            <th class="text-right">Monto</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for exp in top_expenses_detail %}
+          <tr>
+            <td>{{ exp.date }}</td>
+            <td>{{ exp.description }}</td>
+            <td>{{ exp.category }}</td>
+            <td class="text-right text-primary">{{ exp.amount }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Charts Row 3: Weekend vs Weekday -->
+  <div class="charts-grid" style="grid-template-columns: 1fr; max-width: 50%; margin: 0 auto 28px auto;">
     <div class="chart-card">
       <div class="chart-title">Fin de Semana vs Días de Semana</div>
       <div class="chart-container" style="max-width: 220px; margin: 0 auto;">
@@ -608,6 +635,17 @@
     {% if analysis and analysis.heatmap_notes %}
     <div class="graph-note">{{ analysis.heatmap_notes }}</div>
     {% endif %}
+  </div>
+
+  <!-- Polar Area: Account/Card Consumption -->
+  <div class="charts-grid" style="grid-template-columns: 1fr; max-width: 50%; margin: 0 auto 20px auto;">
+    <div class="chart-card">
+      <div class="chart-title">Consumo por Cuentas/Tarjetas</div>
+      <div class="chart-container" style="max-width: 300px; margin: 0 auto;">
+        <canvas id="polarArea" height="300"></canvas>
+      </div>
+      <div class="chart-legend" id="legendPolar"></div>
+    </div>
   </div>
 
   <!-- AI Analysis -->
@@ -834,30 +872,40 @@ function renderCharts() {
     makeLegend('legendWeekend', wd.labels, ['#ff7800', '#3584e4']);
   }
 
-  // Spending Velocity Bar
-  const velEl = document.getElementById('velocityBar');
-  if (velEl && {{ velocity_data | safe }}) {
-    const vd = {{ velocity_data | safe }};
-    new Chart(velEl, {
-      type: 'bar',
+  // Line: Trend 6 Months
+  const trendEl = document.getElementById('trendLine');
+  if (trendEl && {{ trend_data | safe }}) {
+    const td = {{ trend_data | safe }};
+    const ctx = trendEl.getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, 0, 240);
+    gradient.addColorStop(0, 'rgba(53, 132, 228, 0.3)');
+    gradient.addColorStop(1, 'rgba(53, 132, 228, 0.02)');
+    new Chart(trendEl, {
+      type: 'line',
       data: {
-        labels: ['Este mes (prom. diario)', 'Mes anterior (prom. diario)'],
+        labels: td.labels,
         datasets: [{
-          data: [vd.current_daily, vd.previous_daily],
-          backgroundColor: ['#3584e4', '#c0bfbc'],
-          borderRadius: 6,
-          borderSkipped: false,
-          barThickness: 32
+          label: 'Gastos',
+          data: td.expenses,
+          borderColor: '#3584e4',
+          borderWidth: 3,
+          backgroundColor: gradient,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 5,
+          pointBackgroundColor: '#3584e4',
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 2,
+          pointHoverRadius: 7
         }]
       },
       options: {
         ...chartOpts,
-        indexAxis: 'y',
         plugins: {
           legend: { display: false }
         },
         scales: {
-          x: {
+          y: {
             beginAtZero: true,
             grid: { color: 'rgba(0,0,6,0.04)' },
             ticks: {
@@ -866,7 +914,7 @@ function renderCharts() {
               callback: v => '$' + v.toLocaleString()
             }
           },
-          y: {
+          x: {
             grid: { display: false },
             ticks: {
               font: { size: 11, family: 'Inter' },
@@ -876,6 +924,40 @@ function renderCharts() {
         }
       }
     });
+  }
+
+  // Polar Area: Account/Card Consumption
+  const polarEl = document.getElementById('polarArea');
+  if (polarEl && {{ polar_area_data | safe }}) {
+    const pa = {{ polar_area_data | safe }};
+    new Chart(polarEl, {
+      type: 'polarArea',
+      data: {
+        labels: pa.labels,
+        datasets: [{
+          data: pa.values,
+          backgroundColor: gnomePalette.map(c => c + 'cc'),
+          borderColor: gnomePalette,
+          borderWidth: 2
+        }]
+      },
+      options: {
+        ...chartOpts,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          r: {
+            beginAtZero: true,
+            grid: { color: 'rgba(0,0,6,0.08)' },
+            ticks: {
+              display: false
+            }
+          }
+        }
+      }
+    });
+    makeLegend('legendPolar', pa.labels, gnomePalette);
   }
 }
 

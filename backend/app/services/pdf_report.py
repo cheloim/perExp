@@ -151,6 +151,31 @@ def _build_account_doughnut_data(accounts: list[dict], cards: list[dict]) -> dic
     return {"labels": labels, "values": values, "colors": colors}
 
 
+def _build_polar_area_data(accounts: list[dict], cards: list[dict]) -> dict:
+    """Build Chart.js polar area data for account/card consumption."""
+    labels, values = [], []
+
+    # Add accounts
+    for a in accounts:
+        total_val = a.get("total_raw", 0) or a.get("total", 0)
+        if isinstance(total_val, str):
+            total_val = float(total_val.replace("$", "").replace(",", "")) if total_val else 0
+        if total_val > 0:
+            labels.append(a["name"][:20])
+            values.append(round(total_val, 2))
+
+    # Add cards
+    for c in cards:
+        total_val = c.get("total_raw", 0) or c.get("total", 0)
+        if isinstance(total_val, str):
+            total_val = float(total_val.replace("$", "").replace(",", "")) if total_val else 0
+        if total_val > 0:
+            labels.append(f"{c['name']} {c.get('bank', '')}".strip()[:20])
+            values.append(round(total_val, 2))
+
+    return {"labels": labels, "values": values}
+
+
 # ---------------------------------------------------------------------------
 # Main image generator
 # ---------------------------------------------------------------------------
@@ -178,6 +203,9 @@ def generate_report_image(report_data: dict, user_name: str) -> bytes:
     accounts = report_data.get("accounts_summary", [])
     cards = report_data.get("cards_summary", [])
     account_doughnut_data = _build_account_doughnut_data(accounts, cards)
+
+    # Polar area data for account/card consumption
+    polar_area_data = _build_polar_area_data(accounts, cards)
 
     # Investment doughnut data
     investment_doughnut_data = report_data.get("investment_doughnut_data")
@@ -236,6 +264,7 @@ def generate_report_image(report_data: dict, user_name: str) -> bytes:
         "category_bar_data": json.dumps(category_bar_data) if category_bar_data else "null",
         "account_doughnut_data": json.dumps(account_doughnut_data) if account_doughnut_data else "null",
         "investment_doughnut_data": json.dumps(investment_doughnut_data) if investment_doughnut_data else "null",
+        "polar_area_data": json.dumps(polar_area_data) if polar_area_data else "null",
         "total_expenses_num": report_data["total_expenses"],
         "previous_total_num": report_data.get("previous_total", 0),
         "trend_data": json.dumps(trend_data) if trend_data else "null",
@@ -244,6 +273,7 @@ def generate_report_image(report_data: dict, user_name: str) -> bytes:
         "velocity_data": json.dumps(velocity_chart_data) if velocity_chart_data else "null",
         "weekend_data": json.dumps(weekend_chart_data) if weekend_chart_data else "null",
         "top_expenses": _fmt_list(report_data.get("top_expenses", []), "amount"),
+        "top_expenses_detail": report_data.get("top_expenses", [])[:5],
         "accounts_summary": _fmt_list(report_data.get("accounts_summary", [])),
         "cards_summary": _fmt_list(report_data.get("cards_summary", [])),
         "payment_methods": _fmt_list(report_data.get("payment_methods", [])),

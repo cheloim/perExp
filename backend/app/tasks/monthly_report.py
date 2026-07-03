@@ -494,6 +494,34 @@ Usa flags para tendencias preocupantes a monitorear."""
                 except json.JSONDecodeError as e:
                     print(f"[MONTHLY REPORT] All JSON strategies failed: {e}")
                     analysis = None
+
+            # Strategy 6: Try to find and fix missing commas using error position
+            if analysis is None:
+                try:
+                    cleaned = raw_text.strip()
+                    if cleaned.startswith("```"):
+                        lines = cleaned.split("\n")
+                        cleaned = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+                    cleaned = cleaned.strip()
+                    last_brace = cleaned.rfind("}")
+                    if last_brace > 0:
+                        cleaned = cleaned[:last_brace + 1]
+                    # Try multiple times to fix missing commas
+                    for _ in range(5):
+                        try:
+                            json.loads(cleaned)
+                            break
+                        except json.JSONDecodeError as e:
+                            if e.pos and e.pos < len(cleaned):
+                                # Insert comma at error position
+                                cleaned = cleaned[:e.pos] + ',' + cleaned[e.pos:]
+                            else:
+                                break
+                    analysis = json.loads(cleaned)
+                    print(f"[MONTHLY REPORT] Strategy 6 (positional fix) succeeded")
+                except (json.JSONDecodeError, Exception) as e:
+                    print(f"[MONTHLY REPORT] Strategy 6 failed: {e}")
+                    analysis = None
         except Exception as e:
             print(f"[MONTHLY REPORT] LLM analysis failed: {e}")
             analysis = None
