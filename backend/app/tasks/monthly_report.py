@@ -10,9 +10,18 @@ from app.models import Category, Expense, MonthlyReport, Notification, User
 from app.routers.groups import get_group_user_ids
 
 MONTHS_ES = {
-    1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
-    5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
-    9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre",
+    1: "Enero",
+    2: "Febrero",
+    3: "Marzo",
+    4: "Abril",
+    5: "Mayo",
+    6: "Junio",
+    7: "Julio",
+    8: "Agosto",
+    9: "Septiembre",
+    10: "Octubre",
+    11: "Noviembre",
+    12: "Diciembre",
 }
 
 
@@ -28,7 +37,9 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
 
     expenses = (
         db.query(Expense)
-        .filter(Expense.user_id.in_(uid_list), Expense.date >= target_start, Expense.date <= target_end)
+        .filter(
+            Expense.user_id.in_(uid_list), Expense.date >= target_start, Expense.date <= target_end
+        )
         .all()
     )
 
@@ -62,7 +73,9 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
 
     # Previous month for comparison
     prev_start = add_months(target_start, -1)
-    prev_end = date(prev_start.year, prev_start.month, monthrange(prev_start.year, prev_start.month)[1])
+    prev_end = date(
+        prev_start.year, prev_start.month, monthrange(prev_start.year, prev_start.month)[1]
+    )
     prev_expenses = (
         db.query(Expense)
         .filter(Expense.user_id.in_(uid_list), Expense.date >= prev_start, Expense.date <= prev_end)
@@ -76,7 +89,11 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     last_year_end = date(y - 1, m, monthrange(y - 1, m)[1])
     ly_expenses = (
         db.query(Expense)
-        .filter(Expense.user_id.in_(uid_list), Expense.date >= last_year_start, Expense.date <= last_year_end)
+        .filter(
+            Expense.user_id.in_(uid_list),
+            Expense.date >= last_year_start,
+            Expense.date <= last_year_end,
+        )
         .all()
     )
     last_year_total = sum(abs(e.amount) for e in ly_expenses if not e.is_income)
@@ -102,12 +119,14 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     for cat in all_categories[:8]:
         prev_val = prev_by_cat.get(cat["name"], 0.0)
         change_pct = ((cat["total"] - prev_val) / prev_val * 100) if prev_val > 0 else 0
-        category_comparison.append({
-            "name": cat["name"],
-            "total": cat["total"],
-            "previous": round(prev_val, 2),
-            "change_pct": round(change_pct, 1),
-        })
+        category_comparison.append(
+            {
+                "name": cat["name"],
+                "total": cat["total"],
+                "previous": round(prev_val, 2),
+                "change_pct": round(change_pct, 1),
+            }
+        )
 
     savings_rate = 0.0
     if total_income > 0:
@@ -130,11 +149,13 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
         )
         hist_total = sum(abs(e.amount) for e in hist_expenses if not e.is_income)
         hist_income = sum(abs(e.amount) for e in hist_expenses if e.is_income)
-        trend_history.append({
-            "month": m_hist.strftime("%Y-%m"),
-            "expenses": round(hist_total, 2),
-            "income": round(hist_income, 2),
-        })
+        trend_history.append(
+            {
+                "month": m_hist.strftime("%Y-%m"),
+                "expenses": round(hist_total, 2),
+                "income": round(hist_income, 2),
+            }
+        )
 
     # Top 5 expenses (individual transactions)
     top_expenses = sorted(
@@ -149,12 +170,14 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
             cat = db.query(Category).filter(Category.id == e.category_id).first()
             if cat:
                 cat_name = cat.name
-        top_expenses_data.append({
-            "date": e.date.strftime("%d/%m"),
-            "description": (e.description or "")[:40],
-            "amount": abs(e.amount),
-            "category": cat_name,
-        })
+        top_expenses_data.append(
+            {
+                "date": e.date.strftime("%d/%m"),
+                "description": (e.description or "")[:40],
+                "amount": abs(e.amount),
+                "category": cat_name,
+            }
+        )
 
     # Accounts summary
     from app.models import Account, Card
@@ -175,13 +198,15 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     for acc in accounts:
         acc_expenses = [e for e in expenses if e.account_id == acc.id and not e.is_income]
         acc_total = sum(abs(e.amount) for e in acc_expenses)
-        accounts_summary.append({
-            "name": acc.name,
-            "type": acc.type,
-            "total": round(acc_total, 2),
-            "previous": round(prev_by_account.get(acc.id, 0), 2),
-            "count": len(acc_expenses),
-        })
+        accounts_summary.append(
+            {
+                "name": acc.name,
+                "type": acc.type,
+                "total": round(acc_total, 2),
+                "previous": round(prev_by_account.get(acc.id, 0), 2),
+                "count": len(acc_expenses),
+            }
+        )
     accounts_summary.sort(key=lambda x: x["total"], reverse=True)
 
     # Cards summary
@@ -190,13 +215,15 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     for card in cards:
         card_expenses = [e for e in expenses if e.card_id == card.id and not e.is_income]
         card_total = sum(abs(e.amount) for e in card_expenses)
-        cards_summary.append({
-            "name": card.card_name,
-            "bank": card.bank or "",
-            "total": round(card_total, 2),
-            "previous": round(prev_by_card.get(card.id, 0), 2),
-            "count": len(card_expenses),
-        })
+        cards_summary.append(
+            {
+                "name": card.card_name,
+                "bank": card.bank or "",
+                "total": round(card_total, 2),
+                "previous": round(prev_by_card.get(card.id, 0), 2),
+                "count": len(card_expenses),
+            }
+        )
     cards_summary.sort(key=lambda x: x["total"], reverse=True)
 
     # Future installments
@@ -215,14 +242,17 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     )
     future_installments = []
     for s in scheduled:
-        future_installments.append({
-            "date": s.scheduled_date.strftime("%d/%m/%Y"),
-            "description": (s.description or "")[:40],
-            "amount": abs(s.amount),
-        })
+        future_installments.append(
+            {
+                "date": s.scheduled_date.strftime("%d/%m/%Y"),
+                "description": (s.description or "")[:40],
+                "amount": abs(s.amount),
+            }
+        )
 
     # Daily spending pattern (which days of week have most spending)
     from collections import Counter
+
     DAY_NAMES = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"]
     day_totals = defaultdict(float)
     for e in expenses:
@@ -242,17 +272,20 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
             change_pct = 100.0  # New category
         else:
             change_pct = 0.0
-        category_trends.append({
-            "name": cat_name,
-            "current": round(current_val, 2),
-            "previous": round(prev_val, 2),
-            "change_pct": round(change_pct, 1),
-            "trend": "up" if change_pct > 5 else "down" if change_pct < -5 else "stable",
-        })
+        category_trends.append(
+            {
+                "name": cat_name,
+                "current": round(current_val, 2),
+                "previous": round(prev_val, 2),
+                "change_pct": round(change_pct, 1),
+                "trend": "up" if change_pct > 5 else "down" if change_pct < -5 else "stable",
+            }
+        )
     category_trends.sort(key=lambda x: abs(x["change_pct"]), reverse=True)
 
     # Payment method breakdown
     from app.models import Card
+
     cards_map = {c.id: c for c in db.query(Card).filter(Card.user_id.in_(uid_list)).all()}
     payment_methods = defaultdict(lambda: {"total": 0.0, "count": 0, "name": ""})
     for e in expenses:
@@ -272,6 +305,7 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
 
     # Investment data for right panel pie chart
     from app.models import Investment
+
     investments = db.query(Investment).filter(Investment.user_id.in_(uid_list)).all()
     inv_by_broker = defaultdict(float)
     for inv in investments:
@@ -306,7 +340,9 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     recurring_list.sort(key=lambda x: x["total"], reverse=True)
 
     # Weekend vs Weekday
-    weekend_total = sum(abs(e.amount) for e in expenses if not e.is_income and e.date and e.date.weekday() >= 5)
+    weekend_total = sum(
+        abs(e.amount) for e in expenses if not e.is_income and e.date and e.date.weekday() >= 5
+    )
     weekday_total = total_expenses - weekend_total
     weekend_data = {
         "weekend": round(weekend_total, 2),
@@ -328,29 +364,41 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
             today = date.today()
             trend_lines = []
             for t in trend_history:
-                trend_lines.append(f"  {t['month']}: gastos=${t['expenses']:,.0f}, ingresos=${t['income']:,.0f}")
+                trend_lines.append(
+                    f"  {t['month']}: gastos=${t['expenses']:,.0f}, ingresos=${t['income']:,.0f}"
+                )
 
             cat_lines = []
             for cat in all_categories[:8]:
-                cat_lines.append(f"  - {cat['name']}: ${cat['total']:,.0f} ({cat['count']} transacciones)")
+                cat_lines.append(
+                    f"  - {cat['name']}: ${cat['total']:,.0f} ({cat['count']} transacciones)"
+                )
 
             comp_lines = []
             for c in category_comparison:
-                comp_lines.append(f"  - {c['name']}: actual=${c['total']:,.0f}, anterior=${c['previous']:,.0f}, cambio={c['change_pct']:+.1f}%")
+                comp_lines.append(
+                    f"  - {c['name']}: actual=${c['total']:,.0f}, anterior=${c['previous']:,.0f}, cambio={c['change_pct']:+.1f}%"
+                )
 
             expense_lines = []
             for e in top_expenses_data:
-                expense_lines.append(f"  - {e['date']} {e['description']}: ${e['amount']:,.2f} ({e['category']})")
+                expense_lines.append(
+                    f"  - {e['date']} {e['description']}: ${e['amount']:,.2f} ({e['category']})"
+                )
 
             account_lines = []
             for a in accounts_summary:
-                if a['total'] > 0:
-                    account_lines.append(f"  - {a['name']} ({a['type']}): ${a['total']:,.2f} ({a['count']} transacciones)")
+                if a["total"] > 0:
+                    account_lines.append(
+                        f"  - {a['name']} ({a['type']}): ${a['total']:,.2f} ({a['count']} transacciones)"
+                    )
 
             card_lines = []
             for c in cards_summary:
-                if c['total'] > 0:
-                    card_lines.append(f"  - {c['name']} {c['bank']}: ${c['total']:,.2f} ({c['count']} transacciones)")
+                if c["total"] > 0:
+                    card_lines.append(
+                        f"  - {c['name']} {c['bank']}: ${c['total']:,.2f} ({c['count']} transacciones)"
+                    )
 
             future_lines = []
             for fi in future_installments[:5]:
@@ -367,22 +415,22 @@ RESUMEN:
 - Gastos mismo mes ano anterior: ${last_year_total:,.0f}
 
 TOP CATEGORIAS:
-{chr(10).join(cat_lines) or '  Sin datos'}
+{chr(10).join(cat_lines) or "  Sin datos"}
 
 COMPARATIVA vs MES ANTERIOR:
-{chr(10).join(comp_lines) or '  Sin datos'}
+{chr(10).join(comp_lines) or "  Sin datos"}
 
 MAYORES GASTOS:
-{chr(10).join(expense_lines) or '  Sin datos'}
+{chr(10).join(expense_lines) or "  Sin datos"}
 
 CUENTAS:
-{chr(10).join(account_lines) or '  Sin datos'}
+{chr(10).join(account_lines) or "  Sin datos"}
 
 TARJETAS:
-{chr(10).join(card_lines) or '  Sin datos'}
+{chr(10).join(card_lines) or "  Sin datos"}
 
-CUOTAS FUTURAS ({len(future_installments)} cuotas, ${sum(fi['amount'] for fi in future_installments):,.2f} total):
-{chr(10).join(future_lines) or '  Sin cuotas futuras'}
+CUOTAS FUTURAS ({len(future_installments)} cuotas, ${sum(fi["amount"] for fi in future_installments):,.2f} total):
+{chr(10).join(future_lines) or "  Sin cuotas futuras"}
 
 HISTORIAL (6 meses):
 {chr(10).join(trend_lines)}
@@ -455,7 +503,9 @@ Usa flags para tendencias preocupantes a monitorear."""
                     end = raw_text.rfind("}") + 1
                     if start >= 0 and end > start:
                         snippet = raw_text[start:end]
-                        print(f"[MONTHLY REPORT] Strategy 3 snippet ({len(snippet)} chars): {snippet[:100]}...")
+                        print(
+                            f"[MONTHLY REPORT] Strategy 3 snippet ({len(snippet)} chars): {snippet[:100]}..."
+                        )
                         analysis = json.loads(snippet)
                         print("[MONTHLY REPORT] Strategy 3 (find braces) succeeded")
                 except json.JSONDecodeError as e:
@@ -467,12 +517,14 @@ Usa flags para tendencias preocupantes a monitorear."""
                     cleaned = raw_text.strip()
                     if cleaned.startswith("```"):
                         lines = cleaned.split("\n")
-                        cleaned = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+                        cleaned = "\n".join(
+                            lines[1:-1] if lines[-1].strip() == "```" else lines[1:]
+                        )
                     cleaned = cleaned.strip()
                     # Find the last closing brace and truncate
                     last_brace = cleaned.rfind("}")
                     if last_brace > 0:
-                        cleaned = cleaned[:last_brace + 1]
+                        cleaned = cleaned[: last_brace + 1]
                     analysis = json.loads(cleaned)
                     print("[MONTHLY REPORT] Strategy 4 (clean) succeeded")
                 except json.JSONDecodeError as e:
@@ -484,24 +536,26 @@ Usa flags para tendencias preocupantes a monitorear."""
                     cleaned = raw_text.strip()
                     if cleaned.startswith("```"):
                         lines = cleaned.split("\n")
-                        cleaned = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+                        cleaned = "\n".join(
+                            lines[1:-1] if lines[-1].strip() == "```" else lines[1:]
+                        )
                     cleaned = cleaned.strip()
                     # Find the last valid closing brace and truncate everything after
                     last_brace = cleaned.rfind("}")
                     if last_brace > 0:
-                        cleaned = cleaned[:last_brace + 1]
+                        cleaned = cleaned[: last_brace + 1]
                     # Remove any characters between closing quote and comma/brace
                     # This handles cases like: "text"\n}\n -> "text"}
                     cleaned = re.sub(r'"\s*\n\s*([,\}])', r'"\1', cleaned)
                     # Fix missing commas between JSON key-value pairs
                     # Match: "value"\n  "key"  ->  "value",\n  "key"
-                    cleaned = re.sub(r'(".*?")\s*\n(\s*")', r'\1,\n\2', cleaned)
+                    cleaned = re.sub(r'(".*?")\s*\n(\s*")', r"\1,\n\2", cleaned)
                     # Fix missing commas after arrays/objects
-                    cleaned = re.sub(r'(\])\s*\n(\s*")', r'\1,\n\2', cleaned)
-                    cleaned = re.sub(r'(\})\s*\n(\s*")', r'\1,\n\2', cleaned)
+                    cleaned = re.sub(r'(\])\s*\n(\s*")', r"\1,\n\2", cleaned)
+                    cleaned = re.sub(r'(\})\s*\n(\s*")', r"\1,\n\2", cleaned)
                     # Remove trailing commas before closing braces
-                    cleaned = re.sub(r',\s*}', '}', cleaned)
-                    cleaned = re.sub(r',\s*]', ']', cleaned)
+                    cleaned = re.sub(r",\s*}", "}", cleaned)
+                    cleaned = re.sub(r",\s*]", "]", cleaned)
                     analysis = json.loads(cleaned)
                     print("[MONTHLY REPORT] Strategy 5 (fix JSON) succeeded")
                 except json.JSONDecodeError as e:
@@ -514,11 +568,13 @@ Usa flags para tendencias preocupantes a monitorear."""
                     cleaned = raw_text.strip()
                     if cleaned.startswith("```"):
                         lines = cleaned.split("\n")
-                        cleaned = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+                        cleaned = "\n".join(
+                            lines[1:-1] if lines[-1].strip() == "```" else lines[1:]
+                        )
                     cleaned = cleaned.strip()
                     last_brace = cleaned.rfind("}")
                     if last_brace > 0:
-                        cleaned = cleaned[:last_brace + 1]
+                        cleaned = cleaned[: last_brace + 1]
                     # Try multiple times to fix missing commas
                     for _ in range(5):
                         try:
@@ -527,7 +583,7 @@ Usa flags para tendencias preocupantes a monitorear."""
                         except json.JSONDecodeError as e:
                             if e.pos and e.pos < len(cleaned):
                                 # Insert comma at error position
-                                cleaned = cleaned[:e.pos] + ',' + cleaned[e.pos:]
+                                cleaned = cleaned[: e.pos] + "," + cleaned[e.pos :]
                             else:
                                 break
                     analysis = json.loads(cleaned)
@@ -542,7 +598,9 @@ Usa flags para tendencias preocupantes a monitorear."""
                     cleaned = raw_text.strip()
                     if cleaned.startswith("```"):
                         lines = cleaned.split("\n")
-                        cleaned = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+                        cleaned = "\n".join(
+                            lines[1:-1] if lines[-1].strip() == "```" else lines[1:]
+                        )
                     cleaned = cleaned.strip()
                     # Find the last } that could be the end of a valid JSON object
                     # Look for pattern: }\n or } at end of string
@@ -552,11 +610,11 @@ Usa flags para tendencias preocupantes a monitorear."""
                     if last_valid < 0:
                         last_valid = cleaned.rfind("}")
                     if last_valid > 0:
-                        cleaned = cleaned[:last_valid + 1]
+                        cleaned = cleaned[: last_valid + 1]
                     # Remove any trailing whitespace/newlines
                     cleaned = cleaned.strip()
                     # Fix common trailing issues: extra quotes, dots, etc.
-                    cleaned = re.sub(r'["\']*\s*$', '', cleaned)
+                    cleaned = re.sub(r'["\']*\s*$', "", cleaned)
                     # Ensure it ends with }
                     if not cleaned.endswith("}"):
                         cleaned += "}"
@@ -570,7 +628,9 @@ Usa flags para tendencias preocupantes a monitorear."""
             analysis = None
 
     if analysis is None:
-        raise ValueError("No se pudo generar el analisis LLM. Verifique la configuracion de la API key.")
+        raise ValueError(
+            "No se pudo generar el analisis LLM. Verifique la configuracion de la API key."
+        )
 
     return {
         "month": month_str,
@@ -633,7 +693,9 @@ def generate_single_report(user_id: int, month_str: str):
 
         # Generate PNG image
         user = db.query(User).filter(User.id == user_id).first()
-        user_name = user.full_name if user and user.full_name else (user.email if user else "Usuario")
+        user_name = (
+            user.full_name if user and user.full_name else (user.email if user else "Usuario")
+        )
         png_bytes = generate_report_image(report_data, user_name)
 
         # Update report
@@ -660,6 +722,7 @@ def generate_single_report(user_id: int, month_str: str):
     except Exception as e:
         print(f"[MONTHLY REPORT] Error generating report for user {user_id}: {e}")
         import traceback
+
         traceback.print_exc()
 
         # Mark as failed

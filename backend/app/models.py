@@ -267,9 +267,7 @@ class ScheduledExpense(Base):
 
 class MonthlyReport(Base):
     __tablename__ = "monthly_reports"
-    __table_args__ = (
-        Index("ix_monthly_reports_user_month", "user_id", "month", unique=True),
-    )
+    __table_args__ = (Index("ix_monthly_reports_user_month", "user_id", "month", unique=True),)
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)

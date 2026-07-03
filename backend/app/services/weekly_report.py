@@ -8,19 +8,28 @@ from jinja2 import Environment, FileSystemLoader
 from playwright.sync_api import sync_playwright
 
 MONTHS_ES = {
-    1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
-    5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
-    9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre",
+    1: "Enero",
+    2: "Febrero",
+    3: "Marzo",
+    4: "Abril",
+    5: "Mayo",
+    6: "Junio",
+    7: "Julio",
+    8: "Agosto",
+    9: "Septiembre",
+    10: "Octubre",
+    11: "Noviembre",
+    12: "Diciembre",
 }
 
 _EMOTICON_RE = re.compile(
     "["
-    "\U0001F600-\U0001F64F"
-    "\U0001F300-\U0001F5FF"
-    "\U0001F680-\U0001F6FF"
-    "\U0001F1E0-\U0001F1FF"
-    "\U00002702-\U000027B0"
-    "\U000024C2-\U0001F251"
+    "\U0001f600-\U0001f64f"
+    "\U0001f300-\U0001f5ff"
+    "\U0001f680-\U0001f6ff"
+    "\U0001f1e0-\U0001f1ff"
+    "\U00002702-\U000027b0"
+    "\U000024c2-\U0001f251"
     "\U0001f926-\U0001f937"
     "\U00010000-\U0010ffff"
     "]+",
@@ -54,38 +63,46 @@ def generate_weekly_report_image(report_data: dict) -> bytes:
     for cat in categories[:5]:
         cat_total = cat.get("total", 0)
         pct = round((cat_total / total_expenses * 100) if total_expenses > 0 else 0, 1)
-        categories_with_pct.append({
-            "name": cat["name"][:16],
-            "total": _fmt(cat_total),
-            "pct": pct,
-        })
+        categories_with_pct.append(
+            {
+                "name": cat["name"][:16],
+                "total": _fmt(cat_total),
+                "pct": pct,
+            }
+        )
 
     # Upcoming expenses
     upcoming = report_data.get("upcoming_expenses", [])
     upcoming_total = sum(exp.get("amount", 0) for exp in upcoming)
     upcoming_formatted = []
     for exp in upcoming[:5]:
-        upcoming_formatted.append({
-            "date": exp.get("date", ""),
-            "description": exp.get("description", "")[:30],
-            "amount": _fmt(exp.get("amount", 0)),
-        })
+        upcoming_formatted.append(
+            {
+                "date": exp.get("date", ""),
+                "description": exp.get("description", "")[:30],
+                "amount": _fmt(exp.get("amount", 0)),
+            }
+        )
 
     # Top 10 expenses
     top_expenses = report_data.get("top_expenses", [])
     top_formatted = []
     for exp in top_expenses[:10]:
-        top_formatted.append({
-            "date": exp.get("date", ""),
-            "description": exp.get("description", "")[:25],
-            "category": exp.get("category", "")[:12],
-            "amount": _fmt(exp.get("amount", 0)),
-        })
+        top_formatted.append(
+            {
+                "date": exp.get("date", ""),
+                "description": exp.get("description", "")[:25],
+                "category": exp.get("category", "")[:12],
+                "amount": _fmt(exp.get("amount", 0)),
+            }
+        )
 
     # LLM Analysis
     llm_analysis = report_data.get("llm_analysis")
     if llm_analysis:
-        llm_analysis = {k: _strip_emojis(v) if isinstance(v, str) else v for k, v in llm_analysis.items()}
+        llm_analysis = {
+            k: _strip_emojis(v) if isinstance(v, str) else v for k, v in llm_analysis.items()
+        }
 
     context = {
         "week_start": week_start,

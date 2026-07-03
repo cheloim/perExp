@@ -13,19 +13,28 @@ from playwright.sync_api import sync_playwright
 # ---------------------------------------------------------------------------
 
 MONTHS_ES = {
-    1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
-    5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
-    9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre",
+    1: "Enero",
+    2: "Febrero",
+    3: "Marzo",
+    4: "Abril",
+    5: "Mayo",
+    6: "Junio",
+    7: "Julio",
+    8: "Agosto",
+    9: "Septiembre",
+    10: "Octubre",
+    11: "Noviembre",
+    12: "Diciembre",
 }
 
 _EMOJI_RE = re.compile(
     "["
-    "\U0001F600-\U0001F64F"
-    "\U0001F300-\U0001F5FF"
-    "\U0001F680-\U0001F6FF"
-    "\U0001F1E0-\U0001F1FF"
-    "\U00002702-\U000027B0"
-    "\U000024C2-\U0001F251"
+    "\U0001f600-\U0001f64f"
+    "\U0001f300-\U0001f5ff"
+    "\U0001f680-\U0001f6ff"
+    "\U0001f1e0-\U0001f1ff"
+    "\U00002702-\U000027b0"
+    "\U000024c2-\U0001f251"
     "\U0001f926-\U0001f937"
     "\U00010000-\U0010ffff"
     "]+",
@@ -45,11 +54,21 @@ def _fmt(amount: float) -> str:
 # Chart data builders (for Chart.js)
 # ---------------------------------------------------------------------------
 
+
 def _build_doughnut_data(categories: list[dict], total: float) -> dict:
     """Build Chart.js doughnut data for category distribution with vivid colors."""
     labels, values, colors = [], [], []
     # Vivid color palette - unique for category doughnut
-    vivid_palette = ["#8b5cf6", "#06b6d4", "#f43f5e", "#f97316", "#14b8a6", "#ec4899", "#eab308", "#6366f1"]
+    vivid_palette = [
+        "#8b5cf6",
+        "#06b6d4",
+        "#f43f5e",
+        "#f97316",
+        "#14b8a6",
+        "#ec4899",
+        "#eab308",
+        "#6366f1",
+    ]
     for i, cat in enumerate(categories[:8]):
         pct = cat["total"] / total if total > 0 else 0
         if pct < 0.02:
@@ -132,7 +151,16 @@ def _build_account_doughnut_data(accounts: list[dict], cards: list[dict]) -> dic
     """Build Chart.js doughnut data for account/card consumption with vivid colors."""
     labels, values, colors = [], [], []
     # Orange/amber palette - unique for account doughnut
-    account_palette = ["#f97316", "#f59e0b", "#ef4444", "#ec4899", "#8b5cf6", "#06b6d4", "#14b8a6", "#6366f1"]
+    account_palette = [
+        "#f97316",
+        "#f59e0b",
+        "#ef4444",
+        "#ec4899",
+        "#8b5cf6",
+        "#06b6d4",
+        "#14b8a6",
+        "#6366f1",
+    ]
     idx = 0
 
     # Use cards data (which has actual spending)
@@ -204,12 +232,15 @@ def _build_account_comparison_data(accounts: list[dict], cards: list[dict]) -> d
 # Main image generator
 # ---------------------------------------------------------------------------
 
+
 def generate_report_image(report_data: dict, user_name: str) -> bytes:
     """Generate PNG report image using Playwright + Chart.js + Jinja2."""
 
     # Build Chart.js data
     all_cats = report_data.get("all_categories", [])
-    doughnut_data = _build_doughnut_data(all_cats, report_data["total_expenses"]) if all_cats else None
+    doughnut_data = (
+        _build_doughnut_data(all_cats, report_data["total_expenses"]) if all_cats else None
+    )
 
     cat_comp = report_data.get("category_comparison", [])
     category_bar_data = _build_category_bar_data(cat_comp) if cat_comp else None
@@ -243,10 +274,14 @@ def generate_report_image(report_data: dict, user_name: str) -> bytes:
 
     # Weekend vs weekday data
     weekend_data = report_data.get("weekend_data")
-    weekend_chart_data = _build_weekend_data(
-        weekend_data.get("weekend", 0) if weekend_data else 0,
-        weekend_data.get("weekday", 0) if weekend_data else 0,
-    ) if weekend_data else None
+    weekend_chart_data = (
+        _build_weekend_data(
+            weekend_data.get("weekend", 0) if weekend_data else 0,
+            weekend_data.get("weekday", 0) if weekend_data else 0,
+        )
+        if weekend_data
+        else None
+    )
 
     # Format amounts
     def _fmt_list(items, key="total"):
@@ -258,14 +293,22 @@ def generate_report_image(report_data: dict, user_name: str) -> bytes:
     mom_change = report_data["mom_change"]
     mom_color_class = "kpi-green" if mom_change <= 0 else "kpi-red"
     mom_arrow = "\u2193" if mom_change < 0 else "\u2191" if mom_change > 0 else "\u2192"
-    mom_label = "Gastaste menos" if mom_change < 0 else "Gastaste mas" if mom_change > 0 else "Sin cambio"
+    mom_label = (
+        "Gastaste menos" if mom_change < 0 else "Gastaste mas" if mom_change > 0 else "Sin cambio"
+    )
 
     last_year_total = report_data.get("last_year_total", 0)
     last_year_change = 0.0
     if last_year_total > 0:
-        last_year_change = ((report_data["total_expenses"] - last_year_total) / last_year_total) * 100
-    last_year_arrow = "\u2191" if last_year_change > 0 else "\u2193" if last_year_change < 0 else "\u2192"
-    last_year_label = f"{last_year_arrow} {abs(last_year_change):.1f}%" if last_year_total > 0 else ""
+        last_year_change = (
+            (report_data["total_expenses"] - last_year_total) / last_year_total
+        ) * 100
+    last_year_arrow = (
+        "\u2191" if last_year_change > 0 else "\u2193" if last_year_change < 0 else "\u2192"
+    )
+    last_year_label = (
+        f"{last_year_arrow} {abs(last_year_change):.1f}%" if last_year_total > 0 else ""
+    )
 
     analysis = report_data.get("analysis")
     if analysis:
@@ -289,10 +332,16 @@ def generate_report_image(report_data: dict, user_name: str) -> bytes:
         "last_year_change": last_year_change,
         "doughnut_data": json.dumps(doughnut_data) if doughnut_data else "null",
         "category_bar_data": json.dumps(category_bar_data) if category_bar_data else "null",
-        "account_doughnut_data": json.dumps(account_doughnut_data) if account_doughnut_data else "null",
-        "investment_doughnut_data": json.dumps(investment_doughnut_data) if investment_doughnut_data else "null",
+        "account_doughnut_data": json.dumps(account_doughnut_data)
+        if account_doughnut_data
+        else "null",
+        "investment_doughnut_data": json.dumps(investment_doughnut_data)
+        if investment_doughnut_data
+        else "null",
         "polar_area_data": json.dumps(polar_area_data) if polar_area_data else "null",
-        "account_comparison_data": json.dumps(account_comparison_data) if account_comparison_data else "null",
+        "account_comparison_data": json.dumps(account_comparison_data)
+        if account_comparison_data
+        else "null",
         "total_expenses_num": report_data["total_expenses"],
         "previous_total_num": report_data.get("previous_total", 0),
         "trend_data": json.dumps(trend_data) if trend_data else "null",

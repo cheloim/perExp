@@ -8,9 +8,18 @@ from app.database import SessionLocal
 from app.models import Category, Expense, ScheduledExpense, Setting, User
 
 MONTHS_ES = {
-    1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
-    5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
-    9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre",
+    1: "Enero",
+    2: "Febrero",
+    3: "Marzo",
+    4: "Abril",
+    5: "Mayo",
+    6: "Junio",
+    7: "Julio",
+    8: "Agosto",
+    9: "Septiembre",
+    10: "Octubre",
+    11: "Noviembre",
+    12: "Diciembre",
 }
 
 
@@ -56,7 +65,7 @@ def _generate_weekly_llm_analysis(report_data: dict) -> dict:
 
 GASTO SEMANAL: ${total:,.2f}
 ACUMULADO MES: ${accumulated:,.2f}
-TRANSACCIONES: {report_data.get('transaction_count', 0)}
+TRANSACCIONES: {report_data.get("transaction_count", 0)}
 
 TOP CATEGORÍAS:
 {cat_text}
@@ -167,12 +176,14 @@ def _build_weekly_report_data(user_id: int, start: date, end: date, db) -> dict:
             cat = db.query(Category).filter(Category.id == exp.category_id).first()
             if cat:
                 cat_name = cat.name
-        upcoming_expenses.append({
-            "date": exp.scheduled_date.strftime("%d/%m"),
-            "description": (exp.description or "")[:30],
-            "amount": abs(exp.amount),
-            "category": cat_name,
-        })
+        upcoming_expenses.append(
+            {
+                "date": exp.scheduled_date.strftime("%d/%m"),
+                "description": (exp.description or "")[:30],
+                "amount": abs(exp.amount),
+                "category": cat_name,
+            }
+        )
 
     # 5. Top 10 expenses
     top_expenses = sorted(
@@ -188,12 +199,14 @@ def _build_weekly_report_data(user_id: int, start: date, end: date, db) -> dict:
             cat = db.query(Category).filter(Category.id == e.category_id).first()
             if cat:
                 cat_name = cat.name
-        top_expenses_data.append({
-            "date": e.date.strftime("%d/%m"),
-            "description": (e.description or "")[:25],
-            "amount": abs(e.amount),
-            "category": cat_name[:12],
-        })
+        top_expenses_data.append(
+            {
+                "date": e.date.strftime("%d/%m"),
+                "description": (e.description or "")[:25],
+                "amount": abs(e.amount),
+                "category": cat_name[:12],
+            }
+        )
 
     report_data = {
         "week_start": start.strftime("%d/%m"),
@@ -231,9 +244,7 @@ def send_weekly_reports():
         for user in users:
             # Check if weekly summary is enabled (default: True)
             setting = (
-                db.query(Setting)
-                .filter(Setting.key == f"{user.id}:weekly_summary_enabled")
-                .first()
+                db.query(Setting).filter(Setting.key == f"{user.id}:weekly_summary_enabled").first()
             )
             if setting and setting.value.lower() in ("false", "0", "no"):
                 continue
@@ -244,6 +255,7 @@ def send_weekly_reports():
 
                 # Generate PNG image
                 from app.services.weekly_report import generate_weekly_report_image
+
                 png_bytes = generate_weekly_report_image(report_data)
 
                 # Build caption
@@ -269,6 +281,7 @@ def send_weekly_reports():
 
                 # Send via Telegram
                 from app.telegram_bot import send_photo_to_chat
+
                 send_photo_to_chat(user.telegram_chat_id, png_bytes, caption)
                 sent_count += 1
                 print(f"[WEEKLY REPORT] Sent report to user {user.id}")

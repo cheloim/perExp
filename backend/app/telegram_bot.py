@@ -441,16 +441,15 @@ def send_photo_to_chat(chat_id: str, image_bytes: bytes, caption: str = None) ->
     """Send an image to a Telegram chat. Safe to call from any thread."""
     # Try using bot instance first
     if _bot_app and _bot_app.bot:
+
         async def _send():
             try:
                 from io import BytesIO
+
                 photo = BytesIO(image_bytes)
                 photo.name = "report.png"
                 await _bot_app.bot.send_photo(
-                    chat_id=chat_id,
-                    photo=photo,
-                    caption=caption,
-                    parse_mode="Markdown"
+                    chat_id=chat_id, photo=photo, caption=caption, parse_mode="Markdown"
                 )
             except Exception as e:
                 logger.warning(f"[TELEGRAM] Could not send photo to {chat_id}: {e}")
@@ -467,6 +466,7 @@ def send_photo_to_chat(chat_id: str, image_bytes: bytes, caption: str = None) ->
 def _send_photo_via_api(chat_id: str, image_bytes: bytes, caption: str = None) -> None:
     """Send photo using direct Telegram Bot API HTTP call."""
     import os
+
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not token:
         logger.warning("[TELEGRAM] No bot token available, cannot send photo")

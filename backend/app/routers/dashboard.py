@@ -418,11 +418,15 @@ async def get_monthly_report(
     else:
         target_start = date.today().replace(day=1)
 
-    target_end = date(target_start.year, target_start.month, monthrange(target_start.year, target_start.month)[1])
+    target_end = date(
+        target_start.year, target_start.month, monthrange(target_start.year, target_start.month)[1]
+    )
 
     # Previous month for comparison
     prev_start = add_months(target_start, -1)
-    prev_end = date(prev_start.year, prev_start.month, monthrange(prev_start.year, prev_start.month)[1])
+    prev_end = date(
+        prev_start.year, prev_start.month, monthrange(prev_start.year, prev_start.month)[1]
+    )
 
     def _query_totals(start: date, end: date):
         expenses = (
@@ -471,12 +475,16 @@ async def get_monthly_report(
     # Savings rate
     savings_rate = 0.0
     if current["total_income"] > 0:
-        savings_rate = ((current["total_income"] - current["total_expenses"]) / current["total_income"]) * 100
+        savings_rate = (
+            (current["total_income"] - current["total_expenses"]) / current["total_income"]
+        ) * 100
 
     # MoM change
     mom_change = 0.0
     if previous["total_expenses"] > 0:
-        mom_change = ((current["total_expenses"] - previous["total_expenses"]) / previous["total_expenses"]) * 100
+        mom_change = (
+            (current["total_expenses"] - previous["total_expenses"]) / previous["total_expenses"]
+        ) * 100
 
     # 6-month trend history for charts
     trend_history = []
@@ -491,11 +499,13 @@ async def get_monthly_report(
         )
         total_exp = sum(abs(e.amount) for e in expenses if not e.is_income)
         total_inc = sum(abs(e.amount) for e in expenses if e.is_income)
-        trend_history.append({
-            "month": m.strftime("%Y-%m"),
-            "expenses": round(total_exp, 2),
-            "income": round(total_inc, 2),
-        })
+        trend_history.append(
+            {
+                "month": m.strftime("%Y-%m"),
+                "expenses": round(total_exp, 2),
+                "income": round(total_inc, 2),
+            }
+        )
 
     # LLM analysis
     analysis = None
@@ -515,19 +525,21 @@ async def get_monthly_report(
 
             cat_lines = []
             for cat in current["top_categories"]:
-                cat_lines.append(f"  - {cat['name']}: ${cat['total']:,.0f} ({cat['count']} transacciones)")
+                cat_lines.append(
+                    f"  - {cat['name']}: ${cat['total']:,.0f} ({cat['count']} transacciones)"
+                )
 
-            llm_context = f"""ANÁLISIS MENSUAL - {target_start.strftime('%B %Y').capitalize()}
+            llm_context = f"""ANÁLISIS MENSUAL - {target_start.strftime("%B %Y").capitalize()}
 
 RESUMEN DEL MES:
-- Gastos totales: ${current['total_expenses']:,.0f}
-- Ingresos totales: ${current['total_income']:,.0f}
+- Gastos totales: ${current["total_expenses"]:,.0f}
+- Ingresos totales: ${current["total_income"]:,.0f}
 - Tasa de ahorro: {savings_rate:.1f}%
-- Cantidad de transacciones: {current['count']}
+- Cantidad de transacciones: {current["count"]}
 - Variación vs mes anterior: {mom_change:+.1f}%
 
 TOP CATEGORÍAS:
-{chr(10).join(cat_lines) or '  Sin datos'}
+{chr(10).join(cat_lines) or "  Sin datos"}
 
 HISTORIAL (últimos 6 meses):
 {chr(10).join(trend_lines)}
@@ -575,9 +587,18 @@ Sé específico con los números. Respondé en español, de forma clara y amigab
 
 
 MONTHS_ES = {
-    "01": "Enero", "02": "Febrero", "03": "Marzo", "04": "Abril",
-    "05": "Mayo", "06": "Junio", "07": "Julio", "08": "Agosto",
-    "09": "Septiembre", "10": "Octubre", "11": "Noviembre", "12": "Diciembre",
+    "01": "Enero",
+    "02": "Febrero",
+    "03": "Marzo",
+    "04": "Abril",
+    "05": "Mayo",
+    "06": "Junio",
+    "07": "Julio",
+    "08": "Agosto",
+    "09": "Septiembre",
+    "10": "Octubre",
+    "11": "Noviembre",
+    "12": "Diciembre",
 }
 
 
@@ -593,11 +614,11 @@ def _build_report_html(data: dict, user_name: str) -> str:
         categories_html += f"""
         <tr>
             <td style="padding:8px;border-bottom:1px solid #eee;">
-                <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:{cat['color']};margin-right:8px;vertical-align:middle;"></span>
-                {cat['name']}
+                <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:{cat["color"]};margin-right:8px;vertical-align:middle;"></span>
+                {cat["name"]}
             </td>
-            <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${cat['total']:,.2f}</td>
-            <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">{cat['count']}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${cat["total"]:,.2f}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">{cat["count"]}</td>
             <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">{pct:.1f}%</td>
         </tr>"""
 
@@ -608,9 +629,9 @@ def _build_report_html(data: dict, user_name: str) -> str:
         trend_rows += f"""
         <tr>
             <td style="padding:6px;border-bottom:1px solid #eee;">{m_name} {y_t}</td>
-            <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">${t['expenses']:,.2f}</td>
-            <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">${t['income']:,.2f}</td>
-            <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">${t['income'] - t['expenses']:,.2f}</td>
+            <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">${t["expenses"]:,.2f}</td>
+            <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">${t["income"]:,.2f}</td>
+            <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">${t["income"] - t["expenses"]:,.2f}</td>
         </tr>"""
 
     analysis_html = ""
@@ -619,10 +640,10 @@ def _build_report_html(data: dict, user_name: str) -> str:
         analysis_html = f"""
         <div style="margin-top:30px;padding:20px;background:#f8f9fa;border-radius:8px;">
             <h2 style="color:#6366f1;margin-bottom:15px;">✨ Análisis IA</h2>
-            <p style="color:#374151;line-height:1.6;">{a.get('summary', '')}</p>
-            {''.join(f'<p style="color:#059669;margin:5px 0;">✓ {h}</p>' for h in a.get('highlights', []))}
-            {''.join(f'<p style="color:#d97706;margin:5px 0;">⚠️ {a["concern"]}</p>' if a.get('concern') else '')}
-            {''.join(f'<p style="color:#6366f1;margin:5px 0;">💡 {a["tip"]}</p>' if a.get('tip') else '')}
+            <p style="color:#374151;line-height:1.6;">{a.get("summary", "")}</p>
+            {"".join(f'<p style="color:#059669;margin:5px 0;">✓ {h}</p>' for h in a.get("highlights", []))}
+            {"".join(f'<p style="color:#d97706;margin:5px 0;">⚠️ {a["concern"]}</p>' if a.get("concern") else "")}
+            {"".join(f'<p style="color:#6366f1;margin:5px 0;">💡 {a["tip"]}</p>' if a.get("tip") else "")}
         </div>"""
 
     savings_color = "#059669" if data["savings_rate"] >= 0 else "#dc2626"
@@ -657,20 +678,20 @@ def _build_report_html(data: dict, user_name: str) -> str:
     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px;">
         <div style="background: #fef2f2; padding: 15px; border-radius: 8px; text-align: center;">
             <p style="color: #6b7280; font-size: 11px; margin: 0;">GASTOS</p>
-            <p style="color: #dc2626; font-size: 20px; font-weight: bold; margin: 5px 0;">${data['total_expenses']:,.2f}</p>
-            <p style="color: #9ca3af; font-size: 11px; margin: 0;">{data['expense_count']} transacciones</p>
+            <p style="color: #dc2626; font-size: 20px; font-weight: bold; margin: 5px 0;">${data["total_expenses"]:,.2f}</p>
+            <p style="color: #9ca3af; font-size: 11px; margin: 0;">{data["expense_count"]} transacciones</p>
         </div>
         <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; text-align: center;">
             <p style="color: #6b7280; font-size: 11px; margin: 0;">INGRESOS</p>
-            <p style="color: #059669; font-size: 20px; font-weight: bold; margin: 5px 0;">${data['total_income']:,.2f}</p>
+            <p style="color: #059669; font-size: 20px; font-weight: bold; margin: 5px 0;">${data["total_income"]:,.2f}</p>
         </div>
         <div style="background: #f5f3ff; padding: 15px; border-radius: 8px; text-align: center;">
             <p style="color: #6b7280; font-size: 11px; margin: 0;">TASA DE AHORRO</p>
-            <p style="color: {savings_color}; font-size: 20px; font-weight: bold; margin: 5px 0;">{data['savings_rate']}%</p>
+            <p style="color: {savings_color}; font-size: 20px; font-weight: bold; margin: 5px 0;">{data["savings_rate"]}%</p>
         </div>
         <div style="background: #f8fafc; padding: 15px; border-radius: 8px; text-align: center;">
             <p style="color: #6b7280; font-size: 11px; margin: 0;">VS MES ANTERIOR</p>
-            <p style="color: {mom_color}; font-size: 20px; font-weight: bold; margin: 5px 0;">{mom_arrow} {abs(data['mom_change'])}%</p>
+            <p style="color: {mom_color}; font-size: 20px; font-weight: bold; margin: 5px 0;">{mom_arrow} {abs(data["mom_change"])}%</p>
         </div>
     </div>
 
@@ -703,7 +724,7 @@ def _build_report_html(data: dict, user_name: str) -> str:
     {analysis_html}
 
     <div style="margin-top: 40px; text-align: center; color: #9ca3af; font-size: 11px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
-        Generado por NikoFin • {date.today().strftime('%d/%m/%Y')}
+        Generado por NikoFin • {date.today().strftime("%d/%m/%Y")}
     </div>
 </body>
 </html>"""
@@ -753,12 +774,16 @@ def list_monthly_reports(
     result = []
     for r in reports:
         report_data = json.loads(r.report_data) if r.report_data else {}
-        result.append({
-            "month": r.month,
-            "status": r.status or "READY",
-            "total_expenses": report_data.get("total_expenses", 0) if r.status == "READY" else None,
-            "generated_at": r.generated_at.isoformat() if r.generated_at else None,
-        })
+        result.append(
+            {
+                "month": r.month,
+                "status": r.status or "READY",
+                "total_expenses": report_data.get("total_expenses", 0)
+                if r.status == "READY"
+                else None,
+                "generated_at": r.generated_at.isoformat() if r.generated_at else None,
+            }
+        )
 
     return {"reports": result}
 
@@ -852,9 +877,7 @@ def download_report_image(
     return Response(
         content=bytes(image_data),
         media_type=media_type,
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"'
-        },
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
