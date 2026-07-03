@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Migration: Create monthly_reports table with pdf_data column.
+Migration: Create monthly_reports table with all columns.
 
 Run with: python -m scripts.migrate_add_monthly_reports
 """
@@ -34,31 +34,49 @@ def main():
         dialect = engine.dialect.name
 
         if dialect == "postgresql":
+            # Ensure public schema is in search path
+            conn.execute(text("SET search_path TO public"))
+
             # Check if table already exists
             exists = conn.execute(text("""
                 SELECT EXISTS (
                     SELECT 1 FROM information_schema.tables
-                    WHERE table_name = 'monthly_reports'
+                    WHERE table_schema = 'public' AND table_name = 'monthly_reports'
                 )
             """)).scalar()
 
             if exists:
                 print("Table already exists. Checking for columns...")
-                has_pdf_data = conn.execute(text("""
+
+                # Ensure png_data column exists
+                has_png = conn.execute(text("""
+                    SELECT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'monthly_reports' AND column_name = 'png_data'
+                    )
+                """)).scalar()
+                if not has_png:
+                    print("Adding png_data column...")
+                    conn.execute(text("ALTER TABLE monthly_reports ADD COLUMN png_data BYTEA"))
+                    print("png_data column added!")
+                else:
+                    print("png_data column already exists.")
+
+                # Ensure pdf_data column exists
+                has_pdf = conn.execute(text("""
                     SELECT EXISTS (
                         SELECT 1 FROM information_schema.columns
                         WHERE table_name = 'monthly_reports' AND column_name = 'pdf_data'
                     )
                 """)).scalar()
-                if not has_pdf_data:
+                if not has_pdf:
                     print("Adding pdf_data column...")
-                    conn.execute(text("""
-                        ALTER TABLE monthly_reports ADD COLUMN pdf_data BYTEA
-                    """))
+                    conn.execute(text("ALTER TABLE monthly_reports ADD COLUMN pdf_data BYTEA"))
                     print("pdf_data column added!")
                 else:
                     print("pdf_data column already exists.")
 
+                # Ensure status column exists
                 has_status = conn.execute(text("""
                     SELECT EXISTS (
                         SELECT 1 FROM information_schema.columns
@@ -67,17 +85,13 @@ def main():
                 """)).scalar()
                 if not has_status:
                     print("Adding status column...")
-                    conn.execute(text("""
-                        ALTER TABLE monthly_reports ADD COLUMN status VARCHAR(20) DEFAULT 'READY'
-                    """))
-                    # Set existing reports to READY
-                    conn.execute(text("""
-                        UPDATE monthly_reports SET status = 'READY' WHERE status IS NULL
-                    """))
+                    conn.execute(text("ALTER TABLE monthly_reports ADD COLUMN status VARCHAR(20) DEFAULT 'READY'"))
+                    conn.execute(text("UPDATE monthly_reports SET status = 'READY' WHERE status IS NULL"))
                     print("status column added!")
                 else:
                     print("status column already exists.")
 
+                # Ensure error_message column exists
                 has_error = conn.execute(text("""
                     SELECT EXISTS (
                         SELECT 1 FROM information_schema.columns
@@ -86,22 +100,21 @@ def main():
                 """)).scalar()
                 if not has_error:
                     print("Adding error_message column...")
-                    conn.execute(text("""
-                        ALTER TABLE monthly_reports ADD COLUMN error_message TEXT
-                    """))
+                    conn.execute(text("ALTER TABLE monthly_reports ADD COLUMN error_message TEXT"))
                     print("error_message column added!")
                 else:
                     print("error_message column already exists.")
             else:
                 print("Creating monthly_reports table...")
                 conn.execute(text("""
-                    CREATE TABLE monthly_reports (
+                    CREATE TABLE IF NOT EXISTS monthly_reports (
                         id SERIAL PRIMARY KEY,
-                        user_id INTEGER NOT NULL REFERENCES users.id ON DELETE CASCADE,
+                        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                         month VARCHAR(7) NOT NULL,
                         status VARCHAR(20) DEFAULT 'READY',
                         report_data TEXT,
                         pdf_data BYTEA,
+                        png_data BYTEA,
                         error_message TEXT,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         generated_at TIMESTAMP
@@ -110,7 +123,7 @@ def main():
 
                 print("Creating index on user_id and month...")
                 conn.execute(text("""
-                    CREATE UNIQUE INDEX ix_monthly_reports_user_month
+                    CREATE UNIQUE INDEX IF NOT EXISTS ix_monthly_reports_user_month
                     ON monthly_reports (user_id, month)
                 """))
 

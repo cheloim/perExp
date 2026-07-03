@@ -29,10 +29,8 @@ _EMOTICON_RE = re.compile(
     "\U0001f680-\U0001f6ff"
     "\U0001f1e0-\U0001f1ff"
     "\U0001f900-\U0001f9ff"
-    "\U0001fa00-\U0001fa6f"
-    "\U0001fa70-\U0001faff"
+    "\U0001fa00-\U0001faff"
     "\U00002702-\U000027b0"
-    "\U0001f926-\U0001f937"
     "]+",
     flags=re.UNICODE,
 )
