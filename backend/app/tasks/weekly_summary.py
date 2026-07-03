@@ -274,7 +274,7 @@ def send_weekly_reports():
                 )
 
                 if llm and llm.get("summary"):
-                    caption += f"\n\n🤖 {llm['summary'][:150]}"
+                    caption += f"\n\n🤖 {llm['summary']}"
 
                 if llm and llm.get("tip"):
                     caption += f"\n\n💡 {llm['tip']}"
