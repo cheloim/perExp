@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import json
 from datetime import datetime
 
@@ -295,10 +296,8 @@ async def notifications_stream(request: Request):
                 try:
                     db.execute(text("SELECT 1"))
                 except Exception:
-                    try:
+                    with contextlib.suppress(Exception):
                         db.close()
-                    except Exception:
-                        pass
                     db = SessionLocal()
 
                 try:
@@ -334,10 +333,8 @@ async def notifications_stream(request: Request):
                         last_check = datetime.utcnow()
                 except Exception:
                     # Reconnect on error
-                    try:
+                    with contextlib.suppress(Exception):
                         db.close()
-                    except Exception:
-                        pass
                     db = SessionLocal()
 
                 now = datetime.utcnow()

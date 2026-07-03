@@ -473,8 +473,9 @@ def _send_photo_via_api(chat_id: str, image_bytes: bytes, caption: str = None) -
         return
 
     try:
-        import httpx
         from io import BytesIO
+
+        import httpx
 
         url = f"https://api.telegram.org/bot{token}/sendPhoto"
 

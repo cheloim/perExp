@@ -1,10 +1,8 @@
 """Report generation for monthly analysis using Playwright + Chart.js (PNG output)."""
 
-import io
 import json
 import os
 import re
-from calendar import monthrange
 from datetime import date
 
 from jinja2 import Environment, FileSystemLoader
@@ -328,7 +326,7 @@ def generate_report_image(report_data: dict, user_name: str) -> bytes:
         )
         page.set_content(html_content, wait_until="networkidle")
         page.emulate_media(media="screen")
-        
+
         # Take screenshot of the full page
         png_bytes = page.screenshot(full_page=True, type="png")
         browser.close()

@@ -1,9 +1,8 @@
 """Weekly report generation for Telegram using Playwright + Chart.js."""
 
-import json
 import os
 import re
-from datetime import date, timedelta
+from datetime import date
 
 from jinja2 import Environment, FileSystemLoader
 from playwright.sync_api import sync_playwright

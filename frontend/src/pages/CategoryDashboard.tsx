@@ -90,7 +90,7 @@ export default function CategoryDashboard() {
   const grandTotal = useMemo(() => categories.reduce((s, c) => s + c.total, 0), [categories]);
 
   const activeCat = selectedCategoryName
-    ? (categories.find((c) => c.category_name === selectedCategoryName) ?? null)
+    ? categories.find((c) => c.category_name === selectedCategoryName) ?? null
     : null;
 
   const activeGroup = useMemo(() => {
@@ -129,15 +129,15 @@ export default function CategoryDashboard() {
     return activeGroup;
   }, [activeCat, activeGroup]);
 
-  const displayTotal = activeSelection ? activeSelection.total : (summary?.total_amount ?? 0);
-  const displayCount = activeSelection ? activeSelection.count : (summary?.total_expenses ?? 0);
+  const displayTotal = activeSelection ? activeSelection.total : summary?.total_amount ?? 0;
+  const displayCount = activeSelection ? activeSelection.count : summary?.total_expenses ?? 0;
   const displayAvg = displayCount > 0 ? displayTotal / displayCount : 0;
 
   const previousTotal = useMemo(
     () =>
       activeSelection
-        ? (activeSelection.previous_total ?? 0)
-        : (summary?.by_category?.reduce((s, c) => s + (c.previous_total ?? 0), 0) ?? 0),
+        ? activeSelection.previous_total ?? 0
+        : summary?.by_category?.reduce((s, c) => s + (c.previous_total ?? 0), 0) ?? 0,
     [activeSelection, summary],
   );
   const pctChange =

@@ -26,8 +26,18 @@ import CardsManager from "./CardsManager";
 import { formatCurrency } from "../utils/format";
 
 const MONTHS_ES = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
 ];
 
 function ReportsTab() {
@@ -55,10 +65,18 @@ function ReportsTab() {
 
   // Only show reports that are ready or currently generating
   const allReports = reportsData?.reports ?? [];
-  const displayReports = allReports.filter((r) => r.status === "ready" || r.status === "READY" || r.status === "pending" || r.status === "PENDING");
+  const displayReports = allReports.filter(
+    (r) =>
+      r.status === "ready" ||
+      r.status === "READY" ||
+      r.status === "pending" ||
+      r.status === "PENDING",
+  );
 
   // Month options for modal — only months NOT yet generated
-  const generatedMonths = new Set(allReports.filter((r) => r.status === "ready" || r.status === "READY").map((r) => r.month));
+  const generatedMonths = new Set(
+    allReports.filter((r) => r.status === "ready" || r.status === "READY").map((r) => r.month),
+  );
   const monthOptions = [];
   const now = new Date();
   for (let i = 0; i < 12; i++) {
@@ -77,9 +95,7 @@ function ReportsTab() {
     <div className="px-4 py-4 space-y-4">
       {/* Header */}
       <div className="text-center space-y-2">
-        <h3 className="text-sm font-semibold text-[var(--text-primary)]">
-          Reportes Mensuales
-        </h3>
+        <h3 className="text-sm font-semibold text-[var(--text-primary)]">Reportes Mensuales</h3>
         <p className="text-[10px] text-[var(--text-tertiary)]">
           Generá y descargá reportes PDF con el análisis de tus gastos.
         </p>
@@ -154,7 +170,10 @@ function ReportsTab() {
 
       {/* Generate Modal */}
       {showGenerateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={() => setShowGenerateModal(false)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
+          onClick={() => setShowGenerateModal(false)}
+        >
           <div
             className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl shadow-xl w-full max-w-sm p-5 space-y-4"
             onClick={(e) => e.stopPropagation()}
@@ -613,15 +632,15 @@ export default function UserPanel({ open, onClose }: Props) {
                               m.status === "accepted"
                                 ? "bg-[var(--gnome-green-3,#33d17a)]/20 text-[var(--gnome-green-5,#26a269)]"
                                 : m.status === "pending"
-                                  ? "bg-[var(--gnome-yellow-3,#f6d32d)]/20 text-[var(--gnome-yellow-5,#e5a50a)]"
-                                  : "bg-[var(--color-base-alt)] text-[var(--text-tertiary)]"
+                                ? "bg-[var(--gnome-yellow-3,#f6d32d)]/20 text-[var(--gnome-yellow-5,#e5a50a)]"
+                                : "bg-[var(--color-base-alt)] text-[var(--text-tertiary)]"
                             }`}
                           >
                             {m.status === "accepted"
                               ? "Activo"
                               : m.status === "pending"
-                                ? "Pendiente"
-                                : m.status}
+                              ? "Pendiente"
+                              : m.status}
                           </span>
                         </li>
                       ))}
@@ -844,11 +863,16 @@ export default function UserPanel({ open, onClose }: Props) {
                   </h3>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-[var(--text-primary)]">Enviar resumen semanal</span>
+                      <span className="text-xs text-[var(--text-primary)]">
+                        Enviar resumen semanal
+                      </span>
                       <button
                         onClick={() => {
                           const current = settings?.weekly_summary_enabled !== "false";
-                          settingMut.mutate({ key: "weekly_summary_enabled", value: current ? "false" : "true" });
+                          settingMut.mutate({
+                            key: "weekly_summary_enabled",
+                            value: current ? "false" : "true",
+                          });
                         }}
                         className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                           settings?.weekly_summary_enabled !== "false"
@@ -858,7 +882,9 @@ export default function UserPanel({ open, onClose }: Props) {
                       >
                         <span
                           className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
-                            settings?.weekly_summary_enabled !== "false" ? "translate-x-4" : "translate-x-0.5"
+                            settings?.weekly_summary_enabled !== "false"
+                              ? "translate-x-4"
+                              : "translate-x-0.5"
                           }`}
                         />
                       </button>
@@ -965,9 +991,7 @@ export default function UserPanel({ open, onClose }: Props) {
             </div>
           )}
 
-          {activeTab === "reports" && (
-            <ReportsTab />
-          )}
+          {activeTab === "reports" && <ReportsTab />}
         </div>
 
         {/* Logout */}

@@ -1,16 +1,11 @@
 """Weekly summary task - generates and sends weekly report images via Telegram."""
 
-from datetime import date, timedelta
-from calendar import monthrange
 from collections import defaultdict
-import json
-import os
-import re
+from datetime import date, timedelta
 
 from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import Category, Expense, ScheduledExpense, Setting, User
-
 
 MONTHS_ES = {
     1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
@@ -41,10 +36,11 @@ def _get_next_week_range():
 def _generate_weekly_llm_analysis(report_data: dict) -> dict:
     """Generate LLM analysis for weekly report using Gemini."""
     try:
+        import asyncio
         import os
+
         from google import genai
         from google.genai import types as genai_types
-        import asyncio
 
         api_key = os.getenv("LLM_API_KEY")
         if not api_key:
@@ -254,7 +250,7 @@ def send_weekly_reports():
                 total = report_data.get("total_expenses", 0)
                 accumulated = report_data.get("monthly_accumulated", 0)
                 count = report_data.get("transaction_count", 0)
-                month_name = MONTHS_ES.get(date.today().month, "")
+                MONTHS_ES.get(date.today().month, "")
                 llm = report_data.get("llm_analysis", {})
 
                 caption = (

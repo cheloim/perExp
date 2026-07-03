@@ -296,7 +296,6 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     }
 
     # Recurring expenses (same description + amount, 2+ times)
-    from collections import Counter
     merchant_amounts = [(e.description.strip(), abs(e.amount)) for e in expenses if not e.is_income]
     recurring_counter = Counter(merchant_amounts)
     recurring_list = [
@@ -322,6 +321,7 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     if api_key:
         try:
             import asyncio
+
             from google import genai
             from google.genai import types as genai_types
 
@@ -432,7 +432,7 @@ Usa flags para tendencias preocupantes a monitorear."""
             # Strategy 1: Direct parse
             try:
                 analysis = json.loads(raw_text)
-                print(f"[MONTHLY REPORT] Strategy 1 (direct) succeeded")
+                print("[MONTHLY REPORT] Strategy 1 (direct) succeeded")
             except json.JSONDecodeError as e:
                 print(f"[MONTHLY REPORT] Strategy 1 failed: {e}")
 
@@ -443,7 +443,7 @@ Usa flags para tendencias preocupantes a monitorear."""
                         try:
                             extracted = raw_text.split(marker)[1].split("```")[0].strip()
                             analysis = json.loads(extracted)
-                            print(f"[MONTHLY REPORT] Strategy 2 (markdown) succeeded")
+                            print("[MONTHLY REPORT] Strategy 2 (markdown) succeeded")
                             break
                         except (json.JSONDecodeError, IndexError) as e:
                             print(f"[MONTHLY REPORT] Strategy 2 failed: {e}")
@@ -457,7 +457,7 @@ Usa flags para tendencias preocupantes a monitorear."""
                         snippet = raw_text[start:end]
                         print(f"[MONTHLY REPORT] Strategy 3 snippet ({len(snippet)} chars): {snippet[:100]}...")
                         analysis = json.loads(snippet)
-                        print(f"[MONTHLY REPORT] Strategy 3 (find braces) succeeded")
+                        print("[MONTHLY REPORT] Strategy 3 (find braces) succeeded")
                 except json.JSONDecodeError as e:
                     print(f"[MONTHLY REPORT] Strategy 3 failed: {e}")
 
@@ -474,7 +474,7 @@ Usa flags para tendencias preocupantes a monitorear."""
                     if last_brace > 0:
                         cleaned = cleaned[:last_brace + 1]
                     analysis = json.loads(cleaned)
-                    print(f"[MONTHLY REPORT] Strategy 4 (clean) succeeded")
+                    print("[MONTHLY REPORT] Strategy 4 (clean) succeeded")
                 except json.JSONDecodeError as e:
                     print(f"[MONTHLY REPORT] Strategy 4 failed: {e}")
 
@@ -503,7 +503,7 @@ Usa flags para tendencias preocupantes a monitorear."""
                     cleaned = re.sub(r',\s*}', '}', cleaned)
                     cleaned = re.sub(r',\s*]', ']', cleaned)
                     analysis = json.loads(cleaned)
-                    print(f"[MONTHLY REPORT] Strategy 5 (fix JSON) succeeded")
+                    print("[MONTHLY REPORT] Strategy 5 (fix JSON) succeeded")
                 except json.JSONDecodeError as e:
                     print(f"[MONTHLY REPORT] All JSON strategies failed: {e}")
                     analysis = None
@@ -531,7 +531,7 @@ Usa flags para tendencias preocupantes a monitorear."""
                             else:
                                 break
                     analysis = json.loads(cleaned)
-                    print(f"[MONTHLY REPORT] Strategy 6 (positional fix) succeeded")
+                    print("[MONTHLY REPORT] Strategy 6 (positional fix) succeeded")
                 except (json.JSONDecodeError, Exception) as e:
                     print(f"[MONTHLY REPORT] Strategy 6 failed: {e}")
                     analysis = None
@@ -561,7 +561,7 @@ Usa flags para tendencias preocupantes a monitorear."""
                     if not cleaned.endswith("}"):
                         cleaned += "}"
                     analysis = json.loads(cleaned)
-                    print(f"[MONTHLY REPORT] Strategy 7 (aggressive clean) succeeded")
+                    print("[MONTHLY REPORT] Strategy 7 (aggressive clean) succeeded")
                 except (json.JSONDecodeError, Exception) as e:
                     print(f"[MONTHLY REPORT] Strategy 7 failed: {e}")
                     analysis = None

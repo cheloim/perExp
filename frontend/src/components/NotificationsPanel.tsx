@@ -203,8 +203,8 @@ export default function NotificationsPanel({ onClose }: Props) {
                 upload.status === "failed"
                   ? "border-l-red-500"
                   : upload.status === "queued"
-                    ? "border-l-amber-500"
-                    : "border-l-[var(--color-primary)]"
+                  ? "border-l-amber-500"
+                  : "border-l-[var(--color-primary)]"
               }`}
             >
               <div className="flex items-center gap-2 mb-1.5">
@@ -344,7 +344,11 @@ export default function NotificationsPanel({ onClose }: Props) {
             const isImportNotif = n.type === "import_ready" || n.type === "import_failed";
             const isUncategorizedNotif =
               n.type === "uncategorized_expense" || n.type === "uncategorized_expenses";
-            const isClickable = isImportNotif || isUncategorizedNotif || n.type === "monthly_report_ready" || n.type === "monthly_report_queued";
+            const isClickable =
+              isImportNotif ||
+              isUncategorizedNotif ||
+              n.type === "monthly_report_ready" ||
+              n.type === "monthly_report_queued";
             const isFailed = n.type === "import_failed";
             return (
               <div
@@ -359,7 +363,15 @@ export default function NotificationsPanel({ onClose }: Props) {
                   isClickable
                     ? "cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
                     : ""
-                } ${isImportNotif ? "border-l-4 " + (isFailed ? "border-l-red-500" : "border-l-green-500") : ""} ${isUncategorizedNotif ? "border-l-4 border-l-amber-500" : ""} ${(n.type === "monthly_report_ready" || n.type === "monthly_report_queued") ? "border-l-4 border-l-blue-500" : ""}`}
+                } ${
+                  isImportNotif
+                    ? "border-l-4 " + (isFailed ? "border-l-red-500" : "border-l-green-500")
+                    : ""
+                } ${isUncategorizedNotif ? "border-l-4 border-l-amber-500" : ""} ${
+                  n.type === "monthly_report_ready" || n.type === "monthly_report_queued"
+                    ? "border-l-4 border-l-blue-500"
+                    : ""
+                }`}
                 role={isClickable ? "button" : undefined}
                 tabIndex={isClickable ? 0 : undefined}
               >
