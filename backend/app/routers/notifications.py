@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from jose import JWTError, jwt
 from pydantic import BaseModel
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db
@@ -290,36 +291,54 @@ async def notifications_stream(request: Request):
                 if await request.is_disconnected():
                     break
 
-                new_notifs = (
-                    db.query(Notification)
-                    .filter(
-                        Notification.user_id == user.id,
-                        Notification.created_at > last_check,
-                    )
-                    .order_by(Notification.created_at.asc())
-                    .all()
-                )
+                # Reconnect if connection was lost
+                try:
+                    db.execute(text("SELECT 1"))
+                except Exception:
+                    try:
+                        db.close()
+                    except Exception:
+                        pass
+                    db = SessionLocal()
 
-                if new_notifs:
-                    for n in new_notifs:
-                        yield f"data: {json.dumps({'type': 'notification', 'notification': _to_response(n).model_dump()})}\n\n"
-
-                    unread_count = (
-                        db.query(Notification)
-                        .filter(Notification.user_id == user.id, Notification.read == False)
-                        .count()
-                    )
-                    pending_count = (
+                try:
+                    new_notifs = (
                         db.query(Notification)
                         .filter(
                             Notification.user_id == user.id,
-                            Notification.type == "group_invitation",
-                            Notification.read == False,
+                            Notification.created_at > last_check,
                         )
-                        .count()
+                        .order_by(Notification.created_at.asc())
+                        .all()
                     )
-                    yield f"data: {json.dumps({'type': 'counts_update', 'unread_count': unread_count, 'pending_count': pending_count})}\n\n"
-                    last_check = datetime.utcnow()
+
+                    if new_notifs:
+                        for n in new_notifs:
+                            yield f"data: {json.dumps({'type': 'notification', 'notification': _to_response(n).model_dump()})}\n\n"
+
+                        unread_count = (
+                            db.query(Notification)
+                            .filter(Notification.user_id == user.id, Notification.read == False)
+                            .count()
+                        )
+                        pending_count = (
+                            db.query(Notification)
+                            .filter(
+                                Notification.user_id == user.id,
+                                Notification.type == "group_invitation",
+                                Notification.read == False,
+                            )
+                            .count()
+                        )
+                        yield f"data: {json.dumps({'type': 'counts_update', 'unread_count': unread_count, 'pending_count': pending_count})}\n\n"
+                        last_check = datetime.utcnow()
+                except Exception:
+                    # Reconnect on error
+                    try:
+                        db.close()
+                    except Exception:
+                        pass
+                    db = SessionLocal()
 
                 now = datetime.utcnow()
                 if (now - last_ping).total_seconds() >= PING_INTERVAL:
