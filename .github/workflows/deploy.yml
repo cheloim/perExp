@@ -18,7 +18,6 @@ env:
   REGISTRY: ghcr.io
   BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/perexp/backend
   FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/perexp/frontend
-  DOMAIN_NAME: okinomonia.freeddns.org
 
 jobs:
   build-and-push:
@@ -525,7 +524,7 @@ jobs:
           port: 43422
           script: |
             # Substitute domain in nginx.conf
-            DOMAIN_NAME="${{ env.DOMAIN_NAME }}"
+            DOMAIN_NAME="${{ vars.DOMAIN_NAME }}"
             sed -i "s/\${DOMAIN_NAME}/${DOMAIN_NAME}/g" /opt/creditcardanalyzer/nginx/nginx.conf
 
             cd /opt/creditcardanalyzer
