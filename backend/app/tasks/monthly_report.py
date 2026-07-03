@@ -473,9 +473,13 @@ Usa flags para tendencias preocupantes a monitorear."""
                         lines = cleaned.split("\n")
                         cleaned = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
                     cleaned = cleaned.strip()
+                    # Find the last valid closing brace and truncate everything after
                     last_brace = cleaned.rfind("}")
                     if last_brace > 0:
                         cleaned = cleaned[:last_brace + 1]
+                    # Remove any characters between closing quote and comma/brace
+                    # This handles cases like: "text"\n}\n -> "text"}
+                    cleaned = re.sub(r'"\s*\n\s*([,\}])', r'"\1', cleaned)
                     # Fix missing commas between JSON key-value pairs
                     # Match: "value"\n  "key"  ->  "value",\n  "key"
                     cleaned = re.sub(r'(".*?")\s*\n(\s*")', r'\1,\n\2', cleaned)
@@ -537,7 +541,7 @@ def generate_single_report(user_id: int, month_str: str):
     """
     db = SessionLocal()
     try:
-        from app.services.pdf_report import generate_pdf
+        from app.services.pdf_report import generate_report_image
 
         # Find the pending report
         report = (
@@ -556,14 +560,14 @@ def generate_single_report(user_id: int, month_str: str):
         # Generate report data
         report_data = _generate_report_data(user_id, month_str, db)
 
-        # Generate PDF
+        # Generate PNG image
         user = db.query(User).filter(User.id == user_id).first()
         user_name = user.full_name if user and user.full_name else (user.email if user else "Usuario")
-        pdf_bytes = generate_pdf(report_data, user_name)
+        png_bytes = generate_report_image(report_data, user_name)
 
         # Update report
         report.report_data = json.dumps(report_data)
-        report.pdf_data = pdf_bytes
+        report.png_data = png_bytes
         report.status = "READY"
         report.generated_at = datetime.utcnow()
 
@@ -574,7 +578,7 @@ def generate_single_report(user_id: int, month_str: str):
             user_id=user_id,
             type="monthly_report_ready",
             title=f"Reporte generado: {month_name} {y_n}",
-            body="Tu reporte mensual PDF está listo para descargar.",
+            body="Tu reporte mensual está listo para descargar.",
             data=json.dumps({"month": month_str}),
             read=False,
         )
@@ -652,18 +656,18 @@ def generate_monthly_reports():
             try:
                 report_data = _generate_report_data(user.id, month_str, db)
 
-                # Generate PDF
-                from app.services.pdf_report import generate_pdf
+                # Generate PNG image
+                from app.services.pdf_report import generate_report_image
 
                 user_name = user.full_name if user.full_name else user.email
-                pdf_bytes = generate_pdf(report_data, user_name)
+                png_bytes = generate_report_image(report_data, user_name)
 
                 report = MonthlyReport(
                     user_id=user.id,
                     month=month_str,
                     status="READY",
                     report_data=json.dumps(report_data),
-                    pdf_data=pdf_bytes,
+                    png_data=png_bytes,
                     generated_at=datetime.utcnow(),
                 )
                 db.add(report)
@@ -676,7 +680,7 @@ def generate_monthly_reports():
                     user_id=user.id,
                     type="monthly_report_ready",
                     title=f"Reporte generado: {month_name} {y_n}",
-                    body="Tu reporte mensual PDF está listo para descargar.",
+                    body="Tu reporte mensual está listo para descargar.",
                     data=json.dumps({"month": month_str}),
                     read=False,
                 )

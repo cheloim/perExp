@@ -1,4 +1,4 @@
-"""PDF report generation for monthly analysis using Playwright + Chart.js."""
+"""Report generation for monthly analysis using Playwright + Chart.js (PNG output)."""
 
 import io
 import json
@@ -152,11 +152,11 @@ def _build_account_doughnut_data(accounts: list[dict], cards: list[dict]) -> dic
 
 
 # ---------------------------------------------------------------------------
-# Main PDF generator
+# Main image generator
 # ---------------------------------------------------------------------------
 
-def generate_pdf(report_data: dict, user_name: str) -> bytes:
-    """Generate PDF report using Playwright + Chart.js + Jinja2."""
+def generate_report_image(report_data: dict, user_name: str) -> bytes:
+    """Generate PNG report image using Playwright + Chart.js + Jinja2."""
 
     # Build Chart.js data
     all_cats = report_data.get("all_categories", [])
@@ -225,11 +225,13 @@ def generate_pdf(report_data: dict, user_name: str) -> bytes:
         "total_income": _fmt(report_data["total_income"]),
         "savings_rate": report_data["savings_rate"],
         "expense_count": report_data["expense_count"],
+        "mom_change": mom_change,
         "mom_change_display": f"{mom_arrow} {abs(mom_change)}%",
         "mom_color_class": mom_color_class,
         "mom_label": mom_label,
         "last_year_total": _fmt(last_year_total) if last_year_total > 0 else None,
         "last_year_label": last_year_label,
+        "last_year_change": last_year_change,
         "doughnut_data": json.dumps(doughnut_data) if doughnut_data else "null",
         "category_bar_data": json.dumps(category_bar_data) if category_bar_data else "null",
         "account_doughnut_data": json.dumps(account_doughnut_data) if account_doughnut_data else "null",
@@ -257,20 +259,18 @@ def generate_pdf(report_data: dict, user_name: str) -> bytes:
     template = env.get_template("report_template.html")
     html_content = template.render(**context)
 
-    # Generate PDF with Playwright - one continuous page
+    # Generate PNG image with Playwright
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--no-sandbox", "--disable-dev-shm-usage"])
-        # Use very large height so all content fits in one continuous page
-        page = browser.new_page(viewport={"width": 794, "height": 5000})
+        page = browser.new_page(
+            viewport={"width": 1080, "height": 1600},
+            device_scale_factor=2,  # Retina quality
+        )
         page.set_content(html_content, wait_until="networkidle")
         page.emulate_media(media="screen")
-        pdf_bytes = page.pdf(
-            width="210mm",
-            height="297mm",  # Will be ignored with prefer_css_page_size
-            margin={"top": "0", "bottom": "0", "left": "0", "right": "0"},
-            print_background=True,
-            prefer_css_page_size=False,
-        )
+        
+        # Take screenshot of the full page
+        png_bytes = page.screenshot(full_page=True, type="png")
         browser.close()
 
-    return pdf_bytes
+    return png_bytes

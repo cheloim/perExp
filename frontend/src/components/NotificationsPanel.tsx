@@ -533,7 +533,7 @@ export default function NotificationsPanel({ onClose }: Props) {
                     }}
                     className="text-[var(--color-primary)] text-xs font-medium hover:underline"
                   >
-                    Descargar PDF →
+                    Descargar imagen →
                   </button>
                 )}
 

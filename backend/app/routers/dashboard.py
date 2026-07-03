@@ -820,12 +820,12 @@ def generate_monthly_report(
 
 
 @router.get("/monthly-reports/{month}/download")
-def download_report_pdf(
+def download_report_image(
     month: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Download the monthly report PDF."""
+    """Download the monthly report as PNG image."""
     from fastapi.responses import Response
 
     report = (
@@ -834,14 +834,27 @@ def download_report_pdf(
         .first()
     )
 
-    if not report or not report.pdf_data:
-        raise HTTPException(404, "Report not found or not generated yet.")
+    if not report:
+        raise HTTPException(404, "Report not found.")
+
+    # Try png_data first, fallback to pdf_data for legacy reports
+    image_data = report.png_data or report.pdf_data
+    if not image_data:
+        raise HTTPException(404, "Report not generated yet.")
+
+    # Determine content type
+    if report.png_data:
+        media_type = "image/png"
+        filename = f"reporte-{month}.png"
+    else:
+        media_type = "application/pdf"
+        filename = f"reporte-{month}.pdf"
 
     return Response(
-        content=bytes(report.pdf_data),
-        media_type="application/pdf",
+        content=bytes(image_data),
+        media_type=media_type,
         headers={
-            "Content-Disposition": f'attachment; filename="reporte-{month}.pdf"'
+            "Content-Disposition": f'attachment; filename="{filename}"'
         },
     )
 

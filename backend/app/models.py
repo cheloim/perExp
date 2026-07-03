@@ -276,7 +276,8 @@ class MonthlyReport(Base):
     month = Column(String(7), nullable=False)  # YYYY-MM format
     status = Column(String(20), default="READY")  # PENDING | READY | FAILED
     report_data = Column(Text, nullable=True)  # JSON with full report data
-    pdf_data = Column(LargeBinary, nullable=True)  # Generated PDF bytes
+    pdf_data = Column(LargeBinary, nullable=True)  # Generated PDF bytes (legacy)
+    png_data = Column(LargeBinary, nullable=True)  # Generated PNG image bytes
     error_message = Column(Text, nullable=True)  # Error if FAILED
     created_at = Column(DateTime, default=datetime.utcnow)
     generated_at = Column(DateTime, nullable=True)
