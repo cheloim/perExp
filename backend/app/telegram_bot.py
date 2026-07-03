@@ -418,6 +418,82 @@ def send_disconnect_notification(chat_id: str) -> None:
         logger.warning("[TELEGRAM] Bot event loop not available")
 
 
+def send_message_to_chat(chat_id: str, text: str) -> None:
+    """Send an arbitrary message to a Telegram chat. Safe to call from any thread."""
+    if not _bot_app or not _bot_app.bot:
+        logger.warning("[TELEGRAM] Bot app not available, cannot send message")
+        return
+
+    async def _send():
+        try:
+            await _bot_app.bot.send_message(chat_id=chat_id, text=text, parse_mode="Markdown")
+        except Exception as e:
+            logger.warning(f"[TELEGRAM] Could not send message to {chat_id}: {e}")
+
+    loop = _bot_app.bot._local._loop if hasattr(_bot_app.bot, "_local") else None
+    if loop and loop.is_running():
+        asyncio.run_coroutine_threadsafe(_send(), loop)
+    else:
+        logger.warning("[TELEGRAM] Bot event loop not available")
+
+
+def send_photo_to_chat(chat_id: str, image_bytes: bytes, caption: str = None) -> None:
+    """Send an image to a Telegram chat. Safe to call from any thread."""
+    # Try using bot instance first
+    if _bot_app and _bot_app.bot:
+
+        async def _send():
+            try:
+                from io import BytesIO
+
+                photo = BytesIO(image_bytes)
+                photo.name = "report.png"
+                await _bot_app.bot.send_photo(
+                    chat_id=chat_id, photo=photo, caption=caption, parse_mode="Markdown"
+                )
+            except Exception as e:
+                logger.warning(f"[TELEGRAM] Could not send photo to {chat_id}: {e}")
+
+        loop = _bot_app.bot._local._loop if hasattr(_bot_app.bot, "_local") else None
+        if loop and loop.is_running():
+            asyncio.run_coroutine_threadsafe(_send(), loop)
+            return
+
+    # Fallback: use direct Telegram Bot API (for celery workers)
+    _send_photo_via_api(chat_id, image_bytes, caption)
+
+
+def _send_photo_via_api(chat_id: str, image_bytes: bytes, caption: str = None) -> None:
+    """Send photo using direct Telegram Bot API HTTP call."""
+    import os
+
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not token:
+        logger.warning("[TELEGRAM] No bot token available, cannot send photo")
+        return
+
+    try:
+        from io import BytesIO
+
+        import httpx
+
+        url = f"https://api.telegram.org/bot{token}/sendPhoto"
+
+        files = {"photo": ("report.png", BytesIO(image_bytes), "image/png")}
+        data = {"chat_id": chat_id, "parse_mode": "Markdown"}
+        if caption:
+            data["caption"] = caption
+
+        with httpx.Client(timeout=30) as client:
+            resp = client.post(url, files=files, data=data)
+            if resp.status_code != 200:
+                logger.warning(f"[TELEGRAM] API error {resp.status_code}: {resp.text[:200]}")
+            else:
+                logger.info(f"[TELEGRAM] Photo sent to {chat_id}")
+    except Exception as e:
+        logger.warning(f"[TELEGRAM] Could not send photo via API to {chat_id}: {e}")
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = str(update.effective_chat.id)
     db = SessionLocal()

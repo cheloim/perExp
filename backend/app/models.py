@@ -263,3 +263,19 @@ class ScheduledExpense(Base):
     executed_expense = relationship("Expense", foreign_keys=[executed_expense_id])
     card_rel = relationship("Card")
     account_rel = relationship("Account")
+
+
+class MonthlyReport(Base):
+    __tablename__ = "monthly_reports"
+    __table_args__ = (Index("ix_monthly_reports_user_month", "user_id", "month", unique=True),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    month = Column(String(7), nullable=False)  # YYYY-MM format
+    status = Column(String(20), default="READY")  # PENDING | READY | FAILED
+    report_data = Column(Text, nullable=True)  # JSON with full report data
+    pdf_data = Column(LargeBinary, nullable=True)  # Generated PDF bytes (legacy)
+    png_data = Column(LargeBinary, nullable=True)  # Generated PNG image bytes
+    error_message = Column(Text, nullable=True)  # Error if FAILED
+    created_at = Column(DateTime, default=datetime.utcnow)
+    generated_at = Column(DateTime, nullable=True)

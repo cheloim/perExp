@@ -12,12 +12,210 @@ import {
   regenerateTelegramKey,
   getMyInviteCode,
   generateInviteCode,
+  getSettings,
+  putSetting,
+  getMonthlyReports,
+  generateMonthlyReport,
+  downloadReportPdf,
 } from "../api/client";
 import { useNavigate } from "react-router-dom";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { useTheme } from "../context/ThemeContext";
 import AccountsManager from "./AccountsManager";
 import CardsManager from "./CardsManager";
+
+const MONTHS_ES = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
+
+function ReportsTab() {
+  const queryClient = useQueryClient();
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+
+  const { data: reportsData, isLoading } = useQuery({
+    queryKey: ["monthly-reports"],
+    queryFn: getMonthlyReports,
+    refetchInterval: (query) => {
+      // Refetch every 3s if there are pending reports
+      const reports = query.state.data?.reports ?? [];
+      const hasPending = reports.some((r) => r.status === "pending" || r.status === "PENDING");
+      return hasPending ? 3000 : false;
+    },
+  });
+
+  const generateMut = useMutation({
+    mutationFn: generateMonthlyReport,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["monthly-reports"] });
+      setShowGenerateModal(false);
+    },
+  });
+
+  // Only show reports that are ready or currently generating
+  const allReports = reportsData?.reports ?? [];
+  const displayReports = allReports.filter(
+    (r) =>
+      r.status === "ready" ||
+      r.status === "READY" ||
+      r.status === "pending" ||
+      r.status === "PENDING",
+  );
+
+  // Month options for modal — only months NOT yet generated
+  const generatedMonths = new Set(
+    allReports.filter((r) => r.status === "ready" || r.status === "READY").map((r) => r.month),
+  );
+  const monthOptions = [];
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    if (!generatedMonths.has(monthStr)) {
+      const monthName = MONTHS_ES[d.getMonth()];
+      monthOptions.push({
+        value: monthStr,
+        label: `${monthName} ${d.getFullYear()}`,
+      });
+    }
+  }
+
+  return (
+    <div className="px-4 py-4 space-y-4">
+      {/* Header */}
+      <div className="text-center space-y-2">
+        <h3 className="text-sm font-semibold text-[var(--text-primary)]">Reportes Mensuales</h3>
+        <p className="text-[10px] text-[var(--text-tertiary)]">
+          Generá y descargá reportes PDF con el análisis de tus gastos.
+        </p>
+        <button
+          onClick={() => setShowGenerateModal(true)}
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-[var(--color-primary)] text-white text-sm font-medium hover:opacity-90 transition shadow-sm"
+        >
+          <span className="text-base leading-none">+</span>
+          <span>Generar reporte</span>
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-8">
+          <div className="animate-spin rounded-full h-6 w-6 border-2 border-[var(--color-primary)] border-t-transparent" />
+        </div>
+      ) : displayReports.length === 0 ? (
+        <p className="text-xs text-[var(--text-tertiary)] text-center py-8">
+          No hay reportes generados. Hacé click en "Generar reporte" para crear uno.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {displayReports.map((r) => {
+            const [y, m] = r.month.split("-");
+            const monthNum = parseInt(m);
+            const monthName = MONTHS_ES[monthNum - 1] || m;
+            const isReady = r.status === "ready" || r.status === "READY";
+
+            return (
+              <div
+                key={r.month}
+                className={`p-4 rounded-xl border transition-all ${
+                  isReady
+                    ? "border-[var(--border-color)] bg-[var(--color-base-container)] hover:bg-[var(--color-base-alt)] cursor-pointer"
+                    : "border-[var(--border-color)] bg-[var(--color-base-container)]"
+                }`}
+                onClick={() => isReady && downloadReportPdf(r.month)}
+                role={isReady ? "button" : undefined}
+                tabIndex={isReady ? 0 : undefined}
+              >
+                {isReady ? (
+                  <div className="flex items-center justify-center gap-3">
+                    <span className="text-lg">📥</span>
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--text-primary)] text-center">
+                        {monthName} {y}
+                      </p>
+                      <p className="text-[10px] text-[var(--color-primary)] text-center">
+                        Tocá para descargar PDF
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-[var(--text-tertiary)] border-t-transparent" />
+                    <div>
+                      <p className="text-sm font-medium text-[var(--text-primary)] text-center">
+                        {monthName} {y}
+                      </p>
+                      <p className="text-[10px] text-[var(--text-tertiary)] text-center">
+                        Generando...
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Generate Modal */}
+      {showGenerateModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
+          onClick={() => setShowGenerateModal(false)}
+        >
+          <div
+            className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl shadow-xl w-full max-w-sm p-5 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center">
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">Generar Reporte</h3>
+              <p className="text-[10px] text-[var(--text-tertiary)] mt-1">
+                Seleccioná el mes para generar el reporte PDF.
+              </p>
+            </div>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {monthOptions.length === 0 ? (
+                <p className="text-xs text-[var(--text-tertiary)] text-center py-4">
+                  Ya tenés reportes para todos los meses disponibles.
+                </p>
+              ) : (
+                monthOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => {
+                      generateMut.mutate(opt.value);
+                    }}
+                    disabled={generateMut.isPending}
+                    className="w-full text-left px-4 py-3 rounded-lg text-sm border border-[var(--border-color)] hover:bg-[var(--color-base-alt)] text-[var(--text-primary)] transition disabled:opacity-50"
+                  >
+                    {opt.label}
+                  </button>
+                ))
+              )}
+            </div>
+            <div className="pt-1">
+              <button
+                onClick={() => setShowGenerateModal(false)}
+                className="w-full px-4 py-2.5 rounded-lg border border-[var(--border-color)] text-sm text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface Props {
   open: boolean;
@@ -37,7 +235,7 @@ export default function UserPanel({ open, onClose }: Props) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { theme, toggleTheme } = useTheme();
-  const [activeTab, setActiveTab] = useState<"config" | "accounts">("config");
+  const [activeTab, setActiveTab] = useState<"config" | "accounts" | "reports">("config");
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -84,6 +282,19 @@ export default function UserPanel({ open, onClose }: Props) {
     queryFn: getTelegramStatus,
     enabled: open,
     refetchInterval: open ? 5000 : false,
+  });
+
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: getSettings,
+    enabled: open,
+  });
+
+  const settingMut = useMutation({
+    mutationFn: ({ key, value }: { key: string; value: string }) => putSetting(key, value),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
   });
 
   const regenerateKeyMut = useMutation({
@@ -239,6 +450,16 @@ export default function UserPanel({ open, onClose }: Props) {
               }`}
             >
               Cuentas
+            </button>
+            <button
+              onClick={() => setActiveTab("reports")}
+              className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
+                activeTab === "reports"
+                  ? "bg-[var(--color-surface)] shadow-sm text-[var(--text-primary)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              }`}
+            >
+              Reportes
             </button>
           </div>
         </div>
@@ -632,6 +853,49 @@ export default function UserPanel({ open, onClose }: Props) {
                 )}
               </div>
 
+              {/* Weekly Summary Settings */}
+              {tgStatus?.connected && (
+                <div>
+                  <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-3">
+                    Resumen Semanal
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-[var(--text-primary)]">
+                        Enviar resumen semanal
+                      </span>
+                      <button
+                        onClick={() => {
+                          const current = settings?.weekly_summary_enabled !== "false";
+                          settingMut.mutate({
+                            key: "weekly_summary_enabled",
+                            value: current ? "false" : "true",
+                          });
+                        }}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                          settings?.weekly_summary_enabled !== "false"
+                            ? "bg-[var(--color-primary)]"
+                            : "bg-[var(--text-tertiary)]"
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+                            settings?.weekly_summary_enabled !== "false"
+                              ? "translate-x-4"
+                              : "translate-x-0.5"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    {settings?.weekly_summary_enabled !== "false" && (
+                      <p className="text-[10px] text-[var(--text-tertiary)]">
+                        Se envía todos los domingos a las 20:00 por Telegram
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <hr className="border-[var(--border-color)]" />
 
               {/* Change password */}
@@ -724,6 +988,8 @@ export default function UserPanel({ open, onClose }: Props) {
               <CardsManager />
             </div>
           )}
+
+          {activeTab === "reports" && <ReportsTab />}
         </div>
 
         {/* Logout */}

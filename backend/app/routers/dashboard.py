@@ -5,11 +5,12 @@ from collections import Counter, defaultdict
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import HTMLResponse
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
-from app.models import Card, Category, Expense, User
+from app.models import Card, Category, Expense, MonthlyReport, Notification, User
 from app.routers.groups import get_group_user_ids
 from app.services.auth import get_current_user
 from app.services.date_utils import add_months
@@ -396,6 +397,488 @@ def get_summary(
             "future_installments": trend_future,
         },
     }
+
+
+@router.get("/monthly-report")
+async def get_monthly_report(
+    month: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Generate a monthly analysis report with income vs expenses, savings rate, top categories, MoM comparison, trend history, and LLM analysis."""
+    uid_list = get_group_user_ids(current_user.id, db)
+
+    # Determine target month
+    if month:
+        try:
+            y, m = int(month[:4]), int(month[5:7])
+            target_start = date(y, m, 1)
+        except (ValueError, IndexError):
+            target_start = date.today().replace(day=1)
+    else:
+        target_start = date.today().replace(day=1)
+
+    target_end = date(
+        target_start.year, target_start.month, monthrange(target_start.year, target_start.month)[1]
+    )
+
+    # Previous month for comparison
+    prev_start = add_months(target_start, -1)
+    prev_end = date(
+        prev_start.year, prev_start.month, monthrange(prev_start.year, prev_start.month)[1]
+    )
+
+    def _query_totals(start: date, end: date):
+        expenses = (
+            db.query(Expense)
+            .filter(Expense.user_id.in_(uid_list), Expense.date >= start, Expense.date <= end)
+            .all()
+        )
+        total_expenses = sum(abs(e.amount) for e in expenses if not e.is_income)
+        total_income = sum(abs(e.amount) for e in expenses if e.is_income)
+        count = sum(1 for e in expenses if not e.is_income)
+
+        # By category (only expenses, not income)
+        by_cat = defaultdict(lambda: {"total": 0.0, "count": 0, "name": "", "color": ""})
+        for e in expenses:
+            if e.is_income:
+                continue
+            cat_name = "Sin categoría"
+            cat_color = "#6b7280"
+            if e.category_id:
+                cat = db.query(Category).filter(Category.id == e.category_id).first()
+                if cat:
+                    cat_name = cat.name
+                    cat_color = cat.color or "#6b7280"
+                    # Use parent name if it's a subcategory
+                    if cat.parent_id:
+                        parent = db.query(Category).filter(Category.id == cat.parent_id).first()
+                        if parent:
+                            cat_name = f"{parent.name} > {cat.name}"
+            by_cat[e.category_id or 0]["total"] += abs(e.amount)
+            by_cat[e.category_id or 0]["count"] += 1
+            by_cat[e.category_id or 0]["name"] = cat_name
+            by_cat[e.category_id or 0]["color"] = cat_color
+
+        top_categories = sorted(by_cat.values(), key=lambda x: x["total"], reverse=True)[:5]
+
+        return {
+            "total_expenses": total_expenses,
+            "total_income": total_income,
+            "count": count,
+            "top_categories": top_categories,
+        }
+
+    current = _query_totals(target_start, target_end)
+    previous = _query_totals(prev_start, prev_end)
+
+    # Savings rate
+    savings_rate = 0.0
+    if current["total_income"] > 0:
+        savings_rate = (
+            (current["total_income"] - current["total_expenses"]) / current["total_income"]
+        ) * 100
+
+    # MoM change
+    mom_change = 0.0
+    if previous["total_expenses"] > 0:
+        mom_change = (
+            (current["total_expenses"] - previous["total_expenses"]) / previous["total_expenses"]
+        ) * 100
+
+    # 6-month trend history for charts
+    trend_history = []
+    for i in range(5, -1, -1):
+        m = add_months(target_start, -i)
+        m_start = date(m.year, m.month, 1)
+        m_end = date(m.year, m.month, monthrange(m.year, m.month)[1])
+        expenses = (
+            db.query(Expense)
+            .filter(Expense.user_id.in_(uid_list), Expense.date >= m_start, Expense.date <= m_end)
+            .all()
+        )
+        total_exp = sum(abs(e.amount) for e in expenses if not e.is_income)
+        total_inc = sum(abs(e.amount) for e in expenses if e.is_income)
+        trend_history.append(
+            {
+                "month": m.strftime("%Y-%m"),
+                "expenses": round(total_exp, 2),
+                "income": round(total_inc, 2),
+            }
+        )
+
+    # LLM analysis
+    analysis = None
+    api_key = os.getenv("LLM_API_KEY")
+    today = date.today()
+    if api_key:
+        try:
+            from google import genai
+            from google.genai import types as genai_types
+
+            # Build context for LLM
+            trend_lines = []
+            for t in trend_history:
+                trend_lines.append(
+                    f"  {t['month']}: gastos=${t['expenses']:,.0f}, ingresos=${t['income']:,.0f}"
+                )
+
+            cat_lines = []
+            for cat in current["top_categories"]:
+                cat_lines.append(
+                    f"  - {cat['name']}: ${cat['total']:,.0f} ({cat['count']} transacciones)"
+                )
+
+            llm_context = f"""ANÁLISIS MENSUAL - {target_start.strftime("%B %Y").capitalize()}
+
+RESUMEN DEL MES:
+- Gastos totales: ${current["total_expenses"]:,.0f}
+- Ingresos totales: ${current["total_income"]:,.0f}
+- Tasa de ahorro: {savings_rate:.1f}%
+- Cantidad de transacciones: {current["count"]}
+- Variación vs mes anterior: {mom_change:+.1f}%
+
+TOP CATEGORÍAS:
+{chr(10).join(cat_lines) or "  Sin datos"}
+
+HISTORIAL (últimos 6 meses):
+{chr(10).join(trend_lines)}
+
+Fecha actual: {today.isoformat()}"""
+
+            prompt = """Sos un analista financiero personal. Analizá el resumen mensual y devolvé UNICAMENTE JSON válido.
+
+El JSON debe tener esta estructura:
+{
+  "summary": "<resumen ejecutivo de 2-3 líneas del mes, con emojis>",
+  "highlights": ["<highlight 1>", "<highlight 2>", "<highlight 3>"],
+  "concern": "<preocupación o área de mejora, o null si todo está bien>",
+  "tip": "<consejo concreto de ahorro basado en los datos>"
+}
+
+Sé específico con los números. Respondé en español, de forma clara y amigable. Usá emojis para hacerlo más visual."""
+
+            client = genai.Client(api_key=api_key)
+            response = await client.aio.models.generate_content(
+                model="gemini-flash-latest",
+                contents=llm_context,
+                config=genai_types.GenerateContentConfig(
+                    system_instruction=prompt,
+                    response_mime_type="application/json",
+                ),
+            )
+            analysis = json.loads(response.text)
+        except Exception:
+            analysis = None  # Don't fail the endpoint if LLM fails
+
+    return {
+        "month": target_start.strftime("%Y-%m"),
+        "total_expenses": current["total_expenses"],
+        "total_income": current["total_income"],
+        "savings_rate": round(savings_rate, 1),
+        "expense_count": current["count"],
+        "top_categories": current["top_categories"],
+        "previous_total": previous["total_expenses"],
+        "previous_income": previous["total_income"],
+        "mom_change": round(mom_change, 1),
+        "trend_history": trend_history,
+        "analysis": analysis,
+    }
+
+
+MONTHS_ES = {
+    "01": "Enero",
+    "02": "Febrero",
+    "03": "Marzo",
+    "04": "Abril",
+    "05": "Mayo",
+    "06": "Junio",
+    "07": "Julio",
+    "08": "Agosto",
+    "09": "Septiembre",
+    "10": "Octubre",
+    "11": "Noviembre",
+    "12": "Diciembre",
+}
+
+
+def _build_report_html(data: dict, user_name: str) -> str:
+    """Build a printable HTML report from monthly report data."""
+    month_str = data["month"]
+    year, month_num = month_str.split("-")
+    month_name = MONTHS_ES.get(month_num, month_num)
+
+    categories_html = ""
+    for cat in data.get("top_categories", []):
+        pct = (cat["total"] / data["total_expenses"] * 100) if data["total_expenses"] > 0 else 0
+        categories_html += f"""
+        <tr>
+            <td style="padding:8px;border-bottom:1px solid #eee;">
+                <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:{cat["color"]};margin-right:8px;vertical-align:middle;"></span>
+                {cat["name"]}
+            </td>
+            <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${cat["total"]:,.2f}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">{cat["count"]}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">{pct:.1f}%</td>
+        </tr>"""
+
+    trend_rows = ""
+    for t in data.get("trend_history", []):
+        y_t, m_t = t["month"].split("-")
+        m_name = MONTHS_ES.get(m_t, m_t)
+        trend_rows += f"""
+        <tr>
+            <td style="padding:6px;border-bottom:1px solid #eee;">{m_name} {y_t}</td>
+            <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">${t["expenses"]:,.2f}</td>
+            <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">${t["income"]:,.2f}</td>
+            <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">${t["income"] - t["expenses"]:,.2f}</td>
+        </tr>"""
+
+    analysis_html = ""
+    if data.get("analysis"):
+        a = data["analysis"]
+        analysis_html = f"""
+        <div style="margin-top:30px;padding:20px;background:#f8f9fa;border-radius:8px;">
+            <h2 style="color:#6366f1;margin-bottom:15px;">✨ Análisis IA</h2>
+            <p style="color:#374151;line-height:1.6;">{a.get("summary", "")}</p>
+            {"".join(f'<p style="color:#059669;margin:5px 0;">✓ {h}</p>' for h in a.get("highlights", []))}
+            {"".join(f'<p style="color:#d97706;margin:5px 0;">⚠️ {a["concern"]}</p>' if a.get("concern") else "")}
+            {"".join(f'<p style="color:#6366f1;margin:5px 0;">💡 {a["tip"]}</p>' if a.get("tip") else "")}
+        </div>"""
+
+    savings_color = "#059669" if data["savings_rate"] >= 0 else "#dc2626"
+    mom_color = "#059669" if data["mom_change"] <= 0 else "#dc2626"
+    mom_arrow = "↓" if data["mom_change"] < 0 else "↑" if data["mom_change"] > 0 else "→"
+
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Reporte Mensual - {month_name} {year}</title>
+    <style>
+        @media print {{
+            body {{ margin: 0; }}
+            .no-print {{ display: none !important; }}
+        }}
+    </style>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; color: #1f2937;">
+    <div class="no-print" style="text-align: right; margin-bottom: 20px;">
+        <button onclick="window.print()" style="background: #6366f1; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+            🖨️ Imprimir / Guardar PDF
+        </button>
+    </div>
+
+    <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #6366f1; margin: 0;">📊 Reporte Mensual</h1>
+        <p style="color: #6b7280; margin: 5px 0;">{month_name} {year}</p>
+        <p style="color: #9ca3af; font-size: 12px;">Generado para {user_name}</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px;">
+        <div style="background: #fef2f2; padding: 15px; border-radius: 8px; text-align: center;">
+            <p style="color: #6b7280; font-size: 11px; margin: 0;">GASTOS</p>
+            <p style="color: #dc2626; font-size: 20px; font-weight: bold; margin: 5px 0;">${data["total_expenses"]:,.2f}</p>
+            <p style="color: #9ca3af; font-size: 11px; margin: 0;">{data["expense_count"]} transacciones</p>
+        </div>
+        <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; text-align: center;">
+            <p style="color: #6b7280; font-size: 11px; margin: 0;">INGRESOS</p>
+            <p style="color: #059669; font-size: 20px; font-weight: bold; margin: 5px 0;">${data["total_income"]:,.2f}</p>
+        </div>
+        <div style="background: #f5f3ff; padding: 15px; border-radius: 8px; text-align: center;">
+            <p style="color: #6b7280; font-size: 11px; margin: 0;">TASA DE AHORRO</p>
+            <p style="color: {savings_color}; font-size: 20px; font-weight: bold; margin: 5px 0;">{data["savings_rate"]}%</p>
+        </div>
+        <div style="background: #f8fafc; padding: 15px; border-radius: 8px; text-align: center;">
+            <p style="color: #6b7280; font-size: 11px; margin: 0;">VS MES ANTERIOR</p>
+            <p style="color: {mom_color}; font-size: 20px; font-weight: bold; margin: 5px 0;">{mom_arrow} {abs(data["mom_change"])}%</p>
+        </div>
+    </div>
+
+    <h2 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">Top Categorías</h2>
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+        <thead>
+            <tr style="background: #f9fafb;">
+                <th style="padding: 8px; text-align: left; font-size: 12px; color: #6b7280;">Categoría</th>
+                <th style="padding: 8px; text-align: right; font-size: 12px; color: #6b7280;">Monto</th>
+                <th style="padding: 8px; text-align: right; font-size: 12px; color: #6b7280;">Transacciones</th>
+                <th style="padding: 8px; text-align: right; font-size: 12px; color: #6b7280;">%</th>
+            </tr>
+        </thead>
+        <tbody>{categories_html}</tbody>
+    </table>
+
+    <h2 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">Evolución (6 meses)</h2>
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+        <thead>
+            <tr style="background: #f9fafb;">
+                <th style="padding: 6px; text-align: left; font-size: 12px; color: #6b7280;">Mes</th>
+                <th style="padding: 6px; text-align: right; font-size: 12px; color: #6b7280;">Gastos</th>
+                <th style="padding: 6px; text-align: right; font-size: 12px; color: #6b7280;">Ingresos</th>
+                <th style="padding: 6px; text-align: right; font-size: 12px; color: #6b7280;">Balance</th>
+            </tr>
+        </thead>
+        <tbody>{trend_rows}</tbody>
+    </table>
+
+    {analysis_html}
+
+    <div style="margin-top: 40px; text-align: center; color: #9ca3af; font-size: 11px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
+        Generado por NikoFin • {date.today().strftime("%d/%m/%Y")}
+    </div>
+</body>
+</html>"""
+
+
+@router.get("/monthly-report/download")
+def download_monthly_report(
+    month: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Download the monthly report as a printable HTML file."""
+    # Get or generate report data
+    from app.tasks.monthly_report import generate_user_report
+
+    if month:
+        try:
+            y, m = int(month[:4]), int(month[5:7])
+            month_str = f"{y}-{m:02d}"
+        except (ValueError, IndexError):
+            month_str = date.today().replace(day=1).strftime("%Y-%m")
+    else:
+        month_str = date.today().replace(day=1).strftime("%Y-%m")
+
+    report_data = generate_user_report(current_user.id, month_str)
+
+    # Build HTML
+    user_name = current_user.full_name or current_user.email
+    html = _build_report_html(report_data, user_name)
+
+    return HTMLResponse(content=html)
+
+
+@router.get("/monthly-reports")
+def list_monthly_reports(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List generated monthly reports for the current user."""
+    reports = (
+        db.query(MonthlyReport)
+        .filter(MonthlyReport.user_id == current_user.id)
+        .order_by(MonthlyReport.month.desc())
+        .all()
+    )
+
+    result = []
+    for r in reports:
+        report_data = json.loads(r.report_data) if r.report_data else {}
+        result.append(
+            {
+                "month": r.month,
+                "status": r.status or "READY",
+                "total_expenses": report_data.get("total_expenses", 0)
+                if r.status == "READY"
+                else None,
+                "generated_at": r.generated_at.isoformat() if r.generated_at else None,
+            }
+        )
+
+    return {"reports": result}
+
+
+@router.post("/monthly-reports/generate")
+def generate_monthly_report(
+    month: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Generate a monthly report on-demand. Dispatches Celery task for async generation."""
+    try:
+        y, m_int = int(month[:4]), int(month[5:7])
+        month_str = f"{y}-{m_int:02d}"
+    except (ValueError, IndexError):
+        raise HTTPException(400, "Invalid month format. Use YYYY-MM.")
+
+    # Check if already exists and ready
+    existing = (
+        db.query(MonthlyReport)
+        .filter(MonthlyReport.user_id == current_user.id, MonthlyReport.month == month_str)
+        .first()
+    )
+    if existing and existing.status == "READY":
+        return {"month": month_str, "status": "already_exists"}
+    if existing and existing.status == "PENDING":
+        return {"month": month_str, "status": "already_generating"}
+
+    # Create PENDING record
+    report = MonthlyReport(
+        user_id=current_user.id,
+        month=month_str,
+        status="PENDING",
+        report_data="{}",
+    )
+    db.add(report)
+
+    # Create queued notification
+    y_n, m_n = int(month_str[:4]), int(month_str[5:7])
+    month_name = MONTHS_ES.get(m_n, str(m_n))
+    notification = Notification(
+        user_id=current_user.id,
+        type="monthly_report_queued",
+        title=f"Generando reporte: {month_name} {y_n}",
+        body="Tu reporte se está generando...",
+        data=json.dumps({"month": month_str}),
+        read=False,
+    )
+    db.add(notification)
+    db.commit()
+
+    # Dispatch Celery task
+    from app.tasks.monthly_report import generate_single_report
+
+    generate_single_report.delay(current_user.id, month_str)
+
+    return {"month": month_str, "status": "queued"}
+
+
+@router.get("/monthly-reports/{month}/download")
+def download_report_image(
+    month: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Download the monthly report as PNG image."""
+    from fastapi.responses import Response
+
+    report = (
+        db.query(MonthlyReport)
+        .filter(MonthlyReport.user_id == current_user.id, MonthlyReport.month == month)
+        .first()
+    )
+
+    if not report:
+        raise HTTPException(404, "Report not found.")
+
+    # Try png_data first, fallback to pdf_data for legacy reports
+    image_data = report.png_data or report.pdf_data
+    if not image_data:
+        raise HTTPException(404, "Report not generated yet.")
+
+    # Determine content type
+    if report.png_data:
+        media_type = "image/png"
+        filename = f"reporte-{month}.png"
+    else:
+        media_type = "application/pdf"
+        filename = f"reporte-{month}.pdf"
+
+    return Response(
+        content=bytes(image_data),
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/account-expenses")

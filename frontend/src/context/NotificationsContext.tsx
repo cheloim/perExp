@@ -77,6 +77,12 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       notification.type === "uncategorized_expenses"
     ) {
       showToast(notification.title, "info", 5000, "top-right");
+    } else if (notification.type === "monthly_report_ready") {
+      showToast(notification.title, "success", 5000, "top-right");
+    } else if (notification.type === "monthly_report_queued") {
+      showToast(notification.title, "info", 3000, "top-right");
+    } else if (notification.type === "monthly_report_failed") {
+      showToast(notification.title, "error", 5000, "top-right");
     }
 
     setState((s) => {

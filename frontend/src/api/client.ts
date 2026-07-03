@@ -204,6 +204,61 @@ export const getDashboard = (params?: {
   bank?: string;
 }) => api.get<DashboardSummary>("/dashboard/summary", { params }).then((r) => r.data);
 
+export const getMonthlyReport = (params?: { month?: string }) =>
+  api
+    .get<{
+      month: string;
+      total_expenses: number;
+      total_income: number;
+      savings_rate: number;
+      expense_count: number;
+      top_categories: { total: number; count: number; name: string; color: string }[];
+      previous_total: number;
+      previous_income: number;
+      mom_change: number;
+      trend_history: { month: string; expenses: number; income: number }[];
+      analysis: {
+        summary: string;
+        highlights: string[];
+        concern: string | null;
+        tip: string;
+      } | null;
+    }>("/dashboard/monthly-report", { params })
+    .then((r) => r.data);
+
+export const downloadMonthlyReport = (params?: { month?: string }) => {
+  const query = params?.month ? `?month=${params.month}` : "";
+  window.open(`/api/dashboard/monthly-report/download${query}`, "_blank");
+};
+
+export const getMonthlyReports = () =>
+  api
+    .get<{
+      reports: {
+        month: string;
+        status: "ready" | "pending" | "READY" | "PENDING";
+        total_expenses: number | null;
+        generated_at: string | null;
+      }[];
+    }>("/dashboard/monthly-reports")
+    .then((r) => r.data);
+
+export const generateMonthlyReport = (month: string) =>
+  api
+    .post<{ month: string; status: string }>(`/dashboard/monthly-reports/generate?month=${month}`)
+    .then((r) => r.data);
+
+export const downloadReportPdf = async (month: string) => {
+  const token = localStorage.getItem("auth_token");
+  const res = await fetch(`/api/dashboard/monthly-reports/${month}/download`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Failed to download report");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+};
+
 export const getInstallmentsDashboard = () =>
   api.get<InstallmentGroup[]>("/dashboard/installments").then((r) => r.data);
 
