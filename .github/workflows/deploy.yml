@@ -115,6 +115,23 @@ jobs:
             fi
             echo "DNS OK: ${{ vars.DOMAIN_NAME }} -> $SERVER_IP"
 
+      - name: Stop old containers to free port 80
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.LINODE_SERVER_IP }}
+          username: ${{ secrets.LINODE_SSH_USER }}
+          key: ${{ secrets.LINODE_SSH_KEY }}
+          port: 43422
+          script: |
+            cd /opt/creditcardanalyzer 2>/dev/null || true
+            export PATH="$HOME/.local/bin:$PATH"
+            # Stop old nginx to free port 80 for certbot
+            podman-compose down --remove-orphans 2>/dev/null || true
+            # Kill any orphaned containers on port 80/443
+            podman kill $(podman ps -q --filter "publish=80") 2>/dev/null || true
+            podman kill $(podman ps -q --filter "publish=443") 2>/dev/null || true
+            echo "Old containers stopped, port 80 is free"
+
       - name: Setup SSL certificates
         uses: appleboy/ssh-action@v1
         with:
@@ -124,6 +141,17 @@ jobs:
           port: 43422
           script: |
             mkdir -p /opt/creditcardanalyzer/certbot/{conf,work,logs}
+
+            # Clean up old domain certbot data if domain changed
+            for old_dir in /opt/creditcardanalyzer/certbot/conf/live/*/; do
+              old_domain=$(basename "$old_dir")
+              if [ "$old_domain" != "${{ vars.DOMAIN_NAME }}" ] && [ -n "$old_domain" ]; then
+                echo "Removing old cert for domain: $old_domain"
+                rm -rf "/opt/creditcardanalyzer/certbot/conf/live/$old_domain"
+                rm -rf "/opt/creditcardanalyzer/certbot/conf/archive/$old_domain"
+                rm -f "/opt/creditcardanalyzer/certbot/conf/renewal/${old_domain}.conf"
+              fi
+            done
 
             CERT_FILE="/opt/creditcardanalyzer/certbot/conf/live/${{ vars.DOMAIN_NAME }}/fullchain.pem"
 
