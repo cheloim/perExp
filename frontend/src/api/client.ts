@@ -236,7 +236,7 @@ export const getMonthlyReports = () =>
     .get<{
       reports: {
         month: string;
-        status: "ready" | "pending";
+        status: "ready" | "pending" | "READY" | "PENDING";
         total_expenses: number | null;
         generated_at: string | null;
       }[];

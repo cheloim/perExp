@@ -23,7 +23,6 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { useTheme } from "../context/ThemeContext";
 import AccountsManager from "./AccountsManager";
 import CardsManager from "./CardsManager";
-import { formatCurrency } from "../utils/format";
 
 const MONTHS_ES = [
   "Enero",

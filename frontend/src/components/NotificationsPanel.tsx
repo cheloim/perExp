@@ -116,7 +116,7 @@ export default function NotificationsPanel({ onClose }: Props) {
     } else if (n.type === "monthly_report_ready" || n.type === "monthly_report_queued") {
       handleMarkRead(n.id);
       if (n.type === "monthly_report_ready" && n.data.month) {
-        downloadReportPdf(n.data.month);
+        downloadReportPdf(n.data.month as string);
       }
       onClose();
     }
@@ -540,7 +540,7 @@ export default function NotificationsPanel({ onClose }: Props) {
                       const month = n.data.month;
                       if (month) {
                         handleMarkRead(n.id);
-                        downloadReportPdf(month);
+                        downloadReportPdf(month as string);
                       }
                     }}
                     className="text-[var(--color-primary)] text-xs font-medium hover:underline"
