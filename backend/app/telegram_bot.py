@@ -437,6 +437,33 @@ def send_message_to_chat(chat_id: str, text: str) -> None:
         logger.warning("[TELEGRAM] Bot event loop not available")
 
 
+def send_photo_to_chat(chat_id: str, image_bytes: bytes, caption: str = None) -> None:
+    """Send an image to a Telegram chat. Safe to call from any thread."""
+    if not _bot_app or not _bot_app.bot:
+        logger.warning("[TELEGRAM] Bot app not available, cannot send photo")
+        return
+
+    async def _send():
+        try:
+            from io import BytesIO
+            photo = BytesIO(image_bytes)
+            photo.name = "report.png"
+            await _bot_app.bot.send_photo(
+                chat_id=chat_id,
+                photo=photo,
+                caption=caption,
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            logger.warning(f"[TELEGRAM] Could not send photo to {chat_id}: {e}")
+
+    loop = _bot_app.bot._local._loop if hasattr(_bot_app.bot, "_local") else None
+    if loop and loop.is_running():
+        asyncio.run_coroutine_threadsafe(_send(), loop)
+    else:
+        logger.warning("[TELEGRAM] Bot event loop not available")
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = str(update.effective_chat.id)
     db = SessionLocal()

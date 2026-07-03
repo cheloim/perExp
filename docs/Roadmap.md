@@ -9,8 +9,8 @@
 | 3 | Visual notifications | ✅ Done | Low | #41 | Icons, colored borders, progress bars, toast, QUEUED status |
 | 4 | Dashboard layout fixes | ✅ Done | Low | #47 | Equal height boxes, category limit, transaction scroll |
 | 5 | Installment system fixes | ✅ Done | Medium | #49, #50 | Telegram ScheduledExpenses, projection logic, charts |
-| 6 | Monthly analysis resume | ✅ Done | Medium | #76 | PDF report with KPIs, trends, LLM analysis + auto-generate monthly |
-| 7 | Weekly Telegram summary | ✅ Done | Medium | #76 | Weekly digest via bot, configurable from UserPanel |
+| 6 | Monthly analysis resume | ✅ Done | Medium | #76 | PNG report (1080px, GNOME HIG + Material Design) with KPIs, charts (categories, trends, polar area), Top 5 expenses, LLM analysis. Auto-generate monthly via Celery Beat |
+| 7 | Weekly Telegram report | ✅ Done | Medium | #76 | PNG image report sent via Telegram bot. Includes weekly spent, accumulated monthly, upcoming installments (next week), Top 10 expenses by category, LLM analysis. Scheduled Sundays 20:00 UTC-3. Configurable from UserPanel |
 | 8 | Income module | ⏳ Backlog | High | - | Track income, dashboard comparison vs last months |
 | 9 | Ticket scan | ⏳ Backlog | Medium | - | OCR receipt analysis, compare same items last month |
 | 10 | Expense budgets | ⏳ Backlog | Medium | - | Set spending limits per category |
@@ -27,10 +27,12 @@ Generate a monthly summary report with:
 - Top spending categories
 - Month-over-month comparison
 
-### Weekly Telegram Summary
-- Send weekly digest every Sunday
-- Include: total spent, top categories, budget status
-- Configurable day/time from UserPanel settings
+### Weekly Telegram Report
+- PNG image report sent via Telegram bot every Sunday at 20:00 UTC-3
+- Report content: weekly spent, accumulated monthly, upcoming installments (next week only), Top 10 expenses, category breakdown with bar chart, LLM analysis
+- Image caption includes key metrics + LLM tip
+- Configurable enable/disable from UserPanel → Telegram Bot section
+- Uses Gemini Flash for brief LLM analysis (always active)
 
 ### Income Module
 - Track salary, investments, other income
