@@ -122,7 +122,6 @@ function ReportsTab() {
             const monthNum = parseInt(m);
             const monthName = MONTHS_ES[monthNum - 1] || m;
             const isReady = r.status === "ready" || r.status === "READY";
-            const isPending = r.status === "pending" || r.status === "PENDING";
 
             return (
               <div
@@ -236,7 +235,7 @@ export default function UserPanel({ open, onClose }: Props) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { theme, toggleTheme } = useTheme();
-  const [activeTab, setActiveTab] = useState<"config" | "accounts">("config");
+  const [activeTab, setActiveTab] = useState<"config" | "accounts" | "reports">("config");
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
