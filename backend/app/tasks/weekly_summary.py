@@ -46,7 +46,7 @@ def _generate_weekly_llm_analysis(report_data: dict) -> dict:
         from google.genai import types as genai_types
         import asyncio
 
-        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        api_key = os.getenv("LLM_API_KEY")
         if not api_key:
             print("[WEEKLY LLM] No API key found, skipping LLM analysis")
             return None
