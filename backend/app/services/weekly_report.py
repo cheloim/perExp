@@ -114,11 +114,15 @@ def generate_weekly_report_image(report_data: dict) -> bytes:
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--no-sandbox", "--disable-dev-shm-usage"])
         page = browser.new_page(
-            viewport={"width": 800, "height": 1200},
+            viewport={"width": 800, "height": 600},
             device_scale_factor=2,  # Retina quality
         )
         page.set_content(html_content, wait_until="networkidle")
         page.emulate_media(media="screen")
+
+        # Get actual content height and resize viewport
+        content_height = page.evaluate("document.body.scrollHeight")
+        page.set_viewport_size({"width": 800, "height": content_height})
 
         # Take screenshot of the full page
         png_bytes = page.screenshot(full_page=True, type="png")
