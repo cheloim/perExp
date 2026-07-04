@@ -68,6 +68,30 @@ def _get_spending_for_category(
     return sum(abs(t[0]) for t in total)
 
 
+def _get_spending_for_group(
+    group_name: str, year: int, month: int, uid_list: list[int], db: Session
+) -> float:
+    """Get total spending for a macro group in a given month."""
+    cat_ids = [c.id for c in db.query(Category).filter(Category.budget_group == group_name).all()]
+
+    start = date(year, month, 1)
+    end = date(year, month, monthrange(year, month)[1])
+
+    total = (
+        db.query(Expense)
+        .filter(
+            Expense.user_id.in_(uid_list),
+            Expense.category_id.in_(cat_ids),
+            Expense.date >= start,
+            Expense.date <= end,
+            Expense.is_income == False,
+        )
+        .with_entities(Expense.amount)
+        .all()
+    )
+    return sum(abs(t[0]) for t in total)
+
+
 def _build_category_summary(
     category: Category,
     budgets_map: dict,
