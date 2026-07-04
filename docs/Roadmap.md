@@ -15,7 +15,7 @@
 | 9 | Ticket scan | ⏳ Backlog | Medium | - | OCR receipt analysis, compare same items last month |
 | 10 | Expense budgets | ⏳ Backlog | Medium | - | Set spending limits per category |
 | 11 | Make index.html interactive | ✅ Done | Medium | #73 | Click KPI cards to filter expenses, uncategorized warnings |
-| 12 | Billing period tracking | ⏳ In Progress | Medium | #36 | closing_day on Card, billing API, billing view toggle in Dashboard |
+| 12 | Billing period tracking | ❌ Not Done | Medium | #63 | Cancelled: Monthly filtering is sufficient. Billing view adds complexity without enough value for expense analysis and saving plans |
 | 13 | Missing categories notification | ✅ Done | Medium | #73 | Real-time notifications for uncategorized expenses on save + login |
 | 14 | FCI, Plazos Fijos y Cauciones | ⏳ Backlog | Medium | - | Support for Fondos Comunes de Inversión, Plazos Fijos, and Cauciones in investments module |
 
