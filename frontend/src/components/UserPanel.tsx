@@ -235,7 +235,7 @@ export default function UserPanel({ open, onClose }: Props) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { theme, toggleTheme } = useTheme();
-  const [activeTab, setActiveTab] = useState<"config" | "accounts" | "reports">("config");
+  const [activeTab, setActiveTab] = useState<"config" | "accounts" | "budget" | "reports">("config");
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -460,6 +460,16 @@ export default function UserPanel({ open, onClose }: Props) {
               }`}
             >
               Reportes
+            </button>
+            <button
+              onClick={() => setActiveTab("budget")}
+              className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
+                activeTab === "budget"
+                  ? "bg-[var(--color-surface)] shadow-sm text-[var(--text-primary)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              }`}
+            >
+              Presupuesto
             </button>
           </div>
         </div>
@@ -990,6 +1000,26 @@ export default function UserPanel({ open, onClose }: Props) {
           )}
 
           {activeTab === "reports" && <ReportsTab />}
+
+          {activeTab === "budget" && (
+            <div className="px-4 py-4 space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-primary mb-2">Acceso Rápido</h3>
+                <p className="text-xs text-[var(--text-secondary)] mb-3">
+                  Gestioná tus presupuestos, macro grupos y eventos temporales.
+                </p>
+                <button
+                  onClick={() => {
+                    navigate("/budget");
+                    onClose();
+                  }}
+                  className="w-full py-2.5 px-4 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+                >
+                  Abrir Panel de Presupuesto
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Logout */}

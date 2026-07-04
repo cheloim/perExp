@@ -1,0 +1,578 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  getBudgetSummary,
+  getBudgetGroups,
+  getBudgets,
+  getBudgetEvents,
+  getBudgetSuggestions,
+  createBudgetEvent,
+  deleteBudgetEvent,
+  initBudgetGroups,
+} from "../api/client";
+import type { BudgetSummaryResponse, BudgetGroup, Budget, BudgetEvent, BudgetSuggestion } from "../types";
+import { formatCurrency } from "../utils/format";
+
+// ─── Budget Group Card (50/30/20) ─────────────────────────────
+
+function BudgetGroupCard({ group }: { group: BudgetGroup }) {
+  const pct = group.amount > 0 ? (group.spent / group.amount) * 100 : 0;
+  const status = pct >= 100 ? "exceeded" : pct >= 80 ? "warning" : "ok";
+  const statusColors = {
+    ok: "text-[var(--color-success)]",
+    warning: "text-[var(--color-warning)]",
+    exceeded: "text-[var(--color-error)]",
+  };
+  const barColors = {
+    ok: "bg-[var(--color-success)]",
+    warning: "bg-[var(--color-warning)]",
+    exceeded: "bg-[var(--color-error)]",
+  };
+
+  const groupColors: Record<string, string> = {
+    necesidades: "var(--color-primary)",
+    gustos: "var(--color-warning)",
+    ahorro: "var(--color-success)",
+  };
+
+  return (
+    <div className="card p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-primary">{group.display_name}</h3>
+        <span className="text-xs font-medium" style={{ color: groupColors[group.name] || "var(--color-primary)" }}>
+          {group.percentage}%
+        </span>
+      </div>
+
+      {/* Progress ring visualization */}
+      <div className="relative w-24 h-24 mx-auto mb-3">
+        <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+          <circle cx="18" cy="18" r="15.91549430918954" fill="none" stroke="var(--color-base-alt)" strokeWidth="3" />
+          <circle
+            cx="18"
+            cy="18"
+            r="15.91549430918954"
+            fill="none"
+            stroke={groupColors[group.name] || "var(--color-primary)"}
+            strokeWidth="3"
+            strokeDasharray={`${Math.min(pct, 100)} ${100 - Math.min(pct, 100)}`}
+            strokeLinecap="round"
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className={`text-lg font-bold ${statusColors[status]}`}>
+            {Math.round(pct)}%
+          </span>
+        </div>
+      </div>
+
+      <div className="text-center">
+        <p className="text-xs text-[var(--text-secondary)]">
+          {formatCurrency(group.spent)} / {formatCurrency(group.amount)}
+        </p>
+      </div>
+
+      {/* Progress bar */}
+      <div className="mt-3 h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${barColors[status]}`}
+          style={{ width: `${Math.min(pct, 100)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Budget Category Bar ──────────────────────────────────────
+
+function BudgetCategoryBar({
+  name,
+  color,
+  spent,
+  budget,
+  threshold,
+}: {
+  name: string;
+  color: string;
+  spent: number;
+  budget: number;
+  threshold: number;
+}) {
+  const pct = budget > 0 ? (spent / budget) * 100 : 0;
+  const status = pct >= 100 ? "exceeded" : pct >= threshold * 100 ? "warning" : "ok";
+  const barColor = status === "exceeded" ? "var(--color-error)" : status === "warning" ? "var(--color-warning)" : color;
+
+  return (
+    <div className="flex items-center gap-3 py-2">
+      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+      <span className="text-xs text-[var(--text-primary)] min-w-[120px] truncate font-medium">{name}</span>
+      <div className="flex-1 h-3 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }}
+        />
+      </div>
+      <span className="text-xs text-[var(--text-secondary)] w-32 text-right">
+        {formatCurrency(spent)} / {formatCurrency(budget)}
+      </span>
+      <span className={`text-xs font-medium w-12 text-right ${status === "exceeded" ? "text-[var(--color-error)]" : status === "warning" ? "text-[var(--color-warning)]" : "text-[var(--text-tertiary)]"}`}>
+        {Math.round(pct)}%
+      </span>
+    </div>
+  );
+}
+
+// ─── Budget Event Card ────────────────────────────────────────
+
+function BudgetEventCard({
+  event,
+  onDelete,
+}: {
+  event: BudgetEvent;
+  onDelete: (id: number) => void;
+}) {
+  const pct = event.total_amount > 0 ? (event.spent / event.total_amount) * 100 : 0;
+  const daysLeft = Math.max(0, Math.ceil((new Date(event.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+
+  return (
+    <div className="card p-4 flex items-center gap-4">
+      <div className="flex-1">
+        <div className="flex items-center gap-2">
+          <h4 className="text-sm font-semibold text-primary">{event.name}</h4>
+          <span className="text-xs text-[var(--text-tertiary)]">
+            {event.start_date} — {event.end_date}
+          </span>
+        </div>
+        <p className="text-xs text-[var(--text-secondary)] mt-1">
+          {formatCurrency(event.spent)} / {formatCurrency(event.total_amount)}
+        </p>
+        <div className="mt-2 h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden w-full max-w-[200px]">
+          <div
+            className="h-full rounded-full bg-[var(--color-primary)] transition-all"
+            style={{ width: `${Math.min(pct, 100)}%` }}
+          />
+        </div>
+      </div>
+      <div className="text-right">
+        <p className="text-xs text-[var(--text-tertiary)]">{daysLeft} días</p>
+        <p className="text-sm font-bold text-primary">{Math.round(pct)}%</p>
+      </div>
+      <button
+        onClick={() => onDelete(event.id)}
+        className="text-[var(--text-tertiary)] hover:text-[var(--color-error)] text-lg"
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+// ─── Budget Suggestions Banner ────────────────────────────────
+
+function BudgetSuggestionsBanner({ suggestions }: { suggestions: BudgetSuggestion[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const qc = useQueryClient();
+
+  const applyMutation = useMutation({
+    mutationFn: async (s: BudgetSuggestion) => {
+      const { createBudget } = await import("../api/client");
+      return createBudget({ category_id: s.category_id, amount: s.suggested });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["budgets"] });
+      qc.invalidateQueries({ queryKey: ["budget-summary"] });
+    },
+  });
+
+  if (suggestions.length === 0) return null;
+
+  return (
+    <div className="card p-4 border-l-4 border-[var(--color-primary)]">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-lg">💡</span>
+          <span className="text-sm font-semibold text-primary">
+            Sugerencias basadas en tus últimos 3 meses
+          </span>
+        </div>
+        <span className="text-xs text-[var(--text-tertiary)]">
+          {expanded ? "▲" : "▼"}
+        </span>
+      </button>
+
+      {expanded && (
+        <div className="mt-4 space-y-3">
+          {suggestions.slice(0, 5).map((s) => (
+            <div key={s.category_id} className="flex items-center justify-between py-2 border-b border-[var(--border-color)] last:border-0">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: s.category_color }} />
+                <span className="text-xs text-[var(--text-primary)]">{s.category_name}</span>
+                <span className="text-xs text-[var(--text-tertiary)]">
+                  Prom: {formatCurrency(s.avg_monthly)}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {s.has_budget ? (
+                  <span className="text-xs text-[var(--text-tertiary)]">
+                    Actual: {formatCurrency(s.current_budget || 0)}
+                  </span>
+                ) : (
+                  <>
+                    <span className="text-xs text-[var(--color-primary)] font-medium">
+                      Sugerido: {formatCurrency(s.suggested)}
+                    </span>
+                    <button
+                      onClick={() => applyMutation.mutate(s)}
+                      disabled={applyMutation.isPending}
+                      className="text-xs px-2 py-1 rounded bg-[var(--color-primary)] text-white hover:opacity-90"
+                    >
+                      Aplicar
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── New Event Modal ──────────────────────────────────────────
+
+function NewEventModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const [name, setName] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [amount, setAmount] = useState(0);
+
+  const createMutation = useMutation({
+    mutationFn: createBudgetEvent,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["budget-events"] });
+      onClose();
+    },
+  });
+
+  const handleSubmit = () => {
+    if (!name || !startDate || !endDate || amount <= 0) return;
+    createMutation.mutate({
+      name,
+      start_date: startDate,
+      end_date: endDate,
+      total_amount: amount,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="card w-full max-w-md p-6">
+        <h3 className="text-base font-semibold text-primary mb-4">Nuevo Evento Temporal</h3>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Nombre</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ej: Vacaciones Europa"
+              className="input"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Inicio</label>
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="input" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Fin</label>
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="input" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Monto total</label>
+            <input
+              type="number"
+              value={amount || ""}
+              onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
+              placeholder="0"
+              className="input"
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 mt-6">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+            Cancelar
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!name || !startDate || !endDate || amount <= 0 || createMutation.isPending}
+            className="px-4 py-2 text-sm bg-[var(--color-primary)] text-white rounded-lg hover:opacity-90 disabled:opacity-50"
+          >
+            {createMutation.isPending ? "Creando..." : "Crear"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Budget Page ─────────────────────────────────────────
+
+export default function BudgetPage() {
+  const [showNewEvent, setShowNewEvent] = useState(false);
+  const qc = useQueryClient();
+
+  const { data: summary, isLoading: loadingSummary } = useQuery({
+    queryKey: ["budget-summary"],
+    queryFn: () => getBudgetSummary(),
+  });
+
+  const { data: groups = [], isLoading: loadingGroups } = useQuery({
+    queryKey: ["budget-groups"],
+    queryFn: getBudgetGroups,
+  });
+
+  const { data: budgets = [], isLoading: loadingBudgets } = useQuery({
+    queryKey: ["budgets"],
+    queryFn: getBudgets,
+  });
+
+  const { data: events = [], isLoading: loadingEvents } = useQuery({
+    queryKey: ["budget-events"],
+    queryFn: getBudgetEvents,
+  });
+
+  const { data: suggestionsData } = useQuery({
+    queryKey: ["budget-suggestions"],
+    queryFn: getBudgetSuggestions,
+  });
+
+  const initGroupsMutation = useMutation({
+    mutationFn: (income: number) => initBudgetGroups(income),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["budget-groups"] });
+    },
+  });
+
+  const deleteEventMutation = useMutation({
+    mutationFn: deleteBudgetEvent,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["budget-events"] });
+    },
+  });
+
+  const [incomeInput, setIncomeInput] = useState("");
+
+  const handleInitGroups = () => {
+    const income = parseFloat(incomeInput);
+    if (income > 0) {
+      initGroupsMutation.mutate(income);
+    }
+  };
+
+  // Group budgets by macro group
+  const budgetsByGroup: Record<string, typeof budgets> = {};
+  for (const b of budgets) {
+    // Find category's group
+    const group = "necesidades"; // Default
+    if (!budgetsByGroup[group]) budgetsByGroup[group] = [];
+    budgetsByGroup[group].push(b);
+  }
+
+  const isLoading = loadingSummary || loadingGroups || loadingBudgets || loadingEvents;
+
+  if (isLoading) {
+    return (
+      <div className="p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-[var(--color-base-alt)] rounded w-48" />
+          <div className="grid grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-48 bg-[var(--color-base-alt)] rounded-xl" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-primary">Presupuesto</h1>
+          <p className="text-sm text-[var(--text-secondary)]">
+            Gestioná tus límites de gasto por categoría
+          </p>
+        </div>
+        <button
+          onClick={() => setShowNewEvent(true)}
+          className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90"
+        >
+          + Nuevo Evento
+        </button>
+      </div>
+
+      {/* 50/30/20 Groups or Init */}
+      {groups.length > 0 ? (
+        <div className="mb-6">
+          <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">
+            Macro Grupos (50/30/20)
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {groups.map((g) => (
+              <BudgetGroupCard key={g.id} group={g} />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="card p-6 mb-6 text-center">
+          <h3 className="text-base font-semibold text-primary mb-2">
+            Inicializá tu presupuesto 50/30/20
+          </h3>
+          <p className="text-sm text-[var(--text-secondary)] mb-4">
+            Distribuí tu ingreso mensual en 3 macro grupos
+          </p>
+          <div className="flex items-center justify-center gap-2 max-w-xs mx-auto">
+            <span className="text-sm text-[var(--text-secondary)]">$</span>
+            <input
+              type="number"
+              value={incomeInput}
+              onChange={(e) => setIncomeInput(e.target.value)}
+              placeholder="Ingreso mensual"
+              className="input flex-1"
+            />
+            <button
+              onClick={handleInitGroups}
+              disabled={!incomeInput || initGroupsMutation.isPending}
+              className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
+            >
+              {initGroupsMutation.isPending ? "..." : "Crear"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Overall Budget Summary */}
+      {summary && summary.total_budget > 0 && (
+        <div className="card p-5 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
+              Resumen General
+            </h2>
+            <span className="text-xs text-[var(--text-tertiary)]">{summary.month}</span>
+          </div>
+          <div className="flex items-center gap-6">
+            <div className="flex-1">
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-bold text-primary">
+                  {formatCurrency(summary.total_spent)}
+                </span>
+                <span className="text-sm text-[var(--text-secondary)]">
+                  / {formatCurrency(summary.total_budget)}
+                </span>
+              </div>
+              <div className="mt-3 h-4 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(summary.total_percentage * 100, 100)}%`,
+                    backgroundColor:
+                      summary.total_percentage >= 1
+                        ? "var(--color-error)"
+                        : summary.total_percentage >= 0.8
+                          ? "var(--color-warning)"
+                          : "var(--color-success)",
+                  }}
+                />
+              </div>
+              <p className="text-xs text-[var(--text-tertiary)] mt-2">
+                {Math.round(summary.total_percentage * 100)}% del presupuesto utilizado
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Budgets by Group */}
+      {summary && summary.categories.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">
+            Presupuestos por Categoría
+          </h2>
+          <div className="card p-5">
+            {summary.categories.map((cat) => (
+              <div key={cat.category_id}>
+                <BudgetCategoryBar
+                  name={cat.category_name}
+                  color={cat.category_color}
+                  spent={cat.spent_amount}
+                  budget={cat.budget_amount}
+                  threshold={0.8}
+                />
+                {cat.children.map((child) => (
+                  <div key={child.category_id} className="pl-6">
+                    <BudgetCategoryBar
+                      name={child.category_name}
+                      color={child.category_color}
+                      spent={child.spent_amount}
+                      budget={child.budget_amount}
+                      threshold={0.8}
+                    />
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Budget Events */}
+      <div className="mb-6">
+        <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">
+          Eventos Temporales
+        </h2>
+        {events.length > 0 ? (
+          <div className="space-y-3">
+            {events.map((event) => (
+              <BudgetEventCard
+                key={event.id}
+                event={event}
+                onDelete={(id) => deleteEventMutation.mutate(id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="card p-6 text-center">
+            <p className="text-sm text-[var(--text-tertiary)]">
+              No hay eventos temporales creados
+            </p>
+            <button
+              onClick={() => setShowNewEvent(true)}
+              className="mt-2 text-sm text-[var(--color-primary)] hover:underline"
+            >
+              + Crear primer evento
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Suggestions */}
+      {suggestionsData && suggestionsData.suggestions.length > 0 && (
+        <BudgetSuggestionsBanner suggestions={suggestionsData.suggestions} />
+      )}
+
+      {/* New Event Modal */}
+      {showNewEvent && <NewEventModal onClose={() => setShowNewEvent(false)} />}
+    </div>
+  );
+}
