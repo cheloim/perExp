@@ -181,6 +181,7 @@ function BudgetSuggestionsBanner({ suggestions }: { suggestions: BudgetSuggestio
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["budgets"] });
       qc.invalidateQueries({ queryKey: ["budget-summary"] });
+      qc.invalidateQueries({ queryKey: ["budget-suggestions"] });
     },
   });
 
