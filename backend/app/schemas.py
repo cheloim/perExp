@@ -123,6 +123,48 @@ class CategoryResponse(CategoryBase):
     model_config = {"from_attributes": True}
 
 
+class BudgetCreate(BaseModel):
+    category_id: int
+    amount: float
+    alert_threshold: float = 0.80
+
+
+class BudgetUpdate(BaseModel):
+    amount: float | None = None
+    alert_threshold: float | None = None
+    is_active: bool | None = None
+
+
+class BudgetResponse(BaseModel):
+    id: int
+    category_id: int
+    category_name: str = ""
+    category_color: str = ""
+    amount: float
+    alert_threshold: float
+    is_active: bool
+    model_config = {"from_attributes": True}
+
+
+class BudgetSummaryItem(BaseModel):
+    category_id: int
+    category_name: str
+    category_color: str
+    budget_amount: float
+    spent_amount: float
+    percentage: float
+    status: str  # ok | warning | exceeded
+    children: list["BudgetSummaryItem"] = []
+
+
+class BudgetSummaryResponse(BaseModel):
+    month: str
+    total_budget: float
+    total_spent: float
+    total_percentage: float
+    categories: list[BudgetSummaryItem]
+
+
 class AccountSimple(BaseModel):
     id: int
     name: str

@@ -101,6 +101,25 @@ class Category(Base):
     parent_id = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     expenses = relationship("Expense", back_populates="category")
+    budgets = relationship("Budget", back_populates="category")
+
+
+class Budget(Base):
+    __tablename__ = "budgets"
+    __table_args__ = (
+        Index("ix_budgets_user_id", "user_id"),
+        Index("ix_budgets_category_id", "category_id"),
+        UniqueConstraint("user_id", "category_id", name="uq_budget_user_cat"),
+    )
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    category_id = Column(Integer, ForeignKey("categories.id", ondelete="CASCADE"), nullable=False)
+    amount = Column(Float, nullable=False)
+    alert_threshold = Column(Float, default=0.80)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, onupdate=datetime.utcnow)
+    category = relationship("Category", back_populates="budgets")
 
 
 class Account(Base):

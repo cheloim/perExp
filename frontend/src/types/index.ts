@@ -75,6 +75,35 @@ export interface Category {
   parent_id?: number | null;
 }
 
+export interface Budget {
+  id: number;
+  category_id: number;
+  category_name: string;
+  category_color: string;
+  amount: number;
+  alert_threshold: number;
+  is_active: boolean;
+}
+
+export interface BudgetSummaryItem {
+  category_id: number;
+  category_name: string;
+  category_color: string;
+  budget_amount: number;
+  spent_amount: number;
+  percentage: number;
+  status: "ok" | "warning" | "exceeded";
+  children: BudgetSummaryItem[];
+}
+
+export interface BudgetSummaryResponse {
+  month: string;
+  total_budget: number;
+  total_spent: number;
+  total_percentage: number;
+  categories: BudgetSummaryItem[];
+}
+
 export interface Account {
   id: number;
   name: string;

@@ -1,6 +1,8 @@
 import axios from "axios";
 import type {
   Account,
+  Budget,
+  BudgetSummaryResponse,
   Card,
   AuthToken,
   User,
@@ -88,6 +90,22 @@ export const updateCategory = (id: number, data: Omit<Category, "id">) =>
   api.put<Category>(`/categories/${id}`, data).then((r) => r.data);
 
 export const deleteCategory = (id: number) => api.delete(`/categories/${id}`).then((r) => r.data);
+
+// Budgets
+export const getBudgets = () => api.get<Budget[]>("/budgets").then((r) => r.data);
+
+export const createBudget = (data: { category_id: number; amount: number; alert_threshold?: number }) =>
+  api.post<Budget>("/budgets", data).then((r) => r.data);
+
+export const updateBudget = (id: number, data: { amount?: number; alert_threshold?: number; is_active?: boolean }) =>
+  api.put<Budget>(`/budgets/${id}`, data).then((r) => r.data);
+
+export const deleteBudget = (id: number) => api.delete(`/budgets/${id}`).then((r) => r.data);
+
+export const getBudgetSummary = (month?: string) => {
+  const params = month ? { month } : {};
+  return api.get<BudgetSummaryResponse>("/budgets/summary", { params }).then((r) => r.data);
+};
 
 // Expenses
 export const getExpenses = (params?: {
