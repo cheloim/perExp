@@ -45,9 +45,9 @@ def main():
     # Step 1: Run migration
     print("\n[Step 1] Running database migration...")
     if args.dry_run:
-        print("  Would run: python -m scripts.migrate_add_reset_token")
+        print("  Would run: podman-compose run --rm --no-deps backend python -m scripts.migrate_add_reset_token")
     else:
-        run_command("cd /home/chelo/creditCardAnalyzer/backend && python -m scripts.migrate_add_reset_token")
+        run_command("cd /home/chelo/creditCardAnalyzer && podman-compose run --rm --no-deps backend python -m scripts.migrate_add_reset_token")
 
     # Step 2: Restart backend
     if not args.skip_restart:
