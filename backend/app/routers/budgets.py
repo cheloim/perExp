@@ -353,9 +353,6 @@ def suggest_budgets(
     today = date.today()
     uid_list = _get_group_user_ids(current_user.id, db)
 
-    # Get all categories with expenses in the last 3 months
-    three_months_ago = today.replace(day=1) - timedelta(days=90)
-
     categories = db.query(Category).filter(Category.user_id == current_user.id).all()
     suggestions = []
 
