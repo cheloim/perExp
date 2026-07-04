@@ -404,34 +404,6 @@ export default function Dashboard() {
             {momVariation > 0 ? "Gastaste más" : momVariation < 0 ? "Gastaste menos" : "Sin cambio"}
           </p>
         </div>
-        {budgetSummary && budgetSummary.total_budget > 0 && (
-          <div
-            className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
-            onClick={() => navigate("/budget")}
-          >
-            <p className="text-[10px] text-tertiary uppercase mb-1">Presupuesto</p>
-            <p className="text-lg font-bold text-primary">
-              {Math.round(budgetSummary.total_percentage * 100)}%
-            </p>
-            <p className="text-xs text-tertiary mt-1">
-              {formatCurrency(budgetSummary.total_spent)} / {formatCurrency(budgetSummary.total_budget)}
-            </p>
-            <div className="mt-2 h-1.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{
-                  width: `${Math.min(budgetSummary.total_percentage * 100, 100)}%`,
-                  backgroundColor:
-                    budgetSummary.total_percentage >= 1
-                      ? "var(--color-error)"
-                      : budgetSummary.total_percentage >= 0.8
-                        ? "var(--color-warning)"
-                        : "var(--color-success)",
-                }}
-              />
-            </div>
-          </div>
-        )}
         {(savingsArs > 0 || totalUsd > 0) && (
           <div
             className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
@@ -454,6 +426,56 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Budget Section - standalone */}
+      {budgetSummary && budgetSummary.total_budget > 0 && (
+        <div
+          className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors mb-6"
+          onClick={() => navigate("/budget")}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-primary">Presupuesto General</h3>
+            <span className="text-xs text-[var(--text-tertiary)]">{budgetSummary.month}</span>
+          </div>
+          <div className="flex items-center gap-6">
+            <div className="flex-1">
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-primary">
+                  {formatCurrency(budgetSummary.total_spent)}
+                </span>
+                <span className="text-sm text-[var(--text-secondary)]">
+                  / {formatCurrency(budgetSummary.total_budget)}
+                </span>
+              </div>
+              <div className="mt-2 h-3 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(budgetSummary.total_percentage * 100, 100)}%`,
+                    backgroundColor:
+                      budgetSummary.total_percentage >= 1
+                        ? "var(--color-error)"
+                        : budgetSummary.total_percentage >= 0.8
+                          ? "var(--color-warning)"
+                          : "var(--color-success)",
+                  }}
+                />
+              </div>
+              <p className="text-xs text-[var(--text-tertiary)] mt-1">
+                {Math.round(budgetSummary.total_percentage * 100)}% del presupuesto utilizado
+              </p>
+            </div>
+            <div className="text-right space-y-1">
+              {budgetSummary.categories.slice(0, 4).map((cat) => (
+                <p key={cat.category_id} className="text-xs">
+                  <span className="text-[var(--text-secondary)]">{cat.category_name}:</span>{" "}
+                  <span className="font-medium">{Math.round(cat.percentage * 100)}%</span>
+                </p>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Gastos por Categoría + Transacciones — side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
