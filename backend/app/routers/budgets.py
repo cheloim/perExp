@@ -15,6 +15,7 @@ from app.schemas import (
     BudgetEventCreate,
     BudgetEventResponse,
     BudgetEventUpdate,
+    BudgetGroupCategory,
     BudgetGroupCreate,
     BudgetGroupResponse,
     BudgetGroupUpdate,
