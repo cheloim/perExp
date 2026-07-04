@@ -324,10 +324,108 @@ function NewEventModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ─── Quick Budget Config Modal ────────────────────────────────
+
+function QuickConfigModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => import("../api/client").then((m) => m.getCategories()),
+  });
+
+  const { data: budgets = [] } = useQuery({
+    queryKey: ["budgets"],
+    queryFn: () => import("../api/client").then((m) => m.getBudgets()),
+  });
+
+  const [amounts, setAmounts] = useState<Record<number, number>>({});
+
+  // Initialize amounts from existing budgets
+  useState(() => {
+    const initial: Record<number, number> = {};
+    for (const b of budgets) {
+      initial[b.category_id] = b.amount;
+    }
+    setAmounts(initial);
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const { createBudget } = await import("../api/client");
+      const promises = [];
+      for (const [catId, amount] of Object.entries(amounts)) {
+        if (amount > 0) {
+          promises.push(createBudget({ category_id: parseInt(catId), amount }));
+        }
+      }
+      return Promise.all(promises);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["budgets"] });
+      qc.invalidateQueries({ queryKey: ["budget-summary"] });
+      onClose();
+    },
+  });
+
+  // Filter to show only subcategories (leaves)
+  const subcategories = categories.filter(
+    (c) => !categories.some((p) => p.id === c.parent_id),
+  );
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="card w-full max-w-lg p-6 max-h-[80vh] overflow-y-auto">
+        <h3 className="text-base font-semibold text-primary mb-4">Configurar Presupuestos</h3>
+        <p className="text-xs text-[var(--text-secondary)] mb-4">
+          Definí el límite mensual para cada categoría
+        </p>
+
+        <div className="space-y-3">
+          {subcategories.map((cat) => (
+            <div key={cat.id} className="flex items-center gap-3 py-2 border-b border-[var(--border-color)] last:border-0">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }} />
+              <span className="text-sm text-[var(--text-primary)] flex-1">{cat.name}</span>
+              <div className="relative w-32">
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] text-sm">$</span>
+                <input
+                  type="number"
+                  value={amounts[cat.id] || ""}
+                  onChange={(e) =>
+                    setAmounts((prev) => ({
+                      ...prev,
+                      [cat.id]: parseFloat(e.target.value) || 0,
+                    }))
+                  }
+                  placeholder="0"
+                  className="input pl-6 text-sm py-1.5"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex justify-end gap-2 mt-6">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+            Cancelar
+          </button>
+          <button
+            onClick={() => saveMutation.mutate()}
+            disabled={saveMutation.isPending}
+            className="px-4 py-2 text-sm bg-[var(--color-primary)] text-white rounded-lg hover:opacity-90 disabled:opacity-50"
+          >
+            {saveMutation.isPending ? "Guardando..." : "Guardar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Budget Page ─────────────────────────────────────────
 
 export default function BudgetPage() {
   const [showNewEvent, setShowNewEvent] = useState(false);
+  const [showQuickConfig, setShowQuickConfig] = useState(false);
   const qc = useQueryClient();
 
   const { data: summary, isLoading: loadingSummary } = useQuery({
@@ -503,6 +601,24 @@ export default function BudgetPage() {
         </div>
       )}
 
+      {/* Quick Budget Configuration */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
+            Configuración Rápida
+          </h2>
+          <button
+            onClick={() => setShowQuickConfig(true)}
+            className="text-xs px-3 py-1.5 bg-[var(--color-primary)] text-white rounded-lg hover:opacity-90"
+          >
+            + Agregar/Editar Presupuesto
+          </button>
+        </div>
+        <p className="text-xs text-[var(--text-tertiary)]">
+          Definí límites mensuales para cada categoría
+        </p>
+      </div>
+
       {/* Category Budgets by Group */}
       {summary && summary.categories.length > 0 && (
         <div className="mb-6">
@@ -573,6 +689,9 @@ export default function BudgetPage() {
 
       {/* New Event Modal */}
       {showNewEvent && <NewEventModal onClose={() => setShowNewEvent(false)} />}
+
+      {/* Quick Config Modal */}
+      {showQuickConfig && <QuickConfigModal onClose={() => setShowQuickConfig(false)} />}
     </div>
   );
 }
