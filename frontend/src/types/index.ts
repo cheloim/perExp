@@ -106,6 +106,16 @@ export interface BudgetSummaryResponse {
   categories: BudgetSummaryItem[];
 }
 
+export interface BudgetGroupCategory {
+  category_id: number;
+  category_name: string;
+  category_color: string;
+  budget_amount: number;
+  spent_amount: number;
+  percentage: number;
+  status: "ok" | "warning" | "exceeded";
+}
+
 export interface BudgetGroup {
   id: number;
   name: string;
@@ -113,6 +123,9 @@ export interface BudgetGroup {
   percentage: number;
   amount: number;
   spent: number;
+  committed: number;
+  available: number;
+  categories: BudgetGroupCategory[];
   is_active: boolean;
 }
 

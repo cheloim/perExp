@@ -174,6 +174,16 @@ class BudgetGroupUpdate(BaseModel):
     is_active: bool | None = None
 
 
+class BudgetGroupCategory(BaseModel):
+    category_id: int
+    category_name: str
+    category_color: str
+    budget_amount: float
+    spent_amount: float
+    percentage: float
+    status: str  # ok | warning | exceeded
+
+
 class BudgetGroupResponse(BaseModel):
     id: int
     name: str
@@ -181,6 +191,9 @@ class BudgetGroupResponse(BaseModel):
     percentage: float
     amount: float
     spent: float
+    committed: float  # Sum of individual budgets
+    available: float  # amount - committed
+    categories: list[BudgetGroupCategory]
     is_active: bool
     model_config = {"from_attributes": True}
 
