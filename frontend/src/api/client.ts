@@ -132,7 +132,9 @@ export const updateBudgetGroup = (
 ) => api.put<BudgetGroup>(`/budgets/groups/${id}`, data).then((r) => r.data);
 
 export const initBudgetGroups = (monthly_income: number) =>
-  api.post<BudgetGroup[]>("/budgets/groups/init", null, { params: { monthly_income } }).then((r) => r.data);
+  api
+    .post<BudgetGroup[]>("/budgets/groups/init", null, { params: { monthly_income } })
+    .then((r) => r.data);
 
 // Budget Events
 export const getBudgetEvents = () => api.get<BudgetEvent[]>("/budgets/events").then((r) => r.data);
@@ -150,7 +152,8 @@ export const updateBudgetEvent = (
   data: { name?: string; total_amount?: number; is_active?: boolean },
 ) => api.put<BudgetEvent>(`/budgets/events/${id}`, data).then((r) => r.data);
 
-export const deleteBudgetEvent = (id: number) => api.delete(`/budgets/events/${id}`).then((r) => r.data);
+export const deleteBudgetEvent = (id: number) =>
+  api.delete(`/budgets/events/${id}`).then((r) => r.data);
 
 // Expenses
 export const getExpenses = (params?: {

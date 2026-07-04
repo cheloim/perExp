@@ -2,7 +2,7 @@
 
 import json
 from calendar import monthrange
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
@@ -97,7 +97,11 @@ def _build_category_summary(
             child_spent = _get_spending_for_category(child.id, year, month, uid_list, db)
             child_pct = child_spent / child_budget.amount if child_budget.amount > 0 else 0
             child_status = (
-                "exceeded" if child_pct >= 1.0 else "warning" if child_pct >= child_budget.alert_threshold else "ok"
+                "exceeded"
+                if child_pct >= 1.0
+                else "warning"
+                if child_pct >= child_budget.alert_threshold
+                else "ok"
             )
             children_items.append(
                 BudgetSummaryItem(
@@ -132,7 +136,9 @@ def list_budgets(
     current_user: User = Depends(get_current_user),
 ):
     """List all budgets for the current user."""
-    budgets = db.query(Budget).filter(Budget.user_id == current_user.id, Budget.is_active == True).all()
+    budgets = (
+        db.query(Budget).filter(Budget.user_id == current_user.id, Budget.is_active == True).all()
+    )
 
     result = []
     for b in budgets:
@@ -218,9 +224,7 @@ def update_budget(
 ):
     """Update a budget."""
     budget = (
-        db.query(Budget)
-        .filter(Budget.id == budget_id, Budget.user_id == current_user.id)
-        .first()
+        db.query(Budget).filter(Budget.id == budget_id, Budget.user_id == current_user.id).first()
     )
     if not budget:
         raise HTTPException(404, "Budget not found")
@@ -258,9 +262,7 @@ def delete_budget(
 ):
     """Delete a budget."""
     budget = (
-        db.query(Budget)
-        .filter(Budget.id == budget_id, Budget.user_id == current_user.id)
-        .first()
+        db.query(Budget).filter(Budget.id == budget_id, Budget.user_id == current_user.id).first()
     )
     if not budget:
         raise HTTPException(404, "Budget not found")
@@ -291,9 +293,7 @@ def budget_summary(
     uid_list = _get_group_user_ids(current_user.id, db)
 
     budgets = (
-        db.query(Budget)
-        .filter(Budget.user_id == current_user.id, Budget.is_active == True)
-        .all()
+        db.query(Budget).filter(Budget.user_id == current_user.id, Budget.is_active == True).all()
     )
     budgets_map = {b.category_id: b for b in budgets}
 
@@ -403,15 +403,17 @@ def suggest_budgets(
                 .first()
             )
 
-            suggestions.append({
-                "category_id": cat.id,
-                "category_name": cat.name,
-                "category_color": cat.color,
-                "avg_monthly": round(avg_monthly, 2),
-                "suggested": suggested,
-                "has_budget": existing is not None,
-                "current_budget": existing.amount if existing else None,
-            })
+            suggestions.append(
+                {
+                    "category_id": cat.id,
+                    "category_name": cat.name,
+                    "category_color": cat.color,
+                    "avg_monthly": round(avg_monthly, 2),
+                    "suggested": suggested,
+                    "has_budget": existing is not None,
+                    "current_budget": existing.amount if existing else None,
+                }
+            )
 
     # Sort by average spending descending
     suggestions.sort(key=lambda x: x["avg_monthly"], reverse=True)
@@ -500,11 +502,7 @@ def init_default_groups(
 ):
     """Initialize default 50/30/20 budget groups based on monthly income."""
     # Check if groups already exist
-    existing = (
-        db.query(BudgetGroup)
-        .filter(BudgetGroup.user_id == current_user.id)
-        .first()
-    )
+    existing = db.query(BudgetGroup).filter(BudgetGroup.user_id == current_user.id).first()
     if existing:
         raise HTTPException(400, "Budget groups already initialized")
 

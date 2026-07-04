@@ -36,7 +36,9 @@ def _get_spending_for_category(
     return sum(abs(t[0]) for t in total)
 
 
-def _get_spending_for_group(group_name: str, year: int, month: int, uid_list: list[int], db) -> float:
+def _get_spending_for_group(
+    group_name: str, year: int, month: int, uid_list: list[int], db
+) -> float:
     """Get total spending for a macro group (necesidades/gustos/ahorro)."""
     from app.models import Category as CatModel
 
@@ -91,7 +93,9 @@ def _send_telegram_alert(chat_id: str, category_name: str, pct: float, spent: fl
         print(f"[BUDGET ALERT] Failed to send Telegram alert: {e}")
 
 
-def _send_group_telegram_alert(chat_id: str, group_name: str, pct: float, spent: float, budget: float):
+def _send_group_telegram_alert(
+    chat_id: str, group_name: str, pct: float, spent: float, budget: float
+):
     """Send macro group budget alert via Telegram."""
     try:
         from app.telegram_bot import send_message_to_chat
@@ -167,7 +171,11 @@ def check_budget_alerts():
 
                 is_exceeded = pct >= 1.0
                 status = "exceeded" if is_exceeded else "warning"
-                display_names = {"necesidades": "Necesidades", "gustos": "Gustos", "ahorro": "Ahorro"}
+                display_names = {
+                    "necesidades": "Necesidades",
+                    "gustos": "Gustos",
+                    "ahorro": "Ahorro",
+                }
 
                 notification = Notification(
                     user_id=user.id,
@@ -191,9 +199,7 @@ def check_budget_alerts():
 
             # ─── Check individual category budgets ─────────────────────
             budgets = (
-                db.query(Budget)
-                .filter(Budget.user_id == user.id, Budget.is_active == True)
-                .all()
+                db.query(Budget).filter(Budget.user_id == user.id, Budget.is_active == True).all()
             )
 
             for budget in budgets:
