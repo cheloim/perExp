@@ -11,7 +11,7 @@ import {
   getBudgets,
   createBudget,
 } from "../api/client";
-import type { Category, Budget } from "../types";
+import type { Category } from "../types";
 import { Select } from "../components/ui/Select";
 import { formatCurrency, toUpperCase, formatDateDMY } from "../utils/format";
 import { ConfirmDialog } from "../components/ConfirmDialog";
