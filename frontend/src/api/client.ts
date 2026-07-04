@@ -94,11 +94,16 @@ export const deleteCategory = (id: number) => api.delete(`/categories/${id}`).th
 // Budgets
 export const getBudgets = () => api.get<Budget[]>("/budgets").then((r) => r.data);
 
-export const createBudget = (data: { category_id: number; amount: number; alert_threshold?: number }) =>
-  api.post<Budget>("/budgets", data).then((r) => r.data);
+export const createBudget = (data: {
+  category_id: number;
+  amount: number;
+  alert_threshold?: number;
+}) => api.post<Budget>("/budgets", data).then((r) => r.data);
 
-export const updateBudget = (id: number, data: { amount?: number; alert_threshold?: number; is_active?: boolean }) =>
-  api.put<Budget>(`/budgets/${id}`, data).then((r) => r.data);
+export const updateBudget = (
+  id: number,
+  data: { amount?: number; alert_threshold?: number; is_active?: boolean },
+) => api.put<Budget>(`/budgets/${id}`, data).then((r) => r.data);
 
 export const deleteBudget = (id: number) => api.delete(`/budgets/${id}`).then((r) => r.data);
 

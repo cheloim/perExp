@@ -173,7 +173,9 @@ function CategoryForm({
                 Presupuesto mensual (opcional)
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-tertiary text-sm">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-tertiary text-sm">
+                  $
+                </span>
                 <input
                   type="number"
                   value={budgetAmount || ""}
@@ -195,7 +197,9 @@ function CategoryForm({
             Cancelar
           </button>
           <button
-            onClick={() => onSave({ ...form, keywords: isParentForm ? "" : form.keywords }, budgetAmount)}
+            onClick={() =>
+              onSave({ ...form, keywords: isParentForm ? "" : form.keywords }, budgetAmount)
+            }
             disabled={!form.name || isSaving}
             className="gnome-btn-primary"
           >
@@ -816,9 +820,7 @@ export default function CategoriesPage() {
           onSave={handleSave}
           isSaving={createMut.isPending || updateMut.isPending}
           initialBudget={
-            editing.cat
-              ? budgets.find((b) => b.category_id === editing.cat!.id)?.amount ?? 0
-              : 0
+            editing.cat ? (budgets.find((b) => b.category_id === editing.cat!.id)?.amount ?? 0) : 0
           }
         />
       )}

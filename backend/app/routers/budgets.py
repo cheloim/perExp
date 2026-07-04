@@ -4,7 +4,6 @@ from calendar import monthrange
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import extract
 from sqlalchemy.orm import Session
 
 from app.database import get_db
