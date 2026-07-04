@@ -1,15 +1,23 @@
-"""Budgets router - CRUD + summary endpoint."""
+"""Budgets router - CRUD + summary + groups + events + auto-suggestion."""
 
+import json
 from calendar import monthrange
-from datetime import date
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Budget, Category, Expense, User
+from app.models import Budget, BudgetEvent, BudgetGroup, Category, Expense, User
 from app.schemas import (
     BudgetCreate,
+    BudgetEventCreate,
+    BudgetEventResponse,
+    BudgetEventUpdate,
+    BudgetGroupCreate,
+    BudgetGroupResponse,
+    BudgetGroupUpdate,
     BudgetResponse,
     BudgetSummaryItem,
     BudgetSummaryResponse,
@@ -37,7 +45,6 @@ def _get_spending_for_category(
     category_id: int, year: int, month: int, uid_list: list[int], db: Session
 ) -> float:
     """Get total spending for a category in a given month (including children)."""
-    # Get all category IDs (parent + children)
     cat_ids = [category_id]
     children = db.query(Category).filter(Category.parent_id == category_id).all()
     cat_ids.extend([c.id for c in children])
@@ -90,11 +97,7 @@ def _build_category_summary(
             child_spent = _get_spending_for_category(child.id, year, month, uid_list, db)
             child_pct = child_spent / child_budget.amount if child_budget.amount > 0 else 0
             child_status = (
-                "exceeded"
-                if child_pct >= 1.0
-                else "warning"
-                if child_pct >= child_budget.alert_threshold
-                else "ok"
+                "exceeded" if child_pct >= 1.0 else "warning" if child_pct >= child_budget.alert_threshold else "ok"
             )
             children_items.append(
                 BudgetSummaryItem(
@@ -120,7 +123,7 @@ def _build_category_summary(
     )
 
 
-# ─── CRUD Endpoints ────────────────────────────────────────────────
+# ─── Budget CRUD ──────────────────────────────────────────────────
 
 
 @router.get("", response_model=list[BudgetResponse])
@@ -129,9 +132,7 @@ def list_budgets(
     current_user: User = Depends(get_current_user),
 ):
     """List all budgets for the current user."""
-    budgets = (
-        db.query(Budget).filter(Budget.user_id == current_user.id, Budget.is_active == True).all()
-    )
+    budgets = db.query(Budget).filter(Budget.user_id == current_user.id, Budget.is_active == True).all()
 
     result = []
     for b in budgets:
@@ -144,6 +145,7 @@ def list_budgets(
                 category_color=cat.color if cat else "",
                 amount=b.amount,
                 alert_threshold=b.alert_threshold,
+                rollover=b.rollover,
                 is_active=b.is_active,
             )
         )
@@ -157,21 +159,19 @@ def create_budget(
     current_user: User = Depends(get_current_user),
 ):
     """Create a budget for a category."""
-    # Verify category exists
     cat = db.query(Category).filter(Category.id == data.category_id).first()
     if not cat:
         raise HTTPException(404, "Category not found")
 
-    # Check if budget already exists for this category
     existing = (
         db.query(Budget)
         .filter(Budget.user_id == current_user.id, Budget.category_id == data.category_id)
         .first()
     )
     if existing:
-        # Update existing
         existing.amount = data.amount
         existing.alert_threshold = data.alert_threshold
+        existing.rollover = data.rollover
         existing.is_active = True
         db.commit()
         db.refresh(existing)
@@ -182,6 +182,7 @@ def create_budget(
             category_color=cat.color,
             amount=existing.amount,
             alert_threshold=existing.alert_threshold,
+            rollover=existing.rollover,
             is_active=existing.is_active,
         )
 
@@ -190,6 +191,7 @@ def create_budget(
         category_id=data.category_id,
         amount=data.amount,
         alert_threshold=data.alert_threshold,
+        rollover=data.rollover,
     )
     db.add(budget)
     db.commit()
@@ -202,6 +204,7 @@ def create_budget(
         category_color=cat.color,
         amount=budget.amount,
         alert_threshold=budget.alert_threshold,
+        rollover=budget.rollover,
         is_active=budget.is_active,
     )
 
@@ -215,7 +218,9 @@ def update_budget(
 ):
     """Update a budget."""
     budget = (
-        db.query(Budget).filter(Budget.id == budget_id, Budget.user_id == current_user.id).first()
+        db.query(Budget)
+        .filter(Budget.id == budget_id, Budget.user_id == current_user.id)
+        .first()
     )
     if not budget:
         raise HTTPException(404, "Budget not found")
@@ -224,6 +229,8 @@ def update_budget(
         budget.amount = data.amount
     if data.alert_threshold is not None:
         budget.alert_threshold = data.alert_threshold
+    if data.rollover is not None:
+        budget.rollover = data.rollover
     if data.is_active is not None:
         budget.is_active = data.is_active
 
@@ -238,6 +245,7 @@ def update_budget(
         category_color=cat.color if cat else "",
         amount=budget.amount,
         alert_threshold=budget.alert_threshold,
+        rollover=budget.rollover,
         is_active=budget.is_active,
     )
 
@@ -250,7 +258,9 @@ def delete_budget(
 ):
     """Delete a budget."""
     budget = (
-        db.query(Budget).filter(Budget.id == budget_id, Budget.user_id == current_user.id).first()
+        db.query(Budget)
+        .filter(Budget.id == budget_id, Budget.user_id == current_user.id)
+        .first()
     )
     if not budget:
         raise HTTPException(404, "Budget not found")
@@ -280,25 +290,23 @@ def budget_summary(
 
     uid_list = _get_group_user_ids(current_user.id, db)
 
-    # Get all active budgets
     budgets = (
-        db.query(Budget).filter(Budget.user_id == current_user.id, Budget.is_active == True).all()
+        db.query(Budget)
+        .filter(Budget.user_id == current_user.id, Budget.is_active == True)
+        .all()
     )
     budgets_map = {b.category_id: b for b in budgets}
 
-    # Get parent categories that have budgets
     parent_ids = set()
     for cat_id in budgets_map:
         cat = db.query(Category).filter(Category.id == cat_id).first()
         if cat and cat.parent_id:
             parent_ids.add(cat.parent_id)
 
-    # Build summary for parent categories (that aggregate children)
     categories_summary = []
     total_budget = 0.0
     total_spent = 0.0
 
-    # First, process parent categories that have budgets
     parent_cats = db.query(Category).filter(Category.id.in_(parent_ids)).all()
     for parent in parent_cats:
         item = _build_category_summary(parent, budgets_map, y, m, uid_list, db)
@@ -307,15 +315,12 @@ def budget_summary(
             total_budget += item.budget_amount
             total_spent += item.spent_amount
 
-    # Then, process categories without parents (standalone budgets)
     for cat_id, budget in budgets_map.items():
         cat = db.query(Category).filter(Category.id == cat_id).first()
         if not cat:
             continue
-        # Skip if this category is a child (already included in parent)
         if cat.parent_id and cat.parent_id in budgets_map:
             continue
-        # Skip if this category is a parent (already processed)
         if cat_id in parent_ids:
             continue
 
@@ -334,3 +339,326 @@ def budget_summary(
         total_percentage=round(total_percentage, 4),
         categories=categories_summary,
     )
+
+
+# ─── Auto-Suggestion ──────────────────────────────────────────────
+
+
+@router.get("/suggest")
+def suggest_budgets(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Analyze last 3 months and suggest budgets based on spending patterns."""
+    today = date.today()
+    uid_list = _get_group_user_ids(current_user.id, db)
+
+    # Get all categories with expenses in the last 3 months
+    three_months_ago = today.replace(day=1) - timedelta(days=90)
+
+    categories = db.query(Category).filter(Category.user_id == current_user.id).all()
+    suggestions = []
+
+    for cat in categories:
+        # Skip parent categories
+        if db.query(Category).filter(Category.parent_id == cat.id).first():
+            continue
+
+        # Get average monthly spending for this category
+        cat_ids = [cat.id]
+        children = db.query(Category).filter(Category.parent_id == cat.id).all()
+        cat_ids.extend([c.id for c in children])
+
+        monthly_totals = []
+        for i in range(3):
+            month_date = today.replace(day=1) - timedelta(days=30 * i)
+            start = month_date.replace(day=1)
+            end = start.replace(day=monthrange(start.year, start.month)[1])
+
+            total = (
+                db.query(Expense)
+                .filter(
+                    Expense.user_id.in_(uid_list),
+                    Expense.category_id.in_(cat_ids),
+                    Expense.date >= start,
+                    Expense.date <= end,
+                    Expense.is_income == False,
+                )
+                .with_entities(func.sum(Expense.amount))
+                .scalar()
+                or 0
+            )
+            monthly_totals.append(abs(total))
+
+        avg_monthly = sum(monthly_totals) / len(monthly_totals) if monthly_totals else 0
+
+        if avg_monthly > 0:
+            # Suggest 90% of average (10% reduction for savings)
+            suggested = round(avg_monthly * 0.9, -2)  # Round to nearest 100
+
+            # Check if budget already exists
+            existing = (
+                db.query(Budget)
+                .filter(Budget.user_id == current_user.id, Budget.category_id == cat.id)
+                .first()
+            )
+
+            suggestions.append({
+                "category_id": cat.id,
+                "category_name": cat.name,
+                "category_color": cat.color,
+                "avg_monthly": round(avg_monthly, 2),
+                "suggested": suggested,
+                "has_budget": existing is not None,
+                "current_budget": existing.amount if existing else None,
+            })
+
+    # Sort by average spending descending
+    suggestions.sort(key=lambda x: x["avg_monthly"], reverse=True)
+
+    return {"suggestions": suggestions[:15]}  # Top 15 categories
+
+
+# ─── Budget Groups (50/30/20) ─────────────────────────────────────
+
+
+@router.get("/groups", response_model=list[BudgetGroupResponse])
+def list_budget_groups(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List all budget groups for the current user."""
+    groups = (
+        db.query(BudgetGroup)
+        .filter(BudgetGroup.user_id == current_user.id, BudgetGroup.is_active == True)
+        .all()
+    )
+    return groups
+
+
+@router.post("/groups", response_model=BudgetGroupResponse)
+def create_budget_group(
+    data: BudgetGroupCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Create a budget group (50/30/20)."""
+    existing = (
+        db.query(BudgetGroup)
+        .filter(BudgetGroup.user_id == current_user.id, BudgetGroup.name == data.name)
+        .first()
+    )
+    if existing:
+        raise HTTPException(400, "Budget group already exists")
+
+    group = BudgetGroup(
+        user_id=current_user.id,
+        name=data.name,
+        display_name=data.display_name,
+        percentage=data.percentage,
+        amount=data.amount,
+    )
+    db.add(group)
+    db.commit()
+    db.refresh(group)
+    return group
+
+
+@router.put("/groups/{group_id}", response_model=BudgetGroupResponse)
+def update_budget_group(
+    group_id: int,
+    data: BudgetGroupUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update a budget group."""
+    group = (
+        db.query(BudgetGroup)
+        .filter(BudgetGroup.id == group_id, BudgetGroup.user_id == current_user.id)
+        .first()
+    )
+    if not group:
+        raise HTTPException(404, "Budget group not found")
+
+    if data.percentage is not None:
+        group.percentage = data.percentage
+    if data.amount is not None:
+        group.amount = data.amount
+    if data.is_active is not None:
+        group.is_active = data.is_active
+
+    db.commit()
+    db.refresh(group)
+    return group
+
+
+@router.post("/groups/init")
+def init_default_groups(
+    monthly_income: float,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Initialize default 50/30/20 budget groups based on monthly income."""
+    # Check if groups already exist
+    existing = (
+        db.query(BudgetGroup)
+        .filter(BudgetGroup.user_id == current_user.id)
+        .first()
+    )
+    if existing:
+        raise HTTPException(400, "Budget groups already initialized")
+
+    default_groups = [
+        {"name": "necesidades", "display_name": "Necesidades", "percentage": 50},
+        {"name": "gustos", "display_name": "Gustos", "percentage": 30},
+        {"name": "ahorro", "display_name": "Ahorro/Inversión", "percentage": 20},
+    ]
+
+    groups = []
+    for g in default_groups:
+        group = BudgetGroup(
+            user_id=current_user.id,
+            name=g["name"],
+            display_name=g["display_name"],
+            percentage=g["percentage"],
+            amount=round(monthly_income * g["percentage"] / 100, 2),
+        )
+        db.add(group)
+        groups.append(group)
+
+    db.commit()
+    for g in groups:
+        db.refresh(g)
+
+    return groups
+
+
+# ─── Budget Events ────────────────────────────────────────────────
+
+
+@router.get("/events", response_model=list[BudgetEventResponse])
+def list_budget_events(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List all budget events for the current user."""
+    events = (
+        db.query(BudgetEvent)
+        .filter(BudgetEvent.user_id == current_user.id, BudgetEvent.is_active == True)
+        .all()
+    )
+    result = []
+    for e in events:
+        cats = json.loads(e.categories) if e.categories else []
+        result.append(
+            BudgetEventResponse(
+                id=e.id,
+                name=e.name,
+                start_date=e.start_date.isoformat(),
+                end_date=e.end_date.isoformat(),
+                total_amount=e.total_amount,
+                spent=e.spent,
+                categories=cats,
+                is_active=e.is_active,
+            )
+        )
+    return result
+
+
+@router.post("/events", response_model=BudgetEventResponse)
+def create_budget_event(
+    data: BudgetEventCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Create a budget event (vacations, etc.)."""
+    try:
+        start = date.fromisoformat(data.start_date)
+        end = date.fromisoformat(data.end_date)
+    except ValueError:
+        raise HTTPException(400, "Invalid date format. Use YYYY-MM-DD")
+
+    if end < start:
+        raise HTTPException(400, "End date must be after start date")
+
+    event = BudgetEvent(
+        user_id=current_user.id,
+        name=data.name,
+        start_date=start,
+        end_date=end,
+        total_amount=data.total_amount,
+        categories=json.dumps(data.categories),
+    )
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+
+    return BudgetEventResponse(
+        id=event.id,
+        name=event.name,
+        start_date=event.start_date.isoformat(),
+        end_date=event.end_date.isoformat(),
+        total_amount=event.total_amount,
+        spent=event.spent,
+        categories=data.categories,
+        is_active=event.is_active,
+    )
+
+
+@router.put("/events/{event_id}", response_model=BudgetEventResponse)
+def update_budget_event(
+    event_id: int,
+    data: BudgetEventUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update a budget event."""
+    event = (
+        db.query(BudgetEvent)
+        .filter(BudgetEvent.id == event_id, BudgetEvent.user_id == current_user.id)
+        .first()
+    )
+    if not event:
+        raise HTTPException(404, "Budget event not found")
+
+    if data.name is not None:
+        event.name = data.name
+    if data.total_amount is not None:
+        event.total_amount = data.total_amount
+    if data.is_active is not None:
+        event.is_active = data.is_active
+
+    db.commit()
+    db.refresh(event)
+
+    cats = json.loads(event.categories) if event.categories else []
+    return BudgetEventResponse(
+        id=event.id,
+        name=event.name,
+        start_date=event.start_date.isoformat(),
+        end_date=event.end_date.isoformat(),
+        total_amount=event.total_amount,
+        spent=event.spent,
+        categories=cats,
+        is_active=event.is_active,
+    )
+
+
+@router.delete("/events/{event_id}")
+def delete_budget_event(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete a budget event."""
+    event = (
+        db.query(BudgetEvent)
+        .filter(BudgetEvent.id == event_id, BudgetEvent.user_id == current_user.id)
+        .first()
+    )
+    if not event:
+        raise HTTPException(404, "Budget event not found")
+
+    db.delete(event)
+    db.commit()
+    return {"ok": True}

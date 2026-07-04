@@ -120,6 +120,7 @@ class CategoryCreate(CategoryBase):
 
 class CategoryResponse(CategoryBase):
     id: int
+    budget_group: str = "necesidades"
     model_config = {"from_attributes": True}
 
 
@@ -127,11 +128,13 @@ class BudgetCreate(BaseModel):
     category_id: int
     amount: float
     alert_threshold: float = 0.80
+    rollover: bool = False
 
 
 class BudgetUpdate(BaseModel):
     amount: float | None = None
     alert_threshold: float | None = None
+    rollover: bool | None = None
     is_active: bool | None = None
 
 
@@ -142,6 +145,7 @@ class BudgetResponse(BaseModel):
     category_color: str = ""
     amount: float
     alert_threshold: float
+    rollover: bool
     is_active: bool
     model_config = {"from_attributes": True}
 
@@ -155,6 +159,56 @@ class BudgetSummaryItem(BaseModel):
     percentage: float
     status: str  # ok | warning | exceeded
     children: list["BudgetSummaryItem"] = []
+
+
+class BudgetGroupCreate(BaseModel):
+    name: str  # necesidades | gustos | ahorro
+    display_name: str
+    percentage: float
+    amount: float = 0
+
+
+class BudgetGroupUpdate(BaseModel):
+    percentage: float | None = None
+    amount: float | None = None
+    is_active: bool | None = None
+
+
+class BudgetGroupResponse(BaseModel):
+    id: int
+    name: str
+    display_name: str
+    percentage: float
+    amount: float
+    spent: float
+    is_active: bool
+    model_config = {"from_attributes": True}
+
+
+class BudgetEventCreate(BaseModel):
+    name: str
+    start_date: str  # YYYY-MM-DD
+    end_date: str
+    total_amount: float
+    categories: list[dict] = []  # [{category_id, amount}]
+
+
+class BudgetEventUpdate(BaseModel):
+    name: str | None = None
+    total_amount: float | None = None
+    is_active: bool | None = None
+
+
+class BudgetEventResponse(BaseModel):
+    id: int
+    name: str
+    start_date: str
+    end_date: str
+    total_amount: float
+    spent: float
+    categories: list[dict]
+    is_active: bool
+    model_config = {"from_attributes": True}
 
 
 class BudgetSummaryResponse(BaseModel):

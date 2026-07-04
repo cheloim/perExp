@@ -73,6 +73,7 @@ export interface Category {
   color: string;
   keywords: string;
   parent_id?: number | null;
+  budget_group: "necesidades" | "gustos" | "ahorro";
 }
 
 export interface Budget {
@@ -82,6 +83,7 @@ export interface Budget {
   category_color: string;
   amount: number;
   alert_threshold: number;
+  rollover: boolean;
   is_active: boolean;
 }
 
@@ -102,6 +104,37 @@ export interface BudgetSummaryResponse {
   total_spent: number;
   total_percentage: number;
   categories: BudgetSummaryItem[];
+}
+
+export interface BudgetGroup {
+  id: number;
+  name: string;
+  display_name: string;
+  percentage: number;
+  amount: number;
+  spent: number;
+  is_active: boolean;
+}
+
+export interface BudgetEvent {
+  id: number;
+  name: string;
+  start_date: string;
+  end_date: string;
+  total_amount: number;
+  spent: number;
+  categories: { category_id: number; amount: number }[];
+  is_active: boolean;
+}
+
+export interface BudgetSuggestion {
+  category_id: number;
+  category_name: string;
+  category_color: string;
+  avg_monthly: number;
+  suggested: number;
+  has_budget: boolean;
+  current_budget: number | null;
 }
 
 export interface Account {
