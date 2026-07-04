@@ -88,9 +88,7 @@ def check_budget_alerts():
 
             # Get all active budgets for this user
             budgets = (
-                db.query(Budget)
-                .filter(Budget.user_id == user.id, Budget.is_active == True)
-                .all()
+                db.query(Budget).filter(Budget.user_id == user.id, Budget.is_active == True).all()
             )
 
             for budget in budgets:

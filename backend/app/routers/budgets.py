@@ -90,7 +90,11 @@ def _build_category_summary(
             child_spent = _get_spending_for_category(child.id, year, month, uid_list, db)
             child_pct = child_spent / child_budget.amount if child_budget.amount > 0 else 0
             child_status = (
-                "exceeded" if child_pct >= 1.0 else "warning" if child_pct >= child_budget.alert_threshold else "ok"
+                "exceeded"
+                if child_pct >= 1.0
+                else "warning"
+                if child_pct >= child_budget.alert_threshold
+                else "ok"
             )
             children_items.append(
                 BudgetSummaryItem(
@@ -125,7 +129,9 @@ def list_budgets(
     current_user: User = Depends(get_current_user),
 ):
     """List all budgets for the current user."""
-    budgets = db.query(Budget).filter(Budget.user_id == current_user.id, Budget.is_active == True).all()
+    budgets = (
+        db.query(Budget).filter(Budget.user_id == current_user.id, Budget.is_active == True).all()
+    )
 
     result = []
     for b in budgets:
@@ -209,9 +215,7 @@ def update_budget(
 ):
     """Update a budget."""
     budget = (
-        db.query(Budget)
-        .filter(Budget.id == budget_id, Budget.user_id == current_user.id)
-        .first()
+        db.query(Budget).filter(Budget.id == budget_id, Budget.user_id == current_user.id).first()
     )
     if not budget:
         raise HTTPException(404, "Budget not found")
@@ -246,9 +250,7 @@ def delete_budget(
 ):
     """Delete a budget."""
     budget = (
-        db.query(Budget)
-        .filter(Budget.id == budget_id, Budget.user_id == current_user.id)
-        .first()
+        db.query(Budget).filter(Budget.id == budget_id, Budget.user_id == current_user.id).first()
     )
     if not budget:
         raise HTTPException(404, "Budget not found")
@@ -280,9 +282,7 @@ def budget_summary(
 
     # Get all active budgets
     budgets = (
-        db.query(Budget)
-        .filter(Budget.user_id == current_user.id, Budget.is_active == True)
-        .all()
+        db.query(Budget).filter(Budget.user_id == current_user.id, Budget.is_active == True).all()
     )
     budgets_map = {b.category_id: b for b in budgets}
 
