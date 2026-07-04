@@ -17,6 +17,7 @@
 | 11 | Make index.html interactive | ✅ Done | Medium | #73 | Click KPI cards to filter expenses, uncategorized warnings |
 | 12 | Billing period tracking | ⏳ In Progress | Medium | #36 | closing_day on Card, billing API, billing view toggle in Dashboard |
 | 13 | Missing categories notification | ✅ Done | Medium | #73 | Real-time notifications for uncategorized expenses on save + login |
+| 14 | FCI, Plazos Fijos y Cauciones | ⏳ Backlog | Medium | - | Support for Fondos Comunes de Inversión, Plazos Fijos, and Cauciones in investments module |
 
 ## Backlog Details
 
@@ -60,3 +61,11 @@ Generate a monthly summary report with:
 - Alert user when expenses are created without a category
 - Notification via Telegram bot or dashboard toast
 - Help ensure all expenses are properly categorized for better analysis
+
+### FCI, Plazos Fijos y Cauciones
+- **FCI (Fondos Comunes de Inversión)**: Track money market, fixed income, and equity funds
+- **Plazos Fijos**: Track fixed-term deposits with maturity dates and rates
+- **Cauciones**: Track overnight lending operations
+- Integration with existing investment portfolio
+- Separate tracking from stocks/ETFs
+- Maturity date alerts and reminders
