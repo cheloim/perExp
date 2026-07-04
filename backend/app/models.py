@@ -103,6 +103,8 @@ class Category(Base):
     budget_group = Column(String(20), default="necesidades")  # necesidades | gustos | ahorro
     expenses = relationship("Expense", back_populates="category")
     budgets = relationship("Budget", back_populates="category")
+    children = relationship("Category", back_populates="parent")
+    parent = relationship("Category", back_populates="children", remote_side="Category.id")
 
 
 class Budget(Base):
