@@ -100,7 +100,68 @@ class Category(Base):
     keywords = Column(Text, default="")
     parent_id = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    budget_group = Column(String(20), default="necesidades")  # necesidades | gustos | ahorro
     expenses = relationship("Expense", back_populates="category")
+    budgets = relationship("Budget", back_populates="category")
+    children = relationship("Category", back_populates="parent")
+    parent = relationship("Category", back_populates="children", remote_side="Category.id")
+
+
+class Budget(Base):
+    __tablename__ = "budgets"
+    __table_args__ = (
+        Index("ix_budgets_user_id", "user_id"),
+        Index("ix_budgets_category_id", "category_id"),
+        UniqueConstraint("user_id", "category_id", name="uq_budget_user_cat"),
+    )
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    category_id = Column(Integer, ForeignKey("categories.id", ondelete="CASCADE"), nullable=False)
+    amount = Column(Float, nullable=False)
+    alert_threshold = Column(Float, default=0.80)
+    rollover = Column(Boolean, default=False)  # Permitir excedente al mes siguiente
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, onupdate=datetime.utcnow)
+    category = relationship("Category", back_populates="budgets")
+
+
+class BudgetGroup(Base):
+    """Macro groups: Necesidades (50%), Gustos (30%), Ahorro (20%)"""
+    __tablename__ = "budget_groups"
+    __table_args__ = (
+        Index("ix_budget_groups_user_id", "user_id"),
+        UniqueConstraint("user_id", "name", name="uq_budget_group_user_name"),
+    )
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(20), nullable=False)  # necesidades | gustos | ahorro
+    display_name = Column(String(50), nullable=False)  # Necesidades, Gustos, Ahorro
+    percentage = Column(Float, nullable=False)  # 50, 30, 20
+    amount = Column(Float, default=0)  # Calculado del ingreso mensual
+    spent = Column(Float, default=0)  # Gastado este mes (cached)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, onupdate=datetime.utcnow)
+
+
+class BudgetEvent(Base):
+    """Presupuestos temporales para eventos (vacaciones, navidad, etc.)"""
+    __tablename__ = "budget_events"
+    __table_args__ = (
+        Index("ix_budget_events_user_id", "user_id"),
+    )
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(100), nullable=False)  # "Vacaciones Europa"
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    total_amount = Column(Float, nullable=False)
+    spent = Column(Float, default=0)
+    categories = Column(Text, default="[]")  # JSON: [{category_id, amount}]
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, onupdate=datetime.utcnow)
 
 
 class Account(Base):

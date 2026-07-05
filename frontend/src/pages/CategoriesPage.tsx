@@ -8,6 +8,8 @@ import {
   getExpenses,
   recategorizeExpenses,
   applyBaseHierarchy,
+  getBudgets,
+  createBudget,
 } from "../api/client";
 import type { Category } from "../types";
 import { Select } from "../components/ui/Select";
@@ -33,8 +35,9 @@ interface CategoryFormProps {
   isParentForm: boolean;
   parentCategories: Category[];
   onClose: () => void;
-  onSave: (data: Omit<Category, "id">) => void;
+  onSave: (data: Omit<Category, "id">, budgetAmount?: number) => void;
   isSaving?: boolean;
+  initialBudget?: number;
 }
 
 function CategoryForm({
@@ -44,6 +47,7 @@ function CategoryForm({
   onClose,
   onSave,
   isSaving = false,
+  initialBudget = 0,
 }: CategoryFormProps) {
   const [form, setForm] = useState<Omit<Category, "id">>(
     initial
@@ -52,14 +56,17 @@ function CategoryForm({
           color: initial.color,
           keywords: initial.keywords,
           parent_id: initial.parent_id ?? null,
+          budget_group: initial.budget_group ?? "necesidades",
         }
       : {
           name: "",
           color: "#3b82f6",
           keywords: "",
           parent_id: isParentForm ? null : (parentCategories[0]?.id ?? null),
+          budget_group: "necesidades",
         },
   );
+  const [budgetAmount, setBudgetAmount] = useState(initialBudget);
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 animate-modal-backdrop">
@@ -160,13 +167,61 @@ function CategoryForm({
               </p>
             </div>
           )}
+
+          {/* Budget group selector - for all categories */}
+          <div>
+            <label className="block text-xs font-medium text-tertiary mb-1.5">
+              Grupo de presupuesto
+            </label>
+            <Select
+              value={form.budget_group || "necesidades"}
+              onChange={(value) => setForm((p) => ({ ...p, budget_group: value }))}
+              options={[
+                { value: "necesidades", label: "Necesidades (50%)" },
+                { value: "gustos", label: "Gustos (30%)" },
+                { value: "ahorro", label: "Ahorro/Inversión (20%)" },
+              ]}
+              placeholder="Seleccionar grupo"
+            />
+            <p className="text-xs text-tertiary mt-1">
+              Asociá esta categoría a un grupo del 50/30/20.
+            </p>
+          </div>
+
+          {/* Budget field - only for subcategories */}
+          {!isParentForm && (
+            <div>
+              <label className="block text-xs font-medium text-tertiary mb-1.5">
+                Presupuesto mensual (opcional)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-tertiary text-sm">
+                  $
+                </span>
+                <input
+                  type="number"
+                  value={budgetAmount || ""}
+                  onChange={(e) => setBudgetAmount(parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  min="0"
+                  step="1000"
+                  className="input pl-7 placeholder:text-tertiary"
+                />
+              </div>
+              <p className="text-xs text-tertiary mt-1">
+                Límite mensual de gasto para esta categoría.
+              </p>
+            </div>
+          )}
         </div>
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-border-color">
           <button onClick={onClose} className="gnome-btn-secondary">
             Cancelar
           </button>
           <button
-            onClick={() => onSave({ ...form, keywords: isParentForm ? "" : form.keywords })}
+            onClick={() =>
+              onSave({ ...form, keywords: isParentForm ? "" : form.keywords }, budgetAmount)
+            }
             disabled={!form.name || isSaving}
             className="gnome-btn-primary"
           >
@@ -302,6 +357,11 @@ export default function CategoriesPage() {
     queryFn: () => getExpenses({ limit: 500 }),
   });
 
+  const { data: budgets = [] } = useQuery({
+    queryKey: ["budgets"],
+    queryFn: getBudgets,
+  });
+
   const countMap = useMemo(
     () =>
       allExpenses.reduce<Record<number, number>>((acc, e) => {
@@ -388,9 +448,13 @@ export default function CategoriesPage() {
     },
   });
 
-  const handleSave = (data: Omit<Category, "id">) => {
+  const handleSave = (data: Omit<Category, "id">, budgetAmount?: number) => {
     if (editing?.cat?.id) {
       updateMut.mutate({ id: editing.cat.id, data });
+      // Save budget separately
+      if (budgetAmount !== undefined && budgetAmount > 0) {
+        createBudget({ category_id: editing.cat.id, amount: budgetAmount });
+      }
     } else {
       createMut.mutate(data);
     }
@@ -777,6 +841,9 @@ export default function CategoriesPage() {
           onClose={() => setEditing(undefined)}
           onSave={handleSave}
           isSaving={createMut.isPending || updateMut.isPending}
+          initialBudget={
+            editing.cat ? (budgets.find((b) => b.category_id === editing.cat!.id)?.amount ?? 0) : 0
+          }
         />
       )}
 

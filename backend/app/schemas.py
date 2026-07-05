@@ -112,6 +112,7 @@ class CategoryBase(BaseModel):
     color: str = "#6366f1"
     keywords: str = ""
     parent_id: int | None = None
+    budget_group: str = "necesidades"  # necesidades | gustos | ahorro
 
 
 class CategoryCreate(CategoryBase):
@@ -121,6 +122,116 @@ class CategoryCreate(CategoryBase):
 class CategoryResponse(CategoryBase):
     id: int
     model_config = {"from_attributes": True}
+
+
+class BudgetCreate(BaseModel):
+    category_id: int
+    amount: float
+    alert_threshold: float = 0.80
+    rollover: bool = False
+
+
+class BudgetUpdate(BaseModel):
+    amount: float | None = None
+    alert_threshold: float | None = None
+    rollover: bool | None = None
+    is_active: bool | None = None
+
+
+class BudgetResponse(BaseModel):
+    id: int
+    category_id: int
+    category_name: str = ""
+    category_color: str = ""
+    amount: float
+    alert_threshold: float
+    rollover: bool
+    is_active: bool
+    model_config = {"from_attributes": True}
+
+
+class BudgetSummaryItem(BaseModel):
+    category_id: int
+    category_name: str
+    category_color: str
+    budget_amount: float
+    spent_amount: float
+    avg_monthly: float = 0  # Average spending over last 3 months
+    percentage: float
+    status: str  # ok | warning | exceeded | no_budget
+    has_budget: bool = False
+    children: list["BudgetSummaryItem"] = []
+
+
+class BudgetGroupCreate(BaseModel):
+    name: str  # necesidades | gustos | ahorro
+    display_name: str
+    percentage: float
+    amount: float = 0
+
+
+class BudgetGroupUpdate(BaseModel):
+    percentage: float | None = None
+    amount: float | None = None
+    is_active: bool | None = None
+
+
+class BudgetGroupCategory(BaseModel):
+    category_id: int
+    category_name: str
+    category_color: str
+    budget_amount: float
+    spent_amount: float
+    percentage: float
+    status: str  # ok | warning | exceeded
+
+
+class BudgetGroupResponse(BaseModel):
+    id: int
+    name: str
+    display_name: str
+    percentage: float
+    amount: float
+    spent: float
+    committed: float  # Sum of individual budgets
+    available: float  # amount - committed
+    categories: list[BudgetGroupCategory]
+    is_active: bool
+    model_config = {"from_attributes": True}
+
+
+class BudgetEventCreate(BaseModel):
+    name: str
+    start_date: str  # YYYY-MM-DD
+    end_date: str
+    total_amount: float
+    categories: list[dict] = []  # [{category_id, amount}]
+
+
+class BudgetEventUpdate(BaseModel):
+    name: str | None = None
+    total_amount: float | None = None
+    is_active: bool | None = None
+
+
+class BudgetEventResponse(BaseModel):
+    id: int
+    name: str
+    start_date: str
+    end_date: str
+    total_amount: float
+    spent: float
+    categories: list[dict]
+    is_active: bool
+    model_config = {"from_attributes": True}
+
+
+class BudgetSummaryResponse(BaseModel):
+    month: str
+    total_budget: float
+    total_spent: float
+    total_percentage: float
+    categories: list[BudgetSummaryItem]
 
 
 class AccountSimple(BaseModel):

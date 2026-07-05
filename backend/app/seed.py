@@ -4,7 +4,7 @@ from app.models import Category
 
 BASE_HIERARCHY = [
     {
-        "parent": {"name": "Alimentación", "color": "#ef4444"},
+        "parent": {"name": "Alimentación", "color": "#ef4444", "budget_group": "necesidades"},
         "children": [
             {
                 "name": "Supermercado",
@@ -29,7 +29,7 @@ BASE_HIERARCHY = [
         ],
     },
     {
-        "parent": {"name": "Transporte", "color": "#f97316"},
+        "parent": {"name": "Transporte", "color": "#f97316", "budget_group": "necesidades"},
         "children": [
             {
                 "name": "Combustible",
@@ -54,7 +54,7 @@ BASE_HIERARCHY = [
         ],
     },
     {
-        "parent": {"name": "Entretenimiento", "color": "#8b5cf6"},
+        "parent": {"name": "Entretenimiento", "color": "#8b5cf6", "budget_group": "gustos"},
         "children": [
             {
                 "name": "Streaming",
@@ -74,7 +74,7 @@ BASE_HIERARCHY = [
         ],
     },
     {
-        "parent": {"name": "Salud", "color": "#10b981"},
+        "parent": {"name": "Salud", "color": "#10b981", "budget_group": "necesidades"},
         "children": [
             {
                 "name": "Farmacia",
@@ -99,7 +99,7 @@ BASE_HIERARCHY = [
         ],
     },
     {
-        "parent": {"name": "Hogar & Servicios", "color": "#6366f1"},
+        "parent": {"name": "Hogar & Servicios", "color": "#6366f1", "budget_group": "necesidades"},
         "children": [
             {
                 "name": "Expensas",
@@ -124,7 +124,7 @@ BASE_HIERARCHY = [
         ],
     },
     {
-        "parent": {"name": "Indumentaria", "color": "#06b6d4"},
+        "parent": {"name": "Indumentaria", "color": "#06b6d4", "budget_group": "gustos"},
         "children": [
             {
                 "name": "Ropa",
@@ -144,7 +144,7 @@ BASE_HIERARCHY = [
         ],
     },
     {
-        "parent": {"name": "Educación", "color": "#f59e0b"},
+        "parent": {"name": "Educación", "color": "#f59e0b", "budget_group": "necesidades"},
         "children": [
             {
                 "name": "Cursos Online",
@@ -164,7 +164,7 @@ BASE_HIERARCHY = [
         ],
     },
     {
-        "parent": {"name": "Viajes", "color": "#14b8a6"},
+        "parent": {"name": "Viajes", "color": "#14b8a6", "budget_group": "gustos"},
         "children": [
             {
                 "name": "Alojamiento",
@@ -179,7 +179,7 @@ BASE_HIERARCHY = [
         ],
     },
     {
-        "parent": {"name": "Finanzas", "color": "#22c55e"},
+        "parent": {"name": "Finanzas", "color": "#22c55e", "budget_group": "ahorro"},
         "children": [
             {
                 "name": "Bonificación",
@@ -212,7 +212,7 @@ def _apply_base_hierarchy(db: Session) -> dict:
             parent_cat = db.query(Category).filter(Category.name == pd["name"]).first()
             if not parent_cat:
                 parent_cat = Category(
-                    name=pd["name"], color=pd["color"], keywords="", parent_id=None
+                    name=pd["name"], color=pd["color"], keywords="", parent_id=None, budget_group=pd.get("budget_group", "necesidades")
                 )
                 db.add(parent_cat)
                 db.flush()
@@ -221,7 +221,7 @@ def _apply_base_hierarchy(db: Session) -> dict:
                     existing_parent.parent_id = parent_cat.id
                     updated += 1
         else:
-            parent_cat = Category(name=pd["name"], color=pd["color"], keywords="", parent_id=None)
+            parent_cat = Category(name=pd["name"], color=pd["color"], keywords="", parent_id=None, budget_group=pd.get("budget_group", "necesidades"))
             db.add(parent_cat)
             db.flush()
             created += 1
@@ -260,7 +260,7 @@ def _apply_base_hierarchy_for_user(db: Session, user_id: int) -> dict:
 
         if not existing_parent:
             parent_cat = Category(
-                name=pd["name"], color=pd["color"], keywords="", parent_id=None, user_id=user_id
+                name=pd["name"], color=pd["color"], keywords="", parent_id=None, user_id=user_id, budget_group=pd.get("budget_group", "necesidades")
             )
             db.add(parent_cat)
             db.flush()
