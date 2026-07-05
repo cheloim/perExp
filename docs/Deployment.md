@@ -118,6 +118,7 @@ The `app-secrets.json` contains:
   "INVESTMENTS_LLM_API_KEY": "...",
   "MESSAGES_BOT_LLM_API_KEY": "...",
   "RESEND_API_KEY": "...",
+  "ADMIN_EMAIL": "...",
   "POSTGRES_PASSWORD_PROD": "...",
   "TELEGRAM_BOT_TOKEN_PROD": "...",
   "TELEGRAM_BOT_TOKEN_DEV": "..."
@@ -143,10 +144,24 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 
 ### Celery Beat Schedule
 
-| Schedule      | Task                          | Description                        |
-| ------------- | ----------------------------- | ---------------------------------- |
-| Daily 2:00 AM | `execute_due_installments`    | Execute pending scheduled expenses |
-| Daily 3:30 AM | `cleanup_expired_import_jobs` | Delete import jobs older than 24h  |
+| Schedule               | Task                          | Description                          |
+| ---------------------- | ----------------------------- | ------------------------------------ |
+| Daily 2:00 AM UTC      | `execute_due_installments`    | Execute pending scheduled expenses   |
+| Daily 3:30 AM UTC      | `cleanup_expired_import_jobs` | Delete import jobs older than 24h    |
+| Daily 10:00 UTC        | `check_budget_alerts`         | Send budget warnings via Telegram    |
+| Sunday 23:00 UTC       | `send_weekly_reports`         | Generate weekly spending reports     |
+| 1st of month 23:00 UTC | `generate_monthly_reports`    | Generate previous month reports      |
+
+### Report Failure Handling
+
+Monthly report generation has built-in resilience:
+
+- **Auto-retry**: `generate_single_report` retries up to 3 times with exponential backoff on transient errors (TimeoutError, OSError, ConnectionError)
+- **Failure marking**: Failed reports are marked as `FAILED` in the database with an error message
+- **Admin email alerts**: When all retries fail, an email is sent to `ADMIN_EMAIL` via Resend with error details (user_id, month, error, timestamp)
+- **In-app notifications**: Users receive a `monthly_report_failed` notification
+
+The `celery_worker` and `celery_beat` containers require `RESEND_API_KEY` and `ADMIN_EMAIL` in their environment for email alerts to work.
 
 ### Investment Price Refresh
 
@@ -207,6 +222,7 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 | `TELEGRAM_BOT_TOKEN_PROD`  | Production bot token         | -                           |
 | `TELEGRAM_BOT_TOKEN_DEV`   | Development bot token        | -                           |
 | `RESEND_API_KEY`           | Email service key            | -                           |
+| `ADMIN_EMAIL`              | Admin alert email address    | admin@financialplanning.com |
 | `JWT_EXPIRE_DAYS`          | Token expiry                 | 7                           |
 
 ### Frontend

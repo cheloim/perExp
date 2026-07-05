@@ -208,7 +208,8 @@ Add in `Settings → Secrets → Actions`:
   "GOOGLE_CLIENT_ID": "your-google-client-id",
   "GOOGLE_CLIENT_SECRET": "your-google-client-secret",
   "SECRET_KEY": "your-jwt-secret-key",
-  "RESEND_API_KEY": "your-resend-api-key"
+  "RESEND_API_KEY": "your-resend-api-key",
+  "ADMIN_EMAIL": "admin@yourdomain.com"
 }
 ```
 
@@ -228,6 +229,9 @@ source .env
 # Run migrations
 podman-compose run --rm --no-deps backend python -m scripts.migrate_add_reset_token
 podman-compose run --rm --no-deps backend python -m scripts.migrate_remove_haberes
+podman-compose run --rm --no-deps backend python -m scripts.migrate_encrypt_settings
+podman-compose run --rm --no-deps backend python -m scripts.migrate_add_monthly_reports
+podman-compose run --rm --no-deps backend python -m scripts.migrate_add_budgets
 
 # Restart services
 podman-compose down

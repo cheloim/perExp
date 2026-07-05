@@ -73,14 +73,22 @@ Authorization: Bearer {access_token}
 
 ### Dashboard (`/dashboard`)
 
-| Method | Endpoint                 | Description            |
-| ------ | ------------------------ | ---------------------- |
-| `GET`  | `/dashboard`             | Main dashboard summary |
-| `GET`  | `/dashboard/by-category` | Expenses by category   |
-| `GET`  | `/dashboard/by-period`   | Expenses by period     |
-| `GET`  | `/dashboard/by-currency` | Expenses by currency   |
-| `GET`  | `/dashboard/by-card`     | Expenses by card       |
-| `GET`  | `/dashboard/trends`      | AI trend analysis      |
+| Method | Endpoint                                    | Description                                      |
+| ------ | ------------------------------------------- | ------------------------------------------------ |
+| `GET`  | `/dashboard`                                | Main dashboard summary                           |
+| `GET`  | `/dashboard/by-category`                    | Expenses by category                             |
+| `GET`  | `/dashboard/by-period`                      | Expenses by period                               |
+| `GET`  | `/dashboard/by-currency`                    | Expenses by currency                             |
+| `GET`  | `/dashboard/by-card`                        | Expenses by card                                 |
+| `GET`  | `/dashboard/trends`                         | AI trend analysis                                |
+| `GET`  | `/dashboard/monthly-reports`                | List monthly reports                             |
+| `POST` | `/dashboard/monthly-reports/generate`       | Generate monthly report on-demand                |
+| `GET`  | `/dashboard/monthly-reports/{month}/download` | Download monthly report PNG                    |
+
+**Monthly report generation rules:**
+- **Previous months**: always available
+- **Current month**: available only after 20:00 on the last day of the month
+- **Future months**: rejected with 400
 
 ### Import Jobs (`/import-jobs`)
 
