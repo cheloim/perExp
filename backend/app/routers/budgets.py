@@ -576,7 +576,59 @@ def update_budget_group(
 
     db.commit()
     db.refresh(group)
-    return group
+
+    # Build proper response with computed fields
+    today = date.today()
+    uid_list = _get_group_user_ids(current_user.id, db)
+
+    categories = (
+        db.query(Category)
+        .filter(Category.budget_group == group.name, Category.user_id == current_user.id)
+        .all()
+    )
+
+    committed = 0.0
+    cat_items = []
+    for cat in categories:
+        budget = db.query(Budget).filter(
+            Budget.user_id == current_user.id,
+            Budget.category_id == cat.id,
+            Budget.is_active == True,
+        ).first()
+        budget_amount = budget.amount if budget else 0
+        committed += budget_amount
+
+        spent = _get_spending_for_category(cat.id, today.year, today.month, uid_list, db)
+        pct = spent / budget_amount if budget_amount > 0 else 0
+        status = (
+            "exceeded" if pct >= 1.0
+            else "warning" if pct >= (budget.alert_threshold if budget else 0.8)
+            else "ok"
+        )
+        cat_items.append(BudgetGroupCategory(
+            category_id=cat.id,
+            category_name=cat.name,
+            category_color=cat.color,
+            budget_amount=budget_amount,
+            spent_amount=round(spent, 2),
+            percentage=round(pct, 4),
+            status=status,
+        ))
+
+    spent = _get_spending_for_group(group.name, today.year, today.month, uid_list, db)
+
+    return BudgetGroupResponse(
+        id=group.id,
+        name=group.name,
+        display_name=group.display_name,
+        percentage=group.percentage,
+        amount=group.amount,
+        spent=round(spent, 2),
+        committed=round(committed, 2),
+        available=round(group.amount - committed, 2),
+        categories=cat_items,
+        is_active=group.is_active,
+    )
 
 
 @router.post("/groups/init")

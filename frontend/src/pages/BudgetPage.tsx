@@ -22,7 +22,6 @@ function BudgetGroupCard({
   group: BudgetGroup;
   onEdit: (group: BudgetGroup) => void;
 }) {
-  const [expanded, setExpanded] = useState(true);
   const committedPct = group.amount > 0 ? (group.committed / group.amount) * 100 : 0;
   const spentPct = group.amount > 0 ? (group.spent / group.amount) * 100 : 0;
   const status = spentPct >= 100 ? "exceeded" : spentPct >= 80 ? "warning" : "ok";
@@ -51,12 +50,6 @@ function BudgetGroupCard({
       <div className="p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setExpanded(!expanded)}
-              className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
-            >
-              {expanded ? "▼" : "▶"}
-            </button>
             <h3 className="text-sm font-semibold text-primary">{group.display_name}</h3>
             <span
               className="text-xs font-medium"
@@ -111,22 +104,6 @@ function BudgetGroupCard({
           </div>
         )}
       </div>
-
-      {/* Expandable categories */}
-      {expanded && group.categories && group.categories.length > 0 && (
-        <div className="border-t border-[var(--border-color)] p-4 space-y-2">
-          {group.categories.map((cat) => (
-            <BudgetCategoryBar
-              key={cat.category_id}
-              name={cat.category_name}
-              color={cat.category_color}
-              spent={cat.spent_amount}
-              budget={cat.budget_amount}
-              threshold={0.8}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -693,46 +670,47 @@ export default function BudgetPage() {
         </div>
       )}
 
-      {/* Overall Budget Summary */}
-      {summary && summary.total_budget > 0 && (
-        <div className="card p-5 mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
-              Resumen General
-            </h2>
-            <span className="text-xs text-[var(--text-tertiary)]">{summary.month}</span>
-          </div>
-          <div className="flex items-center gap-6">
-            <div className="flex-1">
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-primary">
-                  {formatCurrency(summary.total_spent)}
-                </span>
-                <span className="text-sm text-[var(--text-secondary)]">
-                  / {formatCurrency(summary.total_budget)}
-                </span>
+      {/* Overall Budget Summary - from groups */}
+      {groups.length > 0 && (() => {
+        const groupTotalBudget = groups.reduce((sum, g) => sum + g.amount, 0);
+        const groupTotalSpent = groups.reduce((sum, g) => sum + g.spent, 0);
+        const groupTotalPct = groupTotalBudget > 0 ? groupTotalSpent / groupTotalBudget : 0;
+        const summaryStatus = groupTotalPct >= 1 ? "error" : groupTotalPct >= 0.8 ? "warning" : "success";
+
+        return (
+          <div className="card p-5 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
+                Resumen General
+              </h2>
+            </div>
+            <div className="flex items-center gap-6">
+              <div className="flex-1">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold text-primary">
+                    {formatCurrency(groupTotalSpent)}
+                  </span>
+                  <span className="text-sm text-[var(--text-secondary)]">
+                    / {formatCurrency(groupTotalBudget)}
+                  </span>
+                </div>
+                <div className="mt-3 h-4 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.min(groupTotalPct * 100, 100)}%`,
+                      backgroundColor: `var(--color-${summaryStatus})`,
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-[var(--text-tertiary)] mt-2">
+                  {Math.round(groupTotalPct * 100)}% del presupuesto utilizado
+                </p>
               </div>
-              <div className="mt-3 h-4 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{
-                    width: `${Math.min(summary.total_percentage * 100, 100)}%`,
-                    backgroundColor:
-                      summary.total_percentage >= 1
-                        ? "var(--color-error)"
-                        : summary.total_percentage >= 0.8
-                          ? "var(--color-warning)"
-                          : "var(--color-success)",
-                  }}
-                />
-              </div>
-              <p className="text-xs text-[var(--text-tertiary)] mt-2">
-                {Math.round(summary.total_percentage * 100)}% del presupuesto utilizado
-              </p>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Quick Budget Configuration */}
       <div className="mb-6">
