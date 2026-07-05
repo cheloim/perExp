@@ -78,9 +78,20 @@ function ReportsTab() {
   );
   const monthOptions = [];
   const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-indexed
+
   for (let i = 0; i < 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+    // Skip current month if before 20:00 UTC-3 on last day
+    if (d.getFullYear() === currentYear && d.getMonth() === currentMonth) {
+      const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      const deadlineUTC = new Date(Date.UTC(d.getFullYear(), d.getMonth(), lastDay, 23, 0, 0));
+      if (now < deadlineUTC) continue;
+    }
+
     if (!generatedMonths.has(monthStr)) {
       const monthName = MONTHS_ES[d.getMonth()];
       monthOptions.push({
