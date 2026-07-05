@@ -112,6 +112,7 @@ class CategoryBase(BaseModel):
     color: str = "#6366f1"
     keywords: str = ""
     parent_id: int | None = None
+    budget_group: str = "necesidades"  # necesidades | gustos | ahorro
 
 
 class CategoryCreate(CategoryBase):
@@ -120,7 +121,6 @@ class CategoryCreate(CategoryBase):
 
 class CategoryResponse(CategoryBase):
     id: int
-    budget_group: str = "necesidades"
     model_config = {"from_attributes": True}
 
 

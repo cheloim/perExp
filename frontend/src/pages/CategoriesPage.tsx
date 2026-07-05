@@ -56,12 +56,14 @@ function CategoryForm({
           color: initial.color,
           keywords: initial.keywords,
           parent_id: initial.parent_id ?? null,
+          budget_group: initial.budget_group ?? "necesidades",
         }
       : {
           name: "",
           color: "#3b82f6",
           keywords: "",
           parent_id: isParentForm ? null : (parentCategories[0]?.id ?? null),
+          budget_group: "necesidades",
         },
   );
   const [budgetAmount, setBudgetAmount] = useState(initialBudget);
@@ -165,6 +167,26 @@ function CategoryForm({
               </p>
             </div>
           )}
+
+          {/* Budget group selector - for all categories */}
+          <div>
+            <label className="block text-xs font-medium text-tertiary mb-1.5">
+              Grupo de presupuesto
+            </label>
+            <Select
+              value={form.budget_group || "necesidades"}
+              onChange={(value) => setForm((p) => ({ ...p, budget_group: value }))}
+              options={[
+                { value: "necesidades", label: "Necesidades (50%)" },
+                { value: "gustos", label: "Gustos (30%)" },
+                { value: "ahorro", label: "Ahorro/Inversión (20%)" },
+              ]}
+              placeholder="Seleccionar grupo"
+            />
+            <p className="text-xs text-tertiary mt-1">
+              Asociá esta categoría a un grupo del 50/30/20.
+            </p>
+          </div>
 
           {/* Budget field - only for subcategories */}
           {!isParentForm && (
