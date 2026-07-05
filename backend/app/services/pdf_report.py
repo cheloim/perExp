@@ -367,16 +367,19 @@ def generate_report_image(report_data: dict, user_name: str) -> bytes:
 
     # Generate PNG image with Playwright
     with sync_playwright() as p:
-        browser = p.chromium.launch(args=["--no-sandbox", "--disable-dev-shm-usage"])
+        browser = p.chromium.launch(
+            args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
+        )
         page = browser.new_page(
             viewport={"width": 1080, "height": 1600},
             device_scale_factor=2,  # Retina quality
         )
         page.set_content(html_content, wait_until="networkidle")
         page.emulate_media(media="screen")
+        page.wait_for_timeout(2000)
 
         # Take screenshot of the full page
-        png_bytes = page.screenshot(full_page=True, type="png")
+        png_bytes = page.screenshot(full_page=True, type="png", timeout=60000)
         browser.close()
 
     return png_bytes

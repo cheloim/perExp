@@ -127,7 +127,9 @@ def generate_weekly_report_image(report_data: dict) -> bytes:
 
     # Generate PNG image with Playwright
     with sync_playwright() as p:
-        browser = p.chromium.launch(args=["--no-sandbox", "--disable-dev-shm-usage"])
+        browser = p.chromium.launch(
+            args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
+        )
         page = browser.new_page(
             viewport={"width": 800, "height": 600},
             device_scale_factor=2,  # Retina quality
@@ -140,7 +142,7 @@ def generate_weekly_report_image(report_data: dict) -> bytes:
         page.set_viewport_size({"width": 800, "height": content_height})
 
         # Take screenshot of the full page
-        png_bytes = page.screenshot(full_page=True, type="png")
+        png_bytes = page.screenshot(full_page=True, type="png", timeout=60000)
         browser.close()
 
     return png_bytes
