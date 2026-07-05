@@ -664,11 +664,19 @@ Usa flags para tendencias preocupantes a monitorear."""
     }
 
 
-@celery_app.task(name="app.tasks.monthly_report.generate_single_report")
-def generate_single_report(user_id: int, month_str: str):
+@celery_app.task(
+    name="app.tasks.monthly_report.generate_single_report",
+    bind=True,
+    max_retries=3,
+    retry_backoff=True,
+    retry_backoff_max=60,
+    autoretry_for=(TimeoutError, OSError, ConnectionError),
+)
+def generate_single_report(self, user_id: int, month_str: str):
     """
     Generate a single monthly report for a user.
     Called on-demand from the API. Creates notification when done.
+    Retries up to 3 times on transient errors (timeout, OS, connection).
     """
     db = SessionLocal()
     try:
@@ -696,7 +704,17 @@ def generate_single_report(user_id: int, month_str: str):
         user_name = (
             user.full_name if user and user.full_name else (user.email if user else "Usuario")
         )
-        png_bytes = generate_report_image(report_data, user_name)
+        try:
+            png_bytes = generate_report_image(report_data, user_name)
+        except Exception as e:
+            # Mark as failed on final attempt
+            if self.request.retries >= self.max_retries:
+                raise
+            # Retry on transient errors
+            if isinstance(e, (TimeoutError, OSError, ConnectionError)):
+                raise
+            # Non-retryable error — fail immediately
+            raise
 
         # Update report
         report.report_data = json.dumps(report_data)
@@ -753,6 +771,12 @@ def generate_single_report(user_id: int, month_str: str):
             )
             db.add(notification)
             db.commit()
+
+            # Send email alert to admin
+            from app.services.email import send_report_failure_email
+
+            send_report_failure_email(user_id, month_str, str(e))
+
         except Exception:
             db.rollback()
 
@@ -822,6 +846,25 @@ def generate_monthly_reports():
 
             except Exception as e:
                 print(f"[MONTHLY REPORT] Error generating for user {user.id}: {e}")
+
+                # Mark as failed
+                try:
+                    failed_report = MonthlyReport(
+                        user_id=user.id,
+                        month=month_str,
+                        status="FAILED",
+                        error_message=str(e)[:500],
+                    )
+                    db.add(failed_report)
+                    db.commit()
+
+                    # Send email alert to admin
+                    from app.services.email import send_report_failure_email
+
+                    send_report_failure_email(user.id, month_str, str(e))
+                except Exception:
+                    db.rollback()
+
                 continue
 
         db.commit()
