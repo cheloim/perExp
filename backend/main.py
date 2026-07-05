@@ -21,6 +21,7 @@ from app.routers import (
     accounts,
     analysis,
     auth,
+    budgets,
     card_closings,
     cards,
     categories,
@@ -99,6 +100,7 @@ app.include_router(auth.router)
 app.include_router(accounts.router)
 app.include_router(cards.router)
 app.include_router(categories.router)
+app.include_router(budgets.router)
 app.include_router(card_closings.router)
 app.include_router(expenses.router)
 app.include_router(investments.router)
