@@ -130,17 +130,17 @@ function BudgetCategoryBar({
   return (
     <div className="flex items-center gap-3 py-2">
       <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-      <span className="text-xs text-[var(--text-primary)] min-w-[120px] truncate font-medium">{name}</span>
-      <div className="flex-1 h-3 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+      <span className="text-xs text-[var(--text-primary)] min-w-[100px] truncate font-medium">{name}</span>
+      <div className="flex-1 h-3 bg-[var(--color-base-alt)] rounded-full overflow-hidden min-w-[100px]">
         <div
           className="h-full rounded-full transition-all"
           style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }}
         />
       </div>
-      <span className="text-xs text-[var(--text-secondary)] w-32 text-right">
+      <span className="text-xs text-[var(--text-secondary)] whitespace-nowrap">
         {formatCurrency(spent)} / {formatCurrency(budget)}
       </span>
-      <span className={`text-xs font-medium w-12 text-right ${status === "exceeded" ? "text-[var(--color-error)]" : status === "warning" ? "text-[var(--color-warning)]" : "text-[var(--text-tertiary)]"}`}>
+      <span className={`text-xs font-medium w-12 text-right whitespace-nowrap ${status === "exceeded" ? "text-[var(--color-error)]" : status === "warning" ? "text-[var(--color-warning)]" : "text-[var(--text-tertiary)]"}`}>
         {Math.round(pct)}%
       </span>
     </div>
