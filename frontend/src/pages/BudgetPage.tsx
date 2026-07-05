@@ -643,34 +643,68 @@ export default function BudgetPage() {
           </div>
         </div>
       ) : (
-        <div className="card p-6 mb-6 text-center">
-          <h3 className="text-base font-semibold text-primary mb-2">
-            Inicializá tu presupuesto 50/30/20
-          </h3>
-          <p className="text-sm text-[var(--text-secondary)] mb-4">
-            Distribuí tu ingreso mensual en 3 macro grupos
-          </p>
-          <div className="flex items-center justify-center gap-2 max-w-xs mx-auto">
-            <span className="text-sm text-[var(--text-secondary)]">$</span>
-            <input
-              type="number"
-              value={incomeInput}
-              onChange={(e) => setIncomeInput(e.target.value)}
-              placeholder="Ingreso mensual"
-              className="input flex-1"
-            />
+        <div className="card p-8 mb-6">
+          <div className="text-center mb-6">
+            <h3 className="text-lg font-semibold text-primary mb-2">
+              Inicializá tu presupuesto 50/30/20
+            </h3>
+            <p className="text-sm text-[var(--text-secondary)]">
+              Distribuí tu ingreso mensual en 3 macro grupos
+            </p>
+          </div>
+
+          {/* Preview de grupos */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div className="p-4 rounded-xl border border-[var(--border-color)] text-center">
+              <div className="w-10 h-10 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center mx-auto mb-2">
+                <span className="text-[var(--color-primary)] font-bold">50%</span>
+              </div>
+              <p className="text-sm font-semibold text-primary">Necesidades</p>
+              <p className="text-xs text-[var(--text-tertiary)] mt-1">Alimentación, Transporte, Salud, Hogar</p>
+            </div>
+            <div className="p-4 rounded-xl border border-[var(--border-color)] text-center">
+              <div className="w-10 h-10 rounded-full bg-[var(--color-warning)]/10 flex items-center justify-center mx-auto mb-2">
+                <span className="text-[var(--color-warning)] font-bold">30%</span>
+              </div>
+              <p className="text-sm font-semibold text-primary">Gustos</p>
+              <p className="text-xs text-[var(--text-tertiary)] mt-1">Entretenimiento, Salidas, Ropa</p>
+            </div>
+            <div className="p-4 rounded-xl border border-[var(--border-color)] text-center">
+              <div className="w-10 h-10 rounded-full bg-[var(--color-success)]/10 flex items-center justify-center mx-auto mb-2">
+                <span className="text-[var(--color-success)] font-bold">20%</span>
+              </div>
+              <p className="text-sm font-semibold text-primary">Ahorro</p>
+              <p className="text-xs text-[var(--text-tertiary)] mt-1">Inversiones, Ahorro</p>
+            </div>
+          </div>
+
+          {/* Input de ingreso */}
+          <div className="max-w-md mx-auto">
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2 text-center">
+              ¿Cuánto ganás por mes?
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="text-lg text-[var(--text-secondary)]">$</span>
+              <input
+                type="number"
+                value={incomeInput}
+                onChange={(e) => setIncomeInput(e.target.value)}
+                placeholder="500,000"
+                className="input flex-1 text-lg py-3"
+              />
+            </div>
             <button
               onClick={handleInitGroups}
               disabled={!incomeInput || initGroupsMutation.isPending}
-              className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
+              className="w-full mt-4 px-4 py-3 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
             >
-              {initGroupsMutation.isPending ? "..." : "Crear"}
+              {initGroupsMutation.isPending ? "Creando..." : "Crear mi presupuesto"}
             </button>
           </div>
         </div>
       )}
 
-      {/* Overall Budget Summary - from groups */}
+      {/* Resumen General + Configuración Rápida - 2 columns */}
       {groups.length > 0 && (() => {
         const groupTotalBudget = groups.reduce((sum, g) => sum + g.amount, 0);
         const groupTotalSpent = groups.reduce((sum, g) => sum + g.spent, 0);
@@ -678,119 +712,121 @@ export default function BudgetPage() {
         const summaryStatus = groupTotalPct >= 1 ? "error" : groupTotalPct >= 0.8 ? "warning" : "success";
 
         return (
-          <div className="card p-5 mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            {/* Resumen General - 2/3 */}
+            <div className="lg:col-span-2 card p-5">
+              <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">
                 Resumen General
               </h2>
-            </div>
-            <div className="flex items-center gap-6">
-              <div className="flex-1">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-primary">
-                    {formatCurrency(groupTotalSpent)}
-                  </span>
-                  <span className="text-sm text-[var(--text-secondary)]">
-                    / {formatCurrency(groupTotalBudget)}
-                  </span>
+              <div className="flex items-center gap-6">
+                <div className="flex-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-primary">
+                      {formatCurrency(groupTotalSpent)}
+                    </span>
+                    <span className="text-sm text-[var(--text-secondary)]">
+                      / {formatCurrency(groupTotalBudget)}
+                    </span>
+                  </div>
+                  <div className="mt-3 h-4 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${Math.min(groupTotalPct * 100, 100)}%`,
+                        backgroundColor: `var(--color-${summaryStatus})`,
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-[var(--text-tertiary)] mt-2">
+                    {Math.round(groupTotalPct * 100)}% del presupuesto utilizado
+                  </p>
                 </div>
-                <div className="mt-3 h-4 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${Math.min(groupTotalPct * 100, 100)}%`,
-                      backgroundColor: `var(--color-${summaryStatus})`,
-                    }}
-                  />
-                </div>
-                <p className="text-xs text-[var(--text-tertiary)] mt-2">
-                  {Math.round(groupTotalPct * 100)}% del presupuesto utilizado
-                </p>
               </div>
+            </div>
+
+            {/* Configuración Rápida - 1/3 */}
+            <div className="card p-5">
+              <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">
+                Configuración
+              </h2>
+              <p className="text-xs text-[var(--text-tertiary)] mb-4">
+                Definí límites mensuales para cada categoría
+              </p>
+              <button
+                onClick={() => setShowQuickConfig(true)}
+                className="w-full px-4 py-2.5 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90"
+              >
+                + Agregar/Editar Presupuesto
+              </button>
             </div>
           </div>
         );
       })()}
 
-      {/* Quick Budget Configuration */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
-            Configuración Rápida
-          </h2>
-          <button
-            onClick={() => setShowQuickConfig(true)}
-            className="text-xs px-3 py-1.5 bg-[var(--color-primary)] text-white rounded-lg hover:opacity-90"
-          >
-            + Agregar/Editar Presupuesto
-          </button>
+      {/* Presupuestos por Categoría + Eventos - 2 columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        {/* Presupuestos - 2/3 */}
+        <div className="lg:col-span-2">
+          {summary && summary.categories.length > 0 && (
+            <div className="card p-5">
+              <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">
+                Presupuestos por Categoría
+              </h2>
+              {summary.categories.map((cat) => (
+                <div key={cat.category_id}>
+                  <BudgetCategoryBar
+                    name={cat.category_name}
+                    color={cat.category_color}
+                    spent={cat.spent_amount}
+                    budget={cat.budget_amount}
+                    threshold={0.8}
+                  />
+                  {cat.children.map((child) => (
+                    <div key={child.category_id} className="pl-6">
+                      <BudgetCategoryBar
+                        name={child.category_name}
+                        color={child.category_color}
+                        spent={child.spent_amount}
+                        budget={child.budget_amount}
+                        threshold={0.8}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        <p className="text-xs text-[var(--text-tertiary)]">
-          Definí límites mensuales para cada categoría
-        </p>
-      </div>
 
-      {/* Category Budgets by Group */}
-      {summary && summary.categories.length > 0 && (
-        <div className="mb-6">
+        {/* Eventos - 1/3 */}
+        <div className="card p-5">
           <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">
-            Presupuestos por Categoría
+            Eventos Temporales
           </h2>
-          <div className="card p-5">
-            {summary.categories.map((cat) => (
-              <div key={cat.category_id}>
-                <BudgetCategoryBar
-                  name={cat.category_name}
-                  color={cat.category_color}
-                  spent={cat.spent_amount}
-                  budget={cat.budget_amount}
-                  threshold={0.8}
+          {events.length > 0 ? (
+            <div className="space-y-3">
+              {events.map((event) => (
+                <BudgetEventCard
+                  key={event.id}
+                  event={event}
+                  onDelete={(id) => deleteEventMutation.mutate(id)}
                 />
-                {cat.children.map((child) => (
-                  <div key={child.category_id} className="pl-6">
-                    <BudgetCategoryBar
-                      name={child.category_name}
-                      color={child.category_color}
-                      spent={child.spent_amount}
-                      budget={child.budget_amount}
-                      threshold={0.8}
-                    />
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <p className="text-xs text-[var(--text-tertiary)] mb-2">
+                No hay eventos temporales
+              </p>
+              <button
+                onClick={() => setShowNewEvent(true)}
+                className="text-xs text-[var(--color-primary)] hover:underline"
+              >
+                + Crear evento
+              </button>
+            </div>
+          )}
         </div>
-      )}
-
-      {/* Budget Events */}
-      <div className="mb-6">
-        <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">
-          Eventos Temporales
-        </h2>
-        {events.length > 0 ? (
-          <div className="space-y-3">
-            {events.map((event) => (
-              <BudgetEventCard
-                key={event.id}
-                event={event}
-                onDelete={(id) => deleteEventMutation.mutate(id)}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="card p-6 text-center">
-            <p className="text-sm text-[var(--text-tertiary)]">
-              No hay eventos temporales creados
-            </p>
-            <button
-              onClick={() => setShowNewEvent(true)}
-              className="mt-2 text-sm text-[var(--color-primary)] hover:underline"
-            >
-              + Crear primer evento
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Suggestions */}
