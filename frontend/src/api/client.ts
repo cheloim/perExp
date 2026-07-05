@@ -1,8 +1,6 @@
 import axios from "axios";
 import type {
   Account,
-  Budget,
-  BudgetSummaryResponse,
   Card,
   AuthToken,
   User,
@@ -90,70 +88,6 @@ export const updateCategory = (id: number, data: Omit<Category, "id">) =>
   api.put<Category>(`/categories/${id}`, data).then((r) => r.data);
 
 export const deleteCategory = (id: number) => api.delete(`/categories/${id}`).then((r) => r.data);
-
-// Budgets
-export const getBudgets = () => api.get<Budget[]>("/budgets").then((r) => r.data);
-
-export const createBudget = (data: {
-  category_id: number;
-  amount: number;
-  alert_threshold?: number;
-  rollover?: boolean;
-}) => api.post<Budget>("/budgets", data).then((r) => r.data);
-
-export const updateBudget = (
-  id: number,
-  data: { amount?: number; alert_threshold?: number; rollover?: boolean; is_active?: boolean },
-) => api.put<Budget>(`/budgets/${id}`, data).then((r) => r.data);
-
-export const deleteBudget = (id: number) => api.delete(`/budgets/${id}`).then((r) => r.data);
-
-export const getBudgetSummary = (month?: string) => {
-  const params = month ? { month } : {};
-  return api.get<BudgetSummaryResponse>("/budgets/summary", { params }).then((r) => r.data);
-};
-
-export const getBudgetSuggestions = () =>
-  api.get<{ suggestions: BudgetSuggestion[] }>("/budgets/suggest").then((r) => r.data);
-
-// Budget Groups (50/30/20)
-export const getBudgetGroups = () => api.get<BudgetGroup[]>("/budgets/groups").then((r) => r.data);
-
-export const createBudgetGroup = (data: {
-  name: string;
-  display_name: string;
-  percentage: number;
-  amount?: number;
-}) => api.post<BudgetGroup>("/budgets/groups", data).then((r) => r.data);
-
-export const updateBudgetGroup = (
-  id: number,
-  data: { percentage?: number; amount?: number; is_active?: boolean },
-) => api.put<BudgetGroup>(`/budgets/groups/${id}`, data).then((r) => r.data);
-
-export const initBudgetGroups = (monthly_income: number) =>
-  api
-    .post<BudgetGroup[]>("/budgets/groups/init", null, { params: { monthly_income } })
-    .then((r) => r.data);
-
-// Budget Events
-export const getBudgetEvents = () => api.get<BudgetEvent[]>("/budgets/events").then((r) => r.data);
-
-export const createBudgetEvent = (data: {
-  name: string;
-  start_date: string;
-  end_date: string;
-  total_amount: number;
-  categories?: { category_id: number; amount: number }[];
-}) => api.post<BudgetEvent>("/budgets/events", data).then((r) => r.data);
-
-export const updateBudgetEvent = (
-  id: number,
-  data: { name?: string; total_amount?: number; is_active?: boolean },
-) => api.put<BudgetEvent>(`/budgets/events/${id}`, data).then((r) => r.data);
-
-export const deleteBudgetEvent = (id: number) =>
-  api.delete(`/budgets/events/${id}`).then((r) => r.data);
 
 // Expenses
 export const getExpenses = (params?: {

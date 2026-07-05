@@ -643,7 +643,6 @@ jobs:
             podman-compose run --rm --no-deps backend python -m scripts.migrate_remove_haberes
             podman-compose run --rm --no-deps backend python -m scripts.migrate_encrypt_settings
             podman-compose run --rm --no-deps backend python -m scripts.migrate_add_monthly_reports
-            podman-compose run --rm --no-deps backend python -m scripts.migrate_add_budgets
             echo "Migrations complete"
 
   restart-and-verify:
