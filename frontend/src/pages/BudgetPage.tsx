@@ -613,7 +613,7 @@ export default function BudgetPage() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -679,7 +679,7 @@ export default function BudgetPage() {
           </div>
 
           {/* Input de ingreso */}
-          <div className="max-w-md mx-auto">
+          <div className="max-w-lg mx-auto">
             <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2 text-center">
               ¿Cuánto ganás por mes?
             </label>
