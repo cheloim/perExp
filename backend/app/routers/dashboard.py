@@ -2,7 +2,7 @@ import json
 import os
 from calendar import monthrange
 from collections import Counter, defaultdict
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse
@@ -800,6 +800,26 @@ def generate_monthly_report(
         month_str = f"{y}-{m_int:02d}"
     except (ValueError, IndexError):
         raise HTTPException(400, "Invalid month format. Use YYYY-MM.")
+
+    # Validate month range
+    if m_int < 1 or m_int > 12:
+        raise HTTPException(400, "Invalid month. Use a value between 01 and 12.")
+
+    # Validate: cannot generate current month before 20:00 on last day
+    today = date.today()
+    last_day = monthrange(y, m_int)[1]
+    deadline = datetime(y, m_int, last_day, 20, 0, 0)
+
+    if y == today.year and m_int == today.month and datetime.now() < deadline:
+        month_name = MONTHS_ES.get(m_int, str(m_int))
+        raise HTTPException(
+            400,
+            f"El reporte de {month_name} {y} estará disponible después de las 20:00 del {last_day} de {month_name}.",
+        )
+
+    # Reject future months
+    if date(y, m_int, 1) > today.replace(day=1):
+        raise HTTPException(400, "No se pueden generar reportes de meses futuros.")
 
     # Check if already exists and ready
     existing = (
