@@ -19,8 +19,4 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.monthly_report.generate_monthly_reports",
         "schedule": crontab(hour=23, minute=0, day_of_month="1"),  # 20:00 UTC-3 = 23:00 UTC
     },
-    "check-budget-alerts-daily": {
-        "task": "app.tasks.budgets.check_budget_alerts",
-        "schedule": crontab(hour=10, minute=0),  # 10:00 UTC = 07:00 ARS
-    },
 }
