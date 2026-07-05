@@ -805,12 +805,12 @@ def generate_monthly_report(
     if m_int < 1 or m_int > 12:
         raise HTTPException(400, "Invalid month. Use a value between 01 and 12.")
 
-    # Validate: cannot generate current month before 20:00 on last day (UTC-3)
+    # Validate: cannot generate current month before 20:00 on last day
     today = date.today()
     last_day = monthrange(y, m_int)[1]
-    deadline = datetime(y, m_int, last_day, 23, 0, 0)  # 23:00 UTC = 20:00 UTC-3
+    deadline = datetime(y, m_int, last_day, 20, 0, 0)
 
-    if y == today.year and m_int == today.month and datetime.utcnow() < deadline:
+    if y == today.year and m_int == today.month and datetime.now() < deadline:
         month_name = MONTHS_ES.get(m_int, str(m_int))
         raise HTTPException(
             400,
