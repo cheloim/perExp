@@ -116,13 +116,44 @@ function BudgetCategoryBar({
   spent,
   budget,
   threshold,
+  avgMonthly = 0,
+  onAddBudget,
 }: {
   name: string;
   color: string;
   spent: number;
   budget: number;
   threshold: number;
+  avgMonthly?: number;
+  onAddBudget?: () => void;
 }) {
+  // No budget case
+  if (budget === 0) {
+    return (
+      <div className="flex items-center gap-3 py-2">
+        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+        <span className="text-xs text-[var(--text-primary)] min-w-[100px] truncate font-medium">{name}</span>
+        <span className="text-xs text-[var(--text-secondary)] whitespace-nowrap">
+          {formatCurrency(spent)}
+        </span>
+        {avgMonthly > 0 && (
+          <span className="text-xs text-[var(--text-tertiary)] whitespace-nowrap">
+            (prom: {formatCurrency(avgMonthly)})
+          </span>
+        )}
+        {onAddBudget && (
+          <button
+            onClick={onAddBudget}
+            className="text-xs text-[var(--color-primary)] hover:underline whitespace-nowrap"
+          >
+            + Agregar
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // With budget case
   const pct = budget > 0 ? (spent / budget) * 100 : 0;
   const status = pct >= 100 ? "exceeded" : pct >= threshold * 100 ? "warning" : "ok";
   const barColor = status === "exceeded" ? "var(--color-error)" : status === "warning" ? "var(--color-warning)" : color;
@@ -780,6 +811,8 @@ export default function BudgetPage() {
                     spent={cat.spent_amount}
                     budget={cat.budget_amount}
                     threshold={0.8}
+                    avgMonthly={cat.avg_monthly}
+                    onAddBudget={() => setShowQuickConfig(true)}
                   />
                   {cat.children.map((child) => (
                     <div key={child.category_id} className="pl-6">
@@ -789,6 +822,8 @@ export default function BudgetPage() {
                         spent={child.spent_amount}
                         budget={child.budget_amount}
                         threshold={0.8}
+                        avgMonthly={child.avg_monthly}
+                        onAddBudget={() => setShowQuickConfig(true)}
                       />
                     </div>
                   ))}

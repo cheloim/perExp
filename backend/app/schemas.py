@@ -156,8 +156,10 @@ class BudgetSummaryItem(BaseModel):
     category_color: str
     budget_amount: float
     spent_amount: float
+    avg_monthly: float = 0  # Average spending over last 3 months
     percentage: float
-    status: str  # ok | warning | exceeded
+    status: str  # ok | warning | exceeded | no_budget
+    has_budget: bool = False
     children: list["BudgetSummaryItem"] = []
 
 
