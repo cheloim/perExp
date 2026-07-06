@@ -239,11 +239,7 @@ def send_weekly_reports():
         week_key = start.isoformat()
 
         # Global dedup: check if weekly report was already sent for this week
-        global_setting = (
-            db.query(Setting)
-            .filter(Setting.key == "weekly_report_last_sent")
-            .first()
-        )
+        global_setting = db.query(Setting).filter(Setting.key == "weekly_report_last_sent").first()
         if global_setting and global_setting.value == week_key:
             print(f"[WEEKLY REPORT] Already sent for week {week_key}, skipping")
             return
