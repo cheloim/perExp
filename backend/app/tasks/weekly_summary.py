@@ -236,6 +236,17 @@ def send_weekly_reports():
     db = SessionLocal()
     try:
         start, end = _get_week_range()
+        week_key = start.isoformat()
+
+        # Global dedup: check if weekly report was already sent for this week
+        global_setting = (
+            db.query(Setting)
+            .filter(Setting.key == "weekly_report_last_sent")
+            .first()
+        )
+        if global_setting and global_setting.value == week_key:
+            print(f"[WEEKLY REPORT] Already sent for week {week_key}, skipping")
+            return
 
         # Get all users with Telegram connected
         users = db.query(User).filter(User.telegram_chat_id.isnot(None)).all()
@@ -291,6 +302,14 @@ def send_weekly_reports():
                 continue
 
         print(f"[WEEKLY REPORT] Sent {sent_count} weekly reports")
+
+        # Mark week as sent to prevent duplicate dispatches on restart
+        if sent_count > 0:
+            if global_setting:
+                global_setting.value = week_key
+            else:
+                db.add(Setting(key="weekly_report_last_sent", value=week_key))
+            db.commit()
     except Exception as e:
         print(f"[WEEKLY REPORT] Error: {e}")
         db.rollback()
