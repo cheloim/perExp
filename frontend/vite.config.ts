@@ -38,6 +38,10 @@ export default defineConfig({
         target: 'http://backend_dev:8000',
         changeOrigin: true,
       },
+      '/budgets': {
+        target: 'http://backend_dev:8000',
+        changeOrigin: true,
+      },
     },
   },
 })
