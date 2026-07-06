@@ -62,6 +62,15 @@ async def lifespan(application: FastAPI):
             db.execute(_t(f"UPDATE {_tbl} SET user_id = :uid WHERE user_id IS NULL"), {"uid": seed_user.id})
 
     db.commit()
+
+    # Auto-verify existing users created before email verification was added
+    unverified = db.query(User).filter(User.email_verified == False).all()  # noqa: E712
+    if unverified:
+        for u in unverified:
+            u.email_verified = True
+        db.commit()
+        logging.getLogger(__name__).info(f"Auto-verified {len(unverified)} existing users")
+
     db.close()
 
     task = asyncio.create_task(price_refresh_loop())
