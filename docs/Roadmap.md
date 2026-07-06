@@ -18,6 +18,7 @@
 | 12 | Billing period tracking | ❌ Not Done | Medium | #63 | Cancelled: Monthly filtering is sufficient. Billing view adds complexity without enough value for expense analysis and saving plans |
 | 13 | Missing categories notification | ✅ Done | Medium | #73 | Real-time notifications for uncategorized expenses on save + login |
 | 14 | FCI, Plazos Fijos y Cauciones | ⏳ Backlog | Medium | - | Support for Fondos Comunes de Inversión, Plazos Fijos, and Cauciones in investments module |
+| 15 | Enable MFA for user accounts | ⏳ Backlog | Medium | - | Multi-factor authentication (TOTP) for enhanced account security |
 
 ## Backlog Details
 
@@ -69,3 +70,9 @@ Generate a monthly summary report with:
 - Integration with existing investment portfolio
 - Separate tracking from stocks/ETFs
 - Maturity date alerts and reminders
+
+### Enable MFA for User Accounts
+- TOTP-based multi-factor authentication (Google Authenticator, Authy, etc.)
+- QR code setup flow in UserPanel settings
+- Backup recovery codes for account recovery
+- Optional enforcement per user

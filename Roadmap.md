@@ -32,6 +32,7 @@
 - Create ticket scan feature to analyze market buys. Effort Medium.
     - Allow comparison same items last month.
  - Allow creation of budgets for expenses.
+- Enable MFA for user accounts. Effort Medium.
 
 ## Done
 1. ~~Allow edit card/account by clicking in that account in UserPanel --> Accounts~~ → Made card/account rows clickable to enter edit mode; ··· menu now only shows Delete option
