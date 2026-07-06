@@ -71,6 +71,9 @@ export const forgotPassword = (email: string) =>
 export const resetPassword = (token: string, new_password: string) =>
   api.post("/auth/reset-password", { token, new_password }).then((r) => r.data);
 
+export const forceChangePassword = (token: string, new_password: string) =>
+  api.post<AuthToken>("/auth/force-change-password", { token, new_password }).then((r) => r.data);
+
 export const getTelegramKey = () =>
   api.get<{ telegram_key: string }>("/auth/me/telegram-key").then((r) => r.data);
 export const getTelegramStatus = () =>

@@ -13,6 +13,7 @@ from app.models import AuditLog, User
 from app.schemas import (
     ChangePasswordRequest,
     EmailVerificationRequest,
+    ForceChangePasswordRequest,
     ForgotPasswordRequest,
     LoginRequest,
     MFALoginRequest,
@@ -126,6 +127,16 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
             access_token=partial_token,
             token_type="bearer",
             mfa_required=True,
+        )
+
+    # Check forced password change
+    if user.force_password_change:
+        force_token = create_access_token(user.id, expires_minutes=5)
+        _log_audit(db, user.id, "login_force_password_change", request)
+        return Token(
+            access_token=force_token,
+            token_type="bearer",
+            force_password_change=True,
         )
 
     _log_audit(db, user.id, "login_success", request)
@@ -397,8 +408,46 @@ def change_password(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Contraseña actual incorrecta"
         )
     current_user.hashed_password = get_password_hash(body.new_password)
+    current_user.force_password_change = False
     db.commit()
     _log_audit(db, current_user.id, "password_changed", request)
+
+
+@router.post("/force-change-password", response_model=Token)
+def force_change_password(
+    body: ForceChangePasswordRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Force password change using a short-lived token (no current password required)."""
+    from jose import JWTError, jwt
+
+    from app.services.auth import ALGORITHM, SECRET_KEY
+
+    try:
+        payload = jwt.decode(body.token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str | None = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Token inválido")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token inválido o expirado")
+
+    user = db.get(User, int(user_id))
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+    if not user.force_password_change:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se requiere cambio de contraseña",
+        )
+
+    user.hashed_password = get_password_hash(body.new_password)
+    user.force_password_change = False
+    db.commit()
+
+    _log_audit(db, user.id, "force_password_changed", request)
+    return Token(access_token=create_access_token(user.id), token_type="bearer")
 
 
 class TelegramKeyResponse(BaseModel):

@@ -41,6 +41,8 @@ class User(Base):
     # Security: Email verification
     email_verified = Column(Boolean, default=False)
     email_verification_token = Column(String(64), nullable=True, unique=True, index=True)
+    # Security: Forced password change
+    force_password_change = Column(Boolean, default=False)
 
 
 class Group(Base):

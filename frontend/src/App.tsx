@@ -246,7 +246,7 @@ function MainLayout() {
                   <span className="relative w-5 h-5 flex-shrink-0 flex items-center justify-center">
                     {sidebarIcons.bell}
                     {unreadCount > 0 && (
-                      <span className="absolute -top-1.5 -right-1.5 bg-[#ed333b] text-white text-[10px] font-semibold rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5">
+                      <span className="absolute -top-1.5 -right-1.5 bg-[#ed333b] text-white text-[10px] font-semibold rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5 animate-pulse">
                         {unreadCount > 9 ? "9+" : unreadCount}
                       </span>
                     )}

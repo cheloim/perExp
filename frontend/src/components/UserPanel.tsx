@@ -409,6 +409,10 @@ export default function UserPanel({ open, onClose }: Props) {
       setPwError("Debe contener al menos un número");
       return;
     }
+    if (!/[!@#$%^&*()\-_+=<>?/[\]{}|]/.test(newPw)) {
+      setPwError("Debe contener al menos un carácter especial (!@#$%^&*...)");
+      return;
+    }
     changePwMut.mutate();
   };
 

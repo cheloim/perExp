@@ -1,10 +1,19 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { forgotPassword, login, register, storeToken } from "../api/client";
+import {
+  forgotPassword,
+  forceChangePassword,
+  login,
+  register,
+  storeToken,
+} from "../api/client";
+
+const SPECIAL_CHARS = /[!@#$%^&*()\-_+=<>?/[\]{}|]/;
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"login" | "register" | "forgot">("login");
+  const [mode, setMode] = useState<"login" | "register" | "forgot" | "force-change">("login");
+  const [forceToken, setForceToken] = useState("");
 
   return (
     <div className="min-h-screen bg-base flex items-center justify-center px-4">
@@ -22,6 +31,10 @@ export default function LoginPage() {
           <LoginForm
             onRegister={() => setMode("register")}
             onForgotPassword={() => setMode("forgot")}
+            onForceChange={(token) => {
+              setForceToken(token);
+              setMode("force-change");
+            }}
             onSuccess={() => navigate("/")}
           />
         )}
@@ -29,6 +42,13 @@ export default function LoginPage() {
           <RegisterForm onLogin={() => setMode("login")} onSuccess={() => navigate("/")} />
         )}
         {mode === "forgot" && <ForgotPasswordForm onBack={() => setMode("login")} />}
+        {mode === "force-change" && (
+          <ForceChangeForm
+            token={forceToken}
+            onSuccess={() => navigate("/")}
+            onBack={() => setMode("login")}
+          />
+        )}
       </div>
     </div>
   );
@@ -37,10 +57,12 @@ export default function LoginPage() {
 function LoginForm({
   onRegister,
   onForgotPassword,
+  onForceChange,
   onSuccess,
 }: {
   onRegister: () => void;
   onForgotPassword: () => void;
+  onForceChange: (token: string) => void;
   onSuccess: () => void;
 }) {
   const [email, setEmail] = useState("");
@@ -54,6 +76,10 @@ function LoginForm({
     setLoading(true);
     try {
       const token = await login(email.trim().toLowerCase(), password);
+      if (token.force_password_change) {
+        onForceChange(token.access_token);
+        return;
+      }
       storeToken(token.access_token);
       onSuccess();
     } catch {
@@ -275,6 +301,10 @@ function RegisterForm({ onLogin, onSuccess }: { onLogin: () => void; onSuccess: 
       setError("La contraseña debe contener al menos un número");
       return;
     }
+    if (!SPECIAL_CHARS.test(password)) {
+      setError("La contraseña debe contener al menos un carácter especial (!@#$%^&*...)");
+      return;
+    }
     setLoading(true);
     try {
       const token = await register(nombre.trim(), email.trim().toLowerCase(), password);
@@ -362,7 +392,9 @@ function RegisterForm({ onLogin, onSuccess }: { onLogin: () => void; onSuccess: 
             required
             className="input"
           />
-          <span className="text-xs text-[var(--text-tertiary)]">Mínimo 8 caracteres, 1 mayúscula, 1 minúscula, 1 número</span>
+          <span className="text-xs text-[var(--text-tertiary)]">
+            Mín. 8 caracteres, 1 mayúscula, 1 minúscula, 1 número, 1 especial (!@#$%^&*...)
+          </span>
         </div>
 
         <div className="flex flex-col gap-1">
@@ -396,6 +428,134 @@ function RegisterForm({ onLogin, onSuccess }: { onLogin: () => void; onSuccess: 
           className="text-[var(--color-primary)] hover:underline font-medium"
         >
           Iniciar sesión
+        </button>
+      </p>
+    </div>
+  );
+}
+
+function ForceChangeForm({
+  token,
+  onSuccess,
+  onBack,
+}: {
+  token: string;
+  onSuccess: () => void;
+  onBack: () => void;
+}) {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    if (password !== confirm) {
+      setError("Las contraseñas no coinciden");
+      return;
+    }
+    if (password.length < 8) {
+      setError("La contraseña debe tener al menos 8 caracteres");
+      return;
+    }
+    if (!/[A-Z]/.test(password)) {
+      setError("La contraseña debe contener al menos una mayúscula");
+      return;
+    }
+    if (!/[a-z]/.test(password)) {
+      setError("La contraseña debe contener al menos una minúscula");
+      return;
+    }
+    if (!/[0-9]/.test(password)) {
+      setError("La contraseña debe contener al menos un número");
+      return;
+    }
+    if (!SPECIAL_CHARS.test(password)) {
+      setError("La contraseña debe contener al menos un carácter especial (!@#$%^&*...)");
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await forceChangePassword(token, password);
+      storeToken(result.access_token);
+      onSuccess();
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail;
+      setError(typeof detail === "string" ? detail : "Error al cambiar contraseña. Intentá de nuevo.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-gnome p-6 flex flex-col gap-4">
+      <div>
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+          Cambio de contraseña obligatorio
+        </h2>
+        <p className="text-sm text-[var(--text-secondary)] mt-1">
+          Por seguridad, debés crear una nueva contraseña que cumpla con los requisitos de
+          seguridad actualizados.
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <label
+            className="text-sm font-medium text-[var(--text-primary)]"
+            htmlFor="force-new-pw"
+          >
+            Nueva contraseña
+          </label>
+          <input
+            id="force-new-pw"
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            required
+            className="input"
+          />
+          <span className="text-xs text-[var(--text-tertiary)]">
+            Mín. 8 caracteres, 1 mayúscula, 1 minúscula, 1 número, 1 especial (!@#$%^&*...)
+          </span>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label
+            className="text-sm font-medium text-[var(--text-primary)]"
+            htmlFor="force-confirm-pw"
+          >
+            Confirmar contraseña
+          </label>
+          <input
+            id="force-confirm-pw"
+            type="password"
+            autoComplete="new-password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="••••••••"
+            required
+            className="input"
+          />
+        </div>
+
+        {error && <div className="alert-error">{error}</div>}
+
+        <button type="submit" disabled={loading} className="gnome-btn-primary w-full mt-1">
+          {loading ? "Guardando..." : "Guardar nueva contraseña"}
+        </button>
+      </form>
+
+      <p className="text-center text-sm text-[var(--text-tertiary)]">
+        <button
+          type="button"
+          onClick={onBack}
+          className="text-[var(--color-primary)] hover:underline font-medium"
+        >
+          Volver al inicio de sesión
         </button>
       </p>
     </div>
