@@ -259,8 +259,20 @@ function RegisterForm({ onLogin, onSuccess }: { onLogin: () => void; onSuccess: 
       setError("Las contraseñas no coinciden");
       return;
     }
-    if (password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres");
+    if (password.length < 8) {
+      setError("La contraseña debe tener al menos 8 caracteres");
+      return;
+    }
+    if (!/[A-Z]/.test(password)) {
+      setError("La contraseña debe contener al menos una mayúscula");
+      return;
+    }
+    if (!/[a-z]/.test(password)) {
+      setError("La contraseña debe contener al menos una minúscula");
+      return;
+    }
+    if (!/[0-9]/.test(password)) {
+      setError("La contraseña debe contener al menos un número");
       return;
     }
     setLoading(true);
@@ -346,11 +358,11 @@ function RegisterForm({ onLogin, onSuccess }: { onLogin: () => void; onSuccess: 
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Mínimo 6 caracteres"
+            placeholder="••••••••"
             required
             className="input"
           />
-          <span className="text-xs text-[var(--text-tertiary)]">Mínimo 6 caracteres</span>
+          <span className="text-xs text-[var(--text-tertiary)]">Mínimo 8 caracteres, 1 mayúscula, 1 minúscula, 1 número</span>
         </div>
 
         <div className="flex flex-col gap-1">

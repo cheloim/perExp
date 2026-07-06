@@ -53,6 +53,26 @@ class OAuthRequest(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    mfa_required: bool = False
+    mfa_setup_required: bool = False
+
+
+class MFASetupResponse(BaseModel):
+    secret: str
+    qr_code: str
+
+
+class MFAVerifyRequest(BaseModel):
+    code: str
+
+
+class MFALoginRequest(BaseModel):
+    token: str
+    code: str
+
+
+class EmailVerificationRequest(BaseModel):
+    token: str
 
 
 class ChangePasswordRequest(BaseModel):

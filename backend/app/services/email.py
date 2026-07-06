@@ -54,6 +54,46 @@ def send_password_reset_email(to: str, token: str, base_url: str) -> bool:
         return False
 
 
+def send_verification_email(to: str, token: str, base_url: str) -> bool:
+    if not resend_api_key:
+        logger.warning("RESEND_API_KEY not set — cannot send verification email")
+        return False
+
+    verify_url = f"{base_url}/verify-email?token={token}"
+
+    html = f"""
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
+      <div style="text-align: center; margin-bottom: 32px;">
+        <div style="display: inline-block; width: 48px; height: 48px; border-radius: 8px; background: #3b82f6; color: white; font-weight: bold; font-size: 20px; line-height: 48px;">F</div>
+      </div>
+      <h1 style="font-size: 20px; font-weight: 600; color: #1a1a1a; margin-bottom: 8px;">Verificar tu email</h1>
+      <p style="color: #666; font-size: 14px; line-height: 1.5; margin-bottom: 24px;">
+        Gracias por registrarte en Financial Planning. Verificá tu email haciendo clic en el botón de abajo.
+      </p>
+      <div style="text-align: center; margin-bottom: 24px;">
+        <a href="{verify_url}" style="display: inline-block; padding: 12px 24px; background: #3b82f6; color: white; text-decoration: none; border-radius: 6px; font-weight: 500; font-size: 14px;">Verificar email</a>
+      </div>
+      <p style="color: #999; font-size: 12px; line-height: 1.5;">
+        Este enlace expira en 24 horas. Si no te registraste, podés ignorar este email.
+      </p>
+    </div>
+    """
+
+    try:
+        params: resend.Emails.SendParams = {
+            "from": FROM_EMAIL,
+            "to": [to],
+            "subject": "Verificar tu email — Financial Planning",
+            "html": html,
+        }
+        result = resend.Emails.send(params)
+        logger.info(f"Verification email sent to {to}: {result}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send verification email to {to}: {e}")
+        return False
+
+
 def send_report_failure_email(user_id: int, month_str: str, error: str) -> bool:
     if not resend_api_key:
         logger.warning("RESEND_API_KEY not set — cannot send report failure email")

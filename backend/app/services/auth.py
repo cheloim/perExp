@@ -14,6 +14,11 @@ from app.models import User
 SECRET_KEY = os.getenv("SECRET_KEY", "")
 if not SECRET_KEY:
     raise RuntimeError("SECRET_KEY environment variable is required")
+if len(SECRET_KEY) < 32:
+    raise RuntimeError(
+        "SECRET_KEY must be at least 32 characters. "
+        'Generate one with: python -c "import secrets; print(secrets.token_urlsafe(64))"'
+    )
 ALGORITHM = "HS256"
 JWT_EXPIRE_DAYS = int(os.getenv("JWT_EXPIRE_DAYS", "7"))
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
@@ -35,8 +40,11 @@ def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
-def create_access_token(user_id: int) -> str:
-    expire = datetime.now(UTC) + timedelta(days=JWT_EXPIRE_DAYS)
+def create_access_token(user_id: int, expires_minutes: int | None = None) -> str:
+    if expires_minutes:
+        expire = datetime.now(UTC) + timedelta(minutes=expires_minutes)
+    else:
+        expire = datetime.now(UTC) + timedelta(days=JWT_EXPIRE_DAYS)
     return jwt.encode({"sub": str(user_id), "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
 
 

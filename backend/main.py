@@ -29,6 +29,7 @@ from app.routers import (
     groups,
     import_jobs,
     investments,
+    mfa,
     notifications,
     scheduled_expenses,
 )
@@ -52,6 +53,7 @@ async def lifespan(application: FastAPI):
             email=seed_email,
             full_name=os.getenv("SEED_USER_NAME", "Admin"),
             hashed_password=get_password_hash(os.getenv("SEED_USER_PASSWORD", "changeme123")),
+            email_verified=True,
         )
         db.add(seed_user)
         db.flush()
@@ -96,6 +98,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(mfa.router)
 app.include_router(accounts.router)
 app.include_router(cards.router)
 app.include_router(categories.router)

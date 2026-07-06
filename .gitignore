@@ -33,3 +33,4 @@ package-lock.json
 secrets/
 backend/secrets/
 frontend/secrets/
+backend/alembic.ini
