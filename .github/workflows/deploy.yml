@@ -416,7 +416,7 @@ jobs:
 
               celery_beat:
                 image: ${BACKEND_IMAGE}:${IMAGE_TAG}
-                command: celery -A app.celery_app beat --loglevel=info --schedule=/tmp/celerybeat-schedule
+                command: celery -A app.celery_app beat --loglevel=info
                 depends_on:
                   - db
                   - redis

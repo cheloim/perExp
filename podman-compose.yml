@@ -125,7 +125,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile.dev
     user: "1000:1000"
-    command: celery -A app.celery_app beat --loglevel=info --schedule=/tmp/celerybeat-schedule
+    command: celery -A app.celery_app beat --loglevel=info
     secrets:
       - creditcard_backend_dev_postgres_password
       - creditcard_backend_dev_llm_api_key
