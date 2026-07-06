@@ -749,5 +749,5 @@ jobs:
           port: 43422
           script: |
             echo "Cleaning up old images..."
-            podman image prune -f 2>/dev/null || true
+            podman system prune -af 2>/dev/null || true
             echo "Cleanup complete"
