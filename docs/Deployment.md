@@ -148,7 +148,6 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 | ---------------------- | ----------------------------- | ------------------------------------ |
 | Daily 2:00 AM UTC      | `execute_due_installments`    | Execute pending scheduled expenses   |
 | Daily 3:30 AM UTC      | `cleanup_expired_import_jobs` | Delete import jobs older than 24h    |
-| Daily 10:00 UTC        | `check_budget_alerts`         | Send budget warnings via Telegram    |
 | Sunday 23:00 UTC       | `send_weekly_reports`         | Generate weekly spending reports     |
 | 1st of month 23:00 UTC | `generate_monthly_reports`    | Generate previous month reports      |
 
