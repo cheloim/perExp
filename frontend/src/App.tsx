@@ -3,6 +3,7 @@ import { Routes, Route, NavLink, useLocation, Navigate } from "react-router-dom"
 import AIAssistant from "./components/AIAssistant";
 import InvestmentsAssistant from "./components/InvestmentsAssistant";
 import UserPanel from "./components/UserPanel";
+import { APP_NAME } from "./config";
 import NotificationsPanel from "./components/NotificationsPanel";
 import ImportUploadButton from "./components/ImportUploadButton";
 import { usePanelWidth } from "./context/PanelWidthContext";
@@ -147,7 +148,7 @@ function MainLayout() {
                 A
               </div>
               <span className="text-sm font-semibold text-[var(--color-on-sidebar)] whitespace-nowrap overflow-hidden w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300 tracking-tight">
-                NikoFin
+                {APP_NAME}
               </span>
             </div>
 
@@ -290,7 +291,7 @@ function MainLayout() {
                   A
                 </div>
                 <span className="font-semibold text-[var(--color-on-sidebar)] tracking-tight">
-                  NikoFin
+                  {APP_NAME}
                 </span>
               </div>
             </header>

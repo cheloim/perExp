@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis } from "recharts";
+import { APP_NAME } from "../config";
 import {
   getDashboard,
   getCardSummary,
@@ -336,7 +337,7 @@ export default function Dashboard() {
       {/* Page header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold text-primary">NikoFin</h1>
+          <h1 className="text-2xl font-semibold text-primary">{APP_NAME}</h1>
           {myGroup && myGroup.members.length > 1 && (
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
               Grupo familiar

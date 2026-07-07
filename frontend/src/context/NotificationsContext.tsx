@@ -8,6 +8,7 @@ import {
   ReactNode,
 } from "react";
 import type { Notification } from "../types";
+import { APP_NAME } from "../config";
 import {
   markNotificationRead,
   markAllNotificationsRead,
@@ -69,9 +70,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   // Update page title with unread count
   useEffect(() => {
     if (state.unreadCount > 0) {
-      document.title = `(${state.unreadCount > 9 ? "9+" : state.unreadCount}) NikoFin`;
+      document.title = `(${state.unreadCount > 9 ? "9+" : state.unreadCount}) ${APP_NAME}`;
     } else {
-      document.title = "NikoFin";
+      document.title = APP_NAME;
     }
   }, [state.unreadCount]);
 

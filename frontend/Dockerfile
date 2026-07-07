@@ -2,6 +2,9 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
+ARG VITE_APP_ENV=development
+ENV VITE_APP_ENV=$VITE_APP_ENV
+
 COPY package.json package-lock.json ./
 RUN npm ci --prefer-offline
 
