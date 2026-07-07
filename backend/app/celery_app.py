@@ -24,8 +24,8 @@ celery_app.conf.update(
     # Acknowledge tasks only after completion (enables retry on worker worker)
     task_acks_late=True,
     task_reject_on_worker_lost=True,
-    # Beat schedule file in writable directory (volume-mounted /app/app)
-    beat_schedule_filename="/app/app/celerybeat-schedule",
+    # Beat schedule file — use env var or default to /tmp (always writable)
+    beat_schedule_filename=os.getenv("CELERY_BEAT_SCHEDULE_FILENAME", "/tmp/celerybeat-schedule"),
 )
 celery_app.autodiscover_tasks(["app.tasks"])
 
