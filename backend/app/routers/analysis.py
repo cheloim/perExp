@@ -121,8 +121,8 @@ TOP 10 GASTOS MÁS ALTOS:
                 if chunk.text:
                     accumulated_text.append(chunk.text)
                     yield f"data: {json.dumps({'text': chunk.text})}\n\n"
-        except Exception as e:
-            yield f"data: {json.dumps({'text': f'Error: {e}'})}\n\n"
+        except Exception:
+            yield f"data: {json.dumps({'text': 'Error al procesar la solicitud'})}\n\n"
 
         if accumulated_text:
             hist_db = SessionLocal()
@@ -205,8 +205,8 @@ async def summarize_chat(
             ):
                 if chunk.text:
                     yield f"data: {_json.dumps({'text': chunk.text})}\n\n"
-        except Exception as e:
-            yield f"data: {_json.dumps({'text': f'Error: {e}'})}\n\n"
+        except Exception:
+            yield f"data: {_json.dumps({'text': 'Error al procesar la solicitud'})}\n\n"
         yield "data: [DONE]\n\n"
 
     return _SR(

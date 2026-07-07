@@ -22,7 +22,11 @@ def _get_encryptor():
     """Get Fernet encryptor using SECRET_KEY."""
     from cryptography.fernet import Fernet
 
-    secret = os.getenv("SECRET_KEY", "fallback-dev-key-change-in-prod")
+    secret = os.getenv("SECRET_KEY", "")
+    if not secret:
+        raise RuntimeError("SECRET_KEY environment variable is required for encryption")
+    if len(secret) < 32:
+        raise RuntimeError("SECRET_KEY must be at least 32 characters")
     key = hashlib.sha256(secret.encode()).digest()
     fernet_key = __import__("base64").urlsafe_b64encode(key)
     return Fernet(fernet_key)
@@ -1016,8 +1020,8 @@ async def investments_chat_stream(
             ):
                 if chunk.text:
                     yield f"data: {json.dumps({'text': chunk.text})}\n\n"
-        except Exception as e:
-            yield f"data: {json.dumps({'text': f'Error: {e}'})}\n\n"
+        except Exception:
+            yield f"data: {json.dumps({'text': 'Error al procesar la solicitud'})}\n\n"
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(

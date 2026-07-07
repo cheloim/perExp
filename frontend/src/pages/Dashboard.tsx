@@ -191,11 +191,12 @@ export default function Dashboard() {
   });
 
   // Check for uncategorized expenses (triggers notification on login)
-  useQuery({
+  const uncategorizedQuery = useQuery({
     queryKey: ["uncategorized-count"],
     queryFn: getUncategorizedCount,
     staleTime: 300_000,
   });
+  const uncategorizedCount = uncategorizedQuery.data?.count ?? 0;
 
   // Calculate savings by currency
   const savingsArs = useMemo(
@@ -347,6 +348,26 @@ export default function Dashboard() {
           <span>Nuevo gasto</span>
         </button>
       </div>
+
+      {/* Uncategorized expenses banner */}
+      {uncategorizedCount > 0 && (
+        <button
+          onClick={() => navigate("/expenses?uncategorized=1")}
+          className="w-full flex items-center gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 transition-colors cursor-pointer"
+        >
+          <span className="text-lg">⚠</span>
+          <div className="text-left">
+            <p className="text-sm font-medium">
+              Tenés {uncategorizedCount} gasto{uncategorizedCount !== 1 ? "s" : ""} sin categorí
+              {uncategorizedCount !== 1 ? "as" : "a"}
+            </p>
+            <p className="text-xs opacity-70">
+              Asigná categorías para un mejor análisis de tus gastos
+            </p>
+          </div>
+          <span className="ml-auto text-xs opacity-50">→</span>
+        </button>
+      )}
 
       {/* KPI Row */}
       <div

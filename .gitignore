@@ -27,9 +27,9 @@ Plan.md
 *.log
 *.txt
 last_check
-package-lock.json
 
 # Secrets
 secrets/
 backend/secrets/
 frontend/secrets/
+backend/alembic.ini

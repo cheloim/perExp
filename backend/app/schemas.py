@@ -7,6 +7,24 @@ from pydantic import BaseModel, computed_field, field_serializer, field_validato
 
 from app.services.date_utils import _normalize_date_str
 
+SPECIAL_CHARS = "!@#$%^&*()-_+=<>?/[]{}|"
+
+
+def _validate_password_strength(v: str) -> str:
+    if len(v) < 8:
+        raise ValueError("La contraseña debe tener al menos 8 caracteres")
+    if not any(c.isupper() for c in v):
+        raise ValueError("La contraseña debe contener al menos una mayúscula")
+    if not any(c.islower() for c in v):
+        raise ValueError("La contraseña debe contener al menos una minúscula")
+    if not any(c.isdigit() for c in v):
+        raise ValueError("La contraseña debe contener al menos un número")
+    if not any(c in SPECIAL_CHARS for c in v):
+        raise ValueError(
+            f"La contraseña debe contener al menos un carácter especial ({SPECIAL_CHARS})"
+        )
+    return v
+
 
 class LoginRequest(BaseModel):
     email: str
@@ -21,15 +39,7 @@ class UserCreate(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password(cls, v: str) -> str:
-        if len(v) < 8:
-            raise ValueError("La contraseña debe tener al menos 8 caracteres")
-        if not any(c.isupper() for c in v):
-            raise ValueError("La contraseña debe contener al menos una mayúscula")
-        if not any(c.islower() for c in v):
-            raise ValueError("La contraseña debe contener al menos una minúscula")
-        if not any(c.isdigit() for c in v):
-            raise ValueError("La contraseña debe contener al menos un número")
-        return v
+        return _validate_password_strength(v)
 
 
 class UserResponse(BaseModel):
@@ -41,6 +51,8 @@ class UserResponse(BaseModel):
     provider: str | None = None
     avatar_url: str | None = None
     invite_code: str | None = None
+    mfa_enabled: bool = False
+    email_verified: bool = False
     model_config = {"from_attributes": True}
 
 
@@ -53,6 +65,37 @@ class OAuthRequest(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    mfa_required: bool = False
+    mfa_setup_required: bool = False
+    force_password_change: bool = False
+
+
+class MFASetupResponse(BaseModel):
+    secret: str
+    qr_code: str
+
+
+class MFAVerifyRequest(BaseModel):
+    code: str
+
+
+class MFALoginRequest(BaseModel):
+    token: str
+    code: str
+
+
+class EmailVerificationRequest(BaseModel):
+    token: str
+
+
+class ForceChangePasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, v: str) -> str:
+        return _validate_password_strength(v)
 
 
 class ChangePasswordRequest(BaseModel):
@@ -62,15 +105,7 @@ class ChangePasswordRequest(BaseModel):
     @field_validator("new_password")
     @classmethod
     def validate_new_password(cls, v: str) -> str:
-        if len(v) < 8:
-            raise ValueError("La contraseña debe tener al menos 8 caracteres")
-        if not any(c.isupper() for c in v):
-            raise ValueError("La contraseña debe contener al menos una mayúscula")
-        if not any(c.islower() for c in v):
-            raise ValueError("La contraseña debe contener al menos una minúscula")
-        if not any(c.isdigit() for c in v):
-            raise ValueError("La contraseña debe contener al menos un número")
-        return v
+        return _validate_password_strength(v)
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -84,15 +119,7 @@ class ResetPasswordRequest(BaseModel):
     @field_validator("new_password")
     @classmethod
     def validate_new_password(cls, v: str) -> str:
-        if len(v) < 8:
-            raise ValueError("La contraseña debe tener al menos 8 caracteres")
-        if not any(c.isupper() for c in v):
-            raise ValueError("La contraseña debe contener al menos una mayúscula")
-        if not any(c.islower() for c in v):
-            raise ValueError("La contraseña debe contener al menos una minúscula")
-        if not any(c.isdigit() for c in v):
-            raise ValueError("La contraseña debe contener al menos un número")
-        return v
+        return _validate_password_strength(v)
 
 
 class InvestmentCreate(BaseModel):

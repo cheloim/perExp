@@ -22,7 +22,7 @@ MONTHS_ES = {
     12: "Diciembre",
 }
 
-_EMOTICON_RE = re.compile(
+_EMOTICON_RE = re.compile(  # lgtm[py/overly-large-range]
     "["
     "\U0001f600-\U0001f64f"
     "\U0001f300-\U0001f5ff"

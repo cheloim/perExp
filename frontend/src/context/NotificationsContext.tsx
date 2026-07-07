@@ -66,6 +66,15 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const stateRef = useRef(state);
   stateRef.current = state;
 
+  // Update page title with unread count
+  useEffect(() => {
+    if (state.unreadCount > 0) {
+      document.title = `(${state.unreadCount > 9 ? "9+" : state.unreadCount}) NikoFin`;
+    } else {
+      document.title = "NikoFin";
+    }
+  }, [state.unreadCount]);
+
   const handleNewNotification = useCallback((notification: Notification) => {
     // Show toast for import notifications
     if (notification.type === "import_ready") {

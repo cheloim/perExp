@@ -229,7 +229,13 @@ def delete_notification(
 
 @router.get("/stream")
 async def notifications_stream(request: Request):
-    token = request.query_params.get("token")
+    # Accept token from Authorization header or query param (for backward compat)
+    auth_header = request.headers.get("Authorization", "")
+    token = None
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+    if not token:
+        token = request.query_params.get("token")
     if not token:
         return StreamingResponse(
             _error_stream("Token requerido"),

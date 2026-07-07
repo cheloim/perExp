@@ -69,6 +69,10 @@ export default function ResetPasswordPage() {
       setError("Debe contener al menos un número");
       return;
     }
+    if (!/[!@#$%^&*()\-_+=<>?/[\]{}|]/.test(password)) {
+      setError("Debe contener al menos un carácter especial (!@#$%^&*...)");
+      return;
+    }
 
     setLoading(true);
     try {

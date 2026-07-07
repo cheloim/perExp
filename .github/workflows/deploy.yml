@@ -346,6 +346,11 @@ jobs:
                   interval: 10s
                   timeout: 5s
                   retries: 5
+                deploy:
+                  resources:
+                    limits:
+                      memory: 512M
+                      cpus: "1.0"
 
               redis:
                 image: docker.io/library/redis:7-alpine
@@ -385,6 +390,11 @@ jobs:
                   RESEND_API_KEY: ${RESEND_API_KEY}
                   FRONTEND_URL: https://${{ vars.DOMAIN_NAME }}
                   CORS_ORIGINS: https://${{ vars.DOMAIN_NAME }}
+                deploy:
+                  resources:
+                    limits:
+                      memory: 512M
+                      cpus: "1.0"
                 restart: unless-stopped
 
               celery_worker:
@@ -446,6 +456,11 @@ jobs:
                 depends_on:
                   backend:
                     condition: service_healthy
+                deploy:
+                  resources:
+                    limits:
+                      memory: 256M
+                      cpus: "0.5"
                 restart: unless-stopped
 
               nginx:
@@ -464,6 +479,11 @@ jobs:
                   timeout: 5s
                   start_period: 10s
                   retries: 3
+                deploy:
+                  resources:
+                    limits:
+                      memory: 128M
+                      cpus: "0.5"
                 restart: unless-stopped
 
             volumes:
@@ -643,10 +663,11 @@ jobs:
             set +a
 
             echo "Running database migrations..."
-            podman-compose run --rm --no-deps backend python -m scripts.migrate_add_reset_token
-            podman-compose run --rm --no-deps backend python -m scripts.migrate_remove_haberes
-            podman-compose run --rm --no-deps backend python -m scripts.migrate_encrypt_settings
-            podman-compose run --rm --no-deps backend python -m scripts.migrate_add_monthly_reports
+            podman-compose run --rm backend python -m scripts.migrate_add_reset_token
+            podman-compose run --rm backend python -m scripts.migrate_remove_haberes
+            podman-compose run --rm backend python -m scripts.migrate_encrypt_settings
+            podman-compose run --rm backend python -m scripts.migrate_add_monthly_reports
+            podman-compose run --rm backend python -m scripts.migrate_db_structure
             echo "Migrations complete"
 
   restart-and-verify:

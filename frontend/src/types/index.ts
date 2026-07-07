@@ -54,6 +54,8 @@ export interface FamilyGroup {
 export interface AuthToken {
   access_token: string;
   token_type: string;
+  mfa_required?: boolean;
+  force_password_change?: boolean;
 }
 
 export interface User {
@@ -65,6 +67,8 @@ export interface User {
   created_at: string;
   provider?: string | null;
   avatar_url?: string | null;
+  mfa_enabled?: boolean;
+  email_verified?: boolean;
 }
 
 export interface Category {

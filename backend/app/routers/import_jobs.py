@@ -208,10 +208,9 @@ async def confirm_import_job(
         norm_holder = title_case_single(holder)
 
         logger.info(
-            "[FIND_OR_CREATE_CARD] bank=%s, card=%s, holder=%s, card_type=%s",
+            "[FIND_OR_CREATE_CARD] bank=%s, card=%s, holder=***, card_type=%s",
             norm_bank,
             norm_card,
-            norm_holder,
             card_type,
         )
         logger.info(
@@ -249,10 +248,9 @@ async def confirm_import_job(
         db.flush()
         user_cards.append(new_card)
         logger.info(
-            "[FIND_OR_CREATE_CARD] Created new card: card_name=%s, bank=%s, holder=%s",
+            "[FIND_OR_CREATE_CARD] Created new card: card_name=%s, bank=%s, holder=***",
             norm_card,
             norm_bank,
-            norm_holder,
         )
         return new_card, True
 

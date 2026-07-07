@@ -21,9 +21,11 @@ celery_app.conf.update(
     result_expires=3600,
     # Prefetch 1 task at a time (heavy import tasks can use 10MB+ memory each)
     prefetch_multiplier=1,
-    # Acknowledge tasks only after completion (enables retry on worker failure)
+    # Acknowledge tasks only after completion (enables retry on worker worker)
     task_acks_late=True,
     task_reject_on_worker_lost=True,
+    # Beat schedule file in writable directory (volume-mounted /app/app)
+    beat_schedule_filename="/app/app/celerybeat-schedule",
 )
 celery_app.autodiscover_tasks(["app.tasks"])
 

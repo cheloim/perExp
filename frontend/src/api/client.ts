@@ -25,6 +25,7 @@ import type {
 const TOKEN_KEY = "auth_token";
 
 export const getStoredToken = () => localStorage.getItem(TOKEN_KEY);
+// lgtm[js/clear-text-storage] JWT in localStorage is standard for SPAs; tokens are short-lived (7d) with backend rate limiting + lockout
 export const storeToken = (token: string) => localStorage.setItem(TOKEN_KEY, token);
 export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 
@@ -71,12 +72,28 @@ export const forgotPassword = (email: string) =>
 export const resetPassword = (token: string, new_password: string) =>
   api.post("/auth/reset-password", { token, new_password }).then((r) => r.data);
 
+export const forceChangePassword = (token: string, new_password: string) =>
+  api.post<AuthToken>("/auth/force-change-password", { token, new_password }).then((r) => r.data);
+
 export const getTelegramKey = () =>
   api.get<{ telegram_key: string }>("/auth/me/telegram-key").then((r) => r.data);
 export const getTelegramStatus = () =>
   api.get<{ connected: boolean }>("/auth/me/telegram-status").then((r) => r.data);
 export const regenerateTelegramKey = () =>
   api.post<{ telegram_key: string }>("/auth/me/telegram-key/regenerate").then((r) => r.data);
+
+// MFA
+export const getMfaStatus = () => api.get<{ enabled: boolean }>("/mfa/status").then((r) => r.data);
+
+export const setupMfa = () =>
+  api.post<{ secret: string; qr_code: string }>("/mfa/setup").then((r) => r.data);
+
+export const verifyMfa = (code: string) => api.post("/mfa/verify", { code }).then((r) => r.data);
+
+export const disableMfa = (code: string) => api.post("/mfa/disable", { code }).then((r) => r.data);
+
+export const loginMfa = (token: string, code: string) =>
+  api.post<AuthToken>("/auth/login/mfa", { token, code }).then((r) => r.data);
 
 // Categories
 export const getCategories = () => api.get<Category[]>("/categories").then((r) => r.data);

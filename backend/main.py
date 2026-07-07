@@ -29,6 +29,7 @@ from app.routers import (
     groups,
     import_jobs,
     investments,
+    mfa,
     notifications,
     scheduled_expenses,
 )
@@ -52,6 +53,7 @@ async def lifespan(application: FastAPI):
             email=seed_email,
             full_name=os.getenv("SEED_USER_NAME", "Admin"),
             hashed_password=get_password_hash(os.getenv("SEED_USER_PASSWORD", "changeme123")),
+            email_verified=True,
         )
         db.add(seed_user)
         db.flush()
@@ -60,6 +62,28 @@ async def lifespan(application: FastAPI):
             db.execute(_t(f"UPDATE {_tbl} SET user_id = :uid WHERE user_id IS NULL"), {"uid": seed_user.id})
 
     db.commit()
+
+    # Auto-verify existing users created before email verification was added
+    unverified = db.query(User).filter(User.email_verified == False).all()  # noqa: E712
+    if unverified:
+        for u in unverified:
+            u.email_verified = True
+        db.commit()
+        logging.getLogger(__name__).info(f"Auto-verified {len(unverified)} existing users")
+
+    # Flag existing users for forced password change (new security policy)
+    from sqlalchemy import text as _sql
+
+    needs_flag = db.execute(
+        _sql("SELECT id FROM users WHERE force_password_change = false AND hashed_password IS NOT NULL")
+    ).fetchall()
+    if needs_flag:
+        db.execute(
+            _sql("UPDATE users SET force_password_change = true WHERE hashed_password IS NOT NULL AND force_password_change = false")
+        )
+        db.commit()
+        logging.getLogger(__name__).info(f"Flagged {len(needs_flag)} users for forced password change")
+
     db.close()
 
     task = asyncio.create_task(price_refresh_loop())
@@ -96,6 +120,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(mfa.router)
 app.include_router(accounts.router)
 app.include_router(cards.router)
 app.include_router(categories.router)

@@ -35,6 +35,14 @@ class User(Base):
     avatar_url = Column(String, nullable=True)
     reset_token = Column(String(64), nullable=True, unique=True, index=True)
     reset_token_expires = Column(DateTime, nullable=True)
+    # Security: MFA
+    mfa_secret = Column(String(32), nullable=True)
+    mfa_enabled = Column(Boolean, default=False)
+    # Security: Email verification
+    email_verified = Column(Boolean, default=False)
+    email_verification_token = Column(String(64), nullable=True, unique=True, index=True)
+    # Security: Forced password change
+    force_password_change = Column(Boolean, default=False)
 
 
 class Group(Base):
@@ -279,3 +287,16 @@ class MonthlyReport(Base):
     error_message = Column(Text, nullable=True)  # Error if FAILED
     created_at = Column(DateTime, default=datetime.utcnow)
     generated_at = Column(DateTime, nullable=True)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    __table_args__ = (Index("ix_audit_logs_user_id", "user_id"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    action = Column(String(50), nullable=False)
+    ip_address = Column(String(45), nullable=True)
+    user_agent = Column(String(500), nullable=True)
+    details = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
