@@ -27,7 +27,7 @@ MONTHS_ES = {
     12: "Diciembre",
 }
 
-_EMOJI_RE = re.compile(  # nosec - intentional broad Unicode emoji ranges for stripping
+_EMOJI_RE = re.compile(  # lgtm[py/overly-large-range]
     "["
     "\U0001f600-\U0001f64f"
     "\U0001f300-\U0001f5ff"

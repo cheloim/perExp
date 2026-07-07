@@ -46,7 +46,7 @@ function saveActiveId(id: string) {
   localStorage.setItem(ACTIVE_KEY, id);
 }
 function newSessionId() {
-  // nosec js/insecure-randomness - session ID for UI state only, not a security token
+  // lgtm[js/insecure-randomness] session ID for UI state only, not a security token
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
