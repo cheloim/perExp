@@ -265,8 +265,8 @@ export default function CategoryTreemap({
                 isSelected
                   ? parentColor
                   : isHovered
-                    ? "rgba(255,255,255,0.2)"
-                    : "rgba(255,255,255,0.08)"
+                  ? "rgba(255,255,255,0.2)"
+                  : "rgba(255,255,255,0.08)"
               }
               strokeWidth={isSelected ? 2 : 1}
               className="cursor-pointer transition-all duration-200"

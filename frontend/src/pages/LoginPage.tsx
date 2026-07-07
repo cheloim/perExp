@@ -13,7 +13,9 @@ const SPECIAL_CHARS = /[!@#$%^&*()\-_+=<>?/[\]{}|]/;
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"login" | "register" | "forgot" | "force-change" | "mfa">("login");
+  const [mode, setMode] = useState<"login" | "register" | "forgot" | "force-change" | "mfa">(
+    "login",
+  );
   const [forceToken, setForceToken] = useState("");
   const [mfaToken, setMfaToken] = useState("");
 
@@ -501,7 +503,9 @@ function ForceChangeForm({
       onSuccess();
     } catch (err: any) {
       const detail = err?.response?.data?.detail;
-      setError(typeof detail === "string" ? detail : "Error al cambiar contraseña. Intentá de nuevo.");
+      setError(
+        typeof detail === "string" ? detail : "Error al cambiar contraseña. Intentá de nuevo.",
+      );
     } finally {
       setLoading(false);
     }
@@ -514,17 +518,14 @@ function ForceChangeForm({
           Cambio de contraseña obligatorio
         </h2>
         <p className="text-sm text-[var(--text-secondary)] mt-1">
-          Por seguridad, debés crear una nueva contraseña que cumpla con los requisitos de
-          seguridad actualizados.
+          Por seguridad, debés crear una nueva contraseña que cumpla con los requisitos de seguridad
+          actualizados.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
-          <label
-            className="text-sm font-medium text-[var(--text-primary)]"
-            htmlFor="force-new-pw"
-          >
+          <label className="text-sm font-medium text-[var(--text-primary)]" htmlFor="force-new-pw">
             Nueva contraseña
           </label>
           <input

@@ -358,8 +358,8 @@ export default function Dashboard() {
           <span className="text-lg">⚠</span>
           <div className="text-left">
             <p className="text-sm font-medium">
-              Tenés {uncategorizedCount} gasto{uncategorizedCount !== 1 ? "s" : ""} sin
-              categorí{uncategorizedCount !== 1 ? "as" : "a"}
+              Tenés {uncategorizedCount} gasto{uncategorizedCount !== 1 ? "s" : ""} sin categorí
+              {uncategorizedCount !== 1 ? "as" : "a"}
             </p>
             <p className="text-xs opacity-70">
               Asigná categorías para un mejor análisis de tus gastos
@@ -535,8 +535,8 @@ export default function Dashboard() {
                         isSelected
                           ? "bg-primary/10 ring-1 ring-primary"
                           : selectedCategory
-                            ? "opacity-40 hover:opacity-70"
-                            : "hover:bg-base-alt"
+                          ? "opacity-40 hover:opacity-70"
+                          : "hover:bg-base-alt"
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1">
@@ -556,8 +556,8 @@ export default function Dashboard() {
                                 variation > 0
                                   ? "text-danger"
                                   : variation < 0
-                                    ? "text-success"
-                                    : "text-tertiary"
+                                  ? "text-success"
+                                  : "text-tertiary"
                               }`}
                             >
                               {variation > 0 ? "↑" : variation < 0 ? "↓" : "→"}
@@ -796,8 +796,8 @@ export default function Dashboard() {
                         entry.is_current
                           ? "var(--color-primary)"
                           : entry.is_past
-                            ? "var(--text-tertiary)"
-                            : "var(--color-primary)"
+                          ? "var(--text-tertiary)"
+                          : "var(--color-primary)"
                       }
                       opacity={entry.is_past ? 0.4 : 1}
                     />

@@ -203,8 +203,8 @@ export default function NotificationsPanel({ onClose }: Props) {
                 upload.status === "failed"
                   ? "border-l-red-500"
                   : upload.status === "queued"
-                    ? "border-l-amber-500"
-                    : "border-l-[var(--color-primary)]"
+                  ? "border-l-amber-500"
+                  : "border-l-[var(--color-primary)]"
               }`}
             >
               <div className="flex items-center gap-2 mb-1.5">
