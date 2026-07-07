@@ -28,6 +28,19 @@ def get_engine():
     return create_engine(db_url)
 
 
+def _constraint_exists(conn, constraint_name: str) -> bool:
+    result = conn.execute(
+        text(
+            "SELECT EXISTS ("
+            "  SELECT 1 FROM information_schema.table_constraints"
+            "  WHERE constraint_name = :name"
+            ")"
+        ),
+        {"name": constraint_name},
+    )
+    return result.scalar()
+
+
 def step1_unique_constraint(engine):
     """Add UNIQUE constraint on group_members(group_id, user_id)."""
     print("\n[Step 1/4] Adding unique constraint on group_members...")
@@ -36,12 +49,15 @@ def step1_unique_constraint(engine):
         dialect = engine.dialect.name
 
         if dialect == "postgresql":
-            conn.execute(text("""
-                ALTER TABLE group_members
-                ADD CONSTRAINT uq_group_member
-                UNIQUE (group_id, user_id)
-            """))
-            print("  Added UNIQUE(group_id, user_id) constraint.")
+            if _constraint_exists(conn, "uq_group_member"):
+                print("  Constraint uq_group_member already exists. Skipping.")
+            else:
+                conn.execute(text("""
+                    ALTER TABLE group_members
+                    ADD CONSTRAINT uq_group_member
+                    UNIQUE (group_id, user_id)
+                """))
+                print("  Added UNIQUE(group_id, user_id) constraint.")
         else:
             print("  Skipping — only supported on PostgreSQL.")
 

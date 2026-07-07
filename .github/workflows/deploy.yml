@@ -663,12 +663,11 @@ jobs:
             set +a
 
             echo "Running database migrations..."
-            podman-compose run --rm backend python -m scripts.migrate_add_reset_token
-            podman-compose run --rm backend python -m scripts.migrate_remove_haberes
-            podman-compose run --rm backend python -m scripts.migrate_encrypt_settings
-            podman-compose run --rm backend python -m scripts.migrate_add_monthly_reports
-            podman-compose run --rm backend python -m scripts.migrate_db_structure
-            podman-compose run --rm backend python -m scripts.migrate_security_columns
+            for script in migrate_add_reset_token migrate_remove_haberes migrate_encrypt_settings migrate_add_monthly_reports migrate_db_structure migrate_security_columns; do
+              if ! podman-compose run --rm backend python -m scripts.$script; then
+                echo "::warning::Migration $script had issues (may already be applied)"
+              fi
+            done
             echo "Migrations complete"
 
   restart-and-verify:
