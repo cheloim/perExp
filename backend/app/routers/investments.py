@@ -1020,8 +1020,8 @@ async def investments_chat_stream(
             ):
                 if chunk.text:
                     yield f"data: {json.dumps({'text': chunk.text})}\n\n"
-        except Exception as e:
-            yield f"data: {json.dumps({'text': f'Error: {e}'})}\n\n"
+        except Exception:
+            yield f"data: {json.dumps({'text': 'Error al procesar la solicitud'})}\n\n"
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(

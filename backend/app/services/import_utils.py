@@ -39,7 +39,7 @@ def _strip_installment_suffix(desc: str) -> str:
 def _normalize_text(text: str | None) -> str:
     if not text:
         return ""
-    cleaned = re.sub(r"\s*-\s*Pendiente\s*$", "", text.strip(), flags=re.IGNORECASE)
+    cleaned = re.sub(r"[\t ]*-[\t ]*Pendiente[\t ]*$", "", text.strip())
     result = cleaned.upper()
     if result:
         logger.debug("[DEBUG NORMALIZE] '%s' -> '%s'", text, result)
