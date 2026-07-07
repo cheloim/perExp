@@ -668,6 +668,7 @@ jobs:
             podman-compose run --rm backend python -m scripts.migrate_encrypt_settings
             podman-compose run --rm backend python -m scripts.migrate_add_monthly_reports
             podman-compose run --rm backend python -m scripts.migrate_db_structure
+            podman-compose run --rm backend python -m scripts.migrate_security_columns
             echo "Migrations complete"
 
   restart-and-verify:
