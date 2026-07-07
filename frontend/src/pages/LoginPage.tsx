@@ -4,6 +4,7 @@ import {
   forgotPassword,
   forceChangePassword,
   login,
+  loginMfa,
   register,
   storeToken,
 } from "../api/client";
@@ -12,8 +13,9 @@ const SPECIAL_CHARS = /[!@#$%^&*()\-_+=<>?/[\]{}|]/;
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"login" | "register" | "forgot" | "force-change">("login");
+  const [mode, setMode] = useState<"login" | "register" | "forgot" | "force-change" | "mfa">("login");
   const [forceToken, setForceToken] = useState("");
+  const [mfaToken, setMfaToken] = useState("");
 
   return (
     <div className="min-h-screen bg-base flex items-center justify-center px-4">
@@ -35,6 +37,10 @@ export default function LoginPage() {
               setForceToken(token);
               setMode("force-change");
             }}
+            onMfa={(token) => {
+              setMfaToken(token);
+              setMode("mfa");
+            }}
             onSuccess={() => navigate("/")}
           />
         )}
@@ -49,6 +55,13 @@ export default function LoginPage() {
             onBack={() => setMode("login")}
           />
         )}
+        {mode === "mfa" && (
+          <MfaForm
+            token={mfaToken}
+            onSuccess={() => navigate("/")}
+            onBack={() => setMode("login")}
+          />
+        )}
       </div>
     </div>
   );
@@ -58,11 +71,13 @@ function LoginForm({
   onRegister,
   onForgotPassword,
   onForceChange,
+  onMfa,
   onSuccess,
 }: {
   onRegister: () => void;
   onForgotPassword: () => void;
   onForceChange: (token: string) => void;
+  onMfa: (token: string) => void;
   onSuccess: () => void;
 }) {
   const [email, setEmail] = useState("");
@@ -78,6 +93,10 @@ function LoginForm({
       const token = await login(email.trim().toLowerCase(), password);
       if (token.force_password_change) {
         onForceChange(token.access_token);
+        return;
+      }
+      if (token.mfa_required) {
+        onMfa(token.access_token);
         return;
       }
       storeToken(token.access_token);
@@ -546,6 +565,90 @@ function ForceChangeForm({
 
         <button type="submit" disabled={loading} className="gnome-btn-primary w-full mt-1">
           {loading ? "Guardando..." : "Guardar nueva contraseña"}
+        </button>
+      </form>
+
+      <p className="text-center text-sm text-[var(--text-tertiary)]">
+        <button
+          type="button"
+          onClick={onBack}
+          className="text-[var(--color-primary)] hover:underline font-medium"
+        >
+          Volver al inicio de sesión
+        </button>
+      </p>
+    </div>
+  );
+}
+
+function MfaForm({
+  token,
+  onSuccess,
+  onBack,
+}: {
+  token: string;
+  onSuccess: () => void;
+  onBack: () => void;
+}) {
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const result = await loginMfa(token, code);
+      storeToken(result.access_token);
+      onSuccess();
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail;
+      setError(typeof detail === "string" ? detail : "Código MFA incorrecto");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-gnome p-6 flex flex-col gap-4">
+      <div>
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+          Verificación de seguridad
+        </h2>
+        <p className="text-sm text-[var(--text-secondary)] mt-1">
+          Ingresá el código de 6 dígitos de tu aplicación de autenticación (Google Authenticator,
+          Authy, etc.).
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-[var(--text-primary)]" htmlFor="mfa-code">
+            Código de verificación
+          </label>
+          <input
+            id="mfa-code"
+            type="text"
+            inputMode="numeric"
+            maxLength={6}
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+            placeholder="000000"
+            required
+            className="input font-mono text-center text-lg tracking-widest"
+            autoFocus
+          />
+        </div>
+
+        {error && <div className="alert-error">{error}</div>}
+
+        <button
+          type="submit"
+          disabled={loading || code.length !== 6}
+          className="gnome-btn-primary w-full mt-1"
+        >
+          {loading ? "Verificando..." : "Verificar"}
         </button>
       </form>
 

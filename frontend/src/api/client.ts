@@ -81,6 +81,22 @@ export const getTelegramStatus = () =>
 export const regenerateTelegramKey = () =>
   api.post<{ telegram_key: string }>("/auth/me/telegram-key/regenerate").then((r) => r.data);
 
+// MFA
+export const getMfaStatus = () =>
+  api.get<{ enabled: boolean }>("/mfa/status").then((r) => r.data);
+
+export const setupMfa = () =>
+  api.post<{ secret: string; qr_code: string }>("/mfa/setup").then((r) => r.data);
+
+export const verifyMfa = (code: string) =>
+  api.post("/mfa/verify", { code }).then((r) => r.data);
+
+export const disableMfa = (code: string) =>
+  api.post("/mfa/disable", { code }).then((r) => r.data);
+
+export const loginMfa = (token: string, code: string) =>
+  api.post<AuthToken>("/auth/login/mfa", { token, code }).then((r) => r.data);
+
 // Categories
 export const getCategories = () => api.get<Category[]>("/categories").then((r) => r.data);
 

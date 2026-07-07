@@ -17,6 +17,10 @@ import {
   getMonthlyReports,
   generateMonthlyReport,
   downloadReportPdf,
+  getMfaStatus,
+  setupMfa,
+  verifyMfa,
+  disableMfa,
 } from "../api/client";
 import { useNavigate } from "react-router-dom";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -262,6 +266,15 @@ export default function UserPanel({ open, onClose }: Props) {
   const [showRegenInviteConfirm, setShowRegenInviteConfirm] = useState(false);
   const [showRegenTelegramConfirm, setShowRegenTelegramConfirm] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  // MFA state
+  const [mfaQrCode, setMfaQrCode] = useState<string | null>(null);
+  const [mfaSecret, setMfaSecret] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaError, setMfaError] = useState<string | null>(null);
+  const [mfaSuccess, setMfaSuccess] = useState(false);
+  const [showDisableMfa, setShowDisableMfa] = useState(false);
+  const [disableMfaCode, setDisableMfaCode] = useState("");
   const [leaveError, setLeaveError] = useState<string | null>(null);
 
   const { data: user } = useQuery({
@@ -415,6 +428,57 @@ export default function UserPanel({ open, onClose }: Props) {
     }
     changePwMut.mutate();
   };
+
+  // MFA queries and mutations
+  const { data: mfaStatus, refetch: refetchMfaStatus } = useQuery({
+    queryKey: ["mfa-status"],
+    queryFn: getMfaStatus,
+    enabled: open,
+  });
+
+  const setupMfaMut = useMutation({
+    mutationFn: setupMfa,
+    onSuccess: (data) => {
+      setMfaQrCode(data.qr_code);
+      setMfaSecret(data.secret);
+      setMfaError(null);
+      setMfaSuccess(false);
+    },
+    onError: (e: { response?: { data?: { detail?: string } } }) => {
+      setMfaError(e?.response?.data?.detail ?? "Error al iniciar setup de MFA");
+    },
+  });
+
+  const verifyMfaMut = useMutation({
+    mutationFn: verifyMfa,
+    onSuccess: () => {
+      setMfaSuccess(true);
+      setMfaError(null);
+      setMfaQrCode(null);
+      setMfaSecret(null);
+      setMfaCode("");
+      refetchMfaStatus();
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+    },
+    onError: (e: { response?: { data?: { detail?: string } } }) => {
+      setMfaError(e?.response?.data?.detail ?? "Código MFA incorrecto");
+    },
+  });
+
+  const disableMfaMut = useMutation({
+    mutationFn: disableMfa,
+    onSuccess: () => {
+      setMfaSuccess(true);
+      setMfaError(null);
+      setShowDisableMfa(false);
+      setDisableMfaCode("");
+      refetchMfaStatus();
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+    },
+    onError: (e: { response?: { data?: { detail?: string } } }) => {
+      setMfaError(e?.response?.data?.detail ?? "Código MFA incorrecto");
+    },
+  });
 
   const handleLogout = () => {
     clearToken();
@@ -993,6 +1057,141 @@ export default function UserPanel({ open, onClose }: Props) {
                     {changePwMut.isPending ? "Guardando..." : "Guardar contraseña"}
                   </button>
                 </form>
+              </div>
+
+              <hr className="border-[var(--border-color)]" />
+
+              {/* MFA Section */}
+              <div>
+                <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-3">
+                  Autenticación de dos factores (MFA)
+                </h3>
+
+                {mfaStatus?.enabled && !showDisableMfa && (
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--green-5,#26a269)]/10 border border-[var(--green-5,#26a269)]/30">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[var(--green-5,#26a269)]">✓</span>
+                      <span className="text-sm font-medium text-[var(--green-5,#26a269)]">
+                        MFA habilitado
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowDisableMfa(true);
+                        setMfaError(null);
+                        setMfaSuccess(false);
+                      }}
+                      className="text-xs text-[var(--red-3,#e01b24)] hover:underline"
+                    >
+                      Deshabilitar
+                    </button>
+                  </div>
+                )}
+
+                {mfaStatus?.enabled && showDisableMfa && (
+                  <div className="space-y-3">
+                    <p className="text-xs text-[var(--text-secondary)]">
+                      Ingresá el código de tu aplicación de autenticación para deshabilitar MFA.
+                    </p>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={disableMfaCode}
+                      onChange={(e) => setDisableMfaCode(e.target.value.replace(/\D/g, ""))}
+                      placeholder="000000"
+                      className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition font-mono text-center tracking-widest"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setShowDisableMfa(false);
+                          setDisableMfaCode("");
+                          setMfaError(null);
+                        }}
+                        className="flex-1 py-2 rounded-md border border-[var(--border-color)] text-[var(--text-secondary)] text-sm hover:bg-[var(--color-base-alt)] transition"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={() => disableMfaMut.mutate(disableMfaCode)}
+                        disabled={disableMfaCode.length !== 6 || disableMfaMut.isPending}
+                        className="flex-1 py-2 rounded-md bg-[var(--red-3,#e01b24)] text-white text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"
+                      >
+                        {disableMfaMut.isPending ? "Deshabilitando..." : "Deshabilitar"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {!mfaStatus?.enabled && !mfaQrCode && (
+                  <div>
+                    <p className="text-xs text-[var(--text-secondary)] mb-3">
+                      Protege tu cuenta con una segunda capa de seguridad. Necesitarás una
+                      aplicación como Google Authenticator o Authy.
+                    </p>
+                    <button
+                      onClick={() => setupMfaMut.mutate()}
+                      disabled={setupMfaMut.isPending}
+                      className="w-full py-2 rounded-md bg-primary hover:brightness-110 disabled:opacity-60 text-[var(--color-on-primary)] font-medium text-sm transition"
+                    >
+                      {setupMfaMut.isPending ? "Generando..." : "Habilitar MFA"}
+                    </button>
+                  </div>
+                )}
+
+                {mfaQrCode && (
+                  <div className="space-y-3">
+                    <p className="text-xs text-[var(--text-secondary)]">
+                      1. Escaneá este código QR con tu aplicación de autenticación
+                    </p>
+                    <div className="flex justify-center">
+                      <img src={mfaQrCode} alt="MFA QR Code" className="w-48 h-48 rounded-lg" />
+                    </div>
+                    {mfaSecret && (
+                      <div className="text-center">
+                        <p className="text-[10px] text-[var(--text-tertiary)] mb-1">
+                          O ingresá este código manualmente:
+                        </p>
+                        <p className="text-xs font-mono bg-[var(--color-base)] border border-[var(--border-color)] rounded px-3 py-1.5 select-all">
+                          {mfaSecret}
+                        </p>
+                      </div>
+                    )}
+                    <p className="text-xs text-[var(--text-secondary)]">
+                      2. Ingresá el código de 6 dígitos de tu aplicación
+                    </p>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={mfaCode}
+                      onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ""))}
+                      placeholder="000000"
+                      className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition font-mono text-center tracking-widest"
+                    />
+                    <button
+                      onClick={() => verifyMfaMut.mutate(mfaCode)}
+                      disabled={mfaCode.length !== 6 || verifyMfaMut.isPending}
+                      className="w-full py-2 rounded-md bg-primary hover:brightness-110 disabled:opacity-60 text-[var(--color-on-primary)] font-medium text-sm transition"
+                    >
+                      {verifyMfaMut.isPending ? "Verificando..." : "Verificar y habilitar"}
+                    </button>
+                  </div>
+                )}
+
+                {mfaError && (
+                  <p className="text-xs text-[var(--red-3,#e01b24)] bg-[var(--color-base)] border border-[var(--border-color)] rounded-md px-3 py-2 mt-2">
+                    {mfaError}
+                  </p>
+                )}
+                {mfaSuccess && !mfaQrCode && (
+                  <p className="text-xs text-[var(--green-5,#26a269)] bg-[var(--color-base)] border border-[var(--border-color)] rounded-md px-3 py-2 mt-2">
+                    {showDisableMfa
+                      ? "MFA deshabilitado correctamente"
+                      : "MFA habilitado correctamente"}
+                  </p>
+                )}
               </div>
             </div>
           )}

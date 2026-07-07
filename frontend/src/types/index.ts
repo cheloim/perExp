@@ -67,6 +67,8 @@ export interface User {
   created_at: string;
   provider?: string | null;
   avatar_url?: string | null;
+  mfa_enabled?: boolean;
+  email_verified?: boolean;
 }
 
 export interface Category {
