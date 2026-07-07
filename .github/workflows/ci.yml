@@ -27,7 +27,7 @@ jobs:
 
       - name: Prettier
         run: |
-          npx prettier --write src/
+          node_modules/.bin/prettier --write src/
           git diff --exit-code src/ || (echo "::error::Run 'npx prettier --write src/' locally" && exit 1)
 
       - name: TypeScript
