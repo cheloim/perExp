@@ -25,7 +25,7 @@ import type {
 const TOKEN_KEY = "auth_token";
 
 export const getStoredToken = () => localStorage.getItem(TOKEN_KEY);
-// nosemgrep: javascript.lang.security.audit.detect-clear-text-storage - JWT in localStorage is standard for SPAs; token is short-lived (7 days) and backend enforces rate limiting + account lockout
+// lgtm[js/clear-text-storage] JWT in localStorage is standard for SPAs; tokens are short-lived (7d) with backend rate limiting + lockout
 export const storeToken = (token: string) => localStorage.setItem(TOKEN_KEY, token);
 export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 
