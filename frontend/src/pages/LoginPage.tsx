@@ -8,6 +8,7 @@ import {
   register,
   storeToken,
 } from "../api/client";
+import { APP_NAME } from "../config";
 
 const SPECIAL_CHARS = /[!@#$%^&*()\-_+=<>?/[\]{}|]/;
 
@@ -27,7 +28,7 @@ export default function LoginPage() {
             F
           </div>
           <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
-            Niko<span className="text-[var(--color-primary)]">Fin</span>
+            {APP_NAME}
           </h1>
         </div>
 

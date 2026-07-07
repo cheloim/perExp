@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { resetPassword } from "../api/client";
+import { APP_NAME } from "../config";
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ export default function ResetPasswordPage() {
               F
             </div>
             <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
-              Niko<span className="text-[var(--color-primary)]">Fin</span>
+              {APP_NAME}
             </h1>
           </div>
           <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-gnome p-6 text-center">

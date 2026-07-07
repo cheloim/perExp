@@ -1,9 +1,13 @@
 """TOTP-based Multi-Factor Authentication service."""
 
 import io
+import os
 
 import pyotp
 import qrcode
+
+APP_ENV = os.getenv("APP_ENV", "development")
+APP_NAME = "NikoFin" if APP_ENV == "production" else "NikoFin (Dev)"
 
 
 def generate_mfa_secret() -> str:
@@ -11,7 +15,7 @@ def generate_mfa_secret() -> str:
     return pyotp.random_base32()
 
 
-def get_totp_uri(secret: str, email: str, issuer_name: str = "NikoFin") -> str:
+def get_totp_uri(secret: str, email: str, issuer_name: str = APP_NAME) -> str:
     """Generate the TOTP URI for QR code generation."""
     totp = pyotp.TOTP(secret)
     return totp.provisioning_uri(name=email, issuer_name=issuer_name)
