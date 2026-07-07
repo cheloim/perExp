@@ -19,7 +19,11 @@ SENSITIVE_KEYS = {"iol_password", "ppi_api_key", "ppi_api_secret"}
 def _get_encryptor():
     from cryptography.fernet import Fernet
 
-    secret = os.getenv("SECRET_KEY", "fallback-dev-key-change-in-prod")
+    secret = os.getenv("SECRET_KEY", "")
+    if not secret:
+        raise RuntimeError("SECRET_KEY env var not set. Aborting encryption migration.")
+    if len(secret) < 32:
+        raise RuntimeError("SECRET_KEY must be at least 32 characters.")
     key = hashlib.sha256(secret.encode()).digest()
     fernet_key = __import__("base64").urlsafe_b64encode(key)
     return Fernet(fernet_key)
