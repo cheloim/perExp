@@ -27,7 +27,6 @@ Plan.md
 *.log
 *.txt
 last_check
-package-lock.json
 
 # Secrets
 secrets/
