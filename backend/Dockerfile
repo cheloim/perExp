@@ -27,9 +27,6 @@ COPY docker-entrypoint.sh .
 
 RUN chmod +x docker-entrypoint.sh
 
-RUN adduser --disabled-password --no-create-home appuser
-USER appuser
-
 EXPOSE 8000
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
