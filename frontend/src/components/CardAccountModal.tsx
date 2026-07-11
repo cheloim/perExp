@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createCard, createAccount } from "../api/client";
+import { useState, useEffect, useRef } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createCard, createAccount, getAccounts, getCards, updateCard } from "../api/client";
+import type { Account } from "../types";
 import { Select } from "./ui/Select";
 
 const ACCOUNT_TYPES = [
@@ -17,33 +18,67 @@ interface CardAccountModalProps {
 
 export default function CardAccountModal({ onClose }: CardAccountModalProps) {
   const queryClient = useQueryClient();
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   const [accountType, setAccountType] = useState("tarjeta");
   const [cardName, setCardName] = useState("");
   const [bank, setBank] = useState("");
   const [cardType, setCardType] = useState("credito");
   const [errors, setErrors] = useState<{ card_name?: string; bank?: string }>({});
+  const [linkedAccountId, setLinkedAccountId] = useState<number | null>(null);
+  const [linkedCardId, setLinkedCardId] = useState<number | null>(null);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
+    // Focus the name input after a short delay to ensure modal is rendered
+    const timer = setTimeout(() => nameInputRef.current?.focus(), 100);
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      clearTimeout(timer);
+    };
   }, [onClose]);
+
+  const { data: accounts = [] } = useQuery({
+    queryKey: ["accounts"],
+    queryFn: getAccounts,
+  });
+
+  const { data: cards = [] } = useQuery({
+    queryKey: ["cards"],
+    queryFn: getCards,
+  });
+
+  const availableAccounts = accounts.filter((a) => a.type === "caja_ahorro");
+  const availableDebitCards = cards.filter((c) => c.card_type === "debito");
+
+  const updateCardLinkMut = useMutation({
+    mutationFn: ({ cardId, accountId }: { cardId: number; accountId: number | null }) =>
+      updateCard(cardId, { linked_account_id: accountId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cards"] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+    },
+  });
 
   const createCardMut = useMutation({
     mutationFn: createCard,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cards"] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
       onClose();
     },
   });
 
   const createAccountMut = useMutation({
     mutationFn: (data: { name: string; type: string }) => createAccount(data),
-    onSuccess: () => {
+    onSuccess: (created: Account) => {
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      if (linkedCardId) {
+        updateCardLinkMut.mutate({ cardId: linkedCardId, accountId: created.id });
+      }
       onClose();
     },
   });
@@ -69,6 +104,7 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
         card_name: cardName.trim(),
         bank: bank.trim(),
         card_type: cardType,
+        linked_account_id: cardType === "debito" ? linkedAccountId : null,
       });
     } else {
       createAccountMut.mutate({ name: cardName.trim(), type: accountType });
@@ -79,11 +115,11 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-modal-backdrop bg-black/60"
+      className="fixed inset-0 z-[60] flex items-start justify-center pt-[10vh] p-4 animate-modal-backdrop bg-black/60 overflow-y-auto"
       onClick={onClose}
     >
       <div
-        className="relative card w-full max-w-sm max-h-[90vh] overflow-auto p-6 space-y-4 animate-modal-content"
+        className="relative card w-full max-w-sm p-6 space-y-4 animate-modal-content"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -118,13 +154,39 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
                 </label>
                 <Select
                   value={cardType}
-                  onChange={setCardType}
+                  onChange={(v) => {
+                    setCardType(v);
+                    if (v !== "debito") setLinkedAccountId(null);
+                  }}
                   options={[
                     { value: "credito", label: "Crédito" },
                     { value: "debito", label: "Débito" },
                   ]}
                 />
               </div>
+              {cardType === "debito" && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">
+                    Vincular a cuenta
+                  </label>
+                  <Select
+                    value={String(linkedAccountId || "")}
+                    onChange={(v) => setLinkedAccountId(v ? Number(v) : null)}
+                    options={[
+                      { value: "", label: "Sin vinculación" },
+                      ...availableAccounts.map((a) => ({
+                        value: String(a.id),
+                        label: a.name,
+                      })),
+                    ]}
+                  />
+                  {availableAccounts.length === 0 && (
+                    <p className="text-[10px] text-[var(--text-tertiary)]">
+                      Creá una Caja de Ahorro primero para poder vincular
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
                 <input
@@ -146,9 +208,36 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
             </div>
           )}
 
+          {accountType === "caja_ahorro" && (
+            <div className="space-y-1.5 pt-2 border-t border-[var(--border-color)]">
+              <label className="text-xs font-medium text-[var(--text-secondary)]">
+                Vincular tarjeta débito
+              </label>
+              <Select
+                value={String(linkedCardId || "")}
+                onChange={(v) => setLinkedCardId(v ? Number(v) : null)}
+                options={[
+                  { value: "", label: "Sin vinculación" },
+                  ...availableDebitCards.map((c) => ({
+                    value: String(c.id),
+                    label: `${c.card_name} (${c.bank})`,
+                  })),
+                ]}
+              />
+              {availableDebitCards.length === 0 && (
+                <p className="text-[10px] text-[var(--text-tertiary)]">
+                  Creá una Tarjeta Débito primero para poder vincular
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--text-secondary)]">Tarjeta</label>
+            <label className="text-xs font-medium text-[var(--text-secondary)]">
+              {accountType === "tarjeta" ? "Tarjeta" : "Nombre"}
+            </label>
             <input
+              ref={nameInputRef}
               type="text"
               value={cardName}
               onChange={(e) => {
@@ -161,7 +250,6 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
                   : "border-[var(--border-color)] focus:border-primary"
               }`}
               placeholder={accountType === "tarjeta" ? "Ej: Visa Galicia" : "Ej: Mi Cuenta"}
-              autoFocus
             />
             {errors.card_name && <p className="text-xs text-red-500">{errors.card_name}</p>}
           </div>

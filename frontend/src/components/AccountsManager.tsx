@@ -6,6 +6,8 @@ import {
   updateAccount,
   deleteAccount,
   createCard,
+  getCards,
+  updateCard,
 } from "../api/client";
 import type { Account } from "../types";
 import { Select } from "./ui/Select";
@@ -44,19 +46,36 @@ export default function AccountsManager() {
   const [type, setType] = useState("efectivo");
   const [bank, setBank] = useState("");
   const [cardType, setCardType] = useState("credito");
+  const [linkedCardId, setLinkedCardId] = useState<number | null>(null);
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ["accounts"],
     queryFn: getAccounts,
   });
 
+  const { data: cards = [] } = useQuery({
+    queryKey: ["cards"],
+    queryFn: getCards,
+  });
+
+  // Debit cards not already linked to another account
+  const availableDebitCards = cards.filter(
+    (c) => c.card_type === "debito" && (!c.linked_account_id || c.linked_account_id === editId),
+  );
+
   const createMut = useMutation({
     mutationFn: createAccount,
-    onSuccess: () => {
+    onSuccess: (created: Account) => {
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      // Link debit card if one was selected during creation
+      if (type === "caja_ahorro" && linkedCardId) {
+        updateCardLinkMut.mutate({ cardId: linkedCardId, accountId: created.id });
+      }
       setEditId(null);
+      setCardName("");
       setName("");
       setType("efectivo");
+      setLinkedCardId(null);
     },
     onError: (error: {
       response?: {
@@ -112,10 +131,20 @@ export default function AccountsManager() {
     },
   });
 
+  const updateCardLinkMut = useMutation({
+    mutationFn: ({ cardId, accountId }: { cardId: number; accountId: number | null }) =>
+      updateCard(cardId, { linked_account_id: accountId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cards"] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+    },
+  });
+
   const handleEdit = (account: Account) => {
     setEditId(account.id);
     setName(account.name);
     setType(account.type);
+    setLinkedCardId(account.linked_card_id || null);
     setMenuOpen(null);
   };
 
@@ -126,6 +155,7 @@ export default function AccountsManager() {
     setType("efectivo");
     setBank("");
     setCardType("credito");
+    setLinkedCardId(null);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -158,6 +188,21 @@ export default function AccountsManager() {
     } else {
       if (editId && editId > 0) {
         updateMut.mutate({ id: editId, data: { name: name.trim(), type } });
+
+        // Handle card linking for caja_ahorro accounts
+        if (type === "caja_ahorro") {
+          // Find the currently linked card (if any)
+          const currentlyLinkedCard = cards.find((c) => c.linked_account_id === editId);
+          const currentlyLinkedId = currentlyLinkedCard?.id || null;
+
+          if (linkedCardId && linkedCardId !== currentlyLinkedId) {
+            // Link new card
+            updateCardLinkMut.mutate({ cardId: linkedCardId, accountId: editId });
+          } else if (!linkedCardId && currentlyLinkedId) {
+            // Unlink
+            updateCardLinkMut.mutate({ cardId: currentlyLinkedId, accountId: null });
+          }
+        }
       } else {
         createMut.mutate({ name: name.trim(), type });
       }
@@ -286,6 +331,26 @@ export default function AccountsManager() {
                   </div>
                 )}
 
+                {/* Vincular tarjeta débito (solo caja_ahorro) */}
+                {type === "caja_ahorro" && editId && editId > 0 && (
+                  <div className="space-y-1.5 pt-2 border-t border-[var(--border-color)]">
+                    <label className="text-xs font-medium text-[var(--text-secondary)]">
+                      Vincular tarjeta débito
+                    </label>
+                    <Select
+                      value={String(linkedCardId || "")}
+                      onChange={(v) => setLinkedCardId(v ? Number(v) : null)}
+                      options={[
+                        { value: "", label: "Sin vinculación" },
+                        ...availableDebitCards.map((c) => ({
+                          value: String(c.id),
+                          label: `${c.card_name} (${c.bank})`,
+                        })),
+                      ]}
+                    />
+                  </div>
+                )}
+
                 {/* Botones */}
                 <div className="flex gap-2 pt-2">
                   <button
@@ -325,6 +390,11 @@ export default function AccountsManager() {
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-primary truncate">{account.name}</div>
                   <div className="text-xs text-secondary">{typeInfo.label}</div>
+                  {account.linked_card_name && (
+                    <div className="text-xs text-[var(--color-success)] mt-0.5">
+                      Vinculada a: {account.linked_card_name}
+                    </div>
+                  )}
                 </div>
                 <div className="relative">
                   <button

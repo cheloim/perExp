@@ -27,6 +27,7 @@ class CardCreate(BaseModel):
     bank: str = ""
     holder: str = ""
     card_type: str = "credito"  # credito, debito
+    linked_account_id: int | None = None
 
 
 class CardUpdate(BaseModel):
@@ -34,6 +35,7 @@ class CardUpdate(BaseModel):
     bank: str | None = None
     holder: str | None = None
     card_type: str | None = None
+    linked_account_id: int | None = None
 
 
 class CardResponse(BaseModel):
@@ -42,6 +44,8 @@ class CardResponse(BaseModel):
     bank: str
     holder: str
     card_type: str
+    linked_account_id: int | None = None
+    linked_account_name: str | None = None
     user_id: int
     created_at: datetime
 
@@ -55,9 +59,21 @@ def list_cards(
     current_user: User = Depends(get_current_user),
 ):
     """List all cards for the current user and group"""
+    from sqlalchemy.orm import joinedload
+
     uid_list = get_group_user_ids(current_user.id, db)
-    cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
-    return cards
+    cards = (
+        db.query(Card)
+        .options(joinedload(Card.linked_account))
+        .filter(Card.user_id.in_(uid_list))
+        .all()
+    )
+    result = []
+    for card in cards:
+        card_dict = CardResponse.model_validate(card)
+        card_dict.linked_account_name = card.linked_account.name if card.linked_account else None
+        result.append(card_dict)
+    return result
 
 
 @router.post("", response_model=CardResponse, status_code=201)
@@ -67,11 +83,47 @@ def create_card(
     current_user: User = Depends(get_current_user),
 ):
     """Create a new card"""
+    from app.models import Account
+
     card_name = card.card_name.strip()
     bank = card.bank.strip() if card.bank else ""
 
     if not card_name or not bank:
         raise HTTPException(status_code=400, detail="Nombre y banco son obligatorios")
+
+    # Validate linked_account_id if provided
+    linked_account_id = None
+    if card.linked_account_id is not None:
+        account = (
+            db.query(Account)
+            .filter(
+                Account.id == card.linked_account_id,
+                Account.user_id == current_user.id,
+            )
+            .first()
+        )
+        if not account:
+            raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+        if account.type != "caja_ahorro":
+            raise HTTPException(
+                status_code=400,
+                detail="Solo se pueden vincular cuentas de tipo Caja de Ahorro",
+            )
+        if card.card_type != "debito":
+            raise HTTPException(
+                status_code=400,
+                detail="Solo las tarjetas de débito se pueden vincular a una cuenta",
+            )
+        # Check if account is already linked to another card
+        existing_link = (
+            db.query(Card).filter(Card.linked_account_id == card.linked_account_id).first()
+        )
+        if existing_link:
+            raise HTTPException(
+                status_code=409,
+                detail="Esta cuenta ya está vinculada a otra tarjeta",
+            )
+        linked_account_id = card.linked_account_id
 
     existing_by_fields = (
         db.query(Card)
@@ -105,6 +157,7 @@ def create_card(
         bank=bank,
         holder=holder,
         card_type=card.card_type,
+        linked_account_id=linked_account_id,
         user_id=current_user.id,
     )
     db.add(db_card)
@@ -121,6 +174,8 @@ def update_card(
     current_user: User = Depends(get_current_user),
 ):
     """Update a card"""
+    from app.models import Account
+
     db_card = (
         db.query(Card)
         .filter(
@@ -134,6 +189,43 @@ def update_card(
         raise HTTPException(status_code=404, detail="Card not found")
 
     update_data = card.model_dump(exclude_none=True)
+
+    # Validate linked_account_id if being updated
+    if "linked_account_id" in update_data:
+        linked_id = update_data["linked_account_id"]
+        if linked_id is not None:
+            account = (
+                db.query(Account)
+                .filter(
+                    Account.id == linked_id,
+                    Account.user_id == current_user.id,
+                )
+                .first()
+            )
+            if not account:
+                raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+            if account.type != "caja_ahorro":
+                raise HTTPException(
+                    status_code=400,
+                    detail="Solo se pueden vincular cuentas de tipo Caja de Ahorro",
+                )
+            card_type = update_data.get("card_type", db_card.card_type)
+            if card_type != "debito":
+                raise HTTPException(
+                    status_code=400,
+                    detail="Solo las tarjetas de débito se pueden vincular a una cuenta",
+                )
+            # Check if account is already linked to another card
+            existing_link = (
+                db.query(Card)
+                .filter(Card.linked_account_id == linked_id, Card.id != card_id)
+                .first()
+            )
+            if existing_link:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Esta cuenta ya está vinculada a otra tarjeta",
+                )
 
     for key, value in update_data.items():
         if isinstance(value, str):

@@ -27,6 +27,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { useTheme } from "../context/ThemeContext";
 import AccountsManager from "./AccountsManager";
 import CardsManager from "./CardsManager";
+import CardAccountModal from "./CardAccountModal";
 
 const MONTHS_ES = [
   "Enero",
@@ -266,6 +267,7 @@ export default function UserPanel({ open, onClose }: Props) {
   const [showRegenInviteConfirm, setShowRegenInviteConfirm] = useState(false);
   const [showRegenTelegramConfirm, setShowRegenTelegramConfirm] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showCardAccountModal, setShowCardAccountModal] = useState(false);
 
   // MFA state
   const [mfaQrCode, setMfaQrCode] = useState<string | null>(null);
@@ -1200,6 +1202,14 @@ export default function UserPanel({ open, onClose }: Props) {
             <div className="space-y-0">
               <AccountsManager />
               <CardsManager />
+              <div className="px-4 py-2">
+                <button
+                  onClick={() => setShowCardAccountModal(true)}
+                  className="w-full py-2.5 border-2 border-dashed border-border-color rounded-lg text-sm text-secondary hover:border-primary hover:text-primary transition-colors"
+                >
+                  + Crear tarjeta o cuenta
+                </button>
+              </div>
             </div>
           )}
 
@@ -1286,6 +1296,8 @@ export default function UserPanel({ open, onClose }: Props) {
         }}
         onCancel={() => setShowLogoutConfirm(false)}
       />
+
+      {showCardAccountModal && <CardAccountModal onClose={() => setShowCardAccountModal(false)} />}
     </>
   );
 }
