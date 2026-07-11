@@ -71,19 +71,6 @@ async def lifespan(application: FastAPI):
         db.commit()
         logging.getLogger(__name__).info(f"Auto-verified {len(unverified)} existing users")
 
-    # Flag existing users for forced password change (new security policy)
-    from sqlalchemy import text as _sql
-
-    needs_flag = db.execute(
-        _sql("SELECT id FROM users WHERE force_password_change = false AND hashed_password IS NOT NULL")
-    ).fetchall()
-    if needs_flag:
-        db.execute(
-            _sql("UPDATE users SET force_password_change = true WHERE hashed_password IS NOT NULL AND force_password_change = false")
-        )
-        db.commit()
-        logging.getLogger(__name__).info(f"Flagged {len(needs_flag)} users for forced password change")
-
     db.close()
 
     task = asyncio.create_task(price_refresh_loop())
