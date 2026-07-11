@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createCard, createAccount, getAccounts, getCards, updateCard } from "../api/client";
 import type { Account } from "../types";
@@ -18,6 +18,7 @@ interface CardAccountModalProps {
 
 export default function CardAccountModal({ onClose }: CardAccountModalProps) {
   const queryClient = useQueryClient();
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   const [accountType, setAccountType] = useState("tarjeta");
   const [cardName, setCardName] = useState("");
@@ -32,7 +33,12 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
+    // Focus the name input after a short delay to ensure modal is rendered
+    const timer = setTimeout(() => nameInputRef.current?.focus(), 100);
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      clearTimeout(timer);
+    };
   }, [onClose]);
 
   const { data: accounts = [] } = useQuery({
@@ -45,11 +51,8 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
     queryFn: getCards,
   });
 
-  // Available caja_ahorro accounts for linking to a new debit card
-  const availableAccounts = accounts.filter((a) => a.type === "caja_ahorro" && !a.linked_card_id);
-
-  // Available debit cards for linking to a new caja_ahorro account
-  const availableDebitCards = cards.filter((c) => c.card_type === "debito" && !c.linked_account_id);
+  const availableAccounts = accounts.filter((a) => a.type === "caja_ahorro");
+  const availableDebitCards = cards.filter((c) => c.card_type === "debito");
 
   const updateCardLinkMut = useMutation({
     mutationFn: ({ cardId, accountId }: { cardId: number; accountId: number | null }) =>
@@ -73,7 +76,6 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
     mutationFn: (data: { name: string; type: string }) => createAccount(data),
     onSuccess: (created: Account) => {
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
-      // Link debit card if one was selected
       if (linkedCardId) {
         updateCardLinkMut.mutate({ cardId: linkedCardId, accountId: created.id });
       }
@@ -113,11 +115,11 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-modal-backdrop bg-black/60"
+      className="fixed inset-0 z-[60] flex items-start justify-center pt-[10vh] p-4 animate-modal-backdrop bg-black/60 overflow-y-auto"
       onClick={onClose}
     >
       <div
-        className="relative card w-full max-w-sm max-h-[90vh] overflow-auto p-6 space-y-4 animate-modal-content"
+        className="relative card w-full max-w-sm p-6 space-y-4 animate-modal-content"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -162,7 +164,7 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
                   ]}
                 />
               </div>
-              {cardType === "debito" && availableAccounts.length > 0 && (
+              {cardType === "debito" && (
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-[var(--text-secondary)]">
                     Vincular a cuenta
@@ -178,6 +180,11 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
                       })),
                     ]}
                   />
+                  {availableAccounts.length === 0 && (
+                    <p className="text-[10px] text-[var(--text-tertiary)]">
+                      Creá una Caja de Ahorro primero para poder vincular
+                    </p>
+                  )}
                 </div>
               )}
               <div className="space-y-1.5">
@@ -201,7 +208,7 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
             </div>
           )}
 
-          {accountType === "caja_ahorro" && availableDebitCards.length > 0 && (
+          {accountType === "caja_ahorro" && (
             <div className="space-y-1.5 pt-2 border-t border-[var(--border-color)]">
               <label className="text-xs font-medium text-[var(--text-secondary)]">
                 Vincular tarjeta débito
@@ -217,12 +224,20 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
                   })),
                 ]}
               />
+              {availableDebitCards.length === 0 && (
+                <p className="text-[10px] text-[var(--text-tertiary)]">
+                  Creá una Tarjeta Débito primero para poder vincular
+                </p>
+              )}
             </div>
           )}
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--text-secondary)]">Tarjeta</label>
+            <label className="text-xs font-medium text-[var(--text-secondary)]">
+              {accountType === "tarjeta" ? "Tarjeta" : "Nombre"}
+            </label>
             <input
+              ref={nameInputRef}
               type="text"
               value={cardName}
               onChange={(e) => {
@@ -235,7 +250,6 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
                   : "border-[var(--border-color)] focus:border-primary"
               }`}
               placeholder={accountType === "tarjeta" ? "Ej: Visa Galicia" : "Ej: Mi Cuenta"}
-              autoFocus
             />
             {errors.card_name && <p className="text-xs text-red-500">{errors.card_name}</p>}
           </div>
