@@ -75,15 +75,8 @@ def main():
 
             # Verify
             verify = conn.execute(text("""
-                SELECT column_name, is_nullable, foreign_key_name
+                SELECT c.column_name, c.is_nullable
                 FROM information_schema.columns c
-                LEFT JOIN (
-                    SELECT tc.table_name, kcu.column_name, tc.constraint_name as foreign_key_name
-                    FROM information_schema.table_constraints tc
-                    JOIN information_schema.key_column_usage kcu
-                        ON tc.constraint_name = kcu.constraint_name
-                    WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_name = 'cards'
-                ) fk ON c.table_name = fk.table_name AND c.column_name = fk.column_name
                 WHERE c.table_name = 'cards' AND c.column_name = 'linked_account_id'
             """)).fetchone()
 
@@ -91,7 +84,6 @@ def main():
                 print(f"\nVerification passed:")
                 print(f"  Column: {verify[0]}")
                 print(f"  Nullable: {verify[1]}")
-                print(f"  FK constraint: {verify[2] or 'inherited from model'}")
             else:
                 raise RuntimeError("Verification failed: column not found")
 
