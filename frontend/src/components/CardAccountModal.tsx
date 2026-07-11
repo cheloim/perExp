@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createCard, createAccount } from "../api/client";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createCard, createAccount, getAccounts, getCards, updateCard } from "../api/client";
+import type { Account } from "../types";
 import { Select } from "./ui/Select";
 
 const ACCOUNT_TYPES = [
@@ -23,6 +24,8 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
   const [bank, setBank] = useState("");
   const [cardType, setCardType] = useState("credito");
   const [errors, setErrors] = useState<{ card_name?: string; bank?: string }>({});
+  const [linkedAccountId, setLinkedAccountId] = useState<number | null>(null);
+  const [linkedCardId, setLinkedCardId] = useState<number | null>(null);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -32,18 +35,48 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
     return () => document.removeEventListener("keydown", handleEscape);
   }, [onClose]);
 
+  const { data: accounts = [] } = useQuery({
+    queryKey: ["accounts"],
+    queryFn: getAccounts,
+  });
+
+  const { data: cards = [] } = useQuery({
+    queryKey: ["cards"],
+    queryFn: getCards,
+  });
+
+  // Available caja_ahorro accounts for linking to a new debit card
+  const availableAccounts = accounts.filter((a) => a.type === "caja_ahorro" && !a.linked_card_id);
+
+  // Available debit cards for linking to a new caja_ahorro account
+  const availableDebitCards = cards.filter((c) => c.card_type === "debito" && !c.linked_account_id);
+
+  const updateCardLinkMut = useMutation({
+    mutationFn: ({ cardId, accountId }: { cardId: number; accountId: number | null }) =>
+      updateCard(cardId, { linked_account_id: accountId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cards"] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+    },
+  });
+
   const createCardMut = useMutation({
     mutationFn: createCard,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cards"] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
       onClose();
     },
   });
 
   const createAccountMut = useMutation({
     mutationFn: (data: { name: string; type: string }) => createAccount(data),
-    onSuccess: () => {
+    onSuccess: (created: Account) => {
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      // Link debit card if one was selected
+      if (linkedCardId) {
+        updateCardLinkMut.mutate({ cardId: linkedCardId, accountId: created.id });
+      }
       onClose();
     },
   });
@@ -69,6 +102,7 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
         card_name: cardName.trim(),
         bank: bank.trim(),
         card_type: cardType,
+        linked_account_id: cardType === "debito" ? linkedAccountId : null,
       });
     } else {
       createAccountMut.mutate({ name: cardName.trim(), type: accountType });
@@ -118,13 +152,34 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
                 </label>
                 <Select
                   value={cardType}
-                  onChange={setCardType}
+                  onChange={(v) => {
+                    setCardType(v);
+                    if (v !== "debito") setLinkedAccountId(null);
+                  }}
                   options={[
                     { value: "credito", label: "Crédito" },
                     { value: "debito", label: "Débito" },
                   ]}
                 />
               </div>
+              {cardType === "debito" && availableAccounts.length > 0 && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">
+                    Vincular a cuenta
+                  </label>
+                  <Select
+                    value={String(linkedAccountId || "")}
+                    onChange={(v) => setLinkedAccountId(v ? Number(v) : null)}
+                    options={[
+                      { value: "", label: "Sin vinculación" },
+                      ...availableAccounts.map((a) => ({
+                        value: String(a.id),
+                        label: a.name,
+                      })),
+                    ]}
+                  />
+                </div>
+              )}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
                 <input
@@ -143,6 +198,25 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
                 />
                 {errors.bank && <p className="text-xs text-red-500">{errors.bank}</p>}
               </div>
+            </div>
+          )}
+
+          {accountType === "caja_ahorro" && availableDebitCards.length > 0 && (
+            <div className="space-y-1.5 pt-2 border-t border-[var(--border-color)]">
+              <label className="text-xs font-medium text-[var(--text-secondary)]">
+                Vincular tarjeta débito
+              </label>
+              <Select
+                value={String(linkedCardId || "")}
+                onChange={(v) => setLinkedCardId(v ? Number(v) : null)}
+                options={[
+                  { value: "", label: "Sin vinculación" },
+                  ...availableDebitCards.map((c) => ({
+                    value: String(c.id),
+                    label: `${c.card_name} (${c.bank})`,
+                  })),
+                ]}
+              />
             </div>
           )}
 
