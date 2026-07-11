@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { DayPicker } from "react-day-picker";
+import { es } from "date-fns/locale";
 import { getCategories, getAccounts, getCards, createCategory } from "../api/client";
 import type { Expense, ExpenseCreate, Card } from "../types";
 import { Select } from "./ui/Select";
@@ -50,6 +52,75 @@ export const EMPTY_FORM: ExpenseCreate = {
 };
 
 // DatePicker component with calendar
+export function DatePickerInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (d: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const getValidDate = (val: string): Date => {
+    if (!val || typeof val !== "string") return new Date();
+    const parts = val.split("-");
+    if (parts.length !== 3) return new Date();
+    const d = parseInt(parts[0]);
+    const m = parseInt(parts[1]);
+    const y = parseInt(parts[2]);
+    if (isNaN(d) || isNaN(m) || isNaN(y)) return new Date();
+    if (d < 1 || d > 31 || m < 1 || m > 12 || y < 2000 || y > 2100) return new Date();
+    return new Date(y, m - 1, d);
+  };
+
+  const selectedDate = getValidDate(value);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => {
+          const raw = e.target.value.replace(/[^\d-]/g, "").slice(0, 10);
+          onChange(raw);
+        }}
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition cursor-pointer"
+        placeholder="DD-MM-YYYY"
+      />
+      {isOpen && (
+        <div className="absolute z-50 mt-2 p-3 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl shadow-gnome-lg">
+          <DayPicker
+            mode="single"
+            selected={selectedDate}
+            onSelect={(d) => {
+              if (d) {
+                const nd = String(d.getDate()).padStart(2, "0");
+                const nm = String(d.getMonth() + 1).padStart(2, "0");
+                const ny = d.getFullYear();
+                onChange(`${nd}-${nm}-${ny}`);
+                setIsOpen(false);
+              }
+            }}
+            locale={es}
+            className=""
+          />
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ExpenseModal - Full modal for expense transactions with payment method selector
 interface ExpenseModalProps {
@@ -189,10 +260,6 @@ export function ExpenseModal({
 
   const trapRef = useFocusTrap(true);
 
-  const [showAdvanced, setShowAdvanced] = useState(
-    !!initial?.notes || !!(initial?.installment_total && initial.installment_total > 1),
-  );
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-backdrop bg-black/60"
@@ -203,7 +270,7 @@ export function ExpenseModal({
         role="dialog"
         aria-modal="true"
         aria-label={initial ? "Editar gasto" : "Nuevo gasto"}
-        className="relative card w-full max-w-md max-h-[90vh] overflow-auto p-5 space-y-2.5 animate-modal-content"
+        className="relative card w-full max-w-lg max-h-[90vh] overflow-auto p-6 space-y-4 animate-modal-content"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -244,14 +311,14 @@ export function ExpenseModal({
         {/* Payment method toggle */}
         {!isInstallmentsOnly && (
           <div>
-            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
               Medio de pago
             </label>
             <div className="flex rounded-md border border-[var(--border-color)] overflow-hidden">
               <button
                 type="button"
                 onClick={() => switchPayMethod("card")}
-                className={`flex-1 px-3 py-1.5 text-sm font-medium transition ${
+                className={`flex-1 px-3 py-2 text-sm font-medium transition ${
                   payMethod === "card"
                     ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
                     : "bg-[var(--color-base-container)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
@@ -262,7 +329,7 @@ export function ExpenseModal({
               <button
                 type="button"
                 onClick={() => switchPayMethod("cash")}
-                className={`flex-1 px-3 py-1.5 text-sm font-medium transition ${
+                className={`flex-1 px-3 py-2 text-sm font-medium transition ${
                   payMethod === "cash"
                     ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
                     : "bg-[var(--color-base-container)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
@@ -274,31 +341,27 @@ export function ExpenseModal({
           </div>
         )}
 
-        {/* Fecha */}
         <div>
           <label className="text-xs font-medium text-[var(--text-secondary)]">
             Fecha <span className="text-danger">*</span>
           </label>
+          <DatePickerInput value={form.date} onChange={(d) => set("date", d)} />
+        </div>
+
+        <div>
+          <label className="text-xs font-medium text-[var(--text-secondary)]">
+            Descripción <span className="text-danger">*</span>
+          </label>
           <input
-            type="date"
-            value={(() => {
-              // Convert DD-MM-YYYY to YYYY-MM-DD for native date input
-              const parts = form.date.split("-");
-              if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
-              return form.date;
-            })()}
-            onChange={(e) => {
-              // Convert YYYY-MM-DD back to DD-MM-YYYY
-              const parts = e.target.value.split("-");
-              if (parts.length === 3) set("date", `${parts[2]}-${parts[1]}-${parts[0]}`);
-              else set("date", e.target.value);
-            }}
-            className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+            type="text"
+            value={form.description}
+            onChange={(e) => set("description", e.target.value)}
+            placeholder="Ej: Supermercado Coto"
+            className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
           />
         </div>
 
-        {/* Monto + Moneda */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-3">
           <div className="col-span-2">
             <label className="text-xs font-medium text-[var(--text-secondary)]">
               Monto <span className="text-danger">*</span>
@@ -307,7 +370,7 @@ export function ExpenseModal({
               type="number"
               value={form.amount}
               onChange={(e) => set("amount", parseFloat(e.target.value) || 0)}
-              className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+              className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
             />
           </div>
           <div>
@@ -323,82 +386,68 @@ export function ExpenseModal({
           </div>
         </div>
 
-        {/* Descripción + Categoría */}
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-xs font-medium text-[var(--text-secondary)]">
-              Descripción <span className="text-danger">*</span>
-            </label>
-            <input
-              type="text"
-              value={form.description}
-              onChange={(e) => set("description", e.target.value)}
-              placeholder="Ej: Supermercado Coto"
-              className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-[var(--text-secondary)]">Categoría</label>
-            <Select
-              value={form.category_id ? String(form.category_id) : ""}
-              onChange={async (v) => {
-                if (!v) {
-                  set("category_id", null);
-                  return;
+        <div>
+          <label className="text-xs font-medium text-[var(--text-secondary)]">Categoría</label>
+          <Select
+            value={form.category_id ? String(form.category_id) : ""}
+            onChange={async (v) => {
+              if (!v) {
+                set("category_id", null);
+                return;
+              }
+              const parsed = parseInt(v);
+              if (!isNaN(parsed)) {
+                set("category_id", parsed);
+              } else {
+                // Create new category
+                try {
+                  const newCat = await createCategory({
+                    name: v,
+                    color: "#6366f1",
+                    keywords: "",
+                    parent_id: null,
+                  });
+                  queryClient.invalidateQueries({ queryKey: ["categories"] });
+                  set("category_id", newCat.id);
+                } catch {
+                  // Duplicate name or other error - leave category_id as null
                 }
-                const parsed = parseInt(v);
-                if (!isNaN(parsed)) {
-                  set("category_id", parsed);
-                } else {
-                  try {
-                    const newCat = await createCategory({
-                      name: v,
-                      color: "#6366f1",
-                      keywords: "",
-                      parent_id: null,
-                    });
-                    queryClient.invalidateQueries({ queryKey: ["categories"] });
-                    set("category_id", newCat.id);
-                  } catch {
-                    // Duplicate name or other error
-                  }
-                }
-              }}
-              groups={(() => {
-                const parentIds = new Set(
-                  categories.filter((c) => c.parent_id).map((c) => c.parent_id!),
-                );
-                const parents = categories.filter((c) => !c.parent_id && parentIds.has(c.id));
-                const orphans = categories.filter((c) => !c.parent_id && !parentIds.has(c.id));
-                return [
-                  ...parents.map((parent) => ({
-                    label: parent.name,
-                    options: categories
-                      .filter((c) => c.parent_id === parent.id)
-                      .map((c) => ({ value: String(c.id), label: c.name })),
-                  })),
-                  ...(orphans.length > 0
-                    ? [
-                        {
-                          label: "—",
-                          options: orphans.map((c) => ({ value: String(c.id), label: c.name })),
-                        },
-                      ]
-                    : []),
-                ];
-              })()}
-              placeholder="Sin categoría"
-            />
-          </div>
+              }
+            }}
+            groups={(() => {
+              const parentIds = new Set(
+                categories.filter((c) => c.parent_id).map((c) => c.parent_id!),
+              );
+              const parents = categories.filter((c) => !c.parent_id && parentIds.has(c.id));
+              const orphans = categories.filter((c) => !c.parent_id && !parentIds.has(c.id));
+              return [
+                ...parents.map((parent) => ({
+                  label: parent.name,
+                  options: categories
+                    .filter((c) => c.parent_id === parent.id)
+                    .map((c) => ({ value: String(c.id), label: c.name })),
+                })),
+                ...(orphans.length > 0
+                  ? [
+                      {
+                        label: "—",
+                        options: orphans.map((c) => ({ value: String(c.id), label: c.name })),
+                      },
+                    ]
+                  : []),
+              ];
+            })()}
+            placeholder="Sin categoría"
+          />
         </div>
 
-        {/* Banco → Tarjeta */}
+        {/* Cascading: Banco → Tarjeta */}
         <div
-          className={`transition-opacity ${
+          className={`space-y-3 transition-opacity ${
             payMethod === "cash" ? "opacity-40 pointer-events-none" : ""
           }`}
         >
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
               <Select
@@ -425,10 +474,13 @@ export function ExpenseModal({
           </div>
         </div>
 
-        {/* Account selector for cash/transfer */}
-        <div className={`${payMethod === "card" ? "opacity-40 pointer-events-none" : ""}`}>
+        {/* Account selector for cash/transfer payments */}
+        <div
+          className={`space-y-3 ${payMethod === "card" ? "opacity-40 pointer-events-none" : ""}`}
+        >
+          {/* Warning when no accounts for cash/transfer */}
           {payMethod === "cash" && accounts.filter((a) => a.type !== "credito").length === 0 && (
-            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700 mb-2">
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
               <span className="mt-0.5">⚠️</span>
               <div className="flex-1">
                 <p>No tenés cuentas creadas para efectivo/transferencia.</p>
@@ -457,83 +509,70 @@ export function ExpenseModal({
               placeholder="Seleccionar cuenta"
               disabled={payMethod === "card"}
             />
+            <p className="text-xs text-[var(--text-tertiary)] mt-1">
+              Caja de ahorro, cuenta corriente, MercadoPago, efectivo
+            </p>
           </div>
         </div>
 
-        {/* Advanced toggle */}
-        <button
-          type="button"
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          className="text-xs font-medium text-[var(--text-tertiary)] hover:text-[var(--color-primary)] transition flex items-center gap-1"
-        >
-          <span>{showAdvanced ? "▾" : "▸"}</span>
-          Más opciones
-        </button>
-
-        {/* Advanced section: Cuotas + Notas */}
-        {showAdvanced && (
-          <div className="space-y-2.5 pt-1 border-t border-[var(--border-color)]">
-            {payMethod === "card" && (
-              <div className="border border-[var(--border-color)] rounded-md p-2.5 space-y-2">
-                {!isInstallmentsOnly && (
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={cuotasEnabled}
-                      onChange={(e) => toggleCuotas(e.target.checked)}
-                      className="accent-[var(--color-primary)]"
-                    />
-                    <span className="text-sm font-medium text-[var(--text-secondary)]">
-                      Compra en cuotas
-                    </span>
+        {payMethod === "card" && (
+          <div className="border border-[var(--border-color)] rounded-md p-3 space-y-3">
+            {!isInstallmentsOnly && (
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={cuotasEnabled}
+                  onChange={(e) => toggleCuotas(e.target.checked)}
+                  className="accent-[var(--color-primary)]"
+                />
+                <span className="text-sm font-medium text-[var(--text-secondary)]">
+                  Compra en cuotas
+                </span>
+              </label>
+            )}
+            {(cuotasEnabled || isInstallmentsOnly) && (
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">
+                    Cuota N°
                   </label>
-                )}
-                {(cuotasEnabled || isInstallmentsOnly) && (
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <label className="text-xs font-medium text-[var(--text-secondary)]">
-                        Cuota N°
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={form.installment_number ?? 1}
-                        onChange={(e) => set("installment_number", parseInt(e.target.value) || 1)}
-                        className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition text-center"
-                      />
-                    </div>
-                    <span className="text-[var(--text-tertiary)] mt-4">de</span>
-                    <div className="flex-1">
-                      <label className="text-xs font-medium text-[var(--text-secondary)]">
-                        Total cuotas
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={form.installment_total ?? 1}
-                        onChange={(e) => set("installment_total", parseInt(e.target.value) || 1)}
-                        className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition text-center"
-                      />
-                    </div>
-                  </div>
-                )}
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.installment_number ?? 1}
+                    onChange={(e) => set("installment_number", parseInt(e.target.value) || 1)}
+                    className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition text-center"
+                  />
+                </div>
+                <span className="text-[var(--text-tertiary)] mt-4">de</span>
+                <div className="flex-1">
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">
+                    Total cuotas
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.installment_total ?? 1}
+                    onChange={(e) => set("installment_total", parseInt(e.target.value) || 1)}
+                    className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition text-center"
+                  />
+                </div>
               </div>
             )}
-
-            <div>
-              <label className="text-xs font-medium text-[var(--text-secondary)]">Notas</label>
-              <textarea
-                value={form.notes ?? ""}
-                onChange={(e) => set("notes", e.target.value)}
-                className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition resize-none"
-                rows={1}
-              />
-            </div>
           </div>
         )}
 
-        {/* Buttons */}
-        <div className="flex gap-2 pt-1">
+        <div>
+          <label className="text-xs font-medium text-[var(--text-secondary)]">Notas</label>
+          <textarea
+            value={form.notes ?? ""}
+            onChange={(e) => set("notes", e.target.value)}
+            className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition resize-none"
+            rows={2}
+          />
+        </div>
+
+        <div className="flex gap-2 pt-2">
           <button
             onClick={onClose}
             className="flex-1 px-4 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
