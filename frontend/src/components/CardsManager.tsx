@@ -476,7 +476,7 @@ export default function CardsManager() {
                   ]}
                 />
               </div>
-              {cardType === "debito" && availableLinkedAccounts.length > 0 && (
+              {cardType === "debito" && (
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-[var(--text-secondary)]">
                     Vincular a cuenta
@@ -492,6 +492,11 @@ export default function CardsManager() {
                       })),
                     ]}
                   />
+                  {availableLinkedAccounts.length === 0 && (
+                    <p className="text-[10px] text-[var(--text-tertiary)]">
+                      Creá una Caja de Ahorro primero para poder vincular
+                    </p>
+                  )}
                 </div>
               )}
               <div className="space-y-1.5">

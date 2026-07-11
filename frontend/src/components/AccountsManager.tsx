@@ -12,6 +12,7 @@ import {
 import type { Account } from "../types";
 import { Select } from "./ui/Select";
 import { Skeleton, SkeletonList } from "./ui/Skeleton";
+import CardAccountModal from "./CardAccountModal";
 
 const ACCOUNT_TYPES = [
   { value: "efectivo", label: "Efectivo", color: "badge-success" },
@@ -47,6 +48,7 @@ export default function AccountsManager() {
   const [bank, setBank] = useState("");
   const [cardType, setCardType] = useState("credito");
   const [linkedCardId, setLinkedCardId] = useState<number | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ["accounts"],
@@ -65,11 +67,17 @@ export default function AccountsManager() {
 
   const createMut = useMutation({
     mutationFn: createAccount,
-    onSuccess: () => {
+    onSuccess: (created: Account) => {
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      // Link debit card if one was selected during creation
+      if (type === "caja_ahorro" && linkedCardId) {
+        updateCardLinkMut.mutate({ cardId: linkedCardId, accountId: created.id });
+      }
       setEditId(null);
+      setCardName("");
       setName("");
       setType("efectivo");
+      setLinkedCardId(null);
     },
     onError: (error: {
       response?: {
@@ -427,6 +435,15 @@ export default function AccountsManager() {
           </div>
         );
       })}
+
+      <button
+        onClick={() => setShowCreateModal(true)}
+        className="w-full py-2.5 border-2 border-dashed border-border-color rounded-lg text-sm text-secondary hover:border-primary hover:text-primary transition-colors"
+      >
+        + Agregar cuenta
+      </button>
+
+      {showCreateModal && <CardAccountModal onClose={() => setShowCreateModal(false)} />}
 
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
