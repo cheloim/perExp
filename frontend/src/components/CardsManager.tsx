@@ -7,20 +7,12 @@ import {
   deleteCard,
   createAccount,
   getCardSummary,
-  getMe,
   getAccounts,
 } from "../api/client";
 import { useQuery as useCardDataQuery } from "@tanstack/react-query";
 import type { Card } from "../types";
 import { Select } from "./ui/Select";
 import { Skeleton, SkeletonList } from "./ui/Skeleton";
-
-const getFirstName = (fullName: string): string => {
-  if (fullName.includes(",")) {
-    return fullName.split(",")[1].trim().split(" ")[0];
-  }
-  return fullName.split(" ")[0];
-};
 
 const ACCOUNT_TYPES = [
   { value: "efectivo", label: "Efectivo" },
@@ -69,11 +61,6 @@ export default function CardsManager() {
       a.type === "caja_ahorro" &&
       (!a.linked_card_id || (editId && editId > 0 && a.linked_card_id === editId)),
   );
-
-  const { data: currentUser } = useQuery({
-    queryKey: ["me"],
-    queryFn: getMe,
-  });
 
   // Card data from expenses (for future extension - show spending by card)
   useCardDataQuery({
@@ -179,17 +166,6 @@ export default function CardsManager() {
     setCardType("credito");
     setLinkedAccountId(null);
     setAccountType("tarjeta");
-  };
-
-  const handleAdd = () => {
-    setEditId(-1);
-    setCardName("");
-    setBank("");
-    setHolder(currentUser ? getFirstName(currentUser.full_name) : "");
-    setCardType("credito");
-    setLinkedAccountId(null);
-    setAccountType("efectivo");
-    setMenuOpen(null);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -553,15 +529,6 @@ export default function CardsManager() {
             </button>
           </div>
         </form>
-      )}
-
-      {editId === null && (
-        <button
-          onClick={handleAdd}
-          className="w-full py-2.5 border-2 border-dashed border-border-color rounded-lg text-sm text-secondary hover:border-primary hover:text-primary transition-colors"
-        >
-          + Agregar
-        </button>
       )}
 
       {deleteConfirm && (
