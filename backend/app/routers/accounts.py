@@ -48,11 +48,7 @@ def list_accounts(
     for account in accounts:
         account_dict = AccountResponse.model_validate(account)
         # Find linked card (if any debit card references this account)
-        linked_card = (
-            db.query(Card)
-            .filter(Card.linked_account_id == account.id)
-            .first()
-        )
+        linked_card = db.query(Card).filter(Card.linked_account_id == account.id).first()
         if linked_card:
             account_dict.linked_card_id = linked_card.id
             account_dict.linked_card_name = f"{linked_card.card_name} ({linked_card.bank})"

@@ -116,9 +116,7 @@ def create_card(
             )
         # Check if account is already linked to another card
         existing_link = (
-            db.query(Card)
-            .filter(Card.linked_account_id == card.linked_account_id)
-            .first()
+            db.query(Card).filter(Card.linked_account_id == card.linked_account_id).first()
         )
         if existing_link:
             raise HTTPException(
