@@ -324,6 +324,10 @@ def create_expense(
         if not card:
             raise HTTPException(404, "Tarjeta no encontrada")
 
+        # Auto-asign account_id if card has linked account
+        if card.linked_account_id and not data.get("account_id"):
+            data["account_id"] = card.linked_account_id
+
     # Validate account belongs to user
     if data.get("account_id"):
         from app.models import Account

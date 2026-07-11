@@ -594,10 +594,17 @@ export const createCard = (data: {
   bank?: string;
   holder?: string;
   card_type?: string;
+  linked_account_id?: number | null;
 }) => api.post<Card>("/cards", data).then((r) => r.data);
 export const updateCard = (
   id: number,
-  data: { card_name?: string; bank?: string; holder?: string; card_type?: string },
+  data: {
+    card_name?: string;
+    bank?: string;
+    holder?: string;
+    card_type?: string;
+    linked_account_id?: number | null;
+  },
 ) => api.put<Card>(`/cards/${id}`, data).then((r) => r.data);
 export const deleteCard = (id: number) => api.delete(`/cards/${id}`).then((r) => r.data);
 

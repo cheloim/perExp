@@ -325,6 +325,11 @@ export default function AccountsManager() {
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-primary truncate">{account.name}</div>
                   <div className="text-xs text-secondary">{typeInfo.label}</div>
+                  {account.linked_card_name && (
+                    <div className="text-xs text-[var(--color-success)] mt-0.5">
+                      Vinculada a: {account.linked_card_name}
+                    </div>
+                  )}
                 </div>
                 <div className="relative">
                   <button

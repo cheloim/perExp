@@ -83,6 +83,8 @@ export interface Account {
   id: number;
   name: string;
   type: string;
+  linked_card_id?: number | null;
+  linked_card_name?: string | null;
   user_id: number;
   created_at: string;
 }
@@ -93,6 +95,8 @@ export interface Card {
   bank: string;
   holder: string;
   card_type: string;
+  linked_account_id?: number | null;
+  linked_account_name?: string | null;
   user_id: number;
   created_at: string;
 }

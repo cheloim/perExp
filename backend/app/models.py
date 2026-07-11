@@ -128,6 +128,7 @@ class Card(Base):
     __table_args__ = (
         Index("ix_cards_user_id", "user_id"),
         Index("ix_cards_card_type", "card_type"),
+        Index("ix_cards_linked_account_id", "linked_account_id"),
     )
     id = Column(Integer, primary_key=True, index=True)
     card_name = Column(String, nullable=False)  # Visa, Mastercard, etc
@@ -136,8 +137,12 @@ class Card(Base):
         String, default=""
     )  # Primer nombre del usuario (para agrupar en grupo familiar)
     card_type = Column(String, default="credito")  # credito, debito
+    linked_account_id = Column(
+        Integer, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
+    )
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    linked_account = relationship("Account")
 
 
 class Expense(Base):

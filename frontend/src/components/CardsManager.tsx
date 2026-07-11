@@ -8,6 +8,7 @@ import {
   createAccount,
   getCardSummary,
   getMe,
+  getAccounts,
 } from "../api/client";
 import { useQuery as useCardDataQuery } from "@tanstack/react-query";
 import type { Card } from "../types";
@@ -50,11 +51,24 @@ export default function CardsManager() {
   const [holder, setHolder] = useState("");
   const [cardType, setCardType] = useState("credito");
   const [accountType, setAccountType] = useState("efectivo");
+  const [linkedAccountId, setLinkedAccountId] = useState<number | null>(null);
 
   const { data: cards = [], isLoading } = useQuery({
     queryKey: ["cards"],
     queryFn: getCards,
   });
+
+  const { data: accounts = [] } = useQuery({
+    queryKey: ["accounts"],
+    queryFn: getAccounts,
+  });
+
+  // Filter accounts that are caja_ahorro and not already linked to another card
+  const availableLinkedAccounts = accounts.filter(
+    (a) =>
+      a.type === "caja_ahorro" &&
+      (!a.linked_card_id || (editId && editId > 0 && a.linked_card_id === editId)),
+  );
 
   const { data: currentUser } = useQuery({
     queryKey: ["me"],
@@ -69,14 +83,22 @@ export default function CardsManager() {
   });
 
   const createMut = useMutation({
-    mutationFn: createCard,
+    mutationFn: (data: {
+      card_name: string;
+      bank: string;
+      holder?: string;
+      card_type?: string;
+      linked_account_id?: number | null;
+    }) => createCard(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cards"] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
       setEditId(null);
       setCardName("");
       setBank("");
       setHolder("");
       setCardType("credito");
+      setLinkedAccountId(null);
     },
     onError: (error: { response?: { status?: number; data?: { detail?: string } } }) => {
       if (error.response?.status === 409) {
@@ -99,15 +121,22 @@ export default function CardsManager() {
       data,
     }: {
       id: number;
-      data: { card_name?: string; bank?: string; card_type?: string; closing_day?: number | null };
+      data: {
+        card_name?: string;
+        bank?: string;
+        card_type?: string;
+        linked_account_id?: number | null;
+      };
     }) => updateCard(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cards"] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
       setEditId(null);
       setCardName("");
       setBank("");
       setHolder("");
       setCardType("credito");
+      setLinkedAccountId(null);
     },
   });
 
@@ -137,6 +166,7 @@ export default function CardsManager() {
     setBank(card.bank || "");
     setHolder(card.holder || "");
     setCardType(card.card_type);
+    setLinkedAccountId(card.linked_account_id || null);
     setAccountType("tarjeta");
     setMenuOpen(null);
   };
@@ -147,6 +177,7 @@ export default function CardsManager() {
     setBank("");
     setHolder("");
     setCardType("credito");
+    setLinkedAccountId(null);
     setAccountType("tarjeta");
   };
 
@@ -156,6 +187,7 @@ export default function CardsManager() {
     setBank("");
     setHolder(currentUser ? getFirstName(currentUser.full_name) : "");
     setCardType("credito");
+    setLinkedAccountId(null);
     setAccountType("efectivo");
     setMenuOpen(null);
   };
@@ -178,10 +210,17 @@ export default function CardsManager() {
     setErrors({});
 
     if (accountType === "tarjeta") {
-      const data: { card_name: string; bank?: string; holder?: string; card_type?: string } = {
+      const data: {
+        card_name: string;
+        bank: string;
+        holder?: string;
+        card_type?: string;
+        linked_account_id?: number | null;
+      } = {
         card_name: cardName.trim(),
         bank: bank.trim(),
         card_type: cardType,
+        linked_account_id: cardType === "debito" ? linkedAccountId : null,
       };
       if (editId && editId > 0) {
         updateMut.mutate({ id: editId, data });
@@ -270,13 +309,34 @@ export default function CardsManager() {
                   <label className="text-xs font-medium text-[var(--text-secondary)]">Tipo</label>
                   <Select
                     value={cardType}
-                    onChange={(v) => setCardType(v)}
+                    onChange={(v) => {
+                      setCardType(v);
+                      if (v !== "debito") setLinkedAccountId(null);
+                    }}
                     options={[
                       { value: "credito", label: "Crédito" },
                       { value: "debito", label: "Débito" },
                     ]}
                   />
                 </div>
+                {cardType === "debito" && availableLinkedAccounts.length > 0 && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-[var(--text-secondary)]">
+                      Vincular a cuenta
+                    </label>
+                    <Select
+                      value={String(linkedAccountId || "")}
+                      onChange={(v) => setLinkedAccountId(v ? Number(v) : null)}
+                      options={[
+                        { value: "", label: "Sin vinculación" },
+                        ...availableLinkedAccounts.map((a) => ({
+                          value: String(a.id),
+                          label: a.name,
+                        })),
+                      ]}
+                    />
+                  </div>
+                )}
                 <div className="flex gap-2 pt-2">
                   <button
                     type="submit"
@@ -318,6 +378,11 @@ export default function CardsManager() {
                     — {card.bank}
                   </div>
                   <div className="text-xs text-tertiary mt-0.5">Titular: {card.holder || "—"}</div>
+                  {card.linked_account_name && (
+                    <div className="text-xs text-[var(--color-success)] mt-0.5">
+                      Vinculada a: {card.linked_account_name}
+                    </div>
+                  )}
                 </div>
                 <div className="relative">
                   <button
@@ -401,13 +466,34 @@ export default function CardsManager() {
                 </label>
                 <Select
                   value={cardType}
-                  onChange={(v) => setCardType(v)}
+                  onChange={(v) => {
+                    setCardType(v);
+                    if (v !== "debito") setLinkedAccountId(null);
+                  }}
                   options={[
                     { value: "credito", label: "Crédito" },
                     { value: "debito", label: "Débito" },
                   ]}
                 />
               </div>
+              {cardType === "debito" && availableLinkedAccounts.length > 0 && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">
+                    Vincular a cuenta
+                  </label>
+                  <Select
+                    value={String(linkedAccountId || "")}
+                    onChange={(v) => setLinkedAccountId(v ? Number(v) : null)}
+                    options={[
+                      { value: "", label: "Sin vinculación" },
+                      ...availableLinkedAccounts.map((a) => ({
+                        value: String(a.id),
+                        label: a.name,
+                      })),
+                    ]}
+                  />
+                </div>
+              )}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
                 <input
