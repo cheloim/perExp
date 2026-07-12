@@ -142,7 +142,7 @@ def main():
                 )
             ).scalar()
             if needs_password_change > 0:
-                print(f"  Flagging {needs_password_change} users for forced password change...")
+                print(f"  Flagging {needs_password_change} users for forced password change...")  # lgtm[py/clear-text-logging-sensitive-information]
                 conn.execute(
                     text(
                         "UPDATE users SET force_password_change = true"
