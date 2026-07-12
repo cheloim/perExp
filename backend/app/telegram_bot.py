@@ -21,10 +21,13 @@ from telegram.ext import (
 from app.database import SessionLocal
 from app.models import Account, Card, Category, Expense, User
 from app.prompts import CARD_EXTRACT_PROMPT, EXPENSE_PARSE_PROMPT
-from app.services.categorization import auto_categorize
+from app.services.categorization import auto_categorize, llm_categorize
 from app.services.import_utils import _normalize_text
 
 logger = logging.getLogger(__name__)
+
+APP_ENV = os.getenv("APP_ENV", "development")
+DEBUG_CAT = APP_ENV != "production" or os.getenv("DEBUG_CATEGORIZATION") == "1"
 
 # Module-level bot app reference for proactive messaging from web
 _bot_app: Application | None = None
@@ -145,7 +148,18 @@ def _save_expense(
             category_id = predicted_category_id
         else:
             cats = db.query(Category).all()
-            category_id = auto_categorize(parsed.get("description", ""), cats)
+            result = (
+                llm_categorize(
+                    parsed.get("description", ""), parsed.get("amount"), cats, user_id, db
+                )
+                if user_id
+                else None
+            )
+            category_id = (
+                result["category_id"]
+                if result
+                else auto_categorize(parsed.get("description", ""), cats)
+            )
 
         raw_date = parsed.get("date") or date.today().strftime("%Y-%m-%d")
         try:
@@ -261,7 +275,9 @@ def _build_cat_levels(category_id: int | None, db) -> list[str]:
     return list(reversed(levels))
 
 
-def _confirm_text(parsed: dict, payment_label: str, cat_levels: list[str] = None) -> str:
+def _confirm_text(
+    parsed: dict, payment_label: str, cat_levels: list[str] = None, debug_info: str = ""
+) -> str:
     desc = _escape_md(parsed.get("description", ""))
     amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
     date_str = _format_date_es(parsed.get("date", date.today().strftime("%Y-%m-%d")))
@@ -272,6 +288,7 @@ def _confirm_text(parsed: dict, payment_label: str, cat_levels: list[str] = None
         for i, name in enumerate(cat_levels):
             indent = indents[i] if i < len(indents) else indents[-1]
             cat_tree += f"{indent}{_cat_emoji(name)} {name}\n"
+    debug_line = f"\n`{debug_info}`" if debug_info else ""
     return (
         f"Esto es lo que voy a guardar:\n\n"
         f"🛒 *{desc}*\n"
@@ -279,8 +296,78 @@ def _confirm_text(parsed: dict, payment_label: str, cat_levels: list[str] = None
         f"📅 {date_str}\n"
         f"💳 {safe_label}\n"
         f"{cat_tree}"
+        f"{debug_line}"
         f"\n¿Lo guardamos?"
     )
+
+
+def _cat_debug_str(result: dict | None, description: str, categories: list) -> str:
+    """Build debug info string for confirmation text when DEBUG_CATEGORIZATION=1."""
+    if not DEBUG_CAT:
+        return ""
+    if result:
+        parent = result.get("parent_name") or "?"
+        return f"AI: {parent} > {result['category_name']} ({result['confidence']:.0%})"
+    kw_id = auto_categorize(description, categories)
+    if kw_id:
+        cat = next((c for c in categories if c.id == kw_id), None)
+        return f"KW: {cat.name}" if cat else "KW fallback"
+    return "sin categoria"
+
+
+def _instant_categorize(parsed: dict, user_id: int, db) -> tuple[int | None, list]:
+    """Keyword-only categorization (instant). Returns (category_id, categories_list)."""
+    cats = db.query(Category).filter(Category.user_id == user_id).all()
+    cat_id = auto_categorize(parsed.get("description", ""), cats)
+    return cat_id, cats
+
+
+async def _enhance_with_llm(
+    chat_id: int,
+    message_id: int,
+    parsed: dict,
+    user_id: int,
+    cats: list,
+    current_cat_id: int | None,
+    payment_label: str,
+    context,
+):
+    """Run LLM in background thread, update confirmation message if better category found."""
+    try:
+        result = await asyncio.to_thread(
+            llm_categorize,
+            parsed.get("description", ""),
+            parsed.get("amount"),
+            cats,
+            user_id,
+            SessionLocal(),
+        )
+        if not result or result["category_id"] == current_cat_id:
+            return
+
+        # Update stored data so _save_expense uses the better category
+        context.user_data["predicted_category_id"] = result["category_id"]
+        context.user_data["llm_result"] = result
+        context.user_data["cat_debug"] = _cat_debug_str(result, parsed.get("description", ""), cats)
+
+        cat_levels = _build_cat_levels(result["category_id"], SessionLocal())
+        confirm_keyboard = [
+            [
+                InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
+                InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
+            ]
+        ]
+        await _bot_app.bot.edit_message_text(
+            _confirm_text(
+                parsed, payment_label, cat_levels, context.user_data.get("cat_debug", "")
+            ),
+            chat_id=chat_id,
+            message_id=message_id,
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(confirm_keyboard),
+        )
+    except Exception:
+        pass  # Message already edited by user confirming, or Telegram error
 
 
 _CAT_EMOJI: dict[str, str] = {
@@ -749,9 +836,9 @@ async def handle_card_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     parsed = context.user_data["parsed"]
     db = SessionLocal()
     try:
-        cats = db.query(Category).all()
-        predicted_category_id = auto_categorize(parsed.get("description", ""), cats)
+        predicted_category_id, cats = _instant_categorize(parsed, context.user_data["user_id"], db)
         context.user_data["predicted_category_id"] = predicted_category_id
+        context.user_data["cat_debug"] = ""
 
         # Check if we should ask about installments
         if _should_ask_installments(predicted_category_id, db):
@@ -779,6 +866,19 @@ async def handle_card_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 _confirm_text(parsed, label, cat_levels),
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup(confirm_keyboard),
+            )
+            # Fire LLM in background to upgrade category if possible
+            asyncio.create_task(
+                _enhance_with_llm(
+                    query.message.chat_id,
+                    query.message.message_id,
+                    parsed,
+                    context.user_data["user_id"],
+                    cats,
+                    predicted_category_id,
+                    label,
+                    context,
+                )
             )
             return WAITING_CONFIRM
     finally:
@@ -811,7 +911,12 @@ async def handle_installment_question(update: Update, context: ContextTypes.DEFA
             ]
         ]
         await query.edit_message_text(
-            _confirm_text(context.user_data["parsed"], payment_label, cat_levels),
+            _confirm_text(
+                context.user_data["parsed"],
+                payment_label,
+                cat_levels,
+                context.user_data.get("cat_debug", ""),
+            ),
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(confirm_keyboard),
         )
@@ -861,7 +966,12 @@ async def handle_installment_number(update: Update, context: ContextTypes.DEFAUL
     ]
 
     await update.message.reply_text(
-        _confirm_text(context.user_data["parsed"], payment_label, cat_levels),
+        _confirm_text(
+            context.user_data["parsed"],
+            payment_label,
+            cat_levels,
+            context.user_data.get("cat_debug", ""),
+        ),
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(confirm_keyboard),
     )
@@ -910,11 +1020,11 @@ async def handle_account_select(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data["account_id"] = account.id
         context.user_data["payment_label"] = f"{account.name} ({account.type})"
 
-        # Auto-categorize for cash/transfer expenses
+        # Instant keyword categorization
         parsed = context.user_data["parsed"]
-        cats = db.query(Category).all()
-        predicted_category_id = auto_categorize(parsed.get("description", ""), cats)
+        predicted_category_id, cats = _instant_categorize(parsed, context.user_data["user_id"], db)
         context.user_data["predicted_category_id"] = predicted_category_id
+        context.user_data["cat_debug"] = ""
         cat_levels = _build_cat_levels(predicted_category_id, db)
     finally:
         db.close()
@@ -930,6 +1040,19 @@ async def handle_account_select(update: Update, context: ContextTypes.DEFAULT_TY
         _confirm_text(context.user_data["parsed"], context.user_data["payment_label"], cat_levels),
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(confirm_keyboard),
+    )
+    # Fire LLM in background
+    asyncio.create_task(
+        _enhance_with_llm(
+            query.message.chat_id,
+            query.message.message_id,
+            parsed,
+            context.user_data["user_id"],
+            cats,
+            predicted_category_id,
+            context.user_data["payment_label"],
+            context,
+        )
     )
     return WAITING_CONFIRM
 
@@ -982,11 +1105,11 @@ async def handle_account_create_type(update: Update, context: ContextTypes.DEFAU
         context.user_data["account_id"] = new_account.id
         context.user_data["payment_label"] = f"{new_account.name} ({new_account.type})"
 
-        # Auto-categorize for cash/transfer expenses
+        # Instant keyword categorization
         parsed = context.user_data["parsed"]
-        cats = db.query(Category).all()
-        predicted_category_id = auto_categorize(parsed.get("description", ""), cats)
+        predicted_category_id, cats = _instant_categorize(parsed, context.user_data["user_id"], db)
         context.user_data["predicted_category_id"] = predicted_category_id
+        context.user_data["cat_debug"] = ""
         cat_levels = _build_cat_levels(predicted_category_id, db)
     finally:
         db.close()
@@ -1002,6 +1125,19 @@ async def handle_account_create_type(update: Update, context: ContextTypes.DEFAU
         _confirm_text(context.user_data["parsed"], context.user_data["payment_label"], cat_levels),
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(confirm_keyboard),
+    )
+    # Fire LLM in background
+    asyncio.create_task(
+        _enhance_with_llm(
+            query.message.chat_id,
+            query.message.message_id,
+            parsed,
+            context.user_data["user_id"],
+            cats,
+            predicted_category_id,
+            context.user_data["payment_label"],
+            context,
+        )
     )
     return WAITING_CONFIRM
 
@@ -1171,9 +1307,9 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
         context.user_data["card_id"] = new_card.id
 
         parsed = context.user_data["parsed"]
-        cats = db.query(Category).all()
-        predicted_category_id = auto_categorize(parsed.get("description", ""), cats)
+        predicted_category_id, cats = _instant_categorize(parsed, context.user_data["user_id"], db)
         context.user_data["predicted_category_id"] = predicted_category_id
+        context.user_data["cat_debug"] = ""
 
         if _should_ask_installments(predicted_category_id, db):
             installment_keyboard = [
@@ -1201,6 +1337,19 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
                 + _confirm_text(parsed, context.user_data["payment_label"], cat_levels),
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup(confirm_keyboard),
+            )
+            # Fire LLM in background
+            asyncio.create_task(
+                _enhance_with_llm(
+                    query.message.chat_id,
+                    query.message.message_id,
+                    parsed,
+                    context.user_data["user_id"],
+                    cats,
+                    predicted_category_id,
+                    context.user_data["payment_label"],
+                    context,
+                )
             )
             return WAITING_CONFIRM
     finally:
@@ -1332,9 +1481,9 @@ async def handle_card_manual(update: Update, context: ContextTypes.DEFAULT_TYPE)
     parsed = context.user_data["parsed"]
     db = SessionLocal()
     try:
-        cats = db.query(Category).all()
-        predicted_category_id = auto_categorize(parsed.get("description", ""), cats)
+        predicted_category_id, cats = _instant_categorize(parsed, context.user_data["user_id"], db)
         context.user_data["predicted_category_id"] = predicted_category_id
+        context.user_data["cat_debug"] = ""
 
         if _should_ask_installments(predicted_category_id, db):
             installment_keyboard = [
@@ -1356,10 +1505,23 @@ async def handle_card_manual(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
                 ]
             ]
-            await update.message.reply_text(
+            confirm_msg = await update.message.reply_text(
                 _confirm_text(parsed, label, cat_levels),
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup(confirm_keyboard),
+            )
+            # Fire LLM in background
+            asyncio.create_task(
+                _enhance_with_llm(
+                    confirm_msg.chat_id,
+                    confirm_msg.message_id,
+                    parsed,
+                    context.user_data["user_id"],
+                    cats,
+                    predicted_category_id,
+                    label,
+                    context,
+                )
             )
             return WAITING_CONFIRM
     finally:

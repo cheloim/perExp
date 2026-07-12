@@ -150,6 +150,11 @@ class CategoryResponse(CategoryBase):
     model_config = {"from_attributes": True}
 
 
+class CategorySuggestRequest(BaseModel):
+    description: str
+    amount: float | None = None
+
+
 class AccountSimple(BaseModel):
     id: int
     name: str

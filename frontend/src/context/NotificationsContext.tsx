@@ -93,6 +93,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       showToast(notification.title, "info", 3000, "top-right");
     } else if (notification.type === "monthly_report_failed") {
       showToast(notification.title, "error", 5000, "top-right");
+    } else if (notification.type === "category_suggestions") {
+      showToast(notification.title, "info", 5000, "top-right");
     }
 
     setState((s) => {

@@ -5,6 +5,7 @@ import type {
   AuthToken,
   User,
   Category,
+  CategorySuggestion,
   Expense,
   ExpenseCreate,
   DashboardSummary,
@@ -105,6 +106,9 @@ export const updateCategory = (id: number, data: Omit<Category, "id">) =>
   api.put<Category>(`/categories/${id}`, data).then((r) => r.data);
 
 export const deleteCategory = (id: number) => api.delete(`/categories/${id}`).then((r) => r.data);
+
+export const suggestCategory = (data: { description: string; amount?: number }) =>
+  api.post<CategorySuggestion | null>("/categories/suggest", data).then((r) => r.data);
 
 // Expenses
 export const getExpenses = (params?: {

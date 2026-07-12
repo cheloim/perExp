@@ -1112,6 +1112,73 @@ export default function UserPanel({ open, onClose }: Props) {
                 </div>
               )}
 
+              {/* AI Suggestions Settings */}
+              <div>
+                <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-3">
+                  Sugerencias IA
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-[var(--text-primary)]">
+                      Sugerir categorías con IA
+                    </span>
+                    <button
+                      onClick={() => {
+                        const current = settings?.ai_suggestions_enabled !== "false";
+                        settingMut.mutate({
+                          key: "ai_suggestions_enabled",
+                          value: current ? "false" : "true",
+                        });
+                      }}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                        settings?.ai_suggestions_enabled !== "false"
+                          ? "bg-[var(--color-primary)]"
+                          : "bg-[var(--text-tertiary)]"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+                          settings?.ai_suggestions_enabled !== "false"
+                            ? "translate-x-4"
+                            : "translate-x-0.5"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  {settings?.ai_suggestions_enabled !== "false" && (
+                    <>
+                      <p className="text-[10px] text-[var(--text-tertiary)]">
+                        Categorías sugeridas automáticamente al crear gastos
+                      </p>
+                      <div>
+                        <label className="text-[10px] text-[var(--text-secondary)]">
+                          Sensibilidad:{" "}
+                          {Number(settings?.ai_suggestions_min_confidence || "0.5") <= 0.3
+                            ? "Baja"
+                            : Number(settings?.ai_suggestions_min_confidence || "0.5") <= 0.6
+                              ? "Media"
+                              : "Alta"}
+                        </label>
+                        <input
+                          type="range"
+                          min="0.1"
+                          max="1.0"
+                          step="0.1"
+                          value={String(settings?.ai_suggestions_min_confidence || "0.5")}
+                          onChange={(e) => {
+                            settingMut.mutate({
+                              key: "ai_suggestions_min_confidence",
+                              value: e.target.value,
+                            });
+                          }}
+                          className="w-full h-1 mt-1 accent-[var(--color-primary)]"
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
               <hr className="border-[var(--border-color)]" />
 
               {/* Change password */}

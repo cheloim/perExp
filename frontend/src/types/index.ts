@@ -10,6 +10,20 @@ export interface GroupInvitationData {
   group_id?: number;
 }
 
+export interface CategorySuggestionData {
+  count: number;
+  suggestions: {
+    expense_id: number;
+    description: string;
+    amount: number;
+    date: string;
+    suggested_category_id: number;
+    category_name: string;
+    parent_name?: string | null;
+    confidence: number;
+  }[];
+}
+
 export interface BaseNotification {
   id: number;
   title: string;
@@ -28,12 +42,21 @@ export interface GroupInvitationNotification extends BaseNotification {
   data: GroupInvitationData;
 }
 
+export interface CategorySuggestionNotification extends BaseNotification {
+  type: "category_suggestions";
+  data: CategorySuggestionData;
+}
+
 export interface GenericNotification extends BaseNotification {
   type: string;
   data: Record<string, unknown>;
 }
 
-export type Notification = ImportNotification | GroupInvitationNotification | GenericNotification;
+export type Notification =
+  | ImportNotification
+  | GroupInvitationNotification
+  | CategorySuggestionNotification
+  | GenericNotification;
 
 export interface GroupMember {
   id: number;
@@ -77,6 +100,13 @@ export interface Category {
   color: string;
   keywords: string;
   parent_id?: number | null;
+}
+
+export interface CategorySuggestion {
+  category_id: number;
+  category_name: string;
+  parent_name?: string | null;
+  confidence: number;
 }
 
 export interface Account {

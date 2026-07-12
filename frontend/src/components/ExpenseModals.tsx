@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getCategories, getAccounts, getCards, createCategory } from "../api/client";
+import {
+  getCategories,
+  getAccounts,
+  getCards,
+  createCategory,
+  suggestCategory,
+} from "../api/client";
 import type { Expense, ExpenseCreate, Card } from "../types";
 import { Select } from "./ui/Select";
 import CardAccountModal from "./CardAccountModal";
@@ -82,6 +88,8 @@ export function ExpenseModal({
     return () => document.removeEventListener("keydown", handleEscape);
   }, [onClose]);
 
+  const [aiSuggested, setAiSuggested] = useState(false);
+
   const isCash = (cardId: number | null | undefined) => !cardId;
   const lastPayment = getLastUsedPayment();
   const isInstallmentsOnly = mode === "installments-only";
@@ -121,6 +129,46 @@ export function ExpenseModal({
   const [cuotasEnabled, setCuotasEnabled] = useState(
     isInstallmentsOnly || !!(initial?.installment_total && initial.installment_total > 1),
   );
+
+  // Local keyword matching — instant, no API cost
+  const keywordMatch = (desc: string): number | null => {
+    const lower = desc.toLowerCase();
+    const leafIds = new Set(
+      categories.filter((c) => !categories.some((ch) => ch.parent_id === c.id)).map((c) => c.id),
+    );
+    for (const cat of categories) {
+      if (!leafIds.has(cat.id) || !cat.keywords) continue;
+      for (const kw of cat.keywords.split(",")) {
+        if (kw.trim() && lower.includes(kw.trim().toLowerCase())) return cat.id;
+      }
+    }
+    return null;
+  };
+
+  // Real-time keyword pre-fill as user types
+  useEffect(() => {
+    const desc = initial?.description ?? form.description;
+    if (!desc || desc.length < 3 || initial?.category_id || form.category_id) return;
+    const match = keywordMatch(desc);
+    if (match) {
+      setForm((f) => ({ ...f, category_id: match }));
+      setAiSuggested(false);
+    }
+  }, [form.description]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // One-shot LLM pre-fill on mount (upgrade keyword match if possible)
+  useEffect(() => {
+    const desc = initial?.description ?? form.description;
+    if (!desc || desc.length < 3 || initial?.category_id) return;
+    suggestCategory({ description: desc, amount: form.amount || undefined })
+      .then((res) => {
+        if (res?.category_id) {
+          setForm((f) => ({ ...f, category_id: res.category_id }));
+          setAiSuggested(true);
+        }
+      })
+      .catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Generate installment group ID on mount for installments-only mode
   useEffect(() => {
@@ -338,7 +386,14 @@ export function ExpenseModal({
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-[var(--text-secondary)]">Categoría</label>
+            <label className="text-xs font-medium text-[var(--text-secondary)]">
+              Categoría
+              {aiSuggested && (
+                <span className="ml-1.5 text-[10px] font-normal text-[var(--color-primary)] bg-[var(--color-primary)]/10 px-1.5 py-0.5 rounded-full">
+                  IA
+                </span>
+              )}
+            </label>
             <Select
               value={form.category_id ? String(form.category_id) : ""}
               onChange={async (v) => {

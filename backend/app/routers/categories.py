@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Category, Expense, User
-from app.schemas import CategoryCreate, CategoryResponse
+from app.schemas import CategoryCreate, CategoryResponse, CategorySuggestRequest
 from app.seed import _apply_base_hierarchy_for_user
 from app.services.auth import get_current_user
+from app.services.categorization import llm_categorize
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
@@ -105,3 +107,21 @@ def seed_default_categories(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     return _apply_base_hierarchy_for_user(db, current_user.id)
+
+
+class CategorySuggestResponse(BaseModel):
+    category_id: int
+    category_name: str
+    parent_name: str | None = None
+    confidence: float
+
+
+@router.post("/suggest", response_model=CategorySuggestResponse | None)
+def suggest_category(
+    body: CategorySuggestRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    cats = db.query(Category).filter(Category.user_id == current_user.id).all()
+    result = llm_categorize(body.description, body.amount, cats, current_user.id, db)
+    return result

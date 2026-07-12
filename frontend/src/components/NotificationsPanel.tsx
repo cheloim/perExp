@@ -119,6 +119,10 @@ export default function NotificationsPanel({ onClose }: Props) {
         downloadReportPdf(n.data.month as string);
       }
       onClose();
+    } else if (n.type === "category_suggestions") {
+      handleMarkRead(n.id);
+      navigate("/expenses?category_suggestions=1");
+      onClose();
     }
   };
 
@@ -344,9 +348,11 @@ export default function NotificationsPanel({ onClose }: Props) {
             const isImportNotif = n.type === "import_ready" || n.type === "import_failed";
             const isUncategorizedNotif =
               n.type === "uncategorized_expense" || n.type === "uncategorized_expenses";
+            const isCategorySuggestion = n.type === "category_suggestions";
             const isClickable =
               isImportNotif ||
               isUncategorizedNotif ||
+              isCategorySuggestion ||
               n.type === "monthly_report_ready" ||
               n.type === "monthly_report_queued";
             const isFailed = n.type === "import_failed";
@@ -368,6 +374,8 @@ export default function NotificationsPanel({ onClose }: Props) {
                     ? "border-l-4 " + (isFailed ? "border-l-red-500" : "border-l-green-500")
                     : ""
                 } ${isUncategorizedNotif ? "border-l-4 border-l-amber-500" : ""} ${
+                  isCategorySuggestion ? "border-l-4 border-l-purple-500" : ""
+                } ${
                   n.type === "monthly_report_ready" || n.type === "monthly_report_queued"
                     ? "border-l-4 border-l-blue-500"
                     : ""
@@ -460,6 +468,7 @@ export default function NotificationsPanel({ onClose }: Props) {
                           <circle cx="8" cy="12" r="0.75" fill="currentColor" />
                         </svg>
                       )}
+                      {isCategorySuggestion && <span className="text-sm">✨</span>}
                       {n.type === "monthly_report_ready" && (
                         <svg
                           width="16"
