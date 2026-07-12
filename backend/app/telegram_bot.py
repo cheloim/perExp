@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import uuid
 from datetime import date, datetime
 
@@ -105,6 +106,118 @@ def _extract_card_info(raw_input: str, card_type: str) -> dict:
         return {"card_name": raw_input, "bank": ""}
 
 
+# ─── Bank notification detection ──────────────────────────────────────────────
+
+BANK_NOTIFICATION_PATTERNS = [
+    r"compra\s+(aprobada|confirmada|registrada)",
+    r"d[eé]bito\s+(aprobado|confirmado|registrado)",
+    r"consumo\s+(aprobado|confirmado|registrado)",
+    r"tarjeta\s+(terminada|\*{4}|\d{4})",
+    r"visa\s+terminada",
+    r"mastercard\s+terminada",
+    r"naranja\s+terminada",
+    r"cr[eé]dito\s+(aprobado|confirmado|registrado)",
+    r"transferencia\s+(saliente|enviada|realizada)",
+    r" débito ",
+    r" crédito ",
+]
+
+
+def _is_bank_notification(text: str) -> bool:
+    """Detect if a message looks like a bank notification (not natural language)."""
+    lower = text.lower()
+    return any(re.search(p, lower) for p in BANK_NOTIFICATION_PATTERNS)
+
+
+CARD_NAME_PATTERNS = [
+    r"\b(visa|mastercard|naranja|amex|cabal|cmr|cordobesa|tarjeta naranja)\b",
+]
+BANK_NAME_PATTERNS = [
+    r"\b(galicia|santander|bbva|hsbc|macro|banco nacion|banco provincia|"
+    r"ciudad|superville|bind|brubank|ualabu| Mercado Pago|merpago|"
+    r"rei|patagonia|comafi|hipotecario|sucursal central|banco web)\b",
+]
+
+
+def _extract_card_from_text(text: str) -> tuple[str | None, str | None]:
+    """Try to extract card_name and bank from natural language text."""
+    lower = text.lower()
+    card_name = None
+    bank = None
+    for p in CARD_NAME_PATTERNS:
+        m = re.search(p, lower)
+        if m:
+            card_name = m.group(1).title()
+            break
+    for p in BANK_NAME_PATTERNS:
+        m = re.search(p, lower)
+        if m:
+            bank = m.group(1).title()
+            break
+    return card_name, bank
+
+
+def _parse_bank_notification(text: str) -> dict | None:
+    """Parse a bank notification using LLM to extract structured data."""
+    from app.prompts import BANK_NOTIFICATION_PARSE_PROMPT
+
+    today = date.today().strftime("%Y-%m-%d")
+    prompt = BANK_NOTIFICATION_PARSE_PROMPT.format(today=today) + f"\n\nNotificación: {text}"
+
+    api_key = os.getenv("LLM_API_KEY", "")
+    if not api_key:
+        return None
+
+    try:
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(model="gemini-flash-latest", contents=prompt)
+        raw = response.text.strip()
+        if "```" in raw:
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+        return json.loads(raw)
+    except Exception as e:
+        logger.error("Bank notification parse error: %s", e)
+        return None
+
+
+def _match_card_from_notification(
+    user_id: int, card_last4: str | None, bank: str | None, card_type: str | None, db
+) -> Card | None:
+    """Match a bank notification to an existing card in DB."""
+    cards = db.query(Card).filter(Card.user_id == user_id).all()
+    if not cards:
+        return None
+
+    target_type = card_type or "credito"
+
+    # Pass 1: match by card_name (Visa/Mastercard) + bank + type
+    for card in cards:
+        if card.card_type != target_type:
+            continue
+        if bank and card.bank and card.bank.lower() != bank.lower():
+            continue
+        # Check if card_name is a known franchise
+        if card.card_name.lower() in ["visa", "mastercard", "naranja", "amex", "cabal"]:
+            return card
+
+    # Pass 2: match by bank + type only (ignore card_name)
+    for card in cards:
+        if card.card_type != target_type:
+            continue
+        if bank and card.bank and card.bank.lower() == bank.lower():
+            return card
+
+    # Pass 3: match by type only — if only one card of that type, auto-select
+    type_cards = [c for c in cards if c.card_type == target_type]
+    if len(type_cards) == 1:
+        return type_cards[0]
+
+    return None
+
+
 def _get_accounts(user_id: int) -> list[dict]:
     """Returns list of account dicts for the authenticated user."""
     db = SessionLocal()
@@ -203,29 +316,33 @@ def _save_expense(
         db.close()
 
 
-def _should_ask_installments(category_id: int | None, db) -> bool:
+def _should_ask_installments(
+    category_id: int | None, db, amount: float = 0, card_type: str = ""
+) -> bool:
     """
-    Returns True if category matches installment rules:
-    - Parent: Viajes, Educación, or Indumentaria
-    - Subcategory whose parent is: Mantenimiento or Mobiliario
+    Returns True if category matches installment rules OR
+    amount > 10000 on a credit card.
     """
-    if not category_id:
-        return False
+    # Category-based check
+    if category_id:
+        category = db.query(Category).filter(Category.id == category_id).first()
+        if category:
+            if category.parent_id is None:
+                if category.name in ("Viajes", "Educación", "Indumentaria"):
+                    return True
+            else:
+                parent = db.query(Category).filter(Category.id == category.parent_id).first()
+                if parent and parent.name in (
+                    "Mantenimiento",
+                    "Mobiliario",
+                    "Viajes",
+                    "Educación",
+                    "Indumentaria",
+                ):
+                    return True
 
-    category = db.query(Category).filter(Category.id == category_id).first()
-    if not category:
-        return False
-
-    # Check parent categories
-    if category.parent_id is None:
-        return category.name in ("Viajes", "Educación", "Indumentaria")
-
-    # Check subcategories of target parents
-    parent = db.query(Category).filter(Category.id == category.parent_id).first()
-    if parent:
-        return parent.name in ("Mantenimiento", "Mobiliario", "Viajes", "Educación", "Indumentaria")
-
-    return False
+    # Amount + card type check
+    return card_type == "credito" and amount > 10000
 
 
 def _format_amount(amount: float, currency: str) -> str:
@@ -324,7 +441,7 @@ def _instant_categorize(parsed: dict, user_id: int, db) -> tuple[int | None, lis
 
 async def _enhance_with_llm(
     chat_id: int,
-    message_id: int,
+    message_id: int | None,
     parsed: dict,
     user_id: int,
     cats: list,
@@ -333,6 +450,8 @@ async def _enhance_with_llm(
     context,
 ):
     """Run LLM in background thread, update confirmation message if better category found."""
+    if not message_id:
+        return  # Can't edit message without message_id (new messages from bank notification)
     try:
         result = await asyncio.to_thread(
             llm_categorize,
@@ -635,14 +754,16 @@ async def handle_auth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
 _HELP_TEXT = (
     "📝 *Así registrás tus gastos con NikoFin:*\n\n"
-    "Escribime de forma natural, como le contarías a un amigo:\n\n"
+    "Escribime de forma natural:\n"
     '• _"farmacity 3200"_\n'
     '• _"almuerzo con el equipo 8500 pesos"_\n'
     '• _"uber ayer 1800"_\n'
     '• _"Netflix USD 5"_\n'
     '• _"cargué nafta 15000 el viernes"_\n\n'
-    "No hace falta ser preciso con el formato.\n"
-    "Yo te voy a pedir el medio de pago y antes de guardar te muestro un resumen para que confirmes."
+    "🔔 *O reenviame notificaciones de tu banco:*\n"
+    '• _"Compra aprobada Visa ****4521 $15.200 Supermercado"_\n'
+    '• _"Débito Mastercard ****1234 $8.500 Netflix"_\n\n'
+    "Si detecto los datos de tu tarjeta, te muestro todo junto para confirmar."
 )
 
 _UNRECOGNIZED_MESSAGES = [
@@ -651,6 +772,137 @@ _UNRECOGNIZED_MESSAGES = [
     'No pude identificar el importe. Probá con algo como _"supermercado 4500"_ o _"taxi 1200 ayer"_.',
     "Hmm, no entendí bien. ¿Podés decirme qué compraste y por cuánto?",
 ]
+
+
+async def _handle_bank_notification(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, text: str
+) -> int:
+    """Handle a bank notification: parse, match card, show single confirmation."""
+    parsed = await asyncio.to_thread(_parse_bank_notification, text)
+
+    if not parsed or not parsed.get("amount"):
+        await update.message.reply_text(
+            "🔔 Notificación bancaria detectada pero no pude parsear el monto.\n"
+            "¿Podés decirme cuánto fue?",
+            parse_mode="Markdown",
+        )
+        # Fall back to normal flow — store partial data
+        fallback_parsed = await asyncio.to_thread(_parse_expense, text)
+        if fallback_parsed and fallback_parsed.get("amount"):
+            context.user_data["parsed"] = fallback_parsed
+            context.user_data["tg_user"] = update.effective_user.full_name or ""
+            keyboard = [
+                [
+                    InlineKeyboardButton(
+                        "💵 Efectivo/Transferencia", callback_data="pay:efectivo_transferencia"
+                    ),
+                    InlineKeyboardButton("💳 Tarjeta", callback_data="pay:tarjeta"),
+                ]
+            ]
+            desc = _escape_md(fallback_parsed.get("description", ""))
+            amount_str = _format_amount(
+                fallback_parsed["amount"], fallback_parsed.get("currency", "ARS")
+            )
+            await update.message.reply_text(
+                f"*{desc}* — {amount_str}\n\n¿Cómo pagaste?",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+            )
+            return WAITING_PAYMENT
+        await update.message.reply_text(_HELP_TEXT, parse_mode="Markdown")
+        return ConversationHandler.END
+
+    user_id = context.user_data["user_id"]
+    db = SessionLocal()
+    try:
+        # Match card from notification
+        card = _match_card_from_notification(
+            user_id,
+            parsed.get("card_last4"),
+            parsed.get("bank"),
+            parsed.get("card_type"),
+            db,
+        )
+
+        if not card:
+            # Card not found — show notification info and fall back to normal flow
+            desc = _escape_md(parsed.get("description", ""))
+            amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
+            card_info = f"••{parsed.get('card_last4', '????')}" if parsed.get("card_last4") else ""
+            bank_info = parsed.get("bank", "")
+            label = f"{bank_info} {card_info}".strip()
+
+            await update.message.reply_text(
+                f"🔔 Notificación bancaria detectada:\n\n"
+                f"*{desc}* — {amount_str}\n"
+                f"💳 {label}\n\n"
+                f"No encontré esta tarjeta en tu cuenta.\n"
+                f"Elegí el medio de pago:",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(
+                    [
+                        [
+                            InlineKeyboardButton(
+                                "💵 Efectivo/Transferencia",
+                                callback_data="pay:efectivo_transferencia",
+                            ),
+                            InlineKeyboardButton("💳 Tarjeta", callback_data="pay:tarjeta"),
+                        ]
+                    ]
+                ),
+            )
+            # Store parsed data for the normal flow to continue
+            context.user_data["parsed"] = parsed
+            context.user_data["tg_user"] = update.effective_user.full_name or ""
+            return WAITING_PAYMENT
+
+        # Card matched — build single confirmation
+        payment_label = f"{card.bank} {card.card_name}".strip() if card.bank else card.card_name
+        context.user_data["parsed"] = parsed
+        context.user_data["card_id"] = card.id
+        context.user_data["card_selected"] = card.card_name
+        context.user_data["card_bank"] = card.bank or ""
+        context.user_data["payment_label"] = payment_label
+
+        # Auto-categorize
+        predicted_category_id, cats = _instant_categorize(parsed, user_id, db)
+        context.user_data["predicted_category_id"] = predicted_category_id
+        context.user_data["cat_debug"] = ""
+
+        cat_levels = _build_cat_levels(predicted_category_id, db)
+        cat_tree = ""
+        if cat_levels:
+            indents = ["", "  └ ", "      └ "]
+            for i, name in enumerate(cat_levels):
+                indent = indents[i] if i < len(indents) else indents[-1]
+                cat_tree += f"{indent}{_cat_emoji(name)} {name}\n"
+
+        desc = _escape_md(parsed.get("description", ""))
+        amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
+        date_str = _format_date_es(parsed.get("date", date.today().strftime("%Y-%m-%d")))
+        last4 = parsed.get("card_last4", "")
+
+        confirm_keyboard = [
+            [
+                InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
+                InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
+            ]
+        ]
+        await update.message.reply_text(
+            f"🔔 *Notificación bancaria detectada*\n\n"
+            f"🛒 *{desc}*\n"
+            f"💰 {amount_str}\n"
+            f"📅 {date_str}\n"
+            f"💳 {payment_label}" + (f" ••{last4}" if last4 else "") + "\n"
+            f"{cat_tree}"
+            f"\n¿Lo guardamos?",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(confirm_keyboard),
+        )
+
+        return WAITING_CONFIRM
+    finally:
+        db.close()
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -667,6 +919,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await update.message.reply_text(_HELP_TEXT, parse_mode="Markdown")
         return ConversationHandler.END
 
+    # Circuit 1: Bank notification detection
+    if _is_bank_notification(text):
+        return await _handle_bank_notification(update, context, text)
+
+    # Circuit 2: Normal flow (natural language)
     parsed = await asyncio.to_thread(_parse_expense, text)
     logger.debug(
         f"[PARSE] Parsed result: {parsed}, amount: {parsed.get('amount') if parsed else None}"
@@ -681,6 +938,90 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     context.user_data["tg_user"] = (
         update.effective_user.full_name or update.effective_user.username or ""
     )
+
+    # Clean description: strip card/bank keywords Gemini might have included
+    text_card_name, text_bank = _extract_card_from_text(text)
+    if text_card_name and parsed.get("description"):
+        desc = parsed["description"]
+        # Remove card name and bank from description
+        for word in [text_card_name, text_bank or ""]:
+            if word:
+                desc = re.sub(re.escape(word), "", desc, flags=re.IGNORECASE)
+        # Also strip common card type words
+        for word in ["credito", "crédito", "débito", "debito"]:
+            desc = re.sub(rf"\b{word}\b", "", desc, flags=re.IGNORECASE)
+        parsed["description"] = re.sub(r"\s+", " ", desc).strip()
+
+    # Check if message contains card info (e.g. "visa santander verduleria 59999")
+    if text_card_name:
+        db = SessionLocal()
+        try:
+            user_id = context.user_data["user_id"]
+            # Try to match a card from the user's cards
+            cards = db.query(Card).filter(Card.user_id == user_id).all()
+            matched_card = None
+            for card in cards:
+                if card.card_name.lower() == text_card_name.lower() and (
+                    not text_bank or (card.bank and card.bank.lower() == text_bank.lower())
+                ):
+                    matched_card = card
+                    break
+            if not matched_card and text_bank:
+                for card in cards:
+                    if card.bank and card.bank.lower() == text_bank.lower():
+                        matched_card = card
+                        break
+
+            if matched_card:
+                # Card found — skip payment selection, go to confirmation
+                payment_label = (
+                    f"{matched_card.bank} {matched_card.card_name}".strip()
+                    if matched_card.bank
+                    else matched_card.card_name
+                )
+                context.user_data["card_id"] = matched_card.id
+                context.user_data["card_selected"] = matched_card.card_name
+                context.user_data["card_bank"] = matched_card.bank or ""
+                context.user_data["payment_label"] = payment_label
+
+                predicted_category_id, cats = _instant_categorize(parsed, user_id, db)
+                context.user_data["predicted_category_id"] = predicted_category_id
+                context.user_data["cat_debug"] = ""
+
+                confirm_keyboard = [
+                    [
+                        InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
+                        InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
+                    ]
+                ]
+                desc = _escape_md(parsed.get("description", ""))
+                amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
+                date_str = _format_date_es(parsed.get("date", date.today().strftime("%Y-%m-%d")))
+
+                await update.message.reply_text(
+                    f"🛒 *{desc}*\n"
+                    f"💰 {amount_str}\n"
+                    f"📅 {date_str}\n"
+                    f"💳 {payment_label}\n"
+                    f"\n¿Lo guardamos?",
+                    parse_mode="Markdown",
+                    reply_markup=InlineKeyboardMarkup(confirm_keyboard),
+                )
+                asyncio.create_task(
+                    _enhance_with_llm(
+                        update.effective_chat.id,
+                        None,
+                        parsed,
+                        user_id,
+                        cats,
+                        predicted_category_id,
+                        payment_label,
+                        context,
+                    )
+                )
+                return WAITING_CONFIRM
+        finally:
+            db.close()
 
     desc = _escape_md(parsed.get("description", ""))
     amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
@@ -841,7 +1182,9 @@ async def handle_card_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         context.user_data["cat_debug"] = ""
 
         # Check if we should ask about installments
-        if _should_ask_installments(predicted_category_id, db):
+        card_type = card_obj.card_type if card_obj else ""
+        amount = parsed.get("amount", 0) if parsed else 0
+        if _should_ask_installments(predicted_category_id, db, amount, card_type):
             installment_keyboard = [
                 [
                     InlineKeyboardButton("✅ Sí", callback_data="installment:yes"),
@@ -1311,7 +1654,9 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
         context.user_data["predicted_category_id"] = predicted_category_id
         context.user_data["cat_debug"] = ""
 
-        if _should_ask_installments(predicted_category_id, db):
+        if _should_ask_installments(
+            predicted_category_id, db, parsed.get("amount", 0), new_card.card_type
+        ):
             installment_keyboard = [
                 [
                     InlineKeyboardButton("✅ Sí", callback_data="installment:yes"),
@@ -1485,7 +1830,9 @@ async def handle_card_manual(update: Update, context: ContextTypes.DEFAULT_TYPE)
         context.user_data["predicted_category_id"] = predicted_category_id
         context.user_data["cat_debug"] = ""
 
-        if _should_ask_installments(predicted_category_id, db):
+        card_type = card_obj.card_type if card_obj else ""
+        amount = parsed.get("amount", 0) if parsed else 0
+        if _should_ask_installments(predicted_category_id, db, amount, card_type):
             installment_keyboard = [
                 [
                     InlineKeyboardButton("✅ Sí", callback_data="installment:yes"),
