@@ -9,6 +9,15 @@ on:
       - "LICENSE"
       - ".gitignore"
   workflow_dispatch:
+    inputs:
+      action:
+        description: "What to run"
+        required: true
+        default: "full"
+        type: choice
+        options:
+          - full
+          - migrate-only
 
 permissions:
   contents: read
@@ -21,6 +30,7 @@ env:
 
 jobs:
   build-and-push:
+    if: github.event_name == 'push' || inputs.action == 'full'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -67,6 +77,7 @@ jobs:
   setup-server:
     runs-on: ubuntu-latest
     needs: build-and-push
+    if: always() && !cancelled() && (github.event_name == 'push' || inputs.action == 'full')
 
     steps:
       - name: Install podman and podman-compose
@@ -270,6 +281,7 @@ jobs:
   write-config:
     runs-on: ubuntu-latest
     needs: setup-server
+    if: always() && !cancelled() && (github.event_name == 'push' || inputs.action == 'full')
 
     steps:
       - name: Checkout
@@ -535,6 +547,7 @@ jobs:
   validate-config:
     runs-on: ubuntu-latest
     needs: write-config
+    if: always() && !cancelled() && (github.event_name == 'push' || inputs.action == 'full')
 
     steps:
       - name: Validate docker-compose syntax
@@ -572,6 +585,7 @@ jobs:
   pull-images:
     runs-on: ubuntu-latest
     needs: validate-config
+    if: always() && !cancelled() && (github.event_name == 'push' || inputs.action == 'full')
 
     steps:
       - name: Pull and verify images
@@ -607,6 +621,7 @@ jobs:
   backup-db:
     runs-on: ubuntu-latest
     needs: pull-images
+    if: always() && !cancelled()
 
     steps:
       - name: Backup database
