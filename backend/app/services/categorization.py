@@ -137,7 +137,11 @@ def _get_parent_name(cat: Category, categories: list) -> str:
 
 
 def llm_categorize(
-    description: str, amount: float | None, categories: list, user_id: int, db: Session,
+    description: str,
+    amount: float | None,
+    categories: list,
+    user_id: int,
+    db: Session,
     temperature: float = 0.3,
 ) -> dict | None:
     """Use Gemini Flash to suggest a category. Falls back to keyword matching on failure."""
@@ -173,7 +177,8 @@ def llm_categorize(
 
         client = _llm_client()
         response = client.models.generate_content(
-            model="gemini-flash-latest", contents=prompt,
+            model="gemini-flash-latest",
+            contents=prompt,
             config={"temperature": temperature},
         )
         text = response.text.strip()
@@ -190,7 +195,12 @@ def llm_categorize(
         confidence = float(data.get("confidence", 0))
 
         if debug:
-            logger.info("[AI-CAT] LLM response: id=%s, confidence=%.2f, min=%.2f", category_id, confidence, min_confidence)
+            logger.info(
+                "[AI-CAT] LLM response: id=%s, confidence=%.2f, min=%.2f",
+                category_id,
+                confidence,
+                min_confidence,
+            )
 
         if category_id is None or confidence < min_confidence:
             if debug:
@@ -207,7 +217,12 @@ def llm_categorize(
             if not cat:
                 # Try "Parent > Child" format
                 cat = next(
-                    (c for c in categories if f"{_get_parent_name(c, categories)} > {c.name}".lower() == category_id.lower()),
+                    (
+                        c
+                        for c in categories
+                        if f"{_get_parent_name(c, categories)} > {c.name}".lower()
+                        == category_id.lower()
+                    ),
                     None,
                 )
         if not cat:
@@ -222,7 +237,9 @@ def llm_categorize(
             parent_name = parent.name if parent else None
 
         if debug:
-            logger.info("[AI-CAT] Accepted: %s > %s (%.2f)", parent_name or "?", cat.name, confidence)
+            logger.info(
+                "[AI-CAT] Accepted: %s > %s (%.2f)", parent_name or "?", cat.name, confidence
+            )
 
         return {
             "category_id": cat.id,

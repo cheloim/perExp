@@ -148,8 +148,18 @@ def _save_expense(
             category_id = predicted_category_id
         else:
             cats = db.query(Category).all()
-            result = llm_categorize(parsed.get("description", ""), parsed.get("amount"), cats, user_id, db) if user_id else None
-            category_id = result["category_id"] if result else auto_categorize(parsed.get("description", ""), cats)
+            result = (
+                llm_categorize(
+                    parsed.get("description", ""), parsed.get("amount"), cats, user_id, db
+                )
+                if user_id
+                else None
+            )
+            category_id = (
+                result["category_id"]
+                if result
+                else auto_categorize(parsed.get("description", ""), cats)
+            )
 
         raw_date = parsed.get("date") or date.today().strftime("%Y-%m-%d")
         try:
@@ -265,7 +275,9 @@ def _build_cat_levels(category_id: int | None, db) -> list[str]:
     return list(reversed(levels))
 
 
-def _confirm_text(parsed: dict, payment_label: str, cat_levels: list[str] = None, debug_info: str = "") -> str:
+def _confirm_text(
+    parsed: dict, payment_label: str, cat_levels: list[str] = None, debug_info: str = ""
+) -> str:
     desc = _escape_md(parsed.get("description", ""))
     amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
     date_str = _format_date_es(parsed.get("date", date.today().strftime("%Y-%m-%d")))
@@ -323,7 +335,12 @@ async def _enhance_with_llm(
     """Run LLM in background thread, update confirmation message if better category found."""
     try:
         result = await asyncio.to_thread(
-            llm_categorize, parsed.get("description", ""), parsed.get("amount"), cats, user_id, SessionLocal()
+            llm_categorize,
+            parsed.get("description", ""),
+            parsed.get("amount"),
+            cats,
+            user_id,
+            SessionLocal(),
         )
         if not result or result["category_id"] == current_cat_id:
             return
@@ -341,7 +358,9 @@ async def _enhance_with_llm(
             ]
         ]
         await _bot_app.bot.edit_message_text(
-            _confirm_text(parsed, payment_label, cat_levels, context.user_data.get("cat_debug", "")),
+            _confirm_text(
+                parsed, payment_label, cat_levels, context.user_data.get("cat_debug", "")
+            ),
             chat_id=chat_id,
             message_id=message_id,
             parse_mode="Markdown",
@@ -849,11 +868,18 @@ async def handle_card_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 reply_markup=InlineKeyboardMarkup(confirm_keyboard),
             )
             # Fire LLM in background to upgrade category if possible
-            asyncio.create_task(_enhance_with_llm(
-                query.message.chat_id, query.message.message_id,
-                parsed, context.user_data["user_id"], cats,
-                predicted_category_id, label, context,
-            ))
+            asyncio.create_task(
+                _enhance_with_llm(
+                    query.message.chat_id,
+                    query.message.message_id,
+                    parsed,
+                    context.user_data["user_id"],
+                    cats,
+                    predicted_category_id,
+                    label,
+                    context,
+                )
+            )
             return WAITING_CONFIRM
     finally:
         db.close()
@@ -885,8 +911,12 @@ async def handle_installment_question(update: Update, context: ContextTypes.DEFA
             ]
         ]
         await query.edit_message_text(
-            _confirm_text(context.user_data["parsed"], payment_label, cat_levels,
-                          context.user_data.get("cat_debug", "")),
+            _confirm_text(
+                context.user_data["parsed"],
+                payment_label,
+                cat_levels,
+                context.user_data.get("cat_debug", ""),
+            ),
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(confirm_keyboard),
         )
@@ -936,7 +966,12 @@ async def handle_installment_number(update: Update, context: ContextTypes.DEFAUL
     ]
 
     await update.message.reply_text(
-        _confirm_text(context.user_data["parsed"], payment_label, cat_levels, context.user_data.get("cat_debug", "")),
+        _confirm_text(
+            context.user_data["parsed"],
+            payment_label,
+            cat_levels,
+            context.user_data.get("cat_debug", ""),
+        ),
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(confirm_keyboard),
     )
@@ -1007,11 +1042,18 @@ async def handle_account_select(update: Update, context: ContextTypes.DEFAULT_TY
         reply_markup=InlineKeyboardMarkup(confirm_keyboard),
     )
     # Fire LLM in background
-    asyncio.create_task(_enhance_with_llm(
-        query.message.chat_id, query.message.message_id,
-        parsed, context.user_data["user_id"], cats,
-        predicted_category_id, context.user_data["payment_label"], context,
-    ))
+    asyncio.create_task(
+        _enhance_with_llm(
+            query.message.chat_id,
+            query.message.message_id,
+            parsed,
+            context.user_data["user_id"],
+            cats,
+            predicted_category_id,
+            context.user_data["payment_label"],
+            context,
+        )
+    )
     return WAITING_CONFIRM
 
 
@@ -1085,11 +1127,18 @@ async def handle_account_create_type(update: Update, context: ContextTypes.DEFAU
         reply_markup=InlineKeyboardMarkup(confirm_keyboard),
     )
     # Fire LLM in background
-    asyncio.create_task(_enhance_with_llm(
-        query.message.chat_id, query.message.message_id,
-        parsed, context.user_data["user_id"], cats,
-        predicted_category_id, context.user_data["payment_label"], context,
-    ))
+    asyncio.create_task(
+        _enhance_with_llm(
+            query.message.chat_id,
+            query.message.message_id,
+            parsed,
+            context.user_data["user_id"],
+            cats,
+            predicted_category_id,
+            context.user_data["payment_label"],
+            context,
+        )
+    )
     return WAITING_CONFIRM
 
 
@@ -1290,11 +1339,18 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
                 reply_markup=InlineKeyboardMarkup(confirm_keyboard),
             )
             # Fire LLM in background
-            asyncio.create_task(_enhance_with_llm(
-                query.message.chat_id, query.message.message_id,
-                parsed, context.user_data["user_id"], cats,
-                predicted_category_id, context.user_data["payment_label"], context,
-            ))
+            asyncio.create_task(
+                _enhance_with_llm(
+                    query.message.chat_id,
+                    query.message.message_id,
+                    parsed,
+                    context.user_data["user_id"],
+                    cats,
+                    predicted_category_id,
+                    context.user_data["payment_label"],
+                    context,
+                )
+            )
             return WAITING_CONFIRM
     finally:
         db.close()
@@ -1455,11 +1511,18 @@ async def handle_card_manual(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 reply_markup=InlineKeyboardMarkup(confirm_keyboard),
             )
             # Fire LLM in background
-            asyncio.create_task(_enhance_with_llm(
-                confirm_msg.chat_id, confirm_msg.message_id,
-                parsed, context.user_data["user_id"], cats,
-                predicted_category_id, label, context,
-            ))
+            asyncio.create_task(
+                _enhance_with_llm(
+                    confirm_msg.chat_id,
+                    confirm_msg.message_id,
+                    parsed,
+                    context.user_data["user_id"],
+                    cats,
+                    predicted_category_id,
+                    label,
+                    context,
+                )
+            )
             return WAITING_CONFIRM
     finally:
         db.close()

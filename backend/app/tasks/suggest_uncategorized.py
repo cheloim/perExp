@@ -25,6 +25,7 @@ def suggest_uncategorized_categories():
         for user in users:
             # Skip if AI suggestions are disabled for this user
             from app.services.categorization import _get_setting
+
             enabled = _get_setting(db, "ai_suggestions_enabled", user.id)
             if enabled == "false":
                 continue
@@ -44,6 +45,7 @@ def suggest_uncategorized_categories():
 
             # Get uncategorized expenses from last 30 days
             from datetime import date, timedelta
+
             cutoff = date.today() - timedelta(days=30)
             expenses = (
                 db.query(Expense)
@@ -59,6 +61,7 @@ def suggest_uncategorized_categories():
 
             # Get user categories
             from app.models import Category
+
             cats = db.query(Category).filter(Category.user_id == user.id).all()
             if not cats:
                 continue
@@ -67,20 +70,26 @@ def suggest_uncategorized_categories():
             suggestions = []
             for exp in expenses:
                 result = llm_categorize(
-                    exp.description, exp.amount, cats, user.id, db,
+                    exp.description,
+                    exp.amount,
+                    cats,
+                    user.id,
+                    db,
                     temperature=0.7,
                 )
                 if result and result["confidence"] >= 0.4:
-                    suggestions.append({
-                        "expense_id": exp.id,
-                        "description": exp.description,
-                        "amount": exp.amount,
-                        "date": exp.date.isoformat(),
-                        "suggested_category_id": result["category_id"],
-                        "category_name": result["category_name"],
-                        "parent_name": result.get("parent_name"),
-                        "confidence": round(result["confidence"], 2),
-                    })
+                    suggestions.append(
+                        {
+                            "expense_id": exp.id,
+                            "description": exp.description,
+                            "amount": exp.amount,
+                            "date": exp.date.isoformat(),
+                            "suggested_category_id": result["category_id"],
+                            "category_name": result["category_name"],
+                            "parent_name": result.get("parent_name"),
+                            "confidence": round(result["confidence"], 2),
+                        }
+                    )
 
             if not suggestions:
                 continue
