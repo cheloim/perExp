@@ -130,20 +130,27 @@ def main():
             print(f"  Auto-verifying {unverified} existing users...")
             conn.execute(text("UPDATE users SET email_verified = true WHERE email_verified = false"))
 
-        needs_password_change = conn.execute(
-            text(
-                "SELECT COUNT(*) FROM users"
-                " WHERE hashed_password IS NOT NULL AND force_password_change = false"
-            )
+        # Idempotency guard: only flag users if no one is flagged yet (first run)
+        already_flagged = conn.execute(
+            text("SELECT COUNT(*) FROM users WHERE force_password_change = true")
         ).scalar()
-        if needs_password_change > 0:
-            print(f"  Flagging {needs_password_change} users for forced password change...")
-            conn.execute(
+        if already_flagged == 0:
+            needs_password_change = conn.execute(
                 text(
-                    "UPDATE users SET force_password_change = true"
+                    "SELECT COUNT(*) FROM users"
                     " WHERE hashed_password IS NOT NULL AND force_password_change = false"
                 )
-            )
+            ).scalar()
+            if needs_password_change > 0:
+                print(f"  Flagging {needs_password_change} users for forced password change...")
+                conn.execute(
+                    text(
+                        "UPDATE users SET force_password_change = true"
+                        " WHERE hashed_password IS NOT NULL AND force_password_change = false"
+                    )
+                )
+        else:
+            print("  Skipping force_password_change flag (already applied)")
 
     print("=" * 60)
     print("Migration complete!")

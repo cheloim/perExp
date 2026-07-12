@@ -681,7 +681,7 @@ jobs:
             set +a
 
             echo "Running database migrations..."
-            for script in migrate_add_reset_token migrate_remove_haberes migrate_encrypt_settings migrate_add_monthly_reports migrate_db_structure migrate_security_columns migrate_add_card_account_link; do
+            for script in migrate_add_reset_token migrate_remove_haberes migrate_encrypt_settings migrate_add_monthly_reports migrate_db_structure migrate_add_card_account_link; do
               if ! podman-compose run --rm backend python -m scripts.$script; then
                 echo "::warning::Migration $script had issues (may already be applied)"
               fi
