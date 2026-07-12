@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getCategories, getAccounts, getCards, createCategory, suggestCategory } from "../api/client";
+import {
+  getCategories,
+  getAccounts,
+  getCards,
+  createCategory,
+  suggestCategory,
+} from "../api/client";
 import type { Expense, ExpenseCreate, Card } from "../types";
 import { Select } from "./ui/Select";
 import CardAccountModal from "./CardAccountModal";
@@ -127,7 +133,9 @@ export function ExpenseModal({
   // Local keyword matching — instant, no API cost
   const keywordMatch = (desc: string): number | null => {
     const lower = desc.toLowerCase();
-    const leafIds = new Set(categories.filter((c) => !categories.some((ch) => ch.parent_id === c.id)).map((c) => c.id));
+    const leafIds = new Set(
+      categories.filter((c) => !categories.some((ch) => ch.parent_id === c.id)).map((c) => c.id),
+    );
     for (const cat of categories) {
       if (!leafIds.has(cat.id) || !cat.keywords) continue;
       for (const kw of cat.keywords.split(",")) {

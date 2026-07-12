@@ -468,9 +468,7 @@ export default function NotificationsPanel({ onClose }: Props) {
                           <circle cx="8" cy="12" r="0.75" fill="currentColor" />
                         </svg>
                       )}
-                      {isCategorySuggestion && (
-                        <span className="text-sm">✨</span>
-                      )}
+                      {isCategorySuggestion && <span className="text-sm">✨</span>}
                       {n.type === "monthly_report_ready" && (
                         <svg
                           width="16"

@@ -1152,7 +1152,12 @@ export default function UserPanel({ open, onClose }: Props) {
                       </p>
                       <div>
                         <label className="text-[10px] text-[var(--text-secondary)]">
-                          Sensibilidad: {Number(settings?.ai_suggestions_min_confidence || "0.5") <= 0.3 ? "Baja" : Number(settings?.ai_suggestions_min_confidence || "0.5") <= 0.6 ? "Media" : "Alta"}
+                          Sensibilidad:{" "}
+                          {Number(settings?.ai_suggestions_min_confidence || "0.5") <= 0.3
+                            ? "Baja"
+                            : Number(settings?.ai_suggestions_min_confidence || "0.5") <= 0.6
+                              ? "Media"
+                              : "Alta"}
                         </label>
                         <input
                           type="range"

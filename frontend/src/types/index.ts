@@ -52,7 +52,11 @@ export interface GenericNotification extends BaseNotification {
   data: Record<string, unknown>;
 }
 
-export type Notification = ImportNotification | GroupInvitationNotification | CategorySuggestionNotification | GenericNotification;
+export type Notification =
+  | ImportNotification
+  | GroupInvitationNotification
+  | CategorySuggestionNotification
+  | GenericNotification;
 
 export interface GroupMember {
   id: number;

@@ -534,7 +534,8 @@ export default function ExpensesPage() {
           <div className="px-4 py-3 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-[var(--text-primary)]">
-                ✨ IA sugirió categorías para {suggestions.length} gasto{suggestions.length !== 1 ? "s" : ""}
+                ✨ IA sugirió categorías para {suggestions.length} gasto
+                {suggestions.length !== 1 ? "s" : ""}
               </p>
               <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
                 Revisá las sugerencias inline y aplicá las que correspondan
@@ -558,7 +559,10 @@ export default function ExpensesPage() {
               <button
                 onClick={() => {
                   markRead(suggestionNotif!.id);
-                  setSearchParams((prev) => { prev.delete("category_suggestions"); return prev; });
+                  setSearchParams((prev) => {
+                    prev.delete("category_suggestions");
+                    return prev;
+                  });
                 }}
                 className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
               >
@@ -1170,7 +1174,9 @@ export default function ExpensesPage() {
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       const s = suggestionsByExpenseId.get(exp.id)!;
-                                      updateExpense(exp.id, { category_id: s.suggested_category_id }).then(() =>
+                                      updateExpense(exp.id, {
+                                        category_id: s.suggested_category_id,
+                                      }).then(() =>
                                         queryClient.invalidateQueries({ queryKey: ["expenses"] }),
                                       );
                                     }}
