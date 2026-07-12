@@ -137,3 +137,21 @@ Ejemplos:
 - Input: "Mastercard HSBC" → {{"card_name": "Mastercard", "bank": "HSBC"}}
 - Input: "Naranja" → {{"card_name": "Naranja", "bank": ""}}
 - Input: "Mi Visa" → {{"card_name": "Visa", "bank": ""}}"""
+
+
+CATEGORY_SUGGEST_PROMPT = """Sos un asistente que sugiere categorías de gastos personales.
+
+Categorías disponibles (formato: ID:N Padre > Hijo [palabras clave]):
+{formatted_categories}
+
+Transacción:
+- Descripción: {description}
+- Monto: {amount}
+
+Reglas:
+- Elegí la subcategoría más específica que aplique
+- Usá el NUMERO de ID (ej: ID:15), NO el nombre
+- Si ninguna categoría encaja, devolvé category_id: null
+- Respondé SOLO con JSON: {{"category_id": N, "confidence": 0.0-1.0}}
+
+Si no estás seguro (confidence < 0.5), devolvé {{"category_id": null, "confidence": 0.0}}"""
