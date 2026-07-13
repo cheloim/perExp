@@ -518,6 +518,8 @@ jobs:
                 print(f'{k}={v}')
             " >> /opt/creditcardanalyzer/.env
 
+            echo "BREVO_API_KEY=${{ secrets.BREVO_API_KEY }}" >> /opt/creditcardanalyzer/.env
+
             chmod 600 /opt/creditcardanalyzer/.env
             echo "Config files written"
 
