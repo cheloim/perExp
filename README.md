@@ -202,7 +202,7 @@ Add in `Settings → Secrets → Actions`:
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
 | `SECRET_KEY` | JWT secret key |
-| `BREVO_API_KEY` | Brevo email service key |
+| `EMAIL_API_KEY` | Resend email service key |
 | `ADMIN_EMAIL` | Admin alert email |
 ```
 

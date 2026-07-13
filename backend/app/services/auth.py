@@ -23,9 +23,6 @@ ALGORITHM = "HS256"
 JWT_EXPIRE_DAYS = int(os.getenv("JWT_EXPIRE_DAYS", "7"))
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
-APPLE_CLIENT_ID = os.getenv("APPLE_CLIENT_ID", "")
-APPLE_KEY_ID = os.getenv("APPLE_KEY_ID", "")
-APPLE_TEAM_ID = os.getenv("APPLE_TEAM_ID", "")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -100,65 +97,3 @@ async def exchange_google_code(code: str, redirect_uri: str) -> dict:
         if not id_token:
             raise HTTPException(status_code=400, detail="No se recibió id_token de Google")
         return await verify_google_token(id_token)
-
-
-async def verify_apple_token(code: str) -> dict:
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            "https://appleid.apple.com/auth/token",
-            data={
-                "grant_type": "authorization_code",
-                "code": code,
-                "client_id": APPLE_CLIENT_ID,
-                "client_secret": _generate_apple_client_secret(),
-            },
-        )
-        if resp.status_code != 200:
-            raise HTTPException(status_code=401, detail="Token de Apple inválido")
-        data = resp.json()
-        id_token = data.get("id_token")
-        if not id_token:
-            raise HTTPException(status_code=401, detail="No se recibió id_token de Apple")
-
-        # Verify against Apple's public keys
-        import requests as _req
-
-        apple_keys_resp = _req.get("https://appleid.apple.com/auth/keys", timeout=10)
-        if apple_keys_resp.status_code != 200:
-            raise HTTPException(
-                status_code=502, detail="No se pudieron obtener las claves de Apple"
-            )
-        from jose import jwt as jose_jwt
-
-        header = jose_jwt.get_unverified_header(id_token)
-        kid = header.get("kid")
-        keys = apple_keys_resp.json().get("keys", [])
-        matching_key = next((k for k in keys if k.get("kid") == kid), None)
-        if not matching_key:
-            raise HTTPException(
-                status_code=401, detail="Token de Apple inválido: kid no encontrado"
-            )
-        public_key = jose_jwt.construct_rsa_key(matching_key)
-        return jose_jwt.decode(id_token, public_key, algorithms=["RS256"], audience=APPLE_CLIENT_ID)
-
-
-def _generate_apple_client_secret() -> str:
-    from jose import jwt as jose_jwt
-
-    apple_private_key = os.getenv("APPLE_PRIVATE_KEY", "")
-    if not apple_private_key:
-        raise RuntimeError(
-            "APPLE_PRIVATE_KEY environment variable is required for Sign in with Apple"
-        )
-
-    now = datetime.now(UTC)
-    payload = {
-        "iss": APPLE_TEAM_ID,
-        "iat": now,
-        "exp": now + timedelta(hours=1),
-        "aud": "https://appleid.apple.com",
-        "sub": APPLE_CLIENT_ID,
-    }
-    return jose_jwt.encode(
-        payload, apple_private_key, algorithm="RS256", headers={"kid": APPLE_KEY_ID}
-    )

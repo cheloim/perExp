@@ -113,7 +113,7 @@ Required secrets:
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
 | `SECRET_KEY` | JWT secret key |
-| `BREVO_API_KEY` | Brevo email service key |
+| `EMAIL_API_KEY` | Resend email service key |
 | `ADMIN_EMAIL` | Admin alert email |
 
 ### CI/CD Pipeline
@@ -151,7 +151,7 @@ Monthly report generation has built-in resilience:
 - **Admin email alerts**: When all retries fail, an email is sent to `ADMIN_EMAIL` via Resend with error details (user_id, month, error, timestamp)
 - **In-app notifications**: Users receive a `monthly_report_failed` notification
 
-The `celery_worker` and `celery_beat` containers require `BREVO_API_KEY` and `ADMIN_EMAIL` in their environment for email alerts to work.
+The `celery_worker` and `celery_beat` containers require `EMAIL_API_KEY` and `ADMIN_EMAIL` in their environment for email alerts to work.
 
 ### Investment Price Refresh
 
@@ -211,7 +211,7 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 | `MESSAGES_BOT_LLM_API_KEY` | Telegram bot LLM key         | -                           |
 | `TELEGRAM_BOT_TOKEN_PROD`  | Production bot token         | -                           |
 | `TELEGRAM_BOT_TOKEN_DEV`   | Development bot token        | -                           |
-| `BREVO_API_KEY`             | Email service key            | -                           |
+| `EMAIL_API_KEY`               | Email service key            | -                           |
 | `ADMIN_EMAIL`              | Admin alert email address    | admin@financialplanning.com |
 | `JWT_EXPIRE_DAYS`          | Token expiry                 | 7                           |
 
