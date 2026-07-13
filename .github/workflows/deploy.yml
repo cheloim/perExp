@@ -402,7 +402,7 @@ jobs:
                   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
                   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
                   SECRET_KEY: ${SECRET_KEY}
-                  RESEND_API_KEY: ${RESEND_API_KEY}
+                  BREVO_API_KEY: ${BREVO_API_KEY}
                   FRONTEND_URL: https://${{ vars.DOMAIN_NAME }}
                   CORS_ORIGINS: https://${{ vars.DOMAIN_NAME }}
                 deploy:
@@ -430,7 +430,7 @@ jobs:
                   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
                   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
                   SECRET_KEY: ${SECRET_KEY}
-                  RESEND_API_KEY: ${RESEND_API_KEY}
+                  BREVO_API_KEY: ${BREVO_API_KEY}
                   ADMIN_EMAIL: ${ADMIN_EMAIL}
                 deploy:
                   resources:
@@ -457,7 +457,7 @@ jobs:
                   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
                   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
                   SECRET_KEY: ${SECRET_KEY}
-                  RESEND_API_KEY: ${RESEND_API_KEY}
+                  BREVO_API_KEY: ${BREVO_API_KEY}
                   ADMIN_EMAIL: ${ADMIN_EMAIL}
                 deploy:
                   resources:
@@ -530,7 +530,7 @@ jobs:
           port: 43422
           script: |
             cd /opt/creditcardanalyzer
-            REQUIRED="POSTGRES_PASSWORD LLM_API_KEY SECRET_KEY TELEGRAM_BOT_TOKEN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET RESEND_API_KEY ADMIN_EMAIL"
+            REQUIRED="POSTGRES_PASSWORD LLM_API_KEY SECRET_KEY TELEGRAM_BOT_TOKEN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET BREVO_API_KEY ADMIN_EMAIL"
             MISSING=""
             for var in $REQUIRED; do
               if ! grep -q "^${var}=" .env; then

@@ -30,7 +30,7 @@ load_secret "TELEGRAM_BOT_TOKEN" "creditcard_backend_telegram_bot_token" "credit
 load_secret "GOOGLE_CLIENT_ID" "creditcard_backend_google_client_id" "creditcard_backend_dev_google_client_id"
 load_secret "GOOGLE_CLIENT_SECRET" "creditcard_backend_google_client_secret" "creditcard_backend_dev_google_client_secret"
 load_secret "SECRET_KEY" "creditcard_backend_secret_key" "creditcard_backend_dev_secret_key"
-load_secret "RESEND_API_KEY" "creditcard_backend_resend_api_key" "creditcard_backend_dev_resend_api_key"
+load_secret "BREVO_API_KEY" "creditcard_backend_brevo_api_key" "creditcard_backend_dev_brevo_api_key"
 
 # Create database indices if needed (idempotent - safe to run multiple times)
 echo "Checking database indices..."

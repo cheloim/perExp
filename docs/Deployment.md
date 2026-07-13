@@ -117,7 +117,7 @@ The `app-secrets.json` contains:
   "LLM_API_KEY": "...",
   "INVESTMENTS_LLM_API_KEY": "...",
   "MESSAGES_BOT_LLM_API_KEY": "...",
-  "RESEND_API_KEY": "...",
+  "BREVO_API_KEY": "...",
   "ADMIN_EMAIL": "...",
   "POSTGRES_PASSWORD_PROD": "...",
   "TELEGRAM_BOT_TOKEN_PROD": "...",
@@ -160,7 +160,7 @@ Monthly report generation has built-in resilience:
 - **Admin email alerts**: When all retries fail, an email is sent to `ADMIN_EMAIL` via Resend with error details (user_id, month, error, timestamp)
 - **In-app notifications**: Users receive a `monthly_report_failed` notification
 
-The `celery_worker` and `celery_beat` containers require `RESEND_API_KEY` and `ADMIN_EMAIL` in their environment for email alerts to work.
+The `celery_worker` and `celery_beat` containers require `BREVO_API_KEY` and `ADMIN_EMAIL` in their environment for email alerts to work.
 
 ### Investment Price Refresh
 
@@ -220,7 +220,7 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 | `MESSAGES_BOT_LLM_API_KEY` | Telegram bot LLM key         | -                           |
 | `TELEGRAM_BOT_TOKEN_PROD`  | Production bot token         | -                           |
 | `TELEGRAM_BOT_TOKEN_DEV`   | Development bot token        | -                           |
-| `RESEND_API_KEY`           | Email service key            | -                           |
+| `BREVO_API_KEY`             | Email service key            | -                           |
 | `ADMIN_EMAIL`              | Admin alert email address    | admin@financialplanning.com |
 | `JWT_EXPIRE_DAYS`          | Token expiry                 | 7                           |
 

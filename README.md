@@ -208,7 +208,7 @@ Add in `Settings → Secrets → Actions`:
   "GOOGLE_CLIENT_ID": "your-google-client-id",
   "GOOGLE_CLIENT_SECRET": "your-google-client-secret",
   "SECRET_KEY": "your-jwt-secret-key",
-  "RESEND_API_KEY": "your-resend-api-key",
+  "BREVO_API_KEY": "your-brevo-api-key",
   "ADMIN_EMAIL": "admin@yourdomain.com"
 }
 ```
