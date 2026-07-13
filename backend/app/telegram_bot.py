@@ -261,18 +261,7 @@ def _save_expense(
             category_id = predicted_category_id
         else:
             cats = db.query(Category).all()
-            result = (
-                llm_categorize(
-                    parsed.get("description", ""), parsed.get("amount"), cats, user_id, db
-                )
-                if user_id
-                else None
-            )
-            category_id = (
-                result["category_id"]
-                if result
-                else auto_categorize(parsed.get("description", ""), cats)
-            )
+            category_id = auto_categorize(parsed.get("description", ""), cats)
 
         raw_date = parsed.get("date") or date.today().strftime("%Y-%m-%d")
         try:
