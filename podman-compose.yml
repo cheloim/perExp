@@ -55,6 +55,8 @@ services:
       DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD_DEV}@db:5432/expenses
       REDIS_URL: redis://redis:6379/1
       PYTHONUNBUFFERED: "1"
+      SMTP_FROM: ${SMTP_FROM:-NikoFin}
+      SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-noreply@brevo.com}
     volumes:
       - ./backend/app:/app/app:z
       - ./backend/main.py:/app/main.py:z
@@ -113,6 +115,8 @@ services:
       REDIS_URL: redis://redis:6379/1
       PYTHONUNBUFFERED: "1"
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@nikofin.com}
+      SMTP_FROM: ${SMTP_FROM:-NikoFin}
+      SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-noreply@brevo.com}
     volumes:
       - ./backend/app:/app/app:z
       - ./backend/main.py:/app/main.py:z
@@ -144,6 +148,8 @@ services:
       REDIS_URL: redis://redis:6379/1
       PYTHONUNBUFFERED: "1"
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@nikofin.com}
+      SMTP_FROM: ${SMTP_FROM:-NikoFin}
+      SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-noreply@brevo.com}
     volumes:
       - ./backend/app:/app/app:z
       - ./backend/main.py:/app/main.py:z

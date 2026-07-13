@@ -403,6 +403,8 @@ jobs:
                   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
                   SECRET_KEY: ${SECRET_KEY}
                   BREVO_API_KEY: ${BREVO_API_KEY}
+                  SMTP_FROM: ${{ vars.SMTP_FROM }}
+                  SMTP_FROM_ADDRESS: ${{ vars.SMTP_FROM_ADDRESS }}
                   FRONTEND_URL: https://${{ vars.DOMAIN_NAME }}
                   CORS_ORIGINS: https://${{ vars.DOMAIN_NAME }}
                 deploy:
@@ -431,6 +433,8 @@ jobs:
                   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
                   SECRET_KEY: ${SECRET_KEY}
                   BREVO_API_KEY: ${BREVO_API_KEY}
+                  SMTP_FROM: ${{ vars.SMTP_FROM }}
+                  SMTP_FROM_ADDRESS: ${{ vars.SMTP_FROM_ADDRESS }}
                   ADMIN_EMAIL: ${ADMIN_EMAIL}
                 deploy:
                   resources:
@@ -458,6 +462,8 @@ jobs:
                   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
                   SECRET_KEY: ${SECRET_KEY}
                   BREVO_API_KEY: ${BREVO_API_KEY}
+                  SMTP_FROM: ${{ vars.SMTP_FROM }}
+                  SMTP_FROM_ADDRESS: ${{ vars.SMTP_FROM_ADDRESS }}
                   ADMIN_EMAIL: ${ADMIN_EMAIL}
                 deploy:
                   resources:
