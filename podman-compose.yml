@@ -106,11 +106,13 @@ services:
       - creditcard_backend_dev_google_client_id
       - creditcard_backend_dev_google_client_secret
       - creditcard_backend_dev_secret_key
+      - creditcard_backend_dev_brevo_api_key
     environment:
       PYTHONPATH: /app
       DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD_DEV}@db:5432/expenses
       REDIS_URL: redis://redis:6379/1
       PYTHONUNBUFFERED: "1"
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@nikofin.com}
     volumes:
       - ./backend/app:/app/app:z
       - ./backend/main.py:/app/main.py:z
@@ -135,11 +137,13 @@ services:
       - creditcard_backend_dev_google_client_id
       - creditcard_backend_dev_google_client_secret
       - creditcard_backend_dev_secret_key
+      - creditcard_backend_dev_brevo_api_key
     environment:
       PYTHONPATH: /app
       DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD_DEV}@db:5432/expenses
       REDIS_URL: redis://redis:6379/1
       PYTHONUNBUFFERED: "1"
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@nikofin.com}
     volumes:
       - ./backend/app:/app/app:z
       - ./backend/main.py:/app/main.py:z
