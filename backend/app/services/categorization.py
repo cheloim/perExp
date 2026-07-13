@@ -157,7 +157,7 @@ def llm_categorize(
                 logger.info("[AI-CAT] Disabled for user %s", user_id)
             return None
 
-        min_confidence = float(_get_setting(db, "ai_suggestions_min_confidence", user_id) or "0.5")
+        min_confidence = 0.5
 
         formatted = _build_formatted_categories(categories)
         if not formatted.strip():

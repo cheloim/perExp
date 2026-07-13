@@ -1146,35 +1146,9 @@ export default function UserPanel({ open, onClose }: Props) {
                     </button>
                   </div>
                   {settings?.ai_suggestions_enabled !== "false" && (
-                    <>
-                      <p className="text-[10px] text-[var(--text-tertiary)]">
-                        Categorías sugeridas automáticamente al crear gastos
-                      </p>
-                      <div>
-                        <label className="text-[10px] text-[var(--text-secondary)]">
-                          Sensibilidad:{" "}
-                          {Number(settings?.ai_suggestions_min_confidence || "0.5") <= 0.3
-                            ? "Baja"
-                            : Number(settings?.ai_suggestions_min_confidence || "0.5") <= 0.6
-                              ? "Media"
-                              : "Alta"}
-                        </label>
-                        <input
-                          type="range"
-                          min="0.1"
-                          max="1.0"
-                          step="0.1"
-                          value={String(settings?.ai_suggestions_min_confidence || "0.5")}
-                          onChange={(e) => {
-                            settingMut.mutate({
-                              key: "ai_suggestions_min_confidence",
-                              value: e.target.value,
-                            });
-                          }}
-                          className="w-full h-1 mt-1 accent-[var(--color-primary)]"
-                        />
-                      </div>
-                    </>
+                    <p className="text-[10px] text-[var(--text-tertiary)]">
+                      Categorías sugeridas automáticamente al crear gastos
+                    </p>
                   )}
                 </div>
               </div>
