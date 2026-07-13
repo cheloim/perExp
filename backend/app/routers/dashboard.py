@@ -578,7 +578,7 @@ Sé específico con los números. Respondé en español, de forma clara y amigab
 
             client = genai.Client(api_key=api_key)
             response = await client.aio.models.generate_content(
-                model="gemini-flash-latest",
+                model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
                 contents=llm_context,
                 config=genai_types.GenerateContentConfig(
                     system_instruction=prompt,
@@ -1892,7 +1892,7 @@ Fecha actual: {today.isoformat()}
     client = genai.Client(api_key=api_key)
     try:
         response = await client.aio.models.generate_content(
-            model="gemini-flash-latest",
+            model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
             contents=context,
             config=genai_types.GenerateContentConfig(
                 system_instruction=AI_TRENDS_PROMPT,

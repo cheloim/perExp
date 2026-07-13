@@ -88,7 +88,7 @@ Devolve SOLO el texto del análisis, sin formato JSON."""
 
         async def _call_llm():
             return await client.aio.models.generate_content(
-                model="gemini-flash-latest",
+                model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
                 contents=llm_context,
                 config=genai_types.GenerateContentConfig(
                     system_instruction=prompt,

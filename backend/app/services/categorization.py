@@ -177,7 +177,7 @@ def llm_categorize(
 
         client = _llm_client()
         response = client.models.generate_content(
-            model="gemini-flash-latest",
+            model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
             contents=prompt,
             config={"temperature": temperature},
         )

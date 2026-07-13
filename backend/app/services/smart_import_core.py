@@ -221,7 +221,7 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
     prompt_with_context = SMART_IMPORT_PROMPT.replace("{user_full_name}", user_full_name)
     try:
         response = await client.aio.models.generate_content(
-            model="gemini-flash-latest",
+            model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
             contents=f"Extracto bancario:\n\n{raw_text[:20000]}",
             config=genai_types.GenerateContentConfig(
                 system_instruction=prompt_with_context,

@@ -460,7 +460,7 @@ Usa flags para tendencias preocupantes a monitorear."""
 
             async def _call_llm():
                 return await client.aio.models.generate_content(
-                    model="gemini-flash-latest",
+                    model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
                     contents=llm_context,
                     config=genai_types.GenerateContentConfig(
                         system_instruction=prompt,
