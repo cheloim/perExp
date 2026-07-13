@@ -93,24 +93,33 @@ function LoginForm({
     setError("");
     setLoading(true);
     try {
+      console.log("[OAuth] Starting Google login...");
+      console.log("[OAuth] Client ID:", import.meta.env.VITE_GOOGLE_CLIENT_ID || "(empty)");
+      console.log("[OAuth] Current origin:", window.location.origin);
+      console.log("[OAuth] Current URL:", window.location.href);
+
       // Load Google Identity Services
       if (!window.google?.accounts?.id) {
         const script = document.createElement("script");
         script.src = "https://accounts.google.com/gsi/client";
         script.async = true;
         await new Promise<void>((resolve, reject) => {
-          script.onload = () => resolve();
+          script.onload = () => { console.log("[OAuth] GIS script loaded"); resolve(); };
           script.onerror = () => reject(new Error("No se pudo cargar Google Identity Services"));
           document.head.appendChild(script);
         });
       }
 
+      console.log("[OAuth] GIS available:", !!window.google?.accounts?.id);
+
       if (window.google?.accounts?.id) {
         window.google.accounts.id.initialize({
           client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "",
           callback: async (response: { credential: string }) => {
+            console.log("[OAuth] Credential received:", response.credential ? "yes" : "no");
             try {
               const token = await oauthLogin("google", response.credential);
+              console.log("[OAuth] Token received:", token.mfa_required ? "MFA required" : "OK");
               if (token.force_password_change) {
                 storeToken(token.access_token);
                 onForceChange(token.access_token);
@@ -130,7 +139,8 @@ function LoginForm({
           },
         });
 
-        window.google.accounts.id.prompt((notification: { isNotDisplayed: () => boolean }) => {
+        window.google.accounts.id.prompt((notification: { isNotDisplayed: () => boolean; isSkippedMoment: () => boolean }) => {
+          console.log("[OAuth] Prompt notification - isNotDisplayed:", notification.isNotDisplayed(), "isSkipped:", notification.isSkippedMoment());
           if (notification.isNotDisplayed()) {
             setError("No se pudo mostrar el popup de Google. Probá deshabilitar el bloqueador de popups.");
             setLoading(false);

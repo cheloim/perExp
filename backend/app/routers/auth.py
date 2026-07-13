@@ -1,4 +1,5 @@
 import contextlib
+import logging
 import os
 import secrets
 import string
@@ -41,6 +42,8 @@ from app.services.rate_limit import (
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+logger = logging.getLogger(__name__)
 
 
 def _get_client_ip(request: Request) -> str:
@@ -264,6 +267,7 @@ def resend_verification(body: ForgotPasswordRequest, db: Session = Depends(get_d
 
 @router.post("/oauth", response_model=Token)
 async def oauth_login(body: OAuthRequest, request: Request, db: Session = Depends(get_db)):
+    logger.info(f"[OAuth] Login request: provider={body.provider}, has_id_token={bool(body.id_token)}")
     if body.provider != "google":
         raise HTTPException(status_code=400, detail="Proveedor no soportado")
     if not body.id_token:
@@ -273,6 +277,7 @@ async def oauth_login(body: OAuthRequest, request: Request, db: Session = Depend
     provider_id = google_data.get("sub")
     full_name = google_data.get("name", "")
     avatar_url = google_data.get("picture")
+    logger.info(f"[OAuth] Google data: email={email}, provider_id={provider_id}")
 
     if not email:
         raise HTTPException(status_code=400, detail="No se pudo obtener el email del proveedor")

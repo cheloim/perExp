@@ -87,6 +87,7 @@ services:
       - "8082:5173"
     environment:
       VITE_API_URL: http://localhost:8001
+      VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
     deploy:
       resources:
         limits:
