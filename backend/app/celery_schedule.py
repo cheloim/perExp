@@ -18,8 +18,8 @@ celery_app.conf.beat_schedule = {
     "send-weekly-reports-sunday": {
         "task": "app.tasks.weekly_summary.send_weekly_reports",
         "schedule": crontab(
-            hour=0, minute=50, day_of_week="monday"
-        ),  # 00:50 UTC Monday = 21:50 ART Sunday
+            hour=1, minute=30, day_of_week="monday"
+        ),  # 01:30 UTC Monday = 22:30 ART Sunday
     },
     "generate-monthly-reports": {
         "task": "app.tasks.monthly_report.generate_monthly_reports",
