@@ -118,8 +118,6 @@ BANK_NOTIFICATION_PATTERNS = [
     r"naranja\s+terminada",
     r"cr[eé]dito\s+(aprobado|confirmado|registrado)",
     r"transferencia\s+(saliente|enviada|realizada)",
-    r" débito ",
-    r" crédito ",
 ]
 
 
@@ -261,18 +259,7 @@ def _save_expense(
             category_id = predicted_category_id
         else:
             cats = db.query(Category).all()
-            result = (
-                llm_categorize(
-                    parsed.get("description", ""), parsed.get("amount"), cats, user_id, db
-                )
-                if user_id
-                else None
-            )
-            category_id = (
-                result["category_id"]
-                if result
-                else auto_categorize(parsed.get("description", ""), cats)
-            )
+            category_id = auto_categorize(parsed.get("description", ""), cats)
 
         raw_date = parsed.get("date") or date.today().strftime("%Y-%m-%d")
         try:
@@ -643,8 +630,8 @@ def send_message_to_chat(chat_id: str, text: str) -> None:
         logger.warning("[TELEGRAM] Bot event loop not available")
 
 
-def send_photo_to_chat(chat_id: str, image_bytes: bytes, caption: str = None) -> None:
-    """Send an image to a Telegram chat. Safe to call from any thread."""
+def send_photo_to_chat(chat_id: str, image_bytes: bytes, caption: str = None) -> bool:
+    """Send an image to a Telegram chat. Returns True on success."""
     # Try using bot instance first
     if _bot_app and _bot_app.bot:
 
@@ -657,26 +644,31 @@ def send_photo_to_chat(chat_id: str, image_bytes: bytes, caption: str = None) ->
                 await _bot_app.bot.send_photo(
                     chat_id=chat_id, photo=photo, caption=caption, parse_mode="Markdown"
                 )
+                return True
             except Exception as e:
                 logger.warning(f"[TELEGRAM] Could not send photo to {chat_id}: {e}")
+                return False
 
         loop = _bot_app.bot._local._loop if hasattr(_bot_app.bot, "_local") else None
         if loop and loop.is_running():
-            asyncio.run_coroutine_threadsafe(_send(), loop)
-            return
+            future = asyncio.run_coroutine_threadsafe(_send(), loop)
+            try:
+                return future.result(timeout=30)
+            except Exception:
+                return False
 
     # Fallback: use direct Telegram Bot API (for celery workers)
-    _send_photo_via_api(chat_id, image_bytes, caption)
+    return _send_photo_via_api(chat_id, image_bytes, caption)
 
 
-def _send_photo_via_api(chat_id: str, image_bytes: bytes, caption: str = None) -> None:
-    """Send photo using direct Telegram Bot API HTTP call."""
+def _send_photo_via_api(chat_id: str, image_bytes: bytes, caption: str = None) -> bool:
+    """Send photo using direct Telegram Bot API HTTP call. Returns True on success."""
     import os
 
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not token:
         logger.warning("[TELEGRAM] No bot token available, cannot send photo")
-        return
+        return False
 
     try:
         from io import BytesIO
@@ -688,16 +680,18 @@ def _send_photo_via_api(chat_id: str, image_bytes: bytes, caption: str = None) -
         files = {"photo": ("report.png", BytesIO(image_bytes), "image/png")}
         data = {"chat_id": chat_id, "parse_mode": "Markdown"}
         if caption:
-            data["caption"] = caption
+            data["caption"] = caption[:1024]
 
         with httpx.Client(timeout=30) as client:
             resp = client.post(url, files=files, data=data)
             if resp.status_code != 200:
                 logger.warning(f"[TELEGRAM] API error {resp.status_code}: {resp.text[:200]}")
-            else:
-                logger.info(f"[TELEGRAM] Photo sent to {chat_id}")
+                return False
+            logger.info(f"[TELEGRAM] Photo sent to {chat_id}")
+            return True
     except Exception as e:
         logger.warning(f"[TELEGRAM] Could not send photo via API to {chat_id}: {e}")
+        return False
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -863,6 +857,7 @@ async def _handle_bank_notification(
         context.user_data["card_selected"] = card.card_name
         context.user_data["card_bank"] = card.bank or ""
         context.user_data["payment_label"] = payment_label
+        context.user_data["payment_method"] = "tarjeta"
 
         # Auto-categorize
         predicted_category_id, cats = _instant_categorize(parsed, user_id, db)
@@ -880,7 +875,6 @@ async def _handle_bank_notification(
         desc = _escape_md(parsed.get("description", ""))
         amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
         date_str = _format_date_es(parsed.get("date", date.today().strftime("%Y-%m-%d")))
-        last4 = parsed.get("card_last4", "")
 
         confirm_keyboard = [
             [
@@ -893,7 +887,7 @@ async def _handle_bank_notification(
             f"🛒 *{desc}*\n"
             f"💰 {amount_str}\n"
             f"📅 {date_str}\n"
-            f"💳 {payment_label}" + (f" ••{last4}" if last4 else "") + "\n"
+            f"💳 {payment_label}\n"
             f"{cat_tree}"
             f"\n¿Lo guardamos?",
             parse_mode="Markdown",
@@ -983,10 +977,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 context.user_data["card_selected"] = matched_card.card_name
                 context.user_data["card_bank"] = matched_card.bank or ""
                 context.user_data["payment_label"] = payment_label
+                context.user_data["payment_method"] = "tarjeta"
 
                 predicted_category_id, cats = _instant_categorize(parsed, user_id, db)
                 context.user_data["predicted_category_id"] = predicted_category_id
                 context.user_data["cat_debug"] = ""
+
+                # Check installment requirement
+                amount = parsed.get("amount", 0)
+                if _should_ask_installments(
+                    predicted_category_id, db, amount, matched_card.card_type
+                ):
+                    installment_keyboard = [
+                        [
+                            InlineKeyboardButton("✅ Sí", callback_data="installment:yes"),
+                            InlineKeyboardButton("❌ No", callback_data="installment:no"),
+                        ]
+                    ]
+                    await update.message.reply_text(
+                        "¿Lo pagaste en cuotas?",
+                        reply_markup=InlineKeyboardMarkup(installment_keyboard),
+                    )
+                    return WAITING_INSTALLMENT_QUESTION
 
                 confirm_keyboard = [
                     [

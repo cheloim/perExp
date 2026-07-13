@@ -1,11 +1,14 @@
 """Weekly summary task - generates and sends weekly report images via Telegram."""
 
+import logging
 from collections import defaultdict
 from datetime import date, timedelta
 
 from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import Category, Expense, ScheduledExpense, Setting, User
+
+logger = logging.getLogger(__name__)
 
 MONTHS_ES = {
     1: "Enero",
@@ -53,7 +56,7 @@ def _generate_weekly_llm_analysis(report_data: dict) -> dict:
 
         api_key = os.getenv("LLM_API_KEY")
         if not api_key:
-            print("[WEEKLY LLM] No API key found, skipping LLM analysis")
+            logger.info("[WEEKLY LLM] No API key found, skipping LLM analysis")
             return None
 
         total = report_data.get("total_expenses", 0)
@@ -109,7 +112,7 @@ Devolve SOLO el texto del análisis, sin formato JSON."""
             "tip": tip,
         }
     except Exception as e:
-        print(f"[WEEKLY LLM] Error generating analysis: {e}")
+        logger.error(f"[WEEKLY LLM] Error generating analysis: {e}")
         return None
 
 
@@ -241,7 +244,7 @@ def send_weekly_reports():
         # Global dedup: check if weekly report was already sent for this week
         global_setting = db.query(Setting).filter(Setting.key == "weekly_report_last_sent").first()
         if global_setting and global_setting.value == week_key:
-            print(f"[WEEKLY REPORT] Already sent for week {week_key}, skipping")
+            logger.info(f"[WEEKLY REPORT] Already sent for week {week_key}, skipping")
             return
 
         # Get all users with Telegram connected
@@ -286,18 +289,23 @@ def send_weekly_reports():
                 if llm and llm.get("tip"):
                     caption += f"\n\n💡 {llm['tip']}"
 
+                # Truncate caption to Telegram's 1024-char limit
+                caption = caption[:1024]
+
                 # Send via Telegram
                 from app.telegram_bot import send_photo_to_chat
 
-                send_photo_to_chat(user.telegram_chat_id, png_bytes, caption)
-                sent_count += 1
-                print(f"[WEEKLY REPORT] Sent report to user {user.id}")
+                if send_photo_to_chat(user.telegram_chat_id, png_bytes, caption):
+                    sent_count += 1
+                    logger.info(f"[WEEKLY REPORT] Sent report to user {user.id}")
+                else:
+                    logger.warning(f"[WEEKLY REPORT] Failed to send report to user {user.id}")
 
             except Exception as e:
-                print(f"[WEEKLY REPORT] Error sending to user {user.id}: {e}")
+                logger.error(f"[WEEKLY REPORT] Error sending to user {user.id}: {e}")
                 continue
 
-        print(f"[WEEKLY REPORT] Sent {sent_count} weekly reports")
+        logger.info(f"[WEEKLY REPORT] Sent {sent_count} weekly reports")
 
         # Mark week as sent to prevent duplicate dispatches on restart
         if sent_count > 0:
@@ -307,7 +315,7 @@ def send_weekly_reports():
                 db.add(Setting(key="weekly_report_last_sent", value=week_key))
             db.commit()
     except Exception as e:
-        print(f"[WEEKLY REPORT] Error: {e}")
+        logger.error(f"[WEEKLY REPORT] Error: {e}")
         db.rollback()
     finally:
         db.close()

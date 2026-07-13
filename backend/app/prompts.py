@@ -163,16 +163,15 @@ Hoy es {today}.
 
 Extraé del siguiente mensaje de notificación bancaria:
 - "amount": monto numérico (float, siempre positivo). Si no hay monto claro, null.
-- "description": descripción del comercio o merchant (texto limpio).
+- "description": descripción del comercio o merchant (texto limpio, sin incluir nombre del banco ni tarjeta).
 - "date": fecha en formato "YYYY-MM-DD". Si no se menciona fecha, usá hoy.
 - "currency": "ARS" si es pesos o no se menciona, "USD" si es dólares.
-- "card_last4": últimos 4 dígitos de la tarjeta (si aparecen, sino null).
 - "card_type": "credito" si es compra con tarjeta de crédito, "debito" si es débito directo o transferencia.
 - "bank": nombre del banco emisor si se menciona, sino null.
 
 Ejemplos de entrada → salida:
-"Compra aprobada Visa ****4521 $15.200 Supermercado Coto" → {{"amount": 15200.0, "description": "Supermercado Coto", "date": "{today}", "currency": "ARS", "card_last4": "4521", "card_type": "credito", "bank": null}}
-"Débito en cuenta Galicia por $8.500 Netflix" → {{"amount": 8500.0, "description": "Netflix", "date": "{today}", "currency": "ARS", "card_last4": null, "card_type": "debito", "bank": "Galicia"}}
-"Tu tarjeta Mastercard terminada en 1234 fue debitada por $3.200 Farmacity" → {{"amount": 3200.0, "description": "Farmacity", "date": "{today}", "currency": "ARS", "card_last4": "1234", "card_type": "credito", "bank": null}}
+"Compra aprobada Visa ****4521 $15.200 Supermercado Coto" → {{"amount": 15200.0, "description": "Supermercado Coto", "date": "{today}", "currency": "ARS", "card_type": "credito", "bank": null}}
+"Débito en cuenta Galicia por $8.500 Netflix" → {{"amount": 8500.0, "description": "Netflix", "date": "{today}", "currency": "ARS", "card_type": "debito", "bank": "Galicia"}}
+"Tu tarjeta Mastercard terminada en 1234 fue debitada por $3.200 Farmacity" → {{"amount": 3200.0, "description": "Farmacity", "date": "{today}", "currency": "ARS", "card_type": "credito", "bank": null}}
 
 Respondé ÚNICAMENTE con un objeto JSON válido, sin markdown, sin texto adicional."""

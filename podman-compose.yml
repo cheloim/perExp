@@ -96,7 +96,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile.dev
     user: "1000:1000"
-    command: celery -A app.celery_app worker --loglevel=info
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=2
     secrets:
       - creditcard_backend_dev_postgres_password
       - creditcard_backend_dev_llm_api_key
@@ -117,7 +117,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
           cpus: "1.0"
 
   celery_beat_dev:

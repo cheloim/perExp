@@ -414,7 +414,7 @@ jobs:
 
               celery_worker:
                 image: ${BACKEND_IMAGE}:${IMAGE_TAG}
-                command: celery -A app.celery_app worker --loglevel=info
+                command: celery -A app.celery_app worker --loglevel=info --concurrency=2
                 depends_on:
                   - db
                   - redis
@@ -435,7 +435,7 @@ jobs:
                 deploy:
                   resources:
                     limits:
-                      memory: 512M
+                      memory: 1G
                       cpus: "1.0"
                 restart: unless-stopped
 
