@@ -17,11 +17,13 @@ celery_app.conf.beat_schedule = {
     },
     "send-weekly-reports-sunday": {
         "task": "app.tasks.weekly_summary.send_weekly_reports",
-        "schedule": crontab(hour=23, minute=0, day_of_week="sunday"),  # 20:00 UTC-3 = 23:00 UTC
+        "schedule": crontab(
+            hour=0, minute=30, day_of_week="monday"
+        ),  # 00:30 UTC Monday = 21:30 ART Sunday
     },
     "generate-monthly-reports": {
         "task": "app.tasks.monthly_report.generate_monthly_reports",
-        "schedule": crontab(hour=23, minute=0, day_of_month="1"),  # 20:00 UTC-3 = 23:00 UTC
+        "schedule": crontab(hour=3, minute=0, day_of_month="1"),  # 03:00 UTC = 00:00 ART
     },
     "suggest-uncategorized-categories-daily": {
         "task": "app.tasks.suggest_uncategorized.suggest_uncategorized_categories",
