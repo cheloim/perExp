@@ -194,29 +194,16 @@ Add in `Settings → Secrets → Actions`:
 | `LINODE_SSH_USER` | SSH username |
 | `LINODE_SSH_KEY` | SSH private key |
 | `GHCR_PAT` | GitHub PAT for GHCR login |
-| `APP_SECRETS_B64` | Base64-encoded JSON with app secrets |
-
-### APP_SECRETS Template
-
-```json
-{
-  "POSTGRES_PASSWORD": "your-postgres-password",
-  "LLM_API_KEY": "your-gemini-api-key",
-  "INVESTMENTS_LLM_API_KEY": "your-investments-llm-key",
-  "MESSAGES_BOT_LLM_API_KEY": "your-messages-bot-llm-key",
-  "TELEGRAM_BOT_TOKEN": "your-telegram-bot-token",
-  "GOOGLE_CLIENT_ID": "your-google-client-id",
-  "GOOGLE_CLIENT_SECRET": "your-google-client-secret",
-  "SECRET_KEY": "your-jwt-secret-key",
-  "BREVO_API_KEY": "your-brevo-api-key",
-  "ADMIN_EMAIL": "admin@yourdomain.com"
-}
-```
-
-### Generate Base64 Secret
-
-```bash
-cat app-secrets.json | base64 -w 0
+| `POSTGRES_PASSWORD` | Database password |
+| `LLM_API_KEY` | Gemini API key |
+| `INVESTMENTS_LLM_API_KEY` | Investments LLM key |
+| `MESSAGES_BOT_LLM_API_KEY` | Messages bot LLM key |
+| `TELEGRAM_BOT_TOKEN` | Telegram bot token |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
+| `SECRET_KEY` | JWT secret key |
+| `BREVO_API_KEY` | Brevo email service key |
+| `ADMIN_EMAIL` | Admin alert email |
 ```
 
 ### Manual Deploy

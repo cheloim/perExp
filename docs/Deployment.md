@@ -99,31 +99,22 @@ podman-compose exec db psql -U postgres -d creditcard
 
 ### Secrets Management
 
-Production uses Docker secrets (not env vars for sensitive data):
+All secrets are stored as individual GitHub Actions secrets and injected as environment variables in the docker-compose config.
 
-```bash
-# Create secrets directory
-mkdir -p /opt/creditcardanalyzer/secrets
+Required secrets:
 
-# Base64-encoded JSON with all secrets
-echo $APP_SECRETS_B64 | base64 -d > /opt/creditcardanalyzer/secrets/app-secrets.json
-```
-
-The `app-secrets.json` contains:
-
-```json
-{
-  "SECRET_KEY": "...",
-  "LLM_API_KEY": "...",
-  "INVESTMENTS_LLM_API_KEY": "...",
-  "MESSAGES_BOT_LLM_API_KEY": "...",
-  "BREVO_API_KEY": "...",
-  "ADMIN_EMAIL": "...",
-  "POSTGRES_PASSWORD_PROD": "...",
-  "TELEGRAM_BOT_TOKEN_PROD": "...",
-  "TELEGRAM_BOT_TOKEN_DEV": "..."
-}
-```
+| Secret | Purpose |
+|--------|---------|
+| `POSTGRES_PASSWORD` | Database password |
+| `LLM_API_KEY` | Gemini API key |
+| `INVESTMENTS_LLM_API_KEY` | Investments LLM key |
+| `MESSAGES_BOT_LLM_API_KEY` | Messages bot LLM key |
+| `TELEGRAM_BOT_TOKEN` | Telegram bot token |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
+| `SECRET_KEY` | JWT secret key |
+| `BREVO_API_KEY` | Brevo email service key |
+| `ADMIN_EMAIL` | Admin alert email |
 
 ### CI/CD Pipeline
 
