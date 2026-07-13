@@ -2,31 +2,33 @@ import logging
 import os
 from datetime import datetime
 
-from brevo import Brevo
-from brevo.transactional_emails import SendTransacEmailRequestSender, SendTransacEmailRequestToItem
+import resend
 
 logger = logging.getLogger(__name__)
 
-brevo_api_key = os.getenv("BREVO_API_KEY")
-client = Brevo(api_key=brevo_api_key) if brevo_api_key else None
+email_api_key = os.getenv("EMAIL_API_KEY")
+if email_api_key:
+    resend.api_key = email_api_key
 
 FROM_NAME = os.getenv("SMTP_FROM", "NikoFin")
-FROM_ADDRESS = os.getenv("SMTP_FROM_ADDRESS", "noreply@brevo.com")
+FROM_ADDRESS = os.getenv("SMTP_FROM_ADDRESS", "noreply@resend.dev")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@nikofin.com")
 
 
 def _send(subject: str, html: str, to: str, to_name: str = "") -> bool:
-    """Send a transactional email via Brevo. Returns True on success."""
-    if not client:
-        logger.warning("BREVO_API_KEY not set — cannot send email")
+    """Send a transactional email via Resend. Returns True on success."""
+    if not email_api_key:
+        logger.warning("EMAIL_API_KEY not set — cannot send email")
         return False
     try:
-        client.transactional_emails.send_transac_email(
-            subject=subject,
-            html_content=html,
-            sender=SendTransacEmailRequestSender(name=FROM_NAME, email=FROM_ADDRESS),
-            to=[SendTransacEmailRequestToItem(email=to, name=to_name or to)],
-        )
+        from_addr = f"{FROM_NAME} <{FROM_ADDRESS}>"
+        params: resend.Emails.SendParams = {
+            "from": from_addr,
+            "to": [to],
+            "subject": subject,
+            "html": html,
+        }
+        resend.Emails.send(params)
         return True
     except Exception as e:
         logger.error(f"Failed to send email to {to}: {e}")
