@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from calendar import monthrange
 from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta
@@ -17,6 +18,23 @@ from app.services.date_utils import add_months
 from app.services.normalizers import normalize_bank
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+
+
+# Simple in-memory cache for LLM calls (avoid redundant calls on page reload)
+_llm_cache: dict[str, tuple[float, object]] = {}
+
+
+def _get_cached(key: str, ttl_seconds: int):
+    """Get cached value if not expired. Returns None if miss."""
+    entry = _llm_cache.get(key)
+    if entry and time.time() - entry[0] < ttl_seconds:
+        return entry[1]
+    return None
+
+
+def _set_cached(key: str, value):
+    """Store value in cache with current timestamp."""
+    _llm_cache[key] = (time.time(), value)
 
 
 def _card_network(card_str: str) -> str:
@@ -1764,6 +1782,13 @@ async def get_ai_trends(
     current_user: User = Depends(get_current_user),
 ):
     uid_list = get_group_user_ids(current_user.id, db)
+
+    # Cache for 5 minutes per user+month
+    cache_key = f"ai_trends:{current_user.id}:{month or 'all'}"
+    cached = _get_cached(cache_key, ttl_seconds=300)
+    if cached is not None:
+        return cached
+
     from google import genai
     from google.genai import types as genai_types
 
@@ -1897,4 +1922,5 @@ Fecha actual: {today.isoformat()}
     ]
     result["future_installments"] = {k: v for k, v in future_installments.items()}
 
+    _set_cached(cache_key, result)
     return result

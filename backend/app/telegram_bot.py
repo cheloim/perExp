@@ -1019,18 +1019,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     parse_mode="Markdown",
                     reply_markup=InlineKeyboardMarkup(confirm_keyboard),
                 )
-                asyncio.create_task(
-                    _enhance_with_llm(
-                        update.effective_chat.id,
-                        None,
-                        parsed,
-                        user_id,
-                        cats,
-                        predicted_category_id,
-                        payment_label,
-                        context,
-                    )
-                )
                 return WAITING_CONFIRM
         finally:
             db.close()
@@ -1222,19 +1210,6 @@ async def handle_card_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup(confirm_keyboard),
             )
-            # Fire LLM in background to upgrade category if possible
-            asyncio.create_task(
-                _enhance_with_llm(
-                    query.message.chat_id,
-                    query.message.message_id,
-                    parsed,
-                    context.user_data["user_id"],
-                    cats,
-                    predicted_category_id,
-                    label,
-                    context,
-                )
-            )
             return WAITING_CONFIRM
     finally:
         db.close()
@@ -1396,19 +1371,6 @@ async def handle_account_select(update: Update, context: ContextTypes.DEFAULT_TY
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(confirm_keyboard),
     )
-    # Fire LLM in background
-    asyncio.create_task(
-        _enhance_with_llm(
-            query.message.chat_id,
-            query.message.message_id,
-            parsed,
-            context.user_data["user_id"],
-            cats,
-            predicted_category_id,
-            context.user_data["payment_label"],
-            context,
-        )
-    )
     return WAITING_CONFIRM
 
 
@@ -1480,19 +1442,6 @@ async def handle_account_create_type(update: Update, context: ContextTypes.DEFAU
         _confirm_text(context.user_data["parsed"], context.user_data["payment_label"], cat_levels),
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(confirm_keyboard),
-    )
-    # Fire LLM in background
-    asyncio.create_task(
-        _enhance_with_llm(
-            query.message.chat_id,
-            query.message.message_id,
-            parsed,
-            context.user_data["user_id"],
-            cats,
-            predicted_category_id,
-            context.user_data["payment_label"],
-            context,
-        )
     )
     return WAITING_CONFIRM
 
@@ -1695,19 +1644,6 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup(confirm_keyboard),
             )
-            # Fire LLM in background
-            asyncio.create_task(
-                _enhance_with_llm(
-                    query.message.chat_id,
-                    query.message.message_id,
-                    parsed,
-                    context.user_data["user_id"],
-                    cats,
-                    predicted_category_id,
-                    context.user_data["payment_label"],
-                    context,
-                )
-            )
             return WAITING_CONFIRM
     finally:
         db.close()
@@ -1869,7 +1805,7 @@ async def handle_card_manual(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup(confirm_keyboard),
             )
-            # Fire LLM in background
+            # Fire LLM in background (bank notification — no mount-time categorization)
             asyncio.create_task(
                 _enhance_with_llm(
                     confirm_msg.chat_id,

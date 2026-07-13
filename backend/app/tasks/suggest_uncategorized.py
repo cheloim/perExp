@@ -10,12 +10,16 @@ from app.services.categorization import llm_categorize
 
 logger = logging.getLogger(__name__)
 
+MAX_EXPENSES_PER_USER = 20
+MAX_DAYS_LOOKBACK = 7
+
 
 @celery_app.task(name="app.tasks.suggest_uncategorized.suggest_uncategorized_categories")
 def suggest_uncategorized_categories():
     """Find uncategorized expenses and suggest categories via LLM (high temperature).
 
     Creates in-app notifications with suggestions — does NOT modify expenses.
+    Capped at MAX_EXPENSES_PER_USER per user, last MAX_DAYS_LOOKBACK days.
     """
     db = SessionLocal()
     try:
@@ -43,10 +47,10 @@ def suggest_uncategorized_categories():
             if existing:
                 continue
 
-            # Get uncategorized expenses from last 30 days
+            # Get uncategorized expenses (last 7 days, max 20)
             from datetime import date, timedelta
 
-            cutoff = date.today() - timedelta(days=30)
+            cutoff = date.today() - timedelta(days=MAX_DAYS_LOOKBACK)
             expenses = (
                 db.query(Expense)
                 .filter(
@@ -54,6 +58,8 @@ def suggest_uncategorized_categories():
                     Expense.category_id.is_(None),
                     Expense.date >= cutoff,
                 )
+                .order_by(Expense.date.desc())
+                .limit(MAX_EXPENSES_PER_USER)
                 .all()
             )
             if not expenses:

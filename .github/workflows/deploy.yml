@@ -511,12 +511,17 @@ jobs:
             echo "FRONTEND_IMAGE=${FRONTEND_IMAGE}" >> /opt/creditcardanalyzer/.env
             echo "IMAGE_TAG=${IMAGE_TAG}" >> /opt/creditcardanalyzer/.env
 
-            echo '${{ secrets.APP_SECRETS_B64 }}' | base64 -d | python3 -c "
-            import json, sys
-            data = json.load(sys.stdin)
-            for k, v in data.items():
-                print(f'{k}={v}')
-            " >> /opt/creditcardanalyzer/.env
+            # App secrets (individual, no base64)
+            echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> /opt/creditcardanalyzer/.env
+            echo "LLM_API_KEY=${{ secrets.LLM_API_KEY }}" >> /opt/creditcardanalyzer/.env
+            echo "INVESTMENTS_LLM_API_KEY=${{ secrets.INVESTMENTS_LLM_API_KEY }}" >> /opt/creditcardanalyzer/.env
+            echo "MESSAGES_BOT_LLM_API_KEY=${{ secrets.MESSAGES_BOT_LLM_API_KEY }}" >> /opt/creditcardanalyzer/.env
+            echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" >> /opt/creditcardanalyzer/.env
+            echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> /opt/creditcardanalyzer/.env
+            echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> /opt/creditcardanalyzer/.env
+            echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> /opt/creditcardanalyzer/.env
+            echo "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" >> /opt/creditcardanalyzer/.env
+            echo "BREVO_API_KEY=${{ secrets.BREVO_API_KEY }}" >> /opt/creditcardanalyzer/.env
 
             chmod 600 /opt/creditcardanalyzer/.env
             echo "Config files written"
