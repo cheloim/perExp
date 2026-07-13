@@ -518,6 +518,9 @@ jobs:
                 print(f'{k}={v}')
             " >> /opt/creditcardanalyzer/.env
 
+            # New secrets not in APP_SECRETS_B64
+            echo "BREVO_API_KEY=${{ secrets.BREVO_API_KEY }}" >> /opt/creditcardanalyzer/.env
+
             chmod 600 /opt/creditcardanalyzer/.env
             echo "Config files written"
 
@@ -530,7 +533,7 @@ jobs:
           port: 43422
           script: |
             cd /opt/creditcardanalyzer
-            REQUIRED="POSTGRES_PASSWORD LLM_API_KEY SECRET_KEY TELEGRAM_BOT_TOKEN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET ADMIN_EMAIL"
+            REQUIRED="POSTGRES_PASSWORD LLM_API_KEY SECRET_KEY TELEGRAM_BOT_TOKEN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET BREVO_API_KEY ADMIN_EMAIL"
             MISSING=""
             for var in $REQUIRED; do
               if ! grep -q "^${var}=" .env; then
