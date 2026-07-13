@@ -24,6 +24,7 @@ const CategoryDashboard = lazy(() => import("./pages/CategoryDashboard"));
 const InstallmentsPage = lazy(() => import("./pages/InstallmentsPage"));
 const InvestmentsPage = lazy(() => import("./pages/InvestmentsPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
+const OAuthCallbackPage = lazy(() => import("./pages/OAuthCallbackPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 
 const TABS = [
@@ -313,6 +314,14 @@ function MainLayout() {
                   >
                     <Routes>
                       <Route path="/login" element={<LoginPage />} />
+                      <Route
+                        path="/oauth/callback"
+                        element={
+                          <Suspense>
+                            <OAuthCallbackPage />
+                          </Suspense>
+                        }
+                      />
                       <Route
                         path="/"
                         element={
