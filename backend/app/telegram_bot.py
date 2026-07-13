@@ -979,10 +979,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 context.user_data["card_selected"] = matched_card.card_name
                 context.user_data["card_bank"] = matched_card.bank or ""
                 context.user_data["payment_label"] = payment_label
+                context.user_data["payment_method"] = "tarjeta"
 
                 predicted_category_id, cats = _instant_categorize(parsed, user_id, db)
                 context.user_data["predicted_category_id"] = predicted_category_id
                 context.user_data["cat_debug"] = ""
+
+                # Check installment requirement
+                amount = parsed.get("amount", 0)
+                if _should_ask_installments(
+                    predicted_category_id, db, amount, matched_card.card_type
+                ):
+                    installment_keyboard = [
+                        [
+                            InlineKeyboardButton("✅ Sí", callback_data="installment:yes"),
+                            InlineKeyboardButton("❌ No", callback_data="installment:no"),
+                        ]
+                    ]
+                    await update.message.reply_text(
+                        "¿Lo pagaste en cuotas?",
+                        reply_markup=InlineKeyboardMarkup(installment_keyboard),
+                    )
+                    return WAITING_INSTALLMENT_QUESTION
 
                 confirm_keyboard = [
                     [
