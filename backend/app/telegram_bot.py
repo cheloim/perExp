@@ -118,8 +118,6 @@ BANK_NOTIFICATION_PATTERNS = [
     r"naranja\s+terminada",
     r"cr[eé]dito\s+(aprobado|confirmado|registrado)",
     r"transferencia\s+(saliente|enviada|realizada)",
-    r" débito ",
-    r" crédito ",
 ]
 
 
