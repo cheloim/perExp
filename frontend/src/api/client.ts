@@ -23,12 +23,15 @@ import type {
   CardsMapping,
 } from "../types";
 
-const TOKEN_KEY = "auth_token";
+let inMemoryAuthToken: string | null = null;
 
-export const getStoredToken = () => localStorage.getItem(TOKEN_KEY);
-// lgtm[js/clear-text-storage] JWT in localStorage is standard for SPAs; tokens are short-lived (7d) with backend rate limiting + lockout
-export const storeToken = (token: string) => localStorage.setItem(TOKEN_KEY, token);
-export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
+export const getStoredToken = () => inMemoryAuthToken;
+export const storeToken = (token: string) => {
+  inMemoryAuthToken = token;
+};
+export const clearToken = () => {
+  inMemoryAuthToken = null;
+};
 
 const api = axios.create({ baseURL: "/api" });
 
