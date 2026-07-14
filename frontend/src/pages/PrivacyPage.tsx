@@ -9,12 +9,13 @@ export default function PrivacyPage() {
           <Section title="1. Datos que recopilamos">
             <p>Para utilizar oikonomia, recopilamos la siguiente información:</p>
             <ul className="list-disc pl-5 mt-2 space-y-1">
-              <li><strong>Cuenta:</strong> nombre, dirección de email y contraseña (encriptada).</li>
-              <li><strong>Gastos e ingresos:</strong> descripción, monto, fecha, categoría y medio de pago.</li>
-              <li><strong>Tarjetas y cuentas:</strong> nombre de la tarjeta, banco y tipo (crédito/débito).</li>
-              <li><strong>Inversiones:</strong> tipo de inversión, monto y fecha.</li>
+              <li><strong>Cuenta (obligatorio):</strong> nombre, dirección de email y contraseña (encriptada).</li>
+              <li><strong>Gastos e ingresos (voluntario):</strong> descripción, monto, fecha, categoría y medio de pago. Solo se registran si vos los cargás activamente.</li>
+              <li><strong>Tarjetas y cuentas (voluntario):</strong> nombre de la tarjeta, banco y tipo (crédito/débito). Solo se registran si vos los creás activamente.</li>
+              <li><strong>Inversiones (voluntario):</strong> tipo de inversión, monto y fecha. Solo se registran si vos las cargás activamente.</li>
               <li><strong>Datos de autenticación:</strong> si utilizás Google para iniciar sesión, recibimos tu email y nombre de perfil de Google.</li>
             </ul>
+            <p className="mt-2 text-sm">Los datos financieros son enteramente voluntarios. Podés usar oikonomia solo con tu cuenta sin cargar ningún dato financiero.</p>
           </Section>
           <Section title="2. Cómo usamos tus datos">
             <ul className="list-disc pl-5 mt-2 space-y-1">
