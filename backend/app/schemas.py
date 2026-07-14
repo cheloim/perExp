@@ -106,11 +106,6 @@ class ChangePasswordRequest(BaseModel):
 class DeleteAccountRequest(BaseModel):
     current_password: str
 
-    @field_validator("new_password")
-    @classmethod
-    def validate_new_password(cls, v: str) -> str:
-        return _validate_password_strength(v)
-
 
 class ForgotPasswordRequest(BaseModel):
     email: str
