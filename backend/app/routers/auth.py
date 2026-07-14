@@ -409,9 +409,7 @@ def delete_my_account(
 ):
     """Delete the current user account and all associated data."""
     if not verify_password(body.current_password, current_user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Contraseña incorrecta"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Contraseña incorrecta")
 
     user_id = current_user.id
     _log_audit(db, user_id, "account_deleted", request)
