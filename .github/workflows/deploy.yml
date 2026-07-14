@@ -199,6 +199,12 @@ jobs:
               --agree-tos --non-interactive
             echo "SSL certificate obtained"
 
+            # Create symlink for landing domain (certbot stores under platform domain)
+            if [ ! -d "/opt/creditcardanalyzer/certbot/conf/live/${{ vars.DOMAIN_NAME }}" ]; then
+              ln -sf ${{ vars.PLATFORM_DOMAIN }} /opt/creditcardanalyzer/certbot/conf/live/${{ vars.DOMAIN_NAME }}
+              echo "Created cert symlink: ${{ vars.DOMAIN_NAME }} -> ${{ vars.PLATFORM_DOMAIN }}"
+            fi
+
       - name: Fix cert permissions
         uses: appleboy/ssh-action@v1
         with:
