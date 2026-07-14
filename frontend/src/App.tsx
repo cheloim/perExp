@@ -25,6 +25,7 @@ const InstallmentsPage = lazy(() => import("./pages/InstallmentsPage"));
 const InvestmentsPage = lazy(() => import("./pages/InvestmentsPage"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
+const OAuthCallbackPage = lazy(() => import("./pages/OAuthCallbackPage"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 
@@ -86,6 +87,14 @@ export default function App() {
   }
 
   if (location.pathname === "/reset-password") return <ResetPasswordPage />;
+
+  if (location.pathname === "/oauth/callback") {
+    return (
+      <Suspense>
+        <OAuthCallbackPage />
+      </Suspense>
+    );
+  }
 
   if (!getStoredToken()) return <Navigate to="/login" replace />;
 

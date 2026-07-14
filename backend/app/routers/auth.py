@@ -324,6 +324,10 @@ async def oauth_login(body: OAuthRequest, request: Request, db: Session = Depend
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuario inactivo")
 
     _log_audit(db, user.id, "oauth_login", request, details=body.provider)
+    if user.mfa_enabled:
+        force_token = create_access_token(user.id, expires_minutes=5)
+        _log_audit(db, user.id, "login_mfa_required", request)
+        return Token(access_token=force_token, token_type="bearer", mfa_required=True)
     return Token(access_token=create_access_token(user.id), token_type="bearer")
 
 
@@ -392,6 +396,10 @@ async def oauth_callback(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuario inactivo")
 
     _log_audit(db, user.id, "oauth_login", request, details=f"{body.provider}_callback")
+    if user.mfa_enabled:
+        force_token = create_access_token(user.id, expires_minutes=5)
+        _log_audit(db, user.id, "login_mfa_required", request)
+        return Token(access_token=force_token, token_type="bearer", mfa_required=True)
     return Token(access_token=create_access_token(user.id), token_type="bearer")
 
 
