@@ -27,7 +27,8 @@ const TOKEN_KEY = "auth_token";
 
 export const getStoredToken = () => localStorage.getItem(TOKEN_KEY);
 // lgtm[js/clear-text-storage] JWT in localStorage is standard for SPAs; tokens are short-lived (7d) with backend rate limiting + lockout
-export const storeToken = (token: string) => localStorage.setItem(TOKEN_KEY, token); // lgtm[js/clear-text-storage]
+// lgtm[js/clear-text-storage]
+export const storeToken = (token: string) => localStorage.setItem(TOKEN_KEY, token);
 export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 
 const api = axios.create({ baseURL: "/api" });
