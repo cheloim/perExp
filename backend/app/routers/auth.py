@@ -427,8 +427,16 @@ def delete_my_account(
 
     # Delete data in order (handle FK constraints manually)
     from app.models import (
-        Account, AnalysisHistory, Card, CardClosing, Category,
-        Expense, ImportJob, Investment, MonthlyReport, Notification,
+        Account,
+        AnalysisHistory,
+        Card,
+        CardClosing,
+        Category,
+        Expense,
+        ImportJob,
+        Investment,
+        MonthlyReport,
+        Notification,
         ScheduledExpense,
     )
 
