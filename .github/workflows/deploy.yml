@@ -115,10 +115,10 @@ jobs:
           key: ${{ secrets.LINODE_SSH_KEY }}
           port: 43422
           script: |
-            RESOLVED_IP=$(python3 -c "import socket; print(socket.gethostbyname('${{ vars.OIKONOMIA_DOMAIN }}'))" 2>/dev/null)
+            RESOLVED_IP=$(python3 -c "import socket; print(socket.gethostbyname('${{ vars.DOMAIN_NAME }}'))" 2>/dev/null)
             SERVER_IP=$(curl -s --connect-timeout 5 https://api.ipify.org || curl -s --connect-timeout 5 https://ifconfig.me)
 
-            echo "Domain: ${{ vars.OIKONOMIA_DOMAIN }}"
+            echo "Domain: ${{ vars.DOMAIN_NAME }}"
             echo "Platform: ${{ vars.PLATFORM_DOMAIN }}"
             echo "Resolved IP: $RESOLVED_IP"
             echo "Server IP: $SERVER_IP"
@@ -127,7 +127,7 @@ jobs:
               echo "ERROR: DNS not pointing to this server ($RESOLVED_IP != $SERVER_IP)"
               exit 1
             fi
-            echo "DNS OK: ${{ vars.OIKONOMIA_DOMAIN }} -> $SERVER_IP"
+            echo "DNS OK: ${{ vars.DOMAIN_NAME }} -> $SERVER_IP"
 
       - name: Stop old containers to free port 80
         uses: appleboy/ssh-action@v1
@@ -159,7 +159,7 @@ jobs:
             # Clean up old domain certbot data if domain changed
             for old_dir in /opt/creditcardanalyzer/certbot/conf/live/*/; do
               old_domain=$(basename "$old_dir")
-              if [ "$old_domain" != "${{ vars.OIKONOMIA_DOMAIN }}" ] && [ "$old_domain" != "${{ vars.PLATFORM_DOMAIN }}" ] && [ -n "$old_domain" ]; then
+              if [ "$old_domain" != "${{ vars.DOMAIN_NAME }}" ] && [ "$old_domain" != "${{ vars.PLATFORM_DOMAIN }}" ] && [ -n "$old_domain" ]; then
                 echo "Removing old cert for domain: $old_domain"
                 rm -rf "/opt/creditcardanalyzer/certbot/conf/live/$old_domain"
                 rm -rf "/opt/creditcardanalyzer/certbot/conf/archive/$old_domain"
@@ -167,7 +167,7 @@ jobs:
               fi
             done
 
-            CERT_FILE="/opt/creditcardanalyzer/certbot/conf/live/${{ vars.OIKONOMIA_DOMAIN }}/fullchain.pem"
+            CERT_FILE="/opt/creditcardanalyzer/certbot/conf/live/${{ vars.DOMAIN_NAME }}/fullchain.pem"
 
             if [ -f "$CERT_FILE" ]; then
                 # Check if cert expires within 14 days
@@ -192,8 +192,8 @@ jobs:
               -v /opt/creditcardanalyzer/certbot/logs:/var/log/letsencrypt:Z \
               -p 80:80 \
               docker.io/certbot/certbot certonly --standalone \
-              -d ${{ vars.OIKONOMIA_DOMAIN }} \
-              -d www.${{ vars.OIKONOMIA_DOMAIN }} \
+              -d ${{ vars.DOMAIN_NAME }} \
+              -d www.${{ vars.DOMAIN_NAME }} \
               -d ${{ vars.PLATFORM_DOMAIN }} \
               --email mmendoza0989@gmail.com \
               --agree-tos --non-interactive
@@ -208,8 +208,8 @@ jobs:
           port: 43422
           script: |
             chmod 755 /opt/creditcardanalyzer/certbot/conf/archive 2>/dev/null || true
-            chmod 755 /opt/creditcardanalyzer/certbot/conf/archive/${{ vars.OIKONOMIA_DOMAIN }} 2>/dev/null || true
-            chmod 644 /opt/creditcardanalyzer/certbot/conf/archive/${{ vars.OIKONOMIA_DOMAIN }}/*.pem 2>/dev/null || true
+            chmod 755 /opt/creditcardanalyzer/certbot/conf/archive/${{ vars.DOMAIN_NAME }} 2>/dev/null || true
+            chmod 644 /opt/creditcardanalyzer/certbot/conf/archive/${{ vars.DOMAIN_NAME }}/*.pem 2>/dev/null || true
             echo "Cert permissions fixed"
 
       - name: Setup certbot renewal timer
@@ -409,7 +409,7 @@ jobs:
                   SMTP_FROM: ${{ vars.SMTP_FROM }}
                   SMTP_FROM_ADDRESS: ${{ vars.SMTP_FROM_ADDRESS }}
                   FRONTEND_URL: https://${{ vars.PLATFORM_DOMAIN }}
-                  CORS_ORIGINS: https://${{ vars.OIKONOMIA_DOMAIN }},https://www.${{ vars.OIKONOMIA_DOMAIN }},https://${{ vars.PLATFORM_DOMAIN }}
+                  CORS_ORIGINS: https://${{ vars.DOMAIN_NAME }},https://www.${{ vars.DOMAIN_NAME }},https://${{ vars.PLATFORM_DOMAIN }}
                 deploy:
                   resources:
                     limits:
@@ -610,9 +610,11 @@ jobs:
           key: ${{ secrets.LINODE_SSH_KEY }}
           port: 43422
           script: |
-            # Substitute domain in nginx.conf
+            # Substitute domains in nginx.conf
             DOMAIN_NAME="${{ vars.DOMAIN_NAME }}"
-            sed -i "s/\${DOMAIN_NAME}/${DOMAIN_NAME}/g" /opt/creditcardanalyzer/nginx/nginx.conf
+            PLATFORM_DOMAIN="${{ vars.PLATFORM_DOMAIN }}"
+            sed -i "s/\${OIKONOMIA_DOMAIN}/${DOMAIN_NAME}/g" /opt/creditcardanalyzer/nginx/nginx.conf
+            sed -i "s/\${PLATFORM_DOMAIN}/${PLATFORM_DOMAIN}/g" /opt/creditcardanalyzer/nginx/nginx.conf
 
             cd /opt/creditcardanalyzer
             export PATH="$HOME/.local/bin:$PATH"
