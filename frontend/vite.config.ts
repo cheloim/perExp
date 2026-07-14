@@ -23,6 +23,7 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
+    allowedHosts: ["oikonomia.ar", "www.oikonomia.ar", "platform.oikonomia.ar"],
     proxy: {
       '/api': {
         target: 'http://backend_dev:8000',
