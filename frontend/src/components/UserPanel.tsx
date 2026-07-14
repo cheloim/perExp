@@ -445,9 +445,11 @@ export default function UserPanel({ open, onClose }: Props) {
       clearToken();
       window.location.href = "/login";
     },
-    onError: (e: { response?: { data?: { detail?: string | Array<{msg?: string}> } } }) => {
+    onError: (e: { response?: { data?: { detail?: string | Array<{ msg?: string }> } } }) => {
       const detail = e?.response?.data?.detail;
-      const msg = Array.isArray(detail) ? detail.map((d) => d.msg ?? String(d)).join(", ") : (detail ?? "Error al eliminar cuenta");
+      const msg = Array.isArray(detail)
+        ? detail.map((d) => d.msg ?? String(d)).join(", ")
+        : (detail ?? "Error al eliminar cuenta");
       setDeleteError(msg);
     },
   });
@@ -1307,7 +1309,8 @@ export default function UserPanel({ open, onClose }: Props) {
                   Zona de peligro
                 </h3>
                 <p className="text-xs text-[var(--text-tertiary)] mb-3">
-                  Eliminar tu cuenta borrará permanentemente todos tus datos, gastos, tarjetas, cuentas e inversiones. Esta acción no se puede deshacer.
+                  Eliminar tu cuenta borrará permanentemente todos tus datos, gastos, tarjetas,
+                  cuentas e inversiones. Esta acción no se puede deshacer.
                 </p>
 
                 {deleteStep === "confirm" && (
@@ -1330,7 +1333,9 @@ export default function UserPanel({ open, onClose }: Props) {
                           type="email"
                           value={deleteEmail}
                           onChange={(e) => setDeleteEmail(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === "Enter") handleDeleteAccount(); }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleDeleteAccount();
+                          }}
                           placeholder={user?.email}
                           className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-[var(--red-3,#e01b24)]/30 focus:border-[var(--red-3,#e01b24)] transition"
                         />
@@ -1346,7 +1351,9 @@ export default function UserPanel({ open, onClose }: Props) {
                           type="password"
                           value={deletePassword}
                           onChange={(e) => setDeletePassword(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === "Enter") handleDeleteAccount(); }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleDeleteAccount();
+                          }}
                           placeholder="••••••••"
                           className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-[var(--red-3,#e01b24)]/30 focus:border-[var(--red-3,#e01b24)] transition"
                         />
@@ -1363,10 +1370,21 @@ export default function UserPanel({ open, onClose }: Props) {
                         disabled={deleteAccountMut.isPending}
                         className="flex-1 py-2 rounded-md bg-[var(--red-3,#e01b24)] text-white text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"
                       >
-                        {deleteStep === "email" ? "Siguiente" : deleteStep === "password" ? (deleteAccountMut.isPending ? "Eliminando..." : "Eliminar cuenta") : "Siguiente"}
+                        {deleteStep === "email"
+                          ? "Siguiente"
+                          : deleteStep === "password"
+                            ? deleteAccountMut.isPending
+                              ? "Eliminando..."
+                              : "Eliminar cuenta"
+                            : "Siguiente"}
                       </button>
                       <button
-                        onClick={() => { setDeleteStep("confirm"); setDeleteEmail(""); setDeletePassword(""); setDeleteError(""); }}
+                        onClick={() => {
+                          setDeleteStep("confirm");
+                          setDeleteEmail("");
+                          setDeletePassword("");
+                          setDeleteError("");
+                        }}
                         className="py-2 px-4 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
                       >
                         Cancelar

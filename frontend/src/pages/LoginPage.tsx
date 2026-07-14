@@ -171,7 +171,7 @@ function LoginForm({
         </div>
 
         {error && <div className="alert-error">{error}</div>}
-          {authRedirectError && <div className="alert-error">{authRedirectError}</div>}
+        {authRedirectError && <div className="alert-error">{authRedirectError}</div>}
 
         <button type="submit" disabled={loading} className="gnome-btn-primary w-full mt-1">
           {loading ? "Ingresando..." : "Ingresar"}

@@ -44,7 +44,8 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       clearToken();
       const detail = error.response?.data?.detail;
-      const msg = typeof detail === "string" ? detail : "Tu sesión expiró. Iniciá sesión nuevamente.";
+      const msg =
+        typeof detail === "string" ? detail : "Tu sesión expiró. Iniciá sesión nuevamente.";
       sessionStorage.setItem("auth_error", msg);
       window.location.href = "/login";
     }
