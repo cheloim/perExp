@@ -53,7 +53,9 @@ export default function OAuthCallbackPage() {
             <div className="w-12 h-12 rounded-lg bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-xl shadow-gnome">
               F
             </div>
-            <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">{APP_NAME}</h1>
+            <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
+              {APP_NAME}
+            </h1>
           </div>
           <p className="text-sm text-[var(--text-secondary)]">Autenticando con Google...</p>
         </div>
@@ -68,7 +70,9 @@ export default function OAuthCallbackPage() {
           <div className="w-12 h-12 rounded-lg bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-xl shadow-gnome">
             F
           </div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">{APP_NAME}</h1>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
+            {APP_NAME}
+          </h1>
         </div>
         <div className="card p-6">
           <p className="text-sm text-red-500 mb-4">{error}</p>
