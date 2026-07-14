@@ -191,7 +191,7 @@ jobs:
               -v /opt/creditcardanalyzer/certbot/work:/var/lib/letsencrypt:Z \
               -v /opt/creditcardanalyzer/certbot/logs:/var/log/letsencrypt:Z \
               -p 80:80 \
-              docker.io/certbot/certbot certonly --standalone \
+              docker.io/certbot/certbot certonly --standalone --expand \
               -d ${{ vars.DOMAIN_NAME }} \
               -d www.${{ vars.DOMAIN_NAME }} \
               -d ${{ vars.PLATFORM_DOMAIN }} \
