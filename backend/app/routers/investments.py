@@ -1011,7 +1011,7 @@ async def investments_chat_stream(
         try:
             client = genai.Client(api_key=api_key)
             async for chunk in await client.aio.models.generate_content_stream(
-                model="gemini-flash-latest",
+                model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
                 contents=user_message,
                 config=genai_types.GenerateContentConfig(
                     system_instruction=INVESTMENTS_SYSTEM_PROMPT,

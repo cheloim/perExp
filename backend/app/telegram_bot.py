@@ -61,7 +61,7 @@ def _parse_expense(text: str) -> dict | None:
     try:
         client = _gemini_client()
         response = client.models.generate_content(
-            model="gemini-flash-latest",
+            model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
             contents=prompt,
         )
         raw = response.text.strip()
@@ -90,7 +90,7 @@ def _extract_card_info(raw_input: str, card_type: str) -> dict:
     try:
         client = genai.Client(api_key=api_key)
         response = client.models.generate_content(
-            model="gemini-flash-latest",
+            model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
             contents=prompt,
         )
         raw = response.text.strip()
@@ -168,7 +168,7 @@ def _parse_bank_notification(text: str) -> dict | None:
 
     try:
         client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(model="gemini-flash-latest", contents=prompt)
+        response = client.models.generate_content(model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"), contents=prompt)
         raw = response.text.strip()
         if "```" in raw:
             raw = raw.split("```")[1]
