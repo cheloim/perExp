@@ -65,24 +65,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="py-12 px-4 border-y border-[var(--border-color)]">
-        <div className="max-w-4xl mx-auto grid grid-cols-3 gap-8 text-center">
-          <div className="animate-count-up delay-100">
-            <div className="text-3xl font-bold text-[var(--color-primary)]">50+</div>
-            <div className="text-sm text-[var(--text-tertiary)] mt-1">Usuarios activos</div>
-          </div>
-          <div className="animate-count-up delay-300">
-            <div className="text-3xl font-bold text-[var(--color-primary)]">10K+</div>
-            <div className="text-sm text-[var(--text-tertiary)] mt-1">Gastos registrados</div>
-          </div>
-          <div className="animate-count-up delay-500">
-            <div className="text-3xl font-bold text-[var(--color-primary)]">98%</div>
-            <div className="text-sm text-[var(--text-tertiary)] mt-1">Precisión IA</div>
-          </div>
-        </div>
-      </section>
-
       {/* Features */}
       <section className="py-20 px-4">
         <div className="max-w-5xl mx-auto">
@@ -157,6 +139,76 @@ export default function LandingPage() {
             </div>
             <div className="animate-fade-in-up delay-200">
               <TelegramMockup />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Reporting */}
+      <section className="py-20 px-4">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="animate-fade-in-up">
+              <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
+                Reportes que te ayudan a decidir
+              </h2>
+              <p className="text-lg text-[var(--text-secondary)] mb-6 leading-relaxed">
+                Visualizá tus gastos por categoría, mes y tarjeta. Analizá tendencias y compará
+                meses anteriores para saber exactamente a dónde va tu dinero.
+              </p>
+              <ul className="space-y-3 text-[var(--text-secondary)]">
+                <li className="flex items-start gap-3">
+                  <svg
+                    className="w-5 h-5 text-[var(--color-primary)] mt-0.5 flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                    />
+                  </svg>
+                  <span>Gráficos de gastos por categoría y mes</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <svg
+                    className="w-5 h-5 text-[var(--color-primary)] mt-0.5 flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                    />
+                  </svg>
+                  <span>Tendencias y proyecciones de gasto</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <svg
+                    className="w-5 h-5 text-[var(--color-primary)] mt-0.5 flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                    />
+                  </svg>
+                  <span>Reportes mensuales con análisis de IA</span>
+                </li>
+              </ul>
+            </div>
+            <div className="animate-fade-in-up delay-200">
+              <DashboardMockup />
             </div>
           </div>
         </div>
@@ -392,32 +444,36 @@ function TelegramMockup() {
       <div className="bg-[#1a1a2e] rounded-2xl shadow-2xl p-4 border border-[#2a2a3e]">
         <div className="flex items-center gap-2.5 mb-4 pb-3 border-b border-[#2a2a3e]">
           <div className="w-9 h-9 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-sm">
-            O
+            N
           </div>
           <div>
-            <div className="text-white text-sm font-medium">NikoFin Bot</div>
+            <div className="text-white text-sm font-medium">NikoFin</div>
             <div className="text-[10px] text-green-400">● en línea</div>
           </div>
         </div>
         <div className="space-y-3">
           <div className="flex justify-end">
             <div className="bg-[var(--color-primary)] rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[85%]">
-              <span className="text-white text-sm">farmacity 3200</span>
+              <span className="text-white text-sm">mastercard galicia almacen 5999</span>
             </div>
           </div>
           <div className="flex justify-start">
             <div className="bg-[#2a2a3e] rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[85%]">
-              <span className="text-white text-sm">✅ Guardé: *$3.200* en Farmacia</span>
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <div className="bg-[var(--color-primary)] rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[85%]">
-              <span className="text-white text-sm">uber 1800 ayer</span>
-            </div>
-          </div>
-          <div className="flex justify-start">
-            <div className="bg-[#2a2a3e] rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[85%]">
-              <span className="text-white text-sm">✅ Guardé: *$1.800* en Transporte</span>
+              <div className="text-white text-sm leading-relaxed">
+                <span className="text-green-400">✅</span> ¡Listo! Guardé el gasto.
+                <br />
+                <br />
+                💰 $5.999
+                <br />
+                💳 Galicia Mastercard
+                <br />
+                📅 12 de julio de 2026
+                <br />
+                <br />
+                <span className="text-[var(--color-primary)]">🍽️ Alimentación</span>
+                <br />
+                <span className="text-[var(--text-tertiary)]">└ 📂 Almacén/Kiosco</span>
+              </div>
             </div>
           </div>
         </div>
