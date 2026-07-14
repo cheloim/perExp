@@ -25,6 +25,15 @@ interface GoogleAccountsId {
       isSkippedMoment: () => boolean;
     }) => void,
   ): void;
+  renderButton(
+    element: HTMLElement,
+    options: {
+      theme?: string;
+      size?: string;
+      width?: string;
+      text?: string;
+    },
+  ): void;
 }
 
 interface GoogleAccounts {
