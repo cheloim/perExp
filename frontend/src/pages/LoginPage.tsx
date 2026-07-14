@@ -101,58 +101,61 @@ function LoginForm({
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const googleBtnRef = useCallback((node: HTMLDivElement | null) => {
-    if (!node) return;
-    const initGoogle = async () => {
-      // Load Google Identity Services
-      if (!window.google?.accounts?.id) {
-        const script = document.createElement("script");
-        script.src = "https://accounts.google.com/gsi/client";
-        script.async = true;
-        await new Promise<void>((resolve, reject) => {
-          script.onload = () => resolve();
-          script.onerror = () => reject(new Error("No se pudo cargar Google Identity Services"));
-          document.head.appendChild(script);
-        });
-      }
+  const googleBtnRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (!node) return;
+      const initGoogle = async () => {
+        // Load Google Identity Services
+        if (!window.google?.accounts?.id) {
+          const script = document.createElement("script");
+          script.src = "https://accounts.google.com/gsi/client";
+          script.async = true;
+          await new Promise<void>((resolve, reject) => {
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error("No se pudo cargar Google Identity Services"));
+            document.head.appendChild(script);
+          });
+        }
 
-      if (window.google?.accounts?.id) {
-        window.google.accounts.id.initialize({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "",
-          callback: async (response: { credential: string }) => {
-            setError("");
-            setLoading(true);
-            try {
-              const token = await oauthLogin("google", response.credential);
-              if (token.force_password_change) {
+        if (window.google?.accounts?.id) {
+          window.google.accounts.id.initialize({
+            client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "",
+            callback: async (response: { credential: string }) => {
+              setError("");
+              setLoading(true);
+              try {
+                const token = await oauthLogin("google", response.credential);
+                if (token.force_password_change) {
+                  storeToken(token.access_token);
+                  onForceChange(token.access_token);
+                  return;
+                }
+                if (token.mfa_required) {
+                  onMfa(token.access_token);
+                  return;
+                }
                 storeToken(token.access_token);
-                onForceChange(token.access_token);
-                return;
+                onSuccess();
+              } catch (err: unknown) {
+                const msg = err instanceof Error ? err.message : "Error al autenticar con Google";
+                setError(msg);
+                setLoading(false);
               }
-              if (token.mfa_required) {
-                onMfa(token.access_token);
-                return;
-              }
-              storeToken(token.access_token);
-              onSuccess();
-            } catch (err: unknown) {
-              const msg = err instanceof Error ? err.message : "Error al autenticar con Google";
-              setError(msg);
-              setLoading(false);
-            }
-          },
-        });
+            },
+          });
 
-        window.google.accounts.id.renderButton(node, {
-          theme: "outline",
-          size: "large",
-          width: "100%",
-          text: "continue_with",
-        });
-      }
-    };
-    initGoogle();
-  }, [onForceChange, onMfa, onSuccess]);
+          window.google.accounts.id.renderButton(node, {
+            theme: "outline",
+            size: "large",
+            width: "100%",
+            text: "continue_with",
+          });
+        }
+      };
+      initGoogle();
+    },
+    [onForceChange, onMfa, onSuccess],
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
