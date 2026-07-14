@@ -115,10 +115,11 @@ jobs:
           key: ${{ secrets.LINODE_SSH_KEY }}
           port: 43422
           script: |
-            RESOLVED_IP=$(python3 -c "import socket; print(socket.gethostbyname('${{ vars.DOMAIN_NAME }}'))" 2>/dev/null)
+            RESOLVED_IP=$(python3 -c "import socket; print(socket.gethostbyname('${{ vars.OIKONOMIA_DOMAIN }}'))" 2>/dev/null)
             SERVER_IP=$(curl -s --connect-timeout 5 https://api.ipify.org || curl -s --connect-timeout 5 https://ifconfig.me)
 
-            echo "Domain: ${{ vars.DOMAIN_NAME }}"
+            echo "Domain: ${{ vars.OIKONOMIA_DOMAIN }}"
+            echo "Platform: ${{ vars.PLATFORM_DOMAIN }}"
             echo "Resolved IP: $RESOLVED_IP"
             echo "Server IP: $SERVER_IP"
 
@@ -126,7 +127,7 @@ jobs:
               echo "ERROR: DNS not pointing to this server ($RESOLVED_IP != $SERVER_IP)"
               exit 1
             fi
-            echo "DNS OK: ${{ vars.DOMAIN_NAME }} -> $SERVER_IP"
+            echo "DNS OK: ${{ vars.OIKONOMIA_DOMAIN }} -> $SERVER_IP"
 
       - name: Stop old containers to free port 80
         uses: appleboy/ssh-action@v1
@@ -158,7 +159,7 @@ jobs:
             # Clean up old domain certbot data if domain changed
             for old_dir in /opt/creditcardanalyzer/certbot/conf/live/*/; do
               old_domain=$(basename "$old_dir")
-              if [ "$old_domain" != "${{ vars.DOMAIN_NAME }}" ] && [ -n "$old_domain" ]; then
+              if [ "$old_domain" != "${{ vars.OIKONOMIA_DOMAIN }}" ] && [ "$old_domain" != "${{ vars.PLATFORM_DOMAIN }}" ] && [ -n "$old_domain" ]; then
                 echo "Removing old cert for domain: $old_domain"
                 rm -rf "/opt/creditcardanalyzer/certbot/conf/live/$old_domain"
                 rm -rf "/opt/creditcardanalyzer/certbot/conf/archive/$old_domain"
@@ -166,7 +167,7 @@ jobs:
               fi
             done
 
-            CERT_FILE="/opt/creditcardanalyzer/certbot/conf/live/${{ vars.DOMAIN_NAME }}/fullchain.pem"
+            CERT_FILE="/opt/creditcardanalyzer/certbot/conf/live/${{ vars.OIKONOMIA_DOMAIN }}/fullchain.pem"
 
             if [ -f "$CERT_FILE" ]; then
                 # Check if cert expires within 14 days
@@ -191,7 +192,9 @@ jobs:
               -v /opt/creditcardanalyzer/certbot/logs:/var/log/letsencrypt:Z \
               -p 80:80 \
               docker.io/certbot/certbot certonly --standalone \
-              -d ${{ vars.DOMAIN_NAME }} \
+              -d ${{ vars.OIKONOMIA_DOMAIN }} \
+              -d www.${{ vars.OIKONOMIA_DOMAIN }} \
+              -d ${{ vars.PLATFORM_DOMAIN }} \
               --email mmendoza0989@gmail.com \
               --agree-tos --non-interactive
             echo "SSL certificate obtained"
@@ -205,8 +208,8 @@ jobs:
           port: 43422
           script: |
             chmod 755 /opt/creditcardanalyzer/certbot/conf/archive 2>/dev/null || true
-            chmod 755 /opt/creditcardanalyzer/certbot/conf/archive/${{ vars.DOMAIN_NAME }} 2>/dev/null || true
-            chmod 644 /opt/creditcardanalyzer/certbot/conf/archive/${{ vars.DOMAIN_NAME }}/*.pem 2>/dev/null || true
+            chmod 755 /opt/creditcardanalyzer/certbot/conf/archive/${{ vars.OIKONOMIA_DOMAIN }} 2>/dev/null || true
+            chmod 644 /opt/creditcardanalyzer/certbot/conf/archive/${{ vars.OIKONOMIA_DOMAIN }}/*.pem 2>/dev/null || true
             echo "Cert permissions fixed"
 
       - name: Setup certbot renewal timer
@@ -302,32 +305,56 @@ jobs:
             # Write nginx.conf
             mkdir -p /opt/creditcardanalyzer/nginx
             cat > /opt/creditcardanalyzer/nginx/nginx.conf << 'NGINXEOF'
+            # HTTP → HTTPS redirect (all domains)
             server {
                 listen 80 default_server;
                 server_name _;
-                return 301 https://${{ vars.DOMAIN_NAME }}$request_uri;
+                return 301 https://${OIKONOMIA_DOMAIN}$request_uri;
             }
 
+            # www → apex redirect
             server {
-                listen 443 ssl default_server;
-                server_name _;
+                listen 443 ssl http2;
+                server_name www.${OIKONOMIA_DOMAIN};
+                ssl_certificate /etc/letsencrypt/live/${OIKONOMIA_DOMAIN}/fullchain.pem;
+                ssl_certificate_key /etc/letsencrypt/live/${OIKONOMIA_DOMAIN}/privkey.pem;
+                ssl_protocols TLSv1.2 TLSv1.3;
+                return 301 https://${OIKONOMIA_DOMAIN}$request_uri;
+            }
 
-                ssl_certificate /etc/letsencrypt/live/${{ vars.DOMAIN_NAME }}/fullchain.pem;
-                ssl_certificate_key /etc/letsencrypt/live/${{ vars.DOMAIN_NAME }}/privkey.pem;
-
+            # Landing site: oikonomia.ar
+            server {
+                listen 443 ssl http2 default_server;
+                server_name ${OIKONOMIA_DOMAIN};
+                ssl_certificate /etc/letsencrypt/live/${OIKONOMIA_DOMAIN}/fullchain.pem;
+                ssl_certificate_key /etc/letsencrypt/live/${OIKONOMIA_DOMAIN}/privkey.pem;
                 ssl_protocols TLSv1.2 TLSv1.3;
                 ssl_ciphers HIGH:!aNULL:!MD5;
-                ssl_prefer_server_ciphers on;
-                ssl_session_cache shared:SSL:10m;
-                ssl_session_timeout 10m;
+                add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+                add_header X-Content-Type-Options nosniff;
+                gzip on;
+                location / {
+                    proxy_pass http://frontend:80;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                }
+            }
 
+            # App: platform.oikonomia.ar
+            server {
+                listen 443 ssl http2;
+                server_name ${PLATFORM_DOMAIN};
+                ssl_certificate /etc/letsencrypt/live/${PLATFORM_DOMAIN}/fullchain.pem;
+                ssl_certificate_key /etc/letsencrypt/live/${PLATFORM_DOMAIN}/privkey.pem;
+                ssl_protocols TLSv1.2 TLSv1.3;
+                ssl_ciphers HIGH:!aNULL:!MD5;
                 add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
                 add_header X-Content-Type-Options nosniff;
                 add_header X-Frame-Options DENY;
-
+                add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' https:; frame-ancestors 'none'";
                 gzip on;
-                gzip_types text/plain text/css application/json application/javascript text/xml;
-
                 location / {
                     proxy_pass http://frontend:80;
                     proxy_set_header Host $host;
@@ -335,9 +362,7 @@ jobs:
                     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
                     proxy_set_header X-Forwarded-Proto $scheme;
                     proxy_buffering off;
-                    proxy_cache off;
                     proxy_read_timeout 86400;
-                    chunked_transfer_encoding on;
                 }
             }
             NGINXEOF
@@ -405,8 +430,8 @@ jobs:
                   EMAIL_API_KEY: ${EMAIL_API_KEY}
                   SMTP_FROM: ${{ vars.SMTP_FROM }}
                   SMTP_FROM_ADDRESS: ${{ vars.SMTP_FROM_ADDRESS }}
-                  FRONTEND_URL: https://${{ vars.DOMAIN_NAME }}
-                  CORS_ORIGINS: https://${{ vars.DOMAIN_NAME }}
+                  FRONTEND_URL: https://${{ vars.PLATFORM_DOMAIN }}
+                  CORS_ORIGINS: https://${{ vars.OIKONOMIA_DOMAIN }},https://www.${{ vars.OIKONOMIA_DOMAIN }},https://${{ vars.PLATFORM_DOMAIN }}
                 deploy:
                   resources:
                     limits:
@@ -607,9 +632,9 @@ jobs:
           key: ${{ secrets.LINODE_SSH_KEY }}
           port: 43422
           script: |
-            # Substitute domain in nginx.conf
-            DOMAIN_NAME="${{ vars.DOMAIN_NAME }}"
-            sed -i "s/\${DOMAIN_NAME}/${DOMAIN_NAME}/g" /opt/creditcardanalyzer/nginx/nginx.conf
+            # Substitute domains in nginx.conf
+            sed -i "s/\${OIKONOMIA_DOMAIN}/${{ vars.OIKONOMIA_DOMAIN }}/g" /opt/creditcardanalyzer/nginx/nginx.conf
+            sed -i "s/\${PLATFORM_DOMAIN}/${{ vars.PLATFORM_DOMAIN }}/g" /opt/creditcardanalyzer/nginx/nginx.conf
 
             cd /opt/creditcardanalyzer
             export PATH="$HOME/.local/bin:$PATH"
@@ -751,7 +776,7 @@ jobs:
             DEPLOY_OK=false
 
             for i in $(seq 1 $RETRIES); do
-              STATUS=$(curl -sk -o /dev/null -w "%{http_code}" https://${{ vars.DOMAIN_NAME }}/api/docs 2>/dev/null)
+              STATUS=$(curl -sk -o /dev/null -w "%{http_code}" https://${{ vars.PLATFORM_DOMAIN }}/api/docs 2>/dev/null)
               if [ "$STATUS" = "200" ]; then
                 echo "Deploy OK after ${i} attempt(s)"
                 DEPLOY_OK=true

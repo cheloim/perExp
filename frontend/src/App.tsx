@@ -23,8 +23,10 @@ const CategoriesPage = lazy(() => import("./pages/CategoriesPage"));
 const CategoryDashboard = lazy(() => import("./pages/CategoryDashboard"));
 const InstallmentsPage = lazy(() => import("./pages/InstallmentsPage"));
 const InvestmentsPage = lazy(() => import("./pages/InvestmentsPage"));
+const LandingPage = lazy(() => import("./pages/LandingPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const OAuthCallbackPage = lazy(() => import("./pages/OAuthCallbackPage"));
+const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 
 const TABS = [
@@ -55,8 +57,34 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const location = useLocation();
+  const hostname = window.location.hostname;
 
+  // Institutional site: oikonomia.ar / www.oikonomia.ar
+  if (hostname === "oikonomia.ar" || hostname === "www.oikonomia.ar") {
+    if (location.pathname === "/privacy") {
+      return (
+        <Suspense>
+          <PrivacyPage />
+        </Suspense>
+      );
+    }
+    return (
+      <Suspense>
+        <LandingPage />
+      </Suspense>
+    );
+  }
+
+  // App: platform.oikonomia.ar (or localhost)
   if (location.pathname === "/login") return <LoginPage />;
+
+  if (location.pathname === "/privacy") {
+    return (
+      <Suspense>
+        <PrivacyPage />
+      </Suspense>
+    );
+  }
 
   if (location.pathname === "/reset-password") return <ResetPasswordPage />;
 
