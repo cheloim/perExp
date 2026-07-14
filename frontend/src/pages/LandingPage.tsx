@@ -57,28 +57,10 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Dashboard Mockup */}
+            {/* Hero Mockup */}
             <div className="animate-fade-in-up delay-300 hidden md:block">
-              <DashboardMockup />
+              <HeroMockup />
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats */}
-      <section className="py-12 px-4 border-y border-[var(--border-color)]">
-        <div className="max-w-4xl mx-auto grid grid-cols-3 gap-8 text-center">
-          <div className="animate-count-up delay-100">
-            <div className="text-3xl font-bold text-[var(--color-primary)]">50+</div>
-            <div className="text-sm text-[var(--text-tertiary)] mt-1">Usuarios activos</div>
-          </div>
-          <div className="animate-count-up delay-300">
-            <div className="text-3xl font-bold text-[var(--color-primary)]">10K+</div>
-            <div className="text-sm text-[var(--text-tertiary)] mt-1">Gastos registrados</div>
-          </div>
-          <div className="animate-count-up delay-500">
-            <div className="text-3xl font-bold text-[var(--color-primary)]">98%</div>
-            <div className="text-sm text-[var(--text-tertiary)] mt-1">Precisión IA</div>
           </div>
         </div>
       </section>
@@ -157,6 +139,76 @@ export default function LandingPage() {
             </div>
             <div className="animate-fade-in-up delay-200">
               <TelegramMockup />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Reporting */}
+      <section className="py-20 px-4">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="animate-fade-in-up">
+              <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
+                Reportes que te ayudan a decidir
+              </h2>
+              <p className="text-lg text-[var(--text-secondary)] mb-6 leading-relaxed">
+                Visualizá tus gastos por categoría, mes y tarjeta. Analizá tendencias y compará
+                meses anteriores para saber exactamente a dónde va tu dinero.
+              </p>
+              <ul className="space-y-3 text-[var(--text-secondary)]">
+                <li className="flex items-start gap-3">
+                  <svg
+                    className="w-5 h-5 text-[var(--color-primary)] mt-0.5 flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                    />
+                  </svg>
+                  <span>Gráficos de gastos por categoría y mes</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <svg
+                    className="w-5 h-5 text-[var(--color-primary)] mt-0.5 flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                    />
+                  </svg>
+                  <span>Tendencias y proyecciones de gasto</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <svg
+                    className="w-5 h-5 text-[var(--color-primary)] mt-0.5 flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                    />
+                  </svg>
+                  <span>Reportes mensuales con análisis de IA</span>
+                </li>
+              </ul>
+            </div>
+            <div className="animate-fade-in-up delay-200">
+              <ReportMockup />
             </div>
           </div>
         </div>
@@ -325,60 +377,154 @@ export default function LandingPage() {
   );
 }
 
-function DashboardMockup() {
+function HeroMockup() {
   return (
     <div className="relative">
       <div className="absolute -inset-4 bg-gradient-to-r from-[var(--color-primary)]/20 to-purple-500/20 rounded-3xl blur-2xl opacity-50" />
-      <div className="relative bg-[var(--color-surface)] rounded-2xl shadow-2xl border border-[var(--border-color)] p-6 max-w-sm mx-auto">
-        <div className="flex items-center gap-2 mb-5">
-          <div className="w-8 h-8 rounded-lg bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-xs">
+      <div className="relative bg-[var(--color-surface)] rounded-2xl shadow-2xl border border-[var(--border-color)] p-5 max-w-xs mx-auto">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-7 h-7 rounded-lg bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-xs">
             O
           </div>
-          <span className="font-semibold text-sm text-[var(--text-primary)]">oikonomia</span>
+          <span className="font-semibold text-xs text-[var(--text-primary)]">oikonomia</span>
+          <span className="ml-auto text-[10px] text-[var(--text-tertiary)]">Hoy</span>
         </div>
-        <div className="grid grid-cols-2 gap-3 mb-5">
-          <div className="p-3 rounded-xl bg-[var(--color-base-alt)]">
-            <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide">
-              Este mes
-            </div>
-            <div className="text-xl font-bold text-[var(--text-primary)] animate-count-up">
-              $45.230
-            </div>
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          <div className="p-2 rounded-lg bg-[var(--color-base-alt)] text-center">
+            <div className="text-[9px] text-[var(--text-tertiary)] uppercase">Gasto</div>
+            <div className="text-sm font-bold text-[var(--text-primary)]">$5.999</div>
           </div>
-          <div className="p-3 rounded-xl bg-[var(--color-base-alt)]">
-            <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide">
-              Transacciones
-            </div>
-            <div className="text-xl font-bold text-[var(--text-primary)] animate-count-up delay-200">
-              28
-            </div>
+          <div className="p-2 rounded-lg bg-[var(--color-base-alt)] text-center">
+            <div className="text-[9px] text-[var(--text-tertiary)] uppercase">Mes</div>
+            <div className="text-sm font-bold text-[var(--text-primary)]">$45.230</div>
+          </div>
+          <div className="p-2 rounded-lg bg-[var(--color-base-alt)] text-center">
+            <div className="text-[9px] text-[var(--text-tertiary)] uppercase">Trans.</div>
+            <div className="text-sm font-bold text-[var(--text-primary)]">28</div>
           </div>
         </div>
-        <div className="h-28 bg-[var(--color-base-alt)] rounded-xl p-3 flex items-end gap-1.5">
-          {[35, 55, 40, 70, 50, 65, 45].map((h, i) => (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-[var(--text-secondary)]">Alimentación</span>
+            <div className="flex items-center gap-2">
+              <div className="w-16 h-1.5 rounded-full bg-[var(--color-base-alt)] overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-[var(--color-primary)]"
+                  style={{ width: "41%" }}
+                />
+              </div>
+              <span className="text-[var(--text-primary)] font-medium w-14 text-right">
+                $18.500
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-[var(--text-secondary)]">Transporte</span>
+            <div className="flex items-center gap-2">
+              <div className="w-16 h-1.5 rounded-full bg-[var(--color-base-alt)] overflow-hidden">
+                <div className="h-full rounded-full bg-blue-500" style={{ width: "18%" }} />
+              </div>
+              <span className="text-[var(--text-primary)] font-medium w-14 text-right">$8.200</span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-[var(--text-secondary)]">Servicios</span>
+            <div className="flex items-center gap-2">
+              <div className="w-16 h-1.5 rounded-full bg-[var(--color-base-alt)] overflow-hidden">
+                <div className="h-full rounded-full bg-amber-500" style={{ width: "15%" }} />
+              </div>
+              <span className="text-[var(--text-primary)] font-medium w-14 text-right">$6.800</span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-[var(--text-secondary)]">Otros</span>
+            <div className="flex items-center gap-2">
+              <div className="w-16 h-1.5 rounded-full bg-[var(--color-base-alt)] overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-[var(--text-tertiary)]"
+                  style={{ width: "26%" }}
+                />
+              </div>
+              <span className="text-[var(--text-primary)] font-medium w-14 text-right">
+                $11.730
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReportMockup() {
+  return (
+    <div className="relative">
+      <div className="absolute -inset-4 bg-gradient-to-r from-purple-500/20 to-[var(--color-primary)]/20 rounded-3xl blur-2xl opacity-50" />
+      <div className="relative bg-[var(--color-surface)] rounded-2xl shadow-2xl border border-[var(--border-color)] p-6 max-w-sm mx-auto">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <div className="text-sm font-semibold text-[var(--text-primary)]">Resumen mensual</div>
+            <div className="text-[10px] text-[var(--text-tertiary)]">Junio 2026</div>
+          </div>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 font-medium">
+            ↑ 12%
+          </span>
+        </div>
+        <div className="h-32 bg-[var(--color-base-alt)] rounded-xl p-3 flex items-end gap-1 mb-4">
+          {[30, 45, 35, 55, 40, 60, 50, 65, 45, 70, 55, 80].map((h, i) => (
             <div
               key={i}
               className="flex-1 rounded-t-sm animate-bar-grow"
               style={{
                 height: `${h}%`,
-                backgroundColor: i === 4 ? "var(--color-primary)" : "var(--color-base)",
-                animationDelay: `${i * 0.1}s`,
+                backgroundColor: i >= 9 ? "var(--color-primary)" : "var(--color-base)",
+                animationDelay: `${i * 0.05}s`,
               }}
             />
           ))}
         </div>
-        <div className="flex gap-2 mt-4">
-          <div className="flex-1 p-2 rounded-lg bg-[var(--color-base-alt)] text-center">
-            <div className="text-[10px] text-[var(--text-tertiary)]">Alimentación</div>
-            <div className="text-xs font-semibold text-[var(--text-primary)]">$18.500</div>
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="p-3 rounded-xl bg-[var(--color-base-alt)]">
+            <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide">
+              Gasto total
+            </div>
+            <div className="text-lg font-bold text-[var(--text-primary)]">$187.450</div>
           </div>
-          <div className="flex-1 p-2 rounded-lg bg-[var(--color-base-alt)] text-center">
-            <div className="text-[10px] text-[var(--text-tertiary)]">Transporte</div>
-            <div className="text-xs font-semibold text-[var(--text-primary)]">$8.200</div>
+          <div className="p-3 rounded-xl bg-[var(--color-base-alt)]">
+            <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide">
+              Promedio/día
+            </div>
+            <div className="text-lg font-bold text-[var(--text-primary)]">$6.248</div>
           </div>
-          <div className="flex-1 p-2 rounded-lg bg-[var(--color-base-alt)] text-center">
-            <div className="text-[10px] text-[var(--text-tertiary)]">Otros</div>
-            <div className="text-xs font-semibold text-[var(--text-primary)]">$18.530</div>
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-primary)]" />
+              <span className="text-[var(--text-secondary)]">Alimentación</span>
+            </div>
+            <span className="text-[var(--text-primary)] font-medium">38%</span>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+              <span className="text-[var(--text-secondary)]">Transporte</span>
+            </div>
+            <span className="text-[var(--text-primary)] font-medium">18%</span>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+              <span className="text-[var(--text-secondary)]">Servicios</span>
+            </div>
+            <span className="text-[var(--text-primary)] font-medium">15%</span>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-[var(--text-tertiary)]" />
+              <span className="text-[var(--text-secondary)]">Otros</span>
+            </div>
+            <span className="text-[var(--text-primary)] font-medium">29%</span>
           </div>
         </div>
       </div>
@@ -392,32 +538,36 @@ function TelegramMockup() {
       <div className="bg-[#1a1a2e] rounded-2xl shadow-2xl p-4 border border-[#2a2a3e]">
         <div className="flex items-center gap-2.5 mb-4 pb-3 border-b border-[#2a2a3e]">
           <div className="w-9 h-9 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-sm">
-            O
+            N
           </div>
           <div>
-            <div className="text-white text-sm font-medium">NikoFin Bot</div>
+            <div className="text-white text-sm font-medium">NikoFin</div>
             <div className="text-[10px] text-green-400">● en línea</div>
           </div>
         </div>
         <div className="space-y-3">
           <div className="flex justify-end">
             <div className="bg-[var(--color-primary)] rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[85%]">
-              <span className="text-white text-sm">farmacity 3200</span>
+              <span className="text-white text-sm">mastercard galicia almacen 5999</span>
             </div>
           </div>
           <div className="flex justify-start">
             <div className="bg-[#2a2a3e] rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[85%]">
-              <span className="text-white text-sm">✅ Guardé: *$3.200* en Farmacia</span>
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <div className="bg-[var(--color-primary)] rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[85%]">
-              <span className="text-white text-sm">uber 1800 ayer</span>
-            </div>
-          </div>
-          <div className="flex justify-start">
-            <div className="bg-[#2a2a3e] rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[85%]">
-              <span className="text-white text-sm">✅ Guardé: *$1.800* en Transporte</span>
+              <div className="text-white text-sm leading-relaxed">
+                <span className="text-green-400">✅</span> ¡Listo! Guardé el gasto.
+                <br />
+                <br />
+                💰 $5.999
+                <br />
+                💳 Galicia Mastercard
+                <br />
+                📅 12 de julio de 2026
+                <br />
+                <br />
+                <span className="text-[var(--color-primary)]">🍽️ Alimentación</span>
+                <br />
+                <span className="text-[var(--text-tertiary)]">└ 📂 Almacén/Kiosco</span>
+              </div>
             </div>
           </div>
         </div>
