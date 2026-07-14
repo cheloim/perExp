@@ -47,12 +47,12 @@ async def lifespan(application: FastAPI):
     if db.query(Category).count() == 0:
         _apply_base_hierarchy(db)
 
-    seed_email = os.getenv("SEED_USER_EMAIL", "mmendoza0989@gmail.com")
+    seed_email = os.getenv("SEED_USER_EMAIL", "admin@nikofin.com")
     if not db.query(User).filter(User.email == seed_email).first():
         seed_user = User(
             email=seed_email,
             full_name=os.getenv("SEED_USER_NAME", "Admin"),
-            hashed_password=get_password_hash(os.getenv("SEED_USER_PASSWORD", "changeme123")),
+            hashed_password=get_password_hash(os.getenv("SEED_USER_PASSWORD", "ChangeMe123!")),
             email_verified=True,
         )
         db.add(seed_user)

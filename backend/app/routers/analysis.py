@@ -112,7 +112,7 @@ TOP 10 GASTOS MÁS ALTOS:
         try:
             client = genai.Client(api_key=api_key)
             async for chunk in await client.aio.models.generate_content_stream(
-                model="gemini-flash-latest",
+                model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
                 contents=user_message,
                 config=genai_types.GenerateContentConfig(
                     system_instruction=(None if req.debug_mode else ANALYSIS_SYSTEM_PROMPT),
@@ -199,7 +199,7 @@ async def summarize_chat(
         try:
             client = _genai.Client(api_key=api_key)
             async for chunk in await client.aio.models.generate_content_stream(
-                model="gemini-flash-latest",
+                model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
                 contents=prompt,
                 config=_gtypes.GenerateContentConfig(temperature=0.3),
             ):
