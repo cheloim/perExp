@@ -425,7 +425,26 @@ def delete_my_account(
 
         _remove_member(db, user_id, user_id)
 
-    # Delete user — PostgreSQL CASCADE handles all child data
+    # Delete data in order (handle FK constraints manually)
+    from app.models import (
+        Account, AnalysisHistory, Card, CardClosing, Category,
+        Expense, ImportJob, Investment, MonthlyReport, Notification,
+        ScheduledExpense,
+    )
+
+    db.query(Notification).filter(Notification.user_id == user_id).delete()
+    db.query(Expense).filter(Expense.user_id == user_id).delete()
+    db.query(Category).filter(Category.user_id == user_id).delete()
+    db.query(Account).filter(Account.user_id == user_id).delete()
+    db.query(Card).filter(Card.user_id == user_id).delete()
+    db.query(AnalysisHistory).filter(AnalysisHistory.user_id == user_id).delete()
+    db.query(Investment).filter(Investment.user_id == user_id).delete()
+    db.query(CardClosing).filter(CardClosing.user_id == user_id).delete()
+    db.query(ScheduledExpense).filter(ScheduledExpense.user_id == user_id).delete()
+    db.query(ImportJob).filter(ImportJob.user_id == user_id).delete()
+    db.query(MonthlyReport).filter(MonthlyReport.user_id == user_id).delete()
+
+    # Delete user last
     db.delete(current_user)
     db.commit()
     logger.info(f"Account deleted: user_id={user_id}")
