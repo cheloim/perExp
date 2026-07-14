@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getMe,
   changePassword,
+  deleteMyAccount,
   clearToken,
   getMyGroup,
   inviteToGroup,
@@ -429,6 +430,44 @@ export default function UserPanel({ open, onClose }: Props) {
       return;
     }
     changePwMut.mutate();
+  };
+
+  // Delete account
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<"confirm" | "email" | "password">("confirm");
+  const [deleteEmail, setDeleteEmail] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+
+  const deleteAccountMut = useMutation({
+    mutationFn: () => deleteMyAccount(deletePassword),
+    onSuccess: () => {
+      clearToken();
+      window.location.href = "/login";
+    },
+    onError: (e: { response?: { data?: { detail?: string | Array<{ msg?: string }> } } }) => {
+      const detail = e?.response?.data?.detail;
+      const msg = Array.isArray(detail)
+        ? detail.map((d) => d.msg ?? String(d)).join(", ")
+        : (detail ?? "Error al eliminar cuenta");
+      setDeleteError(msg);
+    },
+  });
+
+  const handleDeleteAccount = () => {
+    if (deleteStep === "confirm") {
+      setDeleteStep("email");
+    } else if (deleteStep === "email") {
+      if (deleteEmail !== user?.email) {
+        setDeleteError("El email no coincide");
+        return;
+      }
+      setDeleteError("");
+      setDeleteStep("password");
+    } else {
+      setDeleteError("");
+      deleteAccountMut.mutate();
+    }
   };
 
   // MFA queries and mutations
@@ -1262,6 +1301,98 @@ export default function UserPanel({ open, onClose }: Props) {
                   </button>
                 </form>
               </div>
+
+              {/* Danger zone */}
+              <hr className="border-[var(--border-color)]" />
+              <div>
+                <h3 className="text-xs font-medium text-[var(--red-3,#e01b24)] uppercase tracking-wide mb-3">
+                  Zona de peligro
+                </h3>
+                <p className="text-xs text-[var(--text-tertiary)] mb-3">
+                  Eliminar tu cuenta borrará permanentemente todos tus datos, gastos, tarjetas,
+                  cuentas e inversiones. Esta acción no se puede deshacer.
+                </p>
+
+                {deleteStep === "confirm" && (
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="w-full py-2 rounded-md border border-[var(--red-3,#e01b24)] text-[var(--red-3,#e01b24)] text-sm font-medium hover:bg-[var(--red-3,#e01b24)]/10 transition"
+                  >
+                    Eliminar cuenta
+                  </button>
+                )}
+
+                {deleteStep !== "confirm" && (
+                  <div className="space-y-3">
+                    {deleteStep === "email" && (
+                      <div>
+                        <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                          Confirmá tu email
+                        </label>
+                        <input
+                          type="email"
+                          value={deleteEmail}
+                          onChange={(e) => setDeleteEmail(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleDeleteAccount();
+                          }}
+                          placeholder={user?.email}
+                          className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-[var(--red-3,#e01b24)]/30 focus:border-[var(--red-3,#e01b24)] transition"
+                        />
+                      </div>
+                    )}
+
+                    {deleteStep === "password" && (
+                      <div>
+                        <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                          Ingresá tu contraseña
+                        </label>
+                        <input
+                          type="password"
+                          value={deletePassword}
+                          onChange={(e) => setDeletePassword(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleDeleteAccount();
+                          }}
+                          placeholder="••••••••"
+                          className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-[var(--red-3,#e01b24)]/30 focus:border-[var(--red-3,#e01b24)] transition"
+                        />
+                      </div>
+                    )}
+
+                    {deleteError && (
+                      <p className="text-xs text-[var(--red-3,#e01b24)]">{deleteError}</p>
+                    )}
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleDeleteAccount}
+                        disabled={deleteAccountMut.isPending}
+                        className="flex-1 py-2 rounded-md bg-[var(--red-3,#e01b24)] text-white text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"
+                      >
+                        {deleteStep === "email"
+                          ? "Siguiente"
+                          : deleteStep === "password"
+                            ? deleteAccountMut.isPending
+                              ? "Eliminando..."
+                              : "Eliminar cuenta"
+                            : "Siguiente"}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setDeleteStep("confirm");
+                          setDeleteEmail("");
+                          setDeletePassword("");
+                          setDeleteError("");
+                        }}
+                        className="py-2 px-4 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -1362,6 +1493,20 @@ export default function UserPanel({ open, onClose }: Props) {
           handleLogout();
         }}
         onCancel={() => setShowLogoutConfirm(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Eliminar cuenta"
+        message="Esta acción eliminará permanentemente tu cuenta y todos tus datos (gastos, tarjetas, cuentas, inversiones, reportes). No se puede deshacer."
+        confirmLabel="Entiendo, eliminar"
+        cancelLabel="Cancelar"
+        variant="danger"
+        onConfirm={() => {
+          setShowDeleteConfirm(false);
+          setDeleteStep("email");
+        }}
+        onCancel={() => setShowDeleteConfirm(false)}
       />
 
       {showCardAccountModal && <CardAccountModal onClose={() => setShowCardAccountModal(false)} />}

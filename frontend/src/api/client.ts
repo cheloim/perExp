@@ -43,6 +43,10 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       clearToken();
+      const detail = error.response?.data?.detail;
+      const msg =
+        typeof detail === "string" ? detail : "Tu sesión expiró. Iniciá sesión nuevamente.";
+      sessionStorage.setItem("auth_error", msg);
       window.location.href = "/login";
     }
     return Promise.reject(error);
@@ -66,6 +70,9 @@ export const getMe = () => api.get<User>("/auth/me").then((r) => r.data);
 
 export const changePassword = (current_password: string, new_password: string) =>
   api.put("/auth/password", { current_password, new_password });
+
+export const deleteMyAccount = (current_password: string) =>
+  api.delete("/auth/me", { data: { current_password } });
 
 export const forgotPassword = (email: string) =>
   api.post("/auth/forgot-password", { email }).then((r) => r.data);

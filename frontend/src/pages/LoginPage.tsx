@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   forgotPassword,
@@ -19,6 +19,16 @@ export default function LoginPage() {
   );
   const [forceToken, setForceToken] = useState("");
   const [mfaToken, setMfaToken] = useState("");
+
+  // Show auth error from 401 redirect
+  const [authRedirectError, setAuthRedirectError] = useState("");
+  useEffect(() => {
+    const authError = sessionStorage.getItem("auth_error");
+    if (authError) {
+      setAuthRedirectError(authError);
+      sessionStorage.removeItem("auth_error");
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-base flex items-center justify-center px-4">
@@ -45,6 +55,7 @@ export default function LoginPage() {
               setMode("mfa");
             }}
             onSuccess={() => navigate("/")}
+            authRedirectError={authRedirectError}
           />
         )}
         {mode === "register" && (
@@ -76,12 +87,14 @@ function LoginForm({
   onForceChange,
   onMfa,
   onSuccess,
+  authRedirectError,
 }: {
   onRegister: () => void;
   onForgotPassword: () => void;
   onForceChange: (token: string) => void;
   onMfa: (token: string) => void;
   onSuccess: () => void;
+  authRedirectError?: string;
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -158,6 +171,7 @@ function LoginForm({
         </div>
 
         {error && <div className="alert-error">{error}</div>}
+        {authRedirectError && <div className="alert-error">{authRedirectError}</div>}
 
         <button type="submit" disabled={loading} className="gnome-btn-primary w-full mt-1">
           {loading ? "Ingresando..." : "Ingresar"}

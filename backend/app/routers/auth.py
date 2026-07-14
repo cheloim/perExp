@@ -1,4 +1,5 @@
 import contextlib
+import logging
 import os
 import secrets
 import string
@@ -12,6 +13,7 @@ from app.database import get_db
 from app.models import AuditLog, User
 from app.schemas import (
     ChangePasswordRequest,
+    DeleteAccountRequest,
     EmailVerificationRequest,
     ForceChangePasswordRequest,
     ForgotPasswordRequest,
@@ -41,6 +43,8 @@ from app.services.rate_limit import (
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+logger = logging.getLogger(__name__)
 
 
 def _get_client_ip(request: Request) -> str:
@@ -394,6 +398,62 @@ async def oauth_callback(
 @router.get("/me", response_model=UserResponse)
 def me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+def delete_my_account(
+    body: DeleteAccountRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete the current user account and all associated data."""
+    if not verify_password(body.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Contraseña incorrecta")
+
+    user_id = current_user.id
+    _log_audit(db, user_id, "account_deleted", request)
+
+    # Leave family group first (if in one)
+    from app.routers.groups import _get_user_group
+
+    membership = _get_user_group(user_id, db)
+    if membership:
+        from app.routers.groups import _remove_member
+
+        _remove_member(db, user_id, user_id)
+
+    # Delete data in order (handle FK constraints manually)
+    from app.models import (
+        Account,
+        AnalysisHistory,
+        Card,
+        CardClosing,
+        Category,
+        Expense,
+        ImportJob,
+        Investment,
+        MonthlyReport,
+        Notification,
+        ScheduledExpense,
+    )
+
+    db.query(Notification).filter(Notification.user_id == user_id).delete()
+    db.query(Expense).filter(Expense.user_id == user_id).delete()
+    db.query(Category).filter(Category.user_id == user_id).delete()
+    db.query(Account).filter(Account.user_id == user_id).delete()
+    db.query(Card).filter(Card.user_id == user_id).delete()
+    db.query(AnalysisHistory).filter(AnalysisHistory.user_id == user_id).delete()
+    db.query(Investment).filter(Investment.user_id == user_id).delete()
+    db.query(CardClosing).filter(CardClosing.user_id == user_id).delete()
+    db.query(ScheduledExpense).filter(ScheduledExpense.user_id == user_id).delete()
+    db.query(ImportJob).filter(ImportJob.user_id == user_id).delete()
+    db.query(MonthlyReport).filter(MonthlyReport.user_id == user_id).delete()
+
+    # Delete user last
+    db.delete(current_user)
+    db.commit()
+    logger.info(f"Account deleted: user_id={user_id}")
 
 
 @router.put("/password", status_code=status.HTTP_204_NO_CONTENT)
