@@ -67,6 +67,9 @@ export const getMe = () => api.get<User>("/auth/me").then((r) => r.data);
 export const changePassword = (current_password: string, new_password: string) =>
   api.put("/auth/password", { current_password, new_password });
 
+export const deleteMyAccount = (current_password: string) =>
+  api.delete("/auth/me", { data: { current_password } });
+
 export const forgotPassword = (email: string) =>
   api.post("/auth/forgot-password", { email }).then((r) => r.data);
 
