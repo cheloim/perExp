@@ -445,8 +445,10 @@ export default function UserPanel({ open, onClose }: Props) {
       clearToken();
       window.location.href = "/login";
     },
-    onError: (e: { response?: { data?: { detail?: string } } }) => {
-      setDeleteError(e?.response?.data?.detail ?? "Error al eliminar cuenta");
+    onError: (e: { response?: { data?: { detail?: string | Array<{msg?: string}> } } }) => {
+      const detail = e?.response?.data?.detail;
+      const msg = Array.isArray(detail) ? detail.map((d) => d.msg ?? String(d)).join(", ") : (detail ?? "Error al eliminar cuenta");
+      setDeleteError(msg);
     },
   });
 
@@ -1328,6 +1330,7 @@ export default function UserPanel({ open, onClose }: Props) {
                           type="email"
                           value={deleteEmail}
                           onChange={(e) => setDeleteEmail(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") handleDeleteAccount(); }}
                           placeholder={user?.email}
                           className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-[var(--red-3,#e01b24)]/30 focus:border-[var(--red-3,#e01b24)] transition"
                         />
@@ -1343,6 +1346,7 @@ export default function UserPanel({ open, onClose }: Props) {
                           type="password"
                           value={deletePassword}
                           onChange={(e) => setDeletePassword(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") handleDeleteAccount(); }}
                           placeholder="••••••••"
                           className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-[var(--red-3,#e01b24)]/30 focus:border-[var(--red-3,#e01b24)] transition"
                         />

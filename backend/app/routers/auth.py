@@ -13,6 +13,7 @@ from app.database import get_db
 from app.models import AuditLog, User
 from app.schemas import (
     ChangePasswordRequest,
+    DeleteAccountRequest,
     EmailVerificationRequest,
     ForceChangePasswordRequest,
     ForgotPasswordRequest,
@@ -401,7 +402,7 @@ def me(current_user: User = Depends(get_current_user)):
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
 def delete_my_account(
-    body: ChangePasswordRequest,
+    body: DeleteAccountRequest,
     request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
