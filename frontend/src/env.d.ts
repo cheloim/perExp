@@ -17,6 +17,7 @@ interface GoogleAccountsId {
   initialize(config: {
     client_id: string;
     callback: (response: { credential: string }) => void;
+    ux_mode?: string;
   }): void;
   prompt(callback?: (notification: { isNotDisplayed: () => boolean; isSkippedMoment: () => boolean }) => void): void;
 }

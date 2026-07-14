@@ -115,6 +115,7 @@ function LoginForm({
       if (window.google?.accounts?.id) {
         window.google.accounts.id.initialize({
           client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "",
+          ux_mode: "popup",
           callback: async (response: { credential: string }) => {
             console.log("[OAuth] Credential received:", response.credential ? "yes" : "no");
             try {
