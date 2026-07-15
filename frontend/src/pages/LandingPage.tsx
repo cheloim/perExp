@@ -214,6 +214,91 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Open Source & Auditability */}
+      <section className="py-20 px-4 bg-[var(--color-base-alt)]">
+        <div className="max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="animate-fade-in-up">
+              <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
+                Codigo abierto y auditable
+              </h2>
+              <p className="text-lg text-[var(--text-secondary)] mb-6 leading-relaxed">
+                Nuestro codigo esta publicado en GitHub. Cualquiera puede auditar como procesamos
+                tus datos, que algoritmos usamos y como protegemos tu informacion.
+              </p>
+              <a
+                href="https://github.com/cheloim/perExp"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border-2 border-[var(--border-color)] text-[var(--text-primary)] font-semibold hover:bg-[var(--color-base-alt)] transition"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.838 1.236 1.841 1.236 1.07 1.87C7.333 14.658 8.464 14.11 9 14.11c.536 0 1.951-.554 3.164-1.23C14.254 12.26 15.892 11.59 17 10.69c-.14-.153-1.101-.523-1.101-1.966 0-4.35 3.181-7.888-7.153-7.888C8.218 0 6.716 1.467 6.716 1.467c-2.289-1.547-4.927-1.756-5.426-1.784.04-.41.06-.854.06-1.312C1.001 5.373 0 0 0 0z" />
+                </svg>
+                Ver codigo fuente en GitHub
+              </a>
+            </div>
+            <div className="animate-fade-in-up delay-200">
+              <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--border-color)] p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-sm">
+                    O
+                  </div>
+                  <div>
+                    <div className="font-semibold text-[var(--text-primary)]">oikonomia</div>
+                    <div className="text-xs text-[var(--text-tertiary)]">
+                      github.com/cheloim/perExp
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2 text-sm text-[var(--text-secondary)]">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span>Codigo abierto y revisable</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span>Sin tracking ni analytics</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span>Datos 100% voluntarios</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span>Eliminacion en cualquier momento</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Security */}
       <section className="py-20 px-4">
         <div className="max-w-4xl mx-auto text-center">
