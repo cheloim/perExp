@@ -66,7 +66,7 @@ export default function LandingPage() {
                   Ya tengo cuenta
                 </a>
               </div>
-              <div className="flex items-center gap-6 mt-8 text-sm text-[var(--text-tertiary)]">
+              <div className="flex items-center gap-6 mt-8 text-sm text-[var(--text-secondary)]">
                 <span className="flex items-center gap-1.5">
                   <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
                   Sin tarjeta de crédito
@@ -356,13 +356,13 @@ export default function LandingPage() {
                 </div>
                 <span className="font-semibold text-[var(--text-primary)]">oikonomia</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] leading-relaxed">
+              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                 Tu planificador financiero personal con inteligencia artificial.
               </p>
             </div>
             <div>
               <h4 className="font-semibold text-[var(--text-primary)] mb-3">Producto</h4>
-              <ul className="space-y-2 text-sm text-[var(--text-tertiary)]">
+              <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
                 <li>
                   <a
                     href="https://platform.oikonomia.ar"
@@ -391,7 +391,7 @@ export default function LandingPage() {
             </div>
             <div>
               <h4 className="font-semibold text-[var(--text-primary)] mb-3">Legal</h4>
-              <ul className="space-y-2 text-sm text-[var(--text-tertiary)]">
+              <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
                 <li>
                   <a href="/privacy" className="hover:text-[var(--text-primary)] transition">
                     Política de Privacidad
@@ -408,7 +408,7 @@ export default function LandingPage() {
               </ul>
             </div>
           </div>
-          <div className="pt-8 border-t border-[var(--border-color)] text-center text-sm text-[var(--text-tertiary)]">
+          <div className="pt-8 border-t border-[var(--border-color)] text-center text-sm text-[var(--text-secondary)]">
             © {new Date().getFullYear()} oikonomia. Todos los derechos reservados.
           </div>
         </div>
@@ -430,7 +430,7 @@ function AppWindowMockup() {
           <div className="w-3 h-3 rounded-full bg-[var(--color-danger)]" />
           <div className="w-3 h-3 rounded-full bg-[var(--gnome-yellow-4)]" />
           <div className="w-3 h-3 rounded-full bg-[var(--gnome-green-4)]" />
-          <span className="ml-2 text-xs font-medium text-[var(--text-secondary)]">Resumen</span>
+          <span className="ml-2 text-xs font-medium text-[var(--text-primary)]">Resumen</span>
         </div>
         {/* Content */}
         <div className="p-4">
@@ -469,7 +469,7 @@ function AppWindowMockup() {
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="p-2 rounded-xl bg-[var(--color-base-alt)] text-center">
-      <div className="text-[9px] text-[var(--text-secondary)] font-medium uppercase tracking-wide">
+      <div className="text-[9px] text-[var(--text-primary)] font-medium uppercase tracking-wide">
         {label}
       </div>
       <div className="text-sm font-bold text-[var(--text-primary)]">{value}</div>
@@ -490,7 +490,7 @@ function CategoryBar({
 }) {
   return (
     <div className="flex items-center justify-between text-xs">
-      <span className="text-[var(--text-secondary)]">{name}</span>
+      <span className="text-[var(--text-primary)] text-xs">{name}</span>
       <div className="flex items-center gap-2">
         <div className="w-16 h-1.5 rounded-full bg-[var(--color-base-alt)] overflow-hidden">
           <div
@@ -511,7 +511,7 @@ function ReportMockup() {
         <div className="flex items-center justify-between mb-5">
           <div>
             <div className="text-sm font-semibold text-[var(--text-primary)]">Resumen mensual</div>
-            <div className="text-[10px] text-[var(--text-secondary)] font-medium">Julio 2026</div>
+            <div className="text-[10px] text-[var(--text-primary)] font-medium">Julio 2026</div>
           </div>
           <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--gnome-green-1)]/30 text-[var(--gnome-green-5)] font-medium">
             ↓ 8%
@@ -521,13 +521,13 @@ function ReportMockup() {
           <DonutChart />
           <div className="grid grid-cols-2 gap-3 flex-1">
             <div className="p-3 rounded-xl bg-[var(--color-base-alt)]">
-              <div className="text-[10px] text-[var(--text-secondary)] font-medium uppercase tracking-wide">
+              <div className="text-[10px] text-[var(--text-primary)] font-medium uppercase tracking-wide">
                 Gasto total
               </div>
               <div className="text-lg font-bold text-[var(--text-primary)]">$187.450</div>
             </div>
             <div className="p-3 rounded-xl bg-[var(--color-base-alt)]">
-              <div className="text-[10px] text-[var(--text-secondary)] font-medium uppercase tracking-wide">
+              <div className="text-[10px] text-[var(--text-primary)] font-medium uppercase tracking-wide">
                 Promedio/día
               </div>
               <div className="text-lg font-bold text-[var(--text-primary)]">$6.248</div>
@@ -716,7 +716,7 @@ function AboutWindowMockup() {
           O
         </div>
         <div className="text-lg font-semibold text-[var(--text-primary)]">oikonomia</div>
-        <div className="text-xs text-[var(--text-secondary)] mb-4">Versión 1.0 · GPLv3</div>
+        <div className="text-xs text-[var(--text-primary)] mb-4">Versión 1.0 · GPLv3</div>
         <div className="space-y-2 text-sm text-[var(--text-secondary)]">
           <div className="flex items-center justify-center gap-2">
             <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
@@ -815,7 +815,7 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
         <SymbolicIcon
           name="chevron"
           size={16}
-          className={`text-[var(--text-tertiary)] transition-transform duration-200 flex-shrink-0 ${open ? "rotate-90" : ""}`}
+          className={`text-[var(--text-secondary)] transition-transform duration-200 flex-shrink-0 ${open ? "rotate-90" : ""}`}
         />
       </div>
       <div
