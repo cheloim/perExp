@@ -68,11 +68,11 @@ export default function LandingPage() {
               </div>
               <div className="flex items-center gap-6 mt-8 text-sm text-[var(--text-tertiary)]">
                 <span className="flex items-center gap-1.5">
-                  <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-4)]" />
+                  <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
                   Sin tarjeta de crédito
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-4)]" />
+                  <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
                   Datos seguros
                 </span>
               </div>
@@ -469,7 +469,9 @@ function AppWindowMockup() {
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="p-2 rounded-xl bg-[var(--color-base-alt)] text-center">
-      <div className="text-[9px] text-[var(--text-tertiary)] uppercase tracking-wide">{label}</div>
+      <div className="text-[9px] text-[var(--text-secondary)] font-medium uppercase tracking-wide">
+        {label}
+      </div>
       <div className="text-sm font-bold text-[var(--text-primary)]">{value}</div>
     </div>
   );
@@ -509,9 +511,9 @@ function ReportMockup() {
         <div className="flex items-center justify-between mb-5">
           <div>
             <div className="text-sm font-semibold text-[var(--text-primary)]">Resumen mensual</div>
-            <div className="text-[10px] text-[var(--text-tertiary)]">Julio 2026</div>
+            <div className="text-[10px] text-[var(--text-secondary)] font-medium">Julio 2026</div>
           </div>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--gnome-green-1)]/30 text-[var(--gnome-green-4)] font-medium">
+          <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--gnome-green-1)]/30 text-[var(--gnome-green-5)] font-medium">
             ↓ 8%
           </span>
         </div>
@@ -519,13 +521,13 @@ function ReportMockup() {
           <DonutChart />
           <div className="grid grid-cols-2 gap-3 flex-1">
             <div className="p-3 rounded-xl bg-[var(--color-base-alt)]">
-              <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide">
+              <div className="text-[10px] text-[var(--text-secondary)] font-medium uppercase tracking-wide">
                 Gasto total
               </div>
               <div className="text-lg font-bold text-[var(--text-primary)]">$187.450</div>
             </div>
             <div className="p-3 rounded-xl bg-[var(--color-base-alt)]">
-              <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide">
+              <div className="text-[10px] text-[var(--text-secondary)] font-medium uppercase tracking-wide">
                 Promedio/día
               </div>
               <div className="text-lg font-bold text-[var(--text-primary)]">$6.248</div>
@@ -604,7 +606,7 @@ function LegendItem({ color, name, pct }: { color: string; name: string; pct: nu
     <div className="flex items-center justify-between text-xs">
       <div className="flex items-center gap-2">
         <div className={`w-2.5 h-2.5 rounded-full ${color}`} />
-        <span className="text-[var(--text-secondary)]">{name}</span>
+        <span className="text-[var(--text-primary)] text-xs">{name}</span>
       </div>
       <span className="text-[var(--text-primary)] font-medium">{pct}%</span>
     </div>
@@ -662,7 +664,7 @@ function TelegramCarousel() {
           </div>
           <div>
             <div className="text-white text-sm font-medium">NikoFin</div>
-            <div className="text-[10px] text-[var(--gnome-green-3)]">● en línea</div>
+            <div className="text-[10px] text-[var(--gnome-green-2)]">● en línea</div>
           </div>
         </div>
         <div className="space-y-3 min-h-[140px]">
@@ -714,22 +716,22 @@ function AboutWindowMockup() {
           O
         </div>
         <div className="text-lg font-semibold text-[var(--text-primary)]">oikonomia</div>
-        <div className="text-xs text-[var(--text-tertiary)] mb-4">Versión 1.0 · GPLv3</div>
+        <div className="text-xs text-[var(--text-secondary)] mb-4">Versión 1.0 · GPLv3</div>
         <div className="space-y-2 text-sm text-[var(--text-secondary)]">
           <div className="flex items-center justify-center gap-2">
-            <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-4)]" />
+            <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
             <span>Código abierto y revisable</span>
           </div>
           <div className="flex items-center justify-center gap-2">
-            <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-4)]" />
+            <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
             <span>Sin tracking ni analytics</span>
           </div>
           <div className="flex items-center justify-center gap-2">
-            <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-4)]" />
+            <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
             <span>Datos 100% voluntarios</span>
           </div>
           <div className="flex items-center justify-center gap-2">
-            <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-4)]" />
+            <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
             <span>Eliminación en cualquier momento</span>
           </div>
         </div>
@@ -792,7 +794,7 @@ function SecurityItem({
   return (
     <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--border-color)]">
       <div className="w-10 h-10 rounded-xl bg-[var(--gnome-green-1)]/20 flex items-center justify-center mb-3">
-        <SymbolicIcon name={icon} size={20} className="text-[var(--gnome-green-4)]" />
+        <SymbolicIcon name={icon} size={20} className="text-[var(--gnome-green-5)]" />
       </div>
       <h4 className="font-semibold text-[var(--text-primary)] mb-1">{title}</h4>
       <p className="text-sm text-[var(--text-secondary)]">{description}</p>
