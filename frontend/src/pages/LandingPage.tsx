@@ -95,7 +95,7 @@ export default function LandingPage() {
             className={`text-center mb-14 transition-all duration-700 ${features.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
           >
             <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
-              ¿Por qué oikonomia?
+              ¿Por qué Oikonomia?
             </h2>
             <p className="text-lg text-[var(--text-secondary)] max-w-2xl mx-auto">
               Herramientas diseñadas para que tomes el control de tus finanzas personales.
@@ -306,7 +306,7 @@ export default function LandingPage() {
           <div className="space-y-3">
             <FaqItem
               question="¿Es gratis?"
-              answer="Sí, oikonomia es completamente gratis. No hay planes premium ni funciones bloqueadas."
+              answer="Sí, Oikonomia es completamente gratis. No hay planes premium ni funciones bloqueadas."
             />
             <FaqItem
               question="¿Mis datos están seguros?"
@@ -334,7 +334,7 @@ export default function LandingPage() {
             ¿Listo para tomar el control?
           </h2>
           <p className="text-lg text-[var(--text-secondary)] mb-8">
-            Uní miles de personas que ya están organizando sus finanzas con oikonomia.
+            Uní miles de personas que ya están organizando sus finanzas con Oikonomia.
           </p>
           <a
             href="https://platform.oikonomia.ar/register"
@@ -354,7 +354,7 @@ export default function LandingPage() {
                 <div className="w-8 h-8 rounded-lg bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-sm">
                   O
                 </div>
-                <span className="font-semibold text-[var(--text-primary)]">oikonomia</span>
+                <span className="font-semibold text-[#1c1b1f] dark:text-white">Oikonomia</span>
               </div>
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                 Tu planificador financiero personal con inteligencia artificial.
@@ -409,7 +409,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="pt-8 border-t border-[var(--border-color)] text-center text-sm text-[var(--text-secondary)]">
-            © {new Date().getFullYear()} oikonomia. Todos los derechos reservados.
+            © {new Date().getFullYear()} Oikonomia. Todos los derechos reservados.
           </div>
         </div>
       </footer>
@@ -715,7 +715,7 @@ function AboutWindowMockup() {
         <div className="w-16 h-16 rounded-2xl bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-2xl mx-auto mb-4">
           O
         </div>
-        <div className="text-lg font-semibold text-[var(--text-primary)]">oikonomia</div>
+        <div className="text-lg font-bold text-[#1c1b1f] dark:text-white">Oikonomia</div>
         <div className="text-xs text-[var(--text-primary)] mb-4">Versión 1.0 · GPLv3</div>
         <div className="space-y-2 text-sm text-[var(--text-secondary)]">
           <div className="flex items-center justify-center gap-2">
@@ -754,7 +754,7 @@ function FeatureCard({
       <div className="w-10 h-10 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center mb-3">
         <SymbolicIcon name={icon} size={20} className="text-[var(--color-primary)]" />
       </div>
-      <h3 className="text-base font-semibold text-[var(--text-primary)] mb-1.5">{title}</h3>
+      <h3 className="text-base font-bold text-[#1c1b1f] dark:text-white mb-1.5">{title}</h3>
       <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{description}</p>
     </div>
   );
