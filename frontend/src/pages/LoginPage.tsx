@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   forgotPassword,
   forceChangePassword,
+  getStoredToken,
   login,
   loginMfa,
   oauthLogin,
@@ -20,6 +21,18 @@ export default function LoginPage() {
   );
   const [forceToken, setForceToken] = useState("");
   const [mfaToken, setMfaToken] = useState("");
+
+  // Check for ?mfa=required from OAuth callback
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("mfa") === "required") {
+      const savedToken = getStoredToken();
+      if (savedToken) {
+        setMfaToken(savedToken);
+        setMode("mfa");
+      }
+    }
+  }, [searchParams]);
 
   // Show auth error from 401 redirect
   const [authRedirectError, setAuthRedirectError] = useState("");
