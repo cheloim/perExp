@@ -23,14 +23,18 @@ import type {
   CardsMapping,
 } from "../types";
 
+const TOKEN_KEY = "auth_token";
+
 let inMemoryAuthToken: string | null = null;
 
-export const getStoredToken = () => inMemoryAuthToken;
+export const getStoredToken = () => inMemoryAuthToken || localStorage.getItem(TOKEN_KEY);
 export const storeToken = (token: string) => {
   inMemoryAuthToken = token;
+  localStorage.setItem(TOKEN_KEY, token);
 };
 export const clearToken = () => {
   inMemoryAuthToken = null;
+  localStorage.removeItem(TOKEN_KEY);
 };
 
 const api = axios.create({ baseURL: "/api" });
