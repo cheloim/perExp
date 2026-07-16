@@ -28,15 +28,18 @@ const LoginPage = lazy(() => import("./pages/LoginPage"));
 const OAuthCallbackPage = lazy(() => import("./pages/OAuthCallbackPage"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
+const GuidePage = lazy(() => import("./pages/GuidePage"));
+const OnboardingWalkthrough = lazy(() => import("./components/OnboardingWalkthrough"));
 
 const TABS = [
-  { path: "/", label: "Inicio", icon: "home", exact: true },
-  { path: "/accounts", label: "Cuentas", icon: "accounts", exact: false },
-  { path: "/expenses", label: "Gastos", icon: "expenses", exact: false },
+  { path: "/", label: "Inicio", icon: "home", exact: true, tour: "sidebar-home" },
+  { path: "/accounts", label: "Cuentas", icon: "accounts", exact: false, tour: "sidebar-accounts" },
+  { path: "/expenses", label: "Gastos", icon: "expenses", exact: false, tour: "sidebar-expenses" },
   { path: "/cat-dashboard", label: "Categorías", icon: "catDashboard", exact: false },
   { path: "/installments", label: "Cuotas", icon: "installments", exact: false },
   { path: "/investments", label: "Inversiones", icon: "investments", exact: false },
   { path: "/categories", label: "Config. Categorías", icon: "settings", exact: false },
+  { path: "/guide", label: "Guía", icon: "guide", exact: true, tour: "sidebar-guide" },
 ];
 
 const AI_DRAWER_STATE_KEY = "ai_drawer_open";
@@ -197,6 +200,7 @@ function MainLayout() {
                   to={tab.path}
                   end={tab.exact}
                   title={tab.label}
+                  data-tour={tab.tour}
                   className={({ isActive }) => `
                 group/nav relative flex items-center gap-3 px-2.5 py-2 rounded-md text-sm font-medium transition-all duration-150
                 ${
@@ -423,6 +427,14 @@ function MainLayout() {
                         }
                       />
                       <Route
+                        path="/guide"
+                        element={
+                          <RequireAuth>
+                            <GuidePage />
+                          </RequireAuth>
+                        }
+                      />
+                      <Route
                         path="*"
                         element={
                           <RequireAuth>
@@ -523,6 +535,9 @@ function MainLayout() {
               <AIAssistant open={aiDrawerOpen} onToggle={() => toggleDrawer(!aiDrawerOpen)} />
             )}
             {isInvestments && <InvestmentsAssistant />}
+            <Suspense fallback={null}>
+              <OnboardingWalkthrough />
+            </Suspense>
           </div>
 
           <UserPanel open={userPanelOpen} onClose={() => setUserPanelOpen(false)} />
