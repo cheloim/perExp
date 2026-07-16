@@ -35,6 +35,9 @@ function buildTourSteps(openPanel: (open: boolean) => void): Step[] {
         openPanel(true);
         await new Promise((r) => setTimeout(r, 350));
       },
+      after: () => {
+        openPanel(false);
+      },
     },
     {
       target: '[data-tour="sidebar-import"]',
