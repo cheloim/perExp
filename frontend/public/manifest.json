@@ -1,0 +1,25 @@
+{
+  "name": "Oikonomia",
+  "short_name": "Oikonomia",
+  "description": "Tu planificador financiero personal con inteligencia artificial",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f5f4",
+  "theme_color": "#3584e4",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon-dark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["finance", "productivity"]
+}
