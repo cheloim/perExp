@@ -25,17 +25,31 @@ const TOUR_STEPS: Step[] = [
     placement: "right",
   },
   {
-    target: '[data-tour="sidebar-expenses"]',
-    title: "Registrar gastos",
+    target: '[data-tour="sidebar-import"]',
+    title: "Importar datos",
     content:
-      "Podés agregar gastos desde acá o mucho más rápido usando el bot de Telegram. Escribile como le contarías a un amigo.",
+      "Subí extractos bancarios en PDF, CSV o XLSX. La app los procesa y categoriza automáticamente.",
+    placement: "right",
+  },
+  {
+    target: '[data-tour="sidebar-notifications"]',
+    title: "Notificaciones",
+    content:
+      "Acá recibís alertas de gastos sin categorizar, reportes listos y sugerencias de la IA.",
     placement: "right",
   },
   {
     target: '[data-tour="sidebar-guide"]',
-    title: "Guía completa",
+    title: "Guía de usuario",
     content:
-      "Si necesitás ayuda en algún momento, entrá a la Guía para ver todos los detalles de cada sección.",
+      "Si necesitás ayuda en cualquier momento, entrá a la Guía para ver todos los detalles de cada sección.",
+    placement: "right",
+  },
+  {
+    target: '[data-tour="sidebar-account"]',
+    title: "Mi cuenta",
+    content:
+      "Configurá tu perfil, tema, contraseña, MFA y opciones de IA desde tu panel de usuario.",
     placement: "right",
   },
 ];

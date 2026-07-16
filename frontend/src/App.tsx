@@ -39,7 +39,6 @@ const TABS = [
   { path: "/installments", label: "Cuotas", icon: "installments", exact: false },
   { path: "/investments", label: "Inversiones", icon: "investments", exact: false },
   { path: "/categories", label: "Config. Categorías", icon: "settings", exact: false },
-  { path: "/guide", label: "Guía", icon: "guide", exact: true, tour: "sidebar-guide" },
 ];
 
 const AI_DRAWER_STATE_KEY = "ai_drawer_open";
@@ -290,6 +289,7 @@ function MainLayout() {
                 <button
                   onClick={() => setNotifOpen((v) => !v)}
                   title="Notificaciones"
+                  data-tour="sidebar-notifications"
                   className="group/notif relative w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-sm font-medium text-[var(--color-sidebar-icon)] hover:bg-[var(--color-base-alt)] hover:text-[var(--text-primary)] transition-all duration-150"
                 >
                   <span className="relative w-5 h-5 flex-shrink-0 flex items-center justify-center">
@@ -309,10 +309,46 @@ function MainLayout() {
               {/* Import Upload Button */}
               <ImportUploadButton />
 
+              {/* Guide */}
+              <NavLink
+                to="/guide"
+                title="Guía de usuario"
+                data-tour="sidebar-guide"
+                className={({ isActive }) => `
+                  group/nav relative w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-sm font-medium transition-all duration-150
+                  ${
+                    isActive
+                      ? "bg-[var(--color-base-alt)] text-[var(--color-sidebar-text-active)]"
+                      : "text-[var(--color-sidebar-icon)] hover:bg-[var(--color-base-alt)] hover:text-[var(--text-primary)]"
+                  }
+                `}
+              >
+                {({ isActive }) => (
+                  <>
+                    <span
+                      className={`absolute left-0 top-1/2 -translate-y-1/2 h-6 w-0.5 rounded-full bg-sidebar-indicator transition-opacity duration-150 ${
+                        isActive ? "opacity-100" : "opacity-0"
+                      } group-hover/nav:opacity-30`}
+                    />
+                    <span
+                      className={`w-5 h-5 flex-shrink-0 flex items-center justify-center ${
+                        isActive ? "text-[var(--color-sidebar-icon-active)]" : ""
+                      }`}
+                    >
+                      {sidebarIcons.guide}
+                    </span>
+                    <span className="whitespace-nowrap overflow-hidden w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300">
+                      Guía
+                    </span>
+                  </>
+                )}
+              </NavLink>
+
               {/* User */}
               <button
                 onClick={() => setUserPanelOpen(true)}
                 title="Mi cuenta"
+                data-tour="sidebar-account"
                 className="group/user w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-sm font-medium text-[var(--color-sidebar-icon)] hover:bg-[var(--color-base-alt)] hover:text-[var(--text-primary)] transition-all duration-150"
               >
                 <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
