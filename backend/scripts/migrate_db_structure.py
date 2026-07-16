@@ -6,6 +6,7 @@ Migration: Database structure improvements.
 2. Add card_id FK to card_closings (backfill from card/bank strings)
 3. Fix nullable user_id → NOT NULL on expenses, analysis_history, investments, card_closings, categories
 4. Add missing performance indexes
+5. Add onboarding_completed to users
 
 Run with: python -m scripts.migrate_db_structure
 """
@@ -43,7 +44,7 @@ def _constraint_exists(conn, constraint_name: str) -> bool:
 
 def step1_unique_constraint(engine):
     """Add UNIQUE constraint on group_members(group_id, user_id)."""
-    print("\n[Step 1/4] Adding unique constraint on group_members...")
+    print("\n[Step 1/5] Adding unique constraint on group_members...")
 
     with engine.begin() as conn:
         dialect = engine.dialect.name
@@ -64,7 +65,7 @@ def step1_unique_constraint(engine):
 
 def step2_card_closing_card_id(engine):
     """Add card_id column to card_closings and backfill from card/bank strings."""
-    print("\n[Step 2/4] Adding card_id to card_closings...")
+    print("\n[Step 2/5] Adding card_id to card_closings...")
 
     with engine.begin() as conn:
         dialect = engine.dialect.name
@@ -113,7 +114,7 @@ def step2_card_closing_card_id(engine):
 
 def step3_nullable_user_id(engine):
     """Fix nullable user_id columns to NOT NULL."""
-    print("\n[Step 3/4] Fixing nullable user_id columns...")
+    print("\n[Step 3/5] Fixing nullable user_id columns...")
 
     with engine.begin() as conn:
         dialect = engine.dialect.name
@@ -148,7 +149,7 @@ def step3_nullable_user_id(engine):
 
 def step4_indexes(engine):
     """Add missing performance indexes."""
-    print("\n[Step 4/4] Adding missing indexes...")
+    print("\n[Step 4/5] Adding missing indexes...")
 
     indices = [
         # Expenses - individual FK indexes
@@ -194,6 +195,32 @@ def step4_indexes(engine):
                 print(f"  {idx_name}: {e}")
 
 
+def step5_onboarding_completed(engine):
+    """Add onboarding_completed column to users table."""
+    print("\n[Step 5/5] Adding onboarding_completed to users...")
+
+    with engine.begin() as conn:
+        dialect = engine.dialect.name
+
+        if dialect == "postgresql":
+            exists = conn.execute(text("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'users' AND column_name = 'onboarding_completed'
+                )
+            """)).scalar()
+        else:
+            exists = False
+
+        if exists:
+            print("  onboarding_completed already exists. Skipping.")
+        else:
+            conn.execute(text(
+                "ALTER TABLE users ADD COLUMN onboarding_completed BOOLEAN DEFAULT FALSE"
+            ))
+            print("  Added onboarding_completed BOOLEAN DEFAULT FALSE.")
+
+
 def main():
     engine = get_engine()
 
@@ -205,6 +232,7 @@ def main():
     step2_card_closing_card_id(engine)
     step3_nullable_user_id(engine)
     step4_indexes(engine)
+    step5_onboarding_completed(engine)
 
     print("\n" + "=" * 60)
     print("Migration complete!")
