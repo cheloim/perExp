@@ -71,6 +71,13 @@ export default function App() {
         </Suspense>
       );
     }
+    if (location.pathname === "/guide") {
+      return (
+        <Suspense>
+          <GuidePage />
+        </Suspense>
+      );
+    }
     return (
       <Suspense>
         <LandingPage />
@@ -426,14 +433,7 @@ function MainLayout() {
                           </RequireAuth>
                         }
                       />
-                      <Route
-                        path="/guide"
-                        element={
-                          <RequireAuth>
-                            <GuidePage />
-                          </RequireAuth>
-                        }
-                      />
+                      <Route path="/guide" element={<GuidePage />} />
                       <Route
                         path="*"
                         element={

@@ -346,10 +346,7 @@ export default function LandingPage() {
           </a>
           <p className="mt-4 text-sm text-[var(--text-secondary)]">
             ¿Tenés dudas?{" "}
-            <a
-              href="https://platform.oikonomia.ar/guide"
-              className="text-[var(--color-primary)] hover:underline font-medium"
-            >
+            <a href="/guide" className="text-[var(--color-primary)] hover:underline font-medium">
               Mirá la guía de usuario
             </a>
           </p>
@@ -383,10 +380,7 @@ export default function LandingPage() {
                   </a>
                 </li>
                 <li>
-                  <a
-                    href="https://platform.oikonomia.ar/guide"
-                    className="hover:text-[var(--text-primary)] transition"
-                  >
+                  <a href="/guide" className="hover:text-[var(--text-primary)] transition">
                     Guía de usuario
                   </a>
                 </li>
