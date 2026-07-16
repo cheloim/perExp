@@ -344,6 +344,15 @@ export default function LandingPage() {
           >
             Empezá ahora — es gratis
           </a>
+          <p className="mt-4 text-sm text-[var(--text-secondary)]">
+            ¿Tenés dudas?{" "}
+            <a
+              href="https://platform.oikonomia.ar/guide"
+              className="text-[var(--color-primary)] hover:underline font-medium"
+            >
+              Mirá la guía de usuario
+            </a>
+          </p>
         </div>
       </section>
 
@@ -371,6 +380,14 @@ export default function LandingPage() {
                     className="hover:text-[var(--text-primary)] transition"
                   >
                     Plataforma
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://platform.oikonomia.ar/guide"
+                    className="hover:text-[var(--text-primary)] transition"
+                  >
+                    Guía de usuario
                   </a>
                 </li>
                 <li>
