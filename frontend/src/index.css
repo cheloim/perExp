@@ -904,3 +904,40 @@
 .delay-800 {
   animation-delay: 0.8s;
 }
+
+/* Landing page — GNOME 50 style animations */
+
+@keyframes donut-draw {
+  from {
+    stroke-dashoffset: 87.96;
+  }
+}
+
+.animate-donut-draw {
+  animation: donut-draw 1s ease-out forwards;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.animate-blink {
+  animation: blink 0.8s step-end infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-donut-draw,
+  .animate-bar-grow,
+  .animate-fade-in,
+  .animate-fade-in-up {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

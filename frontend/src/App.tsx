@@ -28,11 +28,13 @@ const LoginPage = lazy(() => import("./pages/LoginPage"));
 const OAuthCallbackPage = lazy(() => import("./pages/OAuthCallbackPage"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
+const GuidePage = lazy(() => import("./pages/GuidePage"));
+const OnboardingWalkthrough = lazy(() => import("./components/OnboardingWalkthrough"));
 
 const TABS = [
-  { path: "/", label: "Inicio", icon: "home", exact: true },
-  { path: "/accounts", label: "Cuentas", icon: "accounts", exact: false },
-  { path: "/expenses", label: "Gastos", icon: "expenses", exact: false },
+  { path: "/", label: "Inicio", icon: "home", exact: true, tour: "sidebar-home" },
+  { path: "/accounts", label: "Cuentas", icon: "accounts", exact: false, tour: "sidebar-accounts" },
+  { path: "/expenses", label: "Gastos", icon: "expenses", exact: false, tour: "sidebar-expenses" },
   { path: "/cat-dashboard", label: "Categorías", icon: "catDashboard", exact: false },
   { path: "/installments", label: "Cuotas", icon: "installments", exact: false },
   { path: "/investments", label: "Inversiones", icon: "investments", exact: false },
@@ -65,6 +67,13 @@ export default function App() {
       return (
         <Suspense>
           <PrivacyPage />
+        </Suspense>
+      );
+    }
+    if (location.pathname === "/guide") {
+      return (
+        <Suspense>
+          <GuidePage />
         </Suspense>
       );
     }
@@ -197,6 +206,7 @@ function MainLayout() {
                   to={tab.path}
                   end={tab.exact}
                   title={tab.label}
+                  data-tour={tab.tour}
                   className={({ isActive }) => `
                 group/nav relative flex items-center gap-3 px-2.5 py-2 rounded-md text-sm font-medium transition-all duration-150
                 ${
@@ -279,6 +289,7 @@ function MainLayout() {
                 <button
                   onClick={() => setNotifOpen((v) => !v)}
                   title="Notificaciones"
+                  data-tour="sidebar-notifications"
                   className="group/notif relative w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-sm font-medium text-[var(--color-sidebar-icon)] hover:bg-[var(--color-base-alt)] hover:text-[var(--text-primary)] transition-all duration-150"
                 >
                   <span className="relative w-5 h-5 flex-shrink-0 flex items-center justify-center">
@@ -298,10 +309,46 @@ function MainLayout() {
               {/* Import Upload Button */}
               <ImportUploadButton />
 
+              {/* Guide */}
+              <NavLink
+                to="/guide"
+                title="Guía de usuario"
+                data-tour="sidebar-guide"
+                className={({ isActive }) => `
+                  group/nav relative w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-sm font-medium transition-all duration-150
+                  ${
+                    isActive
+                      ? "bg-[var(--color-base-alt)] text-[var(--color-sidebar-text-active)]"
+                      : "text-[var(--color-sidebar-icon)] hover:bg-[var(--color-base-alt)] hover:text-[var(--text-primary)]"
+                  }
+                `}
+              >
+                {({ isActive }) => (
+                  <>
+                    <span
+                      className={`absolute left-0 top-1/2 -translate-y-1/2 h-6 w-0.5 rounded-full bg-sidebar-indicator transition-opacity duration-150 ${
+                        isActive ? "opacity-100" : "opacity-0"
+                      } group-hover/nav:opacity-30`}
+                    />
+                    <span
+                      className={`w-5 h-5 flex-shrink-0 flex items-center justify-center ${
+                        isActive ? "text-[var(--color-sidebar-icon-active)]" : ""
+                      }`}
+                    >
+                      {sidebarIcons.guide}
+                    </span>
+                    <span className="whitespace-nowrap overflow-hidden w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300">
+                      Guía
+                    </span>
+                  </>
+                )}
+              </NavLink>
+
               {/* User */}
               <button
                 onClick={() => setUserPanelOpen(true)}
                 title="Mi cuenta"
+                data-tour="sidebar-account"
                 className="group/user w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-sm font-medium text-[var(--color-sidebar-icon)] hover:bg-[var(--color-base-alt)] hover:text-[var(--text-primary)] transition-all duration-150"
               >
                 <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
@@ -422,6 +469,7 @@ function MainLayout() {
                           </RequireAuth>
                         }
                       />
+                      <Route path="/guide" element={<GuidePage />} />
                       <Route
                         path="*"
                         element={
@@ -523,6 +571,9 @@ function MainLayout() {
               <AIAssistant open={aiDrawerOpen} onToggle={() => toggleDrawer(!aiDrawerOpen)} />
             )}
             {isInvestments && <InvestmentsAssistant />}
+            <Suspense fallback={null}>
+              <OnboardingWalkthrough onOpenPanel={setUserPanelOpen} />
+            </Suspense>
           </div>
 
           <UserPanel open={userPanelOpen} onClose={() => setUserPanelOpen(false)} />

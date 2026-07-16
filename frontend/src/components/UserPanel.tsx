@@ -263,7 +263,6 @@ export default function UserPanel({ open, onClose }: Props) {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState(false);
   const [keyCopied, setKeyCopied] = useState(false);
-  const [showTelegramKey, setShowTelegramKey] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showRegenInviteConfirm, setShowRegenInviteConfirm] = useState(false);
   const [showRegenTelegramConfirm, setShowRegenTelegramConfirm] = useState(false);
@@ -1015,7 +1014,7 @@ export default function UserPanel({ open, onClose }: Props) {
               <hr className="border-[var(--border-color)]" />
 
               {/* Telegram Bot */}
-              <div>
+              <div data-tour="userpanel-telegram">
                 <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-3">
                   Telegram Bot
                 </h3>
@@ -1072,11 +1071,7 @@ export default function UserPanel({ open, onClose }: Props) {
                     </p>
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
-                        <span
-                          className={`flex-1 font-mono text-sm bg-[var(--color-base-alt)] rounded-md px-3 py-2 tracking-widest text-[var(--text-primary)] select-all ${
-                            !showTelegramKey ? "blur-sm" : ""
-                          }`}
-                        >
+                        <span className="flex-1 font-mono text-sm bg-[var(--color-base-alt)] rounded-md px-3 py-2 tracking-widest text-[var(--text-primary)] select-all">
                           {tgKeyData?.telegram_key ?? "············"}
                         </span>
                         <button
@@ -1094,16 +1089,6 @@ export default function UserPanel({ open, onClose }: Props) {
                         {regenerateKeyMut.isPending ? "Regenerando…" : "Regenerar clave"}
                       </button>
                     </div>
-                    {!showTelegramKey && (
-                      <p className="text-xs text-[var(--text-tertiary)]">
-                        <button
-                          onClick={() => setShowTelegramKey(true)}
-                          className="text-primary hover:underline"
-                        >
-                          Mostrar clave
-                        </button>
-                      </p>
-                    )}
                   </div>
                 )}
               </div>
@@ -1450,7 +1435,6 @@ export default function UserPanel({ open, onClose }: Props) {
         onConfirm={() => {
           setShowRegenTelegramConfirm(false);
           regenerateKeyMut.mutate();
-          setShowTelegramKey(false);
         }}
         onCancel={() => setShowRegenTelegramConfirm(false)}
       />

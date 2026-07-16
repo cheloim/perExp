@@ -1,22 +1,55 @@
+import { useEffect, useState } from "react";
+import SymbolicIcon from "../components/SymbolicIcon";
+import useReveal from "../hooks/useReveal";
+
+const TELEGRAM_DEMOS = [
+  {
+    user: "mastercard galicia almacen 5999",
+    reply:
+      "✅ ¡Listo! Guardé el gasto.\n\n💰 $5.999\n💳 Galicia Mastercard\n📅 12 de julio de 2026\n\n🍽️ Alimentación\n└ 📂 Almacén/Kiosco",
+  },
+  {
+    user: "visa santander cuotas 3 supermercado 12000",
+    reply:
+      "✅ ¡Listo! Guardé el gasto.\n\n💰 $12.000 (3 cuotas de $4.000)\n💳 Santander Visa\n📅 12 de julio de 2026\n\n🛒 Supermercado\n└ 📂 Compras del hogar",
+  },
+  {
+    user: "🏦 Notificación detectada",
+    reply:
+      "🔍 Detecté una notificación de tu banco.\n\n💰 $3.200\n💳 Galicia Mastercard\n📅 12 de julio de 2026\n\n☕ Café y snacks\n└ 📂 Café/Bar",
+  },
+];
+
 export default function LandingPage() {
+  const hero = useReveal();
+  const features = useReveal(0.1);
+  const steps = useReveal(0.1);
+  const reporting = useReveal(0.1);
+  const openSource = useReveal(0.1);
+  const security = useReveal(0.1);
+  const faq = useReveal(0.1);
+  const cta = useReveal(0.1);
+
   return (
     <div className="min-h-screen bg-[var(--color-base)]">
       {/* Hero */}
-      <section className="relative overflow-hidden py-20 md:py-32 px-4">
-        <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-primary)]/8 via-transparent to-[var(--color-primary)]/3 pointer-events-none animate-gradient" />
+      <section className="relative overflow-hidden py-16 md:py-32 px-4">
         <div className="max-w-5xl mx-auto relative z-10">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="animate-fade-in-up">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] text-xs font-medium mb-6">
+          <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
+            <div
+              ref={hero.ref}
+              className={`transition-all duration-700 ${hero.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+            >
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--gnome-blue-1)]/30 text-[var(--color-primary)] text-xs font-medium mb-6">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary)] animate-pulse" />
                 Planeamiento financiero con IA
               </div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[var(--text-primary)] tracking-tight mb-6 leading-tight">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[var(--text-primary)] tracking-tight mb-6 leading-[1.1]">
                 Organizá tus finanzas
                 <span className="text-[var(--color-primary)]"> sin esfuerzo</span>
               </h1>
               <p className="text-lg text-[var(--text-secondary)] mb-8 leading-relaxed max-w-lg">
-                Registra gastos con un mensaje, analiza tus hábitos y toma mejores decisiones. Todo
+                Registra gastos con un mensaje, analizá tus hábitos y tomá mejores decisiones. Todo
                 con inteligencia artificial y desde tu celular.
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
@@ -33,82 +66,83 @@ export default function LandingPage() {
                   Ya tengo cuenta
                 </a>
               </div>
-              <div className="flex items-center gap-6 mt-8 text-sm text-[var(--text-tertiary)]">
-                <div className="flex items-center gap-1.5">
-                  <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
+              <div className="flex items-center gap-6 mt-8 text-sm text-[var(--text-secondary)]">
+                <span className="flex items-center gap-1.5">
+                  <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
                   Sin tarjeta de crédito
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
                   Datos seguros
-                </div>
+                </span>
               </div>
             </div>
-
-            {/* Hero Mockup */}
-            <div className="animate-fade-in-up delay-300 hidden md:block">
-              <HeroMockup />
+            <div
+              ref={hero.ref}
+              className={`transition-all duration-700 delay-200 ${hero.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+            >
+              <AppWindowMockup />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features */}
-      <section className="py-20 px-4">
+      {/* Por qué oikonomia */}
+      <section className="py-12 md:py-20 px-4">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16 animate-fade-in-up">
+          <div
+            ref={features.ref}
+            className={`text-center mb-14 transition-all duration-700 ${features.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+          >
             <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
-              Todo lo que necesitás
+              ¿Por qué Oikonomia?
             </h2>
             <p className="text-lg text-[var(--text-secondary)] max-w-2xl mx-auto">
               Herramientas diseñadas para que tomes el control de tus finanzas personales.
             </p>
           </div>
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             <FeatureCard
-              icon="🤖"
+              icon="sparkles"
               title="Categorización con IA"
-              description="Mandale un mensaje por Telegram y la inteligencia artificial categoriza tu gasto automáticamente. Sin formularios, sin complicaciones."
-              delay="delay-100"
+              description="Mandá un mensaje por Telegram y la inteligencia artificial categoriza tu gasto automáticamente."
             />
             <FeatureCard
-              icon="📊"
+              icon="chart-bar"
               title="Reportes inteligentes"
-              description="Análisis mensual con tendencias, proyecciones y comparativas. Sabés exactamente a dónde va tu dinero."
-              delay="delay-200"
+              description="Análisis mensual con tendencias, proyecciones y comparativas para saber a dónde va tu dinero."
             />
             <FeatureCard
-              icon="💳"
+              icon="card"
               title="Tarjetas y cuentas"
               description="Organizá todas tus tarjetas de crédito, débito y cuentas bancarias en un solo lugar."
-              delay="delay-300"
             />
             <FeatureCard
-              icon="🏦"
+              icon="bank"
               title="Inversiones"
               description="Seguimiento de FCI, plazos fijos y cauciones con actualización de precios en tiempo real."
-              delay="delay-400"
+            />
+            <FeatureCard
+              icon="bot"
+              title="Bot de Telegram"
+              description="Registrá gastos desde Telegram como le contarías a un amigo. Sin formularios, sin complicaciones."
+            />
+            <FeatureCard
+              icon="shield"
+              title="Privacidad primero"
+              description="Código abierto, sin tracking ni analytics. Tus datos son 100% tuyos y voluntarios."
             />
           </div>
         </div>
       </section>
 
-      {/* How it works - with Telegram mockup */}
-      <section className="py-20 px-4 bg-[var(--color-base-alt)]">
+      {/* Cómo funciona */}
+      <section className="py-16 md:py-24 px-4 bg-[var(--color-base-alt)]">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16 animate-fade-in-up">
+          <div
+            ref={steps.ref}
+            className={`text-center mb-14 transition-all duration-700 ${steps.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+          >
             <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
               ¿Cómo funciona?
             </h2>
@@ -116,39 +150,39 @@ export default function LandingPage() {
               Tres pasos simples para empezar a controlar tus finanzas.
             </p>
           </div>
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="space-y-8">
+          <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
+            <div className="space-y-8 md:order-last">
               <Step
                 number={1}
                 title="Registrate"
                 description="Creá tu cuenta en segundos con tu email o Google. Sin tarjeta de crédito, sin compromiso."
-                delay="delay-100"
               />
               <Step
                 number={2}
                 title="Mandá un mensaje"
                 description="Escribile al bot de Telegram como le contarías a un amigo. La IA hace el resto."
-                delay="delay-300"
               />
               <Step
                 number={3}
                 title="Analizá y ahorrá"
                 description="Revisá reportes, tendencias y proyecciones para tomar mejores decisiones."
-                delay="delay-500"
               />
             </div>
-            <div className="animate-fade-in-up delay-200">
-              <TelegramMockup />
+            <div className="md:order-first">
+              <TelegramCarousel />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Reporting */}
-      <section className="py-20 px-4">
+      {/* Reportes */}
+      <section className="py-12 md:py-20 px-4">
         <div className="max-w-5xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="animate-fade-in-up">
+          <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
+            <div
+              ref={reporting.ref}
+              className={`transition-all duration-700 ${reporting.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+            >
               <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
                 Reportes que te ayudan a decidir
               </h2>
@@ -158,73 +192,55 @@ export default function LandingPage() {
               </p>
               <ul className="space-y-3 text-[var(--text-secondary)]">
                 <li className="flex items-start gap-3">
-                  <svg
-                    className="w-5 h-5 text-[var(--color-primary)] mt-0.5 flex-shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                    />
-                  </svg>
+                  <SymbolicIcon
+                    name="chart-bar"
+                    size={18}
+                    className="text-[var(--color-primary)] mt-0.5 flex-shrink-0"
+                  />
                   <span>Gráficos de gastos por categoría y mes</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <svg
-                    className="w-5 h-5 text-[var(--color-primary)] mt-0.5 flex-shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                    />
-                  </svg>
+                  <SymbolicIcon
+                    name="chart-donut"
+                    size={18}
+                    className="text-[var(--color-primary)] mt-0.5 flex-shrink-0"
+                  />
                   <span>Tendencias y proyecciones de gasto</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <svg
-                    className="w-5 h-5 text-[var(--color-primary)] mt-0.5 flex-shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-                    />
-                  </svg>
+                  <SymbolicIcon
+                    name="sparkles"
+                    size={18}
+                    className="text-[var(--color-primary)] mt-0.5 flex-shrink-0"
+                  />
                   <span>Reportes mensuales con análisis de IA</span>
                 </li>
               </ul>
             </div>
-            <div className="animate-fade-in-up delay-200">
+            <div
+              ref={reporting.ref}
+              className={`transition-all duration-700 delay-200 ${reporting.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+            >
               <ReportMockup />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Open Source & Auditability */}
-      <section className="py-20 px-4 bg-[var(--color-base-alt)]">
-        <div className="max-w-4xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="animate-fade-in-up">
+      {/* Código abierto */}
+      <section className="py-16 md:py-24 px-4 bg-[var(--color-base-alt)]">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
+            <div
+              ref={openSource.ref}
+              className={`transition-all duration-700 ${openSource.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"} md:order-last`}
+            >
               <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
-                Codigo abierto y auditable
+                Código abierto y auditable
               </h2>
               <p className="text-lg text-[var(--text-secondary)] mb-6 leading-relaxed">
-                Nuestro codigo esta publicado en GitHub. Cualquiera puede auditar como procesamos
-                tus datos, que algoritmos usamos y como protegemos tu informacion.
+                Nuestro código está publicado en GitHub. Cualquiera puede auditar cómo procesamos
+                tus datos, qué algoritmos usamos y cómo protegemos tu información.
               </p>
               <a
                 href="https://github.com/cheloim/perExp"
@@ -232,111 +248,46 @@ export default function LandingPage() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border-2 border-[var(--border-color)] text-[var(--text-primary)] font-semibold hover:bg-[var(--color-base-alt)] transition"
               >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.838 1.236 1.841 1.236 1.07 1.87C7.333 14.658 8.464 14.11 9 14.11c.536 0 1.951-.554 3.164-1.23C14.254 12.26 15.892 11.59 17 10.69c-.14-.153-1.101-.523-1.101-1.966 0-4.35 3.181-7.888-7.153-7.888C8.218 0 6.716 1.467 6.716 1.467c-2.289-1.547-4.927-1.756-5.426-1.784.04-.41.06-.854.06-1.312C1.001 5.373 0 0 0 0z" />
-                </svg>
-                Ver codigo fuente en GitHub
+                <SymbolicIcon name="github" size={18} />
+                Ver código fuente en GitHub
               </a>
             </div>
-            <div className="animate-fade-in-up delay-200">
-              <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--border-color)] p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-lg bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-sm">
-                    O
-                  </div>
-                  <div>
-                    <div className="font-semibold text-[var(--text-primary)]">oikonomia</div>
-                    <div className="text-xs text-[var(--text-tertiary)]">
-                      github.com/cheloim/perExp
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-2 text-sm text-[var(--text-secondary)]">
-                  <div className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    <span>Codigo abierto y revisable</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    <span>Sin tracking ni analytics</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    <span>Datos 100% voluntarios</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    <span>Eliminacion en cualquier momento</span>
-                  </div>
-                </div>
-              </div>
+            <div
+              ref={openSource.ref}
+              className={`transition-all duration-700 delay-200 ${openSource.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"} md:order-first`}
+            >
+              <AboutWindowMockup />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Security */}
-      <section className="py-20 px-4">
+      {/* Seguridad */}
+      <section className="py-12 md:py-20 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="animate-fade-in-up">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-green-500/10 mb-6">
-              <svg
-                className="w-7 h-7 text-green-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                />
-              </svg>
-            </div>
+          <div
+            ref={security.ref}
+            className={`transition-all duration-700 ${security.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+          >
             <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
               Tus datos están seguros
             </h2>
-            <p className="text-lg text-[var(--text-secondary)] max-w-2xl mx-auto mb-8">
+            <p className="text-lg text-[var(--text-secondary)] max-w-2xl mx-auto mb-10">
               Cifrado de extremo a extremo, servidores seguros y control total sobre tus datos.
             </p>
-            <div className="grid sm:grid-cols-3 gap-6 text-left">
+            <div className="grid sm:grid-cols-3 gap-5">
               <SecurityItem
-                icon="🔒"
+                icon="lock"
                 title="Cifrado"
                 description="Tus contraseñas están encriptadas con bcrypt. Las sesiones usan JWT."
               />
               <SecurityItem
-                icon="🛡️"
+                icon="eye"
                 title="Privacidad"
                 description="Datos financieros 100% voluntarios. Usá la app sin cargar ningún dato."
               />
               <SecurityItem
-                icon="🗑️"
+                icon="trash"
                 title="Eliminación"
                 description="Eliminá tu cuenta y todos tus datos en cualquier momento."
               />
@@ -346,15 +297,18 @@ export default function LandingPage() {
       </section>
 
       {/* FAQ */}
-      <section className="py-20 px-4 bg-[var(--color-base-alt)]">
-        <div className="max-w-3xl mx-auto">
+      <section className="py-16 md:py-24 px-4 bg-[var(--color-base-alt)]">
+        <div
+          ref={faq.ref}
+          className={`max-w-3xl mx-auto transition-all duration-700 ${faq.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+        >
           <h2 className="text-3xl font-bold text-[var(--text-primary)] text-center mb-12">
             Preguntas frecuentes
           </h2>
-          <div className="space-y-4">
+          <div className="space-y-3">
             <FaqItem
               question="¿Es gratis?"
-              answer="Sí, oikonomia es completamente gratis. No hay planes premium ni funciones bloqueadas."
+              answer="Sí, Oikonomia es completamente gratis. No hay planes premium ni funciones bloqueadas."
             />
             <FaqItem
               question="¿Mis datos están seguros?"
@@ -362,7 +316,7 @@ export default function LandingPage() {
             />
             <FaqItem
               question="¿Necesito saber de finanzas?"
-              answer="Para nada. La IA se encarga de categorizar y analizar vos solo registrás los gastos."
+              answer="Para nada. La IA se encarga de categorizar y analizar; vos solo registrás los gastos."
             />
             <FaqItem
               question="¿Puedo usarlo desde el celular?"
@@ -373,13 +327,16 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-20 px-4">
-        <div className="max-w-2xl mx-auto text-center animate-fade-in-up">
+      <section className="py-16 md:py-24 px-4">
+        <div
+          ref={cta.ref}
+          className={`max-w-2xl mx-auto text-center transition-all duration-700 ${cta.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+        >
           <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
             ¿Listo para tomar el control?
           </h2>
           <p className="text-lg text-[var(--text-secondary)] mb-8">
-            Uní miles de personas que ya están organizando sus finanzas con oikonomia.
+            Uní miles de personas que ya están organizando sus finanzas con Oikonomia.
           </p>
           <a
             href="https://platform.oikonomia.ar/register"
@@ -387,6 +344,12 @@ export default function LandingPage() {
           >
             Empezá ahora — es gratis
           </a>
+          <p className="mt-4 text-sm text-[var(--text-secondary)]">
+            ¿Tenés dudas?{" "}
+            <a href="/guide" className="text-[var(--color-primary)] hover:underline font-medium">
+              Mirá la guía de usuario
+            </a>
+          </p>
         </div>
       </section>
 
@@ -399,21 +362,26 @@ export default function LandingPage() {
                 <div className="w-8 h-8 rounded-lg bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-sm">
                   O
                 </div>
-                <span className="font-semibold text-[var(--text-primary)]">oikonomia</span>
+                <span className="font-semibold text-[#1c1b1f] dark:text-white">Oikonomia</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] leading-relaxed">
+              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                 Tu planificador financiero personal con inteligencia artificial.
               </p>
             </div>
             <div>
               <h4 className="font-semibold text-[var(--text-primary)] mb-3">Producto</h4>
-              <ul className="space-y-2 text-sm text-[var(--text-tertiary)]">
+              <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
                 <li>
                   <a
                     href="https://platform.oikonomia.ar"
                     className="hover:text-[var(--text-primary)] transition"
                   >
                     Plataforma
+                  </a>
+                </li>
+                <li>
+                  <a href="/guide" className="hover:text-[var(--text-primary)] transition">
+                    Guía de usuario
                   </a>
                 </li>
                 <li>
@@ -436,7 +404,7 @@ export default function LandingPage() {
             </div>
             <div>
               <h4 className="font-semibold text-[var(--text-primary)] mb-3">Legal</h4>
-              <ul className="space-y-2 text-sm text-[var(--text-tertiary)]">
+              <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
                 <li>
                   <a href="/privacy" className="hover:text-[var(--text-primary)] transition">
                     Política de Privacidad
@@ -453,8 +421,8 @@ export default function LandingPage() {
               </ul>
             </div>
           </div>
-          <div className="pt-8 border-t border-[var(--border-color)] text-center text-sm text-[var(--text-tertiary)]">
-            © {new Date().getFullYear()} oikonomia. Todos los derechos reservados.
+          <div className="pt-8 border-t border-[var(--border-color)] text-center text-sm text-[var(--text-secondary)]">
+            © {new Date().getFullYear()} Oikonomia. Todos los derechos reservados.
           </div>
         </div>
       </footer>
@@ -462,80 +430,88 @@ export default function LandingPage() {
   );
 }
 
-function HeroMockup() {
+/* ------------------------------------------------------------------ */
+/*  Mockups & subcomponents                                           */
+/* ------------------------------------------------------------------ */
+
+function AppWindowMockup() {
   return (
     <div className="relative">
-      <div className="absolute -inset-4 bg-gradient-to-r from-[var(--color-primary)]/20 to-purple-500/20 rounded-3xl blur-2xl opacity-50" />
-      <div className="relative bg-[var(--color-surface)] rounded-2xl shadow-2xl border border-[var(--border-color)] p-5 max-w-xs mx-auto">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-7 h-7 rounded-lg bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-xs">
-            O
-          </div>
-          <span className="font-semibold text-xs text-[var(--text-primary)]">oikonomia</span>
-          <span className="ml-auto text-[10px] text-[var(--text-tertiary)]">Hoy</span>
+      <div className="bg-[var(--color-surface)] rounded-2xl shadow-2xl border border-[var(--border-color)] overflow-hidden max-w-xs mx-auto">
+        {/* Headerbar — libadwaita style */}
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border-color)] bg-[var(--color-surface)]">
+          <div className="w-3 h-3 rounded-full bg-[var(--color-danger)]" />
+          <div className="w-3 h-3 rounded-full bg-[var(--gnome-yellow-4)]" />
+          <div className="w-3 h-3 rounded-full bg-[var(--gnome-green-4)]" />
+          <span className="ml-2 text-xs font-medium text-[var(--text-primary)]">Resumen</span>
         </div>
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          <div className="p-2 rounded-lg bg-[var(--color-base-alt)] text-center">
-            <div className="text-[9px] text-[var(--text-tertiary)] uppercase">Gasto</div>
-            <div className="text-sm font-bold text-[var(--text-primary)]">$5.999</div>
+        {/* Content */}
+        <div className="p-4">
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            <StatCard label="Gasto" value="$5.999" />
+            <StatCard label="Mes" value="$45.230" />
+            <StatCard label="Trans." value="28" />
           </div>
-          <div className="p-2 rounded-lg bg-[var(--color-base-alt)] text-center">
-            <div className="text-[9px] text-[var(--text-tertiary)] uppercase">Mes</div>
-            <div className="text-sm font-bold text-[var(--text-primary)]">$45.230</div>
-          </div>
-          <div className="p-2 rounded-lg bg-[var(--color-base-alt)] text-center">
-            <div className="text-[9px] text-[var(--text-tertiary)] uppercase">Trans.</div>
-            <div className="text-sm font-bold text-[var(--text-primary)]">28</div>
-          </div>
-        </div>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-[var(--text-secondary)]">Alimentación</span>
-            <div className="flex items-center gap-2">
-              <div className="w-16 h-1.5 rounded-full bg-[var(--color-base-alt)] overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-[var(--color-primary)]"
-                  style={{ width: "41%" }}
-                />
-              </div>
-              <span className="text-[var(--text-primary)] font-medium w-14 text-right">
-                $18.500
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-[var(--text-secondary)]">Transporte</span>
-            <div className="flex items-center gap-2">
-              <div className="w-16 h-1.5 rounded-full bg-[var(--color-base-alt)] overflow-hidden">
-                <div className="h-full rounded-full bg-blue-500" style={{ width: "18%" }} />
-              </div>
-              <span className="text-[var(--text-primary)] font-medium w-14 text-right">$8.200</span>
-            </div>
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-[var(--text-secondary)]">Servicios</span>
-            <div className="flex items-center gap-2">
-              <div className="w-16 h-1.5 rounded-full bg-[var(--color-base-alt)] overflow-hidden">
-                <div className="h-full rounded-full bg-amber-500" style={{ width: "15%" }} />
-              </div>
-              <span className="text-[var(--text-primary)] font-medium w-14 text-right">$6.800</span>
-            </div>
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-[var(--text-secondary)]">Otros</span>
-            <div className="flex items-center gap-2">
-              <div className="w-16 h-1.5 rounded-full bg-[var(--color-base-alt)] overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-[var(--text-tertiary)]"
-                  style={{ width: "26%" }}
-                />
-              </div>
-              <span className="text-[var(--text-primary)] font-medium w-14 text-right">
-                $11.730
-              </span>
-            </div>
+          <div className="space-y-2">
+            <CategoryBar
+              name="Alimentación"
+              pct={41}
+              color="bg-[var(--color-primary)]"
+              value="$18.500"
+            />
+            <CategoryBar
+              name="Transporte"
+              pct={18}
+              color="bg-[var(--gnome-blue-4)]"
+              value="$8.200"
+            />
+            <CategoryBar
+              name="Servicios"
+              pct={15}
+              color="bg-[var(--gnome-yellow-4)]"
+              value="$6.800"
+            />
+            <CategoryBar name="Otros" pct={26} color="bg-[var(--gnome-gray-2)]" value="$11.730" />
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="p-2 rounded-xl bg-[var(--color-base-alt)] text-center">
+      <div className="text-[9px] text-[var(--text-primary)] font-medium uppercase tracking-wide">
+        {label}
+      </div>
+      <div className="text-sm font-bold text-[var(--text-primary)]">{value}</div>
+    </div>
+  );
+}
+
+function CategoryBar({
+  name,
+  pct,
+  color,
+  value,
+}: {
+  name: string;
+  pct: number;
+  color: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-center justify-between text-xs">
+      <span className="text-[var(--text-primary)] text-xs">{name}</span>
+      <div className="flex items-center gap-2">
+        <div className="w-16 h-1.5 rounded-full bg-[var(--color-base-alt)] overflow-hidden">
+          <div
+            className={`h-full rounded-full ${color} animate-bar-grow`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <span className="text-[var(--text-primary)] font-medium w-14 text-right">{value}</span>
       </div>
     </div>
   );
@@ -544,18 +520,34 @@ function HeroMockup() {
 function ReportMockup() {
   return (
     <div className="relative">
-      <div className="absolute -inset-4 bg-gradient-to-r from-purple-500/20 to-[var(--color-primary)]/20 rounded-3xl blur-2xl opacity-50" />
-      <div className="relative bg-[var(--color-surface)] rounded-2xl shadow-2xl border border-[var(--border-color)] p-6 max-w-sm mx-auto">
+      <div className="bg-[var(--color-surface)] rounded-2xl shadow-2xl border border-[var(--border-color)] p-6 max-w-sm mx-auto">
         <div className="flex items-center justify-between mb-5">
           <div>
             <div className="text-sm font-semibold text-[var(--text-primary)]">Resumen mensual</div>
-            <div className="text-[10px] text-[var(--text-tertiary)]">Junio 2026</div>
+            <div className="text-[10px] text-[var(--text-primary)] font-medium">Julio 2026</div>
           </div>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 font-medium">
-            ↑ 12%
+          <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--gnome-green-1)]/30 text-[var(--gnome-green-5)] font-medium">
+            ↓ 8%
           </span>
         </div>
-        <div className="h-32 bg-[var(--color-base-alt)] rounded-xl p-3 flex items-end gap-1 mb-4">
+        <div className="flex items-center gap-5 mb-5">
+          <DonutChart />
+          <div className="grid grid-cols-2 gap-3 flex-1">
+            <div className="p-3 rounded-xl bg-[var(--color-base-alt)]">
+              <div className="text-[10px] text-[var(--text-primary)] font-medium uppercase tracking-wide">
+                Gasto total
+              </div>
+              <div className="text-lg font-bold text-[var(--text-primary)]">$187.450</div>
+            </div>
+            <div className="p-3 rounded-xl bg-[var(--color-base-alt)]">
+              <div className="text-[10px] text-[var(--text-primary)] font-medium uppercase tracking-wide">
+                Promedio/día
+              </div>
+              <div className="text-lg font-bold text-[var(--text-primary)]">$6.248</div>
+            </div>
+          </div>
+        </div>
+        <div className="h-28 bg-[var(--color-base-alt)] rounded-xl p-3 flex items-end gap-1">
           {[30, 45, 35, 55, 40, 60, 50, 65, 45, 70, 55, 80].map((h, i) => (
             <div
               key={i}
@@ -568,92 +560,192 @@ function ReportMockup() {
             />
           ))}
         </div>
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="p-3 rounded-xl bg-[var(--color-base-alt)]">
-            <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide">
-              Gasto total
-            </div>
-            <div className="text-lg font-bold text-[var(--text-primary)]">$187.450</div>
-          </div>
-          <div className="p-3 rounded-xl bg-[var(--color-base-alt)]">
-            <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide">
-              Promedio/día
-            </div>
-            <div className="text-lg font-bold text-[var(--text-primary)]">$6.248</div>
-          </div>
-        </div>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-primary)]" />
-              <span className="text-[var(--text-secondary)]">Alimentación</span>
-            </div>
-            <span className="text-[var(--text-primary)] font-medium">38%</span>
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-              <span className="text-[var(--text-secondary)]">Transporte</span>
-            </div>
-            <span className="text-[var(--text-primary)] font-medium">18%</span>
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-              <span className="text-[var(--text-secondary)]">Servicios</span>
-            </div>
-            <span className="text-[var(--text-primary)] font-medium">15%</span>
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-[var(--text-tertiary)]" />
-              <span className="text-[var(--text-secondary)]">Otros</span>
-            </div>
-            <span className="text-[var(--text-primary)] font-medium">29%</span>
-          </div>
+        <div className="space-y-2 mt-4">
+          <LegendItem color="bg-[var(--color-primary)]" name="Alimentación" pct={38} />
+          <LegendItem color="bg-[var(--gnome-blue-4)]" name="Transporte" pct={18} />
+          <LegendItem color="bg-[var(--gnome-yellow-4)]" name="Servicios" pct={15} />
+          <LegendItem color="bg-[var(--gnome-gray-2)]" name="Otros" pct={29} />
         </div>
       </div>
     </div>
   );
 }
 
-function TelegramMockup() {
+function DonutChart() {
+  return (
+    <div className="relative w-20 h-20 flex-shrink-0">
+      <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+        <circle cx="18" cy="18" r="14" fill="none" stroke="var(--color-base-alt)" strokeWidth="5" />
+        <circle
+          cx="18"
+          cy="18"
+          r="14"
+          fill="none"
+          stroke="var(--color-primary)"
+          strokeWidth="5"
+          strokeDasharray="87.96 87.96"
+          strokeDashoffset="0"
+          className="origin-center animate-donut-draw"
+        />
+        <circle
+          cx="18"
+          cy="18"
+          r="14"
+          fill="none"
+          stroke="var(--gnome-blue-4)"
+          strokeWidth="5"
+          strokeDasharray="33.17 87.96"
+          strokeDashoffset="-54.79"
+          className="origin-center animate-donut-draw delay-200"
+        />
+        <circle
+          cx="18"
+          cy="18"
+          r="14"
+          fill="none"
+          stroke="var(--gnome-yellow-4)"
+          strokeWidth="5"
+          strokeDasharray="26.39 87.96"
+          strokeDashoffset="-87.96"
+          className="origin-center animate-donut-draw delay-300"
+        />
+      </svg>
+    </div>
+  );
+}
+
+function LegendItem({ color, name, pct }: { color: string; name: string; pct: number }) {
+  return (
+    <div className="flex items-center justify-between text-xs">
+      <div className="flex items-center gap-2">
+        <div className={`w-2.5 h-2.5 rounded-full ${color}`} />
+        <span className="text-[var(--text-primary)] text-xs">{name}</span>
+      </div>
+      <span className="text-[var(--text-primary)] font-medium">{pct}%</span>
+    </div>
+  );
+}
+
+function TelegramCarousel() {
+  const [active, setActive] = useState(0);
+  const [typing, setTyping] = useState(true);
+  const [userText, setUserText] = useState("");
+  const [showReply, setShowReply] = useState(false);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setTyping(false);
+      setUserText(TELEGRAM_DEMOS[0].user);
+      setShowReply(true);
+      return;
+    }
+
+    const demo = TELEGRAM_DEMOS[active];
+    setUserText("");
+    setShowReply(false);
+    setTyping(true);
+
+    let i = 0;
+    const typeInterval = setInterval(() => {
+      i++;
+      setUserText(demo.user.slice(0, i));
+      if (i >= demo.user.length) {
+        clearInterval(typeInterval);
+        setTimeout(() => {
+          setShowReply(true);
+          setTyping(false);
+        }, 400);
+      }
+    }, 35);
+
+    const nextTimeout = setTimeout(() => {
+      setActive((prev) => (prev + 1) % TELEGRAM_DEMOS.length);
+    }, 6000);
+
+    return () => {
+      clearInterval(typeInterval);
+      clearTimeout(nextTimeout);
+    };
+  }, [active]);
+
   return (
     <div className="max-w-xs mx-auto">
-      <div className="bg-[#1a1a2e] rounded-2xl shadow-2xl p-4 border border-[#2a2a3e]">
-        <div className="flex items-center gap-2.5 mb-4 pb-3 border-b border-[#2a2a3e]">
+      <div className="bg-[var(--gnome-gray-5)] rounded-2xl shadow-2xl p-4 border border-[var(--gnome-gray-4)]">
+        <div className="flex items-center gap-2.5 mb-4 pb-3 border-b border-[var(--gnome-gray-4)]">
           <div className="w-9 h-9 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-sm">
             N
           </div>
           <div>
             <div className="text-white text-sm font-medium">NikoFin</div>
-            <div className="text-[10px] text-green-400">● en línea</div>
+            <div className="text-[10px] text-[var(--gnome-green-2)]">● en línea</div>
           </div>
         </div>
-        <div className="space-y-3">
+        <div className="space-y-3 min-h-[140px]">
           <div className="flex justify-end">
             <div className="bg-[var(--color-primary)] rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[85%]">
-              <span className="text-white text-sm">mastercard galicia almacen 5999</span>
+              <span className="text-white text-sm">
+                {userText}
+                {typing && (
+                  <span className="inline-block w-0.5 h-4 bg-white ml-0.5 animate-blink align-text-bottom" />
+                )}
+              </span>
             </div>
           </div>
-          <div className="flex justify-start">
-            <div className="bg-[#2a2a3e] rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[85%]">
-              <div className="text-white text-sm leading-relaxed">
-                <span className="text-green-400">✅</span> ¡Listo! Guardé el gasto.
-                <br />
-                <br />
-                💰 $5.999
-                <br />
-                💳 Galicia Mastercard
-                <br />
-                📅 12 de julio de 2026
-                <br />
-                <br />
-                <span className="text-[var(--color-primary)]">🍽️ Alimentación</span>
-                <br />
-                <span className="text-[var(--text-tertiary)]">└ 📂 Almacén/Kiosco</span>
+          {showReply && (
+            <div className="flex justify-start animate-fade-in">
+              <div className="bg-[var(--gnome-gray-4)] rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[85%]">
+                <div className="text-white text-sm leading-relaxed whitespace-pre-line">
+                  {TELEGRAM_DEMOS[active].reply}
+                </div>
               </div>
             </div>
+          )}
+        </div>
+        <div className="flex justify-center gap-1.5 mt-4">
+          {TELEGRAM_DEMOS.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setActive(i)}
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${i === active ? "bg-[var(--color-primary)] w-5" : "bg-[var(--gnome-gray-3)]"}`}
+              aria-label={`Demo ${i + 1}`}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AboutWindowMockup() {
+  return (
+    <div className="bg-[var(--color-surface)] rounded-2xl shadow-2xl border border-[var(--border-color)] overflow-hidden max-w-sm mx-auto">
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border-color)]">
+        <div className="w-3 h-3 rounded-full bg-[var(--color-danger)]" />
+        <div className="w-3 h-3 rounded-full bg-[var(--gnome-yellow-4)]" />
+        <div className="w-3 h-3 rounded-full bg-[var(--gnome-green-4)]" />
+      </div>
+      <div className="p-6 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-2xl mx-auto mb-4">
+          O
+        </div>
+        <div className="text-lg font-bold text-[#1c1b1f] dark:text-white">Oikonomia</div>
+        <div className="text-xs text-[var(--text-primary)] mb-4">Versión 1.0 · GPLv3</div>
+        <div className="space-y-2 text-sm text-[var(--text-secondary)]">
+          <div className="flex items-center justify-center gap-2">
+            <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
+            <span>Código abierto y revisable</span>
+          </div>
+          <div className="flex items-center justify-center gap-2">
+            <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
+            <span>Sin tracking ni analytics</span>
+          </div>
+          <div className="flex items-center justify-center gap-2">
+            <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
+            <span>Datos 100% voluntarios</span>
+          </div>
+          <div className="flex items-center justify-center gap-2">
+            <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
+            <span>Eliminación en cualquier momento</span>
           </div>
         </div>
       </div>
@@ -665,21 +757,17 @@ function FeatureCard({
   icon,
   title,
   description,
-  delay,
 }: {
-  icon: string;
+  icon: React.ComponentProps<typeof SymbolicIcon>["name"];
   title: string;
   description: string;
-  delay?: string;
 }) {
   return (
-    <div
-      className={`p-6 rounded-2xl border border-[var(--border-color)] bg-[var(--color-surface)] hover:shadow-lg hover:border-[var(--color-primary)]/20 transition-all duration-300 animate-fade-in-up ${delay || ""}`}
-    >
-      <div className="w-12 h-12 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center text-2xl mb-4">
-        {icon}
+    <div className="p-5 rounded-2xl border border-[var(--border-color)] bg-[var(--color-surface)] hover:shadow-md hover:border-[var(--color-primary)]/20 transition-all duration-200">
+      <div className="w-10 h-10 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center mb-3">
+        <SymbolicIcon name={icon} size={20} className="text-[var(--color-primary)]" />
       </div>
-      <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">{title}</h3>
+      <h3 className="text-base font-bold text-[#1c1b1f] dark:text-white mb-1.5">{title}</h3>
       <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{description}</p>
     </div>
   );
@@ -689,15 +777,13 @@ function Step({
   number,
   title,
   description,
-  delay,
 }: {
   number: number;
   title: string;
   description: string;
-  delay?: string;
 }) {
   return (
-    <div className={`flex gap-4 animate-fade-in-up ${delay || ""}`}>
+    <div className="flex gap-4">
       <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-sm">
         {number}
       </div>
@@ -714,13 +800,15 @@ function SecurityItem({
   title,
   description,
 }: {
-  icon: string;
+  icon: React.ComponentProps<typeof SymbolicIcon>["name"];
   title: string;
   description: string;
 }) {
   return (
-    <div className="p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--border-color)]">
-      <div className="text-2xl mb-2">{icon}</div>
+    <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--border-color)]">
+      <div className="w-10 h-10 rounded-xl bg-[var(--gnome-green-1)]/20 flex items-center justify-center mb-3">
+        <SymbolicIcon name={icon} size={20} className="text-[var(--gnome-green-5)]" />
+      </div>
       <h4 className="font-semibold text-[var(--text-primary)] mb-1">{title}</h4>
       <p className="text-sm text-[var(--text-secondary)]">{description}</p>
     </div>
@@ -728,10 +816,26 @@ function SecurityItem({
 }
 
 function FaqItem({ question, answer }: { question: string; answer: string }) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <div className="p-5 rounded-xl border border-[var(--border-color)] bg-[var(--color-surface)]">
-      <h3 className="font-semibold text-[var(--text-primary)] mb-2">{question}</h3>
-      <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{answer}</p>
-    </div>
+    <button
+      onClick={() => setOpen(!open)}
+      className="w-full text-left p-5 rounded-xl border border-[var(--border-color)] bg-[var(--color-surface)] hover:border-[var(--color-primary)]/20 transition-colors"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-semibold text-[var(--text-primary)]">{question}</h3>
+        <SymbolicIcon
+          name="chevron"
+          size={16}
+          className={`text-[var(--text-secondary)] transition-transform duration-200 flex-shrink-0 ${open ? "rotate-90" : ""}`}
+        />
+      </div>
+      <div
+        className={`overflow-hidden transition-all duration-300 ${open ? "max-h-40 mt-3" : "max-h-0"}`}
+      >
+        <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{answer}</p>
+      </div>
+    </button>
   );
 }
