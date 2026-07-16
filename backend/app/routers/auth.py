@@ -338,7 +338,7 @@ async def oauth_callback(
     if not body.code:
         raise HTTPException(status_code=400, detail="Falta código de autorización")
 
-    redirect_uri = f"{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/oauth/google/callback"
+    redirect_uri = f"{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/oauth/callback"
     google_data = await exchange_google_code(body.code, redirect_uri)
 
     email = google_data.get("email", "").lower()

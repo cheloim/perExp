@@ -17,7 +17,8 @@ interface GoogleAccountsId {
   initialize(config: {
     client_id: string;
     callback: (response: { credential: string }) => void;
-    ux_mode?: string;
+    ux_mode?: "popup" | "redirect";
+    login_uri?: string;
   }): void;
   prompt(
     callback?: (notification: {

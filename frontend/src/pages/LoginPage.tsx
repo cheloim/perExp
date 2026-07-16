@@ -6,7 +6,6 @@ import {
   getStoredToken,
   login,
   loginMfa,
-  oauthLogin,
   register,
   storeToken,
 } from "../api/client";
@@ -133,28 +132,11 @@ function LoginForm({
         if (window.google?.accounts?.id) {
           window.google.accounts.id.initialize({
             client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "",
-            callback: async (response: { credential: string }) => {
-              setError("");
-              setLoading(true);
-              try {
-                const token = await oauthLogin("google", response.credential);
-                if (token.force_password_change) {
-                  storeToken(token.access_token);
-                  onForceChange(token.access_token);
-                  return;
-                }
-                if (token.mfa_required) {
-                  onMfa(token.access_token);
-                  return;
-                }
-                storeToken(token.access_token);
-                onSuccess();
-              } catch (err: unknown) {
-                const msg = err instanceof Error ? err.message : "Error al autenticar con Google";
-                setError(msg);
-                setLoading(false);
-              }
-            },
+            ux_mode: "redirect",
+            login_uri: `${window.location.origin}/oauth/callback`,
+            // In redirect mode, Google redirects to login_uri instead of calling this callback.
+            // Kept as required by the GIS API but not used in redirect flow.
+            callback: () => {},
           });
 
           window.google.accounts.id.renderButton(node, {
