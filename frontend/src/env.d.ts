@@ -37,8 +37,23 @@ interface GoogleAccountsId {
   ): void;
 }
 
+interface GoogleCodeClient {
+  requestCode(): void;
+}
+
+interface GoogleAccountsOauth2 {
+  initCodeClient(config: {
+    client_id: string;
+    scope: string;
+    ux_mode: "popup" | "redirect";
+    redirect_uri: string;
+    state?: string;
+  }): GoogleCodeClient;
+}
+
 interface GoogleAccounts {
   id: GoogleAccountsId;
+  oauth2: GoogleAccountsOauth2;
 }
 
 interface Window {
