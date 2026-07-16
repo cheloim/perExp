@@ -269,10 +269,16 @@ def _save_expense(
         except ValueError:
             expense_date = date.today()
 
+        raw_amount = float(parsed.get("amount") or 0)
+        if installment_total and installment_total >= 2:
+            installment_amount = round(raw_amount / installment_total, 2)
+        else:
+            installment_amount = raw_amount
+
         expense = Expense(
             date=expense_date,
             description=_normalize_text(parsed.get("description", "")),
-            amount=float(parsed.get("amount") or 0),
+            amount=installment_amount,
             currency=parsed.get("currency", "ARS"),
             category_id=category_id,
             user_id=user_id,
@@ -382,10 +388,15 @@ def _build_cat_levels(category_id: int | None, db) -> list[str]:
 
 
 def _confirm_text(
-    parsed: dict, payment_label: str, cat_levels: list[str] = None, debug_info: str = ""
+    parsed: dict,
+    payment_label: str,
+    cat_levels: list[str] = None,
+    debug_info: str = "",
+    installments: int | None = None,
 ) -> str:
     desc = _escape_md(parsed.get("description", ""))
-    amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
+    total_amount = parsed["amount"]
+    currency = parsed.get("currency", "ARS")
     date_str = _format_date_es(parsed.get("date", date.today().strftime("%Y-%m-%d")))
     safe_label = _escape_md(payment_label)
     cat_tree = ""
@@ -395,10 +406,18 @@ def _confirm_text(
             indent = indents[i] if i < len(indents) else indents[-1]
             cat_tree += f"{indent}{_cat_emoji(name)} {name}\n"
     debug_line = f"\n`{debug_info}`" if debug_info else ""
+    if installments and installments >= 2:
+        per_cuota = round(total_amount / installments, 2)
+        amount_line = (
+            f"💰 {_format_amount(total_amount, currency)} → "
+            f"{installments}× {_format_amount(per_cuota, currency)}"
+        )
+    else:
+        amount_line = f"💰 {_format_amount(total_amount, currency)}"
     return (
         f"Esto es lo que voy a guardar:\n\n"
         f"🛒 *{desc}*\n"
-        f"💰 {amount_str}\n"
+        f"{amount_line}\n"
         f"📅 {date_str}\n"
         f"💳 {safe_label}\n"
         f"{cat_tree}"
@@ -467,7 +486,11 @@ async def _enhance_with_llm(
         ]
         await _bot_app.bot.edit_message_text(
             _confirm_text(
-                parsed, payment_label, cat_levels, context.user_data.get("cat_debug", "")
+                parsed,
+                payment_label,
+                cat_levels,
+                context.user_data.get("cat_debug", ""),
+                context.user_data.get("installment_total"),
             ),
             chat_id=chat_id,
             message_id=message_id,
@@ -559,12 +582,22 @@ def _saved_text(expense: "Expense", payment_label: str) -> str:
     tree_lines.append(f"{leaf_indent}📝 {_escape_md(expense.description)}")
     cat_tree = "\n".join(tree_lines)
 
+    installment_info = ""
+    if expense.installment_total and expense.installment_total >= 2:
+        total = round(expense.amount * expense.installment_total, 2)
+        installment_info = (
+            f"\n💳 {_escape_md(payment_label)} — {expense.installment_total} cuotas\n"
+            f"💰 {_format_amount(total, expense.currency)} → "
+            f"{expense.installment_total}× {amount_str}"
+        )
+
     return (
         f"✅ ¡Listo! Guardé el gasto.\n\n"
         f"💰 {amount_str}\n"
         f"💳 {safe_label}\n"
         f"📅 {date_str}\n\n"
         f"{cat_tree}"
+        f"{installment_info}"
     )
 
 
@@ -865,6 +898,22 @@ async def _handle_bank_notification(
         predicted_category_id, cats = _instant_categorize(parsed, user_id, db)
         context.user_data["predicted_category_id"] = predicted_category_id
         context.user_data["cat_debug"] = ""
+
+        # Check if we should ask about installments
+        if _should_ask_installments(
+            predicted_category_id, db, parsed.get("amount", 0), card.card_type
+        ):
+            installment_keyboard = [
+                [
+                    InlineKeyboardButton("✅ Sí", callback_data="installment:yes"),
+                    InlineKeyboardButton("❌ No", callback_data="installment:no"),
+                ]
+            ]
+            await update.message.reply_text(
+                "¿Lo pagaste en cuotas?",
+                reply_markup=InlineKeyboardMarkup(installment_keyboard),
+            )
+            return WAITING_INSTALLMENT_QUESTION
 
         cat_levels = _build_cat_levels(predicted_category_id, db)
         cat_tree = ""
@@ -1303,6 +1352,7 @@ async def handle_installment_number(update: Update, context: ContextTypes.DEFAUL
             payment_label,
             cat_levels,
             context.user_data.get("cat_debug", ""),
+            installments,
         ),
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(confirm_keyboard),
