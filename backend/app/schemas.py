@@ -53,6 +53,7 @@ class UserResponse(BaseModel):
     invite_code: str | None = None
     mfa_enabled: bool = False
     email_verified: bool = False
+    onboarding_completed: bool = False
     model_config = {"from_attributes": True}
 
 

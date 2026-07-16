@@ -92,6 +92,7 @@ export interface User {
   avatar_url?: string | null;
   mfa_enabled?: boolean;
   email_verified?: boolean;
+  onboarding_completed?: boolean;
 }
 
 export interface Category {

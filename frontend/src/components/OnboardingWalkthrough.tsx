@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Joyride, STATUS, type EventData, type Step } from "react-joyride";
-
-const ONBOARDING_KEY = "onboarding_completed";
+import { getMe, markOnboardingCompleted } from "../api/client";
 
 function buildTourSteps(openPanel: (open: boolean) => void): Step[] {
   return [
@@ -78,33 +77,43 @@ export default function OnboardingWalkthrough({
   const [run, setRun] = useState(false);
   const tourSteps = buildTourSteps(onOpenPanel);
 
+  // Check DB flag on mount
   useEffect(() => {
-    try {
-      const completed = localStorage.getItem(ONBOARDING_KEY);
-      if (completed === "true") return;
+    let cancelled = false;
 
-      if (window.innerWidth < 768) {
-        localStorage.setItem(ONBOARDING_KEY, "true");
-        return;
+    const checkOnboarding = async () => {
+      try {
+        if (window.innerWidth < 768) return;
+
+        const user = await getMe();
+        if (cancelled) return;
+
+        if (user.onboarding_completed) return;
+
+        const timer = setTimeout(() => {
+          if (!cancelled) setRun(true);
+        }, 800);
+        return () => clearTimeout(timer);
+      } catch {
+        // Not logged in or API error — skip tour
       }
+    };
 
-      const timer = setTimeout(() => setRun(true), 800);
-      return () => clearTimeout(timer);
-    } catch {
-      // localStorage unavailable
-    }
+    checkOnboarding();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const handleEvent = (data: EventData) => {
+  const handleEvent = useCallback((data: EventData) => {
     if (data.status === STATUS.FINISHED || data.status === STATUS.SKIPPED) {
-      try {
-        localStorage.setItem(ONBOARDING_KEY, "true");
-      } catch {
-        // ignore
-      }
       setRun(false);
+      // Persist to DB (fire and forget)
+      markOnboardingCompleted().catch(() => {
+        // API error — tour won't show again anyway if user skips
+      });
     }
-  };
+  }, []);
 
   if (!run) return null;
 
