@@ -151,7 +151,7 @@ export default function LandingPage() {
             </p>
           </div>
           <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
-            <div className="space-y-8">
+            <div className="space-y-8 md:order-last">
               <Step
                 number={1}
                 title="Registrate"
@@ -168,7 +168,9 @@ export default function LandingPage() {
                 description="Revisá reportes, tendencias y proyecciones para tomar mejores decisiones."
               />
             </div>
-            <TelegramCarousel />
+            <div className="md:order-first">
+              <TelegramCarousel />
+            </div>
           </div>
         </div>
       </section>
@@ -231,7 +233,7 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
             <div
               ref={openSource.ref}
-              className={`transition-all duration-700 ${openSource.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+              className={`transition-all duration-700 ${openSource.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"} md:order-last`}
             >
               <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
                 Código abierto y auditable
@@ -252,7 +254,7 @@ export default function LandingPage() {
             </div>
             <div
               ref={openSource.ref}
-              className={`transition-all duration-700 delay-200 ${openSource.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+              className={`transition-all duration-700 delay-200 ${openSource.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"} md:order-first`}
             >
               <AboutWindowMockup />
             </div>
