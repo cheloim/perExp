@@ -3,59 +3,77 @@ import { Joyride, STATUS, type EventData, type Step } from "react-joyride";
 
 const ONBOARDING_KEY = "onboarding_completed";
 
-const TOUR_STEPS: Step[] = [
-  {
-    target: '[data-tour="sidebar-home"]',
-    title: "Bienvenido a Oikonomia",
-    content: "Este es tu panel de control. Acá vas a ver un resumen de tus finanzas.",
-    placement: "right",
-  },
-  {
-    target: '[data-tour="sidebar-accounts"]',
-    title: "Cuentas y tarjetas",
-    content:
-      "Acá agregás tus tarjetas de crédito, débito y cuentas bancarias. Es lo primero que deberías hacer.",
-    placement: "right",
-  },
-  {
-    target: '[data-tour="sidebar-expenses"]',
-    title: "Tus gastos",
-    content:
-      "Todos tus gastos aparecen acá. La inteligencia artificial los categoriza automáticamente.",
-    placement: "right",
-  },
-  {
-    target: '[data-tour="sidebar-import"]',
-    title: "Importar datos",
-    content:
-      "Subí extractos bancarios en PDF, CSV o XLSX. La app los procesa y categoriza automáticamente.",
-    placement: "right",
-  },
-  {
-    target: '[data-tour="sidebar-notifications"]',
-    title: "Notificaciones",
-    content:
-      "Acá recibís alertas de gastos sin categorizar, reportes listos y sugerencias de la IA.",
-    placement: "right",
-  },
-  {
-    target: '[data-tour="sidebar-guide"]',
-    title: "Guía de usuario",
-    content:
-      "Si necesitás ayuda en cualquier momento, entrá a la Guía para ver todos los detalles de cada sección.",
-    placement: "right",
-  },
-  {
-    target: '[data-tour="sidebar-account"]',
-    title: "Mi cuenta",
-    content:
-      "Configurá tu perfil, tema, contraseña, MFA y opciones de IA desde tu panel de usuario.",
-    placement: "right",
-  },
-];
+function buildTourSteps(openPanel: (open: boolean) => void): Step[] {
+  return [
+    {
+      target: '[data-tour="sidebar-home"]',
+      title: "Bienvenido a Oikonomia",
+      content: "Este es tu panel de control. Acá vas a ver un resumen de tus finanzas.",
+      placement: "right",
+    },
+    {
+      target: '[data-tour="sidebar-accounts"]',
+      title: "Cuentas y tarjetas",
+      content:
+        "Acá agregás tus tarjetas de crédito, débito y cuentas bancarias. Es lo primero que deberías hacer.",
+      placement: "right",
+    },
+    {
+      target: '[data-tour="sidebar-expenses"]',
+      title: "Tus gastos",
+      content:
+        "Todos tus gastos aparecen acá. La inteligencia artificial los categoriza automáticamente.",
+      placement: "right",
+    },
+    {
+      target: '[data-tour="userpanel-telegram"]',
+      title: "Bot de Telegram",
+      content:
+        "Podés agregar gastos desde acá o mucho más rápido usando el bot de Telegram. Escribile como le contarías a un amigo.",
+      placement: "left",
+      before: async () => {
+        openPanel(true);
+        await new Promise((r) => setTimeout(r, 350));
+      },
+    },
+    {
+      target: '[data-tour="sidebar-import"]',
+      title: "Importar datos",
+      content:
+        "Subí extractos bancarios en PDF, CSV o XLSX. La app los procesa y categoriza automáticamente.",
+      placement: "right",
+    },
+    {
+      target: '[data-tour="sidebar-notifications"]',
+      title: "Notificaciones",
+      content:
+        "Acá recibís alertas de gastos sin categorizar, reportes listos y sugerencias de la IA.",
+      placement: "right",
+    },
+    {
+      target: '[data-tour="sidebar-guide"]',
+      title: "Guía de usuario",
+      content:
+        "Si necesitás ayuda en cualquier momento, entrá a la Guía para ver todos los detalles de cada sección.",
+      placement: "right",
+    },
+    {
+      target: '[data-tour="sidebar-account"]',
+      title: "Mi cuenta",
+      content:
+        "Configurá tu perfil, tema, contraseña, MFA y opciones de IA desde tu panel de usuario.",
+      placement: "right",
+    },
+  ];
+}
 
-export default function OnboardingWalkthrough() {
+export default function OnboardingWalkthrough({
+  onOpenPanel,
+}: {
+  onOpenPanel: (open: boolean) => void;
+}) {
   const [run, setRun] = useState(false);
+  const tourSteps = buildTourSteps(onOpenPanel);
 
   useEffect(() => {
     try {
@@ -90,7 +108,7 @@ export default function OnboardingWalkthrough() {
   return (
     <Joyride
       run={run}
-      steps={TOUR_STEPS}
+      steps={tourSteps}
       onEvent={handleEvent}
       continuous
       locale={{

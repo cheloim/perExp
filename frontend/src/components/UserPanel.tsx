@@ -1015,7 +1015,7 @@ export default function UserPanel({ open, onClose }: Props) {
               <hr className="border-[var(--border-color)]" />
 
               {/* Telegram Bot */}
-              <div>
+              <div data-tour="userpanel-telegram">
                 <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide mb-3">
                   Telegram Bot
                 </h3>

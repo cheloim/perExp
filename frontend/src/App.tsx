@@ -572,7 +572,7 @@ function MainLayout() {
             )}
             {isInvestments && <InvestmentsAssistant />}
             <Suspense fallback={null}>
-              <OnboardingWalkthrough />
+              <OnboardingWalkthrough onOpenPanel={setUserPanelOpen} />
             </Suspense>
           </div>
 
