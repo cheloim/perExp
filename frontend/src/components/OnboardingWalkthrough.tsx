@@ -128,28 +128,57 @@ export default function OnboardingWalkthrough({
         backgroundColor: "#ffffff",
         overlayColor: "rgba(0, 0, 0, 0.4)",
         showProgress: true,
-        spotlightPadding: 8,
-        spotlightRadius: 8,
-        width: 340,
+        spotlightPadding: 12,
+        spotlightRadius: 10,
+        width: 320,
+        offset: 14,
+        zIndex: 100,
       }}
       styles={{
-        tooltip: { borderRadius: 12, padding: 16 },
+        tooltip: {
+          borderRadius: 14,
+          padding: 20,
+          fontSize: 14,
+          lineHeight: 1.5,
+        },
         tooltipContainer: {
-          borderRadius: 12,
-          border: "1px solid rgba(0,0,0,0.1)",
-          boxShadow: "0 10px 20px rgba(0,0,0,0.1), 0 4px 8px rgba(0,0,0,0.04)",
+          borderRadius: 14,
+          border: "1px solid rgba(0,0,0,0.08)",
+          boxShadow: "0 12px 28px rgba(0,0,0,0.12), 0 4px 10px rgba(0,0,0,0.06)",
+        },
+        tooltipTitle: {
+          fontSize: 16,
+          fontWeight: 600,
+          marginBottom: 6,
+        },
+        tooltipContent: {
+          padding: 0,
+          marginBottom: 16,
+        },
+        tooltipFooter: {
+          marginTop: 0,
+          gap: 8,
         },
         buttonPrimary: {
           backgroundColor: "#3584e4",
           color: "#ffffff",
           borderRadius: 8,
-          padding: "8px 16px",
+          padding: "10px 20px",
           fontSize: 14,
           fontWeight: 500,
           border: "none",
+          minHeight: 40,
         },
-        buttonSkip: { color: "#5e5c64", fontSize: 13 },
-        buttonBack: { color: "#5e5c64", fontSize: 13 },
+        buttonSkip: {
+          color: "#5e5c64",
+          fontSize: 13,
+          padding: "10px 12px",
+        },
+        buttonBack: {
+          color: "#5e5c64",
+          fontSize: 13,
+          padding: "10px 12px",
+        },
       }}
     />
   );
