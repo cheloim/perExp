@@ -149,15 +149,29 @@ export default function OnboardingWalkthrough({
         tooltipTitle: {
           fontSize: 16,
           fontWeight: 600,
-          marginBottom: 6,
+          marginBottom: 8,
         },
         tooltipContent: {
           padding: 0,
-          marginBottom: 16,
+          marginBottom: 0,
         },
         tooltipFooter: {
-          marginTop: 0,
+          marginTop: 16,
+          paddingTop: 14,
+          borderTop: "1px solid rgba(0,0,0,0.06)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
           gap: 8,
+        },
+        buttonClose: {
+          color: "#71717a",
+          fontSize: 12,
+          padding: "6px 8px",
+          borderRadius: 6,
+          position: "absolute",
+          top: 8,
+          right: 8,
         },
         buttonPrimary: {
           backgroundColor: "#3584e4",
