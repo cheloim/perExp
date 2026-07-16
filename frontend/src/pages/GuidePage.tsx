@@ -1107,8 +1107,8 @@ function Callout({
   };
   const icons = { tip: "check" as const, info: "eye" as const, warning: "sparkles" as const };
   return (
-    <div className={`p-3 rounded-lg border text-sm ${styles[type]}`}>
-      <div className="flex items-start gap-2">
+    <div className={`p-4 rounded-lg border text-sm ${styles[type]}`}>
+      <div className="flex items-start gap-3">
         <SymbolicIcon name={icons[type]} size={14} className="mt-0.5 flex-shrink-0 opacity-70" />
         <div>{children}</div>
       </div>
