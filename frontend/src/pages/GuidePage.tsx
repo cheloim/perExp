@@ -153,8 +153,8 @@ export default function GuidePage() {
               ]}
             />
             <Callout type="tip">
-              También podés registrarte con tu cuenta de Google haciendo click en \"Continuar con
-              Google\".
+              También podés registrarte con tu cuenta de Google haciendo click en "Continuar con
+              Google".
             </Callout>
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Iniciar sesión</h4>
@@ -216,7 +216,7 @@ export default function GuidePage() {
             </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
               Muestra los últimos gastos. Usá los botones de días (3d, 5d, 7d, 10d) para filtrar por
-              recencia. Hacé click en \"Ver todos\" para ir a la página completa de gastos.
+              recencia. Hacé click en "Ver todos" para ir a la página completa de gastos.
             </p>
 
             <h4 className="font-semibold text-[var(--text-primary)] mb-2">Métodos de pago</h4>
@@ -232,7 +232,7 @@ export default function GuidePage() {
 
             <h4 className="font-semibold text-[var(--text-primary)] mb-2">Nuevo gasto rápido</h4>
             <p className="text-sm text-[var(--text-secondary)]">
-              El botón \"+ Nuevo gasto\" en la parte superior abre el formulario para crear un gasto
+              El botón "+ Nuevo gasto" en la parte superior abre el formulario para crear un gasto
               directamente desde el dashboard.
             </p>
           </Chapter>
@@ -415,7 +415,7 @@ export default function GuidePage() {
             </p>
             <ul className="list-disc list-inside text-sm text-[var(--text-secondary)] space-y-1">
               <li>
-                <strong>Categoría</strong> — filtrá por categoría específica o \"Sin categoría\"
+                <strong>Categoría</strong> — filtrá por categoría específica o "Sin categoría"
               </li>
               <li>
                 <strong>Cuenta</strong> — filtrá por tarjeta o cuenta
@@ -445,8 +445,8 @@ export default function GuidePage() {
             </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
               Las categorías son jerárquicas: una <strong>categoría padre</strong> (ej:
-              \"Alimentación\") agrupa <strong>subcategorías\"</strong> (ej: \"Supermercado\",
-              \"Café/Bar\", \"Restaurante\"). Las subcategorías pueden tener{" "}
+              "Alimentación") agrupa <strong>subcategorías"</strong> (ej: "Supermercado",
+              "Café/Bar", "Restaurante"). Las subcategorías pueden tener{" "}
               <strong>palabras clave</strong> para auto-categorización.
             </p>
 
@@ -454,7 +454,7 @@ export default function GuidePage() {
               Aplicar estructura base
             </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Si es tu primera vez, hacé click en \"Aplicar estructura base\" para crear
+              Si es tu primera vez, hacé click en "Aplicar estructura base" para crear
               automáticamente las categorías predefinidas (Alimentación, Transporte, Servicios,
               Entretenimiento, etc.).
             </p>
@@ -495,8 +495,8 @@ export default function GuidePage() {
               Recategorizar gastos
             </h4>
             <p className="text-sm text-[var(--text-secondary)]">
-              Si tenés gastos sin categoría, hacé click en \"Recategorizar sin categoría\" para que
-              la IA sugiera categorías basándose en las descripciones.
+              Si tenés gastos sin categoría, hacé click en "Recategorizar sin categoría" para que la
+              IA sugiera categorías basándose en las descripciones.
             </p>
           </Chapter>
 
@@ -577,15 +577,15 @@ export default function GuidePage() {
               Ejecutar una cuota manualmente
             </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Si querés registrar una cuota antes de la fecha, hacé click en \"Gestionar\" en el
-              grupo y luego en \"Ejecutar ahora\" en la cuota pendiente.
+              Si querés registrar una cuota antes de la fecha, hacé click en "Gestionar" en el grupo
+              y luego en "Ejecutar ahora" en la cuota pendiente.
             </p>
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
               Cancelar una cuota
             </h4>
             <p className="text-sm text-[var(--text-secondary)]">
-              En el grupo de cuotas, hacé click en \"Gestionar\" y luego en \"Cancelar\" en la cuota
+              En el grupo de cuotas, hacé click en "Gestionar" y luego en "Cancelar" en la cuota
               pendiente. La cuota se marca como cancelada y no se ejecuta.
             </p>
           </Chapter>
@@ -650,8 +650,8 @@ export default function GuidePage() {
               Sincronizar con brokers
             </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Si configuraste credenciales de IOL o PPI, hacé click en \"Sincronizar\" para
-              actualizar precios y posiciones automáticamente.
+              Si configuraste credenciales de IOL o PPI, hacé click en "Sincronizar" para actualizar
+              precios y posiciones automáticamente.
             </p>
             <Steps
               items={[
@@ -664,7 +664,7 @@ export default function GuidePage() {
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Toggle ARS/USD</h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              El botón \"ARS\"/\"USD\" en la barra de herramientas convierte todos los valores entre
+              El botón "ARS"/"USD" en la barra de herramientas convierte todos los valores entre
               pesos y dólares.
             </p>
 
@@ -752,15 +752,15 @@ export default function GuidePage() {
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Vista previa</h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              En la vista previa verás: todas las transacciones detectadas, badges de \"Duplicado\"
-              para transacciones repetidas, badges de \"Cuota\" para cuotas generadas
-              automáticamente, y el total de la importación.
+              En la vista previa verás: todas las transacciones detectadas, badges de "Duplicado"
+              para transacciones repetidas, badges de "Cuota" para cuotas generadas automáticamente,
+              y el total de la importación.
             </p>
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Mapeo de tarjeta</h4>
             <p className="text-sm text-[var(--text-secondary)]">
               La IA detecta automáticamente qué tarjeta usaste. Si no la reconoce, seleccioná
-              manualmente una tarjeta existente o elegí \"Otro (crear nueva)\" para crear una nueva.
+              manualmente una tarjeta existente o elegí "Otro (crear nueva)" para crear una nueva.
             </p>
           </Chapter>
 
@@ -810,8 +810,8 @@ export default function GuidePage() {
               Detección de tarjeta en el texto
             </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Si incluís el nombre de la tarjeta y el banco en tu mensaje (ej: \"visa santander
-              verduleria 5999\"), el bot detecta automáticamente la tarjeta y no pregunta por el
+              Si incluís el nombre de la tarjeta y el banco en tu mensaje (ej: "visa santander
+              verduleria 5999"), el bot detecta automáticamente la tarjeta y no pregunta por el
               medio de pago.
             </p>
 
@@ -846,7 +846,7 @@ export default function GuidePage() {
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Analizar el mes</h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Si no hay nada en el chat, aparece un botón \"Analizar gastos del mes\". Hacelo click
+              Si no hay nada en el chat, aparece un botón "Analizar gastos del mes". Hacelo click
               para obtener un análisis completo con tendencias, categorías crecientes/decrescientes,
               alertas y recomendaciones.
             </p>
@@ -867,7 +867,7 @@ export default function GuidePage() {
             </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
               Cada conversación se guarda como sesión. Podés ver sesiones anteriores en la pestaña
-              \"Historial\". La app guarda hasta 30 sesiones. Después de 2 horas de inactividad, se
+              "Historial". La app guarda hasta 30 sesiones. Después de 2 horas de inactividad, se
               crea una sesión nueva automáticamente.
             </p>
 
@@ -914,9 +914,9 @@ export default function GuidePage() {
               Aceptar/rechazar invitación
             </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Cuando alguien te invita, recibís una notificación con botones \"Aceptar\" y
-              \"Rechazar\". Al aceptar, aparece un disclaimer explicando que tus gastos serán
-              visibles para el grupo.
+              Cuando alguien te invita, recibís una notificación con botones "Aceptar" y "Rechazar".
+              Al aceptar, aparece un disclaimer explicando que tus gastos serán visibles para el
+              grupo.
             </p>
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Qué se comparte</h4>
@@ -928,7 +928,7 @@ export default function GuidePage() {
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Salir del grupo</h4>
             <p className="text-sm text-[var(--text-secondary)]">
-              En Configuración → Grupo familiar, hacé click en \"Salir del grupo\". Tus datos se
+              En Configuración → Grupo familiar, hacé click en "Salir del grupo". Tus datos se
               separan del grupo pero se mantienen en tu cuenta.
             </p>
             <Callout type="info">
@@ -1014,8 +1014,8 @@ export default function GuidePage() {
             </h4>
             <ul className="list-disc list-inside text-sm text-[var(--text-secondary)] space-y-1">
               <li>Hacé click en la campana para ver notificaciones</li>
-              <li>\"Marcar todo leído\" para marcar todas como leídas</li>
-              <li>\"Limpiar leídas\" para eliminar notificaciones leídas</li>
+              <li>"Marcar todo leído" para marcar todas como leídas</li>
+              <li>"Limpiar leídas" para eliminar notificaciones leídas</li>
               <li>Hacé click en una notificación para ir a la sección correspondiente</li>
             </ul>
           </Chapter>
