@@ -28,6 +28,15 @@ export default function OAuthCallbackPage() {
     const handleCallback = async () => {
       try {
         const token = await oauthCallback("google", code);
+        if (token.force_password_change) {
+          storeToken(token.access_token);
+          navigate("/login?force_change=1", { replace: true });
+          return;
+        }
+        if (token.mfa_required) {
+          navigate("/login?mfa=1", { replace: true, state: { token: token.access_token } });
+          return;
+        }
         storeToken(token.access_token);
         navigate("/", { replace: true });
       } catch (err: unknown) {
