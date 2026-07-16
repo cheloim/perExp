@@ -43,6 +43,8 @@ class User(Base):
     email_verification_token = Column(String(64), nullable=True, unique=True, index=True)
     # Security: Forced password change
     force_password_change = Column(Boolean, default=False)
+    # Onboarding
+    onboarding_completed = Column(Boolean, default=False)
 
 
 class Group(Base):
