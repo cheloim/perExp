@@ -202,7 +202,9 @@ function CategoryGroupSection({
   const totalBudget = categories.reduce((s, c) => s + c.budget_amount, 0);
   const totalSpent = categories.reduce((s, c) => s + c.spent_amount, 0);
 
-  if (categories.length === 0) return null;
+  // Filter out categories with no budget AND no spending
+  const visibleCategories = categories.filter((c) => c.budget_amount > 0 || c.spent_amount > 0);
+  if (visibleCategories.length === 0) return null;
 
   return (
     <div className="card overflow-hidden">
@@ -214,7 +216,7 @@ function CategoryGroupSection({
           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
           <h3 className="text-sm font-semibold text-primary">{displayName}</h3>
           <span className="text-xs text-[var(--text-tertiary)]">
-            {categories.length} categorías
+            {visibleCategories.length} categorías
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -238,7 +240,7 @@ function CategoryGroupSection({
       </button>
       {expanded && (
         <div className="px-4 pb-4 border-t border-[var(--border-color)]">
-          {categories.map((cat) => (
+          {visibleCategories.map((cat) => (
             <div key={cat.category_id}>
               <CategoryBar
                 name={cat.category_name}
