@@ -1,39 +1,171 @@
-# Bugs
+# Roadmap
 
-## Todo
+## Features
 
+| # | Feature | Status | Effort | PR | Description |
+|---|---------|--------|--------|-----|-------------|
+| 1 | Click-to-edit cards/accounts | ✅ Done | Low | #37 | Card/account rows clickable to enter edit mode |
+| 2 | Expense detail modal | ✅ Done | Low | #38 | Row click opens summary with Cerrar/Editar buttons |
+| 3 | Visual notifications | ✅ Done | Low | #41 | Icons, colored borders, progress bars, toast, QUEUED status |
+| 4 | Dashboard layout fixes | ✅ Done | Low | #47 | Equal height boxes, category limit, transaction scroll |
+| 5 | Installment system fixes | ✅ Done | Medium | #49, #50 | Telegram ScheduledExpenses, projection logic, charts |
+| 6 | Monthly analysis resume | ✅ Done | Medium | #76 | PNG report (1080px, GNOME HIG + Material Design) with KPIs, charts (categories, trends, polar area), Top 5 expenses, LLM analysis |
+| 7 | Weekly Telegram report | ✅ Done | Medium | #76 | PNG image report sent via Telegram bot. Includes weekly spent, accumulated monthly, upcoming installments, Top 10 expenses |
+| 8 | Income module | ⏳ Backlog | High | - | Track income, dashboard comparison vs last months |
+| 9 | Ticket scan | ⏳ Backlog | Medium | - | OCR receipt analysis, compare same items last month |
+| 10 | Expense budgets | ⏳ Backlog | Medium | - | Set spending limits per category |
+| 11 | Make index.html interactive | ✅ Done | Medium | #73 | Click KPI cards to filter expenses, uncategorized warnings |
+| 12 | Billing period tracking | ❌ Not Done | Medium | #63 | Cancelled: Monthly filtering is sufficient |
+| 13 | Missing categories notification | ✅ Done | Medium | #73 | Real-time notifications for uncategorized expenses |
+| 14 | FCI, Plazos Fijos y Cauciones | ⏳ Backlog | Medium | - | Support for Fondos Comunes, Plazos Fijos, and Cauciones |
 
-## Fixed
+## Platform Focus
 
-1. ~~el boton de eliminar todas las notificaciones no hace nada.~~ → Added `refresh()` call after `deleteAllRead` to force SSE re-sync
-2. ~~Cuando agregas una subcategoría deberia seleccionarte la categoria padre desde la que fue seleccionado~~ → Fixed `initial={editing.cat || undefined}` (was `editing.cat?.id` which is falsy for new subcategories)
-3. ~~En /main el graph de gastos por categoria puede crecer infinito~~ → Limited to top 7 categories + "Otros" grouping
-4. ~~Cuando abris un expense debería abrir un modal~~ → Added row-level click handler to open edit modal
-5. ~~Cuando creas tarjeta desde UserPanel, no debería decir Nombre sino Tarjeta~~ → Changed label to "Tarjeta" in AccountsManager, CardsManager, CardAccountModal
-6. ~~El boton de crear tarjeta desde Tarjetas de credito en /index te lleva a /accounts pero no te abre un modal para cargar~~ → Added "Crear tarjeta o cuenta" button to AccountsPage that opens CardAccountModal
-7. ~~En /expenses los gastos en USD aparecen como $~~ → Prefix USD with "USD " in formatCurrency (e.g., "USD $1,234.56")
-8. ~~No está estimando correctamente la "Deuda Tarjeta" — muestra en 0 cuando hay installments configurados~~ → Removed scheduled_date >= today filter, now includes ALL pending installments
-9. ~~Filtro by card/account en /expenses no funciona. No filtra.~~ → Fixed currentCuenta to use IDs instead of names, reconstruct Select value from URL params
-10. ~~Cuando cargas un gasto en Efectivo/Transferencia pero no tenes una cuenta que corresponda, debería abrirte el warning para crear un account~~ → Added warning when payMethod is 'cash' and no accounts exist, with 'Crear cuenta' button
-11. ~~Cuando estas seleccionando una categoría desde el modal de Create Expenses, debería permitir crear una categoría si no está la que buscamos~~ → Added createCategory API call in category onChange handler
-12. ~~Unable to add Main Categories.~~ → Fixed `parentCats` filter to show all root categories (removed `childParentIds.has(c.id)` requirement)
-13. ~~Unable to add expense from Telegram in caja_ahorro account.~~ → Added `_escape_md()` helper to escape Markdown special characters in LLM-generated descriptions
-14. ~~Unable to create expenses from Telegram Bot (Issue #42)~~ → Fixed start() duplicate message, _get_accounts() detached objects, unescaped Markdown in account creation flow
-15. ~~Account created from Telegram Bot no refresh (Issue #43)~~ → Same root causes as #42: conversation state corrupted by duplicate messages and Markdown parse errors
+**Target**: Personal Use / Family  
+**Model**: Freemium  
+**Localization**: Argentina-specific (ARS/USD, AFIP taxes, card types)  
+**Architecture**: Web-first with mobile support (responsive, PWA planned)  
+**Banking**: Manual import only (no API integration)
 
-# Features
+---
 
-## Backlog:
-- ~~Add notifications more visual. Use the same as Import-job started for finish. Effort Low~~ → Visual notification cards with icons, colored borders, progress bars, toast popup
-- Monthly analysis resume - Effort medium
-- Add Weekly and Resume by telegram bot, Adjustable from UserPanel. Effort medium
-- Create Income module and integrate with dashboards. Effort High.
-    - Dashboard comparison saving from last months.
-- Create ticket scan feature to analyze market buys. Effort Medium.
-    - Allow comparison same items last month.
- - Allow creation of budgets for expenses.
+## Phase 1: Quick Wins (Low Effort, High Value)
 
-## Done
-1. ~~Allow edit card/account by clicking in that account in UserPanel --> Accounts~~ → Made card/account rows clickable to enter edit mode; ··· menu now only shows Delete option
-2. ~~Click on expense row in /expenses opens summary modal~~ → New ExpenseDetailModal showing category, account, date, description, amount, notes with Cerrar/Editar buttons
-3. ~~Notifications more visual with icons, progress bars, toast popup~~ → Visual notification cards with colored borders, status icons (upload/queued/processing/success/failed), determinate upload progress bar, toast on notification arrival, QUEUED status for jobs waiting on Redis lock
+### 1️⃣ Recurring Expenses Tracking
+- **Effort**: Medium | **Freemium**: Free
+- Mark expenses as recurring (subscriptions, gym, insurance, etc.)
+- Auto-suggest potential recurring expenses based on merchant + amount matching
+- Subscriptions dashboard: list all recurring with next charge date
+- Monthly summary card on dashboard
+- Telegram bot: Parse recurring from messages ("Netflix $5 every month")
+- Ability to pause/cancel recurring
+- Alert before next charge (configurable days before)
+
+### 2️⃣ Savings Goals
+- **Effort**: Low | **Freemium**: Free
+- Create goals: name, target amount, target date
+- Dashboard card: progress bar, % complete, $remaining
+- Multiple concurrent goals tracking
+- Goal completion notifications via Telegram
+- Monthly insights: "You saved $X towards your goals"
+- Integration with budgets: Budget under X to reach goal
+
+### 3️⃣ Bill Reminders
+- **Effort**: Low | **Freemium**: Free
+- Link bill amounts to expenses ("Electricity $150 on 15th")
+- Dashboard: Upcoming bills card (next 5 bills with dates)
+- Telegram reminder: Day before due + configurable early alerts
+- Snooze reminder (+1, 3, 7 days)
+- Mark bill as paid (auto-creates expense if desired)
+- Calendar view of monthly bills
+- Estimated total bill spending per month
+
+---
+
+## Phase 2: Medium Effort (Higher Value)
+
+### 4️⃣ Income Tracking
+- **Effort**: High | **Freemium**: Basic tracking free, advanced analytics premium
+- Income types: Salary, Bonus, Investments, Other
+- Recurring income: Set salary with frequency (monthly, bi-weekly)
+- Dashboard: Total income vs expenses, savings rate % calculation
+- Income trends: Month-over-month, YTD total
+- Projected income: Based on recurring sources
+- **Freemium Premium**: Family dashboard (combined family income), advanced analytics
+- Telegram: Log income ("@bot /income 50000 salary")
+- **Argentina-specific**: Track ARS and USD income separately
+- Income category hierarchy for analysis
+
+### 5️⃣ Receipt OCR Scanning
+- **Effort**: Medium | **Freemium**: Limited scans/month (free), unlimited (premium)
+- Upload receipt image → Gemini Vision API extracts items, amounts, store, date
+- Create multi-item expense from receipt (each item separately)
+- Store receipt metadata for price tracking
+- Historical price tracking: "Coca-Cola $180 last month, now $200"
+- Item-level analytics: Favorite brands, price trends
+- Telegram: Photo upload support ("Send receipt to add items")
+- **Argentina-specific**: Extract VAT and tax info when available
+- Receipt image storage attached to expenses (audit trail)
+
+### 6️⃣ Data Export & Tax Reports
+- **Effort**: Medium | **Freemium**: Basic CSV export free, tax reports premium
+- Export formats: CSV, Excel, PDF
+- **Tax report**: Group expenses by tax category (business, donations, medical, etc.)
+- **Argentina-specific**: Categorize by AFIP requirements for tax filing
+- Date range filtering: Export specific periods
+- Reconciliation report: Compare with bank/card statements
+- Scheduled auto-export: Email monthly reports
+- Income/expense summary for tax filing
+- Category-based breakdown for deductions
+- **Freemium Premium**: Multi-year comparison for tax planning
+
+---
+
+## Phase 3: Out of Scope (Deferred)
+
+The following features are explicitly out of scope for this platform's focus:
+
+- ❌ **Bank API Integration** — Manual import is sufficient; APIs add maintenance burden
+- ❌ **Automated Transaction Sync** — No banking integration (manual import only)
+- ❌ **Webhook Support** — Not needed without external service integration
+- ❌ **IFTTT/Zapier Integration** — Overkill for personal/family use case
+- ❌ **Public API** — Freemium model focuses on app, not third-party integrations
+- ❌ **End-to-End Encryption** — Freemium tier doesn't justify infrastructure complexity
+- ❌ **Gamification** — Streaks, badges, leaderboards out of scope
+- ❌ **Expense Splitting** — Manual tracking sufficient; revisit if high-demand
+- ❌ **Mobile Native Apps** — Web-first with responsive design; PWA planned later
+- ❌ **Predictive ML Models** — Advanced ML reserved for premium tier (future)
+
+---
+
+## Backlog Details
+
+### Monthly Analysis Resume
+Generate a monthly summary report with:
+- Total income vs expenses
+- Savings rate
+- Top spending categories
+- Month-over-month comparison
+
+### Weekly Telegram Report
+- PNG image report sent via Telegram bot every Sunday at 20:00 UTC-3
+- Report content: weekly spent, accumulated monthly, upcoming installments (next week only), Top 10 expenses by category, LLM analysis
+- Image caption includes key metrics + LLM tip
+- Configurable enable/disable from UserPanel → Telegram Bot section
+- Uses Gemini Flash for brief LLM analysis (always active)
+
+### Income Module (Phase 2)
+- Track salary, investments, other income
+- Dashboard: income vs expenses comparison
+- Savings rate calculation
+- Historical comparison (last 3/6/12 months)
+- **Premium**: Family group income aggregation
+
+### Ticket Scan (Phase 2)
+- Upload receipt photo → OCR → extract items + amounts
+- Compare same items across months (price tracking)
+- Market basket analysis
+
+### Expense Budgets
+- Set monthly budget per category
+- Track spending vs budget
+- Alerts when approaching/exceeding limit
+- Flexible (not rigid) budget periods
+
+### Make Index.html Interactive
+- Click on "Deuda Tarjetas" card → filter to credit card expenses
+- Click on "Cuotas este mes" card → filter to installment expenses
+- Make dashboard info boxes clickable and interactive
+
+### Missing Categories Notification
+- Alert user when expenses are created without a category
+- Notification via Telegram bot or dashboard toast
+- Help ensure all expenses are properly categorized for better analysis
+
+### FCI, Plazos Fijos y Cauciones
+- **FCI (Fondos Comunes de Inversión)**: Track money market, fixed income, and equity funds
+- **Plazos Fijos**: Track fixed-term deposits with maturity dates and rates
+- **Cauciones**: Track overnight lending operations
+- Integration with existing investment portfolio
+- Separate tracking from stocks/ETFs
+- Maturity date alerts and reminders
