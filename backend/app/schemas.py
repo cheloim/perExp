@@ -355,10 +355,12 @@ class BudgetSummaryItem(BaseModel):
     category_id: int | None = None
     category_name: str
     category_color: str = ""
-    budgeted: float = 0
-    spent: float = 0
+    budget_amount: float = 0
+    spent_amount: float = 0
+    avg_monthly: float = 0
     percentage: float = 0
     status: str = "no_budget"  # ok | warning | exceeded | no_budget
+    has_budget: bool = False
     children: list["BudgetSummaryItem"] = []
 
 

@@ -54,8 +54,21 @@ function BudgetGroupCard({
           </div>
           <button
             onClick={() => onEdit(group)}
-            className="text-xs text-[var(--text-tertiary)] hover:text-[var(--color-primary)]"
+            className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 rounded-lg px-3 py-1.5 transition-colors"
           >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+              <path d="m15 5 4 4" />
+            </svg>
             Editar
           </button>
         </div>
@@ -114,7 +127,6 @@ function BudgetCategoryBar({
   color,
   spent,
   budget,
-  threshold,
   avgMonthly = 0,
   onAddBudget,
 }: {
@@ -122,7 +134,6 @@ function BudgetCategoryBar({
   color: string;
   spent: number;
   budget: number;
-  threshold: number;
   avgMonthly?: number;
   onAddBudget?: () => void;
 }) {
@@ -156,13 +167,14 @@ function BudgetCategoryBar({
 
   // With budget case
   const pct = budget > 0 ? (spent / budget) * 100 : 0;
-  const status = pct >= 100 ? "exceeded" : pct >= threshold * 100 ? "warning" : "ok";
   const barColor =
-    status === "exceeded"
-      ? "var(--color-error)"
-      : status === "warning"
-        ? "var(--color-warning)"
-        : color;
+    pct >= 100
+      ? "var(--color-danger)"
+      : pct >= 80
+        ? "#e8a100"
+        : pct >= 60
+          ? "var(--gnome-yellow-4)"
+          : "var(--color-success)";
 
   return (
     <div className="flex items-center gap-3 py-2">
@@ -180,7 +192,15 @@ function BudgetCategoryBar({
         {formatCurrency(spent)} / {formatCurrency(budget)}
       </span>
       <span
-        className={`text-xs font-medium w-12 text-right whitespace-nowrap ${status === "exceeded" ? "text-[var(--color-error)]" : status === "warning" ? "text-[var(--color-warning)]" : "text-[var(--text-tertiary)]"}`}
+        className={`text-xs font-medium w-12 text-right whitespace-nowrap ${
+          pct >= 100
+            ? "text-[var(--color-danger)]"
+            : pct >= 80
+              ? "text-[#e8a100]"
+              : pct >= 60
+                ? "text-[var(--gnome-yellow-4)]"
+                : "text-[var(--text-tertiary)]"
+        }`}
       >
         {Math.round(pct)}%
       </span>
@@ -847,7 +867,6 @@ export default function BudgetPage() {
                     color={cat.category_color}
                     spent={cat.spent_amount}
                     budget={cat.budget_amount}
-                    threshold={0.8}
                     avgMonthly={cat.avg_monthly}
                     onAddBudget={() => setShowQuickConfig(true)}
                   />
@@ -858,7 +877,6 @@ export default function BudgetPage() {
                         color={child.category_color}
                         spent={child.spent_amount}
                         budget={child.budget_amount}
-                        threshold={0.8}
                         avgMonthly={child.avg_monthly}
                         onAddBudget={() => setShowQuickConfig(true)}
                       />
