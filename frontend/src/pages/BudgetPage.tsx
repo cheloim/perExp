@@ -18,10 +18,14 @@ import { formatCurrency } from "../utils/format";
 function DonutCircle({
   group,
   color,
+  selected,
+  onSelect,
   onEdit,
 }: {
   group: BudgetGroup;
   color: string;
+  selected: boolean;
+  onSelect: () => void;
   onEdit: (g: BudgetGroup) => void;
 }) {
   const pct = group.amount > 0 ? (group.spent / group.amount) * 100 : 0;
@@ -29,7 +33,10 @@ function DonutCircle({
   const dashOffset = circumference - (Math.min(pct, 100) / 100) * circumference;
 
   return (
-    <div className="card p-5 flex flex-col items-center">
+    <div
+      className={`card p-5 flex flex-col items-center cursor-pointer transition-all ${selected ? "ring-2 ring-[var(--color-primary)] shadow-md" : "hover:shadow-md"}`}
+      onClick={onSelect}
+    >
       <div className="relative w-28 h-28 mb-3">
         <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
           <circle
@@ -671,6 +678,7 @@ export default function BudgetPage() {
   const [showNewEvent, setShowNewEvent] = useState(false);
   const [showQuickConfig, setShowQuickConfig] = useState(false);
   const [editingGroup, setEditingGroup] = useState<BudgetGroup | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
 
   const { data: summary, isLoading: loadingSummary } = useQuery({
     queryKey: ["budget-summary"],
@@ -823,6 +831,8 @@ export default function BudgetPage() {
                   key={g.id}
                   group={g}
                   color={groupColors[g.name] || "var(--color-primary)"}
+                  selected={selectedGroup === g.name}
+                  onSelect={() => setSelectedGroup(selectedGroup === g.name ? null : g.name)}
                   onEdit={setEditingGroup}
                 />
               ))}
@@ -834,15 +844,40 @@ export default function BudgetPage() {
             <div className="lg:col-span-2 space-y-4">
               {summary && summary.categories.length > 0 ? (
                 <>
-                  {/* Group by checking which categories belong to which group */}
-                  {/* For now, show all categories grouped by their parent */}
-                  <CategoryGroupSection
-                    name="necesidades"
-                    displayName="Necesidades"
-                    color="var(--color-primary)"
-                    categories={summary.categories}
-                    onAddBudget={() => setShowQuickConfig(true)}
-                  />
+                  {selectedGroup ? (
+                    <CategoryGroupSection
+                      name={selectedGroup}
+                      displayName={
+                        selectedGroup === "necesidades"
+                          ? "Necesidades"
+                          : selectedGroup === "gustos"
+                            ? "Gustos"
+                            : "Ahorro"
+                      }
+                      color={groupColors[selectedGroup] || "var(--color-primary)"}
+                      categories={summary.categories.filter(
+                        (c) => c.budget_group === selectedGroup,
+                      )}
+                      onAddBudget={() => setShowQuickConfig(true)}
+                    />
+                  ) : (
+                    ["necesidades", "gustos", "ahorro"].map((groupName) => (
+                      <CategoryGroupSection
+                        key={groupName}
+                        name={groupName}
+                        displayName={
+                          groupName === "necesidades"
+                            ? "Necesidades"
+                            : groupName === "gustos"
+                              ? "Gustos"
+                              : "Ahorro"
+                        }
+                        color={groupColors[groupName] || "var(--color-primary)"}
+                        categories={summary.categories.filter((c) => c.budget_group === groupName)}
+                        onAddBudget={() => setShowQuickConfig(true)}
+                      />
+                    ))
+                  )}
                 </>
               ) : (
                 <div className="card p-8 text-center">

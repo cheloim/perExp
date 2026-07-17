@@ -139,6 +139,7 @@ export interface BudgetSummaryItem {
   category_id: number | null;
   category_name: string;
   category_color: string;
+  budget_group: string;
   budget_amount: number;
   spent_amount: number;
   avg_monthly: number;

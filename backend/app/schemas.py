@@ -355,6 +355,7 @@ class BudgetSummaryItem(BaseModel):
     category_id: int | None = None
     category_name: str
     category_color: str = ""
+    budget_group: str = "necesidades"
     budget_amount: float = 0
     spent_amount: float = 0
     avg_monthly: float = 0
