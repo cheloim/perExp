@@ -123,6 +123,8 @@ function CategoryBar({
   avgMonthly?: number;
   onAddBudget?: () => void;
 }) {
+  if (budget === 0 && spent === 0) return null;
+
   if (budget === 0) {
     return (
       <div className="flex items-center gap-3 py-2">
@@ -250,18 +252,20 @@ function CategoryGroupSection({
                 avgMonthly={cat.avg_monthly}
                 onAddBudget={onAddBudget}
               />
-              {cat.children.map((child) => (
-                <div key={child.category_id} className="pl-6">
-                  <CategoryBar
-                    name={child.category_name}
-                    color={child.category_color}
-                    spent={child.spent_amount}
-                    budget={child.budget_amount}
-                    avgMonthly={child.avg_monthly}
-                    onAddBudget={onAddBudget}
-                  />
-                </div>
-              ))}
+              {cat.children
+                .filter((child) => child.budget_amount > 0 || child.spent_amount > 0)
+                .map((child) => (
+                  <div key={child.category_id} className="pl-6">
+                    <CategoryBar
+                      name={child.category_name}
+                      color={child.category_color}
+                      spent={child.spent_amount}
+                      budget={child.budget_amount}
+                      avgMonthly={child.avg_monthly}
+                      onAddBudget={onAddBudget}
+                    />
+                  </div>
+                ))}
             </div>
           ))}
           <button
