@@ -54,8 +54,7 @@ const icons: Record<IconName, string> = {
   settings:
     "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm7-3a7 7 0 0 1-.5 2.5M12 3v2m0 14v2M3 12h2m14 0h2M5.05 5.05l1.41 1.41m12.12 12.12l1.41 1.41M5.05 18.95l1.41-1.41m12.12-12.12l1.41-1.41",
   moon: "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z",
-  upload:
-    "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12",
+  upload: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12",
 };
 
 interface SymbolicIconProps {
