@@ -10,7 +10,7 @@ interface TourStepConfig {
   icon: IconName;
   color: string;
   placement?: "right" | "left" | "bottom" | "top";
-  before?: () => Promise<void> | void;
+  before?: () => Promise<void>;
   after?: () => void;
 }
 
@@ -151,7 +151,6 @@ function ProgressDots({ total, current }: { total: number; current: number }) {
 
 function CustomTooltip({
   backProps,
-  closeProps,
   continuous,
   index,
   isLastStep,
@@ -395,7 +394,6 @@ export default function OnboardingWalkthrough({
         spotlightRadius: 10,
         offset: 14,
         zIndex: 100,
-        hideArrow: true,
       }}
       styles={{
         tooltip: {
