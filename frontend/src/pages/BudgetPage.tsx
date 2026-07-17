@@ -8,7 +8,6 @@ import {
   createBudgetEvent,
   deleteBudgetEvent,
   initBudgetGroups,
-  autoAssignGroups,
 } from "../api/client";
 import type { BudgetGroup, BudgetEvent, BudgetSuggestion, BudgetSummaryItem } from "../types";
 import { formatCurrency } from "../utils/format";
@@ -68,7 +67,7 @@ function DonutCircle({
       </div>
       <h3 className="text-sm font-semibold text-primary mb-1">{group.display_name}</h3>
       <p className="text-xs text-[var(--text-secondary)]">
-        {formatCurrency(group.spent)} / {formatCurrency(group.amount)}
+        {formatCurrency(group.amount - group.spent)} rest. de {formatCurrency(group.amount)}
       </p>
       <div className="flex gap-4 mt-2 text-[10px] text-[var(--text-tertiary)]">
         <span>Comprometido: {formatCurrency(group.committed)}</span>
@@ -790,14 +789,6 @@ export default function BudgetPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["budget-events"] }),
   });
 
-  const autoAssignMutation = useMutation({
-    mutationFn: autoAssignGroups,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["budget-summary"] });
-      qc.invalidateQueries({ queryKey: ["budget-groups"] });
-    },
-  });
-
   const [incomeInput, setIncomeInput] = useState("");
 
   const handleInitGroups = () => {
@@ -831,7 +822,6 @@ export default function BudgetPage() {
   const totalBudget = groups.reduce((s, g) => s + g.amount, 0);
   const totalSpent = groups.reduce((s, g) => s + g.spent, 0);
   const totalAvailable = totalBudget - totalSpent;
-  const totalPct = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
 
   // Group categories by macro group
   const groupColors: Record<string, string> = {
@@ -851,13 +841,6 @@ export default function BudgetPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => autoAssignMutation.mutate()}
-            disabled={autoAssignMutation.isPending}
-            className="px-4 py-2 border border-[var(--border-color)] text-[var(--text-secondary)] rounded-lg text-sm font-medium hover:bg-[var(--color-base-alt)] disabled:opacity-50"
-          >
-            {autoAssignMutation.isPending ? "Asignando..." : "🔄 Auto-asignar grupos"}
-          </button>
           <button
             onClick={() => setShowNewEvent(true)}
             className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90"
@@ -891,12 +874,13 @@ export default function BudgetPage() {
               </p>
             </div>
             <div className="card p-4">
-              <p className="text-[10px] text-[var(--text-tertiary)] uppercase mb-1">Utilizado</p>
-              <p
-                className={`text-lg font-bold ${totalPct >= 100 ? "text-[var(--color-danger)]" : totalPct >= 80 ? "text-[#e8a100]" : "text-[var(--color-success)]"}`}
-              >
-                {Math.round(totalPct)}%
+              <p className="text-[10px] text-[var(--text-tertiary)] uppercase mb-1">
+                Sin presupuesto
               </p>
+              <p className="text-lg font-bold text-[var(--text-secondary)]">
+                {summary?.categories.filter((c) => !c.has_budget).length ?? 0}
+              </p>
+              <p className="text-[10px] text-[var(--text-tertiary)] mt-1">categorías</p>
             </div>
           </div>
 
@@ -919,101 +903,95 @@ export default function BudgetPage() {
             </div>
           </div>
 
-          {/* Category Groups + Events */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-            <div className="lg:col-span-2 space-y-4">
-              {summary && summary.categories.length > 0 ? (
-                <>
-                  {selectedGroup ? (
+          {/* Category Groups */}
+          <div className="mb-6 space-y-4">
+            {summary && summary.categories.length > 0 ? (
+              <>
+                {selectedGroup ? (
+                  <CategoryGroupSection
+                    name={selectedGroup}
+                    displayName={
+                      selectedGroup === "necesidades"
+                        ? "Necesidades"
+                        : selectedGroup === "gustos"
+                          ? "Gustos"
+                          : "Ahorro"
+                    }
+                    color={groupColors[selectedGroup] || "var(--color-primary)"}
+                    categories={summary.categories.filter((c) => c.budget_group === selectedGroup)}
+                    onAddBudget={() => setShowQuickConfig(true)}
+                  />
+                ) : (
+                  groups.map((g) => (
                     <CategoryGroupSection
-                      name={selectedGroup}
-                      displayName={
-                        selectedGroup === "necesidades"
-                          ? "Necesidades"
-                          : selectedGroup === "gustos"
-                            ? "Gustos"
-                            : "Ahorro"
-                      }
-                      color={groupColors[selectedGroup] || "var(--color-primary)"}
-                      categories={summary.categories.filter(
-                        (c) => c.budget_group === selectedGroup,
-                      )}
+                      key={g.name}
+                      name={g.name}
+                      displayName={g.display_name}
+                      color={groupColors[g.name] || "var(--color-primary)"}
+                      categories={summary.categories.filter((c) => c.budget_group === g.name)}
                       onAddBudget={() => setShowQuickConfig(true)}
                     />
-                  ) : (
-                    ["necesidades", "gustos", "ahorro"].map((groupName) => (
-                      <CategoryGroupSection
-                        key={groupName}
-                        name={groupName}
-                        displayName={
-                          groupName === "necesidades"
-                            ? "Necesidades"
-                            : groupName === "gustos"
-                              ? "Gustos"
-                              : "Ahorro"
-                        }
-                        color={groupColors[groupName] || "var(--color-primary)"}
-                        categories={summary.categories.filter((c) => c.budget_group === groupName)}
-                        onAddBudget={() => setShowQuickConfig(true)}
-                      />
-                    ))
-                  )}
-                </>
-              ) : (
-                <div className="card p-8 text-center">
-                  <p className="text-sm text-[var(--text-secondary)] mb-4">
-                    No hay presupuestos configurados
-                  </p>
-                  <button
-                    onClick={() => setShowQuickConfig(true)}
-                    className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90"
-                  >
-                    + Agregar primer presupuesto
-                  </button>
-                </div>
-              )}
-            </div>
+                  ))
+                )}
+              </>
+            ) : (
+              <div className="card p-8 text-center">
+                <p className="text-sm text-[var(--text-secondary)] mb-4">
+                  No hay presupuestos configurados
+                </p>
+                <button
+                  onClick={() => setShowQuickConfig(true)}
+                  className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90"
+                >
+                  + Agregar primer presupuesto
+                </button>
+              </div>
+            )}
+          </div>
 
-            {/* Events */}
-            <div className="card p-5">
+          {/* Events — full width */}
+          {events.length > 0 && (
+            <div className="card p-5 mb-6">
               <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">
                 Eventos Temporales
               </h2>
-              {events.length > 0 ? (
-                <div className="space-y-3">
-                  {events.map((event) => (
-                    <EventCard
-                      key={event.id}
-                      event={event}
-                      onDelete={(id) => deleteEventMutation.mutate(id)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-xs text-[var(--text-tertiary)] mb-2">
-                    No hay eventos temporales
-                  </p>
-                  <button
-                    onClick={() => setShowNewEvent(true)}
-                    className="text-xs text-[var(--color-primary)] hover:underline"
-                  >
-                    + Crear evento
-                  </button>
-                </div>
-              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {events.map((event) => (
+                  <EventCard
+                    key={event.id}
+                    event={event}
+                    onDelete={(id) => deleteEventMutation.mutate(id)}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </>
       ) : (
         /* Init Screen */
         <div className="card p-8 mb-6">
           <div className="text-center mb-6">
+            <div className="w-16 h-16 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center mx-auto mb-4">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--color-primary)"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 12a9 9 0 1 1-9-9" />
+                <path d="M21 3v9h-9" />
+              </svg>
+            </div>
             <h3 className="text-lg font-semibold text-primary mb-2">
-              Inicializá tu presupuesto 50/30/20
+              Empezá a controlar tu presupuesto
             </h3>
-            <p className="text-sm text-[var(--text-secondary)]">
-              Distribuí tu ingreso mensual en 3 macro grupos
+            <p className="text-sm text-[var(--text-secondary)] max-w-md mx-auto">
+              Definí cuánto querés gastar en cada categoría y la app te avisa cuando te acercás al
+              límite.
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
