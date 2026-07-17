@@ -9,8 +9,8 @@
 | 3 | Visual notifications | ✅ Done | Low | #41 | Icons, colored borders, progress bars, toast, QUEUED status |
 | 4 | Dashboard layout fixes | ✅ Done | Low | #47 | Equal height boxes, category limit, transaction scroll |
 | 5 | Installment system fixes | ✅ Done | Medium | #49, #50 | Telegram ScheduledExpenses, projection logic, charts |
-| 6 | Monthly analysis resume | ✅ Done | Medium | #76 | PNG report (1080px, GNOME HIG + Material Design) with KPIs, charts (categories, trends, polar area), Top 5 expenses, LLM analysis |
-| 7 | Weekly Telegram report | ✅ Done | Medium | #76 | PNG image report sent via Telegram bot. Includes weekly spent, accumulated monthly, upcoming installments, Top 10 expenses |
+| 6 | Monthly analysis resume | ✅ Done | Medium | #76 | PNG report (1080px, GNOME HIG + Material Design) with KPIs, charts |
+| 7 | Weekly Telegram report | ✅ Done | Medium | #76 | PNG image report sent via Telegram bot. Includes weekly spent, accumulated monthly |
 | 8 | Income module | ⏳ Backlog | High | - | Track income, dashboard comparison vs last months |
 | 9 | Ticket scan | ⏳ Backlog | Medium | - | OCR receipt analysis, compare same items last month |
 | 10 | Expense budgets | ⏳ Backlog | Medium | - | Set spending limits per category |
@@ -18,6 +18,12 @@
 | 12 | Billing period tracking | ❌ Not Done | Medium | #63 | Cancelled: Monthly filtering is sufficient |
 | 13 | Missing categories notification | ✅ Done | Medium | #73 | Real-time notifications for uncategorized expenses |
 | 14 | FCI, Plazos Fijos y Cauciones | ⏳ Backlog | Medium | - | Support for Fondos Comunes, Plazos Fijos, and Cauciones |
+| 15 | Recurring expenses tracking | ⏳ Backlog | Medium | - | Mark expenses as recurring, auto-suggest duplicates, manage subscriptions |
+| 16 | Savings goals | ⏳ Backlog | Low | - | Create, track, and visualize savings targets with progress indicators |
+| 17 | Bill reminders | ⏳ Backlog | Low | - | Upcoming bill notifications via Telegram and dashboard alerts |
+| 18 | Income tracking (Phase 2) | ⏳ Backlog | High | - | Track salary, investments, other income sources with dashboard integration |
+| 19 | Receipt OCR scanning (Phase 2) | ⏳ Backlog | Medium | - | Upload receipt photos, extract items and amounts with historical price tracking |
+| 20 | Data export & tax reports (Phase 2) | ⏳ Backlog | Medium | - | Export transactions in tax-friendly formats for Argentina tax filing |
 
 ## Platform Focus
 
@@ -134,6 +140,32 @@ Generate a monthly summary report with:
 - Configurable enable/disable from UserPanel → Telegram Bot section
 - Uses Gemini Flash for brief LLM analysis (always active)
 
+### Recurring Expenses Tracking (Phase 1)
+- Mark expenses as recurring (subscriptions, gym, insurance, etc.)
+- Auto-suggest potential recurring expenses based on merchant + amount matching
+- Subscriptions dashboard: list all recurring with next charge date
+- Monthly summary card on dashboard
+- Telegram bot: Parse recurring from messages ("Netflix $5 every month")
+- Ability to pause/cancel recurring
+- Alert before next charge (configurable days before)
+
+### Savings Goals (Phase 1)
+- Create goals: name, target amount, target date
+- Dashboard card: progress bar, % complete, $remaining
+- Multiple concurrent goals tracking
+- Goal completion notifications via Telegram
+- Monthly insights: "You saved $X towards your goals"
+- Integration with budgets: Budget under X to reach goal
+
+### Bill Reminders (Phase 1)
+- Link bill amounts to expenses ("Electricity $150 on 15th")
+- Dashboard: Upcoming bills card (next 5 bills with dates)
+- Telegram reminder: Day before due + configurable early alerts
+- Snooze reminder (+1, 3, 7 days)
+- Mark bill as paid (auto-creates expense if desired)
+- Calendar view of monthly bills
+- Estimated total bill spending per month
+
 ### Income Module (Phase 2)
 - Track salary, investments, other income
 - Dashboard: income vs expenses comparison
@@ -145,6 +177,16 @@ Generate a monthly summary report with:
 - Upload receipt photo → OCR → extract items + amounts
 - Compare same items across months (price tracking)
 - Market basket analysis
+
+### Data Export & Tax Reports (Phase 2)
+- Export formats: CSV, Excel, PDF
+- Tax report: Group expenses by tax category
+- **Argentina-specific**: Categorize by AFIP requirements for tax filing
+- Date range filtering: Export specific periods
+- Reconciliation report: Compare with bank/card statements
+- Scheduled auto-export: Email monthly reports
+- Income/expense summary for tax filing
+- Category-based breakdown for deductions
 
 ### Expense Budgets
 - Set monthly budget per category
