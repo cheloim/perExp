@@ -37,7 +37,7 @@ const TABS = [
   { path: "/accounts", label: "Cuentas", icon: "accounts", exact: false, tour: "sidebar-accounts" },
   { path: "/expenses", label: "Gastos", icon: "expenses", exact: false, tour: "sidebar-expenses" },
   { path: "/cat-dashboard", label: "Categorías", icon: "catDashboard", exact: false },
-  { path: "/budget", label: "Presupuesto", icon: "chart-bar", exact: false },
+  { path: "/budget", label: "Presupuesto", icon: "chartBar", exact: false },
   { path: "/installments", label: "Cuotas", icon: "installments", exact: false },
   { path: "/investments", label: "Inversiones", icon: "investments", exact: false },
   { path: "/categories", label: "Config. Categorías", icon: "settings", exact: false },

@@ -231,6 +231,21 @@ export const sidebarIcons = {
       <circle cx="16" cy="10" r="1.5" fill="currentColor" />
     </svg>
   ),
+  chartBar: (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect x="2" y="10" width="3" height="8" rx="0.5" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="8.5" y="6" width="3" height="12" rx="0.5" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="15" y="3" width="3" height="15" rx="0.5" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  ),
   guide: (
     <svg
       aria-hidden="true"
