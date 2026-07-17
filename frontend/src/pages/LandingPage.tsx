@@ -46,11 +46,15 @@ export default function LandingPage() {
               </div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[var(--text-primary)] tracking-tight mb-6 leading-[1.1]">
                 Organizá tus finanzas
-                <span className="text-[var(--color-primary)]"> sin esfuerzo</span>
+                <span className="text-[var(--color-primary)]">
+                  {" "}
+                  sin esfuerzo
+                </span>
               </h1>
               <p className="text-lg text-[var(--text-secondary)] mb-8 leading-relaxed max-w-lg">
-                Registra gastos con un mensaje, analizá tus hábitos y tomá mejores decisiones. Todo
-                con inteligencia artificial y desde tu celular.
+                Registra gastos con un mensaje, analizá tus hábitos y tomá
+                mejores decisiones. Todo con inteligencia artificial y desde tu
+                celular.
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <a
@@ -68,11 +72,19 @@ export default function LandingPage() {
               </div>
               <div className="flex items-center gap-6 mt-8 text-sm text-[var(--text-secondary)]">
                 <span className="flex items-center gap-1.5">
-                  <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
+                  <SymbolicIcon
+                    name="check"
+                    size={14}
+                    className="text-[var(--gnome-green-5)]"
+                  />
                   Sin tarjeta de crédito
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
+                  <SymbolicIcon
+                    name="check"
+                    size={14}
+                    className="text-[var(--gnome-green-5)]"
+                  />
                   Datos seguros
                 </span>
               </div>
@@ -98,7 +110,8 @@ export default function LandingPage() {
               ¿Por qué Oikonomia?
             </h2>
             <p className="text-lg text-[var(--text-secondary)] max-w-2xl mx-auto">
-              Herramientas diseñadas para que tomes el control de tus finanzas personales.
+              Herramientas diseñadas para que tomes el control de tus finanzas
+              personales.
             </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -185,8 +198,9 @@ export default function LandingPage() {
                 Reportes que te ayudan a decidir
               </h2>
               <p className="text-lg text-[var(--text-secondary)] mb-6 leading-relaxed">
-                Visualizá tus gastos por categoría, mes y tarjeta. Analizá tendencias y compará
-                meses anteriores para saber exactamente a dónde va tu dinero.
+                Visualizá tus gastos por categoría, mes y tarjeta. Analizá
+                tendencias y compará meses anteriores para saber exactamente a
+                dónde va tu dinero.
               </p>
               <ul className="space-y-3 text-[var(--text-secondary)]">
                 <li className="flex items-start gap-3">
@@ -237,8 +251,9 @@ export default function LandingPage() {
                 Código abierto y auditable
               </h2>
               <p className="text-lg text-[var(--text-secondary)] mb-6 leading-relaxed">
-                Nuestro código está publicado en GitHub. Cualquiera puede auditar cómo procesamos
-                tus datos, qué algoritmos usamos y cómo protegemos tu información.
+                Nuestro código está publicado en GitHub. Cualquiera puede
+                auditar cómo procesamos tus datos, qué algoritmos usamos y cómo
+                protegemos tu información.
               </p>
               <a
                 href="https://github.com/cheloim/perExp"
@@ -271,7 +286,8 @@ export default function LandingPage() {
               Tus datos están seguros
             </h2>
             <p className="text-lg text-[var(--text-secondary)] max-w-2xl mx-auto mb-10">
-              Cifrado de extremo a extremo, servidores seguros y control total sobre tus datos.
+              Cifrado de extremo a extremo, servidores seguros y control total
+              sobre tus datos.
             </p>
             <div className="grid sm:grid-cols-3 gap-5">
               <SecurityItem
@@ -334,7 +350,8 @@ export default function LandingPage() {
             ¿Listo para tomar el control?
           </h2>
           <p className="text-lg text-[var(--text-secondary)] mb-8">
-            Uní miles de personas que ya están organizando sus finanzas con Oikonomia.
+            Uní miles de personas que ya están organizando sus finanzas con
+            Oikonomia.
           </p>
           <a
             href="https://platform.oikonomia.ar/register"
@@ -344,7 +361,10 @@ export default function LandingPage() {
           </a>
           <p className="mt-4 text-sm text-[var(--text-secondary)]">
             ¿Tenés dudas?{" "}
-            <a href="/guide" className="text-[var(--color-primary)] hover:underline font-medium">
+            <a
+              href="/guide"
+              className="text-[var(--color-primary)] hover:underline font-medium"
+            >
               Mirá la guía de usuario
             </a>
           </p>
@@ -360,14 +380,18 @@ export default function LandingPage() {
                 <div className="w-8 h-8 rounded-lg bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-sm">
                   O
                 </div>
-                <span className="font-semibold text-[var(--text-primary)]">Oikonomia</span>
+                <span className="font-semibold text-[var(--text-primary)]">
+                  Oikonomia
+                </span>
               </div>
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                 Tu planificador financiero personal con inteligencia artificial.
               </p>
             </div>
             <div>
-              <h4 className="font-semibold text-[var(--text-primary)] mb-3">Producto</h4>
+              <h4 className="font-semibold text-[var(--text-primary)] mb-3">
+                Producto
+              </h4>
               <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
                 <li>
                   <a
@@ -378,7 +402,10 @@ export default function LandingPage() {
                   </a>
                 </li>
                 <li>
-                  <a href="/guide" className="hover:text-[var(--text-primary)] transition">
+                  <a
+                    href="/guide"
+                    className="hover:text-[var(--text-primary)] transition"
+                  >
                     Guía de usuario
                   </a>
                 </li>
@@ -401,10 +428,15 @@ export default function LandingPage() {
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-[var(--text-primary)] mb-3">Legal</h4>
+              <h4 className="font-semibold text-[var(--text-primary)] mb-3">
+                Legal
+              </h4>
               <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
                 <li>
-                  <a href="/privacy" className="hover:text-[var(--text-primary)] transition">
+                  <a
+                    href="/privacy"
+                    className="hover:text-[var(--text-primary)] transition"
+                  >
                     Política de Privacidad
                   </a>
                 </li>
@@ -420,7 +452,8 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="pt-8 border-t border-[var(--border-color)] text-center text-sm text-[var(--text-secondary)]">
-            © {new Date().getFullYear()} Oikonomia. Todos los derechos reservados.
+            © {new Date().getFullYear()} Oikonomia. Todos los derechos
+            reservados.
           </div>
         </div>
       </footer>
@@ -441,7 +474,10 @@ function AppWindowMockup() {
           <div className="w-3 h-3 rounded-full bg-[var(--color-danger)]" />
           <div className="w-3 h-3 rounded-full bg-[var(--gnome-yellow-4)]" />
           <div className="w-3 h-3 rounded-full bg-[var(--gnome-green-4)]" />
-          <span className="ml-2 text-xs font-medium" style={{ color: "var(--text-primary)" }}>
+          <span
+            className="ml-2 text-xs font-medium"
+            style={{ color: "var(--text-primary)" }}
+          >
             Oikonomia
           </span>
         </div>
@@ -450,79 +486,230 @@ function AppWindowMockup() {
           {/* KPI Row - matches real Dashboard layout */}
           <div className="grid grid-cols-2 gap-2">
             <div className="p-2.5 rounded-xl border border-[var(--border-color)]">
-              <p className="text-[8px] uppercase tracking-wider mb-0.5" style={{ color: "var(--text-secondary)" }}>
+              <p
+                className="text-[8px] uppercase tracking-wider mb-0.5"
+                style={{ color: "var(--text-secondary)" }}
+              >
                 Total gastado
               </p>
-              <p className="text-sm font-bold" style={{ color: "var(--color-primary)" }}>$187.450</p>
-              <p className="text-[9px] mt-0.5" style={{ color: "var(--text-secondary)" }}>42 transacciones</p>
+              <p
+                className="text-sm font-bold"
+                style={{ color: "var(--color-primary)" }}
+              >
+                $187.450
+              </p>
+              <p
+                className="text-[9px] mt-0.5"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                42 transacciones
+              </p>
             </div>
             <div className="p-2.5 rounded-xl border border-[var(--border-color)]">
-              <p className="text-[8px] uppercase tracking-wider mb-0.5" style={{ color: "var(--text-secondary)" }}>
+              <p
+                className="text-[8px] uppercase tracking-wider mb-0.5"
+                style={{ color: "var(--text-secondary)" }}
+              >
                 Deuda tarjetas
               </p>
-              <p className="text-sm font-bold" style={{ color: "var(--color-danger)" }}>$321.800</p>
-              <p className="text-[9px] mt-0.5" style={{ color: "var(--text-secondary)" }}>8 cuotas pendientes</p>
+              <p
+                className="text-sm font-bold"
+                style={{ color: "var(--color-danger)" }}
+              >
+                $321.800
+              </p>
+              <p
+                className="text-[9px] mt-0.5"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                8 cuotas pendientes
+              </p>
             </div>
             <div className="p-2.5 rounded-xl border border-[var(--border-color)]">
-              <p className="text-[8px] uppercase tracking-wider mb-0.5" style={{ color: "var(--text-secondary)" }}>
+              <p
+                className="text-[8px] uppercase tracking-wider mb-0.5"
+                style={{ color: "var(--text-secondary)" }}
+              >
                 Cuotas este mes
               </p>
-              <p className="text-sm font-bold" style={{ color: "var(--color-primary)" }}>$54.200</p>
-              <p className="text-[9px] mt-0.5" style={{ color: "var(--text-secondary)" }}>6 cuotas</p>
+              <p
+                className="text-sm font-bold"
+                style={{ color: "var(--color-primary)" }}
+              >
+                $54.200
+              </p>
+              <p
+                className="text-[9px] mt-0.5"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                6 cuotas
+              </p>
             </div>
             <div className="p-2.5 rounded-xl border border-[var(--border-color)]">
-              <p className="text-[8px] uppercase tracking-wider mb-0.5" style={{ color: "var(--text-secondary)" }}>
+              <p
+                className="text-[8px] uppercase tracking-wider mb-0.5"
+                style={{ color: "var(--text-secondary)" }}
+              >
                 vs Mes anterior
               </p>
-              <p className="text-sm font-bold" style={{ color: "var(--gnome-green-5)" }}>↓ 12.3%</p>
-              <p className="text-[9px] mt-0.5" style={{ color: "var(--text-secondary)" }}>Gastaste menos</p>
+              <p
+                className="text-sm font-bold"
+                style={{ color: "var(--gnome-green-5)" }}
+              >
+                ↓ 12.3%
+              </p>
+              <p
+                className="text-[9px] mt-0.5"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                Gastaste menos
+              </p>
             </div>
           </div>
           {/* Category section - matches real "Gastos por Categoría" */}
           <div className="rounded-xl border border-[var(--border-color)] p-2.5">
-            <p className="text-[10px] font-semibold mb-2" style={{ color: "var(--color-primary)" }}>
+            <p
+              className="text-[10px] font-semibold mb-2"
+              style={{ color: "var(--color-primary)" }}
+            >
               Gastos por Categoría
             </p>
             <div className="flex gap-3">
               {/* Mini donut */}
               <div className="flex-shrink-0">
-                <svg width="64" height="64" viewBox="0 0 36 36" className="-rotate-90">
-                  <circle cx="18" cy="18" r="14" fill="none" stroke="var(--color-base-alt)" strokeWidth="5" />
-                  <circle cx="18" cy="18" r="14" fill="none" stroke="var(--color-primary)" strokeWidth="5"
-                    strokeDasharray="33.17 87.96" strokeDashoffset="0"
-                    className="origin-center animate-donut-draw" />
-                  <circle cx="18" cy="18" r="14" fill="none" stroke="var(--gnome-blue-4)" strokeWidth="5"
-                    strokeDasharray="22.59 87.96" strokeDashoffset="-33.17"
-                    className="origin-center animate-donut-draw delay-200" />
-                  <circle cx="18" cy="18" r="14" fill="none" stroke="var(--gnome-yellow-4)" strokeWidth="5"
-                    strokeDasharray="15.83 87.96" strokeDashoffset="-55.76"
-                    className="origin-center animate-donut-draw delay-300" />
-                  <circle cx="18" cy="18" r="14" fill="none" stroke="var(--gnome-gray-2)" strokeWidth="5"
-                    strokeDasharray="16.37 87.96" strokeDashoffset="-71.59"
-                    className="origin-center animate-donut-draw delay-300" />
+                <svg
+                  width="64"
+                  height="64"
+                  viewBox="0 0 36 36"
+                  className="-rotate-90"
+                >
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="14"
+                    fill="none"
+                    stroke="var(--color-base-alt)"
+                    strokeWidth="5"
+                  />
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="14"
+                    fill="none"
+                    stroke="var(--color-primary)"
+                    strokeWidth="5"
+                    strokeDasharray="33.17 87.96"
+                    strokeDashoffset="0"
+                    className="origin-center animate-donut-draw"
+                  />
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="14"
+                    fill="none"
+                    stroke="var(--gnome-blue-4)"
+                    strokeWidth="5"
+                    strokeDasharray="22.59 87.96"
+                    strokeDashoffset="-33.17"
+                    className="origin-center animate-donut-draw delay-200"
+                  />
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="14"
+                    fill="none"
+                    stroke="var(--gnome-yellow-4)"
+                    strokeWidth="5"
+                    strokeDasharray="15.83 87.96"
+                    strokeDashoffset="-55.76"
+                    className="origin-center animate-donut-draw delay-300"
+                  />
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="14"
+                    fill="none"
+                    stroke="var(--gnome-gray-2)"
+                    strokeWidth="5"
+                    strokeDasharray="16.37 87.96"
+                    strokeDashoffset="-71.59"
+                    className="origin-center animate-donut-draw delay-300"
+                  />
                 </svg>
               </div>
               {/* Category bars */}
               <div className="flex-1 space-y-1.5">
                 {[
-                  { name: "Alimentación", pct: 38, color: "var(--color-primary)", amt: "$71.230", var: "↓5%", varColor: "var(--gnome-green-5)" },
-                  { name: "Transporte", pct: 18, color: "var(--gnome-blue-4)", amt: "$33.740", var: "↑12%", varColor: "var(--color-danger)" },
-                  { name: "Servicios", pct: 15, color: "var(--gnome-yellow-4)", amt: "$28.120", var: "→0%", varColor: "var(--text-secondary)" },
-                  { name: "Salud", pct: 12, color: "var(--gnome-green-4)", amt: "$22.490", var: "↓8%", varColor: "var(--gnome-green-5)" },
+                  {
+                    name: "Alimentación",
+                    pct: 38,
+                    color: "var(--color-primary)",
+                    amt: "$71.230",
+                    var: "↓5%",
+                    varColor: "var(--gnome-green-5)",
+                  },
+                  {
+                    name: "Transporte",
+                    pct: 18,
+                    color: "var(--gnome-blue-4)",
+                    amt: "$33.740",
+                    var: "↑12%",
+                    varColor: "var(--color-danger)",
+                  },
+                  {
+                    name: "Servicios",
+                    pct: 15,
+                    color: "var(--gnome-yellow-4)",
+                    amt: "$28.120",
+                    var: "→0%",
+                    varColor: "var(--text-secondary)",
+                  },
+                  {
+                    name: "Salud",
+                    pct: 12,
+                    color: "var(--gnome-green-4)",
+                    amt: "$22.490",
+                    var: "↓8%",
+                    varColor: "var(--gnome-green-5)",
+                  },
                 ].map((cat) => (
                   <div key={cat.name}>
                     <div className="flex items-center justify-between mb-0.5">
                       <div className="flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
-                        <span className="text-[9px] font-medium" style={{ color: "var(--text-secondary)" }}>{cat.name}</span>
+                        <span
+                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: cat.color }}
+                        />
+                        <span
+                          className="text-[9px] font-medium"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          {cat.name}
+                        </span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[8px] font-medium" style={{ color: cat.varColor }}>{cat.var}</span>
-                        <span className="text-[9px] font-semibold" style={{ color: "var(--text-primary)" }}>{cat.amt}</span>
+                        <span
+                          className="text-[8px] font-medium"
+                          style={{ color: cat.varColor }}
+                        >
+                          {cat.var}
+                        </span>
+                        <span
+                          className="text-[9px] font-semibold"
+                          style={{ color: "var(--text-primary)" }}
+                        >
+                          {cat.amt}
+                        </span>
                       </div>
                     </div>
                     <div className="h-1.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
-                      <div className="h-full rounded-full animate-bar-grow" style={{ width: `${cat.pct}%`, backgroundColor: cat.color }} />
+                      <div
+                        className="h-full rounded-full animate-bar-grow"
+                        style={{
+                          width: `${cat.pct}%`,
+                          backgroundColor: cat.color,
+                        }}
+                      />
                     </div>
                   </div>
                 ))}
@@ -541,7 +728,10 @@ function ReportMockup() {
       <div className="bg-[var(--color-surface)] rounded-2xl shadow-2xl border border-[var(--border-color)] p-4 max-w-sm mx-auto">
         {/* Header — matches real Dashboard card header */}
         <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold" style={{ color: "var(--color-primary)" }}>
+          <p
+            className="text-sm font-semibold"
+            style={{ color: "var(--color-primary)" }}
+          >
             Gastos por Categoría
           </p>
           <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
@@ -552,46 +742,149 @@ function ReportMockup() {
         <div className="grid grid-cols-2 gap-3">
           {/* Donut chart */}
           <div className="flex items-center justify-center">
-            <svg width="100" height="100" viewBox="0 0 36 36" className="-rotate-90">
-              <circle cx="18" cy="18" r="14" fill="none" stroke="var(--color-base-alt)" strokeWidth="5" />
-              <circle cx="18" cy="18" r="14" fill="none" stroke="var(--color-primary)" strokeWidth="5"
-                strokeDasharray="33.17 87.96" strokeDashoffset="0"
-                className="origin-center animate-donut-draw" />
-              <circle cx="18" cy="18" r="14" fill="none" stroke="var(--gnome-blue-4)" strokeWidth="5"
-                strokeDasharray="22.59 87.96" strokeDashoffset="-33.17"
-                className="origin-center animate-donut-draw delay-200" />
-              <circle cx="18" cy="18" r="14" fill="none" stroke="var(--gnome-yellow-4)" strokeWidth="5"
-                strokeDasharray="15.83 87.96" strokeDashoffset="-55.76"
-                className="origin-center animate-donut-draw delay-300" />
-              <circle cx="18" cy="18" r="14" fill="none" stroke="var(--gnome-green-4)" strokeWidth="5"
-                strokeDasharray="10.08 87.96" strokeDashoffset="-71.59"
-                className="origin-center animate-donut-draw delay-300" />
+            <svg
+              width="100"
+              height="100"
+              viewBox="0 0 36 36"
+              className="-rotate-90"
+            >
+              <circle
+                cx="18"
+                cy="18"
+                r="14"
+                fill="none"
+                stroke="var(--color-base-alt)"
+                strokeWidth="5"
+              />
+              <circle
+                cx="18"
+                cy="18"
+                r="14"
+                fill="none"
+                stroke="var(--color-primary)"
+                strokeWidth="5"
+                strokeDasharray="33.17 87.96"
+                strokeDashoffset="0"
+                className="origin-center animate-donut-draw"
+              />
+              <circle
+                cx="18"
+                cy="18"
+                r="14"
+                fill="none"
+                stroke="var(--gnome-blue-4)"
+                strokeWidth="5"
+                strokeDasharray="22.59 87.96"
+                strokeDashoffset="-33.17"
+                className="origin-center animate-donut-draw delay-200"
+              />
+              <circle
+                cx="18"
+                cy="18"
+                r="14"
+                fill="none"
+                stroke="var(--gnome-yellow-4)"
+                strokeWidth="5"
+                strokeDasharray="15.83 87.96"
+                strokeDashoffset="-55.76"
+                className="origin-center animate-donut-draw delay-300"
+              />
+              <circle
+                cx="18"
+                cy="18"
+                r="14"
+                fill="none"
+                stroke="var(--gnome-green-4)"
+                strokeWidth="5"
+                strokeDasharray="10.08 87.96"
+                strokeDashoffset="-71.59"
+                className="origin-center animate-donut-draw delay-300"
+              />
             </svg>
           </div>
           {/* Category bars — matches real Dashboard bars */}
           <div className="space-y-1.5">
             {[
-              { name: "Alimentación", pct: 38, color: "var(--color-primary)", amt: "$71.230", var: "↓5%", varColor: "var(--gnome-green-5)" },
-              { name: "Transporte", pct: 18, color: "var(--gnome-blue-4)", amt: "$33.740", var: "↑12%", varColor: "var(--color-danger)" },
-              { name: "Servicios", pct: 15, color: "var(--gnome-yellow-4)", amt: "$28.120", var: "→0%", varColor: "var(--text-secondary)" },
-              { name: "Salud", pct: 12, color: "var(--gnome-green-4)", amt: "$22.490", var: "↓8%", varColor: "var(--gnome-green-5)" },
-              { name: "Otros", pct: 17, color: "var(--gnome-gray-2)", amt: "$31.870", var: "", varColor: "" },
+              {
+                name: "Alimentación",
+                pct: 38,
+                color: "var(--color-primary)",
+                amt: "$71.230",
+                var: "↓5%",
+                varColor: "var(--gnome-green-5)",
+              },
+              {
+                name: "Transporte",
+                pct: 18,
+                color: "var(--gnome-blue-4)",
+                amt: "$33.740",
+                var: "↑12%",
+                varColor: "var(--color-danger)",
+              },
+              {
+                name: "Servicios",
+                pct: 15,
+                color: "var(--gnome-yellow-4)",
+                amt: "$28.120",
+                var: "→0%",
+                varColor: "var(--text-secondary)",
+              },
+              {
+                name: "Salud",
+                pct: 12,
+                color: "var(--gnome-green-4)",
+                amt: "$22.490",
+                var: "↓8%",
+                varColor: "var(--gnome-green-5)",
+              },
+              {
+                name: "Otros",
+                pct: 17,
+                color: "var(--gnome-gray-2)",
+                amt: "$31.870",
+                var: "",
+                varColor: "",
+              },
             ].map((cat) => (
-              <div key={cat.name} className="rounded-lg p-1.5 hover:bg-[var(--color-base-alt)] transition-colors cursor-pointer">
+              <div
+                key={cat.name}
+                className="rounded-lg p-1.5 hover:bg-[var(--color-base-alt)] transition-colors cursor-pointer"
+              >
                 <div className="flex items-center justify-between mb-0.5">
                   <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
-                    <span className="text-[9px] font-medium" style={{ color: "var(--text-secondary)" }}>{cat.name}</span>
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: cat.color }}
+                    />
+                    <span
+                      className="text-[9px] font-medium"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      {cat.name}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1">
                     {cat.var && (
-                      <span className="text-[8px] font-medium" style={{ color: cat.varColor }}>{cat.var}</span>
+                      <span
+                        className="text-[8px] font-medium"
+                        style={{ color: cat.varColor }}
+                      >
+                        {cat.var}
+                      </span>
                     )}
-                    <span className="text-[9px] font-semibold" style={{ color: "var(--text-primary)" }}>{cat.amt}</span>
+                    <span
+                      className="text-[9px] font-semibold"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      {cat.amt}
+                    </span>
                   </div>
                 </div>
                 <div className="h-1.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
-                  <div className="h-full rounded-full animate-bar-grow" style={{ width: `${cat.pct}%`, backgroundColor: cat.color }} />
+                  <div
+                    className="h-full rounded-full animate-bar-grow"
+                    style={{ width: `${cat.pct}%`, backgroundColor: cat.color }}
+                  />
                 </div>
               </div>
             ))}
@@ -653,7 +946,9 @@ function TelegramCarousel() {
           </div>
           <div>
             <div className="text-white text-sm font-medium">NikoFin</div>
-            <div className="text-[10px] text-[var(--gnome-green-2)]">● en línea</div>
+            <div className="text-[10px] text-[var(--gnome-green-2)]">
+              ● en línea
+            </div>
           </div>
         </div>
         <div className="space-y-3 min-h-[140px]">
@@ -704,23 +999,43 @@ function AboutWindowMockup() {
         <div className="w-16 h-16 rounded-2xl bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-2xl mx-auto mb-4">
           O
         </div>
-        <div className="text-lg font-bold text-[var(--text-primary)]">Oikonomia</div>
-        <div className="text-xs text-[var(--text-primary)] mb-4">Versión 1.0 · GPLv3</div>
+        <div className="text-lg font-bold text-[var(--text-primary)]">
+          Oikonomia
+        </div>
+        <div className="text-xs text-[var(--text-primary)] mb-4">
+          Versión 1.0 · GPLv3
+        </div>
         <div className="space-y-2 text-sm text-[var(--text-secondary)]">
           <div className="flex items-center justify-center gap-2">
-            <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
+            <SymbolicIcon
+              name="check"
+              size={14}
+              className="text-[var(--gnome-green-5)]"
+            />
             <span>Código abierto y revisable</span>
           </div>
           <div className="flex items-center justify-center gap-2">
-            <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
+            <SymbolicIcon
+              name="check"
+              size={14}
+              className="text-[var(--gnome-green-5)]"
+            />
             <span>Sin tracking ni analytics</span>
           </div>
           <div className="flex items-center justify-center gap-2">
-            <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
+            <SymbolicIcon
+              name="check"
+              size={14}
+              className="text-[var(--gnome-green-5)]"
+            />
             <span>Datos 100% voluntarios</span>
           </div>
           <div className="flex items-center justify-center gap-2">
-            <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
+            <SymbolicIcon
+              name="check"
+              size={14}
+              className="text-[var(--gnome-green-5)]"
+            />
             <span>Eliminación en cualquier momento</span>
           </div>
         </div>
@@ -741,7 +1056,11 @@ function FeatureCard({
   return (
     <div className="p-5 rounded-2xl border border-[var(--border-color)] bg-[var(--color-surface)] hover:shadow-md hover:border-[var(--color-primary)]/20 transition-all duration-200">
       <div className="w-10 h-10 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center mb-3">
-        <SymbolicIcon name={icon} size={20} className="text-[var(--color-primary)]" />
+        <SymbolicIcon
+          name={icon}
+          size={20}
+          className="text-[var(--color-primary)]"
+        />
       </div>
       <h3
         className="text-base font-bold mb-1.5"
@@ -749,7 +1068,10 @@ function FeatureCard({
       >
         {title}
       </h3>
-      <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+      <p
+        className="text-sm leading-relaxed"
+        style={{ color: "var(--text-secondary)" }}
+      >
         {description}
       </p>
     </div>
@@ -794,7 +1116,11 @@ function MethodCard({
           <SymbolicIcon
             name={icon}
             size={22}
-            className={highlight ? "text-[var(--color-primary)]" : "text-[var(--text-secondary)]"}
+            className={
+              highlight
+                ? "text-[var(--color-primary)]"
+                : "text-[var(--text-secondary)]"
+            }
           />
         </div>
         <div>
@@ -804,12 +1130,17 @@ function MethodCard({
           >
             {title}
           </h3>
-          <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+          <p
+            className="text-sm leading-relaxed"
+            style={{ color: "var(--text-secondary)" }}
+          >
             {description}
           </p>
         </div>
       </div>
-      <div className="flex-1 flex items-center justify-center mt-2">{children}</div>
+      <div className="flex-1 flex items-center justify-center mt-2">
+        {children}
+      </div>
     </div>
   );
 }
@@ -825,14 +1156,18 @@ function ExpenseFormMockup() {
             <div className="w-2 h-2 rounded-full bg-[var(--gnome-yellow-4)]" />
             <div className="w-2 h-2 rounded-full bg-[var(--gnome-green-4)]" />
           </div>
-          <span className="text-[10px] font-medium text-[var(--text-secondary)]">Nuevo gasto</span>
+          <span className="text-[10px] font-medium text-[var(--text-secondary)]">
+            Nuevo gasto
+          </span>
           <span className="text-[10px] text-[var(--text-secondary)]">✕</span>
         </div>
         {/* Form content */}
         <div className="p-3 space-y-2.5">
           {/* Payment toggle */}
           <div>
-            <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider mb-1">Medio de pago</div>
+            <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider mb-1">
+              Medio de pago
+            </div>
             <div className="flex rounded-md border border-[var(--border-color)] overflow-hidden">
               <div className="flex-1 text-center py-1.5 text-[10px] font-medium bg-[var(--color-primary)] text-white">
                 💳 Tarjeta
@@ -848,7 +1183,9 @@ function ExpenseFormMockup() {
               Fecha <span className="text-[var(--color-danger)]">*</span>
             </div>
             <div className="w-full h-7 rounded-md border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 flex items-center">
-              <span className="text-[10px] text-[var(--text-secondary)]">16/07/2026</span>
+              <span className="text-[10px] text-[var(--text-secondary)]">
+                16/07/2026
+              </span>
             </div>
           </div>
           {/* Amount + Currency */}
@@ -858,14 +1195,22 @@ function ExpenseFormMockup() {
                 Monto <span className="text-[var(--color-danger)]">*</span>
               </div>
               <div className="w-full h-7 rounded-md border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 flex items-center">
-                <span className="text-[10px] text-[var(--text-primary)] font-medium">15.200</span>
+                <span className="text-[10px] text-[var(--text-primary)] font-medium">
+                  15.200
+                </span>
               </div>
             </div>
             <div>
-              <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider mb-1">Moneda</div>
+              <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider mb-1">
+                Moneda
+              </div>
               <div className="w-full h-7 rounded-md border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 flex items-center justify-between">
-                <span className="text-[10px] text-[var(--text-primary)]">ARS $</span>
-                <span className="text-[8px] text-[var(--text-secondary)]">▾</span>
+                <span className="text-[10px] text-[var(--text-primary)]">
+                  ARS $
+                </span>
+                <span className="text-[8px] text-[var(--text-secondary)]">
+                  ▾
+                </span>
               </div>
             </div>
           </div>
@@ -873,44 +1218,69 @@ function ExpenseFormMockup() {
           <div className="grid grid-cols-2 gap-1.5">
             <div>
               <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider mb-1">
-                Descripción <span className="text-[var(--color-danger)]">*</span>
+                Descripción{" "}
+                <span className="text-[var(--color-danger)]">*</span>
               </div>
               <div className="w-full h-7 rounded-md border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 flex items-center">
-                <span className="text-[10px] text-[var(--text-primary)]">Supermercado Coto</span>
+                <span className="text-[10px] text-[var(--text-primary)]">
+                  Supermercado Coto
+                </span>
               </div>
             </div>
             <div>
-              <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider mb-1">Categoría</div>
+              <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider mb-1">
+                Categoría
+              </div>
               <div className="w-full h-7 rounded-md border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 flex items-center justify-between">
-                <span className="text-[10px] text-[var(--text-primary)]">Alimentación</span>
-                <span className="text-[8px] text-[var(--text-secondary)]">▾</span>
+                <span className="text-[10px] text-[var(--text-primary)]">
+                  Alimentación
+                </span>
+                <span className="text-[8px] text-[var(--text-secondary)]">
+                  ▾
+                </span>
               </div>
             </div>
           </div>
           {/* Bank + Card */}
           <div className="grid grid-cols-2 gap-1.5">
             <div>
-              <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider mb-1">Banco</div>
+              <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider mb-1">
+                Banco
+              </div>
               <div className="w-full h-7 rounded-md border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 flex items-center justify-between">
-                <span className="text-[10px] text-[var(--text-primary)]">Galicia</span>
-                <span className="text-[8px] text-[var(--text-secondary)]">▾</span>
+                <span className="text-[10px] text-[var(--text-primary)]">
+                  Galicia
+                </span>
+                <span className="text-[8px] text-[var(--text-secondary)]">
+                  ▾
+                </span>
               </div>
             </div>
             <div>
-              <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider mb-1">Tarjeta</div>
+              <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider mb-1">
+                Tarjeta
+              </div>
               <div className="w-full h-7 rounded-md border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 flex items-center justify-between">
-                <span className="text-[10px] text-[var(--text-primary)]">Visa</span>
-                <span className="text-[8px] text-[var(--text-secondary)]">▾</span>
+                <span className="text-[10px] text-[var(--text-primary)]">
+                  Visa
+                </span>
+                <span className="text-[8px] text-[var(--text-secondary)]">
+                  ▾
+                </span>
               </div>
             </div>
           </div>
           {/* Buttons */}
           <div className="flex gap-1.5 pt-1">
             <div className="flex-1 h-7 rounded-md border border-[var(--border-color)] flex items-center justify-center">
-              <span className="text-[10px] text-[var(--text-secondary)]">Cancelar</span>
+              <span className="text-[10px] text-[var(--text-secondary)]">
+                Cancelar
+              </span>
             </div>
             <div className="flex-1 h-7 rounded-md bg-[var(--color-primary)] flex items-center justify-center">
-              <span className="text-[10px] text-white font-medium">Guardar</span>
+              <span className="text-[10px] text-white font-medium">
+                Guardar
+              </span>
             </div>
           </div>
         </div>
@@ -931,9 +1301,16 @@ function SecurityItem({
   return (
     <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--border-color)]">
       <div className="w-10 h-10 rounded-xl bg-[var(--gnome-green-1)]/20 flex items-center justify-center mb-3">
-        <SymbolicIcon name={icon} size={20} className="text-[var(--gnome-green-5)]" />
+        <SymbolicIcon
+          name={icon}
+          size={20}
+          className="text-[var(--gnome-green-5)]"
+        />
       </div>
-      <h4 className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>
+      <h4
+        className="font-semibold mb-1"
+        style={{ color: "var(--text-primary)" }}
+      >
         {title}
       </h4>
       <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -962,7 +1339,9 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
       <div
         className={`overflow-hidden transition-all duration-300 ${open ? "max-h-40 mt-3" : "max-h-0"}`}
       >
-        <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{answer}</p>
+        <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+          {answer}
+        </p>
       </div>
     </button>
   );

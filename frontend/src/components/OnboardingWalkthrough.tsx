@@ -131,13 +131,7 @@ function StepIcon({ icon, color }: { icon: IconName; color: string }) {
   );
 }
 
-function ProgressDots({
-  total,
-  current,
-}: {
-  total: number;
-  current: number;
-}) {
+function ProgressDots({ total, current }: { total: number; current: number }) {
   return (
     <div
       style={{
@@ -153,8 +147,7 @@ function ProgressDots({
             width: i === current ? 16 : 6,
             height: 6,
             borderRadius: 3,
-            backgroundColor:
-              i === current ? "#3584e4" : "rgba(0,0,0,0.15)",
+            backgroundColor: i === current ? "#3584e4" : "rgba(0,0,0,0.15)",
             transition: "all 0.2s ease",
           }}
         />
@@ -186,11 +179,9 @@ function CustomTooltip({
         width: 340,
         borderRadius: 16,
         overflow: "hidden",
-        boxShadow:
-          "0 12px 40px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.08)",
+        boxShadow: "0 12px 40px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.08)",
         border: "1px solid rgba(0,0,0,0.06)",
-        fontFamily:
-          'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+        fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
       }}
     >
       {/* Header with icon */}
@@ -320,7 +311,11 @@ function CustomTooltip({
                   : "none",
               }}
             >
-              {isLastStep ? "Entendido" : isWelcome ? "Comenzar" : primaryProps.title}
+              {isLastStep
+                ? "Entendido"
+                : isWelcome
+                  ? "Comenzar"
+                  : primaryProps.title}
             </button>
           )}
         </div>
