@@ -124,6 +124,7 @@ function CategoryBar({
   onAddBudget?: () => void;
 }) {
   if (budget === 0 && spent === 0) return null;
+  if (spent === 0) return null;
 
   if (budget === 0) {
     return (
@@ -205,7 +206,7 @@ function CategoryGroupSection({
   const totalSpent = categories.reduce((s, c) => s + c.spent_amount, 0);
 
   // Filter out categories with no budget AND no spending
-  const visibleCategories = categories.filter((c) => c.budget_amount > 0 || c.spent_amount > 0);
+  const visibleCategories = categories.filter((c) => c.spent_amount > 0);
   if (visibleCategories.length === 0) return null;
 
   return (
@@ -253,7 +254,7 @@ function CategoryGroupSection({
                 onAddBudget={onAddBudget}
               />
               {cat.children
-                .filter((child) => child.budget_amount > 0 || child.spent_amount > 0)
+                .filter((child) => child.spent_amount > 0)
                 .map((child) => (
                   <div key={child.category_id} className="pl-6">
                     <CategoryBar
