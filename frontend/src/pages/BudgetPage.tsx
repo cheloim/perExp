@@ -565,7 +565,7 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
                   onChange={(e) =>
                     setGroupAssignments({ ...groupAssignments, [cat.id]: e.target.value })
                   }
-                  className="text-xs border border-[var(--border-color)] rounded px-2 py-1 bg-[var(--color-surface)]"
+                  className="select-input text-xs !py-1.5 !px-2 flex-shrink-0 w-28"
                 >
                   <option value="">Sin grupo</option>
                   <option value="necesidades">Necesidades</option>
@@ -579,7 +579,7 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
                     setAmounts({ ...amounts, [cat.id]: parseFloat(e.target.value) || 0 })
                   }
                   placeholder="0"
-                  className="input flex-1 text-xs py-1"
+                  className="input flex-1 text-xs !py-1.5"
                 />
               </div>
             ))}
@@ -594,8 +594,8 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
           </button>
           <button
             onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending}
-            className="flex-1 px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
+            disabled={saveMutation.isPending || Object.values(amounts).every((v) => !v)}
+            className="flex-1 px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saveMutation.isPending ? "Guardando..." : "Guardar"}
           </button>
