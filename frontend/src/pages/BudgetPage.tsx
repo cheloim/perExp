@@ -126,57 +126,23 @@ function CategoryBar({
   if (budget === 0 && spent === 0) return null;
   if (spent === 0) return null;
 
-  if (budget === 0) {
-    const refAmount = avgMonthly > 0 ? avgMonthly : spent;
-    const pct = refAmount > 0 ? (spent / refAmount) * 100 : 0;
-    const barColor =
-      pct >= 100
-        ? "var(--color-danger)"
-        : pct >= 80
-          ? "#e8a100"
-          : pct >= 60
-            ? "var(--gnome-yellow-4)"
-            : "var(--color-success)";
+  // Calculate remaining and percentage
+  const remaining = budget > 0 ? budget - spent : 0;
+  const pct = budget > 0 ? (spent / budget) * 100 : 0;
 
-    return (
-      <div className="flex items-center gap-3 py-2">
-        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-        <span className="text-xs text-[var(--text-primary)] min-w-[100px] truncate font-medium">
-          {name}
-        </span>
-        <div className="flex-1 h-2.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden min-w-[80px]">
-          <div
-            className="h-full rounded-full transition-all"
-            style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }}
-          />
-        </div>
-        <span className="text-xs text-[var(--text-secondary)] whitespace-nowrap">
-          {formatCurrency(spent)}
-          {avgMonthly > 0 && (
-            <span className="text-[var(--text-tertiary)]">
-              {" "}
-              (prom: {formatCurrency(avgMonthly)})
-            </span>
-          )}
-        </span>
-        <span
-          className={`text-xs font-medium w-12 text-right whitespace-nowrap ${pct >= 100 ? "text-[var(--color-danger)]" : pct >= 80 ? "text-[#e8a100]" : "text-[var(--text-tertiary)]"}`}
-        >
-          {Math.round(pct)}%
-        </span>
-        {onAddBudget && (
-          <button
-            onClick={onAddBudget}
-            className="text-xs text-[var(--color-primary)] hover:underline whitespace-nowrap"
-          >
-            + Agregar
-          </button>
-        )}
-      </div>
-    );
+  // Status badge logic
+  let statusBadge: { label: string; color: string; bg: string } | null = null;
+  if (budget > 0) {
+    if (pct >= 100) {
+      statusBadge = { label: "Alerta", color: "var(--color-danger)", bg: "var(--color-danger)/10" };
+    } else if (pct >= 80) {
+      statusBadge = { label: "Cuidado", color: "#e8a100", bg: "#e8a100/10" };
+    } else {
+      statusBadge = { label: "Bien", color: "var(--color-success)", bg: "var(--color-success)/10" };
+    }
   }
 
-  const pct = budget > 0 ? (spent / budget) * 100 : 0;
+  // Bar color — gradient based on percentage
   const barColor =
     pct >= 100
       ? "var(--color-danger)"
@@ -186,26 +152,98 @@ function CategoryBar({
           ? "var(--gnome-yellow-4)"
           : "var(--color-success)";
 
-  return (
-    <div className="flex items-center gap-3 py-2">
-      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-      <span className="text-xs text-[var(--text-primary)] min-w-[100px] truncate font-medium">
-        {name}
-      </span>
-      <div className="flex-1 h-2.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden min-w-[80px]">
-        <div
-          className="h-full rounded-full transition-all"
-          style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }}
-        />
+  // No budget case — use avg monthly as reference
+  if (budget === 0) {
+    const refAmount = avgMonthly > 0 ? avgMonthly : spent;
+    const noBudgetPct = refAmount > 0 ? (spent / refAmount) * 100 : 0;
+    const noBudgetBarColor =
+      noBudgetPct >= 100
+        ? "var(--color-danger)"
+        : noBudgetPct >= 80
+          ? "#e8a100"
+          : noBudgetPct >= 60
+            ? "var(--gnome-yellow-4)"
+            : "var(--color-success)";
+
+    return (
+      <div className="py-3 px-4 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors">
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center gap-2">
+            <div
+              className="w-3 h-3 rounded-full flex-shrink-0"
+              style={{ backgroundColor: color }}
+            />
+            <span className="text-sm font-medium text-[var(--text-primary)]">{name}</span>
+          </div>
+          <span className="text-xs text-[var(--text-tertiary)] italic">Sin presupuesto</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all"
+              style={{ width: `${Math.min(noBudgetPct, 100)}%`, backgroundColor: noBudgetBarColor }}
+            />
+          </div>
+          <span className="text-xs text-[var(--text-secondary)] whitespace-nowrap font-medium">
+            {formatCurrency(spent)}
+            {avgMonthly > 0 && (
+              <span className="text-[var(--text-tertiary)] font-normal">
+                {" "}
+                / prom {formatCurrency(avgMonthly)}
+              </span>
+            )}
+          </span>
+        </div>
+        {onAddBudget && (
+          <button
+            onClick={onAddBudget}
+            className="mt-1.5 text-xs text-[var(--color-primary)] hover:underline"
+          >
+            + Agregar presupuesto
+          </button>
+        )}
       </div>
-      <span className="text-xs text-[var(--text-secondary)] whitespace-nowrap">
-        {formatCurrency(spent)} / {formatCurrency(budget)}
-      </span>
-      <span
-        className={`text-xs font-medium w-12 text-right whitespace-nowrap ${pct >= 100 ? "text-[var(--color-danger)]" : pct >= 80 ? "text-[#e8a100]" : "text-[var(--text-tertiary)]"}`}
-      >
-        {Math.round(pct)}%
-      </span>
+    );
+  }
+
+  // With budget — show remaining prominently
+  return (
+    <div className="py-3 px-4 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors">
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+          <span className="text-sm font-medium text-[var(--text-primary)]">{name}</span>
+        </div>
+        {statusBadge && (
+          <span
+            className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+            style={{
+              color: statusBadge.color,
+              backgroundColor: `color-mix(in srgb, ${statusBadge.color} 10%, transparent)`,
+            }}
+          >
+            {pct >= 100 ? "🔴" : pct >= 80 ? "🟡" : "🟢"} {statusBadge.label}
+          </span>
+        )}
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }}
+          />
+        </div>
+        <span
+          className={`text-xs font-semibold whitespace-nowrap ${remaining < 0 ? "text-[var(--color-danger)]" : "text-[var(--text-primary)]"}`}
+        >
+          {remaining >= 0
+            ? `${formatCurrency(remaining)} rest.`
+            : `-${formatCurrency(Math.abs(remaining))}`}
+        </span>
+        <span className="text-xs text-[var(--text-tertiary)] whitespace-nowrap">
+          {Math.round(pct)}%
+        </span>
+      </div>
     </div>
   );
 }
@@ -227,28 +265,36 @@ function CategoryGroupSection({
   const [expanded, setExpanded] = useState(true);
   const totalBudget = categories.reduce((s, c) => s + c.budget_amount, 0);
   const totalSpent = categories.reduce((s, c) => s + c.spent_amount, 0);
+  const totalRemaining = totalBudget - totalSpent;
 
-  // Filter out categories with no budget AND no spending
   const visibleCategories = categories.filter((c) => c.spent_amount > 0);
   if (visibleCategories.length === 0) return null;
 
   return (
-    <div className="card overflow-hidden">
+    <div className="rounded-xl border border-[var(--border-color)] overflow-hidden bg-[var(--color-surface)]">
+      {/* Group Header */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between p-4 hover:bg-[var(--color-base-alt)] transition-colors"
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-[var(--color-base-alt)] transition-colors"
       >
         <div className="flex items-center gap-3">
-          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+          <div
+            className="w-3.5 h-3.5 rounded-full flex-shrink-0"
+            style={{ backgroundColor: color }}
+          />
           <h3 className="text-sm font-semibold text-primary">{displayName}</h3>
-          <span className="text-xs text-[var(--text-tertiary)]">
-            {visibleCategories.length} categorías
+          <span className="text-xs text-[var(--text-tertiary)] bg-[var(--color-base-alt)] px-2 py-0.5 rounded-full">
+            {visibleCategories.length} {visibleCategories.length === 1 ? "categoría" : "categorías"}
           </span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           {totalBudget > 0 && (
-            <span className="text-xs text-[var(--text-secondary)]">
-              {formatCurrency(totalSpent)} / {formatCurrency(totalBudget)}
+            <span
+              className={`text-xs font-semibold ${totalRemaining < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"}`}
+            >
+              {totalRemaining >= 0
+                ? `${formatCurrency(totalRemaining)} rest.`
+                : `-${formatCurrency(Math.abs(totalRemaining))}`}
             </span>
           )}
           <svg
@@ -264,8 +310,10 @@ function CategoryGroupSection({
           </svg>
         </div>
       </button>
+
+      {/* Categories List */}
       {expanded && (
-        <div className="px-4 pb-4 border-t border-[var(--border-color)]">
+        <div className="border-t border-[var(--border-color)] bg-[var(--color-base)]/50">
           {visibleCategories.map((cat) => (
             <div key={cat.category_id}>
               <CategoryBar
@@ -292,12 +340,14 @@ function CategoryGroupSection({
                 ))}
             </div>
           ))}
-          <button
-            onClick={onAddBudget}
-            className="mt-2 text-xs text-[var(--color-primary)] hover:underline"
-          >
-            + Agregar presupuesto
-          </button>
+          <div className="px-5 py-3 border-t border-[var(--border-color)]">
+            <button
+              onClick={onAddBudget}
+              className="text-xs text-[var(--color-primary)] hover:underline font-medium"
+            >
+              + Agregar presupuesto
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -833,7 +883,7 @@ export default function BudgetPage() {
               <p className="text-lg font-bold text-primary">{formatCurrency(totalSpent)}</p>
             </div>
             <div className="card p-4">
-              <p className="text-[10px] text-[var(--text-tertiary)] uppercase mb-1">Disponible</p>
+              <p className="text-[10px] text-[var(--text-tertiary)] uppercase mb-1">Quedan</p>
               <p
                 className={`text-lg font-bold ${totalAvailable < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"}`}
               >

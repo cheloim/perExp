@@ -189,6 +189,21 @@ def main():
             except Exception as e:
                 print(f"  Warning: auto-assign failed ({e}), skipping")
 
+            # ─── 7. Deactivate Ahorro group if feature flag is off ─────────
+            print("\n[7/7] Checking Ahorro feature flag...")
+            ahorro_enabled = os.getenv("BUDGET_AHORRO_ENABLED", "false").lower() == "true"
+            if not ahorro_enabled:
+                try:
+                    with engine.begin() as conn2:
+                        conn2.execute(text(
+                            "UPDATE budget_groups SET is_active = false WHERE name = 'ahorro' AND is_active = true"
+                        ))
+                    print("  Ahorro group deactivated (BUDGET_AHORRO_ENABLED=false)")
+                except Exception as e:
+                    print(f"  Warning: Ahorro deactivation failed ({e}), skipping")
+            else:
+                print("  Ahorro enabled, skipping")
+
             print("\nMigration complete!")
 
         else:

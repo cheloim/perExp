@@ -1,6 +1,7 @@
 """Budgets router - CRUD + summary + groups + events + auto-suggestion."""
 
 import json
+import os
 from calendar import monthrange
 from datetime import date, timedelta
 
@@ -27,6 +28,9 @@ from app.schemas import (
 from app.services.auth import get_current_user
 
 router = APIRouter(prefix="/budgets", tags=["budgets"])
+
+# Feature flag: Ahorro (savings) group — disabled until Income module is ready
+BUDGET_AHORRO_ENABLED = os.getenv("BUDGET_AHORRO_ENABLED", "false").lower() == "true"
 
 
 def _get_group_user_ids(user_id: int, db: Session) -> list[int]:
@@ -533,6 +537,10 @@ def list_budget_groups(
         .all()
     )
 
+    # Filter out Ahorro group if feature flag is off
+    if not BUDGET_AHORRO_ENABLED:
+        groups = [g for g in groups if g.name != "ahorro"]
+
     result = []
     for group in groups:
         # Get categories in this group
@@ -707,17 +715,26 @@ def init_default_groups(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Initialize default 50/30/20 budget groups based on monthly income."""
-    # Check if groups already exist
+    """Initialize default budget groups based on monthly income.
+    
+    When BUDGET_AHORRO_ENABLED=false (default): creates 2 groups (60/40)
+    When BUDGET_AHORRO_ENABLED=true: creates 3 groups (50/30/20)
+    """
     existing = db.query(BudgetGroup).filter(BudgetGroup.user_id == current_user.id).first()
     if existing:
         raise HTTPException(400, "Budget groups already initialized")
 
-    default_groups = [
-        {"name": "necesidades", "display_name": "Necesidades", "percentage": 50},
-        {"name": "gustos", "display_name": "Gustos", "percentage": 30},
-        {"name": "ahorro", "display_name": "Ahorro/Inversión", "percentage": 20},
-    ]
+    if BUDGET_AHORRO_ENABLED:
+        default_groups = [
+            {"name": "necesidades", "display_name": "Necesidades", "percentage": 50},
+            {"name": "gustos", "display_name": "Gustos", "percentage": 30},
+            {"name": "ahorro", "display_name": "Ahorro/Inversión", "percentage": 20},
+        ]
+    else:
+        default_groups = [
+            {"name": "necesidades", "display_name": "Necesidades", "percentage": 60},
+            {"name": "gustos", "display_name": "Gustos", "percentage": 40},
+        ]
 
     groups = []
     for g in default_groups:
