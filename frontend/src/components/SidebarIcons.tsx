@@ -241,9 +241,9 @@ export const sidebarIcons = {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <rect x="2" y="10" width="3" height="8" rx="0.5" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="8.5" y="6" width="3" height="12" rx="0.5" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="15" y="3" width="3" height="15" rx="0.5" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="4" cy="14" r="2.5" fill="currentColor" />
+      <circle cx="10" cy="9" r="2.5" fill="currentColor" />
+      <circle cx="16" cy="5" r="2.5" fill="currentColor" />
     </svg>
   ),
   guide: (
