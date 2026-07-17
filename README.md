@@ -1,6 +1,6 @@
-# NikoFin
+# Oikonomia
 
-Personal finance management with intelligent bank statement import.
+Personal finance management with intelligent bank statement import, AI auto-categorization, and a Telegram bot.
 
 > **[Technical Documentation](docs/Home.md)** — Architecture, API reference, data model, and more.
 
@@ -15,6 +15,8 @@ Personal finance management with intelligent bank statement import.
 | PDF parsing | pdfplumber |
 | Task queue | Celery + Redis |
 | Telegram | python-telegram-bot |
+| Onboarding | React Joyride |
+| Email | Resend |
 
 ## Features
 
@@ -22,12 +24,37 @@ Personal finance management with intelligent bank statement import.
 - **Card Management**: Credit/debit card CRUD
 - **Account Management**: Cash and bank accounts for tracking transfers
 - **Payment Methods**: Select account (cash/transfer) or card per expense
-- **Auto-categorization**: By keywords and transaction type
-- **Installments**: Track installment purchases with automatic expansion
+- **Auto-categorization**: Keyword-based and AI-powered (Gemini Flash) categorization
+- **Installments**: Track installment purchases with automatic expansion; Telegram bot divides total by installment count
 - **Investments**: Sync with IOL and Portfolio Personal
 - **AI Analysis**: Chat with AI to query expenses
 - **Family Groups**: Share expenses with your family
-- **Telegram Bot**: Log expenses via Telegram (@NikoFin_bot)
+- **Telegram Bot**: Log expenses via Telegram (@NikoFin_bot) with natural language parsing
+- **Google OAuth**: Login with Google (same-window redirect)
+- **Onboarding Tour**: First-time guided walkthrough of all features
+- **User Guide**: Comprehensive 15-chapter guide at /guide
+- **Landing Page**: GNOME 50-inspired design with visual mockups
+- **Multi-Domain**: Landing page at oikonomia.ar, app at platform.oikonomia.ar
+
+## Onboarding
+
+First-time users see a guided tour with rich tooltips and step icons:
+
+1. Welcome screen with app branding
+2. Dashboard walkthrough
+3. Accounts & cards setup
+4. Expense tracking
+5. Telegram bot setup
+6. Data import
+7. Notifications
+8. User guide
+9. Account settings
+
+Tour state is stored in the database (`onboarding_completed` on User model) and runs only once. The tour can be reset per user via:
+
+```sql
+UPDATE users SET onboarding_completed = false WHERE id = USER_ID;
+```
 
 ## Import Protection
 
@@ -124,9 +151,8 @@ podman-compose down
 ### First Run
 
 ```bash
-# Run database migrations
-podman-compose run --rm backend_dev python -m scripts.migrate_add_reset_token
-podman-compose run --rm backend_dev python -m scripts.migrate_remove_haberes
+# Run database migrations (all-in-one, idempotent)
+podman-compose run --rm backend_dev python /app/scripts/migrate_db_structure.py
 
 # Seed default categories
 podman-compose run --rm backend_dev python -c "from app.database import SessionLocal; from app.seed import _apply_base_hierarchy; db = SessionLocal(); _apply_base_hierarchy(db); db.commit()"
@@ -204,7 +230,6 @@ Add in `Settings → Secrets → Actions`:
 | `SECRET_KEY` | JWT secret key |
 | `EMAIL_API_KEY` | Resend email service key |
 | `ADMIN_EMAIL` | Admin alert email |
-```
 
 ### Manual Deploy
 
@@ -213,19 +238,15 @@ Add in `Settings → Secrets → Actions`:
 cd /opt/creditcardanalyzer
 source .env
 
-# Run migrations
-podman-compose run --rm --no-deps backend python -m scripts.migrate_add_reset_token
-podman-compose run --rm --no-deps backend python -m scripts.migrate_remove_haberes
-podman-compose run --rm --no-deps backend python -m scripts.migrate_encrypt_settings
-podman-compose run --rm --no-deps backend python -m scripts.migrate_add_monthly_reports
-podman-compose run --rm --no-deps backend python -m scripts.migrate_add_budgets
+# Run all migrations (idempotent, safe to re-run)
+podman-compose run --rm --no-deps backend python /app/scripts/migrate_db_structure.py
 
 # Restart services
 podman-compose down
 podman-compose up -d
 
 # Verify
-curl -sk https://yourdomain.com/api/docs
+curl -sk https://oikonomia.ar/api/docs
 ```
 
 ### Health Checks
@@ -234,7 +255,7 @@ Deployment verifies the full stack:
 
 ```bash
 # Primary: domain-based (validates DNS + SSL + nginx + backend)
-curl -sk https://yourdomain.com/api/docs
+curl -sk https://oikonomia.ar/api/docs
 
 # Fallback: localhost (validates nginx container only)
 curl -sf http://localhost/api/docs
@@ -260,6 +281,22 @@ Just send a message describing your expense:
 - "gasté 1500 en farmacity"
 - "uber 3200 ayer"
 - "Netflix USD 5"
+- "compré una laptop en 4 cuotas de 15000"
+
+### Installments
+
+When logging an expense via Telegram:
+- If the category matches installment rules (Viajes, Educación, Indumentaria, etc.) or the amount is > $10,000 on a credit card, the bot asks "¿Lo pagaste en cuotas?"
+- If yes, the total amount is divided by the number of installments
+- Each installment is recorded as a separate expense with the per-installment amount
+- Future installments are created as ScheduledExpenses for automatic tracking
+
+### Bank Notifications
+
+The bot can parse bank notifications (forwarded from your bank's SMS/email):
+- "Compra aprobada Visa ****4521 $15.200 Supermercado Coto"
+- The bot extracts the amount, card, and merchant automatically
+- For credit card purchases > $10,000, it also asks about installments
 
 ## License
 

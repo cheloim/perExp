@@ -136,7 +136,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Cómo funciona */}
+      {/* Cómo registrar tus gastos */}
       <section className="py-16 md:py-24 px-4 bg-[var(--color-base-alt)]">
         <div className="max-w-5xl mx-auto">
           <div
@@ -144,33 +144,31 @@ export default function LandingPage() {
             className={`text-center mb-14 transition-all duration-700 ${steps.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
           >
             <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
-              ¿Cómo funciona?
+              ¿Cómo registrar tus gastos?
             </h2>
             <p className="text-lg text-[var(--text-secondary)]">
-              Tres pasos simples para empezar a controlar tus finanzas.
+              Dos formas, una preferida.
             </p>
           </div>
-          <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
-            <div className="space-y-8 md:order-last">
-              <Step
-                number={1}
-                title="Registrate"
-                description="Creá tu cuenta en segundos con tu email o Google. Sin tarjeta de crédito, sin compromiso."
-              />
-              <Step
-                number={2}
-                title="Mandá un mensaje"
-                description="Escribile al bot de Telegram como le contarías a un amigo. La IA hace el resto."
-              />
-              <Step
-                number={3}
-                title="Analizá y ahorrá"
-                description="Revisá reportes, tendencias y proyecciones para tomar mejores decisiones."
-              />
-            </div>
-            <div className="md:order-first">
+          <div
+            ref={steps.ref}
+            className={`grid md:grid-cols-2 gap-6 md:gap-8 items-stretch transition-all duration-700 delay-200 ${steps.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+          >
+            <MethodCard
+              icon="settings"
+              title="Desde la web"
+              description="Cargá gastos desde el formulario con categoría, tarjeta y notas. Ideal para gastos detallados."
+            >
+              <ExpenseFormMockup />
+            </MethodCard>
+            <MethodCard
+              icon="bot"
+              title="Desde Telegram"
+              description="Escribile al bot como le contarías a un amigo. La IA categoriza y el bot confirma al instante."
+              highlight
+            >
               <TelegramCarousel />
-            </div>
+            </MethodCard>
           </div>
         </div>
       </section>
@@ -362,7 +360,7 @@ export default function LandingPage() {
                 <div className="w-8 h-8 rounded-lg bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-sm">
                   O
                 </div>
-                <span className="font-semibold text-[#1c1b1f] dark:text-white">Oikonomia</span>
+                <span className="font-semibold text-[var(--text-primary)]">Oikonomia</span>
               </div>
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                 Tu planificador financiero personal con inteligencia artificial.
@@ -728,7 +726,7 @@ function AboutWindowMockup() {
         <div className="w-16 h-16 rounded-2xl bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-2xl mx-auto mb-4">
           O
         </div>
-        <div className="text-lg font-bold text-[#1c1b1f] dark:text-white">Oikonomia</div>
+        <div className="text-lg font-bold text-[var(--text-primary)]">Oikonomia</div>
         <div className="text-xs text-[var(--text-primary)] mb-4">Versión 1.0 · GPLv3</div>
         <div className="space-y-2 text-sm text-[var(--text-secondary)]">
           <div className="flex items-center justify-center gap-2">
@@ -767,29 +765,177 @@ function FeatureCard({
       <div className="w-10 h-10 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center mb-3">
         <SymbolicIcon name={icon} size={20} className="text-[var(--color-primary)]" />
       </div>
-      <h3 className="text-base font-bold text-[#1c1b1f] dark:text-white mb-1.5">{title}</h3>
-      <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{description}</p>
+      <h3
+        className="text-base font-bold mb-1.5"
+        style={{ color: "var(--text-primary)" }}
+      >
+        {title}
+      </h3>
+      <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+        {description}
+      </p>
     </div>
   );
 }
 
-function Step({
-  number,
+function MethodCard({
+  icon,
   title,
   description,
+  highlight,
+  children,
 }: {
-  number: number;
+  icon: React.ComponentProps<typeof SymbolicIcon>["name"];
   title: string;
   description: string;
+  highlight?: boolean;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="flex gap-4">
-      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-sm">
-        {number}
+    <div
+      className={`relative flex flex-col p-6 rounded-2xl border transition-all duration-200 ${
+        highlight
+          ? "border-[var(--color-primary)]/30 bg-[var(--color-surface)] shadow-lg shadow-[var(--color-primary)]/5"
+          : "border-[var(--border-color)] bg-[var(--color-surface)]"
+      }`}
+    >
+      {highlight && (
+        <div className="absolute -top-3 left-6 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--color-primary)] text-white text-xs font-semibold shadow-md">
+          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+          Más fácil
+        </div>
+      )}
+      <div className="flex items-start gap-4 mb-4">
+        <div
+          className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${
+            highlight
+              ? "bg-[var(--color-primary)]/15"
+              : "bg-[var(--color-base-alt)]"
+          }`}
+        >
+          <SymbolicIcon
+            name={icon}
+            size={22}
+            className={highlight ? "text-[var(--color-primary)]" : "text-[var(--text-secondary)]"}
+          />
+        </div>
+        <div>
+          <h3
+            className="text-lg font-bold mb-1"
+            style={{ color: "var(--text-primary)" }}
+          >
+            {title}
+          </h3>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+            {description}
+          </p>
+        </div>
       </div>
-      <div>
-        <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-1">{title}</h3>
-        <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{description}</p>
+      <div className="flex-1 flex items-center justify-center mt-2">{children}</div>
+    </div>
+  );
+}
+
+function ExpenseFormMockup() {
+  return (
+    <div className="w-full max-w-[280px] mx-auto">
+      <div className="bg-[var(--color-surface)] rounded-xl shadow-lg border border-[var(--border-color)] overflow-hidden">
+        {/* Titlebar */}
+        <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border-color)]">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full bg-[var(--color-danger)]" />
+            <div className="w-2 h-2 rounded-full bg-[var(--gnome-yellow-4)]" />
+            <div className="w-2 h-2 rounded-full bg-[var(--gnome-green-4)]" />
+          </div>
+          <span className="text-[10px] font-medium text-[var(--text-secondary)]">Nuevo gasto</span>
+          <span className="text-[10px] text-[var(--text-secondary)]">✕</span>
+        </div>
+        {/* Form content */}
+        <div className="p-3 space-y-2.5">
+          {/* Payment toggle */}
+          <div>
+            <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider mb-1">Medio de pago</div>
+            <div className="flex rounded-md border border-[var(--border-color)] overflow-hidden">
+              <div className="flex-1 text-center py-1.5 text-[10px] font-medium bg-[var(--color-primary)] text-white">
+                💳 Tarjeta
+              </div>
+              <div className="flex-1 text-center py-1.5 text-[10px] text-[var(--text-secondary)] bg-[var(--color-base-alt)]">
+                💵 Efectivo
+              </div>
+            </div>
+          </div>
+          {/* Date */}
+          <div>
+            <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider mb-1">
+              Fecha <span className="text-[var(--color-danger)]">*</span>
+            </div>
+            <div className="w-full h-7 rounded-md border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 flex items-center">
+              <span className="text-[10px] text-[var(--text-secondary)]">16/07/2026</span>
+            </div>
+          </div>
+          {/* Amount + Currency */}
+          <div className="grid grid-cols-3 gap-1.5">
+            <div className="col-span-2">
+              <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider mb-1">
+                Monto <span className="text-[var(--color-danger)]">*</span>
+              </div>
+              <div className="w-full h-7 rounded-md border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 flex items-center">
+                <span className="text-[10px] text-[var(--text-primary)] font-medium">15.200</span>
+              </div>
+            </div>
+            <div>
+              <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider mb-1">Moneda</div>
+              <div className="w-full h-7 rounded-md border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 flex items-center justify-between">
+                <span className="text-[10px] text-[var(--text-primary)]">ARS $</span>
+                <span className="text-[8px] text-[var(--text-secondary)]">▾</span>
+              </div>
+            </div>
+          </div>
+          {/* Description + Category */}
+          <div className="grid grid-cols-2 gap-1.5">
+            <div>
+              <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider mb-1">
+                Descripción <span className="text-[var(--color-danger)]">*</span>
+              </div>
+              <div className="w-full h-7 rounded-md border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 flex items-center">
+                <span className="text-[10px] text-[var(--text-primary)]">Supermercado Coto</span>
+              </div>
+            </div>
+            <div>
+              <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider mb-1">Categoría</div>
+              <div className="w-full h-7 rounded-md border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 flex items-center justify-between">
+                <span className="text-[10px] text-[var(--text-primary)]">Alimentación</span>
+                <span className="text-[8px] text-[var(--text-secondary)]">▾</span>
+              </div>
+            </div>
+          </div>
+          {/* Bank + Card */}
+          <div className="grid grid-cols-2 gap-1.5">
+            <div>
+              <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider mb-1">Banco</div>
+              <div className="w-full h-7 rounded-md border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 flex items-center justify-between">
+                <span className="text-[10px] text-[var(--text-primary)]">Galicia</span>
+                <span className="text-[8px] text-[var(--text-secondary)]">▾</span>
+              </div>
+            </div>
+            <div>
+              <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider mb-1">Tarjeta</div>
+              <div className="w-full h-7 rounded-md border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 flex items-center justify-between">
+                <span className="text-[10px] text-[var(--text-primary)]">Visa</span>
+                <span className="text-[8px] text-[var(--text-secondary)]">▾</span>
+              </div>
+            </div>
+          </div>
+          {/* Buttons */}
+          <div className="flex gap-1.5 pt-1">
+            <div className="flex-1 h-7 rounded-md border border-[var(--border-color)] flex items-center justify-center">
+              <span className="text-[10px] text-[var(--text-secondary)]">Cancelar</span>
+            </div>
+            <div className="flex-1 h-7 rounded-md bg-[var(--color-primary)] flex items-center justify-center">
+              <span className="text-[10px] text-white font-medium">Guardar</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -809,8 +955,12 @@ function SecurityItem({
       <div className="w-10 h-10 rounded-xl bg-[var(--gnome-green-1)]/20 flex items-center justify-center mb-3">
         <SymbolicIcon name={icon} size={20} className="text-[var(--gnome-green-5)]" />
       </div>
-      <h4 className="font-semibold text-[var(--text-primary)] mb-1">{title}</h4>
-      <p className="text-sm text-[var(--text-secondary)]">{description}</p>
+      <h4 className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>
+        {title}
+      </h4>
+      <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+        {description}
+      </p>
     </div>
   );
 }
