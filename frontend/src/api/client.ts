@@ -196,6 +196,17 @@ export const updateBudgetEvent = (
 export const deleteBudgetEvent = (id: number) =>
   api.delete(`/budgets/events/${id}`).then((r) => r.data);
 
+// Category Group Assignment
+export const updateCategoryGroup = (categoryId: number, groupName: string) =>
+  api
+    .put(`/budgets/category-group/${categoryId}`, null, { params: { group_name: groupName } })
+    .then((r) => r.data);
+
+export const autoAssignGroups = () =>
+  api
+    .post<{ ok: boolean; updated: number; total: number }>("/budgets/auto-assign-groups")
+    .then((r) => r.data);
+
 // Expenses
 export const getExpenses = (params?: {
   category_id?: number;

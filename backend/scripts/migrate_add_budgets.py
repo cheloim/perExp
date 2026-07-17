@@ -158,6 +158,37 @@ def main():
                 print("  ✗ categories.budget_group MISSING!")
                 raise RuntimeError("Column budget_group was not added")
 
+            # ─── 6. Auto-assign categories to macro groups ────────────────
+            print("\n[6/6] Auto-assigning categories to macro groups...")
+            try:
+                conn.execute(text("""
+                    UPDATE categories SET budget_group = 'gustos'
+                    WHERE budget_group = 'necesidades'
+                    AND LOWER(name) LIKE ANY(ARRAY[
+                        '%entretenimiento%', '%cine%', '%teatro%', '%concierto%',
+                        '%streaming%', '%netflix%', '%spotify%', '%disney%',
+                        '%ropa%', '%indumentaria%', '%calzado%',
+                        '%café%', '%cafetería%', '%bar%', '%restaurante%', '%resto%',
+                        '%gimnasio%', '%deporte%', '%fitness%',
+                        '%suscripciones%', '%revistas%',
+                        '%viajes%', '%hotel%', '%aerolínea%', '%turismo%',
+                        '%mascotas%', '%vacaciones%'
+                    ])
+                """))
+                conn.execute(text("""
+                    UPDATE categories SET budget_group = 'ahorro'
+                    WHERE budget_group = 'necesidades'
+                    AND LOWER(name) LIKE ANY(ARRAY[
+                        '%inversiones%', '%inversión%', '%ahorro%',
+                        '%plazo fijo%', '%fci%', '%bonos%', '%acciones%',
+                        '%dólar%', '%crypto%'
+                    ])
+                """))
+                conn.commit()
+                print("  Categories auto-assigned to groups")
+            except Exception as e:
+                print(f"  Warning: auto-assign failed ({e}), skipping")
+
             print("\nMigration complete!")
 
         else:

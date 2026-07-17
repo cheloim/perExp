@@ -62,7 +62,9 @@
   --color-primary: #3584e4;
   --color-on-primary: #ffffff;
   --color-success: #26a269;
+  --color-warning: #e8a100;
   --color-danger: #e01b24;
+  --color-error: #e01b24;
   --color-sidebar-icon: #77767b;
   --color-sidebar-icon-active: #1c71d8;
   --color-sidebar-indicator: #3584e4;
@@ -156,7 +158,9 @@
   --color-primary: #62a0ea;
   --color-on-primary: #ffffff;
   --color-success: #33d17a;
+  --color-warning: #f5c211;
   --color-danger: #ed333b;
+  --color-error: #ff7b63;
   --color-sidebar-icon: #9a9996;
   --color-sidebar-icon-active: #62a0ea;
   --color-sidebar-indicator: #62a0ea;

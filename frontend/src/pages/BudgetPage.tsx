@@ -8,121 +8,100 @@ import {
   createBudgetEvent,
   deleteBudgetEvent,
   initBudgetGroups,
+  autoAssignGroups,
 } from "../api/client";
-import type { BudgetGroup, BudgetEvent, BudgetSuggestion } from "../types";
+import type { BudgetGroup, BudgetEvent, BudgetSuggestion, BudgetSummaryItem } from "../types";
 import { formatCurrency } from "../utils/format";
 
-// ─── Budget Group Card (50/30/20) ─────────────────────────────
+// ─── Donut Circle (50/30/20) ───────────────────────────────────
 
-function BudgetGroupCard({
+function DonutCircle({
   group,
+  color,
   onEdit,
 }: {
   group: BudgetGroup;
-  onEdit: (group: BudgetGroup) => void;
+  color: string;
+  onEdit: (g: BudgetGroup) => void;
 }) {
-  const committedPct = group.amount > 0 ? (group.committed / group.amount) * 100 : 0;
-  const spentPct = group.amount > 0 ? (group.spent / group.amount) * 100 : 0;
-  const status = spentPct >= 100 ? "exceeded" : spentPct >= 80 ? "warning" : "ok";
-  const committedStatus = committedPct > 100 ? "exceeded" : committedPct > 80 ? "warning" : "ok";
-
-  const barColors: Record<string, string> = {
-    ok: "bg-[var(--color-success)]",
-    warning: "bg-[var(--color-warning)]",
-    exceeded: "bg-[var(--color-error)]",
-  };
-
-  const groupColors: Record<string, string> = {
-    necesidades: "var(--color-primary)",
-    gustos: "var(--color-warning)",
-    ahorro: "var(--color-success)",
-  };
+  const pct = group.amount > 0 ? (group.spent / group.amount) * 100 : 0;
+  const circumference = 2 * Math.PI * 14;
+  const dashOffset = circumference - (Math.min(pct, 100) / 100) * circumference;
 
   return (
-    <div className="card overflow-hidden">
-      {/* Header */}
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-primary">{group.display_name}</h3>
-            <span
-              className="text-xs font-medium"
-              style={{ color: groupColors[group.name] || "var(--color-primary)" }}
-            >
-              {group.percentage}%
-            </span>
-          </div>
-          <button
-            onClick={() => onEdit(group)}
-            className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 rounded-lg px-3 py-1.5 transition-colors"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-              <path d="m15 5 4 4" />
-            </svg>
-            Editar
-          </button>
-        </div>
-
-        {/* Summary stats */}
-        <div className="grid grid-cols-3 gap-4 mb-3">
-          <div>
-            <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Asignado</p>
-            <p className="text-sm font-bold text-primary">{formatCurrency(group.amount)}</p>
-          </div>
-          <div>
-            <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Comprometido</p>
-            <p
-              className={`text-sm font-bold ${committedStatus === "exceeded" ? "text-[var(--color-error)]" : "text-primary"}`}
-            >
-              {formatCurrency(group.committed)}
-            </p>
-          </div>
-          <div>
-            <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Disponible</p>
-            <p
-              className={`text-sm font-bold ${group.available < 0 ? "text-[var(--color-error)]" : "text-[var(--color-success)]"}`}
-            >
-              {formatCurrency(group.available)}
-            </p>
-          </div>
-        </div>
-
-        {/* Progress bar */}
-        <div className="h-3 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all ${barColors[status]}`}
-            style={{ width: `${Math.min(spentPct, 100)}%` }}
+    <div className="card p-5 flex flex-col items-center">
+      <div className="relative w-28 h-28 mb-3">
+        <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+          <circle
+            cx="18"
+            cy="18"
+            r="14"
+            fill="none"
+            stroke="var(--color-base-alt)"
+            strokeWidth="4"
           />
+          <circle
+            cx="18"
+            cy="18"
+            r="14"
+            fill="none"
+            stroke={color}
+            strokeWidth="4"
+            strokeDasharray={`${circumference}`}
+            strokeDashoffset={dashOffset}
+            strokeLinecap="round"
+            className="transition-all duration-700"
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-xl font-bold" style={{ color }}>
+            {Math.round(pct)}%
+          </span>
         </div>
-        <p className="text-xs text-[var(--text-tertiary)] mt-1 text-center">
-          {Math.round(spentPct)}% utilizado · {formatCurrency(group.spent)} /{" "}
-          {formatCurrency(group.amount)}
-        </p>
-
-        {/* Committed warning */}
-        {group.committed > group.amount && (
-          <div className="mt-2 p-2 bg-[var(--color-error)]/10 rounded text-xs text-[var(--color-error)] text-center">
-            ⚠️ Comprometido excede el presupuesto del grupo
-          </div>
-        )}
       </div>
+      <h3 className="text-sm font-semibold text-primary mb-1">{group.display_name}</h3>
+      <p className="text-xs text-[var(--text-secondary)]">
+        {formatCurrency(group.spent)} / {formatCurrency(group.amount)}
+      </p>
+      <div className="flex gap-4 mt-2 text-[10px] text-[var(--text-tertiary)]">
+        <span>Comprometido: {formatCurrency(group.committed)}</span>
+        <span>
+          Disponible:{" "}
+          <span
+            className={
+              group.available < 0 ? "text-[var(--color-error)]" : "text-[var(--color-success)]"
+            }
+          >
+            {formatCurrency(group.available)}
+          </span>
+        </span>
+      </div>
+      <button
+        onClick={() => onEdit(group)}
+        className="mt-3 flex items-center gap-1.5 text-xs font-medium text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 rounded-lg px-3 py-1.5 transition-colors"
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+          <path d="m15 5 4 4" />
+        </svg>
+        Editar
+      </button>
     </div>
   );
 }
 
-// ─── Budget Category Bar ──────────────────────────────────────
+// ─── Category Bar with Gradient ────────────────────────────────
 
-function BudgetCategoryBar({
+function CategoryBar({
   name,
   color,
   spent,
@@ -137,7 +116,6 @@ function BudgetCategoryBar({
   avgMonthly?: number;
   onAddBudget?: () => void;
 }) {
-  // No budget case
   if (budget === 0) {
     return (
       <div className="flex items-center gap-3 py-2">
@@ -165,7 +143,6 @@ function BudgetCategoryBar({
     );
   }
 
-  // With budget case
   const pct = budget > 0 ? (spent / budget) * 100 : 0;
   const barColor =
     pct >= 100
@@ -182,7 +159,7 @@ function BudgetCategoryBar({
       <span className="text-xs text-[var(--text-primary)] min-w-[100px] truncate font-medium">
         {name}
       </span>
-      <div className="flex-1 h-3 bg-[var(--color-base-alt)] rounded-full overflow-hidden min-w-[100px]">
+      <div className="flex-1 h-2.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden min-w-[80px]">
         <div
           className="h-full rounded-full transition-all"
           style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }}
@@ -192,15 +169,7 @@ function BudgetCategoryBar({
         {formatCurrency(spent)} / {formatCurrency(budget)}
       </span>
       <span
-        className={`text-xs font-medium w-12 text-right whitespace-nowrap ${
-          pct >= 100
-            ? "text-[var(--color-danger)]"
-            : pct >= 80
-              ? "text-[#e8a100]"
-              : pct >= 60
-                ? "text-[var(--gnome-yellow-4)]"
-                : "text-[var(--text-tertiary)]"
-        }`}
+        className={`text-xs font-medium w-12 text-right whitespace-nowrap ${pct >= 100 ? "text-[var(--color-danger)]" : pct >= 80 ? "text-[#e8a100]" : "text-[var(--text-tertiary)]"}`}
       >
         {Math.round(pct)}%
       </span>
@@ -208,15 +177,99 @@ function BudgetCategoryBar({
   );
 }
 
-// ─── Budget Event Card ────────────────────────────────────────
+// ─── Category Group Section ────────────────────────────────────
 
-function BudgetEventCard({
-  event,
-  onDelete,
+function CategoryGroupSection({
+  displayName,
+  color,
+  categories,
+  onAddBudget,
 }: {
-  event: BudgetEvent;
-  onDelete: (id: number) => void;
+  name: string;
+  displayName: string;
+  color: string;
+  categories: BudgetSummaryItem[];
+  onAddBudget: () => void;
 }) {
+  const [expanded, setExpanded] = useState(true);
+  const totalBudget = categories.reduce((s, c) => s + c.budget_amount, 0);
+  const totalSpent = categories.reduce((s, c) => s + c.spent_amount, 0);
+
+  if (categories.length === 0) return null;
+
+  return (
+    <div className="card overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between p-4 hover:bg-[var(--color-base-alt)] transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+          <h3 className="text-sm font-semibold text-primary">{displayName}</h3>
+          <span className="text-xs text-[var(--text-tertiary)]">
+            {categories.length} categorías
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          {totalBudget > 0 && (
+            <span className="text-xs text-[var(--text-secondary)]">
+              {formatCurrency(totalSpent)} / {formatCurrency(totalBudget)}
+            </span>
+          )}
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className={`text-[var(--text-tertiary)] transition-transform ${expanded ? "rotate-180" : ""}`}
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </div>
+      </button>
+      {expanded && (
+        <div className="px-4 pb-4 border-t border-[var(--border-color)]">
+          {categories.map((cat) => (
+            <div key={cat.category_id}>
+              <CategoryBar
+                name={cat.category_name}
+                color={cat.category_color}
+                spent={cat.spent_amount}
+                budget={cat.budget_amount}
+                avgMonthly={cat.avg_monthly}
+                onAddBudget={onAddBudget}
+              />
+              {cat.children.map((child) => (
+                <div key={child.category_id} className="pl-6">
+                  <CategoryBar
+                    name={child.category_name}
+                    color={child.category_color}
+                    spent={child.spent_amount}
+                    budget={child.budget_amount}
+                    avgMonthly={child.avg_monthly}
+                    onAddBudget={onAddBudget}
+                  />
+                </div>
+              ))}
+            </div>
+          ))}
+          <button
+            onClick={onAddBudget}
+            className="mt-2 text-xs text-[var(--color-primary)] hover:underline"
+          >
+            + Agregar presupuesto
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Event Card ────────────────────────────────────────────────
+
+function EventCard({ event, onDelete }: { event: BudgetEvent; onDelete: (id: number) => void }) {
   const pct = event.total_amount > 0 ? (event.spent / event.total_amount) * 100 : 0;
   const daysLeft = Math.max(
     0,
@@ -226,16 +279,14 @@ function BudgetEventCard({
   return (
     <div className="card p-4 flex items-center gap-4">
       <div className="flex-1">
-        <div className="flex items-center gap-2">
-          <h4 className="text-sm font-semibold text-primary">{event.name}</h4>
-          <span className="text-xs text-[var(--text-tertiary)]">
-            {event.start_date} — {event.end_date}
-          </span>
-        </div>
+        <h4 className="text-sm font-semibold text-primary">{event.name}</h4>
+        <p className="text-xs text-[var(--text-tertiary)]">
+          {event.start_date} — {event.end_date}
+        </p>
         <p className="text-xs text-[var(--text-secondary)] mt-1">
           {formatCurrency(event.spent)} / {formatCurrency(event.total_amount)}
         </p>
-        <div className="mt-2 h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden w-full max-w-[200px]">
+        <div className="mt-2 h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden max-w-[200px]">
           <div
             className="h-full rounded-full bg-[var(--color-primary)] transition-all"
             style={{ width: `${Math.min(pct, 100)}%` }}
@@ -256,9 +307,9 @@ function BudgetEventCard({
   );
 }
 
-// ─── Budget Suggestions Banner ────────────────────────────────
+// ─── Suggestions Banner ────────────────────────────────────────
 
-function BudgetSuggestionsBanner({ suggestions }: { suggestions: BudgetSuggestion[] }) {
+function SuggestionsBanner({ suggestions }: { suggestions: BudgetSuggestion[] }) {
   const [expanded, setExpanded] = useState(false);
   const qc = useQueryClient();
 
@@ -288,158 +339,48 @@ function BudgetSuggestionsBanner({ suggestions }: { suggestions: BudgetSuggestio
             Sugerencias basadas en tus últimos 3 meses
           </span>
         </div>
-        <span className="text-xs text-[var(--text-tertiary)]">{expanded ? "▲" : "▼"}</span>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className={`text-[var(--text-tertiary)] transition-transform ${expanded ? "rotate-180" : ""}`}
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
       </button>
-
       {expanded && (
-        <div className="mt-4 space-y-3">
-          {suggestions.slice(0, 5).map((s) => (
-            <div
-              key={s.category_id}
-              className="flex items-center justify-between py-2 border-b border-[var(--border-color)] last:border-0"
-            >
-              <div className="flex items-center gap-2">
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: s.category_color }}
-                />
-                <span className="text-xs text-[var(--text-primary)]">{s.category_name}</span>
-                <span className="text-xs text-[var(--text-tertiary)]">
-                  Prom: {formatCurrency(s.avg_monthly)}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                {s.has_budget ? (
-                  <span className="text-xs text-[var(--text-tertiary)]">
-                    Actual: {formatCurrency(s.current_budget || 0)}
+        <div className="mt-3 space-y-2">
+          {suggestions
+            .filter((s) => !s.has_budget)
+            .map((s) => (
+              <div
+                key={s.category_id}
+                className="flex items-center justify-between py-2 border-t border-[var(--border-color)]"
+              >
+                <div>
+                  <span className="text-xs font-medium text-primary">{s.category_name}</span>
+                  <span className="text-xs text-[var(--text-tertiary)] ml-2">
+                    prom: {formatCurrency(s.avg_monthly)}/mes
                   </span>
-                ) : (
-                  <>
-                    <span className="text-xs text-[var(--color-primary)] font-medium">
-                      Sugerido: {formatCurrency(s.suggested)}
-                    </span>
-                    <button
-                      onClick={() => applyMutation.mutate(s)}
-                      disabled={applyMutation.isPending}
-                      className="text-xs px-2 py-1 rounded bg-[var(--color-primary)] text-white hover:opacity-90"
-                    >
-                      Aplicar
-                    </button>
-                  </>
-                )}
+                </div>
+                <button
+                  onClick={() => applyMutation.mutate(s)}
+                  className="text-xs text-[var(--color-primary)] hover:underline font-medium"
+                >
+                  Sugerir {formatCurrency(s.suggested)}
+                </button>
               </div>
-            </div>
-          ))}
+            ))}
         </div>
       )}
     </div>
   );
 }
 
-// ─── New Event Modal ──────────────────────────────────────────
-
-function NewEventModal({ onClose }: { onClose: () => void }) {
-  const qc = useQueryClient();
-  const [name, setName] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [amount, setAmount] = useState(0);
-
-  const createMutation = useMutation({
-    mutationFn: createBudgetEvent,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["budget-events"] });
-      onClose();
-    },
-  });
-
-  const handleSubmit = () => {
-    if (!name || !startDate || !endDate || amount <= 0) return;
-    createMutation.mutate({
-      name,
-      start_date: startDate,
-      end_date: endDate,
-      total_amount: amount,
-    });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="text-base font-semibold text-primary mb-4">Nuevo Evento Temporal</h3>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
-              Nombre
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ej: Vacaciones Europa"
-              className="input"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
-                Inicio
-              </label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="input"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
-                Fin
-              </label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="input"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
-              Monto total
-            </label>
-            <input
-              type="number"
-              value={amount || ""}
-              onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
-              placeholder="0"
-              className="input"
-            />
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-2 mt-6">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={!name || !startDate || !endDate || amount <= 0 || createMutation.isPending}
-            className="px-4 py-2 text-sm bg-[var(--color-primary)] text-white rounded-lg hover:opacity-90 disabled:opacity-50"
-          >
-            {createMutation.isPending ? "Creando..." : "Crear"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Quick Budget Config Modal ────────────────────────────────
+// ─── Quick Config Modal ────────────────────────────────────────
 
 function QuickConfigModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
@@ -447,30 +388,32 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
     queryKey: ["categories"],
     queryFn: () => import("../api/client").then((m) => m.getCategories()),
   });
-
   const { data: budgets = [] } = useQuery({
     queryKey: ["budgets"],
     queryFn: () => import("../api/client").then((m) => m.getBudgets()),
   });
 
   const [amounts, setAmounts] = useState<Record<number, number>>({});
+  const [groupAssignments, setGroupAssignments] = useState<Record<number, string>>({});
 
-  // Initialize amounts from existing budgets
   useState(() => {
     const initial: Record<number, number> = {};
-    for (const b of budgets) {
-      initial[b.category_id] = b.amount;
-    }
+    for (const b of budgets) initial[b.category_id] = b.amount;
     setAmounts(initial);
   });
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const { createBudget } = await import("../api/client");
+      const { createBudget, updateCategoryGroup } = await import("../api/client");
       const promises = [];
       for (const [catId, amount] of Object.entries(amounts)) {
         if (amount > 0) {
           promises.push(createBudget({ category_id: parseInt(catId), amount }));
+        }
+      }
+      for (const [catId, group] of Object.entries(groupAssignments)) {
+        if (group) {
+          promises.push(updateCategoryGroup(parseInt(catId), group));
         }
       }
       return Promise.all(promises);
@@ -482,7 +425,6 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
     },
   });
 
-  // Filter to show only subcategories (leaves)
   const subcategories = categories.filter((c) => !categories.some((p) => p.id === c.parent_id));
 
   return (
@@ -490,49 +432,56 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
       <div className="card w-full max-w-lg p-6 max-h-[80vh] overflow-y-auto">
         <h3 className="text-base font-semibold text-primary mb-4">Configurar Presupuestos</h3>
         <p className="text-xs text-[var(--text-secondary)] mb-4">
-          Definí el límite mensual para cada categoría
+          Definí el límite mensual para cada categoría y su grupo macro
         </p>
-
         <div className="space-y-3">
           {subcategories.map((cat) => (
             <div
               key={cat.id}
-              className="flex items-center gap-3 py-2 border-b border-[var(--border-color)] last:border-0"
+              className="flex items-center gap-3 py-2 border-b border-[var(--border-color)]"
             >
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }} />
-              <span className="text-sm text-[var(--text-primary)] flex-1">{cat.name}</span>
-              <div className="relative w-32">
-                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] text-sm">
-                  $
-                </span>
-                <input
-                  type="number"
-                  value={amounts[cat.id] || ""}
-                  onChange={(e) =>
-                    setAmounts((prev) => ({
-                      ...prev,
-                      [cat.id]: parseFloat(e.target.value) || 0,
-                    }))
-                  }
-                  placeholder="0"
-                  className="input pl-6 text-sm py-1.5"
-                />
-              </div>
+              <div
+                className="w-3 h-3 rounded-full flex-shrink-0"
+                style={{ backgroundColor: cat.color }}
+              />
+              <span className="text-xs font-medium text-primary min-w-[100px] truncate">
+                {cat.name}
+              </span>
+              <select
+                value={groupAssignments[cat.id] || ""}
+                onChange={(e) =>
+                  setGroupAssignments({ ...groupAssignments, [cat.id]: e.target.value })
+                }
+                className="text-xs border border-[var(--border-color)] rounded px-2 py-1 bg-[var(--color-surface)]"
+              >
+                <option value="">Sin grupo</option>
+                <option value="necesidades">Necesidades</option>
+                <option value="gustos">Gustos</option>
+                <option value="ahorro">Ahorro</option>
+              </select>
+              <input
+                type="number"
+                value={amounts[cat.id] || ""}
+                onChange={(e) =>
+                  setAmounts({ ...amounts, [cat.id]: parseFloat(e.target.value) || 0 })
+                }
+                placeholder="0"
+                className="input flex-1 text-xs py-1"
+              />
             </div>
           ))}
         </div>
-
-        <div className="flex justify-end gap-2 mt-6">
+        <div className="flex gap-2 mt-4">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            className="flex-1 px-4 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
           >
             Cancelar
           </button>
           <button
             onClick={() => saveMutation.mutate()}
             disabled={saveMutation.isPending}
-            className="px-4 py-2 text-sm bg-[var(--color-primary)] text-white rounded-lg hover:opacity-90 disabled:opacity-50"
+            className="flex-1 px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
             {saveMutation.isPending ? "Guardando..." : "Guardar"}
           </button>
@@ -542,7 +491,7 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ─── Edit Group Modal ─────────────────────────────────────────
+// ─── Edit Group Modal ──────────────────────────────────────────
 
 function EditGroupModal({ group, onClose }: { group: BudgetGroup; onClose: () => void }) {
   const qc = useQueryClient();
@@ -565,7 +514,6 @@ function EditGroupModal({ group, onClose }: { group: BudgetGroup; onClose: () =>
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="card w-full max-w-md p-6">
         <h3 className="text-base font-semibold text-primary mb-4">Editar — {group.display_name}</h3>
-
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
@@ -578,7 +526,6 @@ function EditGroupModal({ group, onClose }: { group: BudgetGroup; onClose: () =>
                 onChange={(e) => {
                   const p = parseFloat(e.target.value) || 0;
                   setPercentage(p);
-                  // Recalculate amount based on total budget
                   const total = amount / (group.percentage / 100);
                   setAmount(Math.round((total * p) / 100));
                 }}
@@ -589,34 +536,29 @@ function EditGroupModal({ group, onClose }: { group: BudgetGroup; onClose: () =>
               <span className="text-sm text-[var(--text-secondary)]">%</span>
             </div>
           </div>
-
           <div>
             <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
               Monto mensual
             </label>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-[var(--text-secondary)]">$</span>
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
-                className="input flex-1"
-              />
-            </div>
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
+              className="input w-full"
+            />
           </div>
         </div>
-
-        <div className="flex justify-end gap-2 mt-6">
+        <div className="flex gap-2 mt-6">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            className="flex-1 px-4 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
           >
             Cancelar
           </button>
           <button
             onClick={() => updateMutation.mutate()}
             disabled={updateMutation.isPending}
-            className="px-4 py-2 text-sm bg-[var(--color-primary)] text-white rounded-lg hover:opacity-90 disabled:opacity-50"
+            className="flex-1 px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
             {updateMutation.isPending ? "Guardando..." : "Guardar"}
           </button>
@@ -626,13 +568,109 @@ function EditGroupModal({ group, onClose }: { group: BudgetGroup; onClose: () =>
   );
 }
 
-// ─── Main Budget Page ─────────────────────────────────────────
+// ─── New Event Modal ───────────────────────────────────────────
+
+function NewEventModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const [name, setName] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [totalAmount, setTotalAmount] = useState("");
+
+  const createMutation = useMutation({
+    mutationFn: () =>
+      createBudgetEvent({
+        name,
+        start_date: startDate,
+        end_date: endDate,
+        total_amount: parseFloat(totalAmount),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["budget-events"] });
+      onClose();
+    },
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="card w-full max-w-md p-6">
+        <h3 className="text-base font-semibold text-primary mb-4">Nuevo Evento Temporal</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+              Nombre
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ej: Vacaciones"
+              className="input w-full"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                Inicio
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="input w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                Fin
+              </label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="input w-full"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+              Presupuesto total
+            </label>
+            <input
+              type="number"
+              value={totalAmount}
+              onChange={(e) => setTotalAmount(e.target.value)}
+              className="input w-full"
+            />
+          </div>
+        </div>
+        <div className="flex gap-2 mt-6">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => createMutation.mutate()}
+            disabled={!name || !startDate || !endDate || !totalAmount || createMutation.isPending}
+            className="flex-1 px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
+          >
+            {createMutation.isPending ? "Creando..." : "Crear"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main BudgetPage ───────────────────────────────────────────
 
 export default function BudgetPage() {
+  const qc = useQueryClient();
   const [showNewEvent, setShowNewEvent] = useState(false);
   const [showQuickConfig, setShowQuickConfig] = useState(false);
   const [editingGroup, setEditingGroup] = useState<BudgetGroup | null>(null);
-  const qc = useQueryClient();
 
   const { data: summary, isLoading: loadingSummary } = useQuery({
     queryKey: ["budget-summary"],
@@ -656,15 +694,19 @@ export default function BudgetPage() {
 
   const initGroupsMutation = useMutation({
     mutationFn: (income: number) => initBudgetGroups(income),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["budget-groups"] });
-    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["budget-groups"] }),
   });
 
   const deleteEventMutation = useMutation({
     mutationFn: deleteBudgetEvent,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["budget-events"] }),
+  });
+
+  const autoAssignMutation = useMutation({
+    mutationFn: autoAssignGroups,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["budget-events"] });
+      qc.invalidateQueries({ queryKey: ["budget-summary"] });
+      qc.invalidateQueries({ queryKey: ["budget-groups"] });
     },
   });
 
@@ -672,9 +714,7 @@ export default function BudgetPage() {
 
   const handleInitGroups = () => {
     const income = parseFloat(incomeInput);
-    if (income > 0) {
-      initGroupsMutation.mutate(income);
-    }
+    if (income > 0) initGroupsMutation.mutate(income);
   };
 
   const isLoading = loadingSummary || loadingGroups || loadingEvents;
@@ -684,6 +724,11 @@ export default function BudgetPage() {
       <div className="p-6">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-[var(--color-base-alt)] rounded w-48" />
+          <div className="grid grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-24 bg-[var(--color-base-alt)] rounded-xl" />
+            ))}
+          </div>
           <div className="grid grid-cols-3 gap-4">
             {[1, 2, 3].map((i) => (
               <div key={i} className="h-48 bg-[var(--color-base-alt)] rounded-xl" />
@@ -693,6 +738,19 @@ export default function BudgetPage() {
       </div>
     );
   }
+
+  // Compute KPIs
+  const totalBudget = groups.reduce((s, g) => s + g.amount, 0);
+  const totalSpent = groups.reduce((s, g) => s + g.spent, 0);
+  const totalAvailable = totalBudget - totalSpent;
+  const totalPct = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
+
+  // Group categories by macro group
+  const groupColors: Record<string, string> = {
+    necesidades: "var(--color-primary)",
+    gustos: "var(--color-warning)",
+    ahorro: "var(--color-success)",
+  };
 
   return (
     <div className="p-6">
@@ -704,27 +762,136 @@ export default function BudgetPage() {
             Gestioná tus límites de gasto por categoría
           </p>
         </div>
-        <button
-          onClick={() => setShowNewEvent(true)}
-          className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90"
-        >
-          + Nuevo Evento
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => autoAssignMutation.mutate()}
+            disabled={autoAssignMutation.isPending}
+            className="px-4 py-2 border border-[var(--border-color)] text-[var(--text-secondary)] rounded-lg text-sm font-medium hover:bg-[var(--color-base-alt)] disabled:opacity-50"
+          >
+            {autoAssignMutation.isPending ? "Asignando..." : "🔄 Auto-asignar grupos"}
+          </button>
+          <button
+            onClick={() => setShowNewEvent(true)}
+            className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90"
+          >
+            + Nuevo Evento
+          </button>
+        </div>
       </div>
 
       {/* 50/30/20 Groups or Init */}
       {groups.length > 0 ? (
-        <div className="mb-6">
-          <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">
-            Macro Grupos (50/30/20)
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {groups.map((g) => (
-              <BudgetGroupCard key={g.id} group={g} onEdit={setEditingGroup} />
-            ))}
+        <>
+          {/* KPI Row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="card p-4">
+              <p className="text-[10px] text-[var(--text-tertiary)] uppercase mb-1">
+                Presupuestado
+              </p>
+              <p className="text-lg font-bold text-primary">{formatCurrency(totalBudget)}</p>
+            </div>
+            <div className="card p-4">
+              <p className="text-[10px] text-[var(--text-tertiary)] uppercase mb-1">Gastado</p>
+              <p className="text-lg font-bold text-primary">{formatCurrency(totalSpent)}</p>
+            </div>
+            <div className="card p-4">
+              <p className="text-[10px] text-[var(--text-tertiary)] uppercase mb-1">Disponible</p>
+              <p
+                className={`text-lg font-bold ${totalAvailable < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"}`}
+              >
+                {formatCurrency(totalAvailable)}
+              </p>
+            </div>
+            <div className="card p-4">
+              <p className="text-[10px] text-[var(--text-tertiary)] uppercase mb-1">Utilizado</p>
+              <p
+                className={`text-lg font-bold ${totalPct >= 100 ? "text-[var(--color-danger)]" : totalPct >= 80 ? "text-[#e8a100]" : "text-[var(--color-success)]"}`}
+              >
+                {Math.round(totalPct)}%
+              </p>
+            </div>
           </div>
-        </div>
+
+          {/* 50/30/20 Donuts */}
+          <div className="mb-6">
+            <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">
+              Macro Grupos (50/30/20)
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {groups.map((g) => (
+                <DonutCircle
+                  key={g.id}
+                  group={g}
+                  color={groupColors[g.name] || "var(--color-primary)"}
+                  onEdit={setEditingGroup}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Category Groups + Events */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            <div className="lg:col-span-2 space-y-4">
+              {summary && summary.categories.length > 0 ? (
+                <>
+                  {/* Group by checking which categories belong to which group */}
+                  {/* For now, show all categories grouped by their parent */}
+                  <CategoryGroupSection
+                    name="necesidades"
+                    displayName="Necesidades"
+                    color="var(--color-primary)"
+                    categories={summary.categories}
+                    onAddBudget={() => setShowQuickConfig(true)}
+                  />
+                </>
+              ) : (
+                <div className="card p-8 text-center">
+                  <p className="text-sm text-[var(--text-secondary)] mb-4">
+                    No hay presupuestos configurados
+                  </p>
+                  <button
+                    onClick={() => setShowQuickConfig(true)}
+                    className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90"
+                  >
+                    + Agregar primer presupuesto
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Events */}
+            <div className="card p-5">
+              <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">
+                Eventos Temporales
+              </h2>
+              {events.length > 0 ? (
+                <div className="space-y-3">
+                  {events.map((event) => (
+                    <EventCard
+                      key={event.id}
+                      event={event}
+                      onDelete={(id) => deleteEventMutation.mutate(id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-xs text-[var(--text-tertiary)] mb-2">
+                    No hay eventos temporales
+                  </p>
+                  <button
+                    onClick={() => setShowNewEvent(true)}
+                    className="text-xs text-[var(--color-primary)] hover:underline"
+                  >
+                    + Crear evento
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
       ) : (
+        /* Init Screen */
         <div className="card p-8 mb-6">
           <div className="text-center mb-6">
             <h3 className="text-lg font-semibold text-primary mb-2">
@@ -734,8 +901,6 @@ export default function BudgetPage() {
               Distribuí tu ingreso mensual en 3 macro grupos
             </p>
           </div>
-
-          {/* Preview de grupos */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             <div className="p-4 rounded-xl border border-[var(--border-color)] text-center">
               <div className="w-10 h-10 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center mx-auto mb-2">
@@ -763,8 +928,6 @@ export default function BudgetPage() {
               <p className="text-xs text-[var(--text-tertiary)] mt-1">Inversiones, Ahorro</p>
             </div>
           </div>
-
-          {/* Input de ingreso */}
           <div className="max-w-lg mx-auto">
             <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2 text-center">
               ¿Cuánto ganás por mes?
@@ -790,145 +953,14 @@ export default function BudgetPage() {
         </div>
       )}
 
-      {/* Resumen General + Configuración Rápida - 2 columns */}
-      {groups.length > 0 &&
-        (() => {
-          const groupTotalBudget = groups.reduce((sum, g) => sum + g.amount, 0);
-          const groupTotalSpent = groups.reduce((sum, g) => sum + g.spent, 0);
-          const groupTotalPct = groupTotalBudget > 0 ? groupTotalSpent / groupTotalBudget : 0;
-          const summaryStatus =
-            groupTotalPct >= 1 ? "error" : groupTotalPct >= 0.8 ? "warning" : "success";
-
-          return (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-              {/* Resumen General - 2/3 */}
-              <div className="lg:col-span-2 card p-5">
-                <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">
-                  Resumen General
-                </h2>
-                <div className="flex items-center gap-6">
-                  <div className="flex-1">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-bold text-primary">
-                        {formatCurrency(groupTotalSpent)}
-                      </span>
-                      <span className="text-sm text-[var(--text-secondary)]">
-                        / {formatCurrency(groupTotalBudget)}
-                      </span>
-                    </div>
-                    <div className="mt-3 h-4 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${Math.min(groupTotalPct * 100, 100)}%`,
-                          backgroundColor: `var(--color-${summaryStatus})`,
-                        }}
-                      />
-                    </div>
-                    <p className="text-xs text-[var(--text-tertiary)] mt-2">
-                      {Math.round(groupTotalPct * 100)}% del presupuesto utilizado
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Configuración Rápida - 1/3 */}
-              <div className="card p-5">
-                <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">
-                  Configuración
-                </h2>
-                <p className="text-xs text-[var(--text-tertiary)] mb-4">
-                  Definí límites mensuales para cada categoría
-                </p>
-                <button
-                  onClick={() => setShowQuickConfig(true)}
-                  className="w-full px-4 py-2.5 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90"
-                >
-                  + Agregar/Editar Presupuesto
-                </button>
-              </div>
-            </div>
-          );
-        })()}
-
-      {/* Presupuestos por Categoría + Eventos - 2 columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        {/* Presupuestos - 2/3 */}
-        <div className="lg:col-span-2">
-          {summary && summary.categories.length > 0 && (
-            <div className="card p-5">
-              <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">
-                Presupuestos por Categoría
-              </h2>
-              {summary.categories.map((cat) => (
-                <div key={cat.category_id}>
-                  <BudgetCategoryBar
-                    name={cat.category_name}
-                    color={cat.category_color}
-                    spent={cat.spent_amount}
-                    budget={cat.budget_amount}
-                    avgMonthly={cat.avg_monthly}
-                    onAddBudget={() => setShowQuickConfig(true)}
-                  />
-                  {cat.children.map((child) => (
-                    <div key={child.category_id} className="pl-6">
-                      <BudgetCategoryBar
-                        name={child.category_name}
-                        color={child.category_color}
-                        spent={child.spent_amount}
-                        budget={child.budget_amount}
-                        avgMonthly={child.avg_monthly}
-                        onAddBudget={() => setShowQuickConfig(true)}
-                      />
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Eventos - 1/3 */}
-        <div className="card p-5">
-          <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">
-            Eventos Temporales
-          </h2>
-          {events.length > 0 ? (
-            <div className="space-y-3">
-              {events.map((event) => (
-                <BudgetEventCard
-                  key={event.id}
-                  event={event}
-                  onDelete={(id) => deleteEventMutation.mutate(id)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-4">
-              <p className="text-xs text-[var(--text-tertiary)] mb-2">No hay eventos temporales</p>
-              <button
-                onClick={() => setShowNewEvent(true)}
-                className="text-xs text-[var(--color-primary)] hover:underline"
-              >
-                + Crear evento
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Suggestions */}
       {suggestionsData && suggestionsData.suggestions.length > 0 && (
-        <BudgetSuggestionsBanner suggestions={suggestionsData.suggestions} />
+        <SuggestionsBanner suggestions={suggestionsData.suggestions} />
       )}
 
-      {/* New Event Modal */}
+      {/* Modals */}
       {showNewEvent && <NewEventModal onClose={() => setShowNewEvent(false)} />}
-
-      {/* Quick Config Modal */}
       {showQuickConfig && <QuickConfigModal onClose={() => setShowQuickConfig(false)} />}
-
-      {/* Edit Group Modal */}
       {editingGroup && (
         <EditGroupModal group={editingGroup} onClose={() => setEditingGroup(null)} />
       )}
