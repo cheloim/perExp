@@ -359,15 +359,15 @@ export default function OnboardingWalkthrough({
 
   if (!run) return null;
 
-  const steps: Step[] = tourConfigs.map((cfg) => ({
-    target: cfg.target,
+  const steps = tourConfigs.map((cfg) => ({
+    ...(cfg.target ? { target: cfg.target } : { target: "body" }),
     title: cfg.title,
     content: cfg.content,
-    placement: cfg.placement,
+    ...(cfg.placement ? { placement: cfg.placement } : {}),
     data: { ...cfg, _total: totalSteps } as unknown,
     ...(cfg.before ? { before: cfg.before } : {}),
     ...(cfg.after ? { after: cfg.after } : {}),
-  }));
+  })) as Step[];
 
   return (
     <Joyride
