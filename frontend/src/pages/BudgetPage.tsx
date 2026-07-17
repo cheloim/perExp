@@ -478,6 +478,28 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
     queryKey: ["budgets"],
     queryFn: () => import("../api/client").then((m) => m.getBudgets()),
   });
+  const { data: summary } = useQuery({
+    queryKey: ["budget-summary"],
+    queryFn: () => import("../api/client").then((m) => m.getBudgetSummary()),
+  });
+
+  // Build set of category IDs that already have budgets
+  const budgetedCatIds = new Set(budgets.map((b) => b.category_id));
+
+  // Get category IDs that have spending (from summary)
+  const spentCatIds = new Set(
+    summary?.categories
+      .flatMap((c) => [c.category_id, ...c.children.map((ch) => ch.category_id)])
+      .filter((id): id is number => id !== null) ?? [],
+  );
+
+  // Only show subcategories that have spending but NO budget
+  const unbudgetedCategories = categories.filter(
+    (c) =>
+      !categories.some((p) => p.id === c.parent_id) && // is leaf
+      spentCatIds.has(c.id) && // has expenses
+      !budgetedCatIds.has(c.id), // no budget
+  );
 
   const [amounts, setAmounts] = useState<Record<number, number>>({});
   const [groupAssignments, setGroupAssignments] = useState<Record<number, string>>({});
@@ -511,52 +533,58 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
     },
   });
 
-  const subcategories = categories.filter((c) => !categories.some((p) => p.id === c.parent_id));
-
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="card w-full max-w-lg p-6 max-h-[80vh] overflow-y-auto">
-        <h3 className="text-base font-semibold text-primary mb-4">Configurar Presupuestos</h3>
+        <h3 className="text-base font-semibold text-primary mb-2">Configurar Presupuestos</h3>
         <p className="text-xs text-[var(--text-secondary)] mb-4">
-          Definí el límite mensual para cada categoría y su grupo macro
+          {unbudgetedCategories.length} categorías con gastos sin presupuesto asignado
         </p>
-        <div className="space-y-3">
-          {subcategories.map((cat) => (
-            <div
-              key={cat.id}
-              className="flex items-center gap-3 py-2 border-b border-[var(--border-color)]"
-            >
+        {unbudgetedCategories.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-sm text-[var(--text-secondary)]">
+              Todas las categorías ya tienen presupuesto
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {unbudgetedCategories.map((cat) => (
               <div
-                className="w-3 h-3 rounded-full flex-shrink-0"
-                style={{ backgroundColor: cat.color }}
-              />
-              <span className="text-xs font-medium text-primary min-w-[100px] truncate">
-                {cat.name}
-              </span>
-              <select
-                value={groupAssignments[cat.id] || ""}
-                onChange={(e) =>
-                  setGroupAssignments({ ...groupAssignments, [cat.id]: e.target.value })
-                }
-                className="text-xs border border-[var(--border-color)] rounded px-2 py-1 bg-[var(--color-surface)]"
+                key={cat.id}
+                className="flex items-center gap-3 py-2 border-b border-[var(--border-color)]"
               >
-                <option value="">Sin grupo</option>
-                <option value="necesidades">Necesidades</option>
-                <option value="gustos">Gustos</option>
-                <option value="ahorro">Ahorro</option>
-              </select>
-              <input
-                type="number"
-                value={amounts[cat.id] || ""}
-                onChange={(e) =>
-                  setAmounts({ ...amounts, [cat.id]: parseFloat(e.target.value) || 0 })
-                }
-                placeholder="0"
-                className="input flex-1 text-xs py-1"
-              />
-            </div>
-          ))}
-        </div>
+                <div
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: cat.color }}
+                />
+                <span className="text-xs font-medium text-primary min-w-[100px] truncate">
+                  {cat.name}
+                </span>
+                <select
+                  value={groupAssignments[cat.id] || ""}
+                  onChange={(e) =>
+                    setGroupAssignments({ ...groupAssignments, [cat.id]: e.target.value })
+                  }
+                  className="text-xs border border-[var(--border-color)] rounded px-2 py-1 bg-[var(--color-surface)]"
+                >
+                  <option value="">Sin grupo</option>
+                  <option value="necesidades">Necesidades</option>
+                  <option value="gustos">Gustos</option>
+                  <option value="ahorro">Ahorro</option>
+                </select>
+                <input
+                  type="number"
+                  value={amounts[cat.id] || ""}
+                  onChange={(e) =>
+                    setAmounts({ ...amounts, [cat.id]: parseFloat(e.target.value) || 0 })
+                  }
+                  placeholder="0"
+                  className="input flex-1 text-xs py-1"
+                />
+              </div>
+            ))}
+          </div>
+        )}
         <div className="flex gap-2 mt-4">
           <button
             onClick={onClose}
@@ -823,6 +851,12 @@ export default function BudgetPage() {
   const totalSpent = groups.reduce((s, g) => s + g.spent, 0);
   const totalAvailable = totalBudget - totalSpent;
 
+  // Count categories with spending but no budget
+  const unbudgetedCount =
+    summary?.categories.filter(
+      (c) => !c.has_budget && (c.spent_amount > 0 || c.children.some((ch) => ch.spent_amount > 0)),
+    ).length ?? 0;
+
   // Group categories by macro group
   const groupColors: Record<string, string> = {
     necesidades: "var(--color-primary)",
@@ -873,20 +907,20 @@ export default function BudgetPage() {
                 {formatCurrency(totalAvailable)}
               </p>
             </div>
-            <div
-              className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
-              onClick={() => setShowQuickConfig(true)}
-            >
-              <p className="text-[10px] text-[var(--text-tertiary)] uppercase mb-1">
-                Sin presupuesto
-              </p>
-              <p className="text-lg font-bold text-[var(--color-primary)]">
-                {summary?.categories.filter((c) => !c.has_budget).length ?? 0}
-              </p>
-              <p className="text-[10px] text-[var(--text-tertiary)] mt-1">
-                categorías → configurar
-              </p>
-            </div>
+            {unbudgetedCount > 0 && (
+              <div
+                className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
+                onClick={() => setShowQuickConfig(true)}
+              >
+                <p className="text-[10px] text-[var(--text-tertiary)] uppercase mb-1">
+                  Sin presupuesto
+                </p>
+                <p className="text-lg font-bold text-[var(--color-primary)]">{unbudgetedCount}</p>
+                <p className="text-[10px] text-[var(--text-tertiary)] mt-1">
+                  categorías → configurar
+                </p>
+              </div>
+            )}
           </div>
 
           {/* 50/30/20 Donuts */}
