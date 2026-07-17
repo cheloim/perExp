@@ -435,81 +435,101 @@ export default function LandingPage() {
 function AppWindowMockup() {
   return (
     <div className="relative">
-      <div className="bg-[var(--color-surface)] rounded-2xl shadow-2xl border border-[var(--border-color)] overflow-hidden max-w-xs mx-auto">
+      <div className="bg-[var(--color-surface)] rounded-2xl shadow-2xl border border-[var(--border-color)] overflow-hidden max-w-sm mx-auto">
         {/* Headerbar — libadwaita style */}
-        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border-color)] bg-[var(--color-surface)]">
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border-color)]">
           <div className="w-3 h-3 rounded-full bg-[var(--color-danger)]" />
           <div className="w-3 h-3 rounded-full bg-[var(--gnome-yellow-4)]" />
           <div className="w-3 h-3 rounded-full bg-[var(--gnome-green-4)]" />
-          <span className="ml-2 text-xs font-medium text-[var(--text-primary)]">Resumen</span>
+          <span className="ml-2 text-xs font-medium" style={{ color: "var(--text-primary)" }}>
+            Oikonomia
+          </span>
         </div>
         {/* Content */}
-        <div className="p-4">
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            <StatCard label="Gasto" value="$5.999" />
-            <StatCard label="Mes" value="$45.230" />
-            <StatCard label="Trans." value="28" />
+        <div className="p-3 space-y-3">
+          {/* KPI Row - matches real Dashboard layout */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="p-2.5 rounded-xl border border-[var(--border-color)]">
+              <p className="text-[8px] uppercase tracking-wider mb-0.5" style={{ color: "var(--text-secondary)" }}>
+                Total gastado
+              </p>
+              <p className="text-sm font-bold" style={{ color: "var(--color-primary)" }}>$187.450</p>
+              <p className="text-[9px] mt-0.5" style={{ color: "var(--text-secondary)" }}>42 transacciones</p>
+            </div>
+            <div className="p-2.5 rounded-xl border border-[var(--border-color)]">
+              <p className="text-[8px] uppercase tracking-wider mb-0.5" style={{ color: "var(--text-secondary)" }}>
+                Deuda tarjetas
+              </p>
+              <p className="text-sm font-bold" style={{ color: "var(--color-danger)" }}>$321.800</p>
+              <p className="text-[9px] mt-0.5" style={{ color: "var(--text-secondary)" }}>8 cuotas pendientes</p>
+            </div>
+            <div className="p-2.5 rounded-xl border border-[var(--border-color)]">
+              <p className="text-[8px] uppercase tracking-wider mb-0.5" style={{ color: "var(--text-secondary)" }}>
+                Cuotas este mes
+              </p>
+              <p className="text-sm font-bold" style={{ color: "var(--color-primary)" }}>$54.200</p>
+              <p className="text-[9px] mt-0.5" style={{ color: "var(--text-secondary)" }}>6 cuotas</p>
+            </div>
+            <div className="p-2.5 rounded-xl border border-[var(--border-color)]">
+              <p className="text-[8px] uppercase tracking-wider mb-0.5" style={{ color: "var(--text-secondary)" }}>
+                vs Mes anterior
+              </p>
+              <p className="text-sm font-bold" style={{ color: "var(--gnome-green-5)" }}>↓ 12.3%</p>
+              <p className="text-[9px] mt-0.5" style={{ color: "var(--text-secondary)" }}>Gastaste menos</p>
+            </div>
           </div>
-          <div className="space-y-2">
-            <CategoryBar
-              name="Alimentación"
-              pct={41}
-              color="bg-[var(--color-primary)]"
-              value="$18.500"
-            />
-            <CategoryBar
-              name="Transporte"
-              pct={18}
-              color="bg-[var(--gnome-blue-4)]"
-              value="$8.200"
-            />
-            <CategoryBar
-              name="Servicios"
-              pct={15}
-              color="bg-[var(--gnome-yellow-4)]"
-              value="$6.800"
-            />
-            <CategoryBar name="Otros" pct={26} color="bg-[var(--gnome-gray-2)]" value="$11.730" />
+          {/* Category section - matches real "Gastos por Categoría" */}
+          <div className="rounded-xl border border-[var(--border-color)] p-2.5">
+            <p className="text-[10px] font-semibold mb-2" style={{ color: "var(--color-primary)" }}>
+              Gastos por Categoría
+            </p>
+            <div className="flex gap-3">
+              {/* Mini donut */}
+              <div className="flex-shrink-0">
+                <svg width="64" height="64" viewBox="0 0 36 36" className="-rotate-90">
+                  <circle cx="18" cy="18" r="14" fill="none" stroke="var(--color-base-alt)" strokeWidth="5" />
+                  <circle cx="18" cy="18" r="14" fill="none" stroke="var(--color-primary)" strokeWidth="5"
+                    strokeDasharray="33.17 87.96" strokeDashoffset="0"
+                    className="origin-center animate-donut-draw" />
+                  <circle cx="18" cy="18" r="14" fill="none" stroke="var(--gnome-blue-4)" strokeWidth="5"
+                    strokeDasharray="22.59 87.96" strokeDashoffset="-33.17"
+                    className="origin-center animate-donut-draw delay-200" />
+                  <circle cx="18" cy="18" r="14" fill="none" stroke="var(--gnome-yellow-4)" strokeWidth="5"
+                    strokeDasharray="15.83 87.96" strokeDashoffset="-55.76"
+                    className="origin-center animate-donut-draw delay-300" />
+                  <circle cx="18" cy="18" r="14" fill="none" stroke="var(--gnome-gray-2)" strokeWidth="5"
+                    strokeDasharray="16.37 87.96" strokeDashoffset="-71.59"
+                    className="origin-center animate-donut-draw delay-300" />
+                </svg>
+              </div>
+              {/* Category bars */}
+              <div className="flex-1 space-y-1.5">
+                {[
+                  { name: "Alimentación", pct: 38, color: "var(--color-primary)", amt: "$71.230", var: "↓5%", varColor: "var(--gnome-green-5)" },
+                  { name: "Transporte", pct: 18, color: "var(--gnome-blue-4)", amt: "$33.740", var: "↑12%", varColor: "var(--color-danger)" },
+                  { name: "Servicios", pct: 15, color: "var(--gnome-yellow-4)", amt: "$28.120", var: "→0%", varColor: "var(--text-secondary)" },
+                  { name: "Salud", pct: 12, color: "var(--gnome-green-4)", amt: "$22.490", var: "↓8%", varColor: "var(--gnome-green-5)" },
+                ].map((cat) => (
+                  <div key={cat.name}>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <div className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                        <span className="text-[9px] font-medium" style={{ color: "var(--text-secondary)" }}>{cat.name}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[8px] font-medium" style={{ color: cat.varColor }}>{cat.var}</span>
+                        <span className="text-[9px] font-semibold" style={{ color: "var(--text-primary)" }}>{cat.amt}</span>
+                      </div>
+                    </div>
+                    <div className="h-1.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+                      <div className="h-full rounded-full animate-bar-grow" style={{ width: `${cat.pct}%`, backgroundColor: cat.color }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="p-2 rounded-xl bg-[var(--color-base-alt)] text-center">
-      <div className="text-[9px] text-[var(--text-primary)] font-medium uppercase tracking-wide">
-        {label}
-      </div>
-      <div className="text-sm font-bold text-[var(--text-primary)]">{value}</div>
-    </div>
-  );
-}
-
-function CategoryBar({
-  name,
-  pct,
-  color,
-  value,
-}: {
-  name: string;
-  pct: number;
-  color: string;
-  value: string;
-}) {
-  return (
-    <div className="flex items-center justify-between text-xs">
-      <span className="text-[var(--text-primary)] text-xs">{name}</span>
-      <div className="flex items-center gap-2">
-        <div className="w-16 h-1.5 rounded-full bg-[var(--color-base-alt)] overflow-hidden">
-          <div
-            className={`h-full rounded-full ${color} animate-bar-grow`}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-        <span className="text-[var(--text-primary)] font-medium w-14 text-right">{value}</span>
       </div>
     </div>
   );
@@ -518,108 +538,66 @@ function CategoryBar({
 function ReportMockup() {
   return (
     <div className="relative">
-      <div className="bg-[var(--color-surface)] rounded-2xl shadow-2xl border border-[var(--border-color)] p-6 max-w-sm mx-auto">
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <div className="text-sm font-semibold text-[var(--text-primary)]">Resumen mensual</div>
-            <div className="text-[10px] text-[var(--text-primary)] font-medium">Julio 2026</div>
-          </div>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--gnome-green-1)]/30 text-[var(--gnome-green-5)] font-medium">
-            ↓ 8%
+      <div className="bg-[var(--color-surface)] rounded-2xl shadow-2xl border border-[var(--border-color)] p-4 max-w-sm mx-auto">
+        {/* Header — matches real Dashboard card header */}
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-semibold" style={{ color: "var(--color-primary)" }}>
+            Gastos por Categoría
+          </p>
+          <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
+            Ver detalle →
           </span>
         </div>
-        <div className="flex items-center gap-5 mb-5">
-          <DonutChart />
-          <div className="grid grid-cols-2 gap-3 flex-1">
-            <div className="p-3 rounded-xl bg-[var(--color-base-alt)]">
-              <div className="text-[10px] text-[var(--text-primary)] font-medium uppercase tracking-wide">
-                Gasto total
+        {/* Two-column layout: donut + bars — matches real Dashboard */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Donut chart */}
+          <div className="flex items-center justify-center">
+            <svg width="100" height="100" viewBox="0 0 36 36" className="-rotate-90">
+              <circle cx="18" cy="18" r="14" fill="none" stroke="var(--color-base-alt)" strokeWidth="5" />
+              <circle cx="18" cy="18" r="14" fill="none" stroke="var(--color-primary)" strokeWidth="5"
+                strokeDasharray="33.17 87.96" strokeDashoffset="0"
+                className="origin-center animate-donut-draw" />
+              <circle cx="18" cy="18" r="14" fill="none" stroke="var(--gnome-blue-4)" strokeWidth="5"
+                strokeDasharray="22.59 87.96" strokeDashoffset="-33.17"
+                className="origin-center animate-donut-draw delay-200" />
+              <circle cx="18" cy="18" r="14" fill="none" stroke="var(--gnome-yellow-4)" strokeWidth="5"
+                strokeDasharray="15.83 87.96" strokeDashoffset="-55.76"
+                className="origin-center animate-donut-draw delay-300" />
+              <circle cx="18" cy="18" r="14" fill="none" stroke="var(--gnome-green-4)" strokeWidth="5"
+                strokeDasharray="10.08 87.96" strokeDashoffset="-71.59"
+                className="origin-center animate-donut-draw delay-300" />
+            </svg>
+          </div>
+          {/* Category bars — matches real Dashboard bars */}
+          <div className="space-y-1.5">
+            {[
+              { name: "Alimentación", pct: 38, color: "var(--color-primary)", amt: "$71.230", var: "↓5%", varColor: "var(--gnome-green-5)" },
+              { name: "Transporte", pct: 18, color: "var(--gnome-blue-4)", amt: "$33.740", var: "↑12%", varColor: "var(--color-danger)" },
+              { name: "Servicios", pct: 15, color: "var(--gnome-yellow-4)", amt: "$28.120", var: "→0%", varColor: "var(--text-secondary)" },
+              { name: "Salud", pct: 12, color: "var(--gnome-green-4)", amt: "$22.490", var: "↓8%", varColor: "var(--gnome-green-5)" },
+              { name: "Otros", pct: 17, color: "var(--gnome-gray-2)", amt: "$31.870", var: "", varColor: "" },
+            ].map((cat) => (
+              <div key={cat.name} className="rounded-lg p-1.5 hover:bg-[var(--color-base-alt)] transition-colors cursor-pointer">
+                <div className="flex items-center justify-between mb-0.5">
+                  <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                    <span className="text-[9px] font-medium" style={{ color: "var(--text-secondary)" }}>{cat.name}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {cat.var && (
+                      <span className="text-[8px] font-medium" style={{ color: cat.varColor }}>{cat.var}</span>
+                    )}
+                    <span className="text-[9px] font-semibold" style={{ color: "var(--text-primary)" }}>{cat.amt}</span>
+                  </div>
+                </div>
+                <div className="h-1.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+                  <div className="h-full rounded-full animate-bar-grow" style={{ width: `${cat.pct}%`, backgroundColor: cat.color }} />
+                </div>
               </div>
-              <div className="text-lg font-bold text-[var(--text-primary)]">$187.450</div>
-            </div>
-            <div className="p-3 rounded-xl bg-[var(--color-base-alt)]">
-              <div className="text-[10px] text-[var(--text-primary)] font-medium uppercase tracking-wide">
-                Promedio/día
-              </div>
-              <div className="text-lg font-bold text-[var(--text-primary)]">$6.248</div>
-            </div>
+            ))}
           </div>
         </div>
-        <div className="h-28 bg-[var(--color-base-alt)] rounded-xl p-3 flex items-end gap-1">
-          {[30, 45, 35, 55, 40, 60, 50, 65, 45, 70, 55, 80].map((h, i) => (
-            <div
-              key={i}
-              className="flex-1 rounded-t-sm animate-bar-grow"
-              style={{
-                height: `${h}%`,
-                backgroundColor: i >= 9 ? "var(--color-primary)" : "var(--color-base)",
-                animationDelay: `${i * 0.05}s`,
-              }}
-            />
-          ))}
-        </div>
-        <div className="space-y-2 mt-4">
-          <LegendItem color="bg-[var(--color-primary)]" name="Alimentación" pct={38} />
-          <LegendItem color="bg-[var(--gnome-blue-4)]" name="Transporte" pct={18} />
-          <LegendItem color="bg-[var(--gnome-yellow-4)]" name="Servicios" pct={15} />
-          <LegendItem color="bg-[var(--gnome-gray-2)]" name="Otros" pct={29} />
-        </div>
       </div>
-    </div>
-  );
-}
-
-function DonutChart() {
-  return (
-    <div className="relative w-20 h-20 flex-shrink-0">
-      <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
-        <circle cx="18" cy="18" r="14" fill="none" stroke="var(--color-base-alt)" strokeWidth="5" />
-        <circle
-          cx="18"
-          cy="18"
-          r="14"
-          fill="none"
-          stroke="var(--color-primary)"
-          strokeWidth="5"
-          strokeDasharray="87.96 87.96"
-          strokeDashoffset="0"
-          className="origin-center animate-donut-draw"
-        />
-        <circle
-          cx="18"
-          cy="18"
-          r="14"
-          fill="none"
-          stroke="var(--gnome-blue-4)"
-          strokeWidth="5"
-          strokeDasharray="33.17 87.96"
-          strokeDashoffset="-54.79"
-          className="origin-center animate-donut-draw delay-200"
-        />
-        <circle
-          cx="18"
-          cy="18"
-          r="14"
-          fill="none"
-          stroke="var(--gnome-yellow-4)"
-          strokeWidth="5"
-          strokeDasharray="26.39 87.96"
-          strokeDashoffset="-87.96"
-          className="origin-center animate-donut-draw delay-300"
-        />
-      </svg>
-    </div>
-  );
-}
-
-function LegendItem({ color, name, pct }: { color: string; name: string; pct: number }) {
-  return (
-    <div className="flex items-center justify-between text-xs">
-      <div className="flex items-center gap-2">
-        <div className={`w-2.5 h-2.5 rounded-full ${color}`} />
-        <span className="text-[var(--text-primary)] text-xs">{name}</span>
-      </div>
-      <span className="text-[var(--text-primary)] font-medium">{pct}%</span>
     </div>
   );
 }

@@ -183,7 +183,7 @@ function CustomTooltip({
     <div
       {...tooltipProps}
       style={{
-        width: 300,
+        width: 340,
         borderRadius: 16,
         overflow: "hidden",
         boxShadow:
@@ -196,11 +196,11 @@ function CustomTooltip({
       {/* Header with icon */}
       <div
         style={{
-          padding: isWelcome ? "28px 24px 16px" : "20px 20px 0",
+          padding: isWelcome ? "28px 28px 16px" : "22px 22px 0",
           display: "flex",
           flexDirection: "column",
           alignItems: isWelcome ? "center" : "flex-start",
-          gap: 12,
+          gap: 14,
         }}
       >
         {isWelcome && (
@@ -226,11 +226,12 @@ function CustomTooltip({
           <h4
             style={{
               margin: 0,
-              fontSize: isWelcome ? 20 : 16,
-              fontWeight: isWelcome ? 700 : 600,
+              fontSize: isWelcome ? 20 : 17,
+              fontWeight: isWelcome ? 700 : 650,
               color: "#1c1b1f",
               lineHeight: 1.3,
               textAlign: isWelcome ? "center" : "left",
+              letterSpacing: "-0.01em",
             }}
           >
             {step.title}
@@ -241,9 +242,9 @@ function CustomTooltip({
       {/* Content */}
       <div
         style={{
-          padding: isWelcome ? "0 24px 8px" : "8px 20px 0",
+          padding: isWelcome ? "0 28px 12px" : "10px 22px 4px",
           fontSize: 14,
-          lineHeight: 1.55,
+          lineHeight: 1.6,
           color: "#504e55",
           textAlign: isWelcome ? "center" : "left",
           whiteSpace: "pre-line",
@@ -255,7 +256,7 @@ function CustomTooltip({
       {/* Footer */}
       <div
         style={{
-          padding: "16px 20px",
+          padding: "16px 22px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
