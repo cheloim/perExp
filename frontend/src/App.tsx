@@ -21,6 +21,7 @@ const ExpensesPage = lazy(() => import("./pages/ExpensesPage"));
 const ImportJobPreview = lazy(() => import("./pages/ImportJobPreview"));
 const CategoriesPage = lazy(() => import("./pages/CategoriesPage"));
 const CategoryDashboard = lazy(() => import("./pages/CategoryDashboard"));
+const BudgetPage = lazy(() => import("./pages/BudgetPage"));
 const InstallmentsPage = lazy(() => import("./pages/InstallmentsPage"));
 const InvestmentsPage = lazy(() => import("./pages/InvestmentsPage"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
@@ -36,6 +37,7 @@ const TABS = [
   { path: "/accounts", label: "Cuentas", icon: "accounts", exact: false, tour: "sidebar-accounts" },
   { path: "/expenses", label: "Gastos", icon: "expenses", exact: false, tour: "sidebar-expenses" },
   { path: "/cat-dashboard", label: "Categorías", icon: "catDashboard", exact: false },
+  { path: "/budget", label: "Presupuesto", icon: "chart-bar", exact: false },
   { path: "/installments", label: "Cuotas", icon: "installments", exact: false },
   { path: "/investments", label: "Inversiones", icon: "investments", exact: false },
   { path: "/categories", label: "Config. Categorías", icon: "settings", exact: false },
@@ -426,6 +428,14 @@ function MainLayout() {
                         element={
                           <RequireAuth>
                             <CategoryDashboard />
+                          </RequireAuth>
+                        }
+                      />
+                      <Route
+                        path="/budget"
+                        element={
+                          <RequireAuth>
+                            <BudgetPage />
                           </RequireAuth>
                         }
                       />
