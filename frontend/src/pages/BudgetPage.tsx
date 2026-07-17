@@ -873,14 +873,19 @@ export default function BudgetPage() {
                 {formatCurrency(totalAvailable)}
               </p>
             </div>
-            <div className="card p-4">
+            <div
+              className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
+              onClick={() => setShowQuickConfig(true)}
+            >
               <p className="text-[10px] text-[var(--text-tertiary)] uppercase mb-1">
                 Sin presupuesto
               </p>
-              <p className="text-lg font-bold text-[var(--text-secondary)]">
+              <p className="text-lg font-bold text-[var(--color-primary)]">
                 {summary?.categories.filter((c) => !c.has_budget).length ?? 0}
               </p>
-              <p className="text-[10px] text-[var(--text-tertiary)] mt-1">categorías</p>
+              <p className="text-[10px] text-[var(--text-tertiary)] mt-1">
+                categorías → configurar
+              </p>
             </div>
           </div>
 
