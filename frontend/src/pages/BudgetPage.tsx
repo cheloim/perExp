@@ -9,6 +9,7 @@ import {
   deleteBudgetEvent,
   initBudgetGroups,
 } from "../api/client";
+import { Select } from "../components/ui/Select";
 import type { BudgetGroup, BudgetEvent, BudgetSuggestion, BudgetSummaryItem } from "../types";
 import { formatCurrency } from "../utils/format";
 
@@ -560,18 +561,16 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
                 <span className="text-xs font-medium text-primary min-w-[100px] truncate">
                   {cat.name}
                 </span>
-                <select
+                <Select
                   value={groupAssignments[cat.id] || ""}
-                  onChange={(e) =>
-                    setGroupAssignments({ ...groupAssignments, [cat.id]: e.target.value })
-                  }
-                  className="select-input text-xs !py-1.5 !px-2 flex-shrink-0 w-28"
-                >
-                  <option value="">Sin grupo</option>
-                  <option value="necesidades">Necesidades</option>
-                  <option value="gustos">Gustos</option>
-                  <option value="ahorro">Ahorro</option>
-                </select>
+                  onChange={(v) => setGroupAssignments({ ...groupAssignments, [cat.id]: v })}
+                  options={[
+                    { value: "", label: "Sin grupo" },
+                    { value: "necesidades", label: "Necesidades" },
+                    { value: "gustos", label: "Gustos" },
+                    { value: "ahorro", label: "Ahorro" },
+                  ]}
+                />
                 <input
                   type="number"
                   value={amounts[cat.id] || ""}
@@ -579,7 +578,7 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
                     setAmounts({ ...amounts, [cat.id]: parseFloat(e.target.value) || 0 })
                   }
                   placeholder="0"
-                  className="input flex-1 text-xs !py-1.5"
+                  className="input flex-1 !py-1.5"
                 />
               </div>
             ))}
