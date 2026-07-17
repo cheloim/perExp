@@ -903,9 +903,9 @@ export default function BudgetPage() {
           {/* 50/30/20 Donuts */}
           <div className="mb-6">
             <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">
-              Macro Grupos (50/30/20)
+              Distribución del presupuesto
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className={`grid grid-cols-1 sm:grid-cols-${groups.length} gap-4`}>
               {groups.map((g) => (
                 <DonutCircle
                   key={g.id}
