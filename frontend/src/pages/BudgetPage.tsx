@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getBudgetSummary,
   getBudgetGroups,
+  getBudgets,
   getBudgetEvents,
   getBudgetSuggestions,
   createBudgetEvent,
@@ -806,6 +807,11 @@ export default function BudgetPage() {
     queryFn: getBudgetSuggestions,
   });
 
+  const { data: allBudgets = [] } = useQuery({
+    queryKey: ["budgets"],
+    queryFn: getBudgets,
+  });
+
   const initGroupsMutation = useMutation({
     mutationFn: (income: number) => initBudgetGroups(income),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["budget-groups"] }),
@@ -851,14 +857,13 @@ export default function BudgetPage() {
   const totalAvailable = totalBudget - totalSpent;
 
   // Count categories with spending but no budget (same logic as modal)
-  const budgetedCatIds = new Set(
-    summary?.categories.filter((c) => c.has_budget).map((c) => c.category_id) ?? [],
-  );
+  const budgetedCatIds = new Set(allBudgets.map((b) => b.category_id));
   const unbudgetedCount =
     summary?.categories
       .flatMap((c) => [c, ...c.children])
       .filter(
         (c) =>
+          c.category_id !== null &&
           c.spent_amount > 0 && // has spending
           !budgetedCatIds.has(c.category_id), // no budget
       ).length ?? 0;
