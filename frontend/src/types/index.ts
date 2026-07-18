@@ -101,6 +101,7 @@ export interface Category {
   color: string;
   keywords: string;
   parent_id?: number | null;
+  budget_group?: string;
 }
 
 export interface Budget {

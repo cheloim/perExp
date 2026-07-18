@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getBudgetSummary,
@@ -21,13 +21,11 @@ function DonutCircle({
   color,
   selected,
   onSelect,
-  onEdit,
 }: {
   group: BudgetGroup;
   color: string;
   selected: boolean;
   onSelect: () => void;
-  onEdit: (g: BudgetGroup) => void;
 }) {
   const pct = group.amount > 0 ? (group.spent / group.amount) * 100 : 0;
   const circumference = 2 * Math.PI * 14;
@@ -84,25 +82,10 @@ function DonutCircle({
           </span>
         </span>
       </div>
-      <button
-        onClick={() => onEdit(group)}
-        className="mt-3 flex items-center gap-1.5 text-xs font-medium text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 rounded-lg px-3 py-1.5 transition-colors"
-      >
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-          <path d="m15 5 4 4" />
-        </svg>
-        Editar
-      </button>
+      <div className="flex gap-4 mt-2 text-[10px] text-[var(--text-tertiary)]">
+        <span>Asignado: {formatCurrency(group.amount)}</span>
+        <span>Gastado: {formatCurrency(group.spent)}</span>
+      </div>
     </div>
   );
 }
@@ -116,6 +99,7 @@ function CategoryBar({
   budget,
   avgMonthly = 0,
   onAddBudget,
+  onClick,
 }: {
   name: string;
   color: string;
@@ -123,6 +107,7 @@ function CategoryBar({
   budget: number;
   avgMonthly?: number;
   onAddBudget?: () => void;
+  onClick?: () => void;
 }) {
   if (budget === 0 && spent === 0) return null;
   if (spent === 0) return null;
@@ -167,7 +152,10 @@ function CategoryBar({
             : "var(--color-success)";
 
     return (
-      <div className="py-3 px-4 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors">
+      <div
+        className="py-3 px-4 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors cursor-pointer"
+        onClick={onClick}
+      >
         <div className="flex items-center justify-between mb-1.5">
           <div className="flex items-center gap-2">
             <div
@@ -197,7 +185,10 @@ function CategoryBar({
         </div>
         {onAddBudget && (
           <button
-            onClick={onAddBudget}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddBudget();
+            }}
             className="mt-1.5 text-xs text-[var(--color-primary)] hover:underline"
           >
             + Agregar presupuesto
@@ -209,7 +200,10 @@ function CategoryBar({
 
   // With budget — show remaining prominently
   return (
-    <div className="py-3 px-4 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors">
+    <div
+      className="py-3 px-4 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors cursor-pointer"
+      onClick={onClick}
+    >
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
@@ -256,12 +250,14 @@ function CategoryGroupSection({
   color,
   categories,
   onAddBudget,
+  onCategoryClick,
 }: {
   name: string;
   displayName: string;
   color: string;
   categories: BudgetSummaryItem[];
   onAddBudget: () => void;
+  onCategoryClick: (cat: BudgetSummaryItem) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
   const totalBudget = categories.reduce((s, c) => s + c.budget_amount, 0);
@@ -324,6 +320,7 @@ function CategoryGroupSection({
                 budget={cat.budget_amount}
                 avgMonthly={cat.avg_monthly}
                 onAddBudget={onAddBudget}
+                onClick={() => onCategoryClick(cat)}
               />
               {cat.children
                 .filter((child) => child.spent_amount > 0)
@@ -336,6 +333,7 @@ function CategoryGroupSection({
                       budget={child.budget_amount}
                       avgMonthly={child.avg_monthly}
                       onAddBudget={onAddBudget}
+                      onClick={() => onCategoryClick(child)}
                     />
                   </div>
                 ))}
@@ -472,6 +470,10 @@ function SuggestionsBanner({ suggestions }: { suggestions: BudgetSuggestion[] })
 
 function QuickConfigModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
+  const { data: allCategories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => import("../api/client").then((m) => m.getCategories()),
+  });
   const { data: budgets = [] } = useQuery({
     queryKey: ["budgets"],
     queryFn: () => import("../api/client").then((m) => m.getBudgets()),
@@ -483,20 +485,50 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
 
   // Build set of category IDs that already have budgets
   const budgetedCatIds = new Set(budgets.map((b) => b.category_id));
+  const budgetAmounts = new Map(budgets.map((b) => [b.category_id, b.amount]));
 
-  // Get categories with spending but no budget (use summary directly — it includes all categories with spending)
-  const unbudgetedCategories =
-    summary?.categories.filter(
-      (c) => c.category_id !== null && c.spent_amount > 0 && !budgetedCatIds.has(c.category_id),
-    ) ?? [];
+  // Get category IDs that have spending (from summary, including children)
+  const spentCatIds = new Set(
+    summary?.categories
+      .flatMap((c) => [c.category_id, ...c.children.map((ch) => ch.category_id)])
+      .filter((id): id is number => id !== null) ?? [],
+  );
 
-  const [amounts, setAmounts] = useState<Record<number, number>>({});
-  const [groupAssignments, setGroupAssignments] = useState<Record<number, string>>({});
+  // Get ALL leaf categories (no children in the full list)
+  const leafCategories = allCategories.filter(
+    (c) => !allCategories.some((p) => p.id === c.parent_id),
+  );
 
-  useState(() => {
+  // Filter to leaves that have spending
+  const categoriesWithSpending = leafCategories.filter((c) => spentCatIds.has(c.id));
+
+  // Group by parent for display
+  const groupedByParent = new Map<
+    string,
+    { parent: (typeof allCategories)[0] | null; children: typeof leafCategories }
+  >();
+  for (const cat of categoriesWithSpending) {
+    const parentId = String(cat.parent_id ?? "root");
+    if (!groupedByParent.has(parentId)) {
+      const parent = cat.parent_id
+        ? (allCategories.find((c) => c.id === cat.parent_id) ?? null)
+        : null;
+      groupedByParent.set(parentId, { parent, children: [] });
+    }
+    groupedByParent.get(parentId)!.children.push(cat);
+  }
+
+  const [amounts, setAmounts] = useState<Record<number, number>>(() => {
     const initial: Record<number, number> = {};
     for (const b of budgets) initial[b.category_id] = b.amount;
-    setAmounts(initial);
+    return initial;
+  });
+  const [groupAssignments, setGroupAssignments] = useState<Record<number, string>>(() => {
+    const initial: Record<number, string> = {};
+    for (const c of categoriesWithSpending) {
+      initial[c.id] = c.budget_group || "";
+    }
+    return initial;
   });
 
   const saveMutation = useMutation({
@@ -518,58 +550,79 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["budgets"] });
       qc.invalidateQueries({ queryKey: ["budget-summary"] });
+      qc.invalidateQueries({ queryKey: ["budget-groups"] });
       onClose();
     },
   });
 
+  const totalCategories = categoriesWithSpending.length;
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="card w-full max-w-lg p-6 max-h-[80vh] overflow-y-auto">
-        <h3 className="text-base font-semibold text-primary mb-2">Configurar Presupuestos</h3>
+      <div className="card w-full max-w-2xl p-6 max-h-[80vh] overflow-y-auto">
+        <h3 className="text-base font-semibold text-primary mb-2">
+          Configurar Presupuestos por Categoría
+        </h3>
         <p className="text-xs text-[var(--text-secondary)] mb-4">
-          {unbudgetedCategories.length} categorías con gastos sin presupuesto asignado
+          Definí el límite mensual y el grupo para cada categoría con gastos
         </p>
-        {unbudgetedCategories.length === 0 ? (
+        {totalCategories === 0 ? (
           <div className="text-center py-8">
             <p className="text-sm text-[var(--text-secondary)]">
-              Todas las categorías ya tienen presupuesto
+              No hay categorías con gastos este mes
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {unbudgetedCategories.map((cat) => (
-              <div
-                key={cat.category_id}
-                className="flex items-center gap-3 py-2 border-b border-[var(--border-color)]"
-              >
-                <div
-                  className="w-3 h-3 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: cat.category_color }}
-                />
-                <span className="text-xs font-medium text-primary min-w-[100px] truncate">
-                  {cat.category_name}
-                </span>
-                <Select
-                  value={groupAssignments[cat.category_id!] || ""}
-                  onChange={(v) =>
-                    setGroupAssignments({ ...groupAssignments, [cat.category_id!]: v })
-                  }
-                  options={[
-                    { value: "", label: "Sin grupo" },
-                    { value: "necesidades", label: "Necesidades" },
-                    { value: "gustos", label: "Gustos" },
-                    { value: "ahorro", label: "Ahorro" },
-                  ]}
-                />
-                <input
-                  type="number"
-                  value={amounts[cat.category_id!] || ""}
-                  onChange={(e) =>
-                    setAmounts({ ...amounts, [cat.category_id!]: parseFloat(e.target.value) || 0 })
-                  }
-                  placeholder="0"
-                  className="input flex-1 !py-1.5"
-                />
+          <div className="space-y-4">
+            {Array.from(groupedByParent.entries()).map(([parentId, group]) => (
+              <div key={parentId ?? "root"}>
+                {/* Parent header */}
+                {group.parent && (
+                  <h4 className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wide mb-2">
+                    {group.parent.name}
+                  </h4>
+                )}
+                {/* Children rows */}
+                {group.children.map((cat) => (
+                  <div
+                    key={cat.id}
+                    className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors"
+                  >
+                    <div
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: cat.color }}
+                    />
+                    <span className="text-sm font-medium text-primary min-w-[120px] truncate">
+                      {cat.name}
+                    </span>
+                    <Select
+                      value={groupAssignments[cat.id] || ""}
+                      onChange={(v) => setGroupAssignments({ ...groupAssignments, [cat.id]: v })}
+                      options={[
+                        { value: "", label: "Sin grupo" },
+                        { value: "necesidades", label: "Necesidades" },
+                        { value: "gustos", label: "Gustos" },
+                        { value: "ahorro", label: "Ahorro" },
+                      ]}
+                    />
+                    <input
+                      type="number"
+                      value={amounts[cat.id] || budgetAmounts.get(cat.id) || ""}
+                      onChange={(e) =>
+                        setAmounts({ ...amounts, [cat.id]: parseFloat(e.target.value) || 0 })
+                      }
+                      placeholder={
+                        budgetAmounts.has(cat.id) ? formatCurrency(budgetAmounts.get(cat.id)!) : "0"
+                      }
+                      className="input flex-1 !py-1.5"
+                    />
+                    {budgetedCatIds.has(cat.id) && (
+                      <span className="text-[10px] text-[var(--color-success)] flex-shrink-0">
+                        ✓
+                      </span>
+                    )}
+                  </div>
+                ))}
               </div>
             ))}
           </div>
@@ -583,7 +636,7 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
           </button>
           <button
             onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending || Object.values(amounts).every((v) => !v)}
+            disabled={saveMutation.isPending}
             className="flex-1 px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saveMutation.isPending ? "Guardando..." : "Guardar"}
@@ -767,6 +820,158 @@ function NewEventModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ─── Category Side Panel ──────────────────────────────────────
+
+function CategorySidePanel({
+  category,
+  onClose,
+}: {
+  category: BudgetSummaryItem;
+  onClose: () => void;
+}) {
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  // Collect category IDs: the category itself + its children
+  const categoryIds = [category.category_id, ...category.children.map((c) => c.category_id)].filter(
+    (id): id is number => id !== null,
+  );
+
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    console.log("[SidePanel] useEffect fired. categoryIds:", categoryIds, "month:", currentMonth);
+    if (categoryIds.length === 0) {
+      console.log("[SidePanel] No categoryIds, skipping fetch");
+      setIsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoading(true);
+
+    import("../api/client").then((m) => {
+      const url = `/api/expenses?category_ids=${categoryIds.join(",")}&month=${currentMonth}`;
+      console.log("[SidePanel] Fetching:", url);
+      return m
+        .getExpenses({
+          category_ids: categoryIds.join(","),
+          month: currentMonth,
+        })
+        .then((data) => {
+          console.log("[SidePanel] Success:", data.length, "expenses:", JSON.stringify(data));
+          if (!cancelled) {
+            setExpenses(data);
+            setIsLoading(false);
+          }
+        })
+        .catch((err) => {
+          console.error("[SidePanel] Error:", err);
+          if (!cancelled) {
+            setExpenses([]);
+            setIsLoading(false);
+          }
+        });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [categoryIds.join(","), currentMonth]);
+
+  // Close on Escape key
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleEsc);
+    return () => document.removeEventListener("keydown", handleEsc);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+
+      {/* Panel */}
+      <div className="relative w-full max-w-md bg-[var(--color-surface)] border-l border-[var(--border-color)] shadow-xl overflow-y-auto animate-slide-in">
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-[var(--color-surface)] border-b border-[var(--border-color)] px-5 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-4 h-4 rounded-full"
+                style={{ backgroundColor: category.category_color }}
+              />
+              <div>
+                <h2 className="text-base font-semibold text-primary">{category.category_name}</h2>
+                <p className="text-xs text-[var(--text-secondary)]">
+                  {formatCurrency(category.budget_amount - category.spent_amount)} restantes de{" "}
+                  {formatCurrency(category.budget_amount)}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-lg hover:bg-[var(--color-base-alt)] flex items-center justify-center transition-colors"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Expenses List */}
+        <div className="px-5 py-4">
+          {isLoading ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-[var(--text-tertiary)]">Cargando gastos...</p>
+            </div>
+          ) : expenses.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-[var(--text-tertiary)]">
+                No hay gastos en esta categoría este mes
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {expenses.map((expense: any) => (
+                <div
+                  key={expense.id}
+                  className="flex items-center justify-between py-2 border-b border-[var(--border-color)]"
+                >
+                  <div>
+                    <p className="text-sm text-[var(--text-primary)]">{expense.description}</p>
+                    <p className="text-xs text-[var(--text-tertiary)]">{expense.date}</p>
+                  </div>
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">
+                    {formatCurrency(expense.amount)}
+                  </p>
+                </div>
+              ))}
+              <div className="flex justify-between pt-2 font-semibold">
+                <span className="text-sm text-[var(--text-secondary)]">Total</span>
+                <span className="text-sm text-primary">
+                  {formatCurrency(expenses.reduce((s: number, e: any) => s + e.amount, 0))}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main BudgetPage ───────────────────────────────────────────
 
 export default function BudgetPage() {
@@ -775,6 +980,7 @@ export default function BudgetPage() {
   const [showQuickConfig, setShowQuickConfig] = useState(false);
   const [editingGroup, setEditingGroup] = useState<BudgetGroup | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<BudgetSummaryItem | null>(null);
 
   const { data: summary, isLoading: loadingSummary } = useQuery({
     queryKey: ["budget-summary"],
@@ -922,9 +1128,32 @@ export default function BudgetPage() {
 
           {/* 50/30/20 Donuts */}
           <div className="mb-6">
-            <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">
-              Distribución del presupuesto
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
+                Distribución del presupuesto
+              </h2>
+              {groups.length > 0 && (
+                <button
+                  onClick={() => setEditingGroup(groups[0])}
+                  className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 rounded-lg px-3 py-1.5 transition-colors"
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                    <path d="m15 5 4 4" />
+                  </svg>
+                  Editar grupos
+                </button>
+              )}
+            </div>
             <div className={`grid grid-cols-1 sm:grid-cols-${groups.length} gap-4`}>
               {groups.map((g) => (
                 <DonutCircle
@@ -933,7 +1162,6 @@ export default function BudgetPage() {
                   color={groupColors[g.name] || "var(--color-primary)"}
                   selected={selectedGroup === g.name}
                   onSelect={() => setSelectedGroup(selectedGroup === g.name ? null : g.name)}
-                  onEdit={setEditingGroup}
                 />
               ))}
             </div>
@@ -956,6 +1184,7 @@ export default function BudgetPage() {
                     color={groupColors[selectedGroup] || "var(--color-primary)"}
                     categories={summary.categories.filter((c) => c.budget_group === selectedGroup)}
                     onAddBudget={() => setShowQuickConfig(true)}
+                    onCategoryClick={setSelectedCategory}
                   />
                 ) : (
                   groups.map((g) => (
@@ -966,6 +1195,7 @@ export default function BudgetPage() {
                       color={groupColors[g.name] || "var(--color-primary)"}
                       categories={summary.categories.filter((c) => c.budget_group === g.name)}
                       onAddBudget={() => setShowQuickConfig(true)}
+                      onCategoryClick={setSelectedCategory}
                     />
                   ))
                 )}
@@ -1092,6 +1322,9 @@ export default function BudgetPage() {
       {showQuickConfig && <QuickConfigModal onClose={() => setShowQuickConfig(false)} />}
       {editingGroup && (
         <EditGroupModal group={editingGroup} onClose={() => setEditingGroup(null)} />
+      )}
+      {selectedCategory && (
+        <CategorySidePanel category={selectedCategory} onClose={() => setSelectedCategory(null)} />
       )}
     </div>
   );

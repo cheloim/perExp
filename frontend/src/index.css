@@ -935,6 +935,19 @@
   animation: blink 0.8s step-end infinite;
 }
 
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.25s ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-donut-draw,
   .animate-bar-grow,

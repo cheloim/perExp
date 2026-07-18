@@ -149,37 +149,54 @@ export default function ExpensesPage() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["expenses"] });
 
-  const { data: expenses = [], isLoading } = useQuery({
-    queryKey: [
-      "expenses",
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    console.log(
+      "[ExpensesPage] useEffect fired. filterKey:",
       filterCategory,
-      filterUncategorized,
-      filterBank,
-      filterPerson,
-      filterCard,
-      filterCardType,
-      filterInstallment,
-      filterAccount,
+      "date_from:",
       filterDateFrom,
+      "date_to:",
       filterDateTo,
-      filterSearch,
-    ],
-    queryFn: () =>
-      getExpenses({
-        category_id: filterCategory,
-        uncategorized: filterUncategorized || undefined,
-        bank: filterBank,
-        person: filterPerson,
-        card: filterCard,
-        card_type: filterCardType,
-        installment: filterInstallment || undefined,
-        account: filterAccount,
-        date_from: filterDateFrom,
-        date_to: filterDateTo,
-        search: filterSearch,
-        limit: visibleCount,
-      }),
-  });
+    );
+    let cancelled = false;
+    setIsLoading(true);
+
+    getExpenses({
+      category_id: filterCategory,
+      uncategorized: filterUncategorized || undefined,
+      bank: filterBank,
+      person: filterPerson,
+      card: filterCard,
+      card_type: filterCardType,
+      installment: filterInstallment || undefined,
+      account: filterAccount,
+      date_from: filterDateFrom,
+      date_to: filterDateTo,
+      search: filterSearch,
+      limit: visibleCount,
+    })
+      .then((data) => {
+        console.log("[ExpensesPage] Success:", data.length, "expenses");
+        if (!cancelled) {
+          setExpenses(data);
+          setIsLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error("[ExpensesPage] Error fetching expenses:", err);
+          setExpenses([]);
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [filterKey, visibleCount]);
 
   const { data: categories = [] } = useQuery({ queryKey: ["categories"], queryFn: getCategories });
 

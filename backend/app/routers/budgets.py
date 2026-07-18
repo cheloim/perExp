@@ -374,31 +374,15 @@ def budget_summary(
     )
     budgets_map = {b.category_id: b for b in budgets}
 
-    parent_ids = set()
-    for cat_id in budgets_map:
-        cat = db.query(Category).filter(Category.id == cat_id).first()
-        if cat and cat.parent_id:
-            parent_ids.add(cat.parent_id)
-
     categories_summary = []
     total_budget = 0.0
     total_spent = 0.0
-
-    parent_cats = db.query(Category).filter(Category.id.in_(parent_ids)).all()
-    for parent in parent_cats:
-        item = _build_category_summary(parent, budgets_map, y, m, uid_list, db)
-        if item:
-            categories_summary.append(item)
-            total_budget += item.budget_amount
-            total_spent += item.spent_amount
 
     for cat_id, budget in budgets_map.items():
         cat = db.query(Category).filter(Category.id == cat_id).first()
         if not cat:
             continue
         if cat.parent_id and cat.parent_id in budgets_map:
-            continue
-        if cat_id in parent_ids:
             continue
 
         item = _build_category_summary(cat, budgets_map, y, m, uid_list, db)
@@ -407,7 +391,7 @@ def budget_summary(
             total_budget += item.budget_amount
             total_spent += item.spent_amount
 
-    # Also add categories with spending but no budget
+    # Also add categories with spending but no budget (skip parents whose children are already in summary)
     processed_ids = {item.category_id for item in categories_summary}
     for item in categories_summary:
         for child in item.children:
@@ -415,11 +399,22 @@ def budget_summary(
 
     all_cats = db.query(Category).filter(
         Category.user_id == current_user.id,
-        Category.parent_id.isnot(None),  # Only subcategories
     ).all()
+
+    # Build set of parent IDs whose children are already in the summary
+    parent_ids_in_summary = set()
+    processed_cat_ids = {item.category_id for item in categories_summary}
+    for cat in all_cats:
+        if cat.parent_id and cat.id in processed_cat_ids:
+            parent_ids_in_summary.add(cat.parent_id)
 
     for cat in all_cats:
         if cat.id in processed_ids:
+            continue
+        # Skip parent categories whose children are already in the summary
+        if cat.id in parent_ids_in_summary:
+            continue
+        if cat.id in parent_ids_in_summary:
             continue
 
         spent = _get_spending_for_category(cat.id, y, m, uid_list, db)
