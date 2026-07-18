@@ -850,11 +850,18 @@ export default function BudgetPage() {
   const totalSpent = groups.reduce((s, g) => s + g.spent, 0);
   const totalAvailable = totalBudget - totalSpent;
 
-  // Count categories with spending but no budget
+  // Count categories with spending but no budget (same logic as modal)
+  const budgetedCatIds = new Set(
+    summary?.categories.filter((c) => c.has_budget).map((c) => c.category_id) ?? [],
+  );
   const unbudgetedCount =
-    summary?.categories.filter(
-      (c) => !c.has_budget && (c.spent_amount > 0 || c.children.some((ch) => ch.spent_amount > 0)),
-    ).length ?? 0;
+    summary?.categories
+      .flatMap((c) => [c, ...c.children])
+      .filter(
+        (c) =>
+          c.spent_amount > 0 && // has spending
+          !budgetedCatIds.has(c.category_id), // no budget
+      ).length ?? 0;
 
   // Group categories by macro group
   const groupColors: Record<string, string> = {
