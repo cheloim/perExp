@@ -45,6 +45,8 @@ class User(Base):
     force_password_change = Column(Boolean, default=False)
     # Onboarding
     onboarding_completed = Column(Boolean, default=False)
+    # What's New
+    whats_new_seen = Column(Boolean, default=False)
 
 
 class Group(Base):

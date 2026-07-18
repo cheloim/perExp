@@ -6,7 +6,7 @@ from calendar import monthrange
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, desc
+from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -521,7 +521,6 @@ def list_budget_groups(
     current_user: User = Depends(get_current_user),
 ):
     """List all budget groups for the current user with computed fields."""
-    from calendar import monthrange
 
     today = date.today()
     uid_list = _get_group_user_ids(current_user.id, db)
@@ -711,7 +710,7 @@ def init_default_groups(
     current_user: User = Depends(get_current_user),
 ):
     """Initialize default budget groups based on monthly income.
-    
+
     When BUDGET_AHORRO_ENABLED=false (default): creates 2 groups (60/40)
     When BUDGET_AHORRO_ENABLED=true: creates 3 groups (50/30/20)
     """

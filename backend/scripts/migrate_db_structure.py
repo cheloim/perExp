@@ -221,6 +221,32 @@ def step5_onboarding_completed(engine):
             print("  Added onboarding_completed BOOLEAN DEFAULT FALSE.")
 
 
+def step6_whats_new_seen(engine):
+    """Add whats_new_seen column to users table."""
+    print("\n[Step 6/6] Adding whats_new_seen to users...")
+
+    with engine.begin() as conn:
+        dialect = engine.dialect.name
+
+        if dialect == "postgresql":
+            exists = conn.execute(text("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'users' AND column_name = 'whats_new_seen'
+                )
+            """)).scalar()
+        else:
+            exists = False
+
+        if exists:
+            print("  whats_new_seen already exists. Skipping.")
+        else:
+            conn.execute(text(
+                "ALTER TABLE users ADD COLUMN whats_new_seen BOOLEAN DEFAULT FALSE"
+            ))
+            print("  Added whats_new_seen BOOLEAN DEFAULT FALSE.")
+
+
 def main():
     engine = get_engine()
 
@@ -233,6 +259,7 @@ def main():
     step3_nullable_user_id(engine)
     step4_indexes(engine)
     step5_onboarding_completed(engine)
+    step6_whats_new_seen(engine)
 
     print("\n" + "=" * 60)
     print("Migration complete!")

@@ -50,6 +50,15 @@ function getTourSteps(openPanel: (open: boolean) => void): TourStepConfig[] {
       placement: "right",
     },
     {
+      target: '[data-tour="sidebar-budget"]',
+      title: "Presupuestos",
+      content:
+        "Organizá tus gastos por categoría con límites mensuales. Recibí alertas cuando te acercás al límite y creá eventos temporales para vacaciones o viajes.",
+      icon: "chart-bar",
+      color: "#2ec27e",
+      placement: "right",
+    },
+    {
       target: '[data-tour="userpanel-telegram"]',
       title: "Bot de Telegram",
       content:
@@ -124,7 +133,15 @@ function StepIcon({ icon, color }: { icon: IconName; color: string }) {
   );
 }
 
-function ProgressDots({ total, current }: { total: number; current: number }) {
+function ProgressDots({
+  total,
+  current,
+  onDotClick,
+}: {
+  total: number;
+  current: number;
+  onDotClick?: (index: number) => void;
+}) {
   return (
     <div
       style={{
@@ -134,15 +151,21 @@ function ProgressDots({ total, current }: { total: number; current: number }) {
       }}
     >
       {Array.from({ length: total }, (_, i) => (
-        <div
+        <button
           key={i}
+          onClick={() => onDotClick?.(i)}
           style={{
-            width: i === current ? 16 : 6,
-            height: 6,
-            borderRadius: 3,
-            backgroundColor: i === current ? "#3584e4" : "rgba(0,0,0,0.15)",
-            transition: "all 0.2s ease",
+            width: i === current ? 20 : 8,
+            height: 8,
+            borderRadius: 4,
+            backgroundColor:
+              i === current ? "#3584e4" : i < current ? "#62a0ea" : "rgba(0,0,0,0.15)",
+            transition: "all 0.25s ease",
+            border: "none",
+            cursor: onDotClick ? "pointer" : "default",
+            padding: 0,
           }}
+          aria-label={`Step ${i + 1}`}
         />
       ))}
     </div>
@@ -150,7 +173,6 @@ function ProgressDots({ total, current }: { total: number; current: number }) {
 }
 
 function CustomTooltip({
-  backProps,
   continuous,
   index,
   isLastStep,
@@ -168,38 +190,45 @@ function CustomTooltip({
     <div
       {...tooltipProps}
       style={{
-        width: 340,
-        borderRadius: 16,
+        position: "fixed",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        width: 500,
+        maxWidth: "90vw",
+        borderRadius: 20,
         overflow: "hidden",
-        boxShadow: "0 12px 40px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.08)",
+        boxShadow: "0 24px 80px rgba(0,0,0,0.25), 0 4px 16px rgba(0,0,0,0.1)",
         border: "1px solid rgba(0,0,0,0.06)",
         fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+        background: "#ffffff",
+        zIndex: 10001,
       }}
     >
       {/* Header with icon */}
       <div
         style={{
-          padding: isWelcome ? "28px 28px 16px" : "22px 22px 0",
+          padding: isWelcome ? "36px 36px 20px" : "28px 28px 0",
           display: "flex",
           flexDirection: "column",
           alignItems: isWelcome ? "center" : "flex-start",
-          gap: 14,
+          gap: 16,
         }}
       >
         {isWelcome && (
           <div
             style={{
-              width: 56,
-              height: 56,
-              borderRadius: 16,
+              width: 64,
+              height: 64,
+              borderRadius: 18,
               background: "linear-gradient(135deg, #3584e4, #1c71d8)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              boxShadow: "0 4px 12px rgba(53,132,228,0.3)",
+              boxShadow: "0 6px 20px rgba(53,132,228,0.35)",
             }}
           >
-            <SymbolicIcon name="sparkles" size={28} />
+            <SymbolicIcon name="sparkles" size={32} />
           </div>
         )}
         {!isWelcome && stepData && <StepIcon icon={stepData.icon} color={stepData.color} />}
@@ -207,12 +236,12 @@ function CustomTooltip({
           <h4
             style={{
               margin: 0,
-              fontSize: isWelcome ? 20 : 17,
+              fontSize: isWelcome ? 22 : 18,
               fontWeight: isWelcome ? 700 : 650,
               color: "#1c1b1f",
               lineHeight: 1.3,
               textAlign: isWelcome ? "center" : "left",
-              letterSpacing: "-0.01em",
+              letterSpacing: "-0.02em",
             }}
           >
             {step.title}
@@ -223,9 +252,9 @@ function CustomTooltip({
       {/* Content */}
       <div
         style={{
-          padding: isWelcome ? "0 28px 12px" : "10px 22px 4px",
-          fontSize: 14,
-          lineHeight: 1.6,
+          padding: isWelcome ? "0 36px 16px" : "12px 28px 8px",
+          fontSize: 15,
+          lineHeight: 1.65,
           color: "#504e55",
           textAlign: isWelcome ? "center" : "left",
           whiteSpace: "pre-line",
@@ -237,7 +266,7 @@ function CustomTooltip({
       {/* Footer */}
       <div
         style={{
-          padding: "16px 22px",
+          padding: "20px 28px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -245,26 +274,18 @@ function CustomTooltip({
           marginTop: 12,
         }}
       >
-        <ProgressDots total={totalSteps} current={index} />
+        {/* Clickable progress dots */}
+        <ProgressDots
+          total={totalSteps}
+          current={index}
+          onDotClick={(i) => {
+            // Navigate to step by clicking dots
+            const data = (primaryProps as any).data;
+            if (data?.onClick) data.onClick(i);
+          }}
+        />
 
-        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-          {index > 0 && (
-            <button
-              {...backProps}
-              style={{
-                background: "none",
-                border: "none",
-                color: "#77767b",
-                fontSize: 13,
-                fontWeight: 500,
-                padding: "6px 10px",
-                borderRadius: 8,
-                cursor: "pointer",
-              }}
-            >
-              {backProps.title}
-            </button>
-          )}
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           {!isWelcome && (
             <button
               {...skipProps}
@@ -274,7 +295,7 @@ function CustomTooltip({
                 color: "#77767b",
                 fontSize: 13,
                 fontWeight: 500,
-                padding: "6px 10px",
+                padding: "8px 12px",
                 borderRadius: 8,
                 cursor: "pointer",
               }}
@@ -289,9 +310,9 @@ function CustomTooltip({
                 background: isWelcome ? "linear-gradient(135deg, #3584e4, #1c71d8)" : "#3584e4",
                 color: "#fff",
                 border: "none",
-                borderRadius: 8,
-                padding: "8px 18px",
-                fontSize: 14,
+                borderRadius: 10,
+                padding: "10px 24px",
+                fontSize: 15,
                 fontWeight: 600,
                 cursor: "pointer",
                 boxShadow: isWelcome ? "0 2px 8px rgba(53,132,228,0.3)" : "none",

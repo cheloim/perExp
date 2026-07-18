@@ -93,6 +93,7 @@ export interface User {
   mfa_enabled?: boolean;
   email_verified?: boolean;
   onboarding_completed?: boolean;
+  whats_new_seen?: boolean;
 }
 
 export interface Category {

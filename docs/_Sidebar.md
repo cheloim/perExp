@@ -9,6 +9,7 @@
 - [Family Groups](Family-Groups)
 - [Investments](Investments)
 - [Authentication](Authentication)
+- [Budgets](Budgets)
 - [API Reference](API-Reference)
 - [Deployment](Deployment)
 - [Frontend](Frontend)
