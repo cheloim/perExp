@@ -18,7 +18,6 @@ interface SelectProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
-  direction?: "down" | "up";
   allowCustomValue?: boolean;
 }
 
@@ -30,7 +29,6 @@ export function Select({
   placeholder = "",
   className = "",
   disabled = false,
-  direction = "down",
   allowCustomValue = true,
 }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -39,6 +37,11 @@ export function Select({
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -50,6 +53,20 @@ export function Select({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Calculate dropdown position when opening (fixed positioning to escape modal overflow)
+  useEffect(() => {
+    if (isOpen && ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const dropdownHeight = 260;
+      if (spaceBelow < dropdownHeight && rect.top > dropdownHeight) {
+        setDropdownPos({ top: rect.top - dropdownHeight - 4, left: rect.left, width: rect.width });
+      } else {
+        setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+      }
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -195,11 +212,10 @@ export function Select({
         </svg>
       </button>
 
-      {isOpen && (
+      {isOpen && dropdownPos && (
         <div
-          className={`absolute z-50 w-full bg-[var(--color-surface)] border border-[var(--border-color)] rounded-md shadow-lg overflow-hidden max-h-60 flex flex-col ${
-            direction === "up" ? "bottom-full mb-1" : "mt-1 top-full"
-          }`}
+          className="fixed z-[9999] bg-[var(--color-surface)] border border-[var(--border-color)] rounded-md shadow-lg overflow-hidden max-h-60 flex flex-col"
+          style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
         >
           <div className="p-2 border-b border-[var(--border-color)]">
             <input
