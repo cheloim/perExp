@@ -472,10 +472,6 @@ function SuggestionsBanner({ suggestions }: { suggestions: BudgetSuggestion[] })
 
 function QuickConfigModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
-  const { data: categories = [] } = useQuery({
-    queryKey: ["categories"],
-    queryFn: () => import("../api/client").then((m) => m.getCategories()),
-  });
   const { data: budgets = [] } = useQuery({
     queryKey: ["budgets"],
     queryFn: () => import("../api/client").then((m) => m.getBudgets()),
@@ -488,20 +484,11 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
   // Build set of category IDs that already have budgets
   const budgetedCatIds = new Set(budgets.map((b) => b.category_id));
 
-  // Get category IDs that have spending (from summary)
-  const spentCatIds = new Set(
-    summary?.categories
-      .flatMap((c) => [c.category_id, ...c.children.map((ch) => ch.category_id)])
-      .filter((id): id is number => id !== null) ?? [],
-  );
-
-  // Only show subcategories that have spending but NO budget
-  const unbudgetedCategories = categories.filter(
-    (c) =>
-      !categories.some((p) => p.id === c.parent_id) && // is leaf
-      spentCatIds.has(c.id) && // has expenses
-      !budgetedCatIds.has(c.id), // no budget
-  );
+  // Get categories with spending but no budget (use summary directly — it includes all categories with spending)
+  const unbudgetedCategories =
+    summary?.categories.filter(
+      (c) => c.category_id !== null && c.spent_amount > 0 && !budgetedCatIds.has(c.category_id),
+    ) ?? [];
 
   const [amounts, setAmounts] = useState<Record<number, number>>({});
   const [groupAssignments, setGroupAssignments] = useState<Record<number, string>>({});
@@ -552,19 +539,21 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
           <div className="space-y-3">
             {unbudgetedCategories.map((cat) => (
               <div
-                key={cat.id}
+                key={cat.category_id}
                 className="flex items-center gap-3 py-2 border-b border-[var(--border-color)]"
               >
                 <div
                   className="w-3 h-3 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: cat.color }}
+                  style={{ backgroundColor: cat.category_color }}
                 />
                 <span className="text-xs font-medium text-primary min-w-[100px] truncate">
-                  {cat.name}
+                  {cat.category_name}
                 </span>
                 <Select
-                  value={groupAssignments[cat.id] || ""}
-                  onChange={(v) => setGroupAssignments({ ...groupAssignments, [cat.id]: v })}
+                  value={groupAssignments[cat.category_id!] || ""}
+                  onChange={(v) =>
+                    setGroupAssignments({ ...groupAssignments, [cat.category_id!]: v })
+                  }
                   options={[
                     { value: "", label: "Sin grupo" },
                     { value: "necesidades", label: "Necesidades" },
@@ -574,9 +563,9 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
                 />
                 <input
                   type="number"
-                  value={amounts[cat.id] || ""}
+                  value={amounts[cat.category_id!] || ""}
                   onChange={(e) =>
-                    setAmounts({ ...amounts, [cat.id]: parseFloat(e.target.value) || 0 })
+                    setAmounts({ ...amounts, [cat.category_id!]: parseFloat(e.target.value) || 0 })
                   }
                   placeholder="0"
                   className="input flex-1 !py-1.5"
@@ -856,17 +845,12 @@ export default function BudgetPage() {
   const totalSpent = groups.reduce((s, g) => s + g.spent, 0);
   const totalAvailable = totalBudget - totalSpent;
 
-  // Count categories with spending but no budget (same logic as modal)
+  // Count categories with spending but no budget (using summary directly — it already includes all categories with spending)
   const budgetedCatIds = new Set(allBudgets.map((b) => b.category_id));
   const unbudgetedCount =
-    summary?.categories
-      .flatMap((c) => [c, ...c.children])
-      .filter(
-        (c) =>
-          c.category_id !== null &&
-          c.spent_amount > 0 && // has spending
-          !budgetedCatIds.has(c.category_id), // no budget
-      ).length ?? 0;
+    summary?.categories.filter(
+      (c) => c.category_id !== null && c.spent_amount > 0 && !budgetedCatIds.has(c.category_id),
+    ).length ?? 0;
 
   // Group categories by macro group
   const groupColors: Record<string, string> = {
@@ -899,7 +883,9 @@ export default function BudgetPage() {
       {groups.length > 0 ? (
         <>
           {/* KPI Row */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div
+            className={`grid gap-4 mb-6 ${unbudgetedCount > 0 ? "grid-cols-2 md:grid-cols-4" : "grid-cols-1 sm:grid-cols-3"}`}
+          >
             <div className="card p-4">
               <p className="text-[10px] text-[var(--text-tertiary)] uppercase mb-1">
                 Presupuestado
