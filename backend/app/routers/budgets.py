@@ -169,9 +169,12 @@ def _build_category_summary(
 
         child_pct = child_spent / child_budget_amount if child_budget_amount > 0 else 0
         child_status = (
-            "no_budget" if child_budget_amount == 0
-            else "exceeded" if child_pct >= 1.0
-            else "warning" if child_pct >= (child_budget.alert_threshold if child_budget else 0.8)
+            "no_budget"
+            if child_budget_amount == 0
+            else "exceeded"
+            if child_pct >= 1.0
+            else "warning"
+            if child_pct >= (child_budget.alert_threshold if child_budget else 0.8)
             else "ok"
         )
         children_items.append(
@@ -397,9 +400,13 @@ def budget_summary(
         for child in item.children:
             processed_ids.add(child.category_id)
 
-    all_cats = db.query(Category).filter(
-        Category.user_id == current_user.id,
-    ).all()
+    all_cats = (
+        db.query(Category)
+        .filter(
+            Category.user_id == current_user.id,
+        )
+        .all()
+    )
 
     # Build set of parent IDs whose children are already in the summary
     parent_ids_in_summary = set()
@@ -548,11 +555,15 @@ def list_budget_groups(
         committed = 0.0
         cat_items = []
         for cat in categories:
-            budget = db.query(Budget).filter(
-                Budget.user_id == current_user.id,
-                Budget.category_id == cat.id,
-                Budget.is_active == True,
-            ).first()
+            budget = (
+                db.query(Budget)
+                .filter(
+                    Budget.user_id == current_user.id,
+                    Budget.category_id == cat.id,
+                    Budget.is_active == True,
+                )
+                .first()
+            )
 
             budget_amount = budget.amount if budget else 0
             committed += budget_amount
@@ -561,36 +572,42 @@ def list_budget_groups(
             spent = _get_spending_for_category(cat.id, today.year, today.month, uid_list, db)
             pct = spent / budget_amount if budget_amount > 0 else 0
             status = (
-                "exceeded" if pct >= 1.0
-                else "warning" if pct >= (budget.alert_threshold if budget else 0.8)
+                "exceeded"
+                if pct >= 1.0
+                else "warning"
+                if pct >= (budget.alert_threshold if budget else 0.8)
                 else "ok"
             )
 
-            cat_items.append(BudgetGroupCategory(
-                category_id=cat.id,
-                category_name=cat.name,
-                category_color=cat.color,
-                budget_amount=budget_amount,
-                spent_amount=round(spent, 2),
-                percentage=round(pct, 4),
-                status=status,
-            ))
+            cat_items.append(
+                BudgetGroupCategory(
+                    category_id=cat.id,
+                    category_name=cat.name,
+                    category_color=cat.color,
+                    budget_amount=budget_amount,
+                    spent_amount=round(spent, 2),
+                    percentage=round(pct, 4),
+                    status=status,
+                )
+            )
 
         # Get actual spending for the group
         spent = _get_spending_for_group(group.name, today.year, today.month, uid_list, db)
 
-        result.append(BudgetGroupResponse(
-            id=group.id,
-            name=group.name,
-            display_name=group.display_name,
-            percentage=group.percentage,
-            amount=group.amount,
-            spent=round(spent, 2),
-            committed=round(committed, 2),
-            available=round(group.amount - committed, 2),
-            categories=cat_items,
-            is_active=group.is_active,
-        ))
+        result.append(
+            BudgetGroupResponse(
+                id=group.id,
+                name=group.name,
+                display_name=group.display_name,
+                percentage=group.percentage,
+                amount=group.amount,
+                spent=round(spent, 2),
+                committed=round(committed, 2),
+                available=round(group.amount - committed, 2),
+                categories=cat_items,
+                is_active=group.is_active,
+            )
+        )
 
     return result
 
@@ -662,30 +679,38 @@ def update_budget_group(
     committed = 0.0
     cat_items = []
     for cat in categories:
-        budget = db.query(Budget).filter(
-            Budget.user_id == current_user.id,
-            Budget.category_id == cat.id,
-            Budget.is_active == True,
-        ).first()
+        budget = (
+            db.query(Budget)
+            .filter(
+                Budget.user_id == current_user.id,
+                Budget.category_id == cat.id,
+                Budget.is_active == True,
+            )
+            .first()
+        )
         budget_amount = budget.amount if budget else 0
         committed += budget_amount
 
         spent = _get_spending_for_category(cat.id, today.year, today.month, uid_list, db)
         pct = spent / budget_amount if budget_amount > 0 else 0
         status = (
-            "exceeded" if pct >= 1.0
-            else "warning" if pct >= (budget.alert_threshold if budget else 0.8)
+            "exceeded"
+            if pct >= 1.0
+            else "warning"
+            if pct >= (budget.alert_threshold if budget else 0.8)
             else "ok"
         )
-        cat_items.append(BudgetGroupCategory(
-            category_id=cat.id,
-            category_name=cat.name,
-            category_color=cat.color,
-            budget_amount=budget_amount,
-            spent_amount=round(spent, 2),
-            percentage=round(pct, 4),
-            status=status,
-        ))
+        cat_items.append(
+            BudgetGroupCategory(
+                category_id=cat.id,
+                category_name=cat.name,
+                category_color=cat.color,
+                budget_amount=budget_amount,
+                spent_amount=round(spent, 2),
+                percentage=round(pct, 4),
+                status=status,
+            )
+        )
 
     spent = _get_spending_for_group(group.name, today.year, today.month, uid_list, db)
 
@@ -907,24 +932,81 @@ def update_category_group(
 # ─── Auto-assign categories to groups ───────────────────────────
 
 NECESIDADES_KEYWORDS = [
-    "alimentación", "alimentos", "supermercado", "almacén", "verdulería",
-    "transporte", "combustible", "nafta", "taxi", "uber", "subte", "colectivo",
-    "salud", "farmacia", "médico", "médicos", "hospital", "obra social",
-    "hogar", "alquiler", "expensas", "servicios", "luz", "gas", "agua",
-    "internet", "celular", "teléfono", "impuestos", "seguros", "monotributo",
+    "alimentación",
+    "alimentos",
+    "supermercado",
+    "almacén",
+    "verdulería",
+    "transporte",
+    "combustible",
+    "nafta",
+    "taxi",
+    "uber",
+    "subte",
+    "colectivo",
+    "salud",
+    "farmacia",
+    "médico",
+    "médicos",
+    "hospital",
+    "obra social",
+    "hogar",
+    "alquiler",
+    "expensas",
+    "servicios",
+    "luz",
+    "gas",
+    "agua",
+    "internet",
+    "celular",
+    "teléfono",
+    "impuestos",
+    "seguros",
+    "monotributo",
 ]
 
 GUSTOS_KEYWORDS = [
-    "entretenimiento", "cine", "teatro", "concierto", "streaming", "netflix",
-    "spotify", "disney", "hbo", "ropa", "indumentaria", "calzado",
-    "café", "cafetería", "bar", "restaurante", "resto", "comida",
-    "gimnasio", "deporte", "fitness", "suscripciones", "revistas",
-    "viajes", "hotel", "aerolínea", "turismo", "mascotas", "vacaciones",
+    "entretenimiento",
+    "cine",
+    "teatro",
+    "concierto",
+    "streaming",
+    "netflix",
+    "spotify",
+    "disney",
+    "hbo",
+    "ropa",
+    "indumentaria",
+    "calzado",
+    "café",
+    "cafetería",
+    "bar",
+    "restaurante",
+    "resto",
+    "comida",
+    "gimnasio",
+    "deporte",
+    "fitness",
+    "suscripciones",
+    "revistas",
+    "viajes",
+    "hotel",
+    "aerolínea",
+    "turismo",
+    "mascotas",
+    "vacaciones",
 ]
 
 AHORRO_KEYWORDS = [
-    "inversiones", "inversión", "ahorro", "plazo fijo", "fci",
-    "bonos", "acciones", "dólar", "crypto",
+    "inversiones",
+    "inversión",
+    "ahorro",
+    "plazo fijo",
+    "fci",
+    "bonos",
+    "acciones",
+    "dólar",
+    "crypto",
 ]
 
 
@@ -1044,13 +1126,15 @@ def get_event_expenses(
     result = []
     for e in all_expenses:
         cat = db.query(Category).filter(Category.id == e.category_id).first()
-        result.append({
-            "id": e.id,
-            "description": e.description,
-            "amount": e.amount,
-            "date": e.date.isoformat(),
-            "category_name": cat.name if cat else None,
-            "linked": e.budget_event_id == event_id,
-        })
+        result.append(
+            {
+                "id": e.id,
+                "description": e.description,
+                "amount": e.amount,
+                "date": e.date.isoformat(),
+                "category_name": cat.name if cat else None,
+                "linked": e.budget_event_id == event_id,
+            }
+        )
 
     return result

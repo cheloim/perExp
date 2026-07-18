@@ -1723,8 +1723,11 @@ async def handle_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     # Check for budget events BEFORE saving
     from app.models import BudgetEvent
+
     db = SessionLocal()
-    expense_date = datetime.strptime(parsed.get("date", date.today().strftime("%Y-%m-%d")), "%Y-%m-%d").date()
+    expense_date = datetime.strptime(
+        parsed.get("date", date.today().strftime("%Y-%m-%d")), "%Y-%m-%d"
+    ).date()
     matching_events = (
         db.query(BudgetEvent)
         .filter(
@@ -1754,21 +1757,19 @@ async def handle_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             "user_id": user_id,
             "person": person,
         }
-        context.user_data["linked_events"] = [
-            {"id": e.id, "name": e.name} for e in linked_events
-        ]
+        context.user_data["linked_events"] = [{"id": e.id, "name": e.name} for e in linked_events]
 
         keyboard = []
         for evt in linked_events:
             keyboard.append(
-                [InlineKeyboardButton(
-                    f"📅 {evt.name} ({evt.start_date} — {evt.end_date})",
-                    callback_data=f"event_link:{evt.id}"
-                )]
+                [
+                    InlineKeyboardButton(
+                        f"📅 {evt.name} ({evt.start_date} — {evt.end_date})",
+                        callback_data=f"event_link:{evt.id}",
+                    )
+                ]
             )
-        keyboard.append(
-            [InlineKeyboardButton("❌ No vincular", callback_data="event_link:none")]
-        )
+        keyboard.append([InlineKeyboardButton("❌ No vincular", callback_data="event_link:none")])
 
         await query.edit_message_text(
             _confirm_text(parsed, payment_label)
@@ -1800,11 +1801,21 @@ async def handle_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 def _save_expense_from_context(context, db):
     """Save expense from context data."""
-    parsed = context.user_data.get("pending_expense", {}).get("parsed") or context.user_data.get("parsed")
-    payment_label = context.user_data.get("pending_expense", {}).get("payment_label") or context.user_data.get("payment_label", "")
-    method = context.user_data.get("pending_expense", {}).get("method") or context.user_data.get("payment_method", "")
-    user_id = context.user_data.get("pending_expense", {}).get("user_id") or context.user_data.get("user_id")
-    person = context.user_data.get("pending_expense", {}).get("person") or context.user_data.get("tg_user", "")
+    parsed = context.user_data.get("pending_expense", {}).get("parsed") or context.user_data.get(
+        "parsed"
+    )
+    payment_label = context.user_data.get("pending_expense", {}).get(
+        "payment_label"
+    ) or context.user_data.get("payment_label", "")
+    method = context.user_data.get("pending_expense", {}).get("method") or context.user_data.get(
+        "payment_method", ""
+    )
+    user_id = context.user_data.get("pending_expense", {}).get("user_id") or context.user_data.get(
+        "user_id"
+    )
+    person = context.user_data.get("pending_expense", {}).get("person") or context.user_data.get(
+        "tg_user", ""
+    )
     installment_total = context.user_data.get("installment_total")
     installment_group_id = context.user_data.get("installment_group_id")
     predicted_category_id = context.user_data.get("predicted_category_id")
@@ -1814,20 +1825,33 @@ def _save_expense_from_context(context, db):
         bank = context.user_data.get("card_bank", "")
         card_id = context.user_data.get("card_id")
         expense = _save_expense(
-            parsed, payment=card, person=person, bank=bank, card=card,
-            user_id=user_id, installment_total=installment_total,
+            parsed,
+            payment=card,
+            person=person,
+            bank=bank,
+            card=card,
+            user_id=user_id,
+            installment_total=installment_total,
             installment_group_id=installment_group_id,
-            predicted_category_id=predicted_category_id, card_id=card_id,
+            predicted_category_id=predicted_category_id,
+            card_id=card_id,
         )
     elif method == "efectivo_transferencia":
         account_id = context.user_data.get("account_id")
         expense = _save_expense(
-            parsed, payment=payment_label, person=person, user_id=user_id,
-            predicted_category_id=predicted_category_id, account_id=account_id,
+            parsed,
+            payment=payment_label,
+            person=person,
+            user_id=user_id,
+            predicted_category_id=predicted_category_id,
+            account_id=account_id,
         )
     else:
         expense = _save_expense(
-            parsed, payment=payment_label, person=person, user_id=user_id,
+            parsed,
+            payment=payment_label,
+            person=person,
+            user_id=user_id,
             predicted_category_id=predicted_category_id,
         )
 
@@ -1835,6 +1859,7 @@ def _save_expense_from_context(context, db):
     if installment_total and installment_group_id and installment_total >= 2:
         from app.models import ScheduledExpense
         from app.services.date_utils import add_months
+
         for i in range(2, installment_total + 1):
             scheduled = ScheduledExpense(
                 installment_group_id=installment_group_id,
@@ -1880,6 +1905,7 @@ async def handle_event_confirm(update: Update, context: ContextTypes.DEFAULT_TYP
         # Link to event if selected
         if event_id_str != "none":
             from app.models import BudgetEvent
+
             event_id = int(event_id_str)
             event = db.query(BudgetEvent).filter(BudgetEvent.id == event_id).first()
             if event:
@@ -1887,8 +1913,7 @@ async def handle_event_confirm(update: Update, context: ContextTypes.DEFAULT_TYP
                 event.spent = (event.spent or 0) + abs(expense.amount)
                 db.commit()
                 await query.edit_message_text(
-                    _saved_text(expense, payment_label)
-                    + f"\n\n📅 Vinculado a *{event.name}*",
+                    _saved_text(expense, payment_label) + f"\n\n📅 Vinculado a *{event.name}*",
                     parse_mode="Markdown",
                 )
             else:
