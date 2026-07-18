@@ -177,6 +177,10 @@ export const initBudgetGroups = (monthly_income: number) =>
     .post<BudgetGroup[]>("/budgets/groups/init", null, { params: { monthly_income } })
     .then((r) => r.data);
 
+// Budget Config
+export const getBudgetConfig = () =>
+  api.get<{ ahorro_enabled: boolean }>("/budgets/config").then((r) => r.data);
+
 // Budget Events
 export const getBudgetEvents = () => api.get<BudgetEvent[]>("/budgets/events").then((r) => r.data);
 
@@ -206,6 +210,13 @@ export const autoAssignGroups = () =>
   api
     .post<{ ok: boolean; updated: number; total: number }>("/budgets/auto-assign-groups")
     .then((r) => r.data);
+
+// Budget Events
+export const getEventExpenses = (eventId: number) =>
+  api.get(`/budgets/events/${eventId}/expenses`).then((r) => r.data);
+
+export const linkExpensesToEvent = (eventId: number, expenseIds: number[]) =>
+  api.post(`/budgets/events/${eventId}/link-expenses`, expenseIds).then((r) => r.data);
 
 // Expenses
 export const getExpenses = (params?: {

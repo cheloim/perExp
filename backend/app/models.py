@@ -232,6 +232,7 @@ class Expense(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     account_id = Column(Integer, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True)
     card_id = Column(Integer, ForeignKey("cards.id", ondelete="SET NULL"), nullable=True)
+    budget_event_id = Column(Integer, ForeignKey("budget_events.id", ondelete="SET NULL"), nullable=True)
     is_income = Column(Boolean, default=False, nullable=False)
     category = relationship("Category", back_populates="expenses")
     account_rel = relationship("Account")

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, memo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getBudgetSummary,
@@ -6,6 +6,7 @@ import {
   getBudgets,
   getBudgetEvents,
   getBudgetSuggestions,
+  getBudgetConfig,
   createBudgetEvent,
   deleteBudgetEvent,
   initBudgetGroups,
@@ -16,7 +17,7 @@ import { formatCurrency } from "../utils/format";
 
 // ─── Donut Circle (50/30/20) ───────────────────────────────────
 
-function DonutCircle({
+const DonutCircle = memo(function DonutCircle({
   group,
   color,
   selected,
@@ -70,25 +71,12 @@ function DonutCircle({
         {formatCurrency(group.amount - group.spent)} rest. de {formatCurrency(group.amount)}
       </p>
       <div className="flex gap-4 mt-2 text-[10px] text-[var(--text-tertiary)]">
-        <span>Comprometido: {formatCurrency(group.committed)}</span>
-        <span>
-          Disponible:{" "}
-          <span
-            className={
-              group.available < 0 ? "text-[var(--color-error)]" : "text-[var(--color-success)]"
-            }
-          >
-            {formatCurrency(group.available)}
-          </span>
-        </span>
-      </div>
-      <div className="flex gap-4 mt-2 text-[10px] text-[var(--text-tertiary)]">
         <span>Asignado: {formatCurrency(group.amount)}</span>
         <span>Gastado: {formatCurrency(group.spent)}</span>
       </div>
     </div>
   );
-}
+});
 
 // ─── Category Bar with Gradient ────────────────────────────────
 
@@ -355,40 +343,113 @@ function CategoryGroupSection({
 
 // ─── Event Card ────────────────────────────────────────────────
 
-function EventCard({ event, onDelete }: { event: BudgetEvent; onDelete: (id: number) => void }) {
+function EventCard({
+  event,
+  onDelete,
+  onLinkExpenses,
+  onClick,
+}: {
+  event: BudgetEvent;
+  onDelete: (id: number) => void;
+  onLinkExpenses: (event: BudgetEvent) => void;
+  onClick: (event: BudgetEvent) => void;
+}) {
   const pct = event.total_amount > 0 ? (event.spent / event.total_amount) * 100 : 0;
-  const daysLeft = Math.max(
-    0,
-    Math.ceil((new Date(event.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
-  );
+  const startDate = new Date(event.start_date);
+  const endDate = new Date(event.end_date);
+  const totalDays =
+    Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const daysLeft = Math.max(0, Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+  const remaining = event.total_amount - event.spent;
+
+  const barColor =
+    pct >= 100
+      ? "var(--color-danger)"
+      : pct >= 80
+        ? "#e8a100"
+        : pct >= 60
+          ? "var(--gnome-yellow-4)"
+          : "var(--color-success)";
 
   return (
-    <div className="card p-4 flex items-center gap-4">
-      <div className="flex-1">
-        <h4 className="text-sm font-semibold text-primary">{event.name}</h4>
-        <p className="text-xs text-[var(--text-tertiary)]">
-          {event.start_date} — {event.end_date}
-        </p>
-        <p className="text-xs text-[var(--text-secondary)] mt-1">
-          {formatCurrency(event.spent)} / {formatCurrency(event.total_amount)}
-        </p>
-        <div className="mt-2 h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden max-w-[200px]">
-          <div
-            className="h-full rounded-full bg-[var(--color-primary)] transition-all"
-            style={{ width: `${Math.min(pct, 100)}%` }}
-          />
+    <div
+      className="card p-5 cursor-pointer hover:shadow-md transition-shadow"
+      onClick={() => onClick(event)}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h4 className="text-base font-semibold text-primary">{event.name}</h4>
+          <p className="text-xs text-[var(--text-tertiary)]">
+            {event.start_date} — {event.end_date}
+          </p>
+        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(event.id);
+          }}
+          className="text-[var(--text-tertiary)] hover:text-[var(--color-error)] text-lg p-1"
+        >
+          ×
+        </button>
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-4 gap-3 mb-3">
+        <div className="text-center">
+          <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Días total</p>
+          <p className="text-sm font-bold text-primary">{totalDays}</p>
+        </div>
+        <div className="text-center">
+          <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Restantes</p>
+          <p
+            className={`text-sm font-bold ${daysLeft === 0 ? "text-[var(--text-tertiary)]" : "text-[var(--color-primary)]"}`}
+          >
+            {daysLeft}
+          </p>
+        </div>
+        <div className="text-center">
+          <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Usado</p>
+          <p
+            className={`text-sm font-bold ${pct >= 100 ? "text-[var(--color-danger)]" : pct >= 80 ? "text-[#e8a100]" : "text-[var(--color-success)]"}`}
+          >
+            {Math.round(pct)}%
+          </p>
+        </div>
+        <div className="text-center">
+          <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Quedan</p>
+          <p
+            className={`text-sm font-bold ${remaining < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"}`}
+          >
+            {formatCurrency(remaining)}
+          </p>
         </div>
       </div>
-      <div className="text-right">
-        <p className="text-xs text-[var(--text-tertiary)]">{daysLeft} días</p>
-        <p className="text-sm font-bold text-primary">{Math.round(pct)}%</p>
+
+      {/* Progress bar */}
+      <div className="h-3 bg-[var(--color-base-alt)] rounded-full overflow-hidden mb-3">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }}
+        />
       </div>
-      <button
-        onClick={() => onDelete(event.id)}
-        className="text-[var(--text-tertiary)] hover:text-[var(--color-error)] text-lg"
-      >
-        ×
-      </button>
+      <p className="text-xs text-[var(--text-secondary)]">
+        {formatCurrency(event.spent)} / {formatCurrency(event.total_amount)}
+      </p>
+
+      {/* Actions */}
+      <div className="flex gap-2 mt-3">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onLinkExpenses(event);
+          }}
+          className="flex-1 px-3 py-2 text-xs font-medium text-[var(--color-primary)] border border-[var(--color-primary)]/30 rounded-lg hover:bg-[var(--color-primary)]/10 transition-colors"
+        >
+          Vincular gastos
+        </button>
+      </div>
     </div>
   );
 }
@@ -530,6 +591,7 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
     }
     return initial;
   });
+  const [searchQuery, setSearchQuery] = useState("");
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -555,17 +617,47 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
     },
   });
 
-  const totalCategories = categoriesWithSpending.length;
+  // Filter by search
+  const filteredCategories = searchQuery
+    ? categoriesWithSpending.filter((c) => c.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    : categoriesWithSpending;
+
+  // Group filtered categories by parent for display
+  const filteredGrouped = new Map<
+    string,
+    { parent: (typeof allCategories)[0] | null; children: typeof leafCategories }
+  >();
+  for (const cat of filteredCategories) {
+    const parentId = String(cat.parent_id ?? "root");
+    if (!filteredGrouped.has(parentId)) {
+      const parent = cat.parent_id
+        ? (allCategories.find((c) => c.id === cat.parent_id) ?? null)
+        : null;
+      filteredGrouped.set(parentId, { parent, children: [] });
+    }
+    filteredGrouped.get(parentId)!.children.push(cat);
+  }
+
+  const totalCategories = filteredCategories.length;
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="card w-full max-w-2xl p-6 max-h-[80vh] overflow-y-auto">
         <h3 className="text-base font-semibold text-primary mb-2">
-          Configurar Presupuestos por Categoría
+          Configurar presupuestos por categoría
         </h3>
         <p className="text-xs text-[var(--text-secondary)] mb-4">
           Definí el límite mensual y el grupo para cada categoría con gastos
         </p>
+        <div className="mb-4">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar categoría..."
+            className="input w-full text-sm"
+          />
+        </div>
         {totalCategories === 0 ? (
           <div className="text-center py-8">
             <p className="text-sm text-[var(--text-secondary)]">
@@ -574,7 +666,7 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
           </div>
         ) : (
           <div className="space-y-4">
-            {Array.from(groupedByParent.entries()).map(([parentId, group]) => (
+            {Array.from(filteredGrouped.entries()).map(([parentId, group]) => (
               <div key={parentId ?? "root"}>
                 {/* Parent header */}
                 {group.parent && (
@@ -649,15 +741,38 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
 
 // ─── Edit Group Modal ──────────────────────────────────────────
 
-function EditGroupModal({ group, onClose }: { group: BudgetGroup; onClose: () => void }) {
+function EditGroupModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
-  const [percentage, setPercentage] = useState(group.percentage);
-  const [amount, setAmount] = useState(group.amount);
+  const { data: allGroups = [] } = useQuery({
+    queryKey: ["budget-groups"],
+    queryFn: getBudgetGroups,
+  });
+
+  const [groupData, setGroupData] = useState<
+    Record<string, { percentage: number; amount: number }>
+  >(() => {
+    const initial: Record<string, { percentage: number; amount: number }> = {};
+    for (const g of allGroups) {
+      initial[g.name] = { percentage: g.percentage, amount: g.amount };
+    }
+    return initial;
+  });
+
+  const totalPercentage = Object.values(groupData).reduce((s, g) => s + g.percentage, 0);
 
   const updateMutation = useMutation({
     mutationFn: async () => {
       const { updateBudgetGroup } = await import("../api/client");
-      return updateBudgetGroup(group.id, { percentage, amount });
+      const promises = [];
+      for (const [name, data] of Object.entries(groupData)) {
+        const grp = allGroups.find((g) => g.name === name);
+        if (grp) {
+          promises.push(
+            updateBudgetGroup(grp.id, { percentage: data.percentage, amount: data.amount }),
+          );
+        }
+      }
+      return Promise.all(promises);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["budget-groups"] });
@@ -669,40 +784,58 @@ function EditGroupModal({ group, onClose }: { group: BudgetGroup; onClose: () =>
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="card w-full max-w-md p-6">
-        <h3 className="text-base font-semibold text-primary mb-4">Editar — {group.display_name}</h3>
+        <h3 className="text-base font-semibold text-primary mb-4">Editar grupos</h3>
         <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
-              Porcentaje del ingreso
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                value={percentage}
-                onChange={(e) => {
-                  const p = parseFloat(e.target.value) || 0;
-                  setPercentage(p);
-                  const total = amount / (group.percentage / 100);
-                  setAmount(Math.round((total * p) / 100));
-                }}
-                min="0"
-                max="100"
-                className="input w-24"
-              />
-              <span className="text-sm text-[var(--text-secondary)]">%</span>
+          {allGroups.map((g) => (
+            <div key={g.name} className="p-3 rounded-lg border border-[var(--border-color)]">
+              <p className="text-sm font-medium text-primary mb-2">{g.display_name}</p>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-[10px] text-[var(--text-secondary)] mb-1">
+                    % Ingreso
+                  </label>
+                  <input
+                    type="number"
+                    value={groupData[g.name]?.percentage || 0}
+                    onChange={(e) => {
+                      const p = parseFloat(e.target.value) || 0;
+                      const total =
+                        (groupData[g.name]?.amount || 0) /
+                        ((groupData[g.name]?.percentage || 1) / 100);
+                      setGroupData({
+                        ...groupData,
+                        [g.name]: { percentage: p, amount: Math.round((total * p) / 100) },
+                      });
+                    }}
+                    min="0"
+                    max="100"
+                    className="input w-full text-xs"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-[10px] text-[var(--text-secondary)] mb-1">
+                    Monto
+                  </label>
+                  <input
+                    type="number"
+                    value={groupData[g.name]?.amount || 0}
+                    onChange={(e) =>
+                      setGroupData({
+                        ...groupData,
+                        [g.name]: { ...groupData[g.name], amount: parseFloat(e.target.value) || 0 },
+                      })
+                    }
+                    className="input w-full text-xs"
+                  />
+                </div>
+              </div>
             </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
-              Monto mensual
-            </label>
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
-              className="input w-full"
-            />
-          </div>
+          ))}
+          {totalPercentage !== 100 && (
+            <p className="text-xs text-[var(--color-warning)]">
+              Total: {totalPercentage}% (debería ser 100%)
+            </p>
+          )}
         </div>
         <div className="flex gap-2 mt-6">
           <button
@@ -750,7 +883,7 @@ function NewEventModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="card w-full max-w-md p-6">
-        <h3 className="text-base font-semibold text-primary mb-4">Nuevo Evento Temporal</h3>
+        <h3 className="text-base font-semibold text-primary mb-4">Nuevo evento temporal</h3>
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
@@ -841,9 +974,7 @@ function CategorySidePanel({
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    console.log("[SidePanel] useEffect fired. categoryIds:", categoryIds, "month:", currentMonth);
     if (categoryIds.length === 0) {
-      console.log("[SidePanel] No categoryIds, skipping fetch");
       setIsLoading(false);
       return;
     }
@@ -851,29 +982,25 @@ function CategorySidePanel({
     let cancelled = false;
     setIsLoading(true);
 
-    import("../api/client").then((m) => {
-      const url = `/api/expenses?category_ids=${categoryIds.join(",")}&month=${currentMonth}`;
-      console.log("[SidePanel] Fetching:", url);
-      return m
+    import("../api/client").then((m) =>
+      m
         .getExpenses({
           category_ids: categoryIds.join(","),
           month: currentMonth,
         })
         .then((data) => {
-          console.log("[SidePanel] Success:", data.length, "expenses:", JSON.stringify(data));
           if (!cancelled) {
             setExpenses(data);
             setIsLoading(false);
           }
         })
-        .catch((err) => {
-          console.error("[SidePanel] Error:", err);
+        .catch(() => {
           if (!cancelled) {
             setExpenses([]);
             setIsLoading(false);
           }
-        });
-    });
+        }),
+    );
 
     return () => {
       cancelled = true;
@@ -972,6 +1099,258 @@ function CategorySidePanel({
   );
 }
 
+// ─── Event Side Panel ──────────────────────────────────────────
+
+function EventSidePanel({ event, onClose }: { event: BudgetEvent; onClose: () => void }) {
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    import("../api/client").then((m) =>
+      m.getEventExpenses(event.id).then((data) => {
+        if (!cancelled) {
+          setExpenses(data);
+          setIsLoading(false);
+        }
+      }),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [event.id]);
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleEsc);
+    return () => document.removeEventListener("keydown", handleEsc);
+  }, [onClose]);
+
+  const linkedExpenses = expenses.filter((e: any) => e.linked);
+  const availableExpenses = expenses.filter((e: any) => !e.linked);
+  const totalLinked = linkedExpenses.reduce((s: number, e: any) => s + e.amount, 0);
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-[var(--color-surface)] border-l border-[var(--border-color)] shadow-xl overflow-y-auto animate-slide-in">
+        <div className="sticky top-0 z-10 bg-[var(--color-surface)] border-b border-[var(--border-color)] px-5 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-primary">{event.name}</h2>
+              <p className="text-xs text-[var(--text-secondary)]">
+                {event.start_date} — {event.end_date}
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-lg hover:bg-[var(--color-base-alt)] flex items-center justify-center"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="grid grid-cols-3 gap-3 mt-3">
+            <div className="text-center">
+              <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Presupuesto</p>
+              <p className="text-sm font-bold text-primary">{formatCurrency(event.total_amount)}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Gastado</p>
+              <p className="text-sm font-bold text-primary">{formatCurrency(event.spent)}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Restante</p>
+              <p
+                className={`text-sm font-bold ${event.total_amount - event.spent < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"}`}
+              >
+                {formatCurrency(event.total_amount - event.spent)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 py-4">
+          {isLoading ? (
+            <p className="text-sm text-[var(--text-tertiary)] text-center py-8">Cargando...</p>
+          ) : (
+            <>
+              {linkedExpenses.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-xs font-semibold text-[var(--text-secondary)] mb-2">
+                    Vinculados ({linkedExpenses.length})
+                  </p>
+                  {linkedExpenses.map((exp: any) => (
+                    <div
+                      key={exp.id}
+                      className="flex items-center justify-between py-2 border-b border-[var(--border-color)]"
+                    >
+                      <div>
+                        <p className="text-sm text-[var(--text-primary)]">{exp.description}</p>
+                        <p className="text-xs text-[var(--text-tertiary)]">
+                          {exp.date} · {exp.category_name || "Sin categoría"}
+                        </p>
+                      </div>
+                      <span className="text-sm font-semibold text-primary">
+                        {formatCurrency(exp.amount)}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between pt-2 font-semibold">
+                    <span className="text-sm text-[var(--text-secondary)]">Total</span>
+                    <span className="text-sm text-primary">{formatCurrency(totalLinked)}</span>
+                  </div>
+                </div>
+              )}
+              {availableExpenses.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-[var(--text-secondary)] mb-2">
+                    Disponibles ({availableExpenses.length})
+                  </p>
+                  {availableExpenses.map((exp: any) => (
+                    <div
+                      key={exp.id}
+                      className="flex items-center justify-between py-2 border-b border-[var(--border-color)] opacity-60"
+                    >
+                      <div>
+                        <p className="text-sm text-[var(--text-primary)]">{exp.description}</p>
+                        <p className="text-xs text-[var(--text-tertiary)]">
+                          {exp.date} · {exp.category_name || "Sin categoría"}
+                        </p>
+                      </div>
+                      <span className="text-sm text-[var(--text-secondary)]">
+                        {formatCurrency(exp.amount)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {expenses.length === 0 && (
+                <p className="text-sm text-[var(--text-tertiary)] text-center py-8">
+                  No hay gastos en este período
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Link Expenses to Event Modal ──────────────────────────────
+
+function LinkExpensesModal({ event, onClose }: { event: BudgetEvent; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  const { data: expenses = [], isLoading } = useQuery({
+    queryKey: ["event-expenses", event.id],
+    queryFn: () => import("../api/client").then((m) => m.getEventExpenses(event.id)),
+  });
+
+  const linkMutation = useMutation({
+    mutationFn: () =>
+      import("../api/client").then((m) => m.linkExpensesToEvent(event.id, Array.from(selectedIds))),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["budget-events"] });
+      onClose();
+    },
+  });
+
+  const toggle = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const totalSelected = expenses
+    .filter((e: any) => selectedIds.has(e.id))
+    .reduce((s: number, e: any) => s + e.amount, 0);
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="card w-full max-w-lg p-6 max-h-[80vh] overflow-y-auto">
+        <h3 className="text-base font-semibold text-primary mb-2">
+          Vincular gastos — {event.name}
+        </h3>
+        <p className="text-xs text-[var(--text-secondary)] mb-4">
+          Seleccioná los gastos que pertenecen a este evento
+        </p>
+
+        {isLoading ? (
+          <p className="text-sm text-[var(--text-tertiary)] text-center py-8">Cargando...</p>
+        ) : expenses.length === 0 ? (
+          <p className="text-sm text-[var(--text-tertiary)] text-center py-8">
+            No hay gastos en este período
+          </p>
+        ) : (
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {expenses.map((expense: any) => (
+              <label
+                key={expense.id}
+                className="flex items-center gap-3 py-2 px-3 rounded-lg border border-[var(--border-color)] hover:bg-[var(--color-base-alt)] cursor-pointer transition-colors"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(expense.id)}
+                  onChange={() => toggle(expense.id)}
+                  className="w-4 h-4 rounded accent-[var(--color-primary)]"
+                />
+                <div className="flex-1">
+                  <p className="text-xs font-medium text-primary">{expense.description}</p>
+                  <p className="text-[10px] text-[var(--text-tertiary)]">
+                    {expense.date} · {expense.category_name || "Sin categoría"}
+                  </p>
+                </div>
+                <span className="text-xs font-semibold text-primary">
+                  {formatCurrency(expense.amount)}
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+
+        {selectedIds.size > 0 && (
+          <p className="text-xs text-[var(--text-secondary)] mt-3 text-center">
+            Seleccionados: {formatCurrency(totalSelected)}
+          </p>
+        )}
+
+        <div className="flex gap-2 mt-4">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => linkMutation.mutate()}
+            disabled={selectedIds.size === 0 || linkMutation.isPending}
+            className="flex-1 px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
+          >
+            {linkMutation.isPending ? "Vinculando..." : `Vincular (${selectedIds.size})`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main BudgetPage ───────────────────────────────────────────
 
 export default function BudgetPage() {
@@ -981,6 +1360,8 @@ export default function BudgetPage() {
   const [editingGroup, setEditingGroup] = useState<BudgetGroup | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<BudgetSummaryItem | null>(null);
+  const [linkingEvent, setLinkingEvent] = useState<BudgetEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<BudgetEvent | null>(null);
 
   const { data: summary, isLoading: loadingSummary } = useQuery({
     queryKey: ["budget-summary"],
@@ -1005,6 +1386,11 @@ export default function BudgetPage() {
   const { data: allBudgets = [] } = useQuery({
     queryKey: ["budgets"],
     queryFn: getBudgets,
+  });
+
+  const { data: budgetConfig } = useQuery({
+    queryKey: ["budget-config"],
+    queryFn: getBudgetConfig,
   });
 
   const initGroupsMutation = useMutation({
@@ -1047,16 +1433,19 @@ export default function BudgetPage() {
   }
 
   // Compute KPIs
-  const totalBudget = groups.reduce((s, g) => s + g.amount, 0);
-  const totalSpent = groups.reduce((s, g) => s + g.spent, 0);
+  const totalBudget = useMemo(() => groups.reduce((s, g) => s + g.amount, 0), [groups]);
+  const totalSpent = useMemo(() => groups.reduce((s, g) => s + g.spent, 0), [groups]);
   const totalAvailable = totalBudget - totalSpent;
 
   // Count categories with spending but no budget (using summary directly — it already includes all categories with spending)
-  const budgetedCatIds = new Set(allBudgets.map((b) => b.category_id));
-  const unbudgetedCount =
-    summary?.categories.filter(
-      (c) => c.category_id !== null && c.spent_amount > 0 && !budgetedCatIds.has(c.category_id),
-    ).length ?? 0;
+  const unbudgetedCount = useMemo(() => {
+    const budgetedCatIds = new Set(allBudgets.map((b) => b.category_id));
+    return (
+      summary?.categories.filter(
+        (c) => c.category_id !== null && c.spent_amount > 0 && !budgetedCatIds.has(c.category_id),
+      ).length ?? 0
+    );
+  }, [summary, allBudgets]);
 
   // Group categories by macro group
   const groupColors: Record<string, string> = {
@@ -1080,7 +1469,7 @@ export default function BudgetPage() {
             onClick={() => setShowNewEvent(true)}
             className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90"
           >
-            + Nuevo Evento
+            + Nuevo evento
           </button>
         </div>
       </div>
@@ -1129,7 +1518,7 @@ export default function BudgetPage() {
           {/* 50/30/20 Donuts */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
+              <h2 className="text-sm font-semibold text-[var(--text-secondary)] mb-3">
                 Distribución del presupuesto
               </h2>
               {groups.length > 0 && (
@@ -1166,6 +1555,11 @@ export default function BudgetPage() {
               ))}
             </div>
           </div>
+
+          {/* Suggestions */}
+          {suggestionsData && suggestionsData.suggestions.length > 0 && (
+            <SuggestionsBanner suggestions={suggestionsData.suggestions} />
+          )}
 
           {/* Category Groups */}
           <div className="mb-6 space-y-4">
@@ -1218,15 +1612,17 @@ export default function BudgetPage() {
           {/* Events — full width */}
           {events.length > 0 && (
             <div className="card p-5 mb-6">
-              <h2 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">
-                Eventos Temporales
+              <h2 className="text-sm font-semibold text-[var(--text-secondary)] mb-3">
+                Eventos temporales
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-4">
                 {events.map((event) => (
                   <EventCard
                     key={event.id}
                     event={event}
                     onDelete={(id) => deleteEventMutation.mutate(id)}
+                    onLinkExpenses={setLinkingEvent}
+                    onClick={setSelectedEvent}
                   />
                 ))}
               </div>
@@ -1260,10 +1656,14 @@ export default function BudgetPage() {
               límite.
             </p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div
+            className={`grid grid-cols-1 sm:grid-cols-${budgetConfig?.ahorro_enabled ? 3 : 2} gap-4 mb-6`}
+          >
             <div className="p-4 rounded-xl border border-[var(--border-color)] text-center">
               <div className="w-10 h-10 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center mx-auto mb-2">
-                <span className="text-[var(--color-primary)] font-bold">50%</span>
+                <span className="text-[var(--color-primary)] font-bold">
+                  {budgetConfig?.ahorro_enabled ? "50%" : "60%"}
+                </span>
               </div>
               <p className="text-sm font-semibold text-primary">Necesidades</p>
               <p className="text-xs text-[var(--text-tertiary)] mt-1">
@@ -1272,20 +1672,24 @@ export default function BudgetPage() {
             </div>
             <div className="p-4 rounded-xl border border-[var(--border-color)] text-center">
               <div className="w-10 h-10 rounded-full bg-[var(--color-warning)]/10 flex items-center justify-center mx-auto mb-2">
-                <span className="text-[var(--color-warning)] font-bold">30%</span>
+                <span className="text-[var(--color-warning)] font-bold">
+                  {budgetConfig?.ahorro_enabled ? "30%" : "40%"}
+                </span>
               </div>
               <p className="text-sm font-semibold text-primary">Gustos</p>
               <p className="text-xs text-[var(--text-tertiary)] mt-1">
                 Entretenimiento, Salidas, Ropa
               </p>
             </div>
-            <div className="p-4 rounded-xl border border-[var(--border-color)] text-center">
-              <div className="w-10 h-10 rounded-full bg-[var(--color-success)]/10 flex items-center justify-center mx-auto mb-2">
-                <span className="text-[var(--color-success)] font-bold">20%</span>
+            {budgetConfig?.ahorro_enabled && (
+              <div className="p-4 rounded-xl border border-[var(--border-color)] text-center">
+                <div className="w-10 h-10 rounded-full bg-[var(--color-success)]/10 flex items-center justify-center mx-auto mb-2">
+                  <span className="text-[var(--color-success)] font-bold">20%</span>
+                </div>
+                <p className="text-sm font-semibold text-primary">Ahorro</p>
+                <p className="text-xs text-[var(--text-tertiary)] mt-1">Inversiones, Ahorro</p>
               </div>
-              <p className="text-sm font-semibold text-primary">Ahorro</p>
-              <p className="text-xs text-[var(--text-tertiary)] mt-1">Inversiones, Ahorro</p>
-            </div>
+            )}
           </div>
           <div className="max-w-lg mx-auto">
             <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2 text-center">
@@ -1312,19 +1716,18 @@ export default function BudgetPage() {
         </div>
       )}
 
-      {/* Suggestions */}
-      {suggestionsData && suggestionsData.suggestions.length > 0 && (
-        <SuggestionsBanner suggestions={suggestionsData.suggestions} />
-      )}
-
       {/* Modals */}
       {showNewEvent && <NewEventModal onClose={() => setShowNewEvent(false)} />}
       {showQuickConfig && <QuickConfigModal onClose={() => setShowQuickConfig(false)} />}
-      {editingGroup && (
-        <EditGroupModal group={editingGroup} onClose={() => setEditingGroup(null)} />
-      )}
+      {editingGroup && <EditGroupModal onClose={() => setEditingGroup(null)} />}
       {selectedCategory && (
         <CategorySidePanel category={selectedCategory} onClose={() => setSelectedCategory(null)} />
+      )}
+      {linkingEvent && (
+        <LinkExpensesModal event={linkingEvent} onClose={() => setLinkingEvent(null)} />
+      )}
+      {selectedEvent && (
+        <EventSidePanel event={selectedEvent} onClose={() => setSelectedEvent(null)} />
       )}
     </div>
   );

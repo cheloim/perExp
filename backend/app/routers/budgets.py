@@ -6,7 +6,7 @@ from calendar import monthrange
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func
+from sqlalchemy import func, desc
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -789,11 +789,8 @@ def create_budget_event(
     current_user: User = Depends(get_current_user),
 ):
     """Create a budget event (vacations, etc.)."""
-    try:
-        start = date.fromisoformat(data.start_date)
-        end = date.fromisoformat(data.end_date)
-    except ValueError:
-        raise HTTPException(400, "Invalid date format. Use YYYY-MM-DD")
+    start = data.start_date
+    end = data.end_date
 
     if end < start:
         raise HTTPException(400, "End date must be after start date")
@@ -962,3 +959,99 @@ def auto_assign_all_categories(
             updated += 1
     db.commit()
     return {"ok": True, "updated": updated, "total": len(categories)}
+
+
+# ─── Budget Config ──────────────────────────────────────────────
+
+
+@router.get("/config")
+def get_budget_config():
+    """Return budget configuration flags."""
+    ahorro_enabled = os.getenv("BUDGET_AHORRO_ENABLED", "false").lower() == "true"
+    return {"ahorro_enabled": ahorro_enabled}
+
+
+# ─── Link Expenses to Event ─────────────────────────────────────
+
+
+@router.post("/events/{event_id}/link-expenses")
+def link_expenses_to_event(
+    event_id: int,
+    expense_ids: list[int],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Link expenses to a budget event and update the event's spent amount."""
+    event = (
+        db.query(BudgetEvent)
+        .filter(BudgetEvent.id == event_id, BudgetEvent.user_id == current_user.id)
+        .first()
+    )
+    if not event:
+        raise HTTPException(404, "Budget event not found")
+
+    # Unlink previously linked expenses
+    db.query(Expense).filter(
+        Expense.budget_event_id == event_id,
+        Expense.user_id == current_user.id,
+    ).update({"budget_event_id": None})
+
+    # Link new expenses
+    total_spent = 0.0
+    for exp_id in expense_ids:
+        expense = (
+            db.query(Expense)
+            .filter(Expense.id == exp_id, Expense.user_id == current_user.id)
+            .first()
+        )
+        if expense:
+            expense.budget_event_id = event_id
+            total_spent += abs(expense.amount)
+
+    event.spent = total_spent
+    db.commit()
+
+    return {"ok": True, "spent": total_spent}
+
+
+@router.get("/events/{event_id}/expenses")
+def get_event_expenses(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get expenses linked to a budget event, plus unlinked expenses in the date range."""
+    event = (
+        db.query(BudgetEvent)
+        .filter(BudgetEvent.id == event_id, BudgetEvent.user_id == current_user.id)
+        .first()
+    )
+    if not event:
+        raise HTTPException(404, "Budget event not found")
+
+    # Get all expenses in the event's date range
+    all_expenses = (
+        db.query(Expense)
+        .filter(
+            Expense.user_id == current_user.id,
+            Expense.date >= event.start_date,
+            Expense.date <= event.end_date,
+            Expense.is_income == False,
+        )
+        .order_by(desc(Expense.date))
+        .all()
+    )
+
+    result = []
+    for e in all_expenses:
+        cat = db.query(Category).filter(Category.id == e.category_id).first()
+        result.append({
+            "id": e.id,
+            "description": e.description,
+            "amount": e.amount,
+            "date": e.date.isoformat(),
+            "category_name": cat.name if cat else None,
+            "linked": e.budget_event_id == event_id,
+        })
+
+    return result

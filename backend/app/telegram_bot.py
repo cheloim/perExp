@@ -48,6 +48,7 @@ WAITING_CARD_CREATE_CHOICE = 11
 WAITING_CARD_CREATE_TYPE = 12
 WAITING_CARD_CREATE_NAME = 13
 WAITING_CARD_CREATE_CONFIRM = 14
+WAITING_EVENT_CONFIRM = 15
 
 
 def _gemini_client() -> genai.Client:
@@ -1720,75 +1721,189 @@ async def handle_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     user_id = context.user_data.get("user_id")
     person = context.user_data.get("tg_user", "")
 
+    # Check for budget events BEFORE saving
+    from app.models import BudgetEvent
+    db = SessionLocal()
+    expense_date = datetime.strptime(parsed.get("date", date.today().strftime("%Y-%m-%d")), "%Y-%m-%d").date()
+    matching_events = (
+        db.query(BudgetEvent)
+        .filter(
+            BudgetEvent.user_id == user_id,
+            BudgetEvent.is_active == True,
+            BudgetEvent.start_date <= expense_date,
+            BudgetEvent.end_date >= expense_date,
+        )
+        .all()
+    )
+
+    linked_events = []
+    if matching_events:
+        predicted_category_id = context.user_data.get("predicted_category_id")
+        for evt in matching_events:
+            evt_cats = json.loads(evt.categories) if evt.categories else []
+            cat_ids = [c.get("category_id") for c in evt_cats]
+            if not cat_ids or (predicted_category_id and predicted_category_id in cat_ids):
+                linked_events.append(evt)
+
+    if linked_events:
+        # Show event selection BEFORE saving
+        context.user_data["pending_expense"] = {
+            "parsed": parsed,
+            "payment_label": payment_label,
+            "method": method,
+            "user_id": user_id,
+            "person": person,
+        }
+        context.user_data["linked_events"] = [
+            {"id": e.id, "name": e.name} for e in linked_events
+        ]
+
+        keyboard = []
+        for evt in linked_events:
+            keyboard.append(
+                [InlineKeyboardButton(
+                    f"📅 {evt.name} ({evt.start_date} — {evt.end_date})",
+                    callback_data=f"event_link:{evt.id}"
+                )]
+            )
+        keyboard.append(
+            [InlineKeyboardButton("❌ No vincular", callback_data="event_link:none")]
+        )
+
+        await query.edit_message_text(
+            _confirm_text(parsed, payment_label)
+            + "\n\n📅 *¿Este gasto pertenece a un evento temporal?*",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+        )
+        return WAITING_EVENT_CONFIRM
+
+    # No matching events — save directly
+    try:
+        expense = _save_expense_from_context(context, db)
+        if expense:
+            await query.edit_message_text(
+                _saved_text(expense, payment_label),
+                parse_mode="Markdown",
+            )
+        else:
+            await query.edit_message_text("Error al guardar el gasto.")
+
+        context.user_data.pop("installment_total", None)
+        context.user_data.pop("installment_group_id", None)
+        context.user_data.pop("predicted_category_id", None)
+
+        return ConversationHandler.END
+    finally:
+        db.close()
+
+
+def _save_expense_from_context(context, db):
+    """Save expense from context data."""
+    parsed = context.user_data.get("pending_expense", {}).get("parsed") or context.user_data.get("parsed")
+    payment_label = context.user_data.get("pending_expense", {}).get("payment_label") or context.user_data.get("payment_label", "")
+    method = context.user_data.get("pending_expense", {}).get("method") or context.user_data.get("payment_method", "")
+    user_id = context.user_data.get("pending_expense", {}).get("user_id") or context.user_data.get("user_id")
+    person = context.user_data.get("pending_expense", {}).get("person") or context.user_data.get("tg_user", "")
     installment_total = context.user_data.get("installment_total")
     installment_group_id = context.user_data.get("installment_group_id")
     predicted_category_id = context.user_data.get("predicted_category_id")
 
-    db = SessionLocal()
-    try:
-        if method == "tarjeta":
-            card = context.user_data.get("card_selected", "")
-            bank = context.user_data.get("card_bank", "")
-            card_id = context.user_data.get("card_id")
-            expense = _save_expense(
-                parsed,
-                payment=card,
-                person=person,
-                bank=bank,
-                card=card,
-                user_id=user_id,
-                installment_total=installment_total,
-                installment_group_id=installment_group_id,
-                predicted_category_id=predicted_category_id,
-                card_id=card_id,
-            )
-        elif method == "efectivo_transferencia":
-            account_id = context.user_data.get("account_id")
-            expense = _save_expense(
-                parsed,
-                payment=payment_label,
-                person=person,
-                user_id=user_id,
-                predicted_category_id=predicted_category_id,
-                account_id=account_id,
-            )
-        else:
-            expense = _save_expense(
-                parsed,
-                payment=payment_label,
-                person=person,
-                user_id=user_id,
-                predicted_category_id=predicted_category_id,
-            )
-
-        # Create ScheduledExpenses for future installments (2..N)
-        if installment_total and installment_group_id and installment_total >= 2:
-            from app.models import ScheduledExpense
-            from app.services.date_utils import add_months
-
-            for i in range(2, installment_total + 1):
-                scheduled = ScheduledExpense(
-                    installment_group_id=installment_group_id,
-                    installment_number=i,
-                    installment_total=installment_total,
-                    scheduled_date=add_months(expense.date, i - 1),
-                    amount=expense.amount,
-                    currency=expense.currency,
-                    description=expense.description,
-                    card_id=expense.card_id,
-                    account_id=expense.account_id,
-                    category_id=expense.category_id,
-                    status="PENDING",
-                    user_id=user_id,
-                )
-                db.add(scheduled)
-            db.commit()
-
-        await query.edit_message_text(
-            _saved_text(expense, payment_label),
-            parse_mode="Markdown",
+    if method == "tarjeta":
+        card = context.user_data.get("card_selected", "")
+        bank = context.user_data.get("card_bank", "")
+        card_id = context.user_data.get("card_id")
+        expense = _save_expense(
+            parsed, payment=card, person=person, bank=bank, card=card,
+            user_id=user_id, installment_total=installment_total,
+            installment_group_id=installment_group_id,
+            predicted_category_id=predicted_category_id, card_id=card_id,
+        )
+    elif method == "efectivo_transferencia":
+        account_id = context.user_data.get("account_id")
+        expense = _save_expense(
+            parsed, payment=payment_label, person=person, user_id=user_id,
+            predicted_category_id=predicted_category_id, account_id=account_id,
+        )
+    else:
+        expense = _save_expense(
+            parsed, payment=payment_label, person=person, user_id=user_id,
+            predicted_category_id=predicted_category_id,
         )
 
+    # Create ScheduledExpenses for future installments
+    if installment_total and installment_group_id and installment_total >= 2:
+        from app.models import ScheduledExpense
+        from app.services.date_utils import add_months
+        for i in range(2, installment_total + 1):
+            scheduled = ScheduledExpense(
+                installment_group_id=installment_group_id,
+                installment_number=i,
+                installment_total=installment_total,
+                scheduled_date=add_months(expense.date, i - 1),
+                amount=expense.amount,
+                currency=expense.currency,
+                description=expense.description,
+                card_id=expense.card_id,
+                account_id=expense.account_id,
+                category_id=expense.category_id,
+                status="PENDING",
+                user_id=user_id,
+            )
+            db.add(scheduled)
+        db.commit()
+
+    return expense
+
+
+async def handle_event_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle event linking confirmation, then save expense."""
+    query = update.callback_query
+    await query.answer()
+
+    _, event_id_str = query.data.split(":", 1)
+    pending_expense = context.user_data.get("pending_expense")
+    payment_label = context.user_data.get("pending_expense", {}).get("payment_label", "")
+
+    if not pending_expense:
+        await query.edit_message_text("Error: no se encontró el gasto pendiente.")
+        return ConversationHandler.END
+
+    # Save the expense
+    db = SessionLocal()
+    try:
+        expense = _save_expense_from_context(context, db)
+        if not expense:
+            await query.edit_message_text("Error al guardar el gasto.")
+            return ConversationHandler.END
+
+        # Link to event if selected
+        if event_id_str != "none":
+            from app.models import BudgetEvent
+            event_id = int(event_id_str)
+            event = db.query(BudgetEvent).filter(BudgetEvent.id == event_id).first()
+            if event:
+                expense.budget_event_id = event_id
+                event.spent = (event.spent or 0) + abs(expense.amount)
+                db.commit()
+                await query.edit_message_text(
+                    _saved_text(expense, payment_label)
+                    + f"\n\n📅 Vinculado a *{event.name}*",
+                    parse_mode="Markdown",
+                )
+            else:
+                await query.edit_message_text(
+                    _saved_text(expense, payment_label),
+                    parse_mode="Markdown",
+                )
+        else:
+            await query.edit_message_text(
+                _saved_text(expense, payment_label),
+                parse_mode="Markdown",
+            )
+
+        context.user_data.pop("pending_expense", None)
+        context.user_data.pop("linked_events", None)
         context.user_data.pop("installment_total", None)
         context.user_data.pop("installment_group_id", None)
         context.user_data.pop("predicted_category_id", None)
@@ -1934,6 +2049,9 @@ async def _run_bot(token: str) -> None:
             ],
             WAITING_CARD_CREATE_CONFIRM: [
                 CallbackQueryHandler(handle_card_create_confirm, pattern=r"^cardconfirm:")
+            ],
+            WAITING_EVENT_CONFIRM: [
+                CallbackQueryHandler(handle_event_confirm, pattern=r"^event_link:")
             ],
         },
         fallbacks=[MessageHandler(filters.COMMAND, cancel)],

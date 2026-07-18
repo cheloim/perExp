@@ -204,6 +204,19 @@ def main():
             else:
                 print("  Ahorro enabled, skipping")
 
+            # ─── 8. Add budget_event_id to expenses ──────────────────────
+            print("\n[8/8] Adding budget_event_id to expenses...")
+            try:
+                with engine.begin() as conn2:
+                    conn2.execute(text("""
+                        ALTER TABLE expenses 
+                        ADD COLUMN IF NOT EXISTS budget_event_id INTEGER 
+                        REFERENCES budget_events(id) ON DELETE SET NULL
+                    """))
+                print("  budget_event_id column added to expenses")
+            except Exception as e:
+                print(f"  Warning: budget_event_id already exists or failed ({e}), skipping")
+
             print("\nMigration complete!")
 
         else:
