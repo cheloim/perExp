@@ -21,6 +21,7 @@ const ExpensesPage = lazy(() => import("./pages/ExpensesPage"));
 const ImportJobPreview = lazy(() => import("./pages/ImportJobPreview"));
 const CategoriesPage = lazy(() => import("./pages/CategoriesPage"));
 const CategoryDashboard = lazy(() => import("./pages/CategoryDashboard"));
+const BudgetPage = lazy(() => import("./pages/BudgetPage"));
 const InstallmentsPage = lazy(() => import("./pages/InstallmentsPage"));
 const InvestmentsPage = lazy(() => import("./pages/InvestmentsPage"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
@@ -29,13 +30,22 @@ const OAuthCallbackPage = lazy(() => import("./pages/OAuthCallbackPage"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const GuidePage = lazy(() => import("./pages/GuidePage"));
+const GuideBudgetingPage = lazy(() => import("./pages/GuideBudgetingPage"));
+const GuideSmartImportPage = lazy(() => import("./pages/GuideSmartImportPage"));
+const GuideTelegramBotPage = lazy(() => import("./pages/GuideTelegramBotPage"));
+const GuideAIAnalysisPage = lazy(() => import("./pages/GuideAIAnalysisPage"));
+const GuideFamilyGroupsPage = lazy(() => import("./pages/GuideFamilyGroupsPage"));
+const GuideInvestmentsPage = lazy(() => import("./pages/GuideInvestmentsPage"));
+const GuideCategoriesPage = lazy(() => import("./pages/GuideCategoriesPage"));
 const OnboardingWalkthrough = lazy(() => import("./components/OnboardingWalkthrough"));
+const WhatsNewModal = lazy(() => import("./components/WhatsNewModal"));
 
 const TABS = [
   { path: "/", label: "Inicio", icon: "home", exact: true, tour: "sidebar-home" },
   { path: "/accounts", label: "Cuentas", icon: "accounts", exact: false, tour: "sidebar-accounts" },
   { path: "/expenses", label: "Gastos", icon: "expenses", exact: false, tour: "sidebar-expenses" },
   { path: "/cat-dashboard", label: "Categorías", icon: "catDashboard", exact: false },
+  { path: "/budget", label: "Presupuesto", icon: "chartBar", exact: false, tour: "sidebar-budget" },
   { path: "/installments", label: "Cuotas", icon: "installments", exact: false },
   { path: "/investments", label: "Inversiones", icon: "investments", exact: false },
   { path: "/categories", label: "Config. Categorías", icon: "settings", exact: false },
@@ -67,6 +77,55 @@ export default function App() {
       return (
         <Suspense>
           <PrivacyPage />
+        </Suspense>
+      );
+    }
+    if (location.pathname === "/guide/budgeting") {
+      return (
+        <Suspense>
+          <GuideBudgetingPage />
+        </Suspense>
+      );
+    }
+    if (location.pathname === "/guide/telegram-bot") {
+      return (
+        <Suspense>
+          <GuideTelegramBotPage />
+        </Suspense>
+      );
+    }
+    if (location.pathname === "/guide/smart-import") {
+      return (
+        <Suspense>
+          <GuideSmartImportPage />
+        </Suspense>
+      );
+    }
+    if (location.pathname === "/guide/ai-analysis") {
+      return (
+        <Suspense>
+          <GuideAIAnalysisPage />
+        </Suspense>
+      );
+    }
+    if (location.pathname === "/guide/family-groups") {
+      return (
+        <Suspense>
+          <GuideFamilyGroupsPage />
+        </Suspense>
+      );
+    }
+    if (location.pathname === "/guide/investments") {
+      return (
+        <Suspense>
+          <GuideInvestmentsPage />
+        </Suspense>
+      );
+    }
+    if (location.pathname === "/guide/categories") {
+      return (
+        <Suspense>
+          <GuideCategoriesPage />
         </Suspense>
       );
     }
@@ -121,7 +180,27 @@ function MainLayout() {
   const [userPanelOpen, setUserPanelOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [showMoreNav, setShowMoreNav] = useState(false);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
   const { ToastContainer } = useUndoToast();
+
+  // Check if we should show What's New modal
+  useEffect(() => {
+    const checkWhatsNew = async () => {
+      try {
+        const { SHOW_WHATS_NEW } = await import("./components/WhatsNewModal");
+        if (!SHOW_WHATS_NEW) return;
+        const { getMe } = await import("./api/client");
+        const user = await getMe();
+        if (user && !user.whats_new_seen) {
+          // Show modal after a short delay to let the page render
+          setTimeout(() => setShowWhatsNew(true), 1500);
+        }
+      } catch {
+        // Ignore errors
+      }
+    };
+    checkWhatsNew();
+  }, []);
 
   useEffect(() => {
     const main = document.querySelector("main");
@@ -430,6 +509,14 @@ function MainLayout() {
                         }
                       />
                       <Route
+                        path="/budget"
+                        element={
+                          <RequireAuth>
+                            <BudgetPage />
+                          </RequireAuth>
+                        }
+                      />
+                      <Route
                         path="/installments"
                         element={
                           <RequireAuth>
@@ -470,6 +557,13 @@ function MainLayout() {
                         }
                       />
                       <Route path="/guide" element={<GuidePage />} />
+                      <Route path="/guide/budgeting" element={<GuideBudgetingPage />} />
+                      <Route path="/guide/smart-import" element={<GuideSmartImportPage />} />
+                      <Route path="/guide/telegram-bot" element={<GuideTelegramBotPage />} />
+                      <Route path="/guide/ai-analysis" element={<GuideAIAnalysisPage />} />
+                      <Route path="/guide/family-groups" element={<GuideFamilyGroupsPage />} />
+                      <Route path="/guide/investments" element={<GuideInvestmentsPage />} />
+                      <Route path="/guide/categories" element={<GuideCategoriesPage />} />
                       <Route
                         path="*"
                         element={
@@ -574,6 +668,11 @@ function MainLayout() {
             <Suspense fallback={null}>
               <OnboardingWalkthrough onOpenPanel={setUserPanelOpen} />
             </Suspense>
+            {showWhatsNew && (
+              <Suspense fallback={null}>
+                <WhatsNewModal onClose={() => setShowWhatsNew(false)} />
+              </Suspense>
+            )}
           </div>
 
           <UserPanel open={userPanelOpen} onClose={() => setUserPanelOpen(false)} />

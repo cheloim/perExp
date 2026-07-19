@@ -11,6 +11,7 @@ const SECTIONS = [
   { id: "cuotas", label: "Cuotas", icon: "chart-bar" as const },
   { id: "programados", label: "Gastos programados", icon: "list" as const },
   { id: "inversiones", label: "Inversiones", icon: "arrow-up-right" as const },
+  { id: "presupuesto", label: "Presupuesto", icon: "chart-bar" as const },
   { id: "reportes", label: "Reportes mensuales", icon: "chart-donut" as const },
   { id: "importar", label: "Importar datos", icon: "arrow-up-right" as const },
   { id: "telegram", label: "Bot de Telegram", icon: "telegram" as const },
@@ -361,6 +362,17 @@ export default function GuidePage() {
               ]}
             />
 
+            <Callout type="info">
+              Para más detalles, consultá la{" "}
+              <a
+                href="/guide/smart-import"
+                className="text-[var(--color-primary)] hover:underline font-medium"
+              >
+                guía completa de importación inteligente
+              </a>
+              .
+            </Callout>
+
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Editar un gasto</h4>
             <Steps
               items={[
@@ -498,6 +510,12 @@ export default function GuidePage() {
               Si tenés gastos sin categoría, hacé click en "Recategorizar sin categoría" para que la
               IA sugiera categorías basándose en las descripciones.
             </p>
+            <a
+              href="/guide/categories"
+              className="inline-flex items-center gap-1 text-sm text-[var(--color-primary)] hover:underline mt-3"
+            >
+              📖 Guía completa de categorías →
+            </a>
           </Chapter>
 
           <Chapter
@@ -625,6 +643,15 @@ export default function GuidePage() {
             </ul>
           </Chapter>
 
+          <a
+            href="/guide/ai-analysis"
+            className="block mb-6 px-4 py-3 rounded-xl border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/5 hover:bg-[var(--color-primary)]/10 transition-colors"
+          >
+            <p className="text-sm font-medium text-[var(--color-primary)]">
+              📖 Guía completa de IA →
+            </p>
+          </a>
+
           <Chapter
             id="inversiones"
             title="Inversiones"
@@ -676,6 +703,125 @@ export default function GuidePage() {
               valuación, costo y P&L. Si tenés la misma inversión en varios brokers, se muestra el
               desglose por broker.
             </p>
+          </Chapter>
+
+          <a
+            href="/guide/investments"
+            className="block mb-6 px-4 py-3 rounded-xl border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/5 hover:bg-[var(--color-primary)]/10 transition-colors"
+          >
+            <p className="text-sm font-medium text-[var(--color-primary)]">
+              📖 Guía completa de inversiones →
+            </p>
+          </a>
+
+          <Chapter
+            id="presupuesto"
+            title="Presupuesto"
+            icon="chart-bar"
+            subtitle="Controlá tus gastos con límites por categoría."
+            expanded={expandedChapters.has("presupuesto")}
+            onToggle={() => toggleChapter("presupuesto")}
+          >
+            <p>
+              El sistema de presupuestos te permite asignar límites de gasto mensual a cada
+              categoría. La app te avisa cuando te acercás al límite y te muestra un resumen visual
+              de tu progreso.
+            </p>
+
+            <h4 className="font-semibold text-[var(--text-primary)] mb-2 mt-4">
+              Distribución del ingreso
+            </h4>
+            <p>Los presupuestos se organizan en dos grupos que representan tu ingreso mensual:</p>
+            <ul className="list-disc ml-5 space-y-1">
+              <li>
+                <strong>Necesidades</strong> (60%) — Alimentación, Transporte, Salud, Hogar,
+                Servicios
+              </li>
+              <li>
+                <strong>Gustos</strong> (40%) — Entretenimiento, Ropa, Suscripciones, Restaurantes
+              </li>
+            </ul>
+            <Callout type="tip">
+              El grupo "Ahorro" (20%) estará disponible cuando se implemente el módulo de ingresos.
+            </Callout>
+
+            <h4 className="font-semibold text-[var(--text-primary)] mb-2 mt-4">
+              Configurar presupuestos
+            </h4>
+            <Steps
+              items={[
+                "Entrá a Presupuesto en el menú lateral",
+                "Hacé click en 'Editar grupos' para ajustar los porcentajes",
+                "Hacé click en 'Configurar presupuestos' para asignar montos por categoría",
+                "Elegí el grupo (Necesidades/Gustos) y el límite mensual",
+                "Guardá y empezá a controlar tus gastos",
+              ]}
+            />
+
+            <h4 className="font-semibold text-[var(--text-primary)] mb-2 mt-4">
+              Interpretar el progreso
+            </h4>
+            <p>Cada categoría muestra una barra de progreso con código de colores:</p>
+            <ul className="list-disc ml-5 space-y-1">
+              <li>
+                🟢 <strong>Bien</strong> — Gastaste menos del 80% del presupuesto
+              </li>
+              <li>
+                🟡 <strong>Cuidado</strong> — Entre 80% y 100% del presupuesto
+              </li>
+              <li>
+                🔴 <strong>Alerta</strong> — Superaste el 100% del presupuesto
+              </li>
+            </ul>
+            <p className="mt-2">
+              Los íconos de los donuts son clickeables: al hacer click en uno, se filtran las
+              categorías de ese grupo.
+            </p>
+
+            <h4 className="font-semibold text-[var(--text-primary)] mb-2 mt-4">
+              Eventos temporales
+            </h4>
+            <p>
+              Podés crear presupuestos temporales para vacaciones, viajes o eventos especiales. Cada
+              evento tiene un rango de fechas y un monto total. Los gastos realizados durante ese
+              período se vinculan al evento.
+            </p>
+            <Steps
+              items={[
+                'Hacé click en "+ Nuevo evento" en la página de Presupuesto',
+                "Completá nombre, fechas y presupuesto total",
+                "Cuando registres gastos durante el evento, el bot te preguntará si pertenecen al evento",
+                "El progreso del evento se actualiza automáticamente",
+              ]}
+            />
+            <Callout type="info">
+              También podés vincular gastos manualmente haciendo click en "Vincular gastos" dentro
+              de cada evento.
+            </Callout>
+
+            <h4 className="font-semibold text-[var(--text-primary)] mb-2 mt-4">
+              Alertas y notificaciones
+            </h4>
+            <p>
+              Recibirás alertas automáticas cuando un grupo o categoría se acerque al límite. Las
+              alertas se envían:
+            </p>
+            <ul className="list-disc ml-5 space-y-1">
+              <li>Por Telegram cuando guardás un gasto que supera el umbral</li>
+              <li>Por notificación en la app</li>
+              <li>Diariamente a las 10:00 UTC por el sistema de tareas</li>
+            </ul>
+
+            <Callout type="info">
+              Para más detalles, consultá la{" "}
+              <a
+                href="/guide/budgeting"
+                className="text-[var(--color-primary)] hover:underline font-medium"
+              >
+                guía completa de presupuestos
+              </a>
+              .
+            </Callout>
           </Chapter>
 
           <Chapter
@@ -762,6 +908,12 @@ export default function GuidePage() {
               La IA detecta automáticamente qué tarjeta usaste. Si no la reconoce, seleccioná
               manualmente una tarjeta existente o elegí "Otro (crear nueva)" para crear una nueva.
             </p>
+            <a
+              href="/guide/smart-import"
+              className="inline-flex items-center gap-1 text-sm text-[var(--color-primary)] hover:underline mt-3"
+            >
+              📖 Guía completa de importación inteligente →
+            </a>
           </Chapter>
 
           <Chapter
@@ -828,6 +980,23 @@ export default function GuidePage() {
               Si lo activás en Configuración, cada lunes recibís un resumen de tu semana anterior
               directamente en Telegram con totales por categoría y un análisis de IA.
             </p>
+
+            <Callout type="info">
+              Para más detalles, consultá la{" "}
+              <a
+                href="/guide/telegram-bot"
+                className="text-[var(--color-primary)] hover:underline font-medium"
+              >
+                guía completa del bot de Telegram
+              </a>
+              .
+            </Callout>
+            <a
+              href="/guide/telegram-bot"
+              className="inline-flex items-center gap-1 text-sm text-[var(--color-primary)] hover:underline mt-3"
+            >
+              📖 Guía completa del bot de Telegram →
+            </a>
           </Chapter>
 
           <Chapter
@@ -935,6 +1104,12 @@ export default function GuidePage() {
               Máximo 5 miembros por grupo. Cada miembro puede tener su propio bot de Telegram
               conectado.
             </Callout>
+            <a
+              href="/guide/family-groups"
+              className="inline-flex items-center gap-1 text-sm text-[var(--color-primary)] hover:underline mt-3"
+            >
+              📖 Guía completa de grupos familiares →
+            </a>
           </Chapter>
 
           <Chapter

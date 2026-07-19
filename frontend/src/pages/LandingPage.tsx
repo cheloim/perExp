@@ -136,6 +136,50 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Presupuestos */}
+      <section className="py-16 md:py-24 px-4">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
+            <div>
+              <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
+                Controlá tus gastos con presupuestos
+              </h2>
+              <p className="text-lg text-[var(--text-secondary)] mb-6 leading-relaxed">
+                Asigná límites por categoría y recibí alertas cuando te acercás al límite. Creá
+                eventos temporales para vacaciones o viajes.
+              </p>
+              <ul className="space-y-3 text-[var(--text-secondary)]">
+                <li className="flex items-start gap-3">
+                  <SymbolicIcon
+                    name="check"
+                    size={18}
+                    className="text-[var(--gnome-green-5)] mt-0.5 flex-shrink-0"
+                  />
+                  <span>Distribución 60/40 entre Necesidades y Gustos</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <SymbolicIcon
+                    name="check"
+                    size={18}
+                    className="text-[var(--gnome-green-5)] mt-0.5 flex-shrink-0"
+                  />
+                  <span>Barras de progreso con código de colores</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <SymbolicIcon
+                    name="check"
+                    size={18}
+                    className="text-[var(--gnome-green-5)] mt-0.5 flex-shrink-0"
+                  />
+                  <span>Alertas automáticas por Telegram</span>
+                </li>
+              </ul>
+            </div>
+            <BudgetMockup />
+          </div>
+        </div>
+      </section>
+
       {/* Cómo registrar tus gastos */}
       <section className="py-16 md:py-24 px-4 bg-[var(--color-base-alt)]">
         <div className="max-w-5xl mx-auto">
@@ -429,6 +473,164 @@ export default function LandingPage() {
 /* ------------------------------------------------------------------ */
 /*  Mockups & subcomponents                                           */
 /* ------------------------------------------------------------------ */
+
+function BudgetMockup() {
+  return (
+    <div className="relative">
+      <div className="bg-[var(--color-surface)] rounded-2xl shadow-2xl border border-[var(--border-color)] overflow-hidden max-w-sm mx-auto">
+        {/* Titlebar */}
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border-color)]">
+          <div className="w-3 h-3 rounded-full bg-[var(--color-danger)]" />
+          <div className="w-3 h-3 rounded-full bg-[var(--gnome-yellow-4)]" />
+          <div className="w-3 h-3 rounded-full bg-[var(--gnome-green-4)]" />
+          <span className="ml-2 text-xs font-medium" style={{ color: "var(--text-primary)" }}>
+            Presupuesto
+          </span>
+        </div>
+        {/* Content */}
+        <div className="p-3 space-y-3">
+          {/* KPI Row */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="p-2 rounded-lg border border-[var(--border-color)] text-center">
+              <p
+                className="text-[7px] uppercase tracking-wider mb-0.5"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                Presupuestado
+              </p>
+              <p className="text-[10px] font-bold" style={{ color: "var(--color-primary)" }}>
+                $225.000
+              </p>
+            </div>
+            <div className="p-2 rounded-lg border border-[var(--border-color)] text-center">
+              <p
+                className="text-[7px] uppercase tracking-wider mb-0.5"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                Gastado
+              </p>
+              <p className="text-[10px] font-bold" style={{ color: "var(--color-primary)" }}>
+                $145.000
+              </p>
+            </div>
+            <div className="p-2 rounded-lg border border-[var(--border-color)] text-center">
+              <p
+                className="text-[7px] uppercase tracking-wider mb-0.5"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                Quedan
+              </p>
+              <p className="text-[10px] font-bold" style={{ color: "var(--gnome-green-5)" }}>
+                $80.000
+              </p>
+            </div>
+          </div>
+
+          {/* Donut row */}
+          <div className="flex gap-3">
+            <div className="flex-1 p-2 rounded-lg border border-[var(--border-color)] text-center">
+              <div className="relative w-10 h-10 mx-auto mb-1">
+                <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="14"
+                    fill="none"
+                    stroke="var(--color-base-alt)"
+                    strokeWidth="4"
+                  />
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="14"
+                    fill="none"
+                    stroke="var(--color-primary)"
+                    strokeWidth="4"
+                    strokeDasharray="70 87.96"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-[8px] font-bold" style={{ color: "var(--color-primary)" }}>
+                    80%
+                  </span>
+                </div>
+              </div>
+              <p className="text-[8px] font-medium" style={{ color: "var(--text-primary)" }}>
+                Necesidades
+              </p>
+              <p className="text-[7px]" style={{ color: "var(--text-secondary)" }}>
+                $80k rest.
+              </p>
+            </div>
+            <div className="flex-1 p-2 rounded-lg border border-[var(--border-color)] text-center">
+              <div className="relative w-10 h-10 mx-auto mb-1">
+                <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="14"
+                    fill="none"
+                    stroke="var(--color-base-alt)"
+                    strokeWidth="4"
+                  />
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="14"
+                    fill="none"
+                    stroke="var(--gnome-yellow-4)"
+                    strokeWidth="4"
+                    strokeDasharray="40 87.96"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-[8px] font-bold" style={{ color: "var(--gnome-yellow-4)" }}>
+                    45%
+                  </span>
+                </div>
+              </div>
+              <p className="text-[8px] font-medium" style={{ color: "var(--text-primary)" }}>
+                Gustos
+              </p>
+              <p className="text-[7px]" style={{ color: "var(--text-secondary)" }}>
+                $55k rest.
+              </p>
+            </div>
+          </div>
+
+          {/* Category bars */}
+          <div className="space-y-1.5">
+            {[
+              { name: "Supermercado", pct: 56, color: "var(--gnome-green-5)", amt: "$45k rest." },
+              { name: "Transporte", pct: 82, color: "var(--gnome-yellow-4)", amt: "$9k rest." },
+              { name: "Restaurantes", pct: 105, color: "var(--color-danger)", amt: "-$2k" },
+            ].map((cat) => (
+              <div key={cat.name} className="flex items-center gap-2">
+                <span
+                  className="text-[9px] w-16 truncate"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  {cat.name}
+                </span>
+                <div className="flex-1 h-1.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${Math.min(cat.pct, 100)}%`, backgroundColor: cat.color }}
+                  />
+                </div>
+                <span className="text-[8px] w-12 text-right" style={{ color: cat.color }}>
+                  {cat.amt}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function AppWindowMockup() {
   return (

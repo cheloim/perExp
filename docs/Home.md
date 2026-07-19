@@ -25,6 +25,7 @@ Tracking personal finances across credit cards, bank accounts, and investments i
 | [Family Groups](Family-Groups.md)   | Multi-user sharing, invite flow                         |
 | [Investments](Investments.md)       | IOL/PPI sync, Yahoo Finance, price refresh scheduler    |
 | [Authentication](Authentication.md) | JWT, Google OAuth, Apple Sign-In, password reset        |
+| [Budgets](Budgets.md)               | 50/30/20 groups, temporal events, category budgets      |
 | [API Reference](API-Reference.md)   | All 14 routers and key endpoints                        |
 | [Deployment](Deployment.md)         | Docker/Podman setup, CI/CD pipeline, secrets            |
 | [Frontend](Frontend.md)             | Routes, key components, state management                |

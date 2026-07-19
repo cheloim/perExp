@@ -101,8 +101,10 @@ def get_expenses(
         )
     if search:
         q = q.filter(Expense.description.ilike(f"%{search}%"))
-    # Exclude future installments (they belong in /installments)
-    q = q.filter((Expense.installment_group_id.is_(None)) | (Expense.date <= date.today()))
+    # Only exclude future installments when NOT filtering by specific category
+    # (category-specific views like side panel need to show all expenses)
+    if not category_id and not category_ids:
+        q = q.filter((Expense.installment_group_id.is_(None)) | (Expense.date <= date.today()))
     return q.order_by(desc(Expense.date)).offset(skip).limit(limit).all()
 
 

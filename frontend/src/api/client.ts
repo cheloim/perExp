@@ -1,6 +1,11 @@
 import axios from "axios";
 import type {
   Account,
+  Budget,
+  BudgetGroup,
+  BudgetEvent,
+  BudgetSummaryResponse,
+  BudgetSuggestion,
   Card,
   AuthToken,
   User,
@@ -78,6 +83,8 @@ export const getMe = () => api.get<User>("/auth/me").then((r) => r.data);
 export const markOnboardingCompleted = () =>
   api.put<User>("/auth/me/onboarding").then((r) => r.data);
 
+export const markWhatsNewSeen = () => api.put<User>("/auth/me/whats-new").then((r) => r.data);
+
 export const changePassword = (current_password: string, new_password: string) =>
   api.put("/auth/password", { current_password, new_password });
 
@@ -126,6 +133,92 @@ export const deleteCategory = (id: number) => api.delete(`/categories/${id}`).th
 
 export const suggestCategory = (data: { description: string; amount?: number }) =>
   api.post<CategorySuggestion | null>("/categories/suggest", data).then((r) => r.data);
+
+// Budgets
+export const getBudgets = () => api.get<Budget[]>("/budgets").then((r) => r.data);
+
+export const createBudget = (data: {
+  category_id: number;
+  amount: number;
+  alert_threshold?: number;
+  rollover?: boolean;
+}) => api.post<Budget>("/budgets", data).then((r) => r.data);
+
+export const updateBudget = (
+  id: number,
+  data: { amount?: number; alert_threshold?: number; rollover?: boolean; is_active?: boolean },
+) => api.put<Budget>(`/budgets/${id}`, data).then((r) => r.data);
+
+export const deleteBudget = (id: number) => api.delete(`/budgets/${id}`).then((r) => r.data);
+
+export const getBudgetSummary = (month?: string) => {
+  const params = month ? { month } : {};
+  return api.get<BudgetSummaryResponse>("/budgets/summary", { params }).then((r) => r.data);
+};
+
+export const getBudgetSuggestions = () =>
+  api.get<{ suggestions: BudgetSuggestion[] }>("/budgets/suggest").then((r) => r.data);
+
+// Budget Groups (50/30/20)
+export const getBudgetGroups = () => api.get<BudgetGroup[]>("/budgets/groups").then((r) => r.data);
+
+export const createBudgetGroup = (data: {
+  name: string;
+  display_name: string;
+  percentage: number;
+  amount?: number;
+}) => api.post<BudgetGroup>("/budgets/groups", data).then((r) => r.data);
+
+export const updateBudgetGroup = (
+  id: number,
+  data: { percentage?: number; amount?: number; is_active?: boolean },
+) => api.put<BudgetGroup>(`/budgets/groups/${id}`, data).then((r) => r.data);
+
+export const initBudgetGroups = (monthly_income: number) =>
+  api
+    .post<BudgetGroup[]>("/budgets/groups/init", null, { params: { monthly_income } })
+    .then((r) => r.data);
+
+// Budget Config
+export const getBudgetConfig = () =>
+  api.get<{ ahorro_enabled: boolean }>("/budgets/config").then((r) => r.data);
+
+// Budget Events
+export const getBudgetEvents = () => api.get<BudgetEvent[]>("/budgets/events").then((r) => r.data);
+
+export const createBudgetEvent = (data: {
+  name: string;
+  start_date: string;
+  end_date: string;
+  total_amount: number;
+  categories?: { category_id: number; amount: number }[];
+}) => api.post<BudgetEvent>("/budgets/events", data).then((r) => r.data);
+
+export const updateBudgetEvent = (
+  id: number,
+  data: { name?: string; total_amount?: number; is_active?: boolean },
+) => api.put<BudgetEvent>(`/budgets/events/${id}`, data).then((r) => r.data);
+
+export const deleteBudgetEvent = (id: number) =>
+  api.delete(`/budgets/events/${id}`).then((r) => r.data);
+
+// Category Group Assignment
+export const updateCategoryGroup = (categoryId: number, groupName: string) =>
+  api
+    .put(`/budgets/category-group/${categoryId}`, null, { params: { group_name: groupName } })
+    .then((r) => r.data);
+
+export const autoAssignGroups = () =>
+  api
+    .post<{ ok: boolean; updated: number; total: number }>("/budgets/auto-assign-groups")
+    .then((r) => r.data);
+
+// Budget Events
+export const getEventExpenses = (eventId: number) =>
+  api.get(`/budgets/events/${eventId}/expenses`).then((r) => r.data);
+
+export const linkExpensesToEvent = (eventId: number, expenseIds: number[]) =>
+  api.post(`/budgets/events/${eventId}/link-expenses`, expenseIds).then((r) => r.data);
 
 // Expenses
 export const getExpenses = (params?: {

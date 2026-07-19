@@ -411,6 +411,17 @@ def mark_onboarding_completed(
     return current_user
 
 
+@router.put("/me/whats-new", response_model=UserResponse)
+def mark_whats_new_seen(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    current_user.whats_new_seen = True
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
 def delete_my_account(
     body: DeleteAccountRequest,
