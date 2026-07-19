@@ -672,15 +672,16 @@ function MainLayout() {
               <AIAssistant open={aiDrawerOpen} onToggle={() => toggleDrawer(!aiDrawerOpen)} />
             )}
             {isInvestments && <InvestmentsAssistant />}
-            <Suspense fallback={null}>
-              <OnboardingWalkthrough onOpenPanel={setUserPanelOpen} />
-            </Suspense>
           </div>
 
           <UserPanel open={userPanelOpen} onClose={() => setUserPanelOpen(false)} />
           {notifOpen && <NotificationsPanel onClose={() => setNotifOpen(false)} />}
         </div>
       </FamilyGroupProvider>
+      {/* Onboarding - rendered at root to avoid overflow clipping */}
+      <Suspense fallback={null}>
+        <OnboardingWalkthrough onOpenPanel={setUserPanelOpen} />
+      </Suspense>
       {ToastContainer}
     </UploadProgressProvider>
   );

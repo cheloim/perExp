@@ -190,10 +190,6 @@ function CustomTooltip({
     <div
       {...tooltipProps}
       style={{
-        position: "fixed",
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
         width: 500,
         maxWidth: "90vw",
         borderRadius: 20,
@@ -202,7 +198,6 @@ function CustomTooltip({
         border: "1px solid rgba(0,0,0,0.06)",
         fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
         background: "#ffffff",
-        zIndex: 10001,
       }}
     >
       {/* Header with icon */}
@@ -384,7 +379,8 @@ export default function OnboardingWalkthrough({
     ...(cfg.target ? { target: cfg.target } : { target: "body" }),
     title: cfg.title,
     content: cfg.content,
-    ...(cfg.placement ? { placement: cfg.placement } : {}),
+    ...(cfg.placement ? { placement: cfg.placement } : { placement: "center" as const }),
+    skipBeacon: true,
     data: { ...cfg, _total: totalSteps } as unknown,
     ...(cfg.before ? { before: cfg.before } : {}),
     ...(cfg.after ? { after: cfg.after } : {}),
@@ -409,12 +405,12 @@ export default function OnboardingWalkthrough({
         primaryColor: "#3584e4",
         textColor: "#1c1b1f",
         backgroundColor: "#ffffff",
-        overlayColor: "rgba(0, 0, 0, 0.4)",
+        overlayColor: "rgba(0, 0, 0, 0.5)",
         showProgress: false,
         spotlightPadding: 12,
         spotlightRadius: 10,
         offset: 14,
-        zIndex: 100,
+        zIndex: 10000,
       }}
       styles={{
         tooltip: {
@@ -424,7 +420,11 @@ export default function OnboardingWalkthrough({
           lineHeight: 1.5,
         },
         tooltipContainer: {
-          borderRadius: 16,
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: 0,
+          height: 0,
           border: "none",
           boxShadow: "none",
           padding: 0,
