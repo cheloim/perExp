@@ -958,3 +958,14 @@
     transform: none !important;
   }
 }
+
+/* Onboarding: ensure tooltip is above overlay */
+.react-joyride__floater {
+  z-index: 10001 !important;
+}
+
+/* Onboarding: tooltip sizing */
+.react-joyride__tooltip {
+  width: 420px !important;
+  max-width: 90vw !important;
+}
