@@ -578,6 +578,13 @@ function MainLayout() {
               </div>
             </main>
 
+            {/* What's New Modal - rendered outside main to avoid overflow clipping */}
+            {showWhatsNew && (
+              <Suspense fallback={null}>
+                <WhatsNewModal onClose={() => setShowWhatsNew(false)} />
+              </Suspense>
+            )}
+
             {/* Mobile bottom nav */}
             <nav className="md:hidden border-t border-[var(--border-color)] bg-sidebar flex items-center justify-around pb-safe pt-1 z-40 fixed inset-x-0 bottom-0 translate-y-[var(--browser-bottom-inset)]">
               {TABS.slice(0, 4).map((tab) => (
@@ -668,11 +675,6 @@ function MainLayout() {
             <Suspense fallback={null}>
               <OnboardingWalkthrough onOpenPanel={setUserPanelOpen} />
             </Suspense>
-            {showWhatsNew && (
-              <Suspense fallback={null}>
-                <WhatsNewModal onClose={() => setShowWhatsNew(false)} />
-              </Suspense>
-            )}
           </div>
 
           <UserPanel open={userPanelOpen} onClose={() => setUserPanelOpen(false)} />
