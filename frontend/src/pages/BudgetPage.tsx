@@ -86,7 +86,6 @@ function CategoryBar({
   spent,
   budget,
   avgMonthly = 0,
-  onAddBudget,
   onClick,
 }: {
   name: string;
@@ -94,37 +93,47 @@ function CategoryBar({
   spent: number;
   budget: number;
   avgMonthly?: number;
-  onAddBudget?: () => void;
   onClick?: () => void;
 }) {
+  // Only hide if no budget AND no spending at all
   if (budget === 0 && spent === 0) return null;
-  if (spent === 0) return null;
 
   // Calculate remaining and percentage
   const remaining = budget > 0 ? budget - spent : 0;
   const pct = budget > 0 ? (spent / budget) * 100 : 0;
+  const isOverBudget = pct > 110;
 
   // Status badge logic
   let statusBadge: { label: string; color: string; bg: string } | null = null;
   if (budget > 0) {
     if (pct >= 100) {
-      statusBadge = { label: "Alerta", color: "var(--color-danger)", bg: "var(--color-danger)/10" };
+      statusBadge = {
+        label: "Excedido",
+        color: "var(--color-danger)",
+        bg: "var(--color-danger)/10",
+      };
+    } else if (pct >= 90) {
+      statusBadge = { label: "Alerta", color: "#e01b24", bg: "#e01b24/10" };
     } else if (pct >= 80) {
-      statusBadge = { label: "Cuidado", color: "#e8a100", bg: "#e8a100/10" };
+      statusBadge = { label: "Cuidado", color: "#e5a50a", bg: "#e5a50a/10" };
+    } else if (pct >= 60) {
+      statusBadge = { label: "Normal", color: "#e5a50a", bg: "#e5a50a/10" };
     } else {
       statusBadge = { label: "Bien", color: "var(--color-success)", bg: "var(--color-success)/10" };
     }
   }
 
-  // Bar color — gradient based on percentage
+  // Bar color — 0-60 green, 60-80 yellow, 80-90 orange, 90-100 red
   const barColor =
     pct >= 100
-      ? "var(--color-danger)"
-      : pct >= 80
-        ? "#e8a100"
-        : pct >= 60
-          ? "var(--gnome-yellow-4)"
-          : "var(--color-success)";
+      ? "#e01b24"
+      : pct >= 90
+        ? "#e01b24"
+        : pct >= 80
+          ? "#e5a50a"
+          : pct >= 60
+            ? "#e5a50a"
+            : "var(--color-success)";
 
   // No budget case — use avg monthly as reference
   if (budget === 0) {
@@ -132,16 +141,18 @@ function CategoryBar({
     const noBudgetPct = refAmount > 0 ? (spent / refAmount) * 100 : 0;
     const noBudgetBarColor =
       noBudgetPct >= 100
-        ? "var(--color-danger)"
-        : noBudgetPct >= 80
-          ? "#e8a100"
-          : noBudgetPct >= 60
-            ? "var(--gnome-yellow-4)"
-            : "var(--color-success)";
+        ? "#e01b24"
+        : noBudgetPct >= 90
+          ? "#e01b24"
+          : noBudgetPct >= 80
+            ? "#e5a50a"
+            : noBudgetPct >= 60
+              ? "#e5a50a"
+              : "var(--color-success)";
 
     return (
       <div
-        className="py-3 px-4 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors cursor-pointer"
+        className="py-3 px-4 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors cursor-pointer overflow-hidden"
         onClick={onClick}
       >
         <div className="flex items-center justify-between mb-1.5">
@@ -171,17 +182,6 @@ function CategoryBar({
             )}
           </span>
         </div>
-        {onAddBudget && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddBudget();
-            }}
-            className="mt-1.5 text-xs text-[var(--color-primary)] hover:underline"
-          >
-            + Agregar presupuesto
-          </button>
-        )}
       </div>
     );
   }
@@ -190,6 +190,11 @@ function CategoryBar({
   return (
     <div
       className="py-3 px-4 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors cursor-pointer"
+      style={
+        isOverBudget
+          ? { backgroundColor: "color-mix(in srgb, var(--color-danger) 10%, transparent)" }
+          : undefined
+      }
       onClick={onClick}
     >
       <div className="flex items-center justify-between mb-1.5">
@@ -205,7 +210,7 @@ function CategoryBar({
               backgroundColor: `color-mix(in srgb, ${statusBadge.color} 10%, transparent)`,
             }}
           >
-            {pct >= 100 ? "🔴" : pct >= 80 ? "🟡" : "🟢"} {statusBadge.label}
+            {pct >= 100 ? "🔴" : pct >= 80 ? "🟠" : pct >= 60 ? "🟡" : "🟢"} {statusBadge.label}
           </span>
         )}
       </div>
@@ -236,24 +241,33 @@ function CategoryBar({
 function CategoryGroupSection({
   displayName,
   color,
-  categories,
+  groupName,
+  allCategories,
   onAddBudget,
   onCategoryClick,
 }: {
   name: string;
   displayName: string;
   color: string;
-  categories: BudgetSummaryItem[];
+  groupName: string;
+  allCategories: BudgetSummaryItem[];
   onAddBudget: () => void;
   onCategoryClick: (cat: BudgetSummaryItem) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
-  const totalBudget = categories.reduce((s, c) => s + c.budget_amount, 0);
-  const totalSpent = categories.reduce((s, c) => s + c.spent_amount, 0);
+
+  // Collect ALL subcategories from ALL parent categories, then filter by this group's budget_group
+  const allSubcategories = allCategories.flatMap((cat) => cat.children);
+  const groupSubcategories = allSubcategories.filter((c) => c.budget_group === groupName);
+  // Show all subcategories that have a budget OR have ever had expenses
+  const visibleSubcategories = groupSubcategories.filter((c) => c.has_budget || c.spent_amount > 0);
+
+  // Calculate totals from subcategories in this group
+  const totalBudget = groupSubcategories.reduce((s, c) => s + c.budget_amount, 0);
+  const totalSpent = groupSubcategories.reduce((s, c) => s + c.spent_amount, 0);
   const totalRemaining = totalBudget - totalSpent;
 
-  const visibleCategories = categories.filter((c) => c.spent_amount > 0);
-  if (visibleCategories.length === 0) return null;
+  if (visibleSubcategories.length === 0) return null;
 
   return (
     <div className="rounded-xl border border-[var(--border-color)] overflow-hidden bg-[var(--color-surface)]">
@@ -269,7 +283,8 @@ function CategoryGroupSection({
           />
           <h3 className="text-sm font-semibold text-primary">{displayName}</h3>
           <span className="text-xs text-[var(--text-tertiary)] bg-[var(--color-base-alt)] px-2 py-0.5 rounded-full">
-            {visibleCategories.length} {visibleCategories.length === 1 ? "categoría" : "categorías"}
+            {visibleSubcategories.length}{" "}
+            {visibleSubcategories.length === 1 ? "subcategoría" : "subcategorías"}
           </span>
         </div>
         <div className="flex items-center gap-4">
@@ -296,36 +311,19 @@ function CategoryGroupSection({
         </div>
       </button>
 
-      {/* Categories List */}
+      {/* Subcategories List */}
       {expanded && (
         <div className="border-t border-[var(--border-color)] bg-[var(--color-base)]/50">
-          {visibleCategories.map((cat) => (
-            <div key={cat.category_id}>
-              <CategoryBar
-                name={cat.category_name}
-                color={cat.category_color}
-                spent={cat.spent_amount}
-                budget={cat.budget_amount}
-                avgMonthly={cat.avg_monthly}
-                onAddBudget={onAddBudget}
-                onClick={() => onCategoryClick(cat)}
-              />
-              {cat.children
-                .filter((child) => child.spent_amount > 0)
-                .map((child) => (
-                  <div key={child.category_id} className="pl-6">
-                    <CategoryBar
-                      name={child.category_name}
-                      color={child.category_color}
-                      spent={child.spent_amount}
-                      budget={child.budget_amount}
-                      avgMonthly={child.avg_monthly}
-                      onAddBudget={onAddBudget}
-                      onClick={() => onCategoryClick(child)}
-                    />
-                  </div>
-                ))}
-            </div>
+          {visibleSubcategories.map((cat) => (
+            <CategoryBar
+              key={cat.category_id}
+              name={cat.category_name}
+              color={cat.category_color}
+              spent={cat.spent_amount}
+              budget={cat.budget_amount}
+              avgMonthly={cat.avg_monthly}
+              onClick={() => onCategoryClick(cat)}
+            />
           ))}
           <div className="px-5 py-3 border-t border-[var(--border-color)]">
             <button
@@ -1576,7 +1574,8 @@ export default function BudgetPage() {
                           : "Ahorro"
                     }
                     color={groupColors[selectedGroup] || "var(--color-primary)"}
-                    categories={summary.categories.filter((c) => c.budget_group === selectedGroup)}
+                    groupName={selectedGroup}
+                    allCategories={summary.categories}
                     onAddBudget={() => setShowQuickConfig(true)}
                     onCategoryClick={setSelectedCategory}
                   />
@@ -1587,7 +1586,8 @@ export default function BudgetPage() {
                       name={g.name}
                       displayName={g.display_name}
                       color={groupColors[g.name] || "var(--color-primary)"}
-                      categories={summary.categories.filter((c) => c.budget_group === g.name)}
+                      groupName={g.name}
+                      allCategories={summary.categories}
                       onAddBudget={() => setShowQuickConfig(true)}
                       onCategoryClick={setSelectedCategory}
                     />
