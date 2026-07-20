@@ -223,25 +223,31 @@ function CategoryBar({
 function CategoryGroupSection({
   displayName,
   color,
-  categories,
+  groupName,
+  allCategories,
   onAddBudget,
   onCategoryClick,
 }: {
   name: string;
   displayName: string;
   color: string;
-  categories: BudgetSummaryItem[];
+  groupName: string;
+  allCategories: BudgetSummaryItem[];
   onAddBudget: () => void;
   onCategoryClick: (cat: BudgetSummaryItem) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
-  const totalBudget = categories.reduce((s, c) => s + c.budget_amount, 0);
-  const totalSpent = categories.reduce((s, c) => s + c.spent_amount, 0);
+
+  // Collect ALL subcategories from ALL parent categories, then filter by this group's budget_group
+  const allSubcategories = allCategories.flatMap((cat) => cat.children);
+  const groupSubcategories = allSubcategories.filter((c) => c.budget_group === groupName);
+  const visibleSubcategories = groupSubcategories.filter((c) => c.spent_amount > 0);
+
+  // Calculate totals from subcategories in this group
+  const totalBudget = groupSubcategories.reduce((s, c) => s + c.budget_amount, 0);
+  const totalSpent = groupSubcategories.reduce((s, c) => s + c.spent_amount, 0);
   const totalRemaining = totalBudget - totalSpent;
 
-  // Collect all subcategories (children) from all parent categories
-  const subcategories = categories.flatMap((cat) => cat.children);
-  const visibleSubcategories = subcategories.filter((c) => c.spent_amount > 0);
   if (visibleSubcategories.length === 0) return null;
 
   return (
@@ -1549,7 +1555,8 @@ export default function BudgetPage() {
                           : "Ahorro"
                     }
                     color={groupColors[selectedGroup] || "var(--color-primary)"}
-                    categories={summary.categories.filter((c) => c.budget_group === selectedGroup)}
+                    groupName={selectedGroup}
+                    allCategories={summary.categories}
                     onAddBudget={() => setShowQuickConfig(true)}
                     onCategoryClick={setSelectedCategory}
                   />
@@ -1560,7 +1567,8 @@ export default function BudgetPage() {
                       name={g.name}
                       displayName={g.display_name}
                       color={groupColors[g.name] || "var(--color-primary)"}
-                      categories={summary.categories.filter((c) => c.budget_group === g.name)}
+                      groupName={g.name}
+                      allCategories={summary.categories}
                       onAddBudget={() => setShowQuickConfig(true)}
                       onCategoryClick={setSelectedCategory}
                     />
