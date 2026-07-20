@@ -86,6 +86,7 @@ function CategoryBar({
   spent,
   budget,
   avgMonthly = 0,
+  onAddBudget,
   onClick,
 }: {
   name: string;
@@ -93,6 +94,7 @@ function CategoryBar({
   spent: number;
   budget: number;
   avgMonthly?: number;
+  onAddBudget?: () => void;
   onClick?: () => void;
 }) {
   if (budget === 0 && spent === 0) return null;
@@ -169,6 +171,17 @@ function CategoryBar({
             )}
           </span>
         </div>
+        {onAddBudget && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddBudget();
+            }}
+            className="mt-1.5 text-xs text-[var(--color-primary)] hover:underline"
+          >
+            + Agregar presupuesto
+          </button>
+        )}
       </div>
     );
   }
@@ -239,10 +252,8 @@ function CategoryGroupSection({
   const totalSpent = categories.reduce((s, c) => s + c.spent_amount, 0);
   const totalRemaining = totalBudget - totalSpent;
 
-  // Flatten: collect all subcategories (children) from all categories in this group
-  const subcategories = categories.flatMap((cat) => cat.children);
-  const visibleSubcategories = subcategories.filter((c) => c.spent_amount > 0);
-  if (visibleSubcategories.length === 0) return null;
+  const visibleCategories = categories.filter((c) => c.spent_amount > 0);
+  if (visibleCategories.length === 0) return null;
 
   return (
     <div className="rounded-xl border border-[var(--border-color)] overflow-hidden bg-[var(--color-surface)]">
@@ -258,8 +269,7 @@ function CategoryGroupSection({
           />
           <h3 className="text-sm font-semibold text-primary">{displayName}</h3>
           <span className="text-xs text-[var(--text-tertiary)] bg-[var(--color-base-alt)] px-2 py-0.5 rounded-full">
-            {visibleSubcategories.length}{" "}
-            {visibleSubcategories.length === 1 ? "subcategoría" : "subcategorías"}
+            {visibleCategories.length} {visibleCategories.length === 1 ? "categoría" : "categorías"}
           </span>
         </div>
         <div className="flex items-center gap-4">
@@ -286,19 +296,36 @@ function CategoryGroupSection({
         </div>
       </button>
 
-      {/* Subcategories List */}
+      {/* Categories List */}
       {expanded && (
         <div className="border-t border-[var(--border-color)] bg-[var(--color-base)]/50">
-          {visibleSubcategories.map((cat) => (
-            <CategoryBar
-              key={cat.category_id}
-              name={cat.category_name}
-              color={cat.category_color}
-              spent={cat.spent_amount}
-              budget={cat.budget_amount}
-              avgMonthly={cat.avg_monthly}
-              onClick={() => onCategoryClick(cat)}
-            />
+          {visibleCategories.map((cat) => (
+            <div key={cat.category_id}>
+              <CategoryBar
+                name={cat.category_name}
+                color={cat.category_color}
+                spent={cat.spent_amount}
+                budget={cat.budget_amount}
+                avgMonthly={cat.avg_monthly}
+                onAddBudget={onAddBudget}
+                onClick={() => onCategoryClick(cat)}
+              />
+              {cat.children
+                .filter((child) => child.spent_amount > 0)
+                .map((child) => (
+                  <div key={child.category_id} className="pl-6">
+                    <CategoryBar
+                      name={child.category_name}
+                      color={child.category_color}
+                      spent={child.spent_amount}
+                      budget={child.budget_amount}
+                      avgMonthly={child.avg_monthly}
+                      onAddBudget={onAddBudget}
+                      onClick={() => onCategoryClick(child)}
+                    />
+                  </div>
+                ))}
+            </div>
           ))}
           <div className="px-5 py-3 border-t border-[var(--border-color)]">
             <button
