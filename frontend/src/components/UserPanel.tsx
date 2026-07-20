@@ -1129,7 +1129,7 @@ export default function UserPanel({ open, onClose }: Props) {
                     </div>
                     {settings?.weekly_summary_enabled !== "false" && (
                       <p className="text-[10px] text-[var(--text-tertiary)]">
-                        Se envía todos los domingos a las 20:00 por Telegram
+                        Se envía todos los domingos a las 22:30 (Argentina) por Telegram
                       </p>
                     )}
                   </div>
