@@ -95,34 +95,45 @@ function CategoryBar({
   avgMonthly?: number;
   onClick?: () => void;
 }) {
+  // Only hide if no budget AND no spending at all
   if (budget === 0 && spent === 0) return null;
-  if (spent === 0) return null;
 
   // Calculate remaining and percentage
   const remaining = budget > 0 ? budget - spent : 0;
   const pct = budget > 0 ? (spent / budget) * 100 : 0;
+  const isOverBudget = pct > 110;
 
   // Status badge logic
   let statusBadge: { label: string; color: string; bg: string } | null = null;
   if (budget > 0) {
     if (pct >= 100) {
-      statusBadge = { label: "Alerta", color: "var(--color-danger)", bg: "var(--color-danger)/10" };
+      statusBadge = {
+        label: "Excedido",
+        color: "var(--color-danger)",
+        bg: "var(--color-danger)/10",
+      };
+    } else if (pct >= 90) {
+      statusBadge = { label: "Alerta", color: "#e01b24", bg: "#e01b24/10" };
     } else if (pct >= 80) {
-      statusBadge = { label: "Cuidado", color: "#e8a100", bg: "#e8a100/10" };
+      statusBadge = { label: "Cuidado", color: "#e5a50a", bg: "#e5a50a/10" };
+    } else if (pct >= 60) {
+      statusBadge = { label: "Normal", color: "#e5a50a", bg: "#e5a50a/10" };
     } else {
       statusBadge = { label: "Bien", color: "var(--color-success)", bg: "var(--color-success)/10" };
     }
   }
 
-  // Bar color — gradient based on percentage
+  // Bar color — 0-60 green, 60-80 yellow, 80-90 orange, 90-100 red
   const barColor =
     pct >= 100
-      ? "var(--color-danger)"
-      : pct >= 80
-        ? "#e8a100"
-        : pct >= 60
-          ? "var(--gnome-yellow-4)"
-          : "var(--color-success)";
+      ? "#e01b24"
+      : pct >= 90
+        ? "#e01b24"
+        : pct >= 80
+          ? "#e5a50a"
+          : pct >= 60
+            ? "#e5a50a"
+            : "var(--color-success)";
 
   // No budget case — use avg monthly as reference
   if (budget === 0) {
@@ -130,16 +141,18 @@ function CategoryBar({
     const noBudgetPct = refAmount > 0 ? (spent / refAmount) * 100 : 0;
     const noBudgetBarColor =
       noBudgetPct >= 100
-        ? "var(--color-danger)"
-        : noBudgetPct >= 80
-          ? "#e8a100"
-          : noBudgetPct >= 60
-            ? "var(--gnome-yellow-4)"
-            : "var(--color-success)";
+        ? "#e01b24"
+        : noBudgetPct >= 90
+          ? "#e01b24"
+          : noBudgetPct >= 80
+            ? "#e5a50a"
+            : noBudgetPct >= 60
+              ? "#e5a50a"
+              : "var(--color-success)";
 
     return (
       <div
-        className="py-3 px-4 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors cursor-pointer"
+        className="py-3 px-4 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors cursor-pointer overflow-hidden"
         onClick={onClick}
       >
         <div className="flex items-center justify-between mb-1.5">
@@ -177,6 +190,11 @@ function CategoryBar({
   return (
     <div
       className="py-3 px-4 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors cursor-pointer"
+      style={
+        isOverBudget
+          ? { backgroundColor: "color-mix(in srgb, var(--color-danger) 10%, transparent)" }
+          : undefined
+      }
       onClick={onClick}
     >
       <div className="flex items-center justify-between mb-1.5">
@@ -192,7 +210,7 @@ function CategoryBar({
               backgroundColor: `color-mix(in srgb, ${statusBadge.color} 10%, transparent)`,
             }}
           >
-            {pct >= 100 ? "🔴" : pct >= 80 ? "🟡" : "🟢"} {statusBadge.label}
+            {pct >= 100 ? "🔴" : pct >= 80 ? "🟠" : pct >= 60 ? "🟡" : "🟢"} {statusBadge.label}
           </span>
         )}
       </div>
@@ -241,7 +259,8 @@ function CategoryGroupSection({
   // Collect ALL subcategories from ALL parent categories, then filter by this group's budget_group
   const allSubcategories = allCategories.flatMap((cat) => cat.children);
   const groupSubcategories = allSubcategories.filter((c) => c.budget_group === groupName);
-  const visibleSubcategories = groupSubcategories.filter((c) => c.spent_amount > 0);
+  // Show all subcategories that have a budget OR have ever had expenses
+  const visibleSubcategories = groupSubcategories.filter((c) => c.has_budget || c.spent_amount > 0);
 
   // Calculate totals from subcategories in this group
   const totalBudget = groupSubcategories.reduce((s, c) => s + c.budget_amount, 0);

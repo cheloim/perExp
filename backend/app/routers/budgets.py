@@ -72,6 +72,20 @@ def _get_spending_for_category(
     return sum(abs(t[0]) for t in total)
 
 
+def _has_any_expenses(category_id: int, uid_list: list[int], db: Session) -> bool:
+    """Check if a category has ever had any expenses (any month)."""
+    count = (
+        db.query(Expense)
+        .filter(
+            Expense.user_id.in_(uid_list),
+            Expense.category_id == category_id,
+            Expense.is_income == False,
+        )
+        .count()
+    )
+    return count > 0
+
+
 def _get_spending_for_group(
     group_name: str, year: int, month: int, uid_list: list[int], db: Session
 ) -> float:
@@ -377,59 +391,103 @@ def budget_summary(
     )
     budgets_map = {b.category_id: b for b in budgets}
 
+    # Get ALL categories for the user
+    all_cats = db.query(Category).filter(Category.user_id == current_user.id).all()
+
+    # Build parent-child map
+    parent_map = {}  # parent_id -> list of children
+    for cat in all_cats:
+        if cat.parent_id:
+            parent_map.setdefault(cat.parent_id, []).append(cat)
+
+    # Get only parent categories (no parent_id)
+    parent_cats = [cat for cat in all_cats if not cat.parent_id]
+
     categories_summary = []
     total_budget = 0.0
     total_spent = 0.0
+    processed_ids = set()
 
-    for cat_id, budget in budgets_map.items():
-        cat = db.query(Category).filter(Category.id == cat_id).first()
-        if not cat:
-            continue
-        if cat.parent_id and cat.parent_id in budgets_map:
-            continue
-
-        item = _build_category_summary(cat, budgets_map, y, m, uid_list, db)
-        if item:
-            categories_summary.append(item)
-            total_budget += item.budget_amount
-            total_spent += item.spent_amount
-
-    # Also add categories with spending but no budget (skip parents whose children are already in summary)
-    processed_ids = {item.category_id for item in categories_summary}
-    for item in categories_summary:
-        for child in item.children:
-            processed_ids.add(child.category_id)
-
-    all_cats = (
-        db.query(Category)
-        .filter(
-            Category.user_id == current_user.id,
-        )
-        .all()
-    )
-
-    # Build set of parent IDs whose children are already in the summary
-    parent_ids_in_summary = set()
-    processed_cat_ids = {item.category_id for item in categories_summary}
-    for cat in all_cats:
-        if cat.parent_id and cat.id in processed_cat_ids:
-            parent_ids_in_summary.add(cat.parent_id)
-
-    for cat in all_cats:
+    # Process only parent categories
+    for cat in parent_cats:
         if cat.id in processed_ids:
             continue
-        # Skip parent categories whose children are already in the summary
-        if cat.id in parent_ids_in_summary:
-            continue
-        if cat.id in parent_ids_in_summary:
-            continue
 
+        # Get children from the map
+        children = parent_map.get(cat.id, [])
+
+        # Build summary for this parent category
+        budget = budgets_map.get(cat.id)
+        budget_amount = budget.amount if budget else 0
         spent = _get_spending_for_category(cat.id, y, m, uid_list, db)
-        if spent > 0:  # Only show categories with actual spending
-            item = _build_category_summary(cat, budgets_map, y, m, uid_list, db)
-            if item:
-                categories_summary.append(item)
-                total_spent += item.spent_amount
+
+        # Process ALL children (include if they have budget OR have ever had expenses)
+        children_items = []
+        for child in children:
+            if child.id in processed_ids:
+                continue
+
+            child_budget = budgets_map.get(child.id)
+            child_budget_amount = child_budget.amount if child_budget else 0
+            child_spent = _get_spending_for_category(child.id, y, m, uid_list, db)
+            child_has_expenses = _has_any_expenses(child.id, uid_list, db)
+
+            # Include child if it has budget OR has ever had expenses
+            if child_budget_amount > 0 or child_has_expenses:
+                child_pct = child_spent / child_budget_amount if child_budget_amount > 0 else 0
+                child_status = (
+                    "no_budget"
+                    if child_budget_amount == 0
+                    else "exceeded"
+                    if child_pct >= 1.0
+                    else "warning"
+                    if child_pct >= (child_budget.alert_threshold if child_budget else 0.8)
+                    else "ok"
+                )
+                children_items.append(
+                    BudgetSummaryItem(
+                        category_id=child.id,
+                        category_name=child.name,
+                        category_color=child.color,
+                        budget_group=child.budget_group or "necesidades",
+                        budget_amount=child_budget_amount,
+                        spent_amount=round(child_spent, 2),
+                        avg_monthly=round(_get_avg_monthly_spending(child.id, uid_list, db), 2),
+                        percentage=round(child_pct, 4),
+                        status=child_status,
+                        has_budget=child_budget is not None,
+                    )
+                )
+                processed_ids.add(child.id)
+
+        # Always include parent (to show its children)
+        percentage = spent / budget_amount if budget_amount > 0 else 0
+        if budget_amount == 0:
+            status = "no_budget"
+        elif percentage >= 1.0:
+            status = "exceeded"
+        elif percentage >= (budget.alert_threshold if budget else 0.8):
+            status = "warning"
+        else:
+            status = "ok"
+
+        item = BudgetSummaryItem(
+            category_id=cat.id,
+            category_name=cat.name,
+            category_color=cat.color,
+            budget_group=cat.budget_group or "necesidades",
+            budget_amount=budget_amount,
+            spent_amount=round(spent, 2),
+            avg_monthly=round(_get_avg_monthly_spending(cat.id, uid_list, db), 2),
+            percentage=round(percentage, 4),
+            status=status,
+            has_budget=budget is not None,
+            children=children_items,
+        )
+        categories_summary.append(item)
+        total_budget += budget_amount
+        total_spent += spent
+        processed_ids.add(cat.id)
 
     total_percentage = total_spent / total_budget if total_budget > 0 else 0
 
