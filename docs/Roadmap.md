@@ -24,6 +24,9 @@
 | 18 | Mensaje completo del bot: transacción + tarjeta + banco | ✅ Done | Medium | #128 | Cuando el bot recibe una notificación bancaria, envía un único mensaje consolidado con monto, descripción, fecha, tarjeta + banco y categoría. Incluye detección de cuotas para montos altos en crédito |
 | 19 | Google OAuth login | ✅ Done | Medium | #112, #115, #116, #117 | Login con Google OAuth con renderButton (FedCM compatible). MFA respeta configuración del usuario. CSP configurado para Google Identity Services |
 | 20 | Gestión automática de cuotas desde Telegram | ✅ Done | Medium | #128 | Cuando se registra un gasto con tarjeta de crédito, preguntar automáticamente si fue en cuotas. El monto total se divide por la cantidad de cuotas. Aplica para montos > $10.000 en crédito o categorías especiales (Viajes, Educación, Indumentaria). Flujo completo: división de monto, mensaje de confirmación con desglose, ScheduledExpenses con monto por cuota |
+| 21 | Recurring expenses tracking | ⏳ Backlog | Medium | - | Mark expenses as recurring, auto-suggest duplicates, manage subscriptions |
+| 22 | Savings goals | ⏳ Backlog | Low | - | Create, track, and visualize savings targets with progress indicators |
+| 23 | Bill reminders | ⏳ Backlog | Low | - | Upcoming bill notifications via Telegram and dashboard alerts |
 
 ## Backlog Details
 
@@ -121,3 +124,29 @@ Generate a monthly summary report with:
 - Las cuotas futuras (2..N) se crean como ScheduledExpenses automáticamente
 - Mensaje de confirmación muestra desglose: `$6.000 → 4× $1.500`
 - Mensaje de guardado muestra info de cuotas: `💳 Visa Galicia — 4 cuotas`
+
+### Recurring Expenses Tracking (Phase 1)
+- Mark expenses as recurring (subscriptions, gym, insurance, etc.)
+- Auto-suggest potential recurring expenses based on merchant + amount matching
+- Subscriptions dashboard: list all recurring with next charge date
+- Monthly summary card on dashboard
+- Telegram bot: Parse recurring from messages ("Netflix $5 every month")
+- Ability to pause/cancel recurring
+- Alert before next charge (configurable days before)
+
+### Savings Goals (Phase 1)
+- Create goals: name, target amount, target date
+- Dashboard card: progress bar, % complete, $remaining
+- Multiple concurrent goals tracking
+- Goal completion notifications via Telegram
+- Monthly insights: "You saved $X towards your goals"
+- Integration with budgets: Budget under X to reach goal
+
+### Bill Reminders (Phase 1)
+- Link bill amounts to expenses ("Electricity $150 on 15th")
+- Dashboard: Upcoming bills card (next 5 bills with dates)
+- Telegram reminder: Day before due + configurable early alerts
+- Snooze reminder (+1, 3, 7 days)
+- Mark bill as paid (auto-creates expense if desired)
+- Calendar view of monthly bills
+- Estimated total bill spending per month
