@@ -2,31 +2,31 @@
 
 ## Features
 
-| # | Feature | Status | Effort | PR | Description |
-|---|---------|--------|--------|-----|-------------|
-| 1 | Click-to-edit cards/accounts | ✅ Done | Low | #37 | Card/account rows clickable to enter edit mode |
-| 2 | Expense detail modal | ✅ Done | Low | #38 | Row click opens summary with Cerrar/Editar buttons |
-| 3 | Visual notifications | ✅ Done | Low | #41 | Icons, colored borders, progress bars, toast, QUEUED status |
-| 4 | Dashboard layout fixes | ✅ Done | Low | #47 | Equal height boxes, category limit, transaction scroll |
-| 5 | Installment system fixes | ✅ Done | Medium | #49, #50 | Telegram ScheduledExpenses, projection logic, charts |
-| 6 | Monthly analysis resume | ✅ Done | Medium | #76 | PNG report (1080px, GNOME HIG + Material Design) with KPIs, charts (categories, trends, polar area), Top 5 expenses, LLM analysis. Auto-generate monthly via Celery Beat |
-| 7 | Weekly Telegram report | ✅ Done | Medium | #76 | PNG image report sent via Telegram bot. Includes weekly spent, accumulated monthly, upcoming installments (next week), Top 10 expenses by category, LLM analysis. Scheduled Sundays 20:00 UTC-3. Configurable from UserPanel |
-| 8 | Income module | ⏳ Backlog | High | - | Track income, dashboard comparison vs last months |
-| 9 | Ticket scan | ⏳ Backlog | Medium | - | OCR receipt analysis, compare same items last month |
-| 10 | Expense budgets | ✅ Done | Medium | #130 | Set spending limits per category. 50/30/20 macro groups, daily Celery alerts, in-app + Telegram notifications, Dashboard widget, budget events for vacations |
-| 11 | Make index.html interactive | ✅ Done | Medium | #73 | Click KPI cards to filter expenses, uncategorized warnings |
-| 12 | Billing period tracking | ❌ Not Done | Medium | #63 | Cancelled: Monthly filtering is sufficient. Billing view adds complexity without enough value for expense analysis and saving plans |
-| 13 | Missing categories notification | ✅ Done | Medium | #73 | Real-time notifications for uncategorized expenses on save + login |
-| 14 | FCI, Plazos Fijos y Cauciones | ⏳ Backlog | Medium | - | Support for Fondos Comunes de Inversión, Plazos Fijos, and Cauciones in investments module |
-| 15 | Enable MFA for user accounts | ✅ Done | Medium | #94 | Multi-factor authentication (TOTP) for enhanced account security. QR code setup in UserPanel, MFA login step, enable/disable flow |
-| 16 | Integración caja de ahorro ↔ tarjeta débito | ✅ Done | Medium | #96 | Vincular cuentas de caja de ahorro con tarjetas débito. Bidireccional (desde tarjeta o desde cuenta). Solo caja_ahorro ↔ débito. Gastos con tarjeta vinculada se reflejan automáticamente en la cuenta |
-| 17 | Auto-categorización de gastos con IA | ✅ Done | Medium | #99 | Usar LLM para sugerir automáticamente la categoría correcta al cargar un gasto, basándose en la descripción, monto y historial del usuario |
-| 18 | Mensaje completo del bot: transacción + tarjeta + banco | ✅ Done | Medium | #128 | Cuando el bot recibe una notificación bancaria, envía un único mensaje consolidado con monto, descripción, fecha, tarjeta + banco y categoría. Incluye detección de cuotas para montos altos en crédito |
-| 19 | Google OAuth login | ✅ Done | Medium | #112, #115, #116, #117 | Login con Google OAuth con renderButton (FedCM compatible). MFA respeta configuración del usuario. CSP configurado para Google Identity Services |
-| 20 | Gestión automática de cuotas desde Telegram | ✅ Done | Medium | #128 | Cuando se registra un gasto con tarjeta de crédito, preguntar automáticamente si fue en cuotas. El monto total se divide por la cantidad de cuotas. Aplica para montos > $10.000 en crédito o categorías especiales (Viajes, Educación, Indumentaria). Flujo completo: división de monto, mensaje de confirmación con desglose, ScheduledExpenses con monto por cuota |
-| 21 | Recurring expenses tracking | ⏳ Backlog | Medium | - | Mark expenses as recurring, auto-suggest duplicates, manage subscriptions |
-| 22 | Savings goals | ⏳ Backlog | Low | - | Create, track, and visualize savings targets with progress indicators |
-| 23 | Bill reminders | ⏳ Backlog | Low | - | Upcoming bill notifications via Telegram and dashboard alerts |
+| # | Feature | Status | Effort | PR | Deps | Description |
+|---|---------|--------|--------|-----|------|-------------|
+| 1 | Click-to-edit cards/accounts | ✅ Done | Low | #37 | - | Card/account rows clickable to enter edit mode |
+| 2 | Expense detail modal | ✅ Done | Low | #38 | - | Row click opens summary with Cerrar/Editar buttons |
+| 3 | Visual notifications | ✅ Done | Low | #41 | - | Icons, colored borders, progress bars, toast, QUEUED status |
+| 4 | Dashboard layout fixes | ✅ Done | Low | #47 | - | Equal height boxes, category limit, transaction scroll |
+| 5 | Installment system fixes | ✅ Done | Medium | #49, #50 | - | Telegram ScheduledExpenses, projection logic, charts |
+| 6 | Monthly analysis resume | ✅ Done | Medium | #76 | - | PNG report (1080px, GNOME HIG + Material Design) with KPIs, charts (categories, trends, polar area), Top 5 expenses, LLM analysis. Auto-generate monthly via Celery Beat |
+| 7 | Weekly Telegram report | ✅ Done | Medium | #76 | - | PNG image report sent via Telegram bot. Includes weekly spent, accumulated monthly, upcoming installments (next week), Top 10 expenses by category, LLM analysis. Scheduled Sundays 20:00 UTC-3. Configurable from UserPanel |
+| 8 | Income module | ⏳ Backlog | High | - | - | Track income, dashboard comparison vs last months |
+| 9 | Ticket scan | ⏳ Backlog | Medium | - | - | OCR receipt analysis, compare same items last month |
+| 10 | Expense budgets | ✅ Done | Medium | #130 | - | Set spending limits per category. 50/30/20 macro groups, daily Celery alerts, in-app + Telegram notifications, Dashboard widget, budget events for vacations |
+| 11 | Make index.html interactive | ✅ Done | Medium | #73 | - | Click KPI cards to filter expenses, uncategorized warnings |
+| 12 | Billing period tracking | ❌ Not Done | Medium | #63 | - | Cancelled: Monthly filtering is sufficient. Billing view adds complexity without enough value for expense analysis and saving plans |
+| 13 | Missing categories notification | ✅ Done | Medium | #73 | - | Real-time notifications for uncategorized expenses on save + login |
+| 14 | FCI, Plazos Fijos y Cauciones | ⏳ Backlog | Medium | - | - | Support for Fondos Comunes de Inversión, Plazos Fijos, and Cauciones in investments module |
+| 15 | Enable MFA for user accounts | ✅ Done | Medium | #94 | - | Multi-factor authentication (TOTP) for enhanced account security. QR code setup in UserPanel, MFA login step, enable/disable flow |
+| 16 | Integración caja de ahorro ↔ tarjeta débito | ✅ Done | Medium | #96 | - | Vincular cuentas de caja de ahorro con tarjetas débito. Bidireccional (desde tarjeta o desde cuenta). Solo caja_ahorro ↔ débito. Gastos con tarjeta vinculada se reflejan automáticamente en la cuenta |
+| 17 | Auto-categorización de gastos con IA | ✅ Done | Medium | #99 | - | Usar LLM para sugerir automáticamente la categoría correcta al cargar un gasto, basándose en la descripción, monto y historial del usuario |
+| 18 | Mensaje completo del bot: transacción + tarjeta + banco | ✅ Done | Medium | #128 | - | Cuando el bot recibe una notificación bancaria, envía un único mensaje consolidado con monto, descripción, fecha, tarjeta + banco y categoría. Incluye detección de cuotas para montos altos en crédito |
+| 19 | Google OAuth login | ✅ Done | Medium | #112, #115, #116, #117 | - | Login con Google OAuth con renderButton (FedCM compatible). MFA respeta configuración del usuario. CSP configurado para Google Identity Services |
+| 20 | Gestión automática de cuotas desde Telegram | ✅ Done | Medium | #128 | - | Cuando se registra un gasto con tarjeta de crédito, preguntar automáticamente si fue en cuotas. El monto total se divide por la cantidad de cuotas. Aplica para montos > $10.000 en crédito o categorías especiales (Viajes, Educación, Indumentaria). Flujo completo: división de monto, mensaje de confirmación con desglose, ScheduledExpenses con monto por cuota |
+| 21 | Recurring expenses tracking | ⏳ Backlog | Medium | - | - | Mark expenses as recurring, auto-suggest duplicates, manage subscriptions |
+| 22 | Savings goals | ⏳ Backlog | Low | - | #8 | Create, track, and visualize savings targets with progress indicators |
+| 23 | Bill reminders | ⏳ Backlog | Low | - | #21 | Upcoming bill notifications via Telegram and dashboard alerts |
 
 ## Backlog Details
 
