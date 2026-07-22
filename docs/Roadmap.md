@@ -13,7 +13,7 @@
 | 7 | Weekly Telegram report | ✅ Done | Medium | #76 | PNG image report sent via Telegram bot. Includes weekly spent, accumulated monthly, upcoming installments (next week), Top 10 expenses by category, LLM analysis. Scheduled Sundays 20:00 UTC-3. Configurable from UserPanel |
 | 8 | Income module | ⏳ Backlog | High | - | Track income, dashboard comparison vs last months |
 | 9 | Ticket scan | ⏳ Backlog | Medium | - | OCR receipt analysis, compare same items last month |
-| 10 | Expense budgets | 🔨 In Progress | Medium | #83 | Set spending limits per category. 50/30/20 macro groups, daily Celery alerts, in-app + Telegram notifications, Dashboard widget, budget events for vacations |
+| 10 | Expense budgets | ✅ Done | Medium | #130 | Set spending limits per category. 50/30/20 macro groups, daily Celery alerts, in-app + Telegram notifications, Dashboard widget, budget events for vacations |
 | 11 | Make index.html interactive | ✅ Done | Medium | #73 | Click KPI cards to filter expenses, uncategorized warnings |
 | 12 | Billing period tracking | ❌ Not Done | Medium | #63 | Cancelled: Monthly filtering is sufficient. Billing view adds complexity without enough value for expense analysis and saving plans |
 | 13 | Missing categories notification | ✅ Done | Medium | #73 | Real-time notifications for uncategorized expenses on save + login |
@@ -55,7 +55,7 @@ Generate a monthly summary report with:
 - Compare same items across months (price tracking)
 - Market basket analysis
 
-### Expense Budgets 🔨
+### Expense Budgets ✅
 - Set monthly budget per category
 - Track spending vs budget
 - Alerts when approaching/exceeding limit (daily Celery task at 10:00 UTC)
