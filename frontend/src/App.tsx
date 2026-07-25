@@ -191,7 +191,7 @@ function MainLayout() {
         if (!SHOW_WHATS_NEW) return;
         const { getMe } = await import("./api/client");
         const user = await getMe();
-        if (user && !user.whats_new_seen) {
+        if (user && user.onboarding_completed && !user.whats_new_seen) {
           // Show modal after a short delay to let the page render
           setTimeout(() => setShowWhatsNew(true), 1500);
         }

@@ -38,17 +38,16 @@ function CardRow({
   total,
   cardType,
   holder,
+  linkedAccountName,
 }: {
   cardName: string;
   bank: string;
   total: number;
   cardType?: string;
   holder?: string;
+  linkedAccountName?: string | null;
 }) {
-  const isAccount =
-    !bank ||
-    cardName.toLowerCase().includes("efectivo") ||
-    cardName.toLowerCase().includes("cuenta");
+  const isAccount = !bank && !linkedAccountName;
 
   const renderIcon = () => {
     if (isAccount) {
@@ -76,7 +75,7 @@ function CardRow({
       <div className="flex items-center gap-3">
         <div
           className={`w-8 h-8 rounded-lg ${
-            isAccount ? "bg-success/10" : "bg-base-alt"
+            isAccount ? "bg-gnomeOrange5/10" : "bg-base-alt"
           } flex items-center justify-center text-xs`}
         >
           {renderIcon()}
@@ -86,7 +85,12 @@ function CardRow({
             {displayName}
             {bank ? ` | ${bank}` : ""}
           </p>
-          {holder && <p className="text-xs text-tertiary leading-tight">{holder}</p>}
+          {linkedAccountName && (
+            <p className="text-xs text-[var(--color-success)] leading-tight">↳ {linkedAccountName}</p>
+          )}
+          {holder && !linkedAccountName && (
+            <p className="text-xs text-tertiary leading-tight">{holder}</p>
+          )}
         </div>
       </div>
       <span className="text-sm font-semibold text-primary">{formatCurrency(total)}</span>
@@ -708,6 +712,7 @@ export default function Dashboard() {
                     total={monthEntry?.total ?? 0}
                     cardType={card.card_type}
                     holder={card.holder}
+                    linkedAccountName={card.linked_account_name}
                   />
                 );
               })}
