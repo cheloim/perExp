@@ -21,7 +21,12 @@ import {
 import CardAccountModal from "../components/CardAccountModal";
 import type { Expense, ExpenseCreate } from "../types";
 import { ExpenseModal } from "../components/ExpenseModals";
-import { formatCurrency, toUpperCase, getContrastTextColor, formatDateDMY } from "../utils/format";
+import {
+  formatCurrency,
+  toUpperCase,
+  getContrastTextColor,
+  formatDateDMY,
+} from "../utils/format";
 import EmptyState from "../components/ui/EmptyState";
 
 const MONTHS_ES = [
@@ -47,7 +52,9 @@ export default function AccountsPage() {
   const [bankFilter, setBankFilter] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+    new Set(),
+  );
   const [highlightedEntry, setHighlightedEntry] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
@@ -62,10 +69,16 @@ export default function AccountsPage() {
 
   // Prefetch cards and accounts so modal opens instantly
   useQuery({ queryKey: ["cards"], queryFn: getCards, staleTime: 300_000 });
-  useQuery({ queryKey: ["accounts"], queryFn: getAccounts, staleTime: 300_000 });
+  useQuery({
+    queryKey: ["accounts"],
+    queryFn: getAccounts,
+    staleTime: 300_000,
+  });
 
   const activeCardEntry = activeCard
-    ? cardData.find((c) => `${c.card_name}|${c.bank}|${c.holder}` === activeCard)
+    ? cardData.find(
+        (c) => `${c.card_name}|${c.bank}|${c.holder}` === activeCard,
+      )
     : null;
 
   const activeCardKey = activeCardEntry?.card_name || null;
@@ -109,8 +122,13 @@ export default function AccountsPage() {
       setEditing(undefined);
       setSaveError(null);
     },
-    onError: (e: { response?: { data?: { detail?: string } }; message?: string }) =>
-      setSaveError(e?.response?.data?.detail || e.message || "Error al guardar"),
+    onError: (e: {
+      response?: { data?: { detail?: string } };
+      message?: string;
+    }) =>
+      setSaveError(
+        e?.response?.data?.detail || e.message || "Error al guardar",
+      ),
   });
 
   const updateMut = useMutation({
@@ -121,8 +139,13 @@ export default function AccountsPage() {
       setEditing(undefined);
       setSaveError(null);
     },
-    onError: (e: { response?: { data?: { detail?: string } }; message?: string }) =>
-      setSaveError(e?.response?.data?.detail || e.message || "Error al guardar"),
+    onError: (e: {
+      response?: { data?: { detail?: string } };
+      message?: string;
+    }) =>
+      setSaveError(
+        e?.response?.data?.detail || e.message || "Error al guardar",
+      ),
   });
 
   const evolutionChartData = useMemo(() => {
@@ -130,7 +153,8 @@ export default function AccountsPage() {
       .filter((card) => !bankFilter || card.bank === bankFilter)
       .filter((card) => {
         if (!typeFilter) return true;
-        if (typeFilter === "cuentas") return card.card_type === "debito" && !card.bank;
+        if (typeFilter === "cuentas")
+          return card.card_type === "debito" && !card.bank;
         return card.card_type === typeFilter;
       });
 
@@ -139,15 +163,21 @@ export default function AccountsPage() {
     const monthsRange: string[] = [];
     for (let i = -5; i <= 0; i++) {
       const d = new Date(parseInt(selYear), selMonthNum - 1 + i, 1);
-      monthsRange.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+      monthsRange.push(
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+      );
     }
 
     const chartData = monthsRange.map((m) => {
       const entry: Record<string, number | string> = { month: m };
       let monthTotal = 0;
       filtered.forEach((card) => {
-        const cardKey = card.holder ? `${card.holder}|${card.card_name}` : card.card_name;
-        const monthData = card.monthly?.find((x: { month: string }) => x.month === m);
+        const cardKey = card.holder
+          ? `${card.holder}|${card.card_name}`
+          : card.card_name;
+        const monthData = card.monthly?.find(
+          (x: { month: string }) => x.month === m,
+        );
         const value = monthData?.total || 0;
         entry[cardKey] = value;
         monthTotal += value;
@@ -165,7 +195,8 @@ export default function AccountsPage() {
       .filter((card) => !bankFilter || card.bank === bankFilter)
       .filter((card) => {
         if (!typeFilter) return true;
-        if (typeFilter === "cuentas") return card.card_type === "debito" && !card.bank;
+        if (typeFilter === "cuentas")
+          return card.card_type === "debito" && !card.bank;
         return card.card_type === typeFilter;
       });
   }, [cardData, bankFilter, typeFilter]);
@@ -177,9 +208,12 @@ export default function AccountsPage() {
       monthNum === 1
         ? `${year - 1}-12`
         : `${year}-${String(monthNum - 1).padStart(2, "0")}`;
-    const prevMonthName = new Date(year, monthNum - 2).toLocaleDateString("es-AR", {
-      month: "long",
-    });
+    const prevMonthName = new Date(year, monthNum - 2).toLocaleDateString(
+      "es-AR",
+      {
+        month: "long",
+      },
+    );
 
     let totalThis = 0;
     let totalPrev = 0;
@@ -187,8 +221,10 @@ export default function AccountsPage() {
     let biggestChange = { key: "", diff: 0 };
 
     for (const card of filteredData) {
-      const thisMonth = card.monthly?.find((m) => m.month === month)?.total ?? 0;
-      const prevMonth = card.monthly?.find((m) => m.month === prevMonthKey)?.total ?? 0;
+      const thisMonth =
+        card.monthly?.find((m) => m.month === month)?.total ?? 0;
+      const prevMonth =
+        card.monthly?.find((m) => m.month === prevMonthKey)?.total ?? 0;
       totalThis += thisMonth;
       totalPrev += prevMonth;
       totalCount += card.count;
@@ -211,7 +247,8 @@ export default function AccountsPage() {
       totalThis,
       diffPct,
       totalCount,
-      prevMonthName: prevMonthName.charAt(0).toUpperCase() + prevMonthName.slice(1),
+      prevMonthName:
+        prevMonthName.charAt(0).toUpperCase() + prevMonthName.slice(1),
       biggestChange,
     };
   }, [filteredData, month]);
@@ -246,7 +283,9 @@ export default function AccountsPage() {
       setActiveCard(summaryData.biggestChange.key);
       setTimeout(() => setHighlightedEntry(null), 2000);
     }
-    document.getElementById("resumen-list")?.scrollIntoView({ behavior: "smooth" });
+    document
+      .getElementById("resumen-list")
+      ?.scrollIntoView({ behavior: "smooth" });
   };
 
   const prevMonth = () => {
@@ -322,11 +361,17 @@ export default function AccountsPage() {
                 {[
                   { key: "credito", label: "Crédito", color: "bg-gnomeBlue5" },
                   { key: "debito", label: "Débito", color: "bg-gnomeGreen5" },
-                  { key: "cuentas", label: "Cuentas", color: "bg-gnomeOrange5" },
+                  {
+                    key: "cuentas",
+                    label: "Cuentas",
+                    color: "bg-gnomeOrange5",
+                  },
                 ].map((t) => (
                   <button
                     key={t.key}
-                    onClick={() => setTypeFilter(typeFilter === t.key ? null : t.key)}
+                    onClick={() =>
+                      setTypeFilter(typeFilter === t.key ? null : t.key)
+                    }
                     className={`text-xs px-2.5 py-1 rounded-full border transition-all flex items-center gap-1 ${
                       typeFilter === t.key
                         ? "bg-primary text-on-primary border-primary"
@@ -343,7 +388,8 @@ export default function AccountsPage() {
                       cardData
                         .filter((c) => {
                           if (!typeFilter) return true;
-                          if (typeFilter === "cuentas") return c.card_type === "debito" && !c.bank;
+                          if (typeFilter === "cuentas")
+                            return c.card_type === "debito" && !c.bank;
                           return c.card_type === typeFilter;
                         })
                         .map((c) => c.bank)
@@ -374,7 +420,9 @@ export default function AccountsPage() {
                 onClick={() => handleSummaryClick("total")}
                 className="card p-3 text-center border border-transparent hover:border-[var(--color-primary)] transition-colors"
               >
-                <p className="text-[10px] text-tertiary uppercase tracking-wider">Total</p>
+                <p className="text-[10px] text-tertiary uppercase tracking-wider">
+                  Total
+                </p>
                 <p className="text-lg font-bold text-primary mt-0.5">
                   {formatCurrency(summaryData.totalThis)}
                 </p>
@@ -394,7 +442,8 @@ export default function AccountsPage() {
                       : "text-[var(--gnome-green-5)]"
                   }`}
                 >
-                  {summaryData.diffPct >= 0 ? "↑" : "↓"} {Math.abs(summaryData.diffPct)}%
+                  {summaryData.diffPct >= 0 ? "↑" : "↓"}{" "}
+                  {Math.abs(summaryData.diffPct)}%
                 </p>
               </button>
 
@@ -402,8 +451,12 @@ export default function AccountsPage() {
                 onClick={() => handleSummaryClick("txns")}
                 className="card p-3 text-center border border-transparent hover:border-[var(--color-primary)] transition-colors"
               >
-                <p className="text-[10px] text-tertiary uppercase tracking-wider">Transacciones</p>
-                <p className="text-lg font-bold text-primary mt-0.5">{summaryData.totalCount}</p>
+                <p className="text-[10px] text-tertiary uppercase tracking-wider">
+                  Transacciones
+                </p>
+                <p className="text-lg font-bold text-primary mt-0.5">
+                  {summaryData.totalCount}
+                </p>
               </button>
             </div>
 
@@ -447,109 +500,128 @@ export default function AccountsPage() {
                   textColor: "text-[var(--gnome-orange-5)]",
                 },
               ]
-              .filter((g) => g.items.length > 0)
-              .map((group) => {
-                const isCollapsed = collapsedGroups.has(group.key);
+                .filter((g) => g.items.length > 0)
+                .map((group) => {
+                  const isCollapsed = collapsedGroups.has(group.key);
 
-                return (
-                  <div key={group.key}>
-                    {/* Group header */}
-                    <button
-                      onClick={() => toggleGroup(group.key)}
-                      className="flex items-center gap-2 w-full mt-2 mb-2 group"
-                    >
-                      <span className={`w-2 h-2 rounded-full ${group.dotColor}`} />
-                      <span
-                        className={`text-xs font-semibold uppercase tracking-wider ${group.textColor}`}
+                  return (
+                    <div key={group.key}>
+                      {/* Group header */}
+                      <button
+                        onClick={() => toggleGroup(group.key)}
+                        className="flex items-center gap-2 w-full mt-2 mb-2 group"
                       >
-                        {group.label}
-                      </span>
-                      <span className="text-[10px] text-tertiary">({group.items.length})</span>
-                      <div className="flex-1 h-px bg-border-color" />
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        className={`text-[var(--text-tertiary)] transition-transform duration-200 ${
-                          isCollapsed ? "" : "rotate-180"
-                        }`}
+                        <span
+                          className={`w-2 h-2 rounded-full ${group.dotColor}`}
+                        />
+                        <span
+                          className={`text-xs font-semibold uppercase tracking-wider ${group.textColor}`}
+                        >
+                          {group.label}
+                        </span>
+                        <span className="text-[10px] text-tertiary">
+                          ({group.items.length})
+                        </span>
+                        <div className="flex-1 h-px bg-border-color" />
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          className={`text-[var(--text-tertiary)] transition-transform duration-200 ${
+                            isCollapsed ? "" : "rotate-180"
+                          }`}
+                        >
+                          <path d="m6 9 6 6 6-6" />
+                        </svg>
+                      </button>
+
+                      {/* Group entries */}
+                      <div
+                        className="overflow-hidden transition-all duration-300 ease-in-out"
+                        style={{
+                          maxHeight: isCollapsed
+                            ? "0px"
+                            : `${group.items.length * 120}px`,
+                        }}
                       >
-                        <path d="m6 9 6 6 6-6" />
-                      </svg>
-                    </button>
+                        <div className="space-y-2 pb-2">
+                          {group.items.map((card) => {
+                            const monthEntry = card.monthly?.find(
+                              (m) => m.month === month,
+                            );
+                            const monthTotal = monthEntry?.total ?? 0;
+                            const pctOfTotal =
+                              allTotal > 0 ? (monthTotal / allTotal) * 100 : 0;
+                            const ckey = `${card.card_name}|${card.bank}|${card.holder}`;
+                            const isActive = activeCard === ckey;
+                            const isHighlighted = highlightedEntry === ckey;
+                            const icon =
+                              card.card_name
+                                .toLowerCase()
+                                .includes("mercadopago") ||
+                              card.card_name.toLowerCase().includes("mp")
+                                ? "📱"
+                                : !card.bank && !card.linked_account_name
+                                  ? "💵"
+                                  : "💳";
 
-                    {/* Group entries */}
-                    <div
-                      className="overflow-hidden transition-all duration-300 ease-in-out"
-                      style={{ maxHeight: isCollapsed ? "0px" : `${group.items.length * 120}px` }}
-                    >
-                      <div className="space-y-2 pb-2">
-                        {group.items.map((card) => {
-                          const monthEntry = card.monthly?.find((m) => m.month === month);
-                          const monthTotal = monthEntry?.total ?? 0;
-                          const pctOfTotal = allTotal > 0 ? (monthTotal / allTotal) * 100 : 0;
-                          const ckey = `${card.card_name}|${card.bank}|${card.holder}`;
-                          const isActive = activeCard === ckey;
-                          const isHighlighted = highlightedEntry === ckey;
-                          const icon =
-                            card.card_name.toLowerCase().includes("mercadopago") ||
-                            card.card_name.toLowerCase().includes("mp")
-                              ? "📱"
-                              : !card.bank && !card.linked_account_name
-                                ? "💵"
-                                : "💳";
-
-                          return (
-                            <button
-                              key={ckey}
-                              onClick={() => setActiveCard(activeCard === ckey ? null : ckey)}
-                              className={`w-full text-left p-3 rounded-lg border transition-all duration-300 ${
-                                isActive
-                                  ? `${group.activeBorder} bg-[var(--color-base-alt)]`
-                                  : isHighlighted
+                            return (
+                              <button
+                                key={ckey}
+                                onClick={() =>
+                                  setActiveCard(
+                                    activeCard === ckey ? null : ckey,
+                                  )
+                                }
+                                className={`w-full text-left p-3 rounded-lg border transition-all duration-300 ${
+                                  isActive
                                     ? `${group.activeBorder} bg-[var(--color-base-alt)]`
-                                    : `border-transparent ${group.hoverBorder} hover:bg-[var(--color-base-alt)]`
-                              }`}
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span className="text-sm">{icon}</span>
-                                  <span className="text-sm font-semibold text-primary truncate">
-                                    {card.card_name}
-                                    {card.bank ? ` | ${card.bank}` : ""}
-                                  </span>
-                                  {card.linked_account_name && (
-                                    <span className="text-[11px] text-[var(--gnome-green-5)] whitespace-nowrap">
-                                      ↳ {card.linked_account_name}
+                                    : isHighlighted
+                                      ? `${group.activeBorder} bg-[var(--color-base-alt)]`
+                                      : `border-transparent ${group.hoverBorder} hover:bg-[var(--color-base-alt)]`
+                                }`}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className="text-sm">{icon}</span>
+                                    <span className="text-sm font-semibold text-primary truncate">
+                                      {card.card_name}
+                                      {card.bank ? ` | ${card.bank}` : ""}
                                     </span>
-                                  )}
+                                    {card.linked_account_name && (
+                                      <span className="text-[11px] text-[var(--gnome-green-5)] whitespace-nowrap">
+                                        ↳ {card.linked_account_name}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-sm font-bold text-primary whitespace-nowrap">
+                                    {formatCurrency(monthTotal)}
+                                  </span>
                                 </div>
-                                <span className="text-sm font-bold text-primary whitespace-nowrap">
-                                  {formatCurrency(monthTotal)}
-                                </span>
-                              </div>
-                              <div className="mt-2 flex items-center gap-2">
-                                <div className="flex-1 h-1.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
-                                  <div
-                                    className={`h-full rounded-full transition-all duration-500 ${group.barColor}`}
-                                    style={{ width: `${Math.max(pctOfTotal, 2)}%` }}
-                                  />
+                                <div className="mt-2 flex items-center gap-2">
+                                  <div className="flex-1 h-1.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full transition-all duration-500 ${group.barColor}`}
+                                      style={{
+                                        width: `${Math.max(pctOfTotal, 2)}%`,
+                                      }}
+                                    />
+                                  </div>
+                                  <span className="text-[11px] text-tertiary whitespace-nowrap w-10 text-right">
+                                    {Math.round(pctOfTotal)}%
+                                  </span>
                                 </div>
-                                <span className="text-[11px] text-tertiary whitespace-nowrap w-10 text-right">
-                                  {Math.round(pctOfTotal)}%
-                                </span>
-                              </div>
-                            </button>
-                          );
-                        })}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              });
+                  );
+                });
             })()}
           </div>
         )}
@@ -557,133 +629,157 @@ export default function AccountsPage() {
         <div className="space-y-6">
           {/* Evolución por Cuenta */}
           <div className="card p-5">
-            <h2 className="text-base font-semibold text-primary mb-4">Evolución por Cuenta</h2>
+            <h2 className="text-base font-semibold text-primary mb-4">
+              Evolución por Cuenta
+            </h2>
             {(() => {
-                const { filtered: filteredCards, chartData, monthsRange } = evolutionChartData;
+              const {
+                filtered: filteredCards,
+                chartData,
+                monthsRange,
+              } = evolutionChartData;
 
-                const colors = [
-                  "#6366f1",
-                  "#10b981",
-                  "#f59e0b",
-                  "#ef4444",
-                  "#8b5cf6",
-                  "#06b6d4",
-                  "#ec4899",
-                  "#84cc16",
-                ];
+              const colors = [
+                "#6366f1",
+                "#10b981",
+                "#f59e0b",
+                "#ef4444",
+                "#8b5cf6",
+                "#06b6d4",
+                "#ec4899",
+                "#84cc16",
+              ];
 
-                return (
-                  <div className="bg-base-alt rounded-lg p-4">
-                    <ResponsiveContainer width="100%" height={320}>
-                      <LineChart
-                        data={chartData}
-                        margin={{ top: 4, right: 4, left: 0, bottom: 40 }}
-                      >
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          stroke="var(--chart-grid)"
-                          vertical={false}
-                        />
-                        <XAxis
-                          dataKey="month"
-                          tick={{ fontSize: 10, fill: "var(--chart-text)" }}
-                          tickFormatter={(v) => {
-                            const [y, m] = v.split("-");
-                            return `${MONTHS_ES[parseInt(m) - 1].slice(0, 3)} ${y.slice(2)}`;
-                          }}
-                        />
-                        <YAxis
-                          tickFormatter={(v) =>
-                            new Intl.NumberFormat("es-AR", {
-                              notation: "compact",
-                            } as Intl.NumberFormatOptions).format(v)
-                          }
-                          tick={{ fontSize: 11, fill: "var(--chart-text)" }}
-                          width={50}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "var(--chart-tooltip-bg)",
-                            borderColor: "var(--chart-tooltip-border)",
-                            color: "var(--chart-tooltip-text)",
-                          }}
-                          itemStyle={{ color: "var(--chart-tooltip-text)" }}
-                          formatter={(v: number, name: string) => [formatCurrency(v), name]}
-                          labelFormatter={(label) => {
-                            const [y, m] = label.split("-");
-                            const currentData = chartData.find(
-                              (d: Record<string, number | string>) => d.month === label,
-                            );
-                            const currentTotal =
-                              typeof currentData?.total === "number" ? currentData.total : 0;
-                            const currentIdx = monthsRange.indexOf(label);
-                            const prevMonth = currentIdx > 0 ? chartData[currentIdx - 1] : null;
-                            let tooltip = `${MONTHS_ES[parseInt(m) - 1]} ${y}`;
-                            if (prevMonth && typeof prevMonth.total === "number") {
-                              const diff = currentTotal - prevMonth.total;
-                              const pct =
-                                prevMonth.total > 0
-                                  ? ((diff / prevMonth.total) * 100).toFixed(2)
-                                  : "0.00";
-                              const diffSign = diff >= 0 ? "+" : "";
-                              tooltip += `\nvs mes anterior: ${diffSign}${formatCurrency(
-                                diff,
-                              )} (${diffSign}${pct}%)`;
-                            }
-                            return tooltip;
-                          }}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="total"
-                          name="Total"
-                          stroke="var(--chart-text)"
-                          strokeWidth={2}
-                          strokeDasharray="5 5"
-                          dot={{ r: 4, fill: "var(--chart-text)" }}
-                          opacity={0.4}
-                        />
-                        {filteredCards.map((card, idx) => {
-                          const cardKey = card.holder
-                            ? `${card.holder}|${card.card_name}`
-                            : card.card_name;
-                          const displayName = card.holder
-                            ? `${card.holder} — ${card.card_name}`
-                            : card.card_name;
-                          return (
-                            <Line
-                              key={cardKey}
-                              type="monotone"
-                              dataKey={cardKey}
-                              name={displayName}
-                              stroke={colors[idx % colors.length]}
-                              strokeWidth={2}
-                              dot={{ r: 3, fill: colors[idx % colors.length] }}
-                              connectNulls
-                            />
+              return (
+                <div className="bg-base-alt rounded-lg p-4">
+                  <ResponsiveContainer width="100%" height={320}>
+                    <LineChart
+                      data={chartData}
+                      margin={{ top: 4, right: 4, left: 0, bottom: 40 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="var(--chart-grid)"
+                        vertical={false}
+                      />
+                      <XAxis
+                        dataKey="month"
+                        tick={{ fontSize: 10, fill: "var(--chart-text)" }}
+                        tickFormatter={(v) => {
+                          const [y, m] = v.split("-");
+                          return `${MONTHS_ES[parseInt(m) - 1].slice(0, 3)} ${y.slice(2)}`;
+                        }}
+                      />
+                      <YAxis
+                        tickFormatter={(v) =>
+                          new Intl.NumberFormat("es-AR", {
+                            notation: "compact",
+                          } as Intl.NumberFormatOptions).format(v)
+                        }
+                        tick={{ fontSize: 11, fill: "var(--chart-text)" }}
+                        width={50}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "var(--chart-tooltip-bg)",
+                          borderColor: "var(--chart-tooltip-border)",
+                          color: "var(--chart-tooltip-text)",
+                        }}
+                        itemStyle={{ color: "var(--chart-tooltip-text)" }}
+                        formatter={(v: number, name: string) => [
+                          formatCurrency(v),
+                          name,
+                        ]}
+                        labelFormatter={(label) => {
+                          const [y, m] = label.split("-");
+                          const currentData = chartData.find(
+                            (d: Record<string, number | string>) =>
+                              d.month === label,
                           );
-                        })}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                );
-              })()}
-            </div>
+                          const currentTotal =
+                            typeof currentData?.total === "number"
+                              ? currentData.total
+                              : 0;
+                          const currentIdx = monthsRange.indexOf(label);
+                          const prevMonth =
+                            currentIdx > 0 ? chartData[currentIdx - 1] : null;
+                          let tooltip = `${MONTHS_ES[parseInt(m) - 1]} ${y}`;
+                          if (
+                            prevMonth &&
+                            typeof prevMonth.total === "number"
+                          ) {
+                            const diff = currentTotal - prevMonth.total;
+                            const pct =
+                              prevMonth.total > 0
+                                ? ((diff / prevMonth.total) * 100).toFixed(2)
+                                : "0.00";
+                            const diffSign = diff >= 0 ? "+" : "";
+                            tooltip += `\nvs mes anterior: ${diffSign}${formatCurrency(
+                              diff,
+                            )} (${diffSign}${pct}%)`;
+                          }
+                          return tooltip;
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="total"
+                        name="Total"
+                        stroke="var(--chart-text)"
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        dot={{ r: 4, fill: "var(--chart-text)" }}
+                        opacity={0.4}
+                      />
+                      {filteredCards.map((card, idx) => {
+                        const cardKey = card.holder
+                          ? `${card.holder}|${card.card_name}`
+                          : card.card_name;
+                        const displayName = card.holder
+                          ? `${card.holder} — ${card.card_name}`
+                          : card.card_name;
+                        return (
+                          <Line
+                            key={cardKey}
+                            type="monotone"
+                            dataKey={cardKey}
+                            name={displayName}
+                            stroke={colors[idx % colors.length]}
+                            strokeWidth={2}
+                            dot={{ r: 3, fill: colors[idx % colors.length] }}
+                            connectNulls
+                          />
+                        );
+                      })}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              );
+            })()}
+          </div>
 
           {/* Account Detail Summary */}
           {activeCard && stats && (
             <div className="card p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-base font-semibold text-primary">
-                  {cardData.find((c) => `${c.card_name}|${c.bank}|${c.holder}` === activeCard)
-                    ?.bank || "Cuenta"}
-                  {cardData.find((c) => `${c.card_name}|${c.bank}|${c.holder}` === activeCard)
-                    ?.holder && (
+                  {cardData.find(
+                    (c) =>
+                      `${c.card_name}|${c.bank}|${c.holder}` === activeCard,
+                  )?.bank || "Cuenta"}
+                  {cardData.find(
+                    (c) =>
+                      `${c.card_name}|${c.bank}|${c.holder}` === activeCard,
+                  )?.holder && (
                     <span className="text-sm font-normal text-tertiary ml-2">
                       —{" "}
                       {
                         cardData
-                          .find((c) => `${c.card_name}|${c.bank}|${c.holder}` === activeCard)
+                          .find(
+                            (c) =>
+                              `${c.card_name}|${c.bank}|${c.holder}` ===
+                              activeCard,
+                          )
                           ?.holder.split(" ")[0]
                       }
                     </span>
@@ -700,18 +796,30 @@ export default function AccountsPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="p-3 bg-[var(--color-base-alt)] rounded-lg">
                   <p className="text-[10px] text-tertiary uppercase">Total</p>
-                  <p className="text-lg font-bold text-primary">{formatCurrency(stats.total)}</p>
+                  <p className="text-lg font-bold text-primary">
+                    {formatCurrency(stats.total)}
+                  </p>
                 </div>
                 <div className="p-3 bg-[var(--color-base-alt)] rounded-lg">
-                  <p className="text-[10px] text-tertiary uppercase">Transacciones</p>
-                  <p className="text-lg font-bold text-primary">{stats.count}</p>
+                  <p className="text-[10px] text-tertiary uppercase">
+                    Transacciones
+                  </p>
+                  <p className="text-lg font-bold text-primary">
+                    {stats.count}
+                  </p>
                 </div>
                 <div className="p-3 bg-[var(--color-base-alt)] rounded-lg">
-                  <p className="text-[10px] text-tertiary uppercase">Promedio</p>
-                  <p className="text-lg font-bold text-primary">{formatCurrency(stats.avg)}</p>
+                  <p className="text-[10px] text-tertiary uppercase">
+                    Promedio
+                  </p>
+                  <p className="text-lg font-bold text-primary">
+                    {formatCurrency(stats.avg)}
+                  </p>
                 </div>
                 <div className="p-3 bg-[var(--color-base-alt)] rounded-lg">
-                  <p className="text-[10px] text-tertiary uppercase">Último uso</p>
+                  <p className="text-[10px] text-tertiary uppercase">
+                    Último uso
+                  </p>
                   <p className="text-sm font-bold text-primary">
                     {stats.last_used ? formatDateDMY(stats.last_used) : "—"}
                   </p>
@@ -719,7 +827,9 @@ export default function AccountsPage() {
               </div>
 
               <div>
-                <h3 className="text-sm font-medium text-secondary mb-2">Últimos gastos</h3>
+                <h3 className="text-sm font-medium text-secondary mb-2">
+                  Últimos gastos
+                </h3>
                 {expensesLoading ? (
                   <div className="space-y-2">
                     {[...Array(3)].map((_, i) => (
@@ -730,7 +840,9 @@ export default function AccountsPage() {
                     ))}
                   </div>
                 ) : lastExpenses.length === 0 ? (
-                  <p className="text-xs text-tertiary">Sin gastos en este período</p>
+                  <p className="text-xs text-tertiary">
+                    Sin gastos en este período
+                  </p>
                 ) : (
                   <div className="divide-y divide-[var(--border-color)]">
                     {lastExpenses.map((exp) => (
@@ -752,7 +864,9 @@ export default function AccountsPage() {
                                   className="px-1.5 py-0.5 rounded-full text-[10px]"
                                   style={{
                                     backgroundColor: `${exp.category_color || "#9a9996"}20`,
-                                    color: getContrastTextColor(exp.category_color || "#9a9996"),
+                                    color: getContrastTextColor(
+                                      exp.category_color || "#9a9996",
+                                    ),
                                   }}
                                 >
                                   {exp.category_name}
@@ -793,7 +907,9 @@ export default function AccountsPage() {
           />
         )}
 
-        {showCreateModal && <CardAccountModal onClose={() => setShowCreateModal(false)} />}
+        {showCreateModal && (
+          <CardAccountModal onClose={() => setShowCreateModal(false)} />
+        )}
       </div>
     </>
   );

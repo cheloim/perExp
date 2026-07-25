@@ -1,7 +1,16 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis } from "recharts";
+import {
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+} from "recharts";
 import { APP_NAME } from "../config";
 import {
   getDashboard,
@@ -18,7 +27,12 @@ import {
   getUncategorizedCount,
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
-import { formatCurrency, toUpperCase, formatDateDMYSlash, MONTHS_ES_SHORT } from "../utils/format";
+import {
+  formatCurrency,
+  toUpperCase,
+  formatDateDMYSlash,
+  MONTHS_ES_SHORT,
+} from "../utils/format";
 import { ExpenseModal } from "../components/ExpenseModals";
 import EmptyState from "../components/ui/EmptyState";
 
@@ -52,7 +66,10 @@ function CardRow({
   const renderIcon = () => {
     if (isAccount) {
       if (cardName.toLowerCase().includes("efectivo")) return "💵";
-      if (cardName.toLowerCase().includes("mercadopago") || cardName.toLowerCase().includes("mp"))
+      if (
+        cardName.toLowerCase().includes("mercadopago") ||
+        cardName.toLowerCase().includes("mp")
+      )
         return "📱";
       return "🏦";
     }
@@ -62,7 +79,8 @@ function CardRow({
   const getNetwork = (name: string): string => {
     const n = name.toLowerCase();
     if (n.includes("visa")) return "Visa";
-    if (n.includes("mastercard") || n.includes("master card")) return "Mastercard";
+    if (n.includes("mastercard") || n.includes("master card"))
+      return "Mastercard";
     if (n.includes("amex") || n.includes("american express")) return "Amex";
     return name.split(" ")[0];
   };
@@ -86,14 +104,18 @@ function CardRow({
             {bank ? ` | ${bank}` : ""}
           </p>
           {linkedAccountName && (
-            <p className="text-xs text-[var(--color-success)] leading-tight">↳ {linkedAccountName}</p>
+            <p className="text-xs text-[var(--color-success)] leading-tight">
+              ↳ {linkedAccountName}
+            </p>
           )}
           {holder && !linkedAccountName && (
             <p className="text-xs text-tertiary leading-tight">{holder}</p>
           )}
         </div>
       </div>
-      <span className="text-sm font-semibold text-primary">{formatCurrency(total)}</span>
+      <span className="text-sm font-semibold text-primary">
+        {formatCurrency(total)}
+      </span>
     </div>
   );
 }
@@ -208,7 +230,10 @@ export default function Dashboard() {
     () =>
       investments
         .filter((i) => i.currency === "ARS")
-        .reduce((sum, i) => sum + i.quantity * (i.current_price ?? i.avg_cost ?? 0), 0),
+        .reduce(
+          (sum, i) => sum + i.quantity * (i.current_price ?? i.avg_cost ?? 0),
+          0,
+        ),
     [investments],
   );
 
@@ -216,13 +241,19 @@ export default function Dashboard() {
   const totalUsd = useMemo(() => {
     const nativeUsd = investments
       .filter((i) => i.currency === "USD")
-      .reduce((sum, i) => sum + i.quantity * (i.current_price ?? i.avg_cost ?? 0), 0);
+      .reduce(
+        (sum, i) => sum + i.quantity * (i.current_price ?? i.avg_cost ?? 0),
+        0,
+      );
 
     if (!usdRate?.rate) return nativeUsd;
 
     const arsTotal = investments
       .filter((i) => i.currency === "ARS")
-      .reduce((sum, i) => sum + i.quantity * (i.current_price ?? i.avg_cost ?? 0), 0);
+      .reduce(
+        (sum, i) => sum + i.quantity * (i.current_price ?? i.avg_cost ?? 0),
+        0,
+      );
 
     return nativeUsd + arsTotal / usdRate.rate;
   }, [investments, usdRate]);
@@ -283,9 +314,12 @@ export default function Dashboard() {
 
     if (selectedCategory) {
       if (selectedCategory.startsWith("Otros")) {
-        const bigCategoryNames = new Set(categories.map((c) => c.category_name));
+        const bigCategoryNames = new Set(
+          categories.map((c) => c.category_name),
+        );
         result = result.filter(
-          (exp) => !exp.category_id || !bigCategoryNames.has(exp.category_name ?? ""),
+          (exp) =>
+            !exp.category_id || !bigCategoryNames.has(exp.category_name ?? ""),
         );
       } else {
         result = result.filter((exp) => exp.category_name === selectedCategory);
@@ -309,7 +343,9 @@ export default function Dashboard() {
     }
     const result = big.map((c) => ({
       name: c.category_name,
-      color: c.category_color || FALLBACK_COLORS[big.indexOf(c) % FALLBACK_COLORS.length],
+      color:
+        c.category_color ||
+        FALLBACK_COLORS[big.indexOf(c) % FALLBACK_COLORS.length],
       total: c.total,
     }));
     if (small.length > 0) {
@@ -334,7 +370,9 @@ export default function Dashboard() {
     0,
   );
   const momVariation =
-    prevMonthTotal > 0 ? ((totalSpent - prevMonthTotal) / prevMonthTotal) * 100 : 0;
+    prevMonthTotal > 0
+      ? ((totalSpent - prevMonthTotal) / prevMonthTotal) * 100
+      : 0;
 
   return (
     <div className="space-y-6">
@@ -348,7 +386,10 @@ export default function Dashboard() {
             </span>
           )}
         </div>
-        <button onClick={() => setEditing(null)} className="gnome-btn-primary-round text-sm">
+        <button
+          onClick={() => setEditing(null)}
+          className="gnome-btn-primary-round text-sm"
+        >
           <span className="text-base leading-none">+</span>
           <span>Nuevo gasto</span>
         </button>
@@ -363,7 +404,8 @@ export default function Dashboard() {
           <span className="text-lg">⚠</span>
           <div className="text-left">
             <p className="text-sm font-medium">
-              Tenés {uncategorizedCount} gasto{uncategorizedCount !== 1 ? "s" : ""} sin categorí
+              Tenés {uncategorizedCount} gasto
+              {uncategorizedCount !== 1 ? "s" : ""} sin categorí
               {uncategorizedCount !== 1 ? "as" : "a"}
             </p>
             <p className="text-xs opacity-70">
@@ -384,8 +426,12 @@ export default function Dashboard() {
           className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
           onClick={() => navigate("/expenses")}
         >
-          <p className="text-[10px] text-tertiary uppercase mb-1">Total gastado</p>
-          <p className="text-lg font-bold text-primary">{formatCurrency(totalSpent)}</p>
+          <p className="text-[10px] text-tertiary uppercase mb-1">
+            Total gastado
+          </p>
+          <p className="text-lg font-bold text-primary">
+            {formatCurrency(totalSpent)}
+          </p>
           <p className="text-xs text-tertiary mt-1">
             {dashData?.total_expenses ?? 0} transacciones
           </p>
@@ -394,32 +440,56 @@ export default function Dashboard() {
           className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
           onClick={() => navigate("/expenses?card_type=credito")}
         >
-          <p className="text-[10px] text-tertiary uppercase mb-1">Deuda tarjetas</p>
-          <p className="text-lg font-bold text-danger">{formatCurrency(totalPasivos)}</p>
-          <p className="text-xs text-tertiary mt-1">{pasivosData?.count ?? 0} cuotas pendientes</p>
+          <p className="text-[10px] text-tertiary uppercase mb-1">
+            Deuda tarjetas
+          </p>
+          <p className="text-lg font-bold text-danger">
+            {formatCurrency(totalPasivos)}
+          </p>
+          <p className="text-xs text-tertiary mt-1">
+            {pasivosData?.count ?? 0} cuotas pendientes
+          </p>
         </div>
         <div
           className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
           onClick={() =>
-            navigate(`/expenses?installment=1&date_from=${month}-01&date_to=${month}-31`)
+            navigate(
+              `/expenses?installment=1&date_from=${month}-01&date_to=${month}-31`,
+            )
           }
         >
-          <p className="text-[10px] text-tertiary uppercase mb-1">Cuotas este mes</p>
-          <p className="text-lg font-bold text-primary">{formatCurrency(cuotasComprometidas)}</p>
-          <p className="text-xs text-tertiary mt-1">{currentMonthLoad?.count ?? 0} cuotas</p>
+          <p className="text-[10px] text-tertiary uppercase mb-1">
+            Cuotas este mes
+          </p>
+          <p className="text-lg font-bold text-primary">
+            {formatCurrency(cuotasComprometidas)}
+          </p>
+          <p className="text-xs text-tertiary mt-1">
+            {currentMonthLoad?.count ?? 0} cuotas
+          </p>
         </div>
         <div className="card p-4">
-          <p className="text-[10px] text-tertiary uppercase mb-1">vs Mes anterior</p>
+          <p className="text-[10px] text-tertiary uppercase mb-1">
+            vs Mes anterior
+          </p>
           <p
             className={`text-lg font-bold ${
-              momVariation > 0 ? "text-danger" : momVariation < 0 ? "text-success" : "text-tertiary"
+              momVariation > 0
+                ? "text-danger"
+                : momVariation < 0
+                  ? "text-success"
+                  : "text-tertiary"
             }`}
           >
             {momVariation > 0 ? "↑" : momVariation < 0 ? "↓" : "→"}{" "}
             {Math.abs(momVariation).toFixed(1)}%
           </p>
           <p className="text-xs text-tertiary mt-1">
-            {momVariation > 0 ? "Gastaste más" : momVariation < 0 ? "Gastaste menos" : "Sin cambio"}
+            {momVariation > 0
+              ? "Gastaste más"
+              : momVariation < 0
+                ? "Gastaste menos"
+                : "Sin cambio"}
           </p>
         </div>
         {(savingsArs > 0 || totalUsd > 0) && (
@@ -427,7 +497,9 @@ export default function Dashboard() {
             className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
             onClick={() => navigate("/investments")}
           >
-            <p className="text-[10px] text-tertiary uppercase mb-1">Inversiones</p>
+            <p className="text-[10px] text-tertiary uppercase mb-1">
+              Inversiones
+            </p>
             <div className="space-y-0.5">
               <p className="text-sm font-bold text-primary">
                 {savingsArs > 0 ? formatCurrency(savingsArs) : "—"}
@@ -451,7 +523,9 @@ export default function Dashboard() {
         <div className="card p-4 h-[420px] flex flex-col overflow-hidden">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-semibold text-primary">Gastos por Categoría</h2>
+              <h2 className="text-sm font-semibold text-primary">
+                Gastos por Categoría
+              </h2>
               {selectedCategory && (
                 <button
                   onClick={() => {
@@ -498,8 +572,16 @@ export default function Dashboard() {
                         <Cell
                           key={i}
                           fill={entry.color}
-                          opacity={selectedCategory && selectedCategory !== entry.name ? 0.3 : 1}
-                          stroke={selectedCategory === entry.name ? "var(--color-primary)" : "none"}
+                          opacity={
+                            selectedCategory && selectedCategory !== entry.name
+                              ? 0.3
+                              : 1
+                          }
+                          stroke={
+                            selectedCategory === entry.name
+                              ? "var(--color-primary)"
+                              : "none"
+                          }
                           strokeWidth={2}
                         />
                       ))}
@@ -516,7 +598,8 @@ export default function Dashboard() {
                       }}
                       formatter={(v: number, name: string) => {
                         const total = pieData.reduce((s, d) => s + d.total, 0);
-                        const pct = total > 0 ? ((v / total) * 100).toFixed(1) : "0";
+                        const pct =
+                          total > 0 ? ((v / total) * 100).toFixed(1) : "0";
                         return [`${formatCurrency(v)} (${pct}%)`, name];
                       }}
                     />
@@ -528,10 +611,15 @@ export default function Dashboard() {
               <div className="space-y-1.5 p-1">
                 {categories.map((cat, i) => {
                   const pct = (cat.total / maxCatTotal) * 100;
-                  const color = cat.category_color || FALLBACK_COLORS[i % FALLBACK_COLORS.length];
+                  const color =
+                    cat.category_color ||
+                    FALLBACK_COLORS[i % FALLBACK_COLORS.length];
                   const isSelected = selectedCategory === cat.category_name;
                   const prevTotal = cat.previous_total ?? 0;
-                  const variation = prevTotal > 0 ? ((cat.total - prevTotal) / prevTotal) * 100 : 0;
+                  const variation =
+                    prevTotal > 0
+                      ? ((cat.total - prevTotal) / prevTotal) * 100
+                      : 0;
                   return (
                     <div
                       key={i}
@@ -636,7 +724,10 @@ export default function Dashboard() {
                   ? "Probá seleccionando otra categoría"
                   : "Tus gastos del mes aparecerán aquí"
               }
-              action={{ label: "Ver todos los gastos", onClick: () => navigate("/expenses") }}
+              action={{
+                label: "Ver todos los gastos",
+                onClick: () => navigate("/expenses"),
+              }}
             />
           ) : (
             <div className="divide-y divide-border-color overflow-y-auto flex-1 min-h-0">
@@ -648,7 +739,9 @@ export default function Dashboard() {
                   <div className="flex items-center gap-3 min-w-0">
                     <span
                       className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: exp.category_color || "#3584e4" }}
+                      style={{
+                        backgroundColor: exp.category_color || "#3584e4",
+                      }}
                     />
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-primary truncate">
@@ -685,7 +778,9 @@ export default function Dashboard() {
         {/* Credit cards */}
         <div className="card p-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-primary">Métodos de Pago</h2>
+            <h2 className="text-sm font-semibold text-primary">
+              Métodos de Pago
+            </h2>
             <button
               onClick={() => navigate("/accounts")}
               className="text-xs text-secondary hover:text-primary transition-colors"
@@ -698,7 +793,10 @@ export default function Dashboard() {
               icon="💳"
               title="Sin tarjetas ni cuentas"
               description="Creá una tarjeta o cuenta para ver el resumen"
-              action={{ label: "Crear cuenta", onClick: () => navigate("/accounts") }}
+              action={{
+                label: "Crear cuenta",
+                onClick: () => navigate("/accounts"),
+              }}
             />
           ) : (
             <div className="divide-y divide-border-color">
@@ -722,9 +820,12 @@ export default function Dashboard() {
 
         {/* Scheduled expenses */}
         <div className="card p-4">
-          <h2 className="text-sm font-semibold text-primary mb-3">Gastos programados</h2>
+          <h2 className="text-sm font-semibold text-primary mb-3">
+            Gastos programados
+          </h2>
           {!scheduledData ||
-          (scheduledData.installments.length === 0 && scheduledData.manual.length === 0) ? (
+          (scheduledData.installments.length === 0 &&
+            scheduledData.manual.length === 0) ? (
             <EmptyState
               icon="📅"
               title="Sin gastos programados"
@@ -744,8 +845,8 @@ export default function Dashboard() {
                         {toUpperCase(inst.description)}
                       </p>
                       <p className="text-xs text-tertiary">
-                        {formatDateDMYSlash(inst.scheduled_date)} · {inst.installment_number}/
-                        {inst.installment_total}
+                        {formatDateDMYSlash(inst.scheduled_date)} ·{" "}
+                        {inst.installment_number}/{inst.installment_total}
                       </p>
                     </div>
                   </div>
@@ -784,7 +885,9 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Carga de cuotas mini chart */}
         <div className="card p-4">
-          <h2 className="text-sm font-semibold text-primary mb-3">Carga de Cuotas</h2>
+          <h2 className="text-sm font-semibold text-primary mb-3">
+            Carga de Cuotas
+          </h2>
           {monthlyLoad.length === 0 ? (
             <EmptyState
               icon="📦"
@@ -793,7 +896,10 @@ export default function Dashboard() {
             />
           ) : (
             <ResponsiveContainer width="100%" height={140}>
-              <BarChart data={monthlyLoad} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+              <BarChart
+                data={monthlyLoad}
+                margin={{ top: 5, right: 5, left: 0, bottom: 5 }}
+              >
                 <Bar dataKey="total" radius={[4, 4, 0, 0]}>
                   {monthlyLoad.map((entry, i) => (
                     <Cell
@@ -842,7 +948,9 @@ export default function Dashboard() {
 
         {/* Top merchants */}
         <div className="card p-4">
-          <h2 className="text-sm font-semibold text-primary mb-3">Top Comercios</h2>
+          <h2 className="text-sm font-semibold text-primary mb-3">
+            Top Comercios
+          </h2>
           {topMerchants.length === 0 ? (
             <EmptyState
               icon="🏪"
@@ -866,7 +974,9 @@ export default function Dashboard() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                    <span className="text-[10px] text-tertiary">{m.count}x</span>
+                    <span className="text-[10px] text-tertiary">
+                      {m.count}x
+                    </span>
                     <span className="text-xs font-semibold text-primary">
                       {formatCurrency(m.total_amount)}
                     </span>
