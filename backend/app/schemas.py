@@ -1,8 +1,8 @@
 import re
-import dns.resolver
 from datetime import date, datetime
 from typing import Any
 
+import dns.resolver
 import pandas as pd
 from pydantic import BaseModel, EmailStr, computed_field, field_serializer, field_validator
 
