@@ -16,7 +16,10 @@ export function parseCurrency(s: string): number | null {
 }
 
 export function formatCurrencyAR(n: number): string {
-  return n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return n.toLocaleString("es-AR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function formatWhileTyping(s: string): string {
@@ -36,7 +39,9 @@ export function CurrencyInput({
   placeholder?: string;
 }) {
   const isEmpty = (v: number | null) => v === null || v === 0;
-  const [raw, setRaw] = useState(isEmpty(value) ? "" : formatCurrencyAR(value!));
+  const [raw, setRaw] = useState(
+    isEmpty(value) ? "" : formatCurrencyAR(value!),
+  );
   const [focused, setFocused] = useState(false);
 
   useEffect(() => {

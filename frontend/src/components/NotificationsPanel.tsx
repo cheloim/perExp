@@ -24,12 +24,14 @@ function timeAgo(dateStr: string): string {
 
 export default function NotificationsPanel({ onClose }: Props) {
   const navigate = useNavigate();
-  const [disclaimer, setDisclaimer] = useState<{ notifId: number; inviterName: string } | null>(
-    null,
-  );
-  const [confirmDelete, setConfirmDelete] = useState<{ jobId: number; notifId: number } | null>(
-    null,
-  );
+  const [disclaimer, setDisclaimer] = useState<{
+    notifId: number;
+    inviterName: string;
+  } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{
+    jobId: number;
+    notifId: number;
+  } | null>(null);
   const [confirmReject, setConfirmReject] = useState<number | null>(null);
   const [confirmClearRead, setConfirmClearRead] = useState(false);
   const { uploads, removeUpload, cancelUpload } = useUploadProgress();
@@ -78,7 +80,9 @@ export default function NotificationsPanel({ onClose }: Props) {
 
   const handleAccept = (n: Notification) => {
     const inviterName =
-      ("inviter_name" in n.data ? (n.data.inviter_name as string) : undefined) || "el invitante";
+      ("inviter_name" in n.data
+        ? (n.data.inviter_name as string)
+        : undefined) || "el invitante";
     setDisclaimer({ notifId: n.id, inviterName });
   };
 
@@ -109,11 +113,17 @@ export default function NotificationsPanel({ onClose }: Props) {
         navigate(`/import-jobs/${jobId}`);
         onClose();
       }
-    } else if (n.type === "uncategorized_expense" || n.type === "uncategorized_expenses") {
+    } else if (
+      n.type === "uncategorized_expense" ||
+      n.type === "uncategorized_expenses"
+    ) {
       handleMarkRead(n.id);
       navigate("/expenses?uncategorized=1");
       onClose();
-    } else if (n.type === "monthly_report_ready" || n.type === "monthly_report_queued") {
+    } else if (
+      n.type === "monthly_report_ready" ||
+      n.type === "monthly_report_queued"
+    ) {
       handleMarkRead(n.id);
       if (n.type === "monthly_report_ready" && n.data.month) {
         downloadReportPdf(n.data.month as string);
@@ -195,7 +205,9 @@ export default function NotificationsPanel({ onClose }: Props) {
             <div className="px-4 py-3 bg-[var(--color-primary)]/5 border-b border-[var(--border-color)]">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                <p className="text-[var(--text-tertiary)] text-xs">Conectando...</p>
+                <p className="text-[var(--text-tertiary)] text-xs">
+                  Conectando...
+                </p>
               </div>
             </div>
           )}
@@ -245,7 +257,13 @@ export default function NotificationsPanel({ onClose }: Props) {
                       fill="none"
                       className="text-amber-500"
                     >
-                      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
+                      <circle
+                        cx="8"
+                        cy="8"
+                        r="6"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      />
                       <path
                         d="M8 4.5V8l2.5 1.5"
                         stroke="currentColor"
@@ -281,7 +299,13 @@ export default function NotificationsPanel({ onClose }: Props) {
                       fill="none"
                       className="text-red-500"
                     >
-                      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
+                      <circle
+                        cx="8"
+                        cy="8"
+                        r="6"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      />
                       <path
                         d="M6 6l4 4M10 6l-4 4"
                         stroke="currentColor"
@@ -334,7 +358,8 @@ export default function NotificationsPanel({ onClose }: Props) {
                 {upload.status === "uploading" && `Subiendo archivo...`}
                 {upload.status === "queued" && "En cola — esperando turno..."}
                 {upload.status === "processing" && "Procesando con IA..."}
-                {upload.status === "failed" && `Error: ${upload.error || "Falló el upload"}`}
+                {upload.status === "failed" &&
+                  `Error: ${upload.error || "Falló el upload"}`}
               </p>
             </div>
           ))}
@@ -345,9 +370,11 @@ export default function NotificationsPanel({ onClose }: Props) {
             </p>
           )}
           {notifications.map((n) => {
-            const isImportNotif = n.type === "import_ready" || n.type === "import_failed";
+            const isImportNotif =
+              n.type === "import_ready" || n.type === "import_failed";
             const isUncategorizedNotif =
-              n.type === "uncategorized_expense" || n.type === "uncategorized_expenses";
+              n.type === "uncategorized_expense" ||
+              n.type === "uncategorized_expenses";
             const isCategorySuggestion = n.type === "category_suggestions";
             const isClickable =
               isImportNotif ||
@@ -361,7 +388,8 @@ export default function NotificationsPanel({ onClose }: Props) {
                 key={n.id}
                 onClick={() => isClickable && handleNotificationClick(n)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && isClickable) handleNotificationClick(n);
+                  if (e.key === "Enter" && isClickable)
+                    handleNotificationClick(n);
                 }}
                 className={`px-4 py-3 border-b border-[var(--border-color)] last:border-0 ${
                   !n.read ? "bg-[var(--color-primary)]/8" : ""
@@ -371,12 +399,14 @@ export default function NotificationsPanel({ onClose }: Props) {
                     : ""
                 } ${
                   isImportNotif
-                    ? "border-l-4 " + (isFailed ? "border-l-red-500" : "border-l-green-500")
+                    ? "border-l-4 " +
+                      (isFailed ? "border-l-red-500" : "border-l-green-500")
                     : ""
                 } ${isUncategorizedNotif ? "border-l-4 border-l-amber-500" : ""} ${
                   isCategorySuggestion ? "border-l-4 border-l-purple-500" : ""
                 } ${
-                  n.type === "monthly_report_ready" || n.type === "monthly_report_queued"
+                  n.type === "monthly_report_ready" ||
+                  n.type === "monthly_report_queued"
                     ? "border-l-4 border-l-blue-500"
                     : ""
                 }`}
@@ -395,7 +425,13 @@ export default function NotificationsPanel({ onClose }: Props) {
                           fill="none"
                           className="text-green-500"
                         >
-                          <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
+                          <circle
+                            cx="8"
+                            cy="8"
+                            r="6"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                          />
                           <path
                             d="M5.5 8l2 2 3-3.5"
                             stroke="currentColor"
@@ -413,7 +449,13 @@ export default function NotificationsPanel({ onClose }: Props) {
                           fill="none"
                           className="text-red-500"
                         >
-                          <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
+                          <circle
+                            cx="8"
+                            cy="8"
+                            r="6"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                          />
                           <path
                             d="M6 6l4 4M10 6l-4 4"
                             stroke="currentColor"
@@ -430,7 +472,13 @@ export default function NotificationsPanel({ onClose }: Props) {
                           fill="none"
                           className="text-[var(--color-primary)]"
                         >
-                          <circle cx="6" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+                          <circle
+                            cx="6"
+                            cy="5"
+                            r="2.5"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                          />
                           <path
                             d="M2 13c0-2.2 1.8-4 4-4s4 1.8 4 4"
                             stroke="currentColor"
@@ -468,7 +516,9 @@ export default function NotificationsPanel({ onClose }: Props) {
                           <circle cx="8" cy="12" r="0.75" fill="currentColor" />
                         </svg>
                       )}
-                      {isCategorySuggestion && <span className="text-sm">✨</span>}
+                      {isCategorySuggestion && (
+                        <span className="text-sm">✨</span>
+                      )}
                       {n.type === "monthly_report_ready" && (
                         <svg
                           width="16"
@@ -503,7 +553,10 @@ export default function NotificationsPanel({ onClose }: Props) {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          const jobId = "job_id" in n.data ? (n.data.job_id as number) : undefined;
+                          const jobId =
+                            "job_id" in n.data
+                              ? (n.data.job_id as number)
+                              : undefined;
                           if (jobId) {
                             setConfirmDelete({ jobId, notifId: n.id });
                           }
@@ -528,7 +581,9 @@ export default function NotificationsPanel({ onClose }: Props) {
                     )}
                   </div>
                 </div>
-                <p className="text-[var(--text-secondary)] text-xs mb-2 line-clamp-2">{n.body}</p>
+                <p className="text-[var(--text-secondary)] text-xs mb-2 line-clamp-2">
+                  {n.body}
+                </p>
 
                 {isImportNotif && (
                   <p className="text-[var(--color-primary)] text-xs font-medium">
@@ -594,7 +649,8 @@ export default function NotificationsPanel({ onClose }: Props) {
               Eliminar importación
             </h2>
             <p className="text-[var(--text-secondary)] text-sm mb-4">
-              Se eliminará la importación y su notificación. Esta acción no se puede deshacer.
+              Se eliminará la importación y su notificación. Esta acción no se
+              puede deshacer.
             </p>
             <div className="flex gap-3">
               <button
@@ -624,8 +680,8 @@ export default function NotificationsPanel({ onClose }: Props) {
               Rechazar invitación
             </h2>
             <p className="text-[var(--text-secondary)] text-sm mb-4">
-              ¿Seguro que querés rechazar esta invitación? No podrás unirte a este grupo más
-              adelante a menos que te vuelvan a invitar.
+              ¿Seguro que querés rechazar esta invitación? No podrás unirte a
+              este grupo más adelante a menos que te vuelvan a invitar.
             </p>
             <div className="flex gap-3">
               <button
@@ -656,7 +712,8 @@ export default function NotificationsPanel({ onClose }: Props) {
               Limpiar notificaciones leídas
             </h2>
             <p className="text-[var(--text-secondary)] text-sm mb-4">
-              Se eliminarán {readCount} notificación{readCount !== 1 ? "es" : ""} leída
+              Se eliminarán {readCount} notificación
+              {readCount !== 1 ? "es" : ""} leída
               {readCount !== 1 ? "s" : ""}. Esta acción no se puede deshacer.
             </p>
             <div className="flex gap-3">

@@ -32,7 +32,8 @@ const TOKEN_KEY = "auth_token";
 
 let inMemoryAuthToken: string | null = null;
 
-export const getStoredToken = () => inMemoryAuthToken || localStorage.getItem(TOKEN_KEY);
+export const getStoredToken = () =>
+  inMemoryAuthToken || localStorage.getItem(TOKEN_KEY);
 export const storeToken = (token: string) => {
   inMemoryAuthToken = token;
   localStorage.setItem(TOKEN_KEY, token);
@@ -57,7 +58,9 @@ api.interceptors.response.use(
       clearToken();
       const detail = error.response?.data?.detail;
       const msg =
-        typeof detail === "string" ? detail : "Tu sesión expiró. Iniciá sesión nuevamente.";
+        typeof detail === "string"
+          ? detail
+          : "Tu sesión expiró. Iniciá sesión nuevamente.";
       sessionStorage.setItem("auth_error", msg);
       window.location.href = "/login";
     }
@@ -70,23 +73,32 @@ export const login = (email: string, password: string) =>
   api.post<AuthToken>("/auth/login", { email, password }).then((r) => r.data);
 
 export const register = (full_name: string, email: string, password: string) =>
-  api.post<AuthToken>("/auth/register", { full_name, email, password }).then((r) => r.data);
+  api
+    .post<AuthToken>("/auth/register", { full_name, email, password })
+    .then((r) => r.data);
 
 export const oauthLogin = (provider: string, idTokenOrCode: string) =>
-  api.post<AuthToken>("/auth/oauth", { provider, id_token: idTokenOrCode }).then((r) => r.data);
+  api
+    .post<AuthToken>("/auth/oauth", { provider, id_token: idTokenOrCode })
+    .then((r) => r.data);
 
 export const oauthCallback = (provider: string, code: string) =>
-  api.post<AuthToken>("/auth/oauth/callback", { provider, code }).then((r) => r.data);
+  api
+    .post<AuthToken>("/auth/oauth/callback", { provider, code })
+    .then((r) => r.data);
 
 export const getMe = () => api.get<User>("/auth/me").then((r) => r.data);
 
 export const markOnboardingCompleted = () =>
   api.put<User>("/auth/me/onboarding").then((r) => r.data);
 
-export const markWhatsNewSeen = () => api.put<User>("/auth/me/whats-new").then((r) => r.data);
+export const markWhatsNewSeen = () =>
+  api.put<User>("/auth/me/whats-new").then((r) => r.data);
 
-export const changePassword = (current_password: string, new_password: string) =>
-  api.put("/auth/password", { current_password, new_password });
+export const changePassword = (
+  current_password: string,
+  new_password: string,
+) => api.put("/auth/password", { current_password, new_password });
 
 export const deleteMyAccount = (current_password: string) =>
   api.delete("/auth/me", { data: { current_password } });
@@ -98,30 +110,44 @@ export const resetPassword = (token: string, new_password: string) =>
   api.post("/auth/reset-password", { token, new_password }).then((r) => r.data);
 
 export const forceChangePassword = (token: string, new_password: string) =>
-  api.post<AuthToken>("/auth/force-change-password", { token, new_password }).then((r) => r.data);
+  api
+    .post<AuthToken>("/auth/force-change-password", { token, new_password })
+    .then((r) => r.data);
 
 export const getTelegramKey = () =>
-  api.get<{ telegram_key: string }>("/auth/me/telegram-key").then((r) => r.data);
+  api
+    .get<{ telegram_key: string }>("/auth/me/telegram-key")
+    .then((r) => r.data);
 export const getTelegramStatus = () =>
-  api.get<{ connected: boolean }>("/auth/me/telegram-status").then((r) => r.data);
+  api
+    .get<{ connected: boolean }>("/auth/me/telegram-status")
+    .then((r) => r.data);
 export const regenerateTelegramKey = () =>
-  api.post<{ telegram_key: string }>("/auth/me/telegram-key/regenerate").then((r) => r.data);
+  api
+    .post<{ telegram_key: string }>("/auth/me/telegram-key/regenerate")
+    .then((r) => r.data);
 
 // MFA
-export const getMfaStatus = () => api.get<{ enabled: boolean }>("/mfa/status").then((r) => r.data);
+export const getMfaStatus = () =>
+  api.get<{ enabled: boolean }>("/mfa/status").then((r) => r.data);
 
 export const setupMfa = () =>
-  api.post<{ secret: string; qr_code: string }>("/mfa/setup").then((r) => r.data);
+  api
+    .post<{ secret: string; qr_code: string }>("/mfa/setup")
+    .then((r) => r.data);
 
-export const verifyMfa = (code: string) => api.post("/mfa/verify", { code }).then((r) => r.data);
+export const verifyMfa = (code: string) =>
+  api.post("/mfa/verify", { code }).then((r) => r.data);
 
-export const disableMfa = (code: string) => api.post("/mfa/disable", { code }).then((r) => r.data);
+export const disableMfa = (code: string) =>
+  api.post("/mfa/disable", { code }).then((r) => r.data);
 
 export const loginMfa = (token: string, code: string) =>
   api.post<AuthToken>("/auth/login/mfa", { token, code }).then((r) => r.data);
 
 // Categories
-export const getCategories = () => api.get<Category[]>("/categories").then((r) => r.data);
+export const getCategories = () =>
+  api.get<Category[]>("/categories").then((r) => r.data);
 
 export const createCategory = (data: Omit<Category, "id">) =>
   api.post<Category>("/categories", data).then((r) => r.data);
@@ -129,13 +155,20 @@ export const createCategory = (data: Omit<Category, "id">) =>
 export const updateCategory = (id: number, data: Omit<Category, "id">) =>
   api.put<Category>(`/categories/${id}`, data).then((r) => r.data);
 
-export const deleteCategory = (id: number) => api.delete(`/categories/${id}`).then((r) => r.data);
+export const deleteCategory = (id: number) =>
+  api.delete(`/categories/${id}`).then((r) => r.data);
 
-export const suggestCategory = (data: { description: string; amount?: number }) =>
-  api.post<CategorySuggestion | null>("/categories/suggest", data).then((r) => r.data);
+export const suggestCategory = (data: {
+  description: string;
+  amount?: number;
+}) =>
+  api
+    .post<CategorySuggestion | null>("/categories/suggest", data)
+    .then((r) => r.data);
 
 // Budgets
-export const getBudgets = () => api.get<Budget[]>("/budgets").then((r) => r.data);
+export const getBudgets = () =>
+  api.get<Budget[]>("/budgets").then((r) => r.data);
 
 export const createBudget = (data: {
   category_id: number;
@@ -146,21 +179,32 @@ export const createBudget = (data: {
 
 export const updateBudget = (
   id: number,
-  data: { amount?: number; alert_threshold?: number; rollover?: boolean; is_active?: boolean },
+  data: {
+    amount?: number;
+    alert_threshold?: number;
+    rollover?: boolean;
+    is_active?: boolean;
+  },
 ) => api.put<Budget>(`/budgets/${id}`, data).then((r) => r.data);
 
-export const deleteBudget = (id: number) => api.delete(`/budgets/${id}`).then((r) => r.data);
+export const deleteBudget = (id: number) =>
+  api.delete(`/budgets/${id}`).then((r) => r.data);
 
 export const getBudgetSummary = (month?: string) => {
   const params = month ? { month } : {};
-  return api.get<BudgetSummaryResponse>("/budgets/summary", { params }).then((r) => r.data);
+  return api
+    .get<BudgetSummaryResponse>("/budgets/summary", { params })
+    .then((r) => r.data);
 };
 
 export const getBudgetSuggestions = () =>
-  api.get<{ suggestions: BudgetSuggestion[] }>("/budgets/suggest").then((r) => r.data);
+  api
+    .get<{ suggestions: BudgetSuggestion[] }>("/budgets/suggest")
+    .then((r) => r.data);
 
 // Budget Groups (50/30/20)
-export const getBudgetGroups = () => api.get<BudgetGroup[]>("/budgets/groups").then((r) => r.data);
+export const getBudgetGroups = () =>
+  api.get<BudgetGroup[]>("/budgets/groups").then((r) => r.data);
 
 export const createBudgetGroup = (data: {
   name: string;
@@ -176,7 +220,9 @@ export const updateBudgetGroup = (
 
 export const initBudgetGroups = (monthly_income: number) =>
   api
-    .post<BudgetGroup[]>("/budgets/groups/init", null, { params: { monthly_income } })
+    .post<
+      BudgetGroup[]
+    >("/budgets/groups/init", null, { params: { monthly_income } })
     .then((r) => r.data);
 
 // Budget Config
@@ -184,7 +230,8 @@ export const getBudgetConfig = () =>
   api.get<{ ahorro_enabled: boolean }>("/budgets/config").then((r) => r.data);
 
 // Budget Events
-export const getBudgetEvents = () => api.get<BudgetEvent[]>("/budgets/events").then((r) => r.data);
+export const getBudgetEvents = () =>
+  api.get<BudgetEvent[]>("/budgets/events").then((r) => r.data);
 
 export const createBudgetEvent = (data: {
   name: string;
@@ -205,12 +252,18 @@ export const deleteBudgetEvent = (id: number) =>
 // Category Group Assignment
 export const updateCategoryGroup = (categoryId: number, groupName: string) =>
   api
-    .put(`/budgets/category-group/${categoryId}`, null, { params: { group_name: groupName } })
+    .put(`/budgets/category-group/${categoryId}`, null, {
+      params: { group_name: groupName },
+    })
     .then((r) => r.data);
 
 export const autoAssignGroups = () =>
   api
-    .post<{ ok: boolean; updated: number; total: number }>("/budgets/auto-assign-groups")
+    .post<{
+      ok: boolean;
+      updated: number;
+      total: number;
+    }>("/budgets/auto-assign-groups")
     .then((r) => r.data);
 
 // Budget Events
@@ -218,7 +271,9 @@ export const getEventExpenses = (eventId: number) =>
   api.get(`/budgets/events/${eventId}/expenses`).then((r) => r.data);
 
 export const linkExpensesToEvent = (eventId: number, expenseIds: number[]) =>
-  api.post(`/budgets/events/${eventId}/link-expenses`, expenseIds).then((r) => r.data);
+  api
+    .post(`/budgets/events/${eventId}/link-expenses`, expenseIds)
+    .then((r) => r.data);
 
 // Expenses
 export const getExpenses = (params?: {
@@ -256,7 +311,9 @@ export const getExpenseStats = (params?: {
     .then((r) => r.data);
 
 export const getUncategorizedCount = () =>
-  api.get<{ count: number }>("/expenses/uncategorized-count").then((r) => r.data);
+  api
+    .get<{ count: number }>("/expenses/uncategorized-count")
+    .then((r) => r.data);
 
 export const getExpensesByCategory = (params?: {
   month?: string;
@@ -277,17 +334,25 @@ export const getExpensesByCategory = (params?: {
 
 export const getExpensesByPerson = (params?: { month?: string }) =>
   api
-    .get<{ person: string; total: number; count: number }[]>("/expenses/by-person", { params })
+    .get<
+      { person: string; total: number; count: number }[]
+    >("/expenses/by-person", { params })
     .then((r) => r.data);
 
 export const getExpensesTrend = (params?: { months?: number }) =>
   api
-    .get<{ month: string; total: number; count: number }[]>("/expenses/trend", { params })
+    .get<
+      { month: string; total: number; count: number }[]
+    >("/expenses/trend", { params })
     .then((r) => r.data);
 
 export const getDistinctValues = () =>
   api
-    .get<{ banks: string[]; persons: string[]; cards: string[] }>("/expenses/distinct-values")
+    .get<{
+      banks: string[];
+      persons: string[];
+      cards: string[];
+    }>("/expenses/distinct-values")
     .then((r) => r.data);
 
 export const getCardOptions = () =>
@@ -320,7 +385,8 @@ export const createExpense = (data: ExpenseCreate) =>
 export const updateExpense = (id: number, data: Partial<ExpenseCreate>) =>
   api.put<Expense>(`/expenses/${id}`, data).then((r) => r.data);
 
-export const deleteExpense = (id: number) => api.delete(`/expenses/${id}`).then((r) => r.data);
+export const deleteExpense = (id: number) =>
+  api.delete(`/expenses/${id}`).then((r) => r.data);
 
 export const bulkDeleteExpenses = (ids: number[]) =>
   api.post("/expenses/bulk-delete", { ids }).then((r) => r.data);
@@ -333,7 +399,10 @@ export const getDashboard = (params?: {
   person?: string;
   category_id?: number;
   bank?: string;
-}) => api.get<DashboardSummary>("/dashboard/summary", { params }).then((r) => r.data);
+}) =>
+  api
+    .get<DashboardSummary>("/dashboard/summary", { params })
+    .then((r) => r.data);
 
 export const getMonthlyReport = (params?: { month?: string }) =>
   api
@@ -343,7 +412,12 @@ export const getMonthlyReport = (params?: { month?: string }) =>
       total_income: number;
       savings_rate: number;
       expense_count: number;
-      top_categories: { total: number; count: number; name: string; color: string }[];
+      top_categories: {
+        total: number;
+        count: number;
+        name: string;
+        color: string;
+      }[];
       previous_total: number;
       previous_income: number;
       mom_change: number;
@@ -376,7 +450,10 @@ export const getMonthlyReports = () =>
 
 export const generateMonthlyReport = (month: string) =>
   api
-    .post<{ month: string; status: string }>(`/dashboard/monthly-reports/generate?month=${month}`)
+    .post<{
+      month: string;
+      status: string;
+    }>(`/dashboard/monthly-reports/generate?month=${month}`)
     .then((r) => r.data);
 
 export const downloadReportPdf = async (month: string) => {
@@ -396,7 +473,13 @@ export const getInstallmentsDashboard = () =>
 export const getInstallmentsMonthlyLoad = () =>
   api
     .get<
-      { month: string; total: number; count: number; is_past: boolean; is_current: boolean }[]
+      {
+        month: string;
+        total: number;
+        count: number;
+        is_past: boolean;
+        is_current: boolean;
+      }[]
     >("/dashboard/installments/monthly-load")
     .then((r) => r.data);
 
@@ -481,7 +564,10 @@ export const executeScheduledExpense = async (id: number) => {
   return data;
 };
 
-export const updateScheduledExpense = async (id: number, payload: Partial<ScheduledExpense>) => {
+export const updateScheduledExpense = async (
+  id: number,
+  payload: Partial<ScheduledExpense>,
+) => {
   const { data } = await api.put(`/scheduled-expenses/${id}`, payload);
   return data;
 };
@@ -502,20 +588,31 @@ export const deleteAnalysisHistory = (id: number) =>
   api.delete(`/analysis/history/${id}`).then((r) => r.data);
 
 export const getDashboardAITrends = (params?: { month?: string }) =>
-  api.get<AITrendsResponse>("/dashboard/ai-trends", { params }).then((r) => r.data);
+  api
+    .get<AITrendsResponse>("/dashboard/ai-trends", { params })
+    .then((r) => r.data);
 
 export const deleteAllExpenses = () =>
   api.delete<{ deleted: number }>("/expenses/all").then((r) => r.data);
 
-export const getCategoryTrend = (months = 4, anchorMonth?: string, person?: string) =>
+export const getCategoryTrend = (
+  months = 4,
+  anchorMonth?: string,
+  person?: string,
+) =>
   api
     .get<{
       rows: Record<string, number | string>[];
       categories: { name: string; color: string }[];
-    }>("/dashboard/category-trend", { params: { months, anchor_month: anchorMonth, person } })
+    }>("/dashboard/category-trend", {
+      params: { months, anchor_month: anchorMonth, person },
+    })
     .then((r) => r.data);
 
-export const getCardCategoryBreakdown = (params?: { month?: string; bank?: string }) =>
+export const getCardCategoryBreakdown = (params?: {
+  month?: string;
+  bank?: string;
+}) =>
   api
     .get<{
       rows: Record<string, number | string>[];
@@ -535,21 +632,32 @@ export const bulkUpdateFields = (
     card_id?: number | null;
     account_id?: number | null;
   },
-) => api.patch<{ updated: number }>("/expenses/bulk-update", { ids, ...data }).then((r) => r.data);
+) =>
+  api
+    .patch<{ updated: number }>("/expenses/bulk-update", { ids, ...data })
+    .then((r) => r.data);
 
 export const recategorizeExpenses = (only_uncategorized = false) =>
   api
-    .post<{ updated: number; total: number }>("/expenses/recategorize", { only_uncategorized })
+    .post<{
+      updated: number;
+      total: number;
+    }>("/expenses/recategorize", { only_uncategorized })
     .then((r) => r.data);
 
 export const applyBaseHierarchy = () =>
   api
-    .post<{ created: number; updated: number }>("/categories/apply-base-hierarchy")
+    .post<{
+      created: number;
+      updated: number;
+    }>("/categories/apply-base-hierarchy")
     .then((r) => r.data);
 
 // Investments
 export const getInvestments = (broker?: string) =>
-  api.get<Investment[]>("/investments", { params: broker ? { broker } : {} }).then((r) => r.data);
+  api
+    .get<Investment[]>("/investments", { params: broker ? { broker } : {} })
+    .then((r) => r.data);
 
 export const createInvestment = (data: InvestmentCreate) =>
   api.post<Investment>("/investments", data).then((r) => r.data);
@@ -557,10 +665,18 @@ export const createInvestment = (data: InvestmentCreate) =>
 export const updateInvestment = (id: number, data: InvestmentCreate) =>
   api.put<Investment>(`/investments/${id}`, data).then((r) => r.data);
 
-export const updateInvestmentPrice = (id: number, current_price: number | null) =>
-  api.patch<Investment>(`/investments/${id}/price`, { current_price }).then((r) => r.data);
+export const updateInvestmentPrice = (
+  id: number,
+  current_price: number | null,
+) =>
+  api
+    .patch<Investment>(`/investments/${id}/price`, { current_price })
+    .then((r) => r.data);
 
-export const getInvestmentHistory = (id: number, range: "1d" | "7d" | "30d" = "7d") =>
+export const getInvestmentHistory = (
+  id: number,
+  range: "1d" | "7d" | "30d" = "7d",
+) =>
   api
     .get<{
       ticker: string;
@@ -583,13 +699,20 @@ export const lookupSymbol = (symbol: string) =>
 export const fetchUsdRate = () =>
   lookupSymbol("USDARS=X").then((data) => {
     if (!data || !data.price) return null;
-    return { rate: data.price, date: new Date().toISOString().split("T")[0], source: "Yahoo" };
+    return {
+      rate: data.price,
+      date: new Date().toISOString().split("T")[0],
+      source: "Yahoo",
+    };
   });
 
 export const lookupSymbols = (symbols: string[]) =>
   api
     .get<
-      Record<string, { symbol: string; name: string; price: number | null; currency: string }>
+      Record<
+        string,
+        { symbol: string; name: string; price: number | null; currency: string }
+      >
     >("/investments/lookup-batch", { params: { symbols: symbols.join(",") } })
     .then((r) => r.data);
 
@@ -602,7 +725,8 @@ export const getSettings = () =>
 export const putSetting = (key: string, value: string) =>
   api.put(`/settings/${key}`, { value }).then((r) => r.data);
 
-export const deleteSetting = (key: string) => api.delete(`/settings/${key}`).then((r) => r.data);
+export const deleteSetting = (key: string) =>
+  api.delete(`/settings/${key}`).then((r) => r.data);
 
 export const deleteBrokerSettings = (broker: string) =>
   api.delete(`/settings/broker/${broker}`).then((r) => r.data);
@@ -619,7 +743,11 @@ export const syncIOL = () =>
 
 export const syncPPI = () =>
   api
-    .post<{ broker: string; created: number; updated: number }>("/investments/sync/ppi")
+    .post<{
+      broker: string;
+      created: number;
+      updated: number;
+    }>("/investments/sync/ppi")
     .then((r) => r.data);
 
 export const deduplicateInvestments = () =>
@@ -627,11 +755,17 @@ export const deduplicateInvestments = () =>
 
 export const getUsdRate = () =>
   api
-    .get<{ rate: number; date: string; source: string }>("/investments/usd-rate")
+    .get<{
+      rate: number;
+      date: string;
+      source: string;
+    }>("/investments/usd-rate")
     .then((r) => r.data);
 
 export const refreshManualPrices = () =>
-  api.post<{ updated: number }>("/investments/refresh-manual-prices").then((r) => r.data);
+  api
+    .post<{ updated: number }>("/investments/refresh-manual-prices")
+    .then((r) => r.data);
 
 export const getManualCashBalances = () =>
   api
@@ -640,18 +774,32 @@ export const getManualCashBalances = () =>
     >("/investments/manual-cash-balances")
     .then((r) => r.data);
 
-export const putManualCashBalance = (broker: string, ars: number | null, usd: number | null) =>
+export const putManualCashBalance = (
+  broker: string,
+  ars: number | null,
+  usd: number | null,
+) =>
   api
-    .put(`/investments/manual-cash-balances/${encodeURIComponent(broker)}`, { ars, usd })
+    .put(`/investments/manual-cash-balances/${encodeURIComponent(broker)}`, {
+      ars,
+      usd,
+    })
     .then((r) => r.data);
 
 export const deleteManualCashBalance = (broker: string) =>
-  api.delete(`/investments/manual-cash-balances/${encodeURIComponent(broker)}`).then((r) => r.data);
+  api
+    .delete(`/investments/manual-cash-balances/${encodeURIComponent(broker)}`)
+    .then((r) => r.data);
 
 export const getCashBalances = () =>
   api
     .get<{
-      iol: { ars: number | null; usd: number | null; configured: boolean; error?: string };
+      iol: {
+        ars: number | null;
+        usd: number | null;
+        configured: boolean;
+        error?: string;
+      };
       ppi: {
         ars: number | null;
         usd: number | null;
@@ -667,7 +815,10 @@ export const getTopMerchants = (params?: {
   person?: string;
   bank?: string;
   limit?: number;
-}) => api.get<TopMerchant[]>("/dashboard/top-merchants", { params }).then((r) => r.data);
+}) =>
+  api
+    .get<TopMerchant[]>("/dashboard/top-merchants", { params })
+    .then((r) => r.data);
 
 // Notifications
 export const markNotificationRead = (id: number) =>
@@ -684,22 +835,31 @@ export const deleteAllReadNotifications = () =>
   api.delete("/notifications/read-all").then((r) => r.data);
 
 // Family Group
-export const getMyGroup = () => api.get<FamilyGroup | null>("/groups/me").then((r) => r.data);
+export const getMyGroup = () =>
+  api.get<FamilyGroup | null>("/groups/me").then((r) => r.data);
 export const inviteToGroup = (inviteCode: string) =>
   api.post("/groups/invite", { invite_code: inviteCode }).then((r) => r.data);
 export const getMyInviteCode = () =>
-  api.get<{ invite_code: string }>("/groups/my-invite-code").then((r) => r.data);
+  api
+    .get<{ invite_code: string }>("/groups/my-invite-code")
+    .then((r) => r.data);
 export const generateInviteCode = () =>
-  api.post<{ invite_code: string }>("/groups/generate-invite-code").then((r) => r.data);
+  api
+    .post<{ invite_code: string }>("/groups/generate-invite-code")
+    .then((r) => r.data);
 export const leaveGroup = () => api.delete("/groups/leave").then((r) => r.data);
 
 // Accounts
-export const getAccounts = () => api.get<Account[]>("/accounts").then((r) => r.data);
+export const getAccounts = () =>
+  api.get<Account[]>("/accounts").then((r) => r.data);
 export const createAccount = (data: { name: string; type: string }) =>
   api.post<Account>("/accounts", data).then((r) => r.data);
-export const updateAccount = (id: number, data: { name?: string; type?: string }) =>
-  api.put<Account>(`/accounts/${id}`, data).then((r) => r.data);
-export const deleteAccount = (id: number) => api.delete(`/accounts/${id}`).then((r) => r.data);
+export const updateAccount = (
+  id: number,
+  data: { name?: string; type?: string },
+) => api.put<Account>(`/accounts/${id}`, data).then((r) => r.data);
+export const deleteAccount = (id: number) =>
+  api.delete(`/accounts/${id}`).then((r) => r.data);
 
 // Cards
 export const getCards = () => api.get<Card[]>("/cards").then((r) => r.data);
@@ -720,7 +880,8 @@ export const updateCard = (
     linked_account_id?: number | null;
   },
 ) => api.put<Card>(`/cards/${id}`, data).then((r) => r.data);
-export const deleteCard = (id: number) => api.delete(`/cards/${id}`).then((r) => r.data);
+export const deleteCard = (id: number) =>
+  api.delete(`/cards/${id}`).then((r) => r.data);
 
 // Import Jobs
 export async function createImportJob(
@@ -735,7 +896,9 @@ export async function createImportJob(
     signal, // Pass abort signal to axios
     onUploadProgress: (progressEvent) => {
       if (onUploadProgress && progressEvent.total) {
-        const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        const progress = Math.round(
+          (progressEvent.loaded * 100) / progressEvent.total,
+        );
         onUploadProgress(progress);
       }
     },

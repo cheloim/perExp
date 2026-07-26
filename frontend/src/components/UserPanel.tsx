@@ -55,7 +55,9 @@ function ReportsTab() {
     refetchInterval: (query) => {
       // Refetch every 3s if there are pending reports
       const reports = query.state.data?.reports ?? [];
-      const hasPending = reports.some((r) => r.status === "pending" || r.status === "PENDING");
+      const hasPending = reports.some(
+        (r) => r.status === "pending" || r.status === "PENDING",
+      );
       return hasPending ? 3000 : false;
     },
   });
@@ -80,7 +82,9 @@ function ReportsTab() {
 
   // Month options for modal — only months NOT yet generated
   const generatedMonths = new Set(
-    allReports.filter((r) => r.status === "ready" || r.status === "READY").map((r) => r.month),
+    allReports
+      .filter((r) => r.status === "ready" || r.status === "READY")
+      .map((r) => r.month),
   );
   const monthOptions = [];
   const now = new Date();
@@ -94,7 +98,9 @@ function ReportsTab() {
     // Skip current month if before 20:00 UTC-3 on last day
     if (d.getFullYear() === currentYear && d.getMonth() === currentMonth) {
       const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-      const deadlineUTC = new Date(Date.UTC(d.getFullYear(), d.getMonth(), lastDay, 23, 0, 0));
+      const deadlineUTC = new Date(
+        Date.UTC(d.getFullYear(), d.getMonth(), lastDay, 23, 0, 0),
+      );
       if (now < deadlineUTC) continue;
     }
 
@@ -111,7 +117,9 @@ function ReportsTab() {
     <div className="px-4 py-4 space-y-4">
       {/* Header */}
       <div className="text-center space-y-2">
-        <h3 className="text-sm font-semibold text-[var(--text-primary)]">Reportes Mensuales</h3>
+        <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+          Reportes Mensuales
+        </h3>
         <p className="text-[10px] text-[var(--text-tertiary)]">
           Generá y descargá reportes PDF con el análisis de tus gastos.
         </p>
@@ -130,7 +138,8 @@ function ReportsTab() {
         </div>
       ) : displayReports.length === 0 ? (
         <p className="text-xs text-[var(--text-tertiary)] text-center py-8">
-          No hay reportes generados. Hacé click en "Generar reporte" para crear uno.
+          No hay reportes generados. Hacé click en "Generar reporte" para crear
+          uno.
         </p>
       ) : (
         <div className="space-y-2">
@@ -194,7 +203,9 @@ function ReportsTab() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-center">
-              <h3 className="text-sm font-semibold text-[var(--text-primary)]">Generar Reporte</h3>
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                Generar Reporte
+              </h3>
               <p className="text-[10px] text-[var(--text-tertiary)] mt-1">
                 Seleccioná el mes para generar el reporte PDF.
               </p>
@@ -252,7 +263,9 @@ export default function UserPanel({ open, onClose }: Props) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { theme, toggleTheme } = useTheme();
-  const [activeTab, setActiveTab] = useState<"config" | "accounts" | "reports">("config");
+  const [activeTab, setActiveTab] = useState<"config" | "accounts" | "reports">(
+    "config",
+  );
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -265,7 +278,8 @@ export default function UserPanel({ open, onClose }: Props) {
   const [keyCopied, setKeyCopied] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showRegenInviteConfirm, setShowRegenInviteConfirm] = useState(false);
-  const [showRegenTelegramConfirm, setShowRegenTelegramConfirm] = useState(false);
+  const [showRegenTelegramConfirm, setShowRegenTelegramConfirm] =
+    useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showCardAccountModal, setShowCardAccountModal] = useState(false);
 
@@ -317,7 +331,8 @@ export default function UserPanel({ open, onClose }: Props) {
   });
 
   const settingMut = useMutation({
-    mutationFn: ({ key, value }: { key: string; value: string }) => putSetting(key, value),
+    mutationFn: ({ key, value }: { key: string; value: string }) =>
+      putSetting(key, value),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
     },
@@ -375,7 +390,9 @@ export default function UserPanel({ open, onClose }: Props) {
       queryClient.invalidateQueries({ queryKey: ["top-merchants"] });
       queryClient.invalidateQueries({ queryKey: ["distinct-values"] });
       queryClient.invalidateQueries({ queryKey: ["credit-card-pasivos"] });
-      queryClient.invalidateQueries({ queryKey: ["installments-monthly-load"] });
+      queryClient.invalidateQueries({
+        queryKey: ["installments-monthly-load"],
+      });
       setInviteSuccess(false);
       setInviteError(null);
       setLeaveError(null);
@@ -433,7 +450,9 @@ export default function UserPanel({ open, onClose }: Props) {
 
   // Delete account
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteStep, setDeleteStep] = useState<"confirm" | "email" | "password">("confirm");
+  const [deleteStep, setDeleteStep] = useState<
+    "confirm" | "email" | "password"
+  >("confirm");
   const [deleteEmail, setDeleteEmail] = useState("");
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteError, setDeleteError] = useState("");
@@ -444,7 +463,9 @@ export default function UserPanel({ open, onClose }: Props) {
       clearToken();
       window.location.href = "/login";
     },
-    onError: (e: { response?: { data?: { detail?: string | Array<{ msg?: string }> } } }) => {
+    onError: (e: {
+      response?: { data?: { detail?: string | Array<{ msg?: string }> } };
+    }) => {
       const detail = e?.response?.data?.detail;
       const msg = Array.isArray(detail)
         ? detail.map((d) => d.msg ?? String(d)).join(", ")
@@ -528,19 +549,25 @@ export default function UserPanel({ open, onClose }: Props) {
   return (
     <>
       {/* Backdrop */}
-      {open && <div className="fixed inset-0 z-40 bg-black/20" onClick={onClose} />}
+      {open && (
+        <div className="fixed inset-0 z-40 bg-black/20" onClick={onClose} />
+      )}
 
       {/* Panel */}
       <div
         className={`fixed left-0 top-0 z-50 h-full w-full sm:w-80 bg-[var(--color-surface)] border-r border-[var(--border-color)] shadow-gnome-lg flex flex-col transition-transform duration-300 ease-in-out ${
-          open ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none"
+          open
+            ? "translate-x-0 pointer-events-auto"
+            : "-translate-x-full pointer-events-none"
         }`}
         style={{ contain: "layout" }}
       >
         {/* Header */}
         <div className="border-b border-border-color">
           <div className="flex items-center justify-between px-4 py-3">
-            <h2 className="text-base font-semibold text-panel-title">Mi cuenta</h2>
+            <h2 className="text-base font-semibold text-panel-title">
+              Mi cuenta
+            </h2>
             <button
               onClick={onClose}
               className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
@@ -595,21 +622,36 @@ export default function UserPanel({ open, onClose }: Props) {
                   <p className="text-sm font-semibold text-[var(--text-secondary)] truncate">
                     {user ? formatFullName(user.full_name) : "—"}
                   </p>
-                  <p className="text-xs text-[var(--text-tertiary)]">{user?.email ?? "—"}</p>
+                  <p className="text-xs text-[var(--text-tertiary)]">
+                    {user?.email ?? "—"}
+                  </p>
                 </div>
               </div>
 
               {/* Theme toggle */}
               <div className="flex items-center justify-between">
-                <span className="text-xs text-[var(--text-secondary)]">Tema</span>
+                <span className="text-xs text-[var(--text-secondary)]">
+                  Tema
+                </span>
                 <button
                   onClick={toggleTheme}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[var(--color-base-alt)] text-[var(--text-primary)] hover:brightness-90 transition-all"
                 >
                   {theme === "dark" ? (
                     <>
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                        <circle cx="8" cy="8" r="5" stroke="currentColor" strokeWidth="1.5" />
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 16 16"
+                        fill="none"
+                      >
+                        <circle
+                          cx="8"
+                          cy="8"
+                          r="5"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                        />
                         <path
                           d="M8 3v1m0 8v1M3 8h1m8 0h1M4.22 4.22l.7.7m5.08 5.08l.7.7M4.22 11.78l.7-.7m5.08-5.08l.7-.7"
                           stroke="currentColor"
@@ -621,7 +663,12 @@ export default function UserPanel({ open, onClose }: Props) {
                     </>
                   ) : (
                     <>
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 16 16"
+                        fill="none"
+                      >
                         <path
                           d="M14 10.5a6 6 0 01-10.3-6A6 6 0 0114 10.5z"
                           stroke="currentColor"
@@ -644,7 +691,8 @@ export default function UserPanel({ open, onClose }: Props) {
                 {/* Tu código de invitación — solo si no tiene grupo o es el único miembro */}
                 {!isGroupLoading &&
                   (!myGroup ||
-                    myGroup.members.filter((m) => m.status === "accepted").length <= 1) && (
+                    myGroup.members.filter((m) => m.status === "accepted")
+                      .length <= 1) && (
                     <div className="mb-3 p-2 bg-[var(--color-base-alt)] rounded-md">
                       <p className="text-xs text-[var(--text-tertiary)] mb-1">
                         Compartí tu código:
@@ -657,12 +705,19 @@ export default function UserPanel({ open, onClose }: Props) {
                           <>
                             <button
                               onClick={() =>
-                                navigator.clipboard.writeText(myInviteCode.invite_code)
+                                navigator.clipboard.writeText(
+                                  myInviteCode.invite_code,
+                                )
                               }
                               className="p-1.5 rounded hover:bg-[var(--color-base)] text-[var(--text-tertiary)] hover:text-primary transition"
                               title="Copiar"
                             >
-                              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                              <svg
+                                width="14"
+                                height="14"
+                                viewBox="0 0 16 16"
+                                fill="none"
+                              >
                                 <rect
                                   x="5"
                                   y="5"
@@ -684,7 +739,12 @@ export default function UserPanel({ open, onClose }: Props) {
                               className="p-1.5 rounded hover:bg-[var(--color-base)] text-[var(--text-tertiary)] hover:text-primary transition"
                               title="Nuevo código"
                             >
-                              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                              <svg
+                                width="14"
+                                height="14"
+                                viewBox="0 0 16 16"
+                                fill="none"
+                              >
                                 <path
                                   d="M13.2 2.8A7.2 7.2 0 002.8 7.2"
                                   stroke="currentColor"
@@ -727,13 +787,19 @@ export default function UserPanel({ open, onClose }: Props) {
                   </div>
                 ) : myGroup ? (
                   <div className="space-y-3">
-                    <p className="text-xs text-[var(--text-tertiary)]">{myGroup.name}</p>
+                    <p className="text-xs text-[var(--text-tertiary)]">
+                      {myGroup.name}
+                    </p>
                     <ul className="space-y-1.5">
                       {myGroup.members.map((m) => (
-                        <li key={m.id} className="flex items-center justify-between">
+                        <li
+                          key={m.id}
+                          className="flex items-center justify-between"
+                        >
                           <div className="flex items-center gap-2">
                             <span className="w-6 h-6 rounded-full bg-[var(--color-base-alt)] text-[var(--text-secondary)] flex items-center justify-center text-[10px] font-semibold">
-                              {formatFullName(m.full_name)[0]?.toUpperCase() ?? "?"}
+                              {formatFullName(m.full_name)[0]?.toUpperCase() ??
+                                "?"}
                             </span>
                             <span className="text-xs text-[var(--text-primary)]">
                               {formatFullName(m.full_name)}
@@ -763,7 +829,8 @@ export default function UserPanel({ open, onClose }: Props) {
                       ))}
                     </ul>
 
-                    {myGroup.members.filter((m) => m.status === "accepted").length < 5 && (
+                    {myGroup.members.filter((m) => m.status === "accepted")
+                      .length < 5 && (
                       <form
                         onSubmit={(e) => {
                           e.preventDefault();
@@ -794,7 +861,9 @@ export default function UserPanel({ open, onClose }: Props) {
                           disabled={inviteMut.isPending || !inviteCode.trim()}
                           className="w-full py-1.5 rounded-md bg-primary hover:brightness-110 disabled:opacity-60 text-[var(--color-on-primary)] text-xs font-medium transition"
                         >
-                          {inviteMut.isPending ? "Invitando…" : "Invitar familiar"}
+                          {inviteMut.isPending
+                            ? "Invitando…"
+                            : "Invitar familiar"}
                         </button>
                       </form>
                     )}
@@ -826,8 +895,8 @@ export default function UserPanel({ open, onClose }: Props) {
                 ) : (
                   <div className="space-y-2">
                     <p className="text-xs text-[var(--text-tertiary)]">
-                      No pertenecés a ningún grupo familiar. Ingresá el código de invitación de tu
-                      familiar.
+                      No pertenecés a ningún grupo familiar. Ingresá el código
+                      de invitación de tu familiar.
                     </p>
                     <form
                       onSubmit={(e) => {
@@ -859,7 +928,9 @@ export default function UserPanel({ open, onClose }: Props) {
                         disabled={inviteMut.isPending || !inviteCode.trim()}
                         className="w-full py-1.5 rounded-md bg-primary hover:brightness-110 disabled:opacity-60 text-[var(--color-on-primary)] text-xs font-medium transition"
                       >
-                        {inviteMut.isPending ? "Enviando…" : "Crear grupo e invitar"}
+                        {inviteMut.isPending
+                          ? "Enviando…"
+                          : "Crear grupo e invitar"}
                       </button>
                     </form>
                     {inviteError && (
@@ -908,14 +979,17 @@ export default function UserPanel({ open, onClose }: Props) {
                 {mfaStatus?.enabled && showDisableMfa && (
                   <div className="space-y-3">
                     <p className="text-xs text-[var(--text-secondary)]">
-                      Ingresá el código de tu aplicación de autenticación para deshabilitar MFA.
+                      Ingresá el código de tu aplicación de autenticación para
+                      deshabilitar MFA.
                     </p>
                     <input
                       type="text"
                       inputMode="numeric"
                       maxLength={6}
                       value={disableMfaCode}
-                      onChange={(e) => setDisableMfaCode(e.target.value.replace(/\D/g, ""))}
+                      onChange={(e) =>
+                        setDisableMfaCode(e.target.value.replace(/\D/g, ""))
+                      }
                       placeholder="000000"
                       className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition font-mono text-center tracking-widest"
                     />
@@ -932,10 +1006,14 @@ export default function UserPanel({ open, onClose }: Props) {
                       </button>
                       <button
                         onClick={() => disableMfaMut.mutate(disableMfaCode)}
-                        disabled={disableMfaCode.length !== 6 || disableMfaMut.isPending}
+                        disabled={
+                          disableMfaCode.length !== 6 || disableMfaMut.isPending
+                        }
                         className="flex-1 py-2 rounded-md bg-[var(--red-3,#e01b24)] text-white text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"
                       >
-                        {disableMfaMut.isPending ? "Deshabilitando..." : "Deshabilitar"}
+                        {disableMfaMut.isPending
+                          ? "Deshabilitando..."
+                          : "Deshabilitar"}
                       </button>
                     </div>
                   </div>
@@ -944,8 +1022,9 @@ export default function UserPanel({ open, onClose }: Props) {
                 {!mfaStatus?.enabled && !mfaQrCode && (
                   <div>
                     <p className="text-xs text-[var(--text-secondary)] mb-3">
-                      Protege tu cuenta con una segunda capa de seguridad. Necesitarás una
-                      aplicación como Google Authenticator o Authy.
+                      Protege tu cuenta con una segunda capa de seguridad.
+                      Necesitarás una aplicación como Google Authenticator o
+                      Authy.
                     </p>
                     <button
                       onClick={() => setupMfaMut.mutate()}
@@ -960,10 +1039,15 @@ export default function UserPanel({ open, onClose }: Props) {
                 {mfaQrCode && (
                   <div className="space-y-3">
                     <p className="text-xs text-[var(--text-secondary)]">
-                      1. Escaneá este código QR con tu aplicación de autenticación
+                      1. Escaneá este código QR con tu aplicación de
+                      autenticación
                     </p>
                     <div className="flex justify-center">
-                      <img src={mfaQrCode} alt="MFA QR Code" className="w-48 h-48 rounded-lg" />
+                      <img
+                        src={mfaQrCode}
+                        alt="MFA QR Code"
+                        className="w-48 h-48 rounded-lg"
+                      />
                     </div>
                     {mfaSecret && (
                       <div className="text-center">
@@ -983,7 +1067,9 @@ export default function UserPanel({ open, onClose }: Props) {
                       inputMode="numeric"
                       maxLength={6}
                       value={mfaCode}
-                      onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ""))}
+                      onChange={(e) =>
+                        setMfaCode(e.target.value.replace(/\D/g, ""))
+                      }
                       placeholder="000000"
                       className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition font-mono text-center tracking-widest"
                     />
@@ -992,7 +1078,9 @@ export default function UserPanel({ open, onClose }: Props) {
                       disabled={mfaCode.length !== 6 || verifyMfaMut.isPending}
                       className="w-full py-2 rounded-md bg-primary hover:brightness-110 disabled:opacity-60 text-[var(--color-on-primary)] font-medium text-sm transition"
                     >
-                      {verifyMfaMut.isPending ? "Verificando..." : "Verificar y habilitar"}
+                      {verifyMfaMut.isPending
+                        ? "Verificando..."
+                        : "Verificar y habilitar"}
                     </button>
                   </div>
                 )}
@@ -1043,7 +1131,9 @@ export default function UserPanel({ open, onClose }: Props) {
                       disabled={regenerateKeyMut.isPending}
                       className="w-full py-1.5 rounded-md border border-[var(--red-3,#e01b24)]/30 text-[var(--red-3,#e01b24)] hover:bg-[var(--red-3,#e01b24)]/10 text-xs font-medium transition disabled:opacity-50"
                     >
-                      {regenerateKeyMut.isPending ? "Desconectando…" : "Desconectar bot"}
+                      {regenerateKeyMut.isPending
+                        ? "Desconectando…"
+                        : "Desconectar bot"}
                     </button>
                   </div>
                 ) : (
@@ -1086,7 +1176,9 @@ export default function UserPanel({ open, onClose }: Props) {
                         disabled={regenerateKeyMut.isPending}
                         className="w-full py-1.5 rounded-md border border-[var(--border-color)] text-xs text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition disabled:opacity-50"
                       >
-                        {regenerateKeyMut.isPending ? "Regenerando…" : "Regenerar clave"}
+                        {regenerateKeyMut.isPending
+                          ? "Regenerando…"
+                          : "Regenerar clave"}
                       </button>
                     </div>
                   </div>
@@ -1106,7 +1198,8 @@ export default function UserPanel({ open, onClose }: Props) {
                       </span>
                       <button
                         onClick={() => {
-                          const current = settings?.weekly_summary_enabled !== "false";
+                          const current =
+                            settings?.weekly_summary_enabled !== "false";
                           settingMut.mutate({
                             key: "weekly_summary_enabled",
                             value: current ? "false" : "true",
@@ -1148,7 +1241,8 @@ export default function UserPanel({ open, onClose }: Props) {
                     </span>
                     <button
                       onClick={() => {
-                        const current = settings?.ai_suggestions_enabled !== "false";
+                        const current =
+                          settings?.ai_suggestions_enabled !== "false";
                         settingMut.mutate({
                           key: "ai_suggestions_enabled",
                           value: current ? "false" : "true",
@@ -1256,7 +1350,9 @@ export default function UserPanel({ open, onClose }: Props) {
                     disabled={changePwMut.isPending}
                     className="w-full py-2 rounded-md bg-primary hover:brightness-110 disabled:opacity-60 text-[var(--color-on-primary)] font-medium text-sm transition"
                   >
-                    {changePwMut.isPending ? "Guardando..." : "Guardar contraseña"}
+                    {changePwMut.isPending
+                      ? "Guardando..."
+                      : "Guardar contraseña"}
                   </button>
                 </form>
               </div>
@@ -1268,8 +1364,9 @@ export default function UserPanel({ open, onClose }: Props) {
                   Zona de peligro
                 </h3>
                 <p className="text-xs text-[var(--text-tertiary)] mb-3">
-                  Eliminar tu cuenta borrará permanentemente todos tus datos, gastos, tarjetas,
-                  cuentas e inversiones. Esta acción no se puede deshacer.
+                  Eliminar tu cuenta borrará permanentemente todos tus datos,
+                  gastos, tarjetas, cuentas e inversiones. Esta acción no se
+                  puede deshacer.
                 </p>
 
                 {deleteStep === "confirm" && (
@@ -1320,7 +1417,9 @@ export default function UserPanel({ open, onClose }: Props) {
                     )}
 
                     {deleteError && (
-                      <p className="text-xs text-[var(--red-3,#e01b24)]">{deleteError}</p>
+                      <p className="text-xs text-[var(--red-3,#e01b24)]">
+                        {deleteError}
+                      </p>
                     )}
 
                     <div className="flex gap-2">
@@ -1423,7 +1522,11 @@ export default function UserPanel({ open, onClose }: Props) {
 
       <ConfirmDialog
         isOpen={showRegenTelegramConfirm}
-        title={tgStatus?.connected ? "Desconectar bot" : "Regenerar clave de Telegram"}
+        title={
+          tgStatus?.connected
+            ? "Desconectar bot"
+            : "Regenerar clave de Telegram"
+        }
         message={
           tgStatus?.connected
             ? "Al regenerar la clave, se desconectará la sesión actual del bot. Necesitarás volver a vincularlo con la nueva clave."
@@ -1467,7 +1570,9 @@ export default function UserPanel({ open, onClose }: Props) {
         onCancel={() => setShowDeleteConfirm(false)}
       />
 
-      {showCardAccountModal && <CardAccountModal onClose={() => setShowCardAccountModal(false)} />}
+      {showCardAccountModal && (
+        <CardAccountModal onClose={() => setShowCardAccountModal(false)} />
+      )}
     </>
   );
 }

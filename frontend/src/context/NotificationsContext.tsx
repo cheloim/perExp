@@ -32,7 +32,9 @@ interface NotificationsContextValue extends NotificationsState {
   refresh: () => void;
 }
 
-const NotificationsContext = createContext<NotificationsContextValue | undefined>(undefined);
+const NotificationsContext = createContext<
+  NotificationsContextValue | undefined
+>(undefined);
 
 const BROADCAST_CHANNEL_NAME = "notif-sync";
 const WORKER_URL = import.meta.env.DEV
@@ -40,7 +42,13 @@ const WORKER_URL = import.meta.env.DEV
   : "/assets/notifications.worker.js";
 
 interface WorkerMessage {
-  type: "initial" | "notification" | "counts_update" | "token_expired" | "error" | "connected";
+  type:
+    | "initial"
+    | "notification"
+    | "counts_update"
+    | "token_expired"
+    | "error"
+    | "connected";
   notifications?: Notification[];
   notification?: Notification;
   unread_count?: number;
@@ -62,7 +70,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   });
 
   const [port, setPort] = useState<MessagePort | null>(null);
-  const [broadcastChannel] = useState(() => new BroadcastChannel(BROADCAST_CHANNEL_NAME));
+  const [broadcastChannel] = useState(
+    () => new BroadcastChannel(BROADCAST_CHANNEL_NAME),
+  );
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -102,7 +112,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       if (exists) {
         return {
           ...s,
-          notifications: s.notifications.map((n) => (n.id === notification.id ? notification : n)),
+          notifications: s.notifications.map((n) =>
+            n.id === notification.id ? notification : n,
+          ),
         };
       }
       return {
@@ -112,13 +124,16 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const handleCountsUpdate = useCallback((unread_count: number, pending_count: number) => {
-    setState((s) => ({
-      ...s,
-      unreadCount: unread_count,
-      pendingCount: pending_count,
-    }));
-  }, []);
+  const handleCountsUpdate = useCallback(
+    (unread_count: number, pending_count: number) => {
+      setState((s) => ({
+        ...s,
+        unreadCount: unread_count,
+        pendingCount: pending_count,
+      }));
+    },
+    [],
+  );
 
   useEffect(() => {
     const token = localStorage.getItem("auth_token");
@@ -132,7 +147,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       });
       workerPort = worker.port;
       workerPort.start();
-      workerPort.postMessage({ type: "new_token", token } as WorkerOutgoingMessage);
+      workerPort.postMessage({
+        type: "new_token",
+        token,
+      } as WorkerOutgoingMessage);
     } catch {
       setState((s) => ({ ...s, connected: false }));
       return;
@@ -199,7 +217,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     };
 
     broadcastChannel.addEventListener("message", handleBroadcast);
-    return () => broadcastChannel.removeEventListener("message", handleBroadcast);
+    return () =>
+      broadcastChannel.removeEventListener("message", handleBroadcast);
   }, [broadcastChannel, handleNewNotification, handleCountsUpdate]);
 
   const markRead = useCallback(async (id: number) => {
@@ -210,7 +229,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       await markNotificationRead(id);
       setState((s) => ({
         ...s,
-        notifications: s.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
+        notifications: s.notifications.map((n) =>
+          n.id === id ? { ...n, read: true } : n,
+        ),
         unreadCount: Math.max(0, s.unreadCount - 1),
       }));
     } catch (err) {
@@ -238,7 +259,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       setState((s) => ({
         ...s,
         notifications: s.notifications.filter((n) => n.id !== id),
-        unreadCount: n && !n.read ? Math.max(0, s.unreadCount - 1) : s.unreadCount,
+        unreadCount:
+          n && !n.read ? Math.max(0, s.unreadCount - 1) : s.unreadCount,
       }));
     } catch (err) {
       console.error("[NotificationsContext] deleteNotification failed", err);
@@ -269,7 +291,14 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   return (
     <NotificationsContext.Provider
-      value={{ ...state, markRead, markAllRead, deleteNotification, deleteAllRead, refresh }}
+      value={{
+        ...state,
+        markRead,
+        markAllRead,
+        deleteNotification,
+        deleteAllRead,
+        refresh,
+      }}
     >
       {children}
     </NotificationsContext.Provider>
@@ -279,7 +308,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 export function useNotifications() {
   const context = useContext(NotificationsContext);
   if (!context) {
-    throw new Error("useNotifications must be used within NotificationsProvider");
+    throw new Error(
+      "useNotifications must be used within NotificationsProvider",
+    );
   }
   return context;
 }

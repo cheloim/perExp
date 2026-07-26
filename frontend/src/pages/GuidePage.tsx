@@ -22,7 +22,9 @@ const SECTIONS = [
 
 export default function GuidePage() {
   const [activeSection, setActiveSection] = useState(SECTIONS[0].id);
-  const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set(["registro"]));
+  const [expandedChapters, setExpandedChapters] = useState<Set<string>>(
+    new Set(["registro"]),
+  );
 
   const toggleChapter = (id: string) => {
     setExpandedChapters((prev) => {
@@ -62,9 +64,15 @@ export default function GuidePage() {
           </a>
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center">
-              <SymbolicIcon name="book" size={22} className="text-[var(--color-primary)]" />
+              <SymbolicIcon
+                name="book"
+                size={22}
+                className="text-[var(--color-primary)]"
+              />
             </div>
-            <h1 className="text-3xl font-bold text-[var(--text-primary)]">Manual de usuario</h1>
+            <h1 className="text-3xl font-bold text-[var(--text-primary)]">
+              Manual de usuario
+            </h1>
           </div>
           <p className="text-[var(--text-secondary)] ml-[52px]">
             Guía completa con todas las acciones disponibles en la plataforma.
@@ -84,7 +92,10 @@ export default function GuidePage() {
                   e.preventDefault();
                   if (!expandedChapters.has(s.id)) toggleChapter(s.id);
                   setTimeout(
-                    () => document.getElementById(s.id)?.scrollIntoView({ behavior: "smooth" }),
+                    () =>
+                      document
+                        .getElementById(s.id)
+                        ?.scrollIntoView({ behavior: "smooth" }),
                     50,
                   );
                 }}
@@ -97,7 +108,9 @@ export default function GuidePage() {
                 <SymbolicIcon
                   name={s.icon}
                   size={16}
-                  className={activeSection === s.id ? "text-[var(--color-primary)]" : ""}
+                  className={
+                    activeSection === s.id ? "text-[var(--color-primary)]" : ""
+                  }
                 />
                 {s.label}
               </a>
@@ -116,7 +129,10 @@ export default function GuidePage() {
                   e.preventDefault();
                   if (!expandedChapters.has(s.id)) toggleChapter(s.id);
                   setTimeout(
-                    () => document.getElementById(s.id)?.scrollIntoView({ behavior: "smooth" }),
+                    () =>
+                      document
+                        .getElementById(s.id)
+                        ?.scrollIntoView({ behavior: "smooth" }),
                     50,
                   );
                 }}
@@ -143,7 +159,9 @@ export default function GuidePage() {
             expanded={expandedChapters.has("registro")}
             onToggle={() => toggleChapter("registro")}
           >
-            <h4 className="font-semibold text-[var(--text-primary)] mb-2">Crear una cuenta</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+              Crear una cuenta
+            </h4>
             <Steps
               items={[
                 "Entrá a platform.oikonomia.ar/register",
@@ -154,11 +172,13 @@ export default function GuidePage() {
               ]}
             />
             <Callout type="tip">
-              También podés registrarte con tu cuenta de Google haciendo click en "Continuar con
-              Google".
+              También podés registrarte con tu cuenta de Google haciendo click
+              en "Continuar con Google".
             </Callout>
 
-            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Iniciar sesión</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
+              Iniciar sesión
+            </h4>
             <Steps
               items={[
                 "Entrá a platform.oikonomia.ar/login",
@@ -190,12 +210,16 @@ export default function GuidePage() {
             onToggle={() => toggleChapter("dashboard")}
           >
             <p className="text-sm text-[var(--text-secondary)] mb-4">
-              El dashboard muestra un resumen de tus finanzas del mes actual. Es lo primero que ves
-              al iniciar sesión.
+              El dashboard muestra un resumen de tus finanzas del mes actual. Es
+              lo primero que ves al iniciar sesión.
             </p>
 
-            <h4 className="font-semibold text-[var(--text-primary)] mb-2">Tarjetas KPI</h4>
-            <p className="text-sm text-[var(--text-secondary)] mb-3">Cuatro indicadores clave:</p>
+            <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+              Tarjetas KPI
+            </h4>
+            <p className="text-sm text-[var(--text-secondary)] mb-3">
+              Cuatro indicadores clave:
+            </p>
             <div className="grid grid-cols-2 gap-3 mb-4">
               <MiniStat label="Total gastado" value="$45.230" />
               <MiniStat label="Deuda tarjetas" value="$128.500" />
@@ -203,38 +227,50 @@ export default function GuidePage() {
               <MiniStat label="vs Mes anterior" value="↓ 8%" />
             </div>
             <p className="text-sm text-[var(--text-secondary)] mb-4">
-              Hacé click en cualquier tarjeta para ir a la sección correspondiente.
+              Hacé click en cualquier tarjeta para ir a la sección
+              correspondiente.
             </p>
 
-            <h4 className="font-semibold text-[var(--text-primary)] mb-2">Gráfico de categorías</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+              Gráfico de categorías
+            </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Un gráfico de torta muestra la distribución de gastos por categoría. Hacé click en una
-              porción para filtrar la lista de transacciones.
+              Un gráfico de torta muestra la distribución de gastos por
+              categoría. Hacé click en una porción para filtrar la lista de
+              transacciones.
             </p>
 
             <h4 className="font-semibold text-[var(--text-primary)] mb-2">
               Lista de transacciones
             </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Muestra los últimos gastos. Usá los botones de días (3d, 5d, 7d, 10d) para filtrar por
-              recencia. Hacé click en "Ver todos" para ir a la página completa de gastos.
+              Muestra los últimos gastos. Usá los botones de días (3d, 5d, 7d,
+              10d) para filtrar por recencia. Hacé click en "Ver todos" para ir
+              a la página completa de gastos.
             </p>
 
-            <h4 className="font-semibold text-[var(--text-primary)] mb-2">Métodos de pago</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+              Métodos de pago
+            </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Resumen de gastos por tarjeta/cuenta. Hacé click para ir a la página de Cuentas.
+              Resumen de gastos por tarjeta/cuenta. Hacé click para ir a la
+              página de Cuentas.
             </p>
 
-            <h4 className="font-semibold text-[var(--text-primary)] mb-2">Gastos programados</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+              Gastos programados
+            </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Muestra cuotas pendientes y gastos manuales programados. El gráfico de barras muestra
-              la carga mensual de cuotas.
+              Muestra cuotas pendientes y gastos manuales programados. El
+              gráfico de barras muestra la carga mensual de cuotas.
             </p>
 
-            <h4 className="font-semibold text-[var(--text-primary)] mb-2">Nuevo gasto rápido</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+              Nuevo gasto rápido
+            </h4>
             <p className="text-sm text-[var(--text-secondary)]">
-              El botón "+ Nuevo gasto" en la parte superior abre el formulario para crear un gasto
-              directamente desde el dashboard.
+              El botón "+ Nuevo gasto" en la parte superior abre el formulario
+              para crear un gasto directamente desde el dashboard.
             </p>
           </Chapter>
 
@@ -246,7 +282,9 @@ export default function GuidePage() {
             expanded={expandedChapters.has("cuentas")}
             onToggle={() => toggleChapter("cuentas")}
           >
-            <h4 className="font-semibold text-[var(--text-primary)] mb-2">Crear una tarjeta</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+              Crear una tarjeta
+            </h4>
             <Steps
               items={[
                 "Entrá a Cuentas en el menú lateral",
@@ -260,11 +298,13 @@ export default function GuidePage() {
               ]}
             />
             <Callout type="info">
-              Las tarjetas aparecen como un carrusel visual con el logo del banco, los últimos 4
-              dígitos y el total del mes.
+              Las tarjetas aparecen como un carrusel visual con el logo del
+              banco, los últimos 4 dígitos y el total del mes.
             </Callout>
 
-            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Crear una cuenta</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
+              Crear una cuenta
+            </h4>
             <Steps
               items={[
                 'Hacé click en "+ Crear tarjeta o cuenta"',
@@ -278,9 +318,9 @@ export default function GuidePage() {
               Vincular tarjeta de débito con cuenta
             </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Si tenés una caja de ahorro en un banco y la tarjeta de débito correspondiente, podés
-              vincularlas para que los gastos con débito se resten automáticamente del saldo de la
-              cuenta.
+              Si tenés una caja de ahorro en un banco y la tarjeta de débito
+              correspondiente, podés vincularlas para que los gastos con débito
+              se resten automáticamente del saldo de la cuenta.
             </p>
             <Steps
               items={[
@@ -294,9 +334,10 @@ export default function GuidePage() {
               Ver evolución por cuenta
             </h4>
             <p className="text-sm text-[var(--text-secondary)]">
-              En la página de Cuentas, cada tarjeta muestra un gráfico de líneas con la evolución de
-              gastos de los últimos 6 meses. Hacé click en una tarjeta para ver detalles: total,
-              transacciones, promedio y últimos 5 gastos.
+              En la página de Cuentas, cada tarjeta muestra un gráfico de líneas
+              con la evolución de gastos de los últimos 6 meses. Hacé click en
+              una tarjeta para ver detalles: total, transacciones, promedio y
+              últimos 5 gastos.
             </p>
           </Chapter>
 
@@ -312,20 +353,31 @@ export default function GuidePage() {
               Método 1: Bot de Telegram (recomendado)
             </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              La forma más rápida. Escribile al bot como le contarías a un amigo:
+              La forma más rápida. Escribile al bot como le contarías a un
+              amigo:
             </p>
             <div className="space-y-2 mb-4">
-              <CodeBlock label="Gasto simple" code="mastercard galicia almacen 5999" />
+              <CodeBlock
+                label="Gasto simple"
+                code="mastercard galicia almacen 5999"
+              />
               <CodeBlock
                 label="Gasto en cuotas"
                 code="visa santander cuotas 3 supermercado 12000"
               />
-              <CodeBlock label="Gasto en efectivo" code="efectivo almuerzo 2500" />
-              <CodeBlock label="Con fecha específica" code="nafta shell viernes 15000" />
+              <CodeBlock
+                label="Gasto en efectivo"
+                code="efectivo almuerzo 2500"
+              />
+              <CodeBlock
+                label="Con fecha específica"
+                code="nafta shell viernes 15000"
+              />
             </div>
             <Callout type="tip">
-              El bot detecta automáticamente la tarjeta, el banco y la categoría. Si la categoría no
-              es correcta, podés cambiarla después desde la app.
+              El bot detecta automáticamente la tarjeta, el banco y la
+              categoría. Si la categoría no es correcta, podés cambiarla después
+              desde la app.
             </Callout>
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
@@ -348,8 +400,8 @@ export default function GuidePage() {
               Método 3: Importación CSV
             </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Subí un archivo PDF, CSV o XLSX con tus movimientos bancarios. La app procesa el
-              archivo y categoriza los gastos automáticamente.
+              Subí un archivo PDF, CSV o XLSX con tus movimientos bancarios. La
+              app procesa el archivo y categoriza los gastos automáticamente.
             </p>
             <Steps
               items={[
@@ -373,7 +425,9 @@ export default function GuidePage() {
               .
             </Callout>
 
-            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Editar un gasto</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
+              Editar un gasto
+            </h4>
             <Steps
               items={[
                 "Entrá a Gastos en el menú lateral",
@@ -384,9 +438,12 @@ export default function GuidePage() {
               ]}
             />
 
-            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Eliminar gastos</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
+              Eliminar gastos
+            </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              <strong>Un gasto:</strong> Hacé click en el ícono de basura junto al gasto y confirmá.
+              <strong>Un gasto:</strong> Hacé click en el ícono de basura junto
+              al gasto y confirmá.
             </p>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
               <strong>Varios gastos:</strong>
@@ -400,13 +457,16 @@ export default function GuidePage() {
               ]}
             />
             <Callout type="info">
-              Después de eliminar, aparece un toast con opción de deshacer (5 segundos).
+              Después de eliminar, aparece un toast con opción de deshacer (5
+              segundos).
             </Callout>
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
               Operaciones masivas
             </h4>
-            <p className="text-sm text-[var(--text-secondary)] mb-3">En modo selección, podés:</p>
+            <p className="text-sm text-[var(--text-secondary)] mb-3">
+              En modo selección, podés:
+            </p>
             <ul className="list-disc list-inside text-sm text-[var(--text-secondary)] space-y-1 mb-3">
               <li>
                 <strong>Cambiar categoría</strong> de múltiples gastos a la vez
@@ -427,7 +487,8 @@ export default function GuidePage() {
             </p>
             <ul className="list-disc list-inside text-sm text-[var(--text-secondary)] space-y-1">
               <li>
-                <strong>Categoría</strong> — filtrá por categoría específica o "Sin categoría"
+                <strong>Categoría</strong> — filtrá por categoría específica o
+                "Sin categoría"
               </li>
               <li>
                 <strong>Cuenta</strong> — filtrá por tarjeta o cuenta
@@ -436,10 +497,12 @@ export default function GuidePage() {
                 <strong>Fecha</strong> — desde/hasta con selects de fecha
               </li>
               <li>
-                <strong>Búsqueda</strong> — texto libre en descripciones (búsqueda debounced)
+                <strong>Búsqueda</strong> — texto libre en descripciones
+                (búsqueda debounced)
               </li>
               <li>
-                <strong>CSV</strong> — exportá los gastos filtrados como archivo CSV
+                <strong>CSV</strong> — exportá los gastos filtrados como archivo
+                CSV
               </li>
             </ul>
           </Chapter>
@@ -456,9 +519,10 @@ export default function GuidePage() {
               Estructura de categorías
             </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Las categorías son jerárquicas: una <strong>categoría padre</strong> (ej:
-              "Alimentación") agrupa <strong>subcategorías"</strong> (ej: "Supermercado",
-              "Café/Bar", "Restaurante"). Las subcategorías pueden tener{" "}
+              Las categorías son jerárquicas: una{" "}
+              <strong>categoría padre</strong> (ej: "Alimentación") agrupa{" "}
+              <strong>subcategorías"</strong> (ej: "Supermercado", "Café/Bar",
+              "Restaurante"). Las subcategorías pueden tener{" "}
               <strong>palabras clave</strong> para auto-categorización.
             </p>
 
@@ -466,9 +530,9 @@ export default function GuidePage() {
               Aplicar estructura base
             </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Si es tu primera vez, hacé click en "Aplicar estructura base" para crear
-              automáticamente las categorías predefinidas (Alimentación, Transporte, Servicios,
-              Entretenimiento, etc.).
+              Si es tu primera vez, hacé click en "Aplicar estructura base" para
+              crear automáticamente las categorías predefinidas (Alimentación,
+              Transporte, Servicios, Entretenimiento, etc.).
             </p>
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
@@ -498,17 +562,18 @@ export default function GuidePage() {
               ]}
             />
             <Callout type="tip">
-              Las palabras clave se usan para la auto-categorización. Cuando registrás un gasto con
-              una descripción que contiene una palabra clave, la categoría se asigna
-              automáticamente.
+              Las palabras clave se usan para la auto-categorización. Cuando
+              registrás un gasto con una descripción que contiene una palabra
+              clave, la categoría se asigna automáticamente.
             </Callout>
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
               Recategorizar gastos
             </h4>
             <p className="text-sm text-[var(--text-secondary)]">
-              Si tenés gastos sin categoría, hacé click en "Recategorizar sin categoría" para que la
-              IA sugiera categorías basándose en las descripciones.
+              Si tenés gastos sin categoría, hacé click en "Recategorizar sin
+              categoría" para que la IA sugiera categorías basándose en las
+              descripciones.
             </p>
             <a
               href="/guide/categories"
@@ -526,35 +591,41 @@ export default function GuidePage() {
             expanded={expandedChapters.has("analiticas")}
             onToggle={() => toggleChapter("analiticas")}
           >
-            <h4 className="font-semibold text-[var(--text-primary)] mb-2">Treemap de categorías</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+              Treemap de categorías
+            </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Un gráfico de rectángulos proporcionales muestra cuánto gastás en cada categoría.
-              Cuanto más grande el rectángulo, más gastaste. Hacé click en un rectángulo para ver
-              detalles: total, cantidad de transacciones, porcentaje del total y comparación con el
-              mes anterior.
+              Un gráfico de rectángulos proporcionales muestra cuánto gastás en
+              cada categoría. Cuanto más grande el rectángulo, más gastaste.
+              Hacé click en un rectángulo para ver detalles: total, cantidad de
+              transacciones, porcentaje del total y comparación con el mes
+              anterior.
             </p>
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
               Gráfico de tendencias
             </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Muestra la evolución de gastos por categoría en el tiempo. Usá los botones 3m, 6m, 12m
-              para cambiar la ventana de tiempo. Hacé click en las leyendas para mostrar/ocultar
-              categorías.
+              Muestra la evolución de gastos por categoría en el tiempo. Usá los
+              botones 3m, 6m, 12m para cambiar la ventana de tiempo. Hacé click
+              en las leyendas para mostrar/ocultar categorías.
             </p>
 
-            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Top comercios</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
+              Top comercios
+            </h4>
             <p className="text-sm text-[var(--text-secondary)]">
-              Lista los comercios donde más gastás, ordenados por monto o frecuencia. Hacé click en
-              un comercio para ver todos los gastos asociados.
+              Lista los comercios donde más gastás, ordenados por monto o
+              frecuencia. Hacé click en un comercio para ver todos los gastos
+              asociados.
             </p>
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
               Filtro por persona
             </h4>
             <p className="text-sm text-[var(--text-secondary)]">
-              Si tenés grupo familiar, podés filtrar las analíticas por miembro para ver solo los
-              gastos de una persona.
+              Si tenés grupo familiar, podés filtrar las analíticas por miembro
+              para ver solo los gastos de una persona.
             </p>
           </Chapter>
 
@@ -578,33 +649,36 @@ export default function GuidePage() {
               ]}
             />
             <p className="text-sm text-[var(--text-secondary)] mt-2 mb-3">
-              La app crea automáticamente las cuotas pendientes. La primera cuota se guarda como
-              gasto normal; las demás se programan como gastos futuros.
+              La app crea automáticamente las cuotas pendientes. La primera
+              cuota se guarda como gasto normal; las demás se programan como
+              gastos futuros.
             </p>
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
               Ver cuotas pendientes
             </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              En la página de Cuotas, cada grupo de cuotas muestra: descripción, total, cuotas
-              pagadas/restantes, monto por cuota y fechas. El gráfico de barras muestra la carga
-              mensual de cuotas.
+              En la página de Cuotas, cada grupo de cuotas muestra: descripción,
+              total, cuotas pagadas/restantes, monto por cuota y fechas. El
+              gráfico de barras muestra la carga mensual de cuotas.
             </p>
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
               Ejecutar una cuota manualmente
             </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Si querés registrar una cuota antes de la fecha, hacé click en "Gestionar" en el grupo
-              y luego en "Ejecutar ahora" en la cuota pendiente.
+              Si querés registrar una cuota antes de la fecha, hacé click en
+              "Gestionar" en el grupo y luego en "Ejecutar ahora" en la cuota
+              pendiente.
             </p>
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
               Cancelar una cuota
             </h4>
             <p className="text-sm text-[var(--text-secondary)]">
-              En el grupo de cuotas, hacé click en "Gestionar" y luego en "Cancelar" en la cuota
-              pendiente. La cuota se marca como cancelada y no se ejecuta.
+              En el grupo de cuotas, hacé click en "Gestionar" y luego en
+              "Cancelar" en la cuota pendiente. La cuota se marca como cancelada
+              y no se ejecuta.
             </p>
           </Chapter>
 
@@ -617,13 +691,21 @@ export default function GuidePage() {
             onToggle={() => toggleChapter("programados")}
           >
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Los gastos programados son cuotas pendientes de compras en cuotas. Se ejecutan
-              automáticamente cuando llega la fecha.
+              Los gastos programados son cuotas pendientes de compras en cuotas.
+              Se ejecutan automáticamente cuando llega la fecha.
             </p>
-            <h4 className="font-semibold text-[var(--text-primary)] mb-2">Flujo automático</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+              Flujo automático
+            </h4>
             <ul className="list-disc list-inside text-sm text-[var(--text-secondary)] space-y-1 mb-3">
-              <li>Cada día a las 02:00 UTC, un proceso revisa cuotas con fecha ≤ hoy</li>
-              <li>Las cuotas vencidas se convierten en gastos reales automáticamente</li>
+              <li>
+                Cada día a las 02:00 UTC, un proceso revisa cuotas con fecha ≤
+                hoy
+              </li>
+              <li>
+                Las cuotas vencidas se convierten en gastos reales
+                automáticamente
+              </li>
               <li>Se mantiene el registro de cuotas pagadas y pendientes</li>
             </ul>
             <h4 className="font-semibold text-[var(--text-primary)] mt-4 mb-2">
@@ -631,14 +713,16 @@ export default function GuidePage() {
             </h4>
             <ul className="list-disc list-inside text-sm text-[var(--text-secondary)] space-y-1">
               <li>
-                <strong>Ejecutar ahora:</strong> Registrar una cuota antes de la fecha programada
+                <strong>Ejecutar ahora:</strong> Registrar una cuota antes de la
+                fecha programada
               </li>
               <li>
-                <strong>Cancelar:</strong> Marcar una cuota como cancelada (no se ejecutará)
+                <strong>Cancelar:</strong> Marcar una cuota como cancelada (no
+                se ejecutará)
               </li>
               <li>
-                <strong>Editar:</strong> Modificar fecha, monto, descripción o categoría de una
-                cuota pendiente
+                <strong>Editar:</strong> Modificar fecha, monto, descripción o
+                categoría de una cuota pendiente
               </li>
             </ul>
           </Chapter>
@@ -660,7 +744,9 @@ export default function GuidePage() {
             expanded={expandedChapters.has("inversiones")}
             onToggle={() => toggleChapter("inversiones")}
           >
-            <h4 className="font-semibold text-[var(--text-primary)] mb-2">Agregar una inversión</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+              Agregar una inversión
+            </h4>
             <Steps
               items={[
                 "Entrá a Inversiones en el menú lateral",
@@ -677,8 +763,9 @@ export default function GuidePage() {
               Sincronizar con brokers
             </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Si configuraste credenciales de IOL o PPI, hacé click en "Sincronizar" para actualizar
-              precios y posiciones automáticamente.
+              Si configuraste credenciales de IOL o PPI, hacé click en
+              "Sincronizar" para actualizar precios y posiciones
+              automáticamente.
             </p>
             <Steps
               items={[
@@ -689,19 +776,21 @@ export default function GuidePage() {
               ]}
             />
 
-            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Toggle ARS/USD</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
+              Toggle ARS/USD
+            </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              El botón "ARS"/"USD" en la barra de herramientas convierte todos los valores entre
-              pesos y dólares.
+              El botón "ARS"/"USD" en la barra de herramientas convierte todos
+              los valores entre pesos y dólares.
             </p>
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
               Detalle de inversión
             </h4>
             <p className="text-sm text-[var(--text-secondary)]">
-              Hacé click en una inversión para ver: cantidad, precio promedio, precio actual,
-              valuación, costo y P&L. Si tenés la misma inversión en varios brokers, se muestra el
-              desglose por broker.
+              Hacé click en una inversión para ver: cantidad, precio promedio,
+              precio actual, valuación, costo y P&L. Si tenés la misma inversión
+              en varios brokers, se muestra el desglose por broker.
             </p>
           </Chapter>
 
@@ -723,26 +812,31 @@ export default function GuidePage() {
             onToggle={() => toggleChapter("presupuesto")}
           >
             <p>
-              El sistema de presupuestos te permite asignar límites de gasto mensual a cada
-              categoría. La app te avisa cuando te acercás al límite y te muestra un resumen visual
-              de tu progreso.
+              El sistema de presupuestos te permite asignar límites de gasto
+              mensual a cada categoría. La app te avisa cuando te acercás al
+              límite y te muestra un resumen visual de tu progreso.
             </p>
 
             <h4 className="font-semibold text-[var(--text-primary)] mb-2 mt-4">
               Distribución del ingreso
             </h4>
-            <p>Los presupuestos se organizan en dos grupos que representan tu ingreso mensual:</p>
+            <p>
+              Los presupuestos se organizan en dos grupos que representan tu
+              ingreso mensual:
+            </p>
             <ul className="list-disc ml-5 space-y-1">
               <li>
-                <strong>Necesidades</strong> (60%) — Alimentación, Transporte, Salud, Hogar,
-                Servicios
+                <strong>Necesidades</strong> (60%) — Alimentación, Transporte,
+                Salud, Hogar, Servicios
               </li>
               <li>
-                <strong>Gustos</strong> (40%) — Entretenimiento, Ropa, Suscripciones, Restaurantes
+                <strong>Gustos</strong> (40%) — Entretenimiento, Ropa,
+                Suscripciones, Restaurantes
               </li>
             </ul>
             <Callout type="tip">
-              El grupo "Ahorro" (20%) estará disponible cuando se implemente el módulo de ingresos.
+              El grupo "Ahorro" (20%) estará disponible cuando se implemente el
+              módulo de ingresos.
             </Callout>
 
             <h4 className="font-semibold text-[var(--text-primary)] mb-2 mt-4">
@@ -761,10 +855,14 @@ export default function GuidePage() {
             <h4 className="font-semibold text-[var(--text-primary)] mb-2 mt-4">
               Interpretar el progreso
             </h4>
-            <p>Cada categoría muestra una barra de progreso con código de colores:</p>
+            <p>
+              Cada categoría muestra una barra de progreso con código de
+              colores:
+            </p>
             <ul className="list-disc ml-5 space-y-1">
               <li>
-                🟢 <strong>Bien</strong> — Gastaste menos del 80% del presupuesto
+                🟢 <strong>Bien</strong> — Gastaste menos del 80% del
+                presupuesto
               </li>
               <li>
                 🟡 <strong>Cuidado</strong> — Entre 80% y 100% del presupuesto
@@ -774,17 +872,18 @@ export default function GuidePage() {
               </li>
             </ul>
             <p className="mt-2">
-              Los íconos de los donuts son clickeables: al hacer click en uno, se filtran las
-              categorías de ese grupo.
+              Los íconos de los donuts son clickeables: al hacer click en uno,
+              se filtran las categorías de ese grupo.
             </p>
 
             <h4 className="font-semibold text-[var(--text-primary)] mb-2 mt-4">
               Eventos temporales
             </h4>
             <p>
-              Podés crear presupuestos temporales para vacaciones, viajes o eventos especiales. Cada
-              evento tiene un rango de fechas y un monto total. Los gastos realizados durante ese
-              período se vinculan al evento.
+              Podés crear presupuestos temporales para vacaciones, viajes o
+              eventos especiales. Cada evento tiene un rango de fechas y un
+              monto total. Los gastos realizados durante ese período se vinculan
+              al evento.
             </p>
             <Steps
               items={[
@@ -795,16 +894,16 @@ export default function GuidePage() {
               ]}
             />
             <Callout type="info">
-              También podés vincular gastos manualmente haciendo click en "Vincular gastos" dentro
-              de cada evento.
+              También podés vincular gastos manualmente haciendo click en
+              "Vincular gastos" dentro de cada evento.
             </Callout>
 
             <h4 className="font-semibold text-[var(--text-primary)] mb-2 mt-4">
               Alertas y notificaciones
             </h4>
             <p>
-              Recibirás alertas automáticas cuando un grupo o categoría se acerque al límite. Las
-              alertas se envían:
+              Recibirás alertas automáticas cuando un grupo o categoría se
+              acerque al límite. Las alertas se envían:
             </p>
             <ul className="list-disc ml-5 space-y-1">
               <li>Por Telegram cuando guardás un gasto que supera el umbral</li>
@@ -832,7 +931,9 @@ export default function GuidePage() {
             expanded={expandedChapters.has("reportes")}
             onToggle={() => toggleChapter("reportes")}
           >
-            <h4 className="font-semibold text-[var(--text-primary)] mb-2">Generar un reporte</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+              Generar un reporte
+            </h4>
             <Steps
               items={[
                 "Entrá a tu panel de usuario (click en tu nombre en la barra lateral)",
@@ -848,22 +949,29 @@ export default function GuidePage() {
               Qué incluye el reporte
             </h4>
             <ul className="list-disc list-inside text-sm text-[var(--text-secondary)] space-y-1 mb-3">
-              <li>Resumen del mes: total de gastos, ingresos, tasa de ahorro</li>
+              <li>
+                Resumen del mes: total de gastos, ingresos, tasa de ahorro
+              </li>
               <li>Top 5 categorías con porcentajes</li>
               <li>Comparación con el mes anterior (MoM)</li>
               <li>Historial de tendencia de 6 meses</li>
-              <li>Análisis de patrones: gastos por día de semana, fin de semana vs día hábil</li>
+              <li>
+                Análisis de patrones: gastos por día de semana, fin de semana vs
+                día hábil
+              </li>
               <li>Desglose por método de pago</li>
               <li>Cuotas futuras próximas</li>
-              <li>Análisis de IA con observaciones, alertas y recomendaciones</li>
+              <li>
+                Análisis de IA con observaciones, alertas y recomendaciones
+              </li>
             </ul>
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
               Reporte automático
             </h4>
             <p className="text-sm text-[var(--text-secondary)]">
-              El primer día de cada mes se genera automáticamente un reporte del mes anterior.
-              Recibís una notificación cuando está listo.
+              El primer día de cada mes se genera automáticamente un reporte del
+              mes anterior. Recibís una notificación cuando está listo.
             </p>
           </Chapter>
 
@@ -875,7 +983,9 @@ export default function GuidePage() {
             expanded={expandedChapters.has("importar")}
             onToggle={() => toggleChapter("importar")}
           >
-            <h4 className="font-semibold text-[var(--text-primary)] mb-2">Formatos soportados</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+              Formatos soportados
+            </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
               PDF, CSV, XLSX y XLS (tamaño máximo: 10MB).
             </p>
@@ -896,17 +1006,23 @@ export default function GuidePage() {
               ]}
             />
 
-            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Vista previa</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
+              Vista previa
+            </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              En la vista previa verás: todas las transacciones detectadas, badges de "Duplicado"
-              para transacciones repetidas, badges de "Cuota" para cuotas generadas automáticamente,
-              y el total de la importación.
+              En la vista previa verás: todas las transacciones detectadas,
+              badges de "Duplicado" para transacciones repetidas, badges de
+              "Cuota" para cuotas generadas automáticamente, y el total de la
+              importación.
             </p>
 
-            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Mapeo de tarjeta</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
+              Mapeo de tarjeta
+            </h4>
             <p className="text-sm text-[var(--text-secondary)]">
-              La IA detecta automáticamente qué tarjeta usaste. Si no la reconoce, seleccioná
-              manualmente una tarjeta existente o elegí "Otro (crear nueva)" para crear una nueva.
+              La IA detecta automáticamente qué tarjeta usaste. Si no la
+              reconoce, seleccioná manualmente una tarjeta existente o elegí
+              "Otro (crear nueva)" para crear una nueva.
             </p>
             <a
               href="/guide/smart-import"
@@ -924,7 +1040,9 @@ export default function GuidePage() {
             expanded={expandedChapters.has("telegram")}
             onToggle={() => toggleChapter("telegram")}
           >
-            <h4 className="font-semibold text-[var(--text-primary)] mb-2">Conectar el bot</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+              Conectar el bot
+            </h4>
             <Steps
               items={[
                 "Entrá a tu panel de usuario → Configuración → Bot de Telegram",
@@ -935,12 +1053,17 @@ export default function GuidePage() {
               ]}
             />
 
-            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Enviar gastos</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
+              Enviar gastos
+            </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
               Escribile al bot como le contarías a un amigo:
             </p>
             <div className="space-y-2 mb-4">
-              <CodeBlock label="Gasto simple" code="mastercard galicia almacen 5999" />
+              <CodeBlock
+                label="Gasto simple"
+                code="mastercard galicia almacen 5999"
+              />
               <CodeBlock
                 label="Gasto en cuotas"
                 code="visa santander cuotas 3 supermercado 12000"
@@ -962,23 +1085,27 @@ export default function GuidePage() {
               Detección de tarjeta en el texto
             </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Si incluís el nombre de la tarjeta y el banco en tu mensaje (ej: "visa santander
-              verduleria 5999"), el bot detecta automáticamente la tarjeta y no pregunta por el
-              medio de pago.
+              Si incluís el nombre de la tarjeta y el banco en tu mensaje (ej:
+              "visa santander verduleria 5999"), el bot detecta automáticamente
+              la tarjeta y no pregunta por el medio de pago.
             </p>
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
               Notificaciones bancarias
             </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Si copiás y pegás una notificación de tu banco (SMS, email o push), el bot la detecta
-              automáticamente, extrae el monto, la tarjeta y la fecha, y registra el gasto.
+              Si copiás y pegás una notificación de tu banco (SMS, email o
+              push), el bot la detecta automáticamente, extrae el monto, la
+              tarjeta y la fecha, y registra el gasto.
             </p>
 
-            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Resumen semanal</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
+              Resumen semanal
+            </h4>
             <p className="text-sm text-[var(--text-secondary)]">
-              Si lo activás en Configuración, cada lunes recibís un resumen de tu semana anterior
-              directamente en Telegram con totales por categoría y un análisis de IA.
+              Si lo activás en Configuración, cada lunes recibís un resumen de
+              tu semana anterior directamente en Telegram con totales por
+              categoría y un análisis de IA.
             </p>
 
             <Callout type="info">
@@ -1007,26 +1134,36 @@ export default function GuidePage() {
             expanded={expandedChapters.has("ia")}
             onToggle={() => toggleChapter("ia")}
           >
-            <h4 className="font-semibold text-[var(--text-primary)] mb-2">Abrir el asistente</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+              Abrir el asistente
+            </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Hacé click en el botón de chat (ícono de burbuja) en la esquina inferior derecha. El
-              asistente se abre como panel lateral.
+              Hacé click en el botón de chat (ícono de burbuja) en la esquina
+              inferior derecha. El asistente se abre como panel lateral.
             </p>
 
-            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Analizar el mes</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
+              Analizar el mes
+            </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Si no hay nada en el chat, aparece un botón "Analizar gastos del mes". Hacelo click
-              para obtener un análisis completo con tendencias, categorías crecientes/decrescientes,
-              alertas y recomendaciones.
+              Si no hay nada en el chat, aparece un botón "Analizar gastos del
+              mes". Hacelo click para obtener un análisis completo con
+              tendencias, categorías crecientes/decrescientes, alertas y
+              recomendaciones.
             </p>
 
-            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Hacer preguntas</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
+              Hacer preguntas
+            </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
               Podés preguntarle cosas como:
             </p>
             <div className="space-y-2 mb-4">
               <CodeBlock label="" code="¿Cuánto gasté en comida este mes?" />
-              <CodeBlock label="" code="¿Cuáles son mis categorías con más gasto?" />
+              <CodeBlock
+                label=""
+                code="¿Cuáles son mis categorías con más gasto?"
+              />
               <CodeBlock label="" code="¿Cómo voy vs el mes pasado?" />
               <CodeBlock label="" code="¿Qué gastos puedo reducir?" />
             </div>
@@ -1035,17 +1172,19 @@ export default function GuidePage() {
               Historial de sesiones
             </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Cada conversación se guarda como sesión. Podés ver sesiones anteriores en la pestaña
-              "Historial". La app guarda hasta 30 sesiones. Después de 2 horas de inactividad, se
-              crea una sesión nueva automáticamente.
+              Cada conversación se guarda como sesión. Podés ver sesiones
+              anteriores en la pestaña "Historial". La app guarda hasta 30
+              sesiones. Después de 2 horas de inactividad, se crea una sesión
+              nueva automáticamente.
             </p>
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
               Asistente de inversiones
             </h4>
             <p className="text-sm text-[var(--text-secondary)]">
-              En la página de Inversiones, el botón de chat cambia a un asistente especializado en
-              inversiones. Hacé preguntas sobre tu portafolio, precios, P&L y tendencias.
+              En la página de Inversiones, el botón de chat cambia a un
+              asistente especializado en inversiones. Hacé preguntas sobre tu
+              portafolio, precios, P&L y tendencias.
             </p>
           </Chapter>
 
@@ -1057,7 +1196,9 @@ export default function GuidePage() {
             expanded={expandedChapters.has("familia")}
             onToggle={() => toggleChapter("familia")}
           >
-            <h4 className="font-semibold text-[var(--text-primary)] mb-2">Crear un grupo</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+              Crear un grupo
+            </h4>
             <Steps
               items={[
                 "Entrá a tu panel de usuario → Configuración",
@@ -1083,26 +1224,31 @@ export default function GuidePage() {
               Aceptar/rechazar invitación
             </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Cuando alguien te invita, recibís una notificación con botones "Aceptar" y "Rechazar".
-              Al aceptar, aparece un disclaimer explicando que tus gastos serán visibles para el
-              grupo.
+              Cuando alguien te invita, recibís una notificación con botones
+              "Aceptar" y "Rechazar". Al aceptar, aparece un disclaimer
+              explicando que tus gastos serán visibles para el grupo.
             </p>
 
-            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Qué se comparte</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
+              Qué se comparte
+            </h4>
             <ul className="list-disc list-inside text-sm text-[var(--text-secondary)] space-y-1 mb-3">
               <li>Datos de gastos en el dashboard y reportes</li>
               <li>Análisis de categorías</li>
               <li>Estadísticas generales</li>
             </ul>
 
-            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Salir del grupo</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
+              Salir del grupo
+            </h4>
             <p className="text-sm text-[var(--text-secondary)]">
-              En Configuración → Grupo familiar, hacé click en "Salir del grupo". Tus datos se
-              separan del grupo pero se mantienen en tu cuenta.
+              En Configuración → Grupo familiar, hacé click en "Salir del
+              grupo". Tus datos se separan del grupo pero se mantienen en tu
+              cuenta.
             </p>
             <Callout type="info">
-              Máximo 5 miembros por grupo. Cada miembro puede tener su propio bot de Telegram
-              conectado.
+              Máximo 5 miembros por grupo. Cada miembro puede tener su propio
+              bot de Telegram conectado.
             </Callout>
             <a
               href="/guide/family-groups"
@@ -1120,10 +1266,13 @@ export default function GuidePage() {
             expanded={expandedChapters.has("config")}
             onToggle={() => toggleChapter("config")}
           >
-            <h4 className="font-semibold text-[var(--text-primary)] mb-2">Tema</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+              Tema
+            </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Cambiá entre tema claro y oscuro desde el botón de tema en tu panel de usuario. Se
-              adapta automáticamente al tema de tu sistema operativo.
+              Cambiá entre tema claro y oscuro desde el botón de tema en tu
+              panel de usuario. Se adapta automáticamente al tema de tu sistema
+              operativo.
             </p>
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
@@ -1151,8 +1300,8 @@ export default function GuidePage() {
               ]}
             />
             <Callout type="warning">
-              Si perdés acceso a tu app de autenticación, necesitás contactar al administrador para
-              deshabilitar MFA.
+              Si perdés acceso a tu app de autenticación, necesitás contactar al
+              administrador para deshabilitar MFA.
             </Callout>
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
@@ -1160,18 +1309,21 @@ export default function GuidePage() {
             </h4>
             <ul className="list-disc list-inside text-sm text-[var(--text-secondary)] space-y-1 mb-3">
               <li>
-                <strong>Sugerencias IA:</strong> Activa/desactiva la categorización automática con
-                inteligencia artificial
+                <strong>Sugerencias IA:</strong> Activa/desactiva la
+                categorización automática con inteligencia artificial
               </li>
               <li>
-                <strong>Resumen semanal:</strong> Activa/desactiva el envío de reportes por Telegram
-                cada lunes
+                <strong>Resumen semanal:</strong> Activa/desactiva el envío de
+                reportes por Telegram cada lunes
               </li>
             </ul>
 
-            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">Eliminar cuenta</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
+              Eliminar cuenta
+            </h4>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              La eliminación de cuenta es irreversible y elimina todos tus datos.
+              La eliminación de cuenta es irreversible y elimina todos tus
+              datos.
             </p>
             <Steps
               items={[
@@ -1191,7 +1343,10 @@ export default function GuidePage() {
               <li>Hacé click en la campana para ver notificaciones</li>
               <li>"Marcar todo leído" para marcar todas como leídas</li>
               <li>"Limpiar leídas" para eliminar notificaciones leídas</li>
-              <li>Hacé click en una notificación para ir a la sección correspondiente</li>
+              <li>
+                Hacé click en una notificación para ir a la sección
+                correspondiente
+              </li>
             </ul>
           </Chapter>
         </main>
@@ -1229,10 +1384,16 @@ function Chapter({
       >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center flex-shrink-0">
-            <SymbolicIcon name={icon} size={20} className="text-[var(--color-primary)]" />
+            <SymbolicIcon
+              name={icon}
+              size={20}
+              className="text-[var(--color-primary)]"
+            />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-bold text-[var(--text-primary)]">{title}</h2>
+            <h2 className="text-lg font-bold text-[var(--text-primary)]">
+              {title}
+            </h2>
             <p className="text-sm text-[var(--text-secondary)]">{subtitle}</p>
           </div>
           <SymbolicIcon
@@ -1261,7 +1422,9 @@ function Steps({ items }: { items: string[] }) {
           <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center text-xs font-bold">
             {i + 1}
           </span>
-          <span className="text-sm text-[var(--text-secondary)] pt-0.5">{item}</span>
+          <span className="text-sm text-[var(--text-secondary)] pt-0.5">
+            {item}
+          </span>
         </li>
       ))}
     </ol>
@@ -1280,11 +1443,19 @@ function Callout({
     info: "bg-[var(--gnome-blue-1)]/15 border-[var(--color-primary)]/30",
     warning: "bg-[var(--gnome-yellow-1)]/15 border-[var(--gnome-yellow-4)]/30",
   };
-  const icons = { tip: "check" as const, info: "eye" as const, warning: "sparkles" as const };
+  const icons = {
+    tip: "check" as const,
+    info: "eye" as const,
+    warning: "sparkles" as const,
+  };
   return (
     <div className={`p-4 rounded-lg border text-sm ${styles[type]}`}>
       <div className="flex items-start gap-3">
-        <SymbolicIcon name={icons[type]} size={14} className="mt-0.5 flex-shrink-0 opacity-70" />
+        <SymbolicIcon
+          name={icons[type]}
+          size={14}
+          className="mt-0.5 flex-shrink-0 opacity-70"
+        />
         <div>{children}</div>
       </div>
     </div>
@@ -1299,7 +1470,9 @@ function CodeBlock({ label, code }: { label: string; code: string }) {
           {label}
         </div>
       )}
-      <code className="text-sm text-[var(--text-primary)] font-mono">{code}</code>
+      <code className="text-sm text-[var(--text-primary)] font-mono">
+        {code}
+      </code>
     </div>
   );
 }
@@ -1307,8 +1480,12 @@ function CodeBlock({ label, code }: { label: string; code: string }) {
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="p-3 rounded-xl bg-[var(--color-surface)] border border-[var(--border-color)]">
-      <div className="text-[10px] text-[var(--text-secondary)] font-medium uppercase">{label}</div>
-      <div className="text-lg font-bold text-[var(--text-primary)] mt-1">{value}</div>
+      <div className="text-[10px] text-[var(--text-secondary)] font-medium uppercase">
+        {label}
+      </div>
+      <div className="text-lg font-bold text-[var(--text-primary)] mt-1">
+        {value}
+      </div>
     </div>
   );
 }
@@ -1325,7 +1502,9 @@ function ChatMockup() {
       <div className="space-y-2">
         <div className="flex justify-end">
           <div className="bg-[var(--color-primary)] rounded-xl rounded-tr-sm px-3 py-1.5 max-w-[85%]">
-            <span className="text-white text-xs">mastercard galicia almacen 5999</span>
+            <span className="text-white text-xs">
+              mastercard galicia almacen 5999
+            </span>
           </div>
         </div>
         <div className="flex justify-start">

@@ -28,7 +28,9 @@ function getLastUsedPayment(): {
   payMethod: "card" | "cash";
 } {
   try {
-    const data = JSON.parse(localStorage.getItem("expense_last_payment") || "{}");
+    const data = JSON.parse(
+      localStorage.getItem("expense_last_payment") || "{}",
+    );
     return {
       card_id: data.card_id || null,
       account_id: data.account_id || null,
@@ -76,9 +78,18 @@ export function ExpenseModal({
   mode,
 }: ExpenseModalProps) {
   const queryClient = useQueryClient();
-  const { data: categories = [] } = useQuery({ queryKey: ["categories"], queryFn: getCategories });
-  const { data: cards = [] } = useQuery({ queryKey: ["cards"], queryFn: getCards });
-  const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: getAccounts });
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: getCategories,
+  });
+  const { data: cards = [] } = useQuery({
+    queryKey: ["cards"],
+    queryFn: getCards,
+  });
+  const { data: accounts = [] } = useQuery({
+    queryKey: ["accounts"],
+    queryFn: getAccounts,
+  });
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -127,14 +138,17 @@ export function ExpenseModal({
   });
 
   const [cuotasEnabled, setCuotasEnabled] = useState(
-    isInstallmentsOnly || !!(initial?.installment_total && initial.installment_total > 1),
+    isInstallmentsOnly ||
+      !!(initial?.installment_total && initial.installment_total > 1),
   );
 
   // Local keyword matching — instant, no API cost
   const keywordMatch = (desc: string): number | null => {
     const lower = desc.toLowerCase();
     const leafIds = new Set(
-      categories.filter((c) => !categories.some((ch) => ch.parent_id === c.id)).map((c) => c.id),
+      categories
+        .filter((c) => !categories.some((ch) => ch.parent_id === c.id))
+        .map((c) => c.id),
     );
     for (const cat of categories) {
       if (!leafIds.has(cat.id) || !cat.keywords) continue;
@@ -148,7 +162,8 @@ export function ExpenseModal({
   // Real-time keyword pre-fill as user types
   useEffect(() => {
     const desc = initial?.description ?? form.description;
-    if (!desc || desc.length < 3 || initial?.category_id || form.category_id) return;
+    if (!desc || desc.length < 3 || initial?.category_id || form.category_id)
+      return;
     const match = keywordMatch(desc);
     if (match) {
       setForm((f) => ({ ...f, category_id: match }));
@@ -183,7 +198,9 @@ export function ExpenseModal({
   }, [isInstallmentsOnly, form.installment_group_id]);
 
   const isValid =
-    form.description.trim().length > 0 && form.amount > 0 && form.date.trim().length > 0;
+    form.description.trim().length > 0 &&
+    form.amount > 0 &&
+    form.date.trim().length > 0;
 
   const toggleCuotas = (enabled: boolean) => {
     setCuotasEnabled(enabled);
@@ -218,11 +235,15 @@ export function ExpenseModal({
   };
 
   // Cascading selectors: bank → card
-  const availableBanks = [...new Set(cards.map((c) => c.bank).filter(Boolean))].sort();
+  const availableBanks = [
+    ...new Set(cards.map((c) => c.bank).filter(Boolean)),
+  ].sort();
 
   const selectedCard = cards.find((c) => c.id === form.card_id);
   const selectedBank = selectedCard?.bank ?? "";
-  const availableCards = cards.filter((c) => !selectedBank || c.bank === selectedBank);
+  const availableCards = cards.filter(
+    (c) => !selectedBank || c.bank === selectedBank,
+  );
 
   const handleBankChange = (_b: string) => {
     setForm((prev) => ({ ...prev, card_id: null }));
@@ -238,7 +259,8 @@ export function ExpenseModal({
   const trapRef = useFocusTrap(true);
 
   const [showAdvanced, setShowAdvanced] = useState(
-    !!initial?.notes || !!(initial?.installment_total && initial.installment_total > 1),
+    !!initial?.notes ||
+      !!(initial?.installment_total && initial.installment_total > 1),
   );
 
   return (
@@ -271,7 +293,10 @@ export function ExpenseModal({
           <div className="flex items-start gap-2 bg-warning/10 border border-warning/30 rounded-lg px-3 py-2 text-xs text-warning">
             <span className="mt-0.5">⚠</span>
             <div className="flex-1">
-              <p>No tenés tarjetas ni cuentas creadas. Creá una para registrar gastos.</p>
+              <p>
+                No tenés tarjetas ni cuentas creadas. Creá una para registrar
+                gastos.
+              </p>
               <button
                 onClick={() => setShowCardModal(true)}
                 className="mt-1 text-xs font-semibold underline hover:no-underline"
@@ -332,13 +357,15 @@ export function ExpenseModal({
             value={(() => {
               // Convert DD-MM-YYYY to YYYY-MM-DD for native date input
               const parts = form.date.split("-");
-              if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+              if (parts.length === 3)
+                return `${parts[2]}-${parts[1]}-${parts[0]}`;
               return form.date;
             })()}
             onChange={(e) => {
               // Convert YYYY-MM-DD back to DD-MM-YYYY
               const parts = e.target.value.split("-");
-              if (parts.length === 3) set("date", `${parts[2]}-${parts[1]}-${parts[0]}`);
+              if (parts.length === 3)
+                set("date", `${parts[2]}-${parts[1]}-${parts[0]}`);
               else set("date", e.target.value);
             }}
             className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
@@ -359,7 +386,9 @@ export function ExpenseModal({
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-[var(--text-secondary)]">Moneda</label>
+            <label className="text-xs font-medium text-[var(--text-secondary)]">
+              Moneda
+            </label>
             <Select
               value={form.currency ?? "ARS"}
               onChange={(v) => set("currency", v)}
@@ -421,10 +450,16 @@ export function ExpenseModal({
               }}
               groups={(() => {
                 const parentIds = new Set(
-                  categories.filter((c) => c.parent_id).map((c) => c.parent_id!),
+                  categories
+                    .filter((c) => c.parent_id)
+                    .map((c) => c.parent_id!),
                 );
-                const parents = categories.filter((c) => !c.parent_id && parentIds.has(c.id));
-                const orphans = categories.filter((c) => !c.parent_id && !parentIds.has(c.id));
+                const parents = categories.filter(
+                  (c) => !c.parent_id && parentIds.has(c.id),
+                );
+                const orphans = categories.filter(
+                  (c) => !c.parent_id && !parentIds.has(c.id),
+                );
                 return [
                   ...parents.map((parent) => ({
                     label: parent.name,
@@ -436,7 +471,10 @@ export function ExpenseModal({
                     ? [
                         {
                           label: "—",
-                          options: orphans.map((c) => ({ value: String(c.id), label: c.name })),
+                          options: orphans.map((c) => ({
+                            value: String(c.id),
+                            label: c.name,
+                          })),
                         },
                       ]
                     : []),
@@ -455,7 +493,9 @@ export function ExpenseModal({
         >
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
+              <label className="text-xs font-medium text-[var(--text-secondary)]">
+                Banco
+              </label>
               <Select
                 value={selectedBank}
                 onChange={(v) => handleBankChange(v)}
@@ -465,14 +505,21 @@ export function ExpenseModal({
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-[var(--text-secondary)]">Tarjeta</label>
+              <label className="text-xs font-medium text-[var(--text-secondary)]">
+                Tarjeta
+              </label>
               <Select
                 value={String(form.card_id || "")}
                 onChange={(v) => {
-                  const selected = availableCards.find((c) => String(c.id) === v);
+                  const selected = availableCards.find(
+                    (c) => String(c.id) === v,
+                  );
                   if (selected) handleCardSelect(selected);
                 }}
-                options={availableCards.map((c) => ({ value: String(c.id), label: c.card_name }))}
+                options={availableCards.map((c) => ({
+                  value: String(c.id),
+                  label: c.card_name,
+                }))}
                 placeholder="— Tarjeta —"
                 disabled={payMethod === "cash"}
               />
@@ -481,21 +528,24 @@ export function ExpenseModal({
         </div>
 
         {/* Account selector for cash/transfer */}
-        <div className={`${payMethod === "card" ? "opacity-40 pointer-events-none" : ""}`}>
-          {payMethod === "cash" && accounts.filter((a) => a.type !== "credito").length === 0 && (
-            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700 mb-2">
-              <span className="mt-0.5">⚠️</span>
-              <div className="flex-1">
-                <p>No tenés cuentas creadas para efectivo/transferencia.</p>
-                <button
-                  onClick={() => setShowCardModal(true)}
-                  className="mt-1 text-xs font-semibold underline hover:text-amber-800"
-                >
-                  Crear cuenta
-                </button>
+        <div
+          className={`${payMethod === "card" ? "opacity-40 pointer-events-none" : ""}`}
+        >
+          {payMethod === "cash" &&
+            accounts.filter((a) => a.type !== "credito").length === 0 && (
+              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700 mb-2">
+                <span className="mt-0.5">⚠️</span>
+                <div className="flex-1">
+                  <p>No tenés cuentas creadas para efectivo/transferencia.</p>
+                  <button
+                    onClick={() => setShowCardModal(true)}
+                    className="mt-1 text-xs font-semibold underline hover:text-amber-800"
+                  >
+                    Crear cuenta
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
           <div>
             <label className="text-xs font-medium text-[var(--text-secondary)]">
               Cuenta de origen
@@ -553,7 +603,12 @@ export function ExpenseModal({
                         type="number"
                         min={1}
                         value={form.installment_number ?? 1}
-                        onChange={(e) => set("installment_number", parseInt(e.target.value) || 1)}
+                        onChange={(e) =>
+                          set(
+                            "installment_number",
+                            parseInt(e.target.value) || 1,
+                          )
+                        }
                         className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition text-center"
                       />
                     </div>
@@ -566,7 +621,12 @@ export function ExpenseModal({
                         type="number"
                         min={1}
                         value={form.installment_total ?? 1}
-                        onChange={(e) => set("installment_total", parseInt(e.target.value) || 1)}
+                        onChange={(e) =>
+                          set(
+                            "installment_total",
+                            parseInt(e.target.value) || 1,
+                          )
+                        }
                         className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition text-center"
                       />
                     </div>
@@ -576,7 +636,9 @@ export function ExpenseModal({
             )}
 
             <div>
-              <label className="text-xs font-medium text-[var(--text-secondary)]">Notas</label>
+              <label className="text-xs font-medium text-[var(--text-secondary)]">
+                Notas
+              </label>
               <textarea
                 value={form.notes ?? ""}
                 onChange={(e) => set("notes", e.target.value)}
@@ -616,7 +678,9 @@ export function ExpenseModal({
           </button>
         </div>
       </div>
-      {showCardModal && <CardAccountModal onClose={() => setShowCardModal(false)} />}
+      {showCardModal && (
+        <CardAccountModal onClose={() => setShowCardModal(false)} />
+      )}
     </div>
   );
 }

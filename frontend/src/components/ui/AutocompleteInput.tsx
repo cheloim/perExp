@@ -71,7 +71,9 @@ export function AutocompleteInput({
               No hay valores disponibles
             </div>
           ) : filteredOptions.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-[var(--text-tertiary)]">Sin resultados</div>
+            <div className="px-3 py-2 text-sm text-[var(--text-tertiary)]">
+              Sin resultados
+            </div>
           ) : (
             filteredOptions.map((option) => (
               <button

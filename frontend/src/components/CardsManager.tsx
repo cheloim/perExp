@@ -37,7 +37,9 @@ export default function CardsManager() {
     bank: string;
     card_type: string;
   } | null>(null);
-  const [errors, setErrors] = useState<{ card_name?: string; bank?: string }>({});
+  const [errors, setErrors] = useState<{ card_name?: string; bank?: string }>(
+    {},
+  );
   const [cardName, setCardName] = useState("");
   const [bank, setBank] = useState("");
   const [holder, setHolder] = useState("");
@@ -59,7 +61,8 @@ export default function CardsManager() {
   const availableLinkedAccounts = accounts.filter(
     (a) =>
       a.type === "caja_ahorro" &&
-      (!a.linked_card_id || (editId && editId > 0 && a.linked_card_id === editId)),
+      (!a.linked_card_id ||
+        (editId && editId > 0 && a.linked_card_id === editId)),
   );
 
   // Card data from expenses (for future extension - show spending by card)
@@ -87,16 +90,22 @@ export default function CardsManager() {
       setCardType("credito");
       setLinkedAccountId(null);
     },
-    onError: (error: { response?: { status?: number; data?: { detail?: string } } }) => {
+    onError: (error: {
+      response?: { status?: number; data?: { detail?: string } };
+    }) => {
       if (error.response?.status === 409) {
         const detail = error.response.data?.detail;
         setDuplicateFound({
           id: (detail as unknown as { existing_id: number })?.existing_id ?? 0,
           card_name:
-            (detail as unknown as { existing_card_name?: string })?.existing_card_name ?? "",
-          bank: (detail as unknown as { existing_bank?: string })?.existing_bank ?? "",
+            (detail as unknown as { existing_card_name?: string })
+              ?.existing_card_name ?? "",
+          bank:
+            (detail as unknown as { existing_bank?: string })?.existing_bank ??
+            "",
           card_type:
-            (detail as unknown as { existing_card_type?: string })?.existing_card_type ?? "credito",
+            (detail as unknown as { existing_card_type?: string })
+              ?.existing_card_type ?? "credito",
         });
       }
     },
@@ -173,7 +182,8 @@ export default function CardsManager() {
 
     const newErrors: { card_name?: string; bank?: string } = {};
     if (accountType === "tarjeta") {
-      if (!cardName.trim()) newErrors.card_name = "El nombre de la tarjeta es obligatorio";
+      if (!cardName.trim())
+        newErrors.card_name = "El nombre de la tarjeta es obligatorio";
       if (!bank.trim()) newErrors.bank = "El banco es obligatorio";
     } else {
       if (!cardName.trim()) newErrors.card_name = "El nombre es obligatorio";
@@ -239,7 +249,8 @@ export default function CardsManager() {
                     💳
                   </div>
                   <span className="text-xs font-medium text-secondary">
-                    {card.card_type === "credito" ? "Crédito" : "Débito"} — {card.bank}
+                    {card.card_type === "credito" ? "Crédito" : "Débito"} —{" "}
+                    {card.bank}
                   </span>
                 </div>
                 <div className="space-y-1.5">
@@ -261,10 +272,14 @@ export default function CardsManager() {
                     placeholder="Ej: Visa"
                     autoFocus
                   />
-                  {errors.card_name && <p className="text-xs text-red-500">{errors.card_name}</p>}
+                  {errors.card_name && (
+                    <p className="text-xs text-red-500">{errors.card_name}</p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">
+                    Banco
+                  </label>
                   <input
                     type="text"
                     value={bank}
@@ -279,10 +294,14 @@ export default function CardsManager() {
                     }`}
                     placeholder="Ej: Galicia"
                   />
-                  {errors.bank && <p className="text-xs text-red-500">{errors.bank}</p>}
+                  {errors.bank && (
+                    <p className="text-xs text-red-500">{errors.bank}</p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-[var(--text-secondary)]">Tipo</label>
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">
+                    Tipo
+                  </label>
                   <Select
                     value={cardType}
                     onChange={(v) => {
@@ -295,31 +314,36 @@ export default function CardsManager() {
                     ]}
                   />
                 </div>
-                {cardType === "debito" && availableLinkedAccounts.length > 0 && (
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-[var(--text-secondary)]">
-                      Vincular a cuenta
-                    </label>
-                    <Select
-                      value={String(linkedAccountId || "")}
-                      onChange={(v) => setLinkedAccountId(v ? Number(v) : null)}
-                      options={[
-                        { value: "", label: "Sin vinculación" },
-                        ...availableLinkedAccounts.map((a) => ({
-                          value: String(a.id),
-                          label: a.name,
-                        })),
-                      ]}
-                    />
-                  </div>
-                )}
+                {cardType === "debito" &&
+                  availableLinkedAccounts.length > 0 && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-[var(--text-secondary)]">
+                        Vincular a cuenta
+                      </label>
+                      <Select
+                        value={String(linkedAccountId || "")}
+                        onChange={(v) =>
+                          setLinkedAccountId(v ? Number(v) : null)
+                        }
+                        options={[
+                          { value: "", label: "Sin vinculación" },
+                          ...availableLinkedAccounts.map((a) => ({
+                            value: String(a.id),
+                            label: a.name,
+                          })),
+                        ]}
+                      />
+                    </div>
+                  )}
                 <div className="flex gap-2 pt-2">
                   <button
                     type="submit"
                     disabled={createMut.isPending || updateMut.isPending}
                     className="flex-1 px-4 py-2 rounded-md bg-[var(--color-primary)] text-[var(--color-on-primary)] text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"
                   >
-                    {createMut.isPending || updateMut.isPending ? "Guardando..." : "Guardar"}
+                    {createMut.isPending || updateMut.isPending
+                      ? "Guardando..."
+                      : "Guardar"}
                   </button>
                   <button
                     type="button"
@@ -353,7 +377,9 @@ export default function CardsManager() {
                         : card.card_type}{" "}
                     — {card.bank}
                   </div>
-                  <div className="text-xs text-tertiary mt-0.5">Titular: {card.holder || "—"}</div>
+                  <div className="text-xs text-tertiary mt-0.5">
+                    Titular: {card.holder || "—"}
+                  </div>
                   {card.linked_account_name && (
                     <div className="text-xs text-[var(--color-success)] mt-0.5">
                       Vinculada a: {card.linked_account_name}
@@ -372,12 +398,19 @@ export default function CardsManager() {
                   </button>
                   {isMenuOpen && (
                     <>
-                      <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(null)} />
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setMenuOpen(null)}
+                      />
                       <div className="absolute right-0 top-8 z-50 w-28 bg-surface border border-border-color rounded-lg shadow-lg overflow-hidden">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setDeleteConfirm({ type: "card", id: card.id, name: card.card_name });
+                            setDeleteConfirm({
+                              type: "card",
+                              id: card.id,
+                              name: card.card_name,
+                            });
                           }}
                           disabled={deleteMut.isPending}
                           className="w-full px-3 py-2 text-xs text-left text-danger hover:bg-danger/10 transition-colors disabled:opacity-50"
@@ -420,7 +453,8 @@ export default function CardsManager() {
                 ? cardType === "credito"
                   ? "Crédito"
                   : "Débito"
-                : ACCOUNT_TYPES.find((t) => t.value === accountType)?.label || accountType}
+                : ACCOUNT_TYPES.find((t) => t.value === accountType)?.label ||
+                  accountType}
             </span>
           </div>
           <div className="space-y-1.5">
@@ -430,7 +464,10 @@ export default function CardsManager() {
             <Select
               value={accountType}
               onChange={(v) => setAccountType(v)}
-              options={ACCOUNT_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+              options={ACCOUNT_TYPES.map((t) => ({
+                value: t.value,
+                label: t.label,
+              }))}
             />
           </div>
 
@@ -476,7 +513,9 @@ export default function CardsManager() {
                 </div>
               )}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
+                <label className="text-xs font-medium text-[var(--text-secondary)]">
+                  Banco
+                </label>
                 <input
                   type="text"
                   value={bank}
@@ -491,13 +530,17 @@ export default function CardsManager() {
                   }`}
                   placeholder="Ej: Galicia"
                 />
-                {errors.bank && <p className="text-xs text-red-500">{errors.bank}</p>}
+                {errors.bank && (
+                  <p className="text-xs text-red-500">{errors.bank}</p>
+                )}
               </div>
             </div>
           )}
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--text-secondary)]">Tarjeta</label>
+            <label className="text-xs font-medium text-[var(--text-secondary)]">
+              Tarjeta
+            </label>
             <input
               type="text"
               value={cardName}
@@ -510,10 +553,14 @@ export default function CardsManager() {
                   ? "border-red-500 focus:ring-red-300 focus:border-red-500"
                   : "border-[var(--border-color)] focus:border-primary"
               }`}
-              placeholder={accountType === "tarjeta" ? "Ej: Visa Galicia" : "Ej: Mi Cuenta"}
+              placeholder={
+                accountType === "tarjeta" ? "Ej: Visa Galicia" : "Ej: Mi Cuenta"
+              }
               autoFocus
             />
-            {errors.card_name && <p className="text-xs text-red-500">{errors.card_name}</p>}
+            {errors.card_name && (
+              <p className="text-xs text-red-500">{errors.card_name}</p>
+            )}
           </div>
 
           <div className="flex gap-2 pt-2">
@@ -522,9 +569,15 @@ export default function CardsManager() {
               disabled={createMut.isPending || createAccountMut.isPending}
               className="flex-1 gnome-btn-primary"
             >
-              {createMut.isPending || createAccountMut.isPending ? "Creando..." : "Crear"}
+              {createMut.isPending || createAccountMut.isPending
+                ? "Creando..."
+                : "Crear"}
             </button>
-            <button type="button" onClick={handleCancel} className="flex-1 gnome-btn-secondary">
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="flex-1 gnome-btn-secondary"
+            >
               Cancelar
             </button>
           </div>
@@ -534,11 +587,15 @@ export default function CardsManager() {
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-surface rounded-xl shadow-xl p-6 max-w-sm w-full">
-            <h3 className="text-lg font-semibold text-primary mb-2">Confirmar eliminación</h3>
+            <h3 className="text-lg font-semibold text-primary mb-2">
+              Confirmar eliminación
+            </h3>
             <p className="text-sm text-secondary mb-6">
               ¿Estás seguro de eliminar{" "}
-              <span className="font-medium text-primary">"{deleteConfirm.name}"</span>? Esta acción
-              no se puede deshacer.
+              <span className="font-medium text-primary">
+                "{deleteConfirm.name}"
+              </span>
+              ? Esta acción no se puede deshacer.
             </p>
             <div className="flex gap-3">
               <button
@@ -565,10 +622,14 @@ export default function CardsManager() {
       {duplicateFound && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-surface rounded-xl shadow-xl p-6 max-w-sm w-full">
-            <h3 className="text-lg font-semibold text-primary mb-2">Tarjeta existente</h3>
+            <h3 className="text-lg font-semibold text-primary mb-2">
+              Tarjeta existente
+            </h3>
             <p className="text-sm text-secondary mb-6">
               Ya existe una tarjeta con estos datos:{" "}
-              <span className="font-medium text-primary">"{duplicateFound.card_name}"</span>
+              <span className="font-medium text-primary">
+                "{duplicateFound.card_name}"
+              </span>
             </p>
             <div className="flex gap-3">
               <button
@@ -585,7 +646,9 @@ export default function CardsManager() {
               </button>
               <button
                 onClick={() => {
-                  const cardToEdit = cards.find((c) => c.id === duplicateFound.id);
+                  const cardToEdit = cards.find(
+                    (c) => c.id === duplicateFound.id,
+                  );
                   if (cardToEdit) {
                     setEditId(duplicateFound.id);
                     setCardName(cardToEdit.card_name);

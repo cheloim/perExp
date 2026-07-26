@@ -34,13 +34,17 @@ export default function OAuthCallbackPage() {
           return;
         }
         if (token.mfa_required) {
-          navigate("/login?mfa=1", { replace: true, state: { token: token.access_token } });
+          navigate("/login?mfa=1", {
+            replace: true,
+            state: { token: token.access_token },
+          });
           return;
         }
         storeToken(token.access_token);
         navigate("/", { replace: true });
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Error al autenticar con Google";
+        const msg =
+          err instanceof Error ? err.message : "Error al autenticar con Google";
         setError(msg);
         setLoading(false);
       }
@@ -61,7 +65,9 @@ export default function OAuthCallbackPage() {
               {APP_NAME}
             </h1>
           </div>
-          <p className="text-sm text-[var(--text-secondary)]">Autenticando con Google...</p>
+          <p className="text-sm text-[var(--text-secondary)]">
+            Autenticando con Google...
+          </p>
         </div>
       </div>
     );

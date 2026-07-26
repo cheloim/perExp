@@ -9,7 +9,13 @@ interface DetailModalProps {
   children: React.ReactNode;
 }
 
-export function DetailModal({ isOpen, onClose, title, subtitle, children }: DetailModalProps) {
+export function DetailModal({
+  isOpen,
+  onClose,
+  title,
+  subtitle,
+  children,
+}: DetailModalProps) {
   const trapRef = useFocusTrap(isOpen);
 
   useEffect(() => {
@@ -44,7 +50,9 @@ export function DetailModal({ isOpen, onClose, title, subtitle, children }: Deta
             >
               {title}
             </h2>
-            {subtitle && <p className="text-xs text-[var(--text-tertiary)]">{subtitle}</p>}
+            {subtitle && (
+              <p className="text-xs text-[var(--text-tertiary)]">{subtitle}</p>
+            )}
           </div>
           <button
             onClick={onClose}

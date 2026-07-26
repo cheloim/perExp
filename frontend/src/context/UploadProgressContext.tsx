@@ -9,7 +9,9 @@ interface UploadProgressContextType {
   cancelUpload: (id: string) => void;
 }
 
-const UploadProgressContext = createContext<UploadProgressContextType | undefined>(undefined);
+const UploadProgressContext = createContext<
+  UploadProgressContextType | undefined
+>(undefined);
 
 export function UploadProgressProvider({ children }: { children: ReactNode }) {
   const [uploads, setUploads] = useState<UploadProgress[]>([]);
@@ -21,7 +23,9 @@ export function UploadProgressProvider({ children }: { children: ReactNode }) {
   };
 
   const updateUpload = (id: string, updates: Partial<UploadProgress>) => {
-    setUploads((prev) => prev.map((u) => (u.id === id ? { ...u, ...updates } : u)));
+    setUploads((prev) =>
+      prev.map((u) => (u.id === id ? { ...u, ...updates } : u)),
+    );
   };
 
   const removeUpload = (id: string) => {
@@ -48,7 +52,9 @@ export function UploadProgressProvider({ children }: { children: ReactNode }) {
 export function useUploadProgress() {
   const context = useContext(UploadProgressContext);
   if (!context) {
-    throw new Error("useUploadProgress must be used within UploadProgressProvider");
+    throw new Error(
+      "useUploadProgress must be used within UploadProgressProvider",
+    );
   }
   return context;
 }

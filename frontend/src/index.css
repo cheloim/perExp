@@ -13,7 +13,10 @@
     display: none;
   }
   .pb-safe {
-    padding-bottom: var(--browser-bottom-inset, env(safe-area-inset-bottom, 0px));
+    padding-bottom: var(
+      --browser-bottom-inset,
+      env(safe-area-inset-bottom, 0px)
+    );
   }
 }
 
@@ -50,7 +53,8 @@
 }
 
 :root {
-  --font-family: "Inter", "Cantarell", "Ubuntu", system-ui, -apple-system, sans-serif;
+  --font-family:
+    "Inter", "Cantarell", "Ubuntu", system-ui, -apple-system, sans-serif;
 
   --color-base: #f6f5f4;
   --color-base-alt: #deddda;

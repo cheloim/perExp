@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  ReferenceLine,
+} from "recharts";
 import {
   getInstallmentsDashboard,
   getInstallmentsMonthlyLoad,
@@ -12,7 +20,12 @@ import {
 import type { InstallmentGroup, ExpenseCreate } from "../types";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ExpenseModal } from "../components/ExpenseModals";
-import { formatCurrency, toUpperCase, formatDateDMY, MONTHS_ES_SHORT } from "../utils/format";
+import {
+  formatCurrency,
+  toUpperCase,
+  formatDateDMY,
+  MONTHS_ES_SHORT,
+} from "../utils/format";
 
 export default function InstallmentsPage() {
   const queryClient = useQueryClient();
@@ -20,7 +33,9 @@ export default function InstallmentsPage() {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [personFilter, setPersonFilter] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
-  const [selectedGroup, setSelectedGroup] = useState<InstallmentGroup | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<InstallmentGroup | null>(
+    null,
+  );
   const [showScheduledModal, setShowScheduledModal] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState<number | null>(null);
   const [editing, setEditing] = useState<null | undefined>(undefined);
@@ -31,7 +46,9 @@ export default function InstallmentsPage() {
     onSuccess: () => {
       setEditing(undefined);
       queryClient.invalidateQueries({ queryKey: ["installments"] });
-      queryClient.invalidateQueries({ queryKey: ["installments-monthly-load"] });
+      queryClient.invalidateQueries({
+        queryKey: ["installments-monthly-load"],
+      });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
     onError: (err: Error) => setSaveError(err.message),
@@ -49,15 +66,16 @@ export default function InstallmentsPage() {
     staleTime: 60_000,
   });
 
-  const { data: scheduledForGroup = [], isLoading: scheduledLoading } = useQuery({
-    queryKey: ["scheduled-expenses", selectedGroup?.installment_group_id],
-    queryFn: () =>
-      getScheduledExpenses({
-        installment_group_id: selectedGroup?.installment_group_id,
-        status: "PENDING",
-      }),
-    enabled: !!selectedGroup,
-  });
+  const { data: scheduledForGroup = [], isLoading: scheduledLoading } =
+    useQuery({
+      queryKey: ["scheduled-expenses", selectedGroup?.installment_group_id],
+      queryFn: () =>
+        getScheduledExpenses({
+          installment_group_id: selectedGroup?.installment_group_id,
+          status: "PENDING",
+        }),
+      enabled: !!selectedGroup,
+    });
 
   const executeMutation = useMutation({
     mutationFn: executeScheduledExpense,
@@ -101,15 +119,25 @@ export default function InstallmentsPage() {
   const currentMonthCount = currentMonthData?.count ?? 0;
 
   const paymentMethods = [
-    ...new Set(groups.map((g) => (g.card ? `${g.bank} · ${g.card}` : g.bank || "Sin definir"))),
+    ...new Set(
+      groups.map((g) =>
+        g.card ? `${g.bank} · ${g.card}` : g.bank || "Sin definir",
+      ),
+    ),
   ].sort();
-  const categories = [...new Set(groups.map((g) => g.category_name).filter(Boolean))].sort();
-  const persons = [...new Set(groups.map((g) => g.person).filter(Boolean))].sort();
+  const categories = [
+    ...new Set(groups.map((g) => g.category_name).filter(Boolean)),
+  ].sort();
+  const persons = [
+    ...new Set(groups.map((g) => g.person).filter(Boolean)),
+  ].sort();
 
   const filtered = groups.filter((g) => {
     if (!showCompleted && g.remaining_installments === 0) return false;
     if (paymentFilter) {
-      const displayKey = g.card ? `${g.bank} · ${g.card}` : g.bank || "Sin definir";
+      const displayKey = g.card
+        ? `${g.bank} · ${g.card}`
+        : g.bank || "Sin definir";
       if (displayKey !== paymentFilter) return false;
     }
     if (categoryFilter && g.category_name !== categoryFilter) return false;
@@ -129,7 +157,10 @@ export default function InstallmentsPage() {
     return (
       <div className="text-center py-20">
         <p className="text-4xl mb-4">💳</p>
-        <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+        <h2
+          className="text-lg font-semibold"
+          style={{ color: "var(--text-primary)" }}
+        >
           Sin compras en cuotas
         </h2>
         <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
@@ -142,18 +173,29 @@ export default function InstallmentsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold text-primary">Gastos en Cuotas</h1>
-        <button onClick={() => setEditing(null)} className="gnome-btn-primary-round text-sm">
+        <h1 className="text-2xl font-semibold text-primary">
+          Gastos en Cuotas
+        </h1>
+        <button
+          onClick={() => setEditing(null)}
+          className="gnome-btn-primary-round text-sm"
+        >
           <span className="text-base leading-none">+</span>
           <span>Nuevo gasto</span>
         </button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="card p-4">
-          <p className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>
+          <p
+            className="text-xs mb-1"
+            style={{ color: "var(--text-secondary)" }}
+          >
             Este mes
           </p>
-          <p className="text-2xl font-bold" style={{ color: "var(--color-success)" }}>
+          <p
+            className="text-2xl font-bold"
+            style={{ color: "var(--color-success)" }}
+          >
             {currentMonthCount}
           </p>
           <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
@@ -161,10 +203,16 @@ export default function InstallmentsPage() {
           </p>
         </div>
         <div className="card p-4">
-          <p className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>
+          <p
+            className="text-xs mb-1"
+            style={{ color: "var(--text-secondary)" }}
+          >
             Total pendiente
           </p>
-          <p className="text-2xl font-bold" style={{ color: "var(--color-primary)" }}>
+          <p
+            className="text-2xl font-bold"
+            style={{ color: "var(--color-primary)" }}
+          >
             {formatCurrency(totalPending)}
           </p>
           <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
@@ -176,7 +224,10 @@ export default function InstallmentsPage() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2 space-y-5">
           <div className="card p-5">
-            <h2 className="text-base font-semibold mb-1" style={{ color: "var(--text-primary)" }}>
+            <h2
+              className="text-base font-semibold mb-1"
+              style={{ color: "var(--text-primary)" }}
+            >
               Carga Mensual En Cuotas
             </h2>
             {(() => {
@@ -184,7 +235,10 @@ export default function InstallmentsPage() {
               const currentTotal = currentEntry?.total ?? 0;
               return (
                 <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={monthlyLoad} margin={{ top: 20, right: 8, left: 8, bottom: 0 }}>
+                  <BarChart
+                    data={monthlyLoad}
+                    margin={{ top: 20, right: 8, left: 8, bottom: 0 }}
+                  >
                     <defs>
                       {monthlyLoad.map((e) => {
                         let baseColor = "var(--color-primary)";
@@ -192,7 +246,9 @@ export default function InstallmentsPage() {
                         else if (e.is_past) baseColor = "var(--gnome-yellow-3)";
                         else if (currentTotal > 0)
                           baseColor =
-                            e.total > currentTotal ? "var(--color-danger)" : "var(--color-primary)";
+                            e.total > currentTotal
+                              ? "var(--color-danger)"
+                              : "var(--color-primary)";
                         return (
                           <linearGradient
                             key={e.month}
@@ -202,8 +258,16 @@ export default function InstallmentsPage() {
                             x2="0"
                             y2="1"
                           >
-                            <stop offset="0%" stopColor={baseColor} stopOpacity={1} />
-                            <stop offset="100%" stopColor={baseColor} stopOpacity={0.55} />
+                            <stop
+                              offset="0%"
+                              stopColor={baseColor}
+                              stopOpacity={1}
+                            />
+                            <stop
+                              offset="100%"
+                              stopColor={baseColor}
+                              stopOpacity={0.55}
+                            />
                           </linearGradient>
                         );
                       })}
@@ -246,7 +310,10 @@ export default function InstallmentsPage() {
                         if (!entry?.is_current && currentTotal > 0) {
                           const pct = ((v - currentTotal) / currentTotal) * 100;
                           const sign = pct > 0 ? "+" : "";
-                          const color = pct > 0 ? "var(--color-danger)" : "var(--color-success)";
+                          const color =
+                            pct > 0
+                              ? "var(--color-danger)"
+                              : "var(--color-success)";
                           return [
                             <span>
                               {formatCurrency(v)}{" "}
@@ -273,7 +340,9 @@ export default function InstallmentsPage() {
                         fontSize: 10,
                         fill: "var(--text-secondary)",
                         formatter: (v: number) =>
-                          new Intl.NumberFormat("es-AR", { notation: "compact" }).format(v),
+                          new Intl.NumberFormat("es-AR", {
+                            notation: "compact",
+                          }).format(v),
                       }}
                     >
                       {monthlyLoad.map((e) => (
@@ -295,9 +364,15 @@ export default function InstallmentsPage() {
               className="px-5 py-3 border-b flex items-center justify-between"
               style={{ borderColor: "var(--border-color)" }}
             >
-              <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+              <h2
+                className="text-base font-semibold"
+                style={{ color: "var(--text-primary)" }}
+              >
                 Compras En Cuotas
-                <span className="ml-2 text-xs" style={{ color: "var(--text-secondary)" }}>
+                <span
+                  className="ml-2 text-xs"
+                  style={{ color: "var(--text-secondary)" }}
+                >
                   {filtered.length} registros
                 </span>
               </h2>
@@ -307,9 +382,15 @@ export default function InstallmentsPage() {
                   showCompleted ? "" : ""
                 }`}
                 style={{
-                  backgroundColor: showCompleted ? "var(--color-primary)" : "transparent",
-                  color: showCompleted ? "var(--color-on-primary)" : "var(--text-secondary)",
-                  borderColor: showCompleted ? "var(--color-primary)" : "var(--border-color)",
+                  backgroundColor: showCompleted
+                    ? "var(--color-primary)"
+                    : "transparent",
+                  color: showCompleted
+                    ? "var(--color-on-primary)"
+                    : "var(--text-secondary)",
+                  borderColor: showCompleted
+                    ? "var(--color-primary)"
+                    : "var(--border-color)",
                 }}
               >
                 {showCompleted ? "Ocultar completadas" : "Mostrar completadas"}
@@ -317,14 +398,22 @@ export default function InstallmentsPage() {
             </div>
 
             {filtered.length === 0 ? (
-              <p className="text-sm text-center py-10" style={{ color: "var(--text-secondary)" }}>
+              <p
+                className="text-sm text-center py-10"
+                style={{ color: "var(--text-secondary)" }}
+              >
                 Sin resultados para los filtros seleccionados
               </p>
             ) : (
-              <div className="divide-y" style={{ borderColor: "var(--border-color)" }}>
+              <div
+                className="divide-y"
+                style={{ borderColor: "var(--border-color)" }}
+              >
                 {filtered.map((g) => {
                   const pct =
-                    g.installment_total > 0 ? (g.installments_paid / g.installment_total) * 100 : 0;
+                    g.installment_total > 0
+                      ? (g.installments_paid / g.installment_total) * 100
+                      : 0;
                   const done = g.remaining_installments === 0;
                   return (
                     <div
@@ -342,13 +431,17 @@ export default function InstallmentsPage() {
                         <div className="flex items-start gap-2.5 min-w-0 flex-1">
                           <span
                             className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1"
-                            style={{ backgroundColor: g.category_color || "#3584e4" }}
+                            style={{
+                              backgroundColor: g.category_color || "#3584e4",
+                            }}
                           />
                           <div className="min-w-0">
                             <p
                               className="text-sm font-medium truncate"
                               style={{
-                                color: done ? "var(--text-secondary)" : "var(--text-primary)",
+                                color: done
+                                  ? "var(--text-secondary)"
+                                  : "var(--text-primary)",
                               }}
                             >
                               {toUpperCase(g.description)}
@@ -370,13 +463,18 @@ export default function InstallmentsPage() {
                               style={{ color: "var(--text-secondary)" }}
                             >
                               {g.person && (
-                                <span className="text-[var(--color-primary)]">{g.person}</span>
+                                <span className="text-[var(--color-primary)]">
+                                  {g.person}
+                                </span>
                               )}
                               {g.person && g.bank ? " · " : ""}
                               {g.bank}
                               {g.card ? ` · ${g.card}` : ""}
                               {g.next_date && !done && (
-                                <> · próxima: {formatDateDMY(g.next_date, "—")}</>
+                                <>
+                                  {" "}
+                                  · próxima: {formatDateDMY(g.next_date, "—")}
+                                </>
                               )}
                             </p>
                           </div>
@@ -386,14 +484,21 @@ export default function InstallmentsPage() {
                             <p
                               className="text-sm font-medium"
                               style={{
-                                color: done ? "var(--text-secondary)" : "var(--text-primary)",
+                                color: done
+                                  ? "var(--text-secondary)"
+                                  : "var(--text-primary)",
                               }}
                             >
                               {formatCurrency(g.installment_amount, g.currency)}
                             </p>
-                            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                            <p
+                              className="text-xs"
+                              style={{ color: "var(--text-secondary)" }}
+                            >
                               {done ? (
-                                <span style={{ color: "var(--color-success)" }}>✓ Completada</span>
+                                <span style={{ color: "var(--color-success)" }}>
+                                  ✓ Completada
+                                </span>
                               ) : (
                                 <>
                                   {g.remaining_installments} restante
@@ -448,7 +553,10 @@ export default function InstallmentsPage() {
         <div className="xl:col-span-1">
           <div className="card p-5 sticky top-4 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+              <h2
+                className="text-base font-semibold"
+                style={{ color: "var(--text-primary)" }}
+              >
                 Filtros
               </h2>
               {(paymentFilter || categoryFilter) && (
@@ -483,8 +591,12 @@ export default function InstallmentsPage() {
                       onClick={() => setPaymentFilter(null)}
                       className="text-xs px-3 py-1.5 rounded-lg border transition-all"
                       style={{
-                        backgroundColor: !paymentFilter ? "var(--color-primary)" : "transparent",
-                        color: !paymentFilter ? "var(--color-on-primary)" : "var(--text-secondary)",
+                        backgroundColor: !paymentFilter
+                          ? "var(--color-primary)"
+                          : "transparent",
+                        color: !paymentFilter
+                          ? "var(--color-on-primary)"
+                          : "var(--text-secondary)",
                         borderColor: !paymentFilter
                           ? "var(--color-primary)"
                           : "var(--border-color)",
@@ -496,17 +608,23 @@ export default function InstallmentsPage() {
                   {paymentMethods.map((pm) => (
                     <button
                       key={pm}
-                      onClick={() => setPaymentFilter(paymentFilter === pm ? null : pm)}
+                      onClick={() =>
+                        setPaymentFilter(paymentFilter === pm ? null : pm)
+                      }
                       className="text-xs px-3 py-1.5 rounded-lg border transition-all"
                       style={{
                         backgroundColor:
-                          paymentFilter === pm ? "var(--color-primary)" : "transparent",
+                          paymentFilter === pm
+                            ? "var(--color-primary)"
+                            : "transparent",
                         color:
                           paymentFilter === pm
                             ? "var(--color-on-primary)"
                             : "var(--text-secondary)",
                         borderColor:
-                          paymentFilter === pm ? "var(--color-primary)" : "var(--border-color)",
+                          paymentFilter === pm
+                            ? "var(--color-primary)"
+                            : "var(--border-color)",
                       }}
                     >
                       {pm}
@@ -530,7 +648,9 @@ export default function InstallmentsPage() {
                       onClick={() => setCategoryFilter(null)}
                       className="text-xs px-3 py-1.5 rounded-lg border transition-all"
                       style={{
-                        backgroundColor: !categoryFilter ? "var(--color-primary)" : "transparent",
+                        backgroundColor: !categoryFilter
+                          ? "var(--color-primary)"
+                          : "transparent",
                         color: !categoryFilter
                           ? "var(--color-on-primary)"
                           : "var(--text-secondary)",
@@ -545,17 +665,23 @@ export default function InstallmentsPage() {
                   {categories.map((c) => (
                     <button
                       key={c}
-                      onClick={() => setCategoryFilter(categoryFilter === c ? null : c)}
+                      onClick={() =>
+                        setCategoryFilter(categoryFilter === c ? null : c)
+                      }
                       className="text-xs px-3 py-1.5 rounded-lg border transition-all"
                       style={{
                         backgroundColor:
-                          categoryFilter === c ? "var(--color-primary)" : "transparent",
+                          categoryFilter === c
+                            ? "var(--color-primary)"
+                            : "transparent",
                         color:
                           categoryFilter === c
                             ? "var(--color-on-primary)"
                             : "var(--text-secondary)",
                         borderColor:
-                          categoryFilter === c ? "var(--color-primary)" : "var(--border-color)",
+                          categoryFilter === c
+                            ? "var(--color-primary)"
+                            : "var(--border-color)",
                       }}
                     >
                       {c}
@@ -579,9 +705,15 @@ export default function InstallmentsPage() {
                       onClick={() => setPersonFilter(null)}
                       className="text-xs px-3 py-1.5 rounded-lg border transition-all"
                       style={{
-                        backgroundColor: !personFilter ? "var(--color-primary)" : "transparent",
-                        color: !personFilter ? "var(--color-on-primary)" : "var(--text-secondary)",
-                        borderColor: !personFilter ? "var(--color-primary)" : "var(--border-color)",
+                        backgroundColor: !personFilter
+                          ? "var(--color-primary)"
+                          : "transparent",
+                        color: !personFilter
+                          ? "var(--color-on-primary)"
+                          : "var(--text-secondary)",
+                        borderColor: !personFilter
+                          ? "var(--color-primary)"
+                          : "var(--border-color)",
                       }}
                     >
                       Todas
@@ -590,15 +722,23 @@ export default function InstallmentsPage() {
                   {persons.map((p) => (
                     <button
                       key={p}
-                      onClick={() => setPersonFilter(personFilter === p ? null : p)}
+                      onClick={() =>
+                        setPersonFilter(personFilter === p ? null : p)
+                      }
                       className="text-xs px-3 py-1.5 rounded-lg border transition-all"
                       style={{
                         backgroundColor:
-                          personFilter === p ? "var(--color-primary)" : "transparent",
+                          personFilter === p
+                            ? "var(--color-primary)"
+                            : "transparent",
                         color:
-                          personFilter === p ? "var(--color-on-primary)" : "var(--text-secondary)",
+                          personFilter === p
+                            ? "var(--color-on-primary)"
+                            : "var(--text-secondary)",
                         borderColor:
-                          personFilter === p ? "var(--color-primary)" : "var(--border-color)",
+                          personFilter === p
+                            ? "var(--color-primary)"
+                            : "var(--border-color)",
                       }}
                     >
                       {p}
@@ -625,7 +765,10 @@ export default function InstallmentsPage() {
               className="flex items-center justify-between mb-4 pb-3 border-b"
               style={{ borderColor: "var(--border-color)" }}
             >
-              <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+              <h2
+                className="text-base font-semibold"
+                style={{ color: "var(--text-primary)" }}
+              >
                 Cuotas Programadas: {toUpperCase(selectedGroup.description)}
               </h2>
               <button
@@ -647,7 +790,10 @@ export default function InstallmentsPage() {
                   ))}
                 </div>
               ) : scheduledForGroup.length === 0 ? (
-                <p className="text-sm text-center py-4" style={{ color: "var(--text-secondary)" }}>
+                <p
+                  className="text-sm text-center py-4"
+                  style={{ color: "var(--text-secondary)" }}
+                >
                   No hay cuotas programadas
                 </p>
               ) : (
@@ -657,11 +803,18 @@ export default function InstallmentsPage() {
                     className="flex items-center justify-between p-3 rounded-lg transition-colors hover:bg-[var(--color-base-alt)] cursor-pointer"
                   >
                     <div>
-                      <p className="font-medium" style={{ color: "var(--text-primary)" }}>
+                      <p
+                        className="font-medium"
+                        style={{ color: "var(--text-primary)" }}
+                      >
                         Cuota {s.installment_number}/{s.installment_total}
                       </p>
-                      <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-                        {formatDateDMY(s.scheduled_date)} · {formatCurrency(s.amount, s.currency)}
+                      <p
+                        className="text-xs"
+                        style={{ color: "var(--text-tertiary)" }}
+                      >
+                        {formatDateDMY(s.scheduled_date)} ·{" "}
+                        {formatCurrency(s.amount, s.currency)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">

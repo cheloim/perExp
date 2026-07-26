@@ -12,12 +12,19 @@ let toastId = 0;
 
 export function useUndoToast() {
   const [toasts, setToasts] = useState<UndoToast[]>([]);
-  const timersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const timersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(
+    new Map(),
+  );
 
   // Listen for global toast events
   useEffect(() => {
     const handleToast = (
-      e: CustomEvent<{ message: string; type: string; duration: number; position: string }>,
+      e: CustomEvent<{
+        message: string;
+        type: string;
+        duration: number;
+        position: string;
+      }>,
     ) => {
       const { message, type, duration, position } = e.detail;
       const id = ++toastId;
@@ -36,17 +43,24 @@ export function useUndoToast() {
           id,
           message,
           type: type === "undo" ? "undo" : "info",
-          position: (position as "bottom-center" | "top-right") || "bottom-center",
+          position:
+            (position as "bottom-center" | "top-right") || "bottom-center",
         },
       ]);
     };
 
     window.addEventListener("show-toast", handleToast as EventListener);
-    return () => window.removeEventListener("show-toast", handleToast as EventListener);
+    return () =>
+      window.removeEventListener("show-toast", handleToast as EventListener);
   }, []);
 
   const show = useCallback(
-    (message: string, onConfirm: () => void, onUndo?: () => void, duration = 5000) => {
+    (
+      message: string,
+      onConfirm: () => void,
+      onUndo?: () => void,
+      duration = 5000,
+    ) => {
       const id = ++toastId;
 
       const removeToast = () => {
@@ -71,7 +85,13 @@ export function useUndoToast() {
 
       setToasts((prev) => [
         ...prev,
-        { id, message, onUndo: handleUndo, type: "undo", position: "bottom-center" },
+        {
+          id,
+          message,
+          onUndo: handleUndo,
+          type: "undo",
+          position: "bottom-center",
+        },
       ]);
     },
     [],
@@ -141,7 +161,13 @@ export function useUndoToast() {
                   fill="none"
                   className="text-[var(--color-primary)]"
                 >
-                  <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
+                  <circle
+                    cx="8"
+                    cy="8"
+                    r="7"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  />
                   <path
                     d="M8 4v4M8 10v0.5"
                     stroke="currentColor"

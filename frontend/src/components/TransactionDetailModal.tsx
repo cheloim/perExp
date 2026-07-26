@@ -7,7 +7,10 @@ interface TransactionDetailModalProps {
   onClose: () => void;
 }
 
-export function TransactionDetailModal({ row, onClose }: TransactionDetailModalProps) {
+export function TransactionDetailModal({
+  row,
+  onClose,
+}: TransactionDetailModalProps) {
   if (!row) return null;
 
   return (
@@ -26,7 +29,10 @@ export function TransactionDetailModal({ row, onClose }: TransactionDetailModalP
 
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
           <DetailField label="Tarjeta" value={row.card_header || "-"} />
-          <DetailField label="Categoría" value={row.suggested_category || "-"} />
+          <DetailField
+            label="Categoría"
+            value={row.suggested_category || "-"}
+          />
           <DetailField
             label="Cuotas"
             value={
@@ -35,7 +41,10 @@ export function TransactionDetailModal({ row, onClose }: TransactionDetailModalP
                 : "-"
             }
           />
-          <DetailField label="Transaction ID" value={row.transaction_id || "-"} />
+          <DetailField
+            label="Transaction ID"
+            value={row.transaction_id || "-"}
+          />
         </dl>
 
         {(row.is_duplicate || row.is_auto_generated) && (
@@ -61,7 +70,9 @@ function DetailField({ label, value }: { label: string; value: string }) {
   return (
     <>
       <dt className="text-[var(--text-tertiary)] text-xs uppercase">{label}</dt>
-      <dd className="text-[var(--text-primary)] font-medium text-sm">{value}</dd>
+      <dd className="text-[var(--text-primary)] font-medium text-sm">
+        {value}
+      </dd>
     </>
   );
 }

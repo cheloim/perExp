@@ -12,7 +12,12 @@ import {
   initBudgetGroups,
 } from "../api/client";
 import { Select } from "../components/ui/Select";
-import type { BudgetGroup, BudgetEvent, BudgetSuggestion, BudgetSummaryItem } from "../types";
+import type {
+  BudgetGroup,
+  BudgetEvent,
+  BudgetSuggestion,
+  BudgetSummaryItem,
+} from "../types";
 import { formatCurrency } from "../utils/format";
 
 // ─── Donut Circle (50/30/20) ───────────────────────────────────
@@ -66,9 +71,12 @@ const DonutCircle = memo(function DonutCircle({
           </span>
         </div>
       </div>
-      <h3 className="text-sm font-semibold text-primary mb-1">{group.display_name}</h3>
+      <h3 className="text-sm font-semibold text-primary mb-1">
+        {group.display_name}
+      </h3>
       <p className="text-xs text-[var(--text-secondary)]">
-        {formatCurrency(group.amount - group.spent)} rest. de {formatCurrency(group.amount)}
+        {formatCurrency(group.amount - group.spent)} rest. de{" "}
+        {formatCurrency(group.amount)}
       </p>
       <div className="flex gap-4 mt-2 text-[10px] text-[var(--text-tertiary)]">
         <span>Asignado: {formatCurrency(group.amount)}</span>
@@ -119,7 +127,11 @@ function CategoryBar({
     } else if (pct >= 60) {
       statusBadge = { label: "Normal", color: "#e5a50a", bg: "#e5a50a/10" };
     } else {
-      statusBadge = { label: "Bien", color: "var(--color-success)", bg: "var(--color-success)/10" };
+      statusBadge = {
+        label: "Bien",
+        color: "var(--color-success)",
+        bg: "var(--color-success)/10",
+      };
     }
   }
 
@@ -161,15 +173,22 @@ function CategoryBar({
               className="w-3 h-3 rounded-full flex-shrink-0"
               style={{ backgroundColor: color }}
             />
-            <span className="text-sm font-medium text-[var(--text-primary)]">{name}</span>
+            <span className="text-sm font-medium text-[var(--text-primary)]">
+              {name}
+            </span>
           </div>
-          <span className="text-xs text-[var(--text-tertiary)] italic">Sin presupuesto</span>
+          <span className="text-xs text-[var(--text-tertiary)] italic">
+            Sin presupuesto
+          </span>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex-1 h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
             <div
               className="h-full rounded-full transition-all"
-              style={{ width: `${Math.min(noBudgetPct, 100)}%`, backgroundColor: noBudgetBarColor }}
+              style={{
+                width: `${Math.min(noBudgetPct, 100)}%`,
+                backgroundColor: noBudgetBarColor,
+              }}
             />
           </div>
           <span className="text-xs text-[var(--text-secondary)] whitespace-nowrap font-medium">
@@ -192,15 +211,23 @@ function CategoryBar({
       className="py-3 px-4 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors cursor-pointer"
       style={
         isOverBudget
-          ? { backgroundColor: "color-mix(in srgb, var(--color-danger) 10%, transparent)" }
+          ? {
+              backgroundColor:
+                "color-mix(in srgb, var(--color-danger) 10%, transparent)",
+            }
           : undefined
       }
       onClick={onClick}
     >
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-          <span className="text-sm font-medium text-[var(--text-primary)]">{name}</span>
+          <div
+            className="w-3 h-3 rounded-full flex-shrink-0"
+            style={{ backgroundColor: color }}
+          />
+          <span className="text-sm font-medium text-[var(--text-primary)]">
+            {name}
+          </span>
         </div>
         {statusBadge && (
           <span
@@ -210,7 +237,8 @@ function CategoryBar({
               backgroundColor: `color-mix(in srgb, ${statusBadge.color} 10%, transparent)`,
             }}
           >
-            {pct >= 100 ? "🔴" : pct >= 80 ? "🟠" : pct >= 60 ? "🟡" : "🟢"} {statusBadge.label}
+            {pct >= 100 ? "🔴" : pct >= 80 ? "🟠" : pct >= 60 ? "🟡" : "🟢"}{" "}
+            {statusBadge.label}
           </span>
         )}
       </div>
@@ -218,7 +246,10 @@ function CategoryBar({
         <div className="flex-1 h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
           <div
             className="h-full rounded-full transition-all"
-            style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }}
+            style={{
+              width: `${Math.min(pct, 100)}%`,
+              backgroundColor: barColor,
+            }}
           />
         </div>
         <span
@@ -258,12 +289,19 @@ function CategoryGroupSection({
 
   // Collect ALL subcategories from ALL parent categories, then filter by this group's budget_group
   const allSubcategories = allCategories.flatMap((cat) => cat.children);
-  const groupSubcategories = allSubcategories.filter((c) => c.budget_group === groupName);
+  const groupSubcategories = allSubcategories.filter(
+    (c) => c.budget_group === groupName,
+  );
   // Show all subcategories that have a budget OR have ever had expenses
-  const visibleSubcategories = groupSubcategories.filter((c) => c.has_budget || c.spent_amount > 0);
+  const visibleSubcategories = groupSubcategories.filter(
+    (c) => c.has_budget || c.spent_amount > 0,
+  );
 
   // Calculate totals from subcategories in this group
-  const totalBudget = groupSubcategories.reduce((s, c) => s + c.budget_amount, 0);
+  const totalBudget = groupSubcategories.reduce(
+    (s, c) => s + c.budget_amount,
+    0,
+  );
   const totalSpent = groupSubcategories.reduce((s, c) => s + c.spent_amount, 0);
   const totalRemaining = totalBudget - totalSpent;
 
@@ -284,7 +322,9 @@ function CategoryGroupSection({
           <h3 className="text-sm font-semibold text-primary">{displayName}</h3>
           <span className="text-xs text-[var(--text-tertiary)] bg-[var(--color-base-alt)] px-2 py-0.5 rounded-full">
             {visibleSubcategories.length}{" "}
-            {visibleSubcategories.length === 1 ? "subcategoría" : "subcategorías"}
+            {visibleSubcategories.length === 1
+              ? "subcategoría"
+              : "subcategorías"}
           </span>
         </div>
         <div className="flex items-center gap-4">
@@ -352,12 +392,18 @@ function EventCard({
   onLinkExpenses: (event: BudgetEvent) => void;
   onClick: (event: BudgetEvent) => void;
 }) {
-  const pct = event.total_amount > 0 ? (event.spent / event.total_amount) * 100 : 0;
+  const pct =
+    event.total_amount > 0 ? (event.spent / event.total_amount) * 100 : 0;
   const startDate = new Date(event.start_date);
   const endDate = new Date(event.end_date);
   const totalDays =
-    Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-  const daysLeft = Math.max(0, Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+    Math.ceil(
+      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+    ) + 1;
+  const daysLeft = Math.max(
+    0,
+    Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+  );
   const remaining = event.total_amount - event.spent;
 
   const barColor =
@@ -396,11 +442,15 @@ function EventCard({
       {/* Stats row */}
       <div className="grid grid-cols-4 gap-3 mb-3">
         <div className="text-center">
-          <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Días total</p>
+          <p className="text-[10px] text-[var(--text-tertiary)] uppercase">
+            Días total
+          </p>
           <p className="text-sm font-bold text-primary">{totalDays}</p>
         </div>
         <div className="text-center">
-          <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Restantes</p>
+          <p className="text-[10px] text-[var(--text-tertiary)] uppercase">
+            Restantes
+          </p>
           <p
             className={`text-sm font-bold ${daysLeft === 0 ? "text-[var(--text-tertiary)]" : "text-[var(--color-primary)]"}`}
           >
@@ -408,7 +458,9 @@ function EventCard({
           </p>
         </div>
         <div className="text-center">
-          <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Usado</p>
+          <p className="text-[10px] text-[var(--text-tertiary)] uppercase">
+            Usado
+          </p>
           <p
             className={`text-sm font-bold ${pct >= 100 ? "text-[var(--color-danger)]" : pct >= 80 ? "text-[#e8a100]" : "text-[var(--color-success)]"}`}
           >
@@ -416,7 +468,9 @@ function EventCard({
           </p>
         </div>
         <div className="text-center">
-          <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Quedan</p>
+          <p className="text-[10px] text-[var(--text-tertiary)] uppercase">
+            Quedan
+          </p>
           <p
             className={`text-sm font-bold ${remaining < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"}`}
           >
@@ -454,7 +508,11 @@ function EventCard({
 
 // ─── Suggestions Banner ────────────────────────────────────────
 
-function SuggestionsBanner({ suggestions }: { suggestions: BudgetSuggestion[] }) {
+function SuggestionsBanner({
+  suggestions,
+}: {
+  suggestions: BudgetSuggestion[];
+}) {
   const [expanded, setExpanded] = useState(false);
   const qc = useQueryClient();
 
@@ -506,7 +564,9 @@ function SuggestionsBanner({ suggestions }: { suggestions: BudgetSuggestion[] })
                 className="flex items-center justify-between py-2 border-t border-[var(--border-color)]"
               >
                 <div>
-                  <span className="text-xs font-medium text-primary">{s.category_name}</span>
+                  <span className="text-xs font-medium text-primary">
+                    {s.category_name}
+                  </span>
                   <span className="text-xs text-[var(--text-tertiary)] ml-2">
                     prom: {formatCurrency(s.avg_monthly)}/mes
                   </span>
@@ -549,7 +609,10 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
   // Get category IDs that have spending (from summary, including children)
   const spentCatIds = new Set(
     summary?.categories
-      .flatMap((c) => [c.category_id, ...c.children.map((ch) => ch.category_id)])
+      .flatMap((c) => [
+        c.category_id,
+        ...c.children.map((ch) => ch.category_id),
+      ])
       .filter((id): id is number => id !== null) ?? [],
   );
 
@@ -559,12 +622,17 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
   );
 
   // Filter to leaves that have spending
-  const categoriesWithSpending = leafCategories.filter((c) => spentCatIds.has(c.id));
+  const categoriesWithSpending = leafCategories.filter((c) =>
+    spentCatIds.has(c.id),
+  );
 
   // Group by parent for display
   const groupedByParent = new Map<
     string,
-    { parent: (typeof allCategories)[0] | null; children: typeof leafCategories }
+    {
+      parent: (typeof allCategories)[0] | null;
+      children: typeof leafCategories;
+    }
   >();
   for (const cat of categoriesWithSpending) {
     const parentId = String(cat.parent_id ?? "root");
@@ -582,7 +650,9 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
     for (const b of budgets) initial[b.category_id] = b.amount;
     return initial;
   });
-  const [groupAssignments, setGroupAssignments] = useState<Record<number, string>>(() => {
+  const [groupAssignments, setGroupAssignments] = useState<
+    Record<number, string>
+  >(() => {
     const initial: Record<number, string> = {};
     for (const c of categoriesWithSpending) {
       initial[c.id] = c.budget_group || "";
@@ -593,7 +663,8 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const { createBudget, updateCategoryGroup } = await import("../api/client");
+      const { createBudget, updateCategoryGroup } =
+        await import("../api/client");
       const promises = [];
       for (const [catId, amount] of Object.entries(amounts)) {
         if (amount > 0) {
@@ -617,13 +688,18 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
 
   // Filter by search
   const filteredCategories = searchQuery
-    ? categoriesWithSpending.filter((c) => c.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    ? categoriesWithSpending.filter((c) =>
+        c.name.toLowerCase().includes(searchQuery.toLowerCase()),
+      )
     : categoriesWithSpending;
 
   // Group filtered categories by parent for display
   const filteredGrouped = new Map<
     string,
-    { parent: (typeof allCategories)[0] | null; children: typeof leafCategories }
+    {
+      parent: (typeof allCategories)[0] | null;
+      children: typeof leafCategories;
+    }
   >();
   for (const cat of filteredCategories) {
     const parentId = String(cat.parent_id ?? "root");
@@ -687,7 +763,12 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
                     </span>
                     <Select
                       value={groupAssignments[cat.id] || ""}
-                      onChange={(v) => setGroupAssignments({ ...groupAssignments, [cat.id]: v })}
+                      onChange={(v) =>
+                        setGroupAssignments({
+                          ...groupAssignments,
+                          [cat.id]: v,
+                        })
+                      }
                       options={[
                         { value: "", label: "Sin grupo" },
                         { value: "necesidades", label: "Necesidades" },
@@ -699,10 +780,15 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
                       type="number"
                       value={amounts[cat.id] || budgetAmounts.get(cat.id) || ""}
                       onChange={(e) =>
-                        setAmounts({ ...amounts, [cat.id]: parseFloat(e.target.value) || 0 })
+                        setAmounts({
+                          ...amounts,
+                          [cat.id]: parseFloat(e.target.value) || 0,
+                        })
                       }
                       placeholder={
-                        budgetAmounts.has(cat.id) ? formatCurrency(budgetAmounts.get(cat.id)!) : "0"
+                        budgetAmounts.has(cat.id)
+                          ? formatCurrency(budgetAmounts.get(cat.id)!)
+                          : "0"
                       }
                       className="input flex-1 !py-1.5"
                     />
@@ -756,7 +842,10 @@ function EditGroupModal({ onClose }: { onClose: () => void }) {
     return initial;
   });
 
-  const totalPercentage = Object.values(groupData).reduce((s, g) => s + g.percentage, 0);
+  const totalPercentage = Object.values(groupData).reduce(
+    (s, g) => s + g.percentage,
+    0,
+  );
 
   const updateMutation = useMutation({
     mutationFn: async () => {
@@ -766,7 +855,10 @@ function EditGroupModal({ onClose }: { onClose: () => void }) {
         const grp = allGroups.find((g) => g.name === name);
         if (grp) {
           promises.push(
-            updateBudgetGroup(grp.id, { percentage: data.percentage, amount: data.amount }),
+            updateBudgetGroup(grp.id, {
+              percentage: data.percentage,
+              amount: data.amount,
+            }),
           );
         }
       }
@@ -782,11 +874,18 @@ function EditGroupModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="card w-full max-w-md p-6">
-        <h3 className="text-base font-semibold text-primary mb-4">Editar grupos</h3>
+        <h3 className="text-base font-semibold text-primary mb-4">
+          Editar grupos
+        </h3>
         <div className="space-y-4">
           {allGroups.map((g) => (
-            <div key={g.name} className="p-3 rounded-lg border border-[var(--border-color)]">
-              <p className="text-sm font-medium text-primary mb-2">{g.display_name}</p>
+            <div
+              key={g.name}
+              className="p-3 rounded-lg border border-[var(--border-color)]"
+            >
+              <p className="text-sm font-medium text-primary mb-2">
+                {g.display_name}
+              </p>
               <div className="flex gap-3">
                 <div className="flex-1">
                   <label className="block text-[10px] text-[var(--text-secondary)] mb-1">
@@ -802,7 +901,10 @@ function EditGroupModal({ onClose }: { onClose: () => void }) {
                         ((groupData[g.name]?.percentage || 1) / 100);
                       setGroupData({
                         ...groupData,
-                        [g.name]: { percentage: p, amount: Math.round((total * p) / 100) },
+                        [g.name]: {
+                          percentage: p,
+                          amount: Math.round((total * p) / 100),
+                        },
                       });
                     }}
                     min="0"
@@ -820,7 +922,10 @@ function EditGroupModal({ onClose }: { onClose: () => void }) {
                     onChange={(e) =>
                       setGroupData({
                         ...groupData,
-                        [g.name]: { ...groupData[g.name], amount: parseFloat(e.target.value) || 0 },
+                        [g.name]: {
+                          ...groupData[g.name],
+                          amount: parseFloat(e.target.value) || 0,
+                        },
                       })
                     }
                     className="input w-full text-xs"
@@ -881,7 +986,9 @@ function NewEventModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="card w-full max-w-md p-6">
-        <h3 className="text-base font-semibold text-primary mb-4">Nuevo evento temporal</h3>
+        <h3 className="text-base font-semibold text-primary mb-4">
+          Nuevo evento temporal
+        </h3>
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
@@ -940,7 +1047,13 @@ function NewEventModal({ onClose }: { onClose: () => void }) {
           </button>
           <button
             onClick={() => createMutation.mutate()}
-            disabled={!name || !startDate || !endDate || !totalAmount || createMutation.isPending}
+            disabled={
+              !name ||
+              !startDate ||
+              !endDate ||
+              !totalAmount ||
+              createMutation.isPending
+            }
             className="flex-1 px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
             {createMutation.isPending ? "Creando..." : "Crear"}
@@ -964,9 +1077,10 @@ function CategorySidePanel({
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
   // Collect category IDs: the category itself + its children
-  const categoryIds = [category.category_id, ...category.children.map((c) => c.category_id)].filter(
-    (id): id is number => id !== null,
-  );
+  const categoryIds = [
+    category.category_id,
+    ...category.children.map((c) => c.category_id),
+  ].filter((id): id is number => id !== null);
 
   const [expenses, setExpenses] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -1030,10 +1144,14 @@ function CategorySidePanel({
                 style={{ backgroundColor: category.category_color }}
               />
               <div>
-                <h2 className="text-base font-semibold text-primary">{category.category_name}</h2>
+                <h2 className="text-base font-semibold text-primary">
+                  {category.category_name}
+                </h2>
                 <p className="text-xs text-[var(--text-secondary)]">
-                  {formatCurrency(category.budget_amount - category.spent_amount)} restantes de{" "}
-                  {formatCurrency(category.budget_amount)}
+                  {formatCurrency(
+                    category.budget_amount - category.spent_amount,
+                  )}{" "}
+                  restantes de {formatCurrency(category.budget_amount)}
                 </p>
               </div>
             </div>
@@ -1059,7 +1177,9 @@ function CategorySidePanel({
         <div className="px-5 py-4">
           {isLoading ? (
             <div className="text-center py-8">
-              <p className="text-sm text-[var(--text-tertiary)]">Cargando gastos...</p>
+              <p className="text-sm text-[var(--text-tertiary)]">
+                Cargando gastos...
+              </p>
             </div>
           ) : expenses.length === 0 ? (
             <div className="text-center py-8">
@@ -1075,8 +1195,12 @@ function CategorySidePanel({
                   className="flex items-center justify-between py-2 border-b border-[var(--border-color)]"
                 >
                   <div>
-                    <p className="text-sm text-[var(--text-primary)]">{expense.description}</p>
-                    <p className="text-xs text-[var(--text-tertiary)]">{expense.date}</p>
+                    <p className="text-sm text-[var(--text-primary)]">
+                      {expense.description}
+                    </p>
+                    <p className="text-xs text-[var(--text-tertiary)]">
+                      {expense.date}
+                    </p>
                   </div>
                   <p className="text-sm font-semibold text-[var(--text-primary)]">
                     {formatCurrency(expense.amount)}
@@ -1084,9 +1208,13 @@ function CategorySidePanel({
                 </div>
               ))}
               <div className="flex justify-between pt-2 font-semibold">
-                <span className="text-sm text-[var(--text-secondary)]">Total</span>
+                <span className="text-sm text-[var(--text-secondary)]">
+                  Total
+                </span>
                 <span className="text-sm text-primary">
-                  {formatCurrency(expenses.reduce((s: number, e: any) => s + e.amount, 0))}
+                  {formatCurrency(
+                    expenses.reduce((s: number, e: any) => s + e.amount, 0),
+                  )}
                 </span>
               </div>
             </div>
@@ -1099,7 +1227,13 @@ function CategorySidePanel({
 
 // ─── Event Side Panel ──────────────────────────────────────────
 
-function EventSidePanel({ event, onClose }: { event: BudgetEvent; onClose: () => void }) {
+function EventSidePanel({
+  event,
+  onClose,
+}: {
+  event: BudgetEvent;
+  onClose: () => void;
+}) {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -1129,7 +1263,10 @@ function EventSidePanel({ event, onClose }: { event: BudgetEvent; onClose: () =>
 
   const linkedExpenses = expenses.filter((e: any) => e.linked);
   const availableExpenses = expenses.filter((e: any) => !e.linked);
-  const totalLinked = linkedExpenses.reduce((s: number, e: any) => s + e.amount, 0);
+  const totalLinked = linkedExpenses.reduce(
+    (s: number, e: any) => s + e.amount,
+    0,
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -1138,7 +1275,9 @@ function EventSidePanel({ event, onClose }: { event: BudgetEvent; onClose: () =>
         <div className="sticky top-0 z-10 bg-[var(--color-surface)] border-b border-[var(--border-color)] px-5 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-semibold text-primary">{event.name}</h2>
+              <h2 className="text-base font-semibold text-primary">
+                {event.name}
+              </h2>
               <p className="text-xs text-[var(--text-secondary)]">
                 {event.start_date} — {event.end_date}
               </p>
@@ -1161,15 +1300,25 @@ function EventSidePanel({ event, onClose }: { event: BudgetEvent; onClose: () =>
           </div>
           <div className="grid grid-cols-3 gap-3 mt-3">
             <div className="text-center">
-              <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Presupuesto</p>
-              <p className="text-sm font-bold text-primary">{formatCurrency(event.total_amount)}</p>
+              <p className="text-[10px] text-[var(--text-tertiary)] uppercase">
+                Presupuesto
+              </p>
+              <p className="text-sm font-bold text-primary">
+                {formatCurrency(event.total_amount)}
+              </p>
             </div>
             <div className="text-center">
-              <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Gastado</p>
-              <p className="text-sm font-bold text-primary">{formatCurrency(event.spent)}</p>
+              <p className="text-[10px] text-[var(--text-tertiary)] uppercase">
+                Gastado
+              </p>
+              <p className="text-sm font-bold text-primary">
+                {formatCurrency(event.spent)}
+              </p>
             </div>
             <div className="text-center">
-              <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Restante</p>
+              <p className="text-[10px] text-[var(--text-tertiary)] uppercase">
+                Restante
+              </p>
               <p
                 className={`text-sm font-bold ${event.total_amount - event.spent < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"}`}
               >
@@ -1181,7 +1330,9 @@ function EventSidePanel({ event, onClose }: { event: BudgetEvent; onClose: () =>
 
         <div className="px-5 py-4">
           {isLoading ? (
-            <p className="text-sm text-[var(--text-tertiary)] text-center py-8">Cargando...</p>
+            <p className="text-sm text-[var(--text-tertiary)] text-center py-8">
+              Cargando...
+            </p>
           ) : (
             <>
               {linkedExpenses.length > 0 && (
@@ -1195,7 +1346,9 @@ function EventSidePanel({ event, onClose }: { event: BudgetEvent; onClose: () =>
                       className="flex items-center justify-between py-2 border-b border-[var(--border-color)]"
                     >
                       <div>
-                        <p className="text-sm text-[var(--text-primary)]">{exp.description}</p>
+                        <p className="text-sm text-[var(--text-primary)]">
+                          {exp.description}
+                        </p>
                         <p className="text-xs text-[var(--text-tertiary)]">
                           {exp.date} · {exp.category_name || "Sin categoría"}
                         </p>
@@ -1206,8 +1359,12 @@ function EventSidePanel({ event, onClose }: { event: BudgetEvent; onClose: () =>
                     </div>
                   ))}
                   <div className="flex justify-between pt-2 font-semibold">
-                    <span className="text-sm text-[var(--text-secondary)]">Total</span>
-                    <span className="text-sm text-primary">{formatCurrency(totalLinked)}</span>
+                    <span className="text-sm text-[var(--text-secondary)]">
+                      Total
+                    </span>
+                    <span className="text-sm text-primary">
+                      {formatCurrency(totalLinked)}
+                    </span>
                   </div>
                 </div>
               )}
@@ -1222,7 +1379,9 @@ function EventSidePanel({ event, onClose }: { event: BudgetEvent; onClose: () =>
                       className="flex items-center justify-between py-2 border-b border-[var(--border-color)] opacity-60"
                     >
                       <div>
-                        <p className="text-sm text-[var(--text-primary)]">{exp.description}</p>
+                        <p className="text-sm text-[var(--text-primary)]">
+                          {exp.description}
+                        </p>
                         <p className="text-xs text-[var(--text-tertiary)]">
                           {exp.date} · {exp.category_name || "Sin categoría"}
                         </p>
@@ -1249,18 +1408,27 @@ function EventSidePanel({ event, onClose }: { event: BudgetEvent; onClose: () =>
 
 // ─── Link Expenses to Event Modal ──────────────────────────────
 
-function LinkExpensesModal({ event, onClose }: { event: BudgetEvent; onClose: () => void }) {
+function LinkExpensesModal({
+  event,
+  onClose,
+}: {
+  event: BudgetEvent;
+  onClose: () => void;
+}) {
   const qc = useQueryClient();
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const { data: expenses = [], isLoading } = useQuery({
     queryKey: ["event-expenses", event.id],
-    queryFn: () => import("../api/client").then((m) => m.getEventExpenses(event.id)),
+    queryFn: () =>
+      import("../api/client").then((m) => m.getEventExpenses(event.id)),
   });
 
   const linkMutation = useMutation({
     mutationFn: () =>
-      import("../api/client").then((m) => m.linkExpensesToEvent(event.id, Array.from(selectedIds))),
+      import("../api/client").then((m) =>
+        m.linkExpensesToEvent(event.id, Array.from(selectedIds)),
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["budget-events"] });
       onClose();
@@ -1291,7 +1459,9 @@ function LinkExpensesModal({ event, onClose }: { event: BudgetEvent; onClose: ()
         </p>
 
         {isLoading ? (
-          <p className="text-sm text-[var(--text-tertiary)] text-center py-8">Cargando...</p>
+          <p className="text-sm text-[var(--text-tertiary)] text-center py-8">
+            Cargando...
+          </p>
         ) : expenses.length === 0 ? (
           <p className="text-sm text-[var(--text-tertiary)] text-center py-8">
             No hay gastos en este período
@@ -1310,7 +1480,9 @@ function LinkExpensesModal({ event, onClose }: { event: BudgetEvent; onClose: ()
                   className="w-4 h-4 rounded accent-[var(--color-primary)]"
                 />
                 <div className="flex-1">
-                  <p className="text-xs font-medium text-primary">{expense.description}</p>
+                  <p className="text-xs font-medium text-primary">
+                    {expense.description}
+                  </p>
                   <p className="text-[10px] text-[var(--text-tertiary)]">
                     {expense.date} · {expense.category_name || "Sin categoría"}
                   </p>
@@ -1341,7 +1513,9 @@ function LinkExpensesModal({ event, onClose }: { event: BudgetEvent; onClose: ()
             disabled={selectedIds.size === 0 || linkMutation.isPending}
             className="flex-1 px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
-            {linkMutation.isPending ? "Vinculando..." : `Vincular (${selectedIds.size})`}
+            {linkMutation.isPending
+              ? "Vinculando..."
+              : `Vincular (${selectedIds.size})`}
           </button>
         </div>
       </div>
@@ -1357,7 +1531,8 @@ export default function BudgetPage() {
   const [showQuickConfig, setShowQuickConfig] = useState(false);
   const [editingGroup, setEditingGroup] = useState<BudgetGroup | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<BudgetSummaryItem | null>(null);
+  const [selectedCategory, setSelectedCategory] =
+    useState<BudgetSummaryItem | null>(null);
   const [linkingEvent, setLinkingEvent] = useState<BudgetEvent | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<BudgetEvent | null>(null);
 
@@ -1411,8 +1586,14 @@ export default function BudgetPage() {
   const isLoading = loadingSummary || loadingGroups || loadingEvents;
 
   // Compute KPIs
-  const totalBudget = useMemo(() => groups.reduce((s, g) => s + g.amount, 0), [groups]);
-  const totalSpent = useMemo(() => groups.reduce((s, g) => s + g.spent, 0), [groups]);
+  const totalBudget = useMemo(
+    () => groups.reduce((s, g) => s + g.amount, 0),
+    [groups],
+  );
+  const totalSpent = useMemo(
+    () => groups.reduce((s, g) => s + g.spent, 0),
+    [groups],
+  );
   const totalAvailable = totalBudget - totalSpent;
 
   // Count categories with spending but no budget (using summary directly — it already includes all categories with spending)
@@ -1420,7 +1601,10 @@ export default function BudgetPage() {
     const budgetedCatIds = new Set(allBudgets.map((b) => b.category_id));
     return (
       summary?.categories.filter(
-        (c) => c.category_id !== null && c.spent_amount > 0 && !budgetedCatIds.has(c.category_id),
+        (c) =>
+          c.category_id !== null &&
+          c.spent_amount > 0 &&
+          !budgetedCatIds.has(c.category_id),
       ).length ?? 0
     );
   }, [summary, allBudgets]);
@@ -1439,12 +1623,18 @@ export default function BudgetPage() {
           <div className="h-8 bg-[var(--color-base-alt)] rounded w-48" />
           <div className="grid grid-cols-4 gap-4">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-24 bg-[var(--color-base-alt)] rounded-xl" />
+              <div
+                key={i}
+                className="h-24 bg-[var(--color-base-alt)] rounded-xl"
+              />
             ))}
           </div>
           <div className="grid grid-cols-3 gap-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-48 bg-[var(--color-base-alt)] rounded-xl" />
+              <div
+                key={i}
+                className="h-48 bg-[var(--color-base-alt)] rounded-xl"
+              />
             ))}
           </div>
         </div>
@@ -1483,14 +1673,22 @@ export default function BudgetPage() {
               <p className="text-[10px] text-[var(--text-tertiary)] uppercase mb-1">
                 Presupuestado
               </p>
-              <p className="text-lg font-bold text-primary">{formatCurrency(totalBudget)}</p>
+              <p className="text-lg font-bold text-primary">
+                {formatCurrency(totalBudget)}
+              </p>
             </div>
             <div className="card p-4">
-              <p className="text-[10px] text-[var(--text-tertiary)] uppercase mb-1">Gastado</p>
-              <p className="text-lg font-bold text-primary">{formatCurrency(totalSpent)}</p>
+              <p className="text-[10px] text-[var(--text-tertiary)] uppercase mb-1">
+                Gastado
+              </p>
+              <p className="text-lg font-bold text-primary">
+                {formatCurrency(totalSpent)}
+              </p>
             </div>
             <div className="card p-4">
-              <p className="text-[10px] text-[var(--text-tertiary)] uppercase mb-1">Quedan</p>
+              <p className="text-[10px] text-[var(--text-tertiary)] uppercase mb-1">
+                Quedan
+              </p>
               <p
                 className={`text-lg font-bold ${totalAvailable < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"}`}
               >
@@ -1505,7 +1703,9 @@ export default function BudgetPage() {
                 <p className="text-[10px] text-[var(--text-tertiary)] uppercase mb-1">
                   Sin presupuesto
                 </p>
-                <p className="text-lg font-bold text-[var(--color-primary)]">{unbudgetedCount}</p>
+                <p className="text-lg font-bold text-[var(--color-primary)]">
+                  {unbudgetedCount}
+                </p>
                 <p className="text-[10px] text-[var(--text-tertiary)] mt-1">
                   categorías → configurar
                 </p>
@@ -1541,14 +1741,18 @@ export default function BudgetPage() {
                 </button>
               )}
             </div>
-            <div className={`grid grid-cols-1 sm:grid-cols-${groups.length} gap-4`}>
+            <div
+              className={`grid grid-cols-1 sm:grid-cols-${groups.length} gap-4`}
+            >
               {groups.map((g) => (
                 <DonutCircle
                   key={g.id}
                   group={g}
                   color={groupColors[g.name] || "var(--color-primary)"}
                   selected={selectedGroup === g.name}
-                  onSelect={() => setSelectedGroup(selectedGroup === g.name ? null : g.name)}
+                  onSelect={() =>
+                    setSelectedGroup(selectedGroup === g.name ? null : g.name)
+                  }
                 />
               ))}
             </div>
@@ -1652,8 +1856,8 @@ export default function BudgetPage() {
               Empezá a controlar tu presupuesto
             </h3>
             <p className="text-sm text-[var(--text-secondary)] max-w-md mx-auto">
-              Definí cuánto querés gastar en cada categoría y la app te avisa cuando te acercás al
-              límite.
+              Definí cuánto querés gastar en cada categoría y la app te avisa
+              cuando te acercás al límite.
             </p>
           </div>
           <div
@@ -1684,10 +1888,14 @@ export default function BudgetPage() {
             {budgetConfig?.ahorro_enabled && (
               <div className="p-4 rounded-xl border border-[var(--border-color)] text-center">
                 <div className="w-10 h-10 rounded-full bg-[var(--color-success)]/10 flex items-center justify-center mx-auto mb-2">
-                  <span className="text-[var(--color-success)] font-bold">20%</span>
+                  <span className="text-[var(--color-success)] font-bold">
+                    20%
+                  </span>
                 </div>
                 <p className="text-sm font-semibold text-primary">Ahorro</p>
-                <p className="text-xs text-[var(--text-tertiary)] mt-1">Inversiones, Ahorro</p>
+                <p className="text-xs text-[var(--text-tertiary)] mt-1">
+                  Inversiones, Ahorro
+                </p>
               </div>
             )}
           </div>
@@ -1710,7 +1918,9 @@ export default function BudgetPage() {
               disabled={!incomeInput || initGroupsMutation.isPending}
               className="w-full mt-4 px-4 py-3 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
             >
-              {initGroupsMutation.isPending ? "Creando..." : "Crear mi presupuesto"}
+              {initGroupsMutation.isPending
+                ? "Creando..."
+                : "Crear mi presupuesto"}
             </button>
           </div>
         </div>
@@ -1718,16 +1928,27 @@ export default function BudgetPage() {
 
       {/* Modals */}
       {showNewEvent && <NewEventModal onClose={() => setShowNewEvent(false)} />}
-      {showQuickConfig && <QuickConfigModal onClose={() => setShowQuickConfig(false)} />}
+      {showQuickConfig && (
+        <QuickConfigModal onClose={() => setShowQuickConfig(false)} />
+      )}
       {editingGroup && <EditGroupModal onClose={() => setEditingGroup(null)} />}
       {selectedCategory && (
-        <CategorySidePanel category={selectedCategory} onClose={() => setSelectedCategory(null)} />
+        <CategorySidePanel
+          category={selectedCategory}
+          onClose={() => setSelectedCategory(null)}
+        />
       )}
       {linkingEvent && (
-        <LinkExpensesModal event={linkingEvent} onClose={() => setLinkingEvent(null)} />
+        <LinkExpensesModal
+          event={linkingEvent}
+          onClose={() => setLinkingEvent(null)}
+        />
       )}
       {selectedEvent && (
-        <EventSidePanel event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+        <EventSidePanel
+          event={selectedEvent}
+          onClose={() => setSelectedEvent(null)}
+        />
       )}
     </div>
   );

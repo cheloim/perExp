@@ -38,7 +38,9 @@ export function ConfirmDialog({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="space-y-1">
-          <h3 className="text-sm font-semibold text-[var(--text-primary)]">{title}</h3>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+            {title}
+          </h3>
           <p className="text-sm text-[var(--text-secondary)]">{message}</p>
         </div>
         <div className="flex gap-2 justify-end">

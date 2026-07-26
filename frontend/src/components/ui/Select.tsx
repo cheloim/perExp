@@ -61,9 +61,17 @@ export function Select({
       const spaceBelow = window.innerHeight - rect.bottom;
       const dropdownHeight = 260;
       if (spaceBelow < dropdownHeight && rect.top > dropdownHeight) {
-        setDropdownPos({ top: rect.top - dropdownHeight - 4, left: rect.left, width: rect.width });
+        setDropdownPos({
+          top: rect.top - dropdownHeight - 4,
+          left: rect.left,
+          width: rect.width,
+        });
       } else {
-        setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+        setDropdownPos({
+          top: rect.bottom + 4,
+          left: rect.left,
+          width: rect.width,
+        });
       }
     }
   }, [isOpen]);
@@ -79,7 +87,9 @@ export function Select({
     (o) => o.value === value,
   );
   const displayValue =
-    selectedOption?.label || (value && !selectedOption ? value : placeholder) || "";
+    selectedOption?.label ||
+    (value && !selectedOption ? value : placeholder) ||
+    "";
 
   const filteredOptions = search
     ? allOptions.filter(
@@ -116,7 +126,8 @@ export function Select({
     // Add group options (only when groups exist, since they're not in filteredOptions)
     if (groups.length > 0) {
       groups.forEach((group) => {
-        const groupMatches = !search || group.label.toLowerCase().includes(search.toLowerCase());
+        const groupMatches =
+          !search || group.label.toLowerCase().includes(search.toLowerCase());
         const groupFiltered = group.options.filter(
           (o) =>
             groupMatches ||
@@ -142,11 +153,15 @@ export function Select({
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();
-          setHighlightedIndex((prev) => (prev < flatOptions.length - 1 ? prev + 1 : 0));
+          setHighlightedIndex((prev) =>
+            prev < flatOptions.length - 1 ? prev + 1 : 0,
+          );
           break;
         case "ArrowUp":
           e.preventDefault();
-          setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : flatOptions.length - 1));
+          setHighlightedIndex((prev) =>
+            prev > 0 ? prev - 1 : flatOptions.length - 1,
+          );
           break;
         case "Enter":
           e.preventDefault();
@@ -199,7 +214,9 @@ export function Select({
             : "cursor-pointer hover:border-[var(--color-primary)]"
         }`}
       >
-        <span className={value ? "" : "text-[var(--text-tertiary)]"}>{displayValue}</span>
+        <span className={value ? "" : "text-[var(--text-tertiary)]"}>
+          {displayValue}
+        </span>
         <svg
           className={`w-4 h-4 text-[var(--text-secondary)] transition-transform ${
             isOpen ? "rotate-180" : ""
@@ -208,14 +225,23 @@ export function Select({
           stroke="currentColor"
           viewBox="0 0 24 24"
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 9l-7 7-7-7"
+          />
         </svg>
       </button>
 
       {isOpen && dropdownPos && (
         <div
           className="fixed z-[9999] bg-[var(--color-surface)] border border-[var(--border-color)] rounded-md shadow-lg overflow-hidden max-h-60 flex flex-col"
-          style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
+          style={{
+            top: dropdownPos.top,
+            left: dropdownPos.left,
+            width: dropdownPos.width,
+          }}
         >
           <div className="p-2 border-b border-[var(--border-color)]">
             <input
@@ -247,7 +273,9 @@ export function Select({
 
             {allowCustomValue &&
               search.trim() &&
-              !allOptions.some((o) => o.label.toLowerCase() === search.toLowerCase()) && (
+              !allOptions.some(
+                (o) => o.label.toLowerCase() === search.toLowerCase(),
+              ) && (
                 <button
                   type="button"
                   data-option
@@ -261,7 +289,9 @@ export function Select({
             {/* Render standalone options (always, before groups) */}
             {options.length > 0 &&
               options.map((option) => {
-                const flatIdx = flatOptions.findIndex((o) => o.value === option.value);
+                const flatIdx = flatOptions.findIndex(
+                  (o) => o.value === option.value,
+                );
                 return (
                   <button
                     key={option.value}
@@ -285,7 +315,8 @@ export function Select({
             {groups.length > 0 &&
               groups.map((group) => {
                 const groupMatches =
-                  !search || group.label.toLowerCase().includes(search.toLowerCase());
+                  !search ||
+                  group.label.toLowerCase().includes(search.toLowerCase());
                 const groupFiltered = group.options.filter(
                   (o) =>
                     groupMatches ||
@@ -299,7 +330,9 @@ export function Select({
                       {group.label}
                     </div>
                     {groupFiltered.map((option) => {
-                      const flatIdx = flatOptions.findIndex((o) => o.value === option.value);
+                      const flatIdx = flatOptions.findIndex(
+                        (o) => o.value === option.value,
+                      );
                       return (
                         <button
                           key={option.value}

@@ -17,7 +17,11 @@ const FamilyGroupContext = createContext<FamilyGroupContextValue>({
   isLoading: false,
 });
 
-export function FamilyGroupProvider({ children }: { children: React.ReactNode }) {
+export function FamilyGroupProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { data: group, isLoading } = useQuery({
     queryKey: ["my-group"],
     queryFn: getMyGroup,

@@ -119,7 +119,9 @@ function connectEventSource(token: string) {
   };
 }
 
-(self as unknown as SharedWorkerGlobalScope).onconnect = (event: MessageEvent) => {
+(self as unknown as SharedWorkerGlobalScope).onconnect = (
+  event: MessageEvent,
+) => {
   const port = event.ports[0];
   const portId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 

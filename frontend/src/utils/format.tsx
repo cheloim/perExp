@@ -20,7 +20,10 @@ export function formatCurrency(amount: number, currency: string = "ARS") {
   }).format(amount);
 }
 
-export function formatDate(dateStr: string, format: "short" | "long" | "iso" = "short"): string {
+export function formatDate(
+  dateStr: string,
+  format: "short" | "long" | "iso" = "short",
+): string {
   if (!dateStr) return "";
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return dateStr;
@@ -48,7 +51,10 @@ export function formatMonthYear(dateStr: string): string {
   if (!dateStr) return "";
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return dateStr;
-  return new Intl.DateTimeFormat("es-AR", { month: "long", year: "numeric" }).format(date);
+  return new Intl.DateTimeFormat("es-AR", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
 }
 
 export function titleCase(str: string): string {
@@ -81,7 +87,10 @@ export function formatDateDMY(dateStr: string, fallback: string = ""): string {
   return dateStr;
 }
 
-export function formatDateDMYSlash(dateStr: string, fallback: string = ""): string {
+export function formatDateDMYSlash(
+  dateStr: string,
+  fallback: string = "",
+): string {
   if (!dateStr) return fallback;
   if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
     const [y, m, d] = dateStr.split("-");
@@ -90,7 +99,13 @@ export function formatDateDMYSlash(dateStr: string, fallback: string = ""): stri
   return dateStr;
 }
 
-type SortField = "date" | "description" | "category" | "bank" | "person" | "amount";
+type SortField =
+  | "date"
+  | "description"
+  | "category"
+  | "bank"
+  | "person"
+  | "amount";
 type SortDir = "asc" | "desc";
 
 export function SortIcon({
@@ -100,8 +115,13 @@ export function SortIcon({
   field: SortField;
   sort: { field: SortField; dir: SortDir };
 }) {
-  if (sort.field !== field) return <span className="ml-1 text-[var(--text-tertiary)]">↕</span>;
-  return <span className="ml-1 text-[var(--color-primary)]">{sort.dir === "asc" ? "↑" : "↓"}</span>;
+  if (sort.field !== field)
+    return <span className="ml-1 text-[var(--text-tertiary)]">↕</span>;
+  return (
+    <span className="ml-1 text-[var(--color-primary)]">
+      {sort.dir === "asc" ? "↑" : "↓"}
+    </span>
+  );
 }
 
 export const MONTHS_ES_SHORT = [
@@ -138,7 +158,8 @@ export function MonthSelector({
     const newY = d.getFullYear();
     const newM = d.getMonth() + 1;
     if (newY > currentY || (newY === currentY && newM > currentM)) return;
-    if (newY < currentY - 1 || (newY === currentY - 1 && newM < currentM - 5)) return;
+    if (newY < currentY - 1 || (newY === currentY - 1 && newM < currentM - 5))
+      return;
     onChange(`${newY}-${String(newM).padStart(2, "0")}`);
   };
 
@@ -147,8 +168,13 @@ export function MonthSelector({
     const d = new Date(currentY, currentM - 1 - i, 1);
     const monthVal = d.getMonth() + 1;
     const yearVal = d.getFullYear();
-    if (yearVal < currentY - 1 || (yearVal === currentY - 1 && monthVal < currentM - 5)) continue;
-    if (yearVal > currentY || (yearVal === currentY && monthVal > currentM)) continue;
+    if (
+      yearVal < currentY - 1 ||
+      (yearVal === currentY - 1 && monthVal < currentM - 5)
+    )
+      continue;
+    if (yearVal > currentY || (yearVal === currentY && monthVal > currentM))
+      continue;
     months.unshift({
       label: `${MONTHS_ES_SHORT[monthVal - 1]} ${yearVal}`,
       value: `${yearVal}-${String(monthVal).padStart(2, "0")}`,
@@ -247,9 +273,13 @@ interface CategoryGroup {
 export function categoryGroupOptions(
   categories: { id: number; name: string; parent_id?: number | null }[],
 ): CategoryGroup[] {
-  const parentIds = new Set(categories.filter((c) => c.parent_id).map((c) => c.parent_id!));
+  const parentIds = new Set(
+    categories.filter((c) => c.parent_id).map((c) => c.parent_id!),
+  );
   const parents = categories.filter((c) => !c.parent_id && parentIds.has(c.id));
-  const orphans = categories.filter((c) => !c.parent_id && !parentIds.has(c.id));
+  const orphans = categories.filter(
+    (c) => !c.parent_id && !parentIds.has(c.id),
+  );
   const groups = parents.map((parent) => ({
     label: parent.name,
     options: categories
@@ -269,10 +299,15 @@ export function getVariationBadge(variation: number, className: string = "") {
   return (
     <span
       className={`text-xs mt-1 ${
-        variation > 0 ? "text-success" : variation < 0 ? "text-danger" : "text-tertiary"
+        variation > 0
+          ? "text-success"
+          : variation < 0
+            ? "text-danger"
+            : "text-tertiary"
       } ${className}`}
     >
-      {variation > 0 ? "↑" : variation < 0 ? "↓" : "→"} {Math.abs(variation).toFixed(2)}%
+      {variation > 0 ? "↑" : variation < 0 ? "↓" : "→"}{" "}
+      {Math.abs(variation).toFixed(2)}%
     </span>
   );
 }

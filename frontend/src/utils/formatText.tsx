@@ -13,7 +13,10 @@ function renderMarkdown(text: string): React.ReactNode[] {
     const m = match[0];
     if (m.startsWith("**") && m.endsWith("**")) {
       segments.push(
-        <strong key={segments.length} className="font-semibold text-[var(--text-primary)]">
+        <strong
+          key={segments.length}
+          className="font-semibold text-[var(--text-primary)]"
+        >
           {m.slice(2, -2)}
         </strong>,
       );
@@ -39,36 +42,60 @@ function processLine(line: string, lineIdx: number): React.ReactNode {
 
   if (!trimmed) return <br key={lineIdx} />;
 
-  if (trimmed.startsWith("↑") || trimmed.startsWith("+") || trimmed.startsWith("📈")) {
+  if (
+    trimmed.startsWith("↑") ||
+    trimmed.startsWith("+") ||
+    trimmed.startsWith("📈")
+  ) {
     return (
-      <p key={lineIdx} className="text-[var(--gnome-green-5)] font-medium mb-1 leading-relaxed">
+      <p
+        key={lineIdx}
+        className="text-[var(--gnome-green-5)] font-medium mb-1 leading-relaxed"
+      >
         {renderMarkdown(line)}
       </p>
     );
   }
-  if (trimmed.startsWith("↓") || trimmed.startsWith("-") || trimmed.startsWith("📉")) {
+  if (
+    trimmed.startsWith("↓") ||
+    trimmed.startsWith("-") ||
+    trimmed.startsWith("📉")
+  ) {
     return (
-      <p key={lineIdx} className="text-[var(--gnome-red-3)] font-medium mb-1 leading-relaxed">
+      <p
+        key={lineIdx}
+        className="text-[var(--gnome-red-3)] font-medium mb-1 leading-relaxed"
+      >
         {renderMarkdown(line)}
       </p>
     );
   }
   if (trimmed.startsWith("💡") || trimmed.startsWith("✅")) {
     return (
-      <p key={lineIdx} className="text-[var(--color-primary)] font-medium mb-1 leading-relaxed">
+      <p
+        key={lineIdx}
+        className="text-[var(--color-primary)] font-medium mb-1 leading-relaxed"
+      >
         {renderMarkdown(line)}
       </p>
     );
   }
   if (trimmed.startsWith("⚠") || trimmed.startsWith("🚨")) {
     return (
-      <p key={lineIdx} className="text-[var(--gnome-yellow-4)] font-medium mb-1 leading-relaxed">
+      <p
+        key={lineIdx}
+        className="text-[var(--gnome-yellow-4)] font-medium mb-1 leading-relaxed"
+      >
         {renderMarkdown(line)}
       </p>
     );
   }
 
-  if (trimmed.startsWith("## ") || trimmed.startsWith("### ") || trimmed.startsWith("#### ")) {
+  if (
+    trimmed.startsWith("## ") ||
+    trimmed.startsWith("### ") ||
+    trimmed.startsWith("#### ")
+  ) {
     const level = trimmed.startsWith("#### ")
       ? 4
       : trimmed.startsWith("### ")
@@ -114,7 +141,9 @@ function processLine(line: string, lineIdx: number): React.ReactNode {
   if (boldMatch && !trimmed.includes("**")) {
     return (
       <p key={lineIdx} className="mb-1 leading-relaxed">
-        <span className="font-semibold text-[var(--text-primary)]">{boldMatch[1]}:</span>
+        <span className="font-semibold text-[var(--text-primary)]">
+          {boldMatch[1]}:
+        </span>
         <span className="text-[var(--text-secondary)]">{boldMatch[2]}</span>
       </p>
     );
@@ -124,7 +153,10 @@ function processLine(line: string, lineIdx: number): React.ReactNode {
   if (usdMatch) {
     const parts = line.split(/(\s*u?s\$\d+[\d.,]*\s*)/g);
     return (
-      <p key={lineIdx} className="text-[var(--text-secondary)] mb-1 leading-relaxed">
+      <p
+        key={lineIdx}
+        className="text-[var(--text-secondary)] mb-1 leading-relaxed"
+      >
         {parts.map((part, i) => {
           if (part.match(/u?s\$\d+[\d.,]*/)) {
             return (
@@ -143,7 +175,10 @@ function processLine(line: string, lineIdx: number): React.ReactNode {
   if (arsMoneyMatch) {
     const parts = line.split(/(\$\d+[\d.,]*)/g);
     return (
-      <p key={lineIdx} className="text-[var(--text-secondary)] mb-1 leading-relaxed">
+      <p
+        key={lineIdx}
+        className="text-[var(--text-secondary)] mb-1 leading-relaxed"
+      >
         {parts.map((part, i) => {
           if (part.match(/\$\d+[\d.,]*/)) {
             return (
@@ -162,14 +197,21 @@ function processLine(line: string, lineIdx: number): React.ReactNode {
   if (pctMatch) {
     const parts = line.split(/(\d+[,.]?\d*%)/g);
     return (
-      <p key={lineIdx} className="text-[var(--text-secondary)] mb-1 leading-relaxed">
+      <p
+        key={lineIdx}
+        className="text-[var(--text-secondary)] mb-1 leading-relaxed"
+      >
         {parts.map((part, i) => {
           if (part.match(/\d+[,.]?\d*%/)) {
             const isPositive = !part.startsWith("-");
             return (
               <span
                 key={i}
-                className={isPositive ? "text-[var(--gnome-green-5)]" : "text-[var(--gnome-red-3)]"}
+                className={
+                  isPositive
+                    ? "text-[var(--gnome-green-5)]"
+                    : "text-[var(--gnome-red-3)]"
+                }
               >
                 {part}
               </span>
@@ -185,11 +227,17 @@ function processLine(line: string, lineIdx: number): React.ReactNode {
   if (tickerMatch && tickerMatch.length > 0) {
     const parts = line.split(/(\b[A-Z]{2,5}\b)/g);
     return (
-      <p key={lineIdx} className="text-[var(--text-secondary)] mb-1 leading-relaxed">
+      <p
+        key={lineIdx}
+        className="text-[var(--text-secondary)] mb-1 leading-relaxed"
+      >
         {parts.map((part, i) => {
           if (tickerMatch.includes(part)) {
             return (
-              <span key={i} className="font-mono text-[var(--color-primary)] font-medium">
+              <span
+                key={i}
+                className="font-mono text-[var(--color-primary)] font-medium"
+              >
                 {part}
               </span>
             );
@@ -202,14 +250,20 @@ function processLine(line: string, lineIdx: number): React.ReactNode {
 
   if (trimmed.match(/\*\*/)) {
     return (
-      <p key={lineIdx} className="text-[var(--text-secondary)] mb-1 leading-relaxed">
+      <p
+        key={lineIdx}
+        className="text-[var(--text-secondary)] mb-1 leading-relaxed"
+      >
         {renderMarkdown(line)}
       </p>
     );
   }
 
   return (
-    <p key={lineIdx} className="text-[var(--text-secondary)] mb-1 leading-relaxed">
+    <p
+      key={lineIdx}
+      className="text-[var(--text-secondary)] mb-1 leading-relaxed"
+    >
       {line}
     </p>
   );
