@@ -66,11 +66,16 @@ def tokenize_description(text: str) -> str:
 
 
 def is_encrypted(value: str) -> bool:
-    """Check if a value is already Fernet-encrypted."""
+    """Check if a value looks like it's Fernet-encrypted.
+
+    Checks if value starts with Fernet token prefix 'gAAAAAB' which indicates
+    it was encrypted with Fernet. This is more robust than trying to decrypt
+    which may fail if the key has changed.
+
+    Note: Comparison is case-insensitive to handle tokenized/lowercased values.
+    """
     if not value:
         return False
-    try:
-        get_fernet().decrypt(value.encode())
-        return True
-    except Exception:
-        return False
+    # Fernet tokens always start with 'gAAAAAB' (version byte + timestamp)
+    # Use case-insensitive comparison to handle tokenized values
+    return value.upper().startswith("GAAAAAB")

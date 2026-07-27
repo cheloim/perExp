@@ -45,26 +45,24 @@ def _migrate_users(db):
             changed = False
 
             # Encrypt full_name if plaintext
+            # Note: EncryptedType handles encryption automatically when writing
+            # We just need to check if the value in DB is already encrypted
             if user.full_name and not is_encrypted(user.full_name):
-                user.full_name = encrypt_value(user.full_name)
+                # Value is plaintext, mark for re-save (EncryptedType will encrypt)
+                user.full_name = user.full_name  # Touch to trigger update
                 changed = True
 
-            # Encrypt telegram_chat_id if plaintext and generate hash
-            if user.telegram_chat_id and not is_encrypted(user.telegram_chat_id):
-                original_value = user.telegram_chat_id
-                user.telegram_chat_id = encrypt_value(original_value)
-                user.telegram_chat_hash = compute_hmac(original_value)
-                changed = True
-            elif user.telegram_chat_id and not user.telegram_chat_hash:
-                # Already encrypted but missing hash - decrypt and recompute
+            # Generate telegram_chat_hash if missing
+            if user.telegram_chat_id and not user.telegram_chat_hash:
                 from app.services.encryption import decrypt_value
-                original_value = decrypt_value(user.telegram_chat_id)
+                # Get the plaintext value (already decrypted by ORM)
+                original_value = user.telegram_chat_id
                 user.telegram_chat_hash = compute_hmac(original_value)
                 changed = True
 
             # Encrypt mfa_secret if plaintext
             if user.mfa_secret and not is_encrypted(user.mfa_secret):
-                user.mfa_secret = encrypt_value(user.mfa_secret)
+                user.mfa_secret = user.mfa_secret  # Touch to trigger update
                 changed = True
 
             if changed:
@@ -90,16 +88,18 @@ def _migrate_cards(db):
         for card in cards:
             changed = False
 
+            # Note: EncryptedType handles encryption automatically
+            # We just need to touch the field to trigger update
             if card.card_name and not is_encrypted(card.card_name):
-                card.card_name = encrypt_value(card.card_name)
+                card.card_name = card.card_name  # Touch to trigger update
                 changed = True
 
             if card.bank and not is_encrypted(card.bank):
-                card.bank = encrypt_value(card.bank)
+                card.bank = card.bank  # Touch to trigger update
                 changed = True
 
             if card.holder and not is_encrypted(card.holder):
-                card.holder = encrypt_value(card.holder)
+                card.holder = card.holder  # Touch to trigger update
                 changed = True
 
             if changed:
@@ -125,20 +125,27 @@ def _migrate_expenses(db):
         for expense in expenses:
             changed = False
 
+            # Note: EncryptedType handles encryption automatically
+            # We just need to touch the field to trigger update
             if expense.description and not is_encrypted(expense.description):
+                # Value is plaintext, get it before ORM encrypts
                 original_value = expense.description
-                expense.description = encrypt_value(original_value)
+                # Touch to trigger update (EncryptedType will encrypt)
+                expense.description = original_value
+                # Generate search tokens from plaintext
                 expense.description_search = tokenize_description(original_value)
                 changed = True
-            elif expense.description and not expense.description_search:
+            elif expense.description and (
+                not expense.description_search or is_encrypted(expense.description_search)
+            ):
                 # Already encrypted but missing search tokens
-                from app.services.encryption import decrypt_value
-                original_value = decrypt_value(expense.description)
-                expense.description_search = tokenize_description(original_value)
+                # or search tokens are encrypted (need to regenerate)
+                # ORM already decrypted it, so we can use the value directly
+                expense.description_search = tokenize_description(expense.description)
                 changed = True
 
             if expense.notes and not is_encrypted(expense.notes):
-                expense.notes = encrypt_value(expense.notes)
+                expense.notes = expense.notes  # Touch to trigger update
                 changed = True
 
             if changed:
@@ -164,8 +171,9 @@ def _migrate_investments(db):
         for inv in investments:
             changed = False
 
+            # Note: EncryptedType handles encryption automatically
             if inv.notes and not is_encrypted(inv.notes):
-                inv.notes = encrypt_value(inv.notes)
+                inv.notes = inv.notes  # Touch to trigger update
                 changed = True
 
             if changed:
@@ -191,12 +199,13 @@ def _migrate_audit_logs(db):
         for log in logs:
             changed = False
 
+            # Note: EncryptedType handles encryption automatically
             if log.ip_address and not is_encrypted(log.ip_address):
-                log.ip_address = encrypt_value(log.ip_address)
+                log.ip_address = log.ip_address  # Touch to trigger update
                 changed = True
 
             if log.user_agent and not is_encrypted(log.user_agent):
-                log.user_agent = encrypt_value(log.user_agent)
+                log.user_agent = log.user_agent  # Touch to trigger update
                 changed = True
 
             if changed:
@@ -222,8 +231,9 @@ def _migrate_monthly_reports(db):
         for report in reports:
             changed = False
 
+            # Note: EncryptedType handles encryption automatically
             if report.report_data and not is_encrypted(report.report_data):
-                report.report_data = encrypt_value(report.report_data)
+                report.report_data = report.report_data  # Touch to trigger update
                 changed = True
 
             if changed:

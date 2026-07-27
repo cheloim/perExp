@@ -247,6 +247,84 @@ def step6_whats_new_seen(engine):
             print("  Added whats_new_seen BOOLEAN DEFAULT FALSE.")
 
 
+def step7_encryption_columns(engine):
+    """Add columns needed for field-level encryption."""
+    print("\n[Step 7/7] Adding encryption-related columns...")
+
+    with engine.begin() as conn:
+        dialect = engine.dialect.name
+
+        if dialect != "postgresql":
+            print("  Skipping — only supported on PostgreSQL.")
+            return
+
+        # Add telegram_chat_hash to users
+        exists = conn.execute(text("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'users' AND column_name = 'telegram_chat_hash'
+            )
+        """)).scalar()
+
+        if exists:
+            print("  telegram_chat_hash already exists. Skipping.")
+        else:
+            conn.execute(text(
+                "ALTER TABLE users ADD COLUMN telegram_chat_hash VARCHAR(64)"
+            ))
+            conn.execute(text(
+                "CREATE UNIQUE INDEX ix_users_telegram_chat_hash ON users (telegram_chat_hash) WHERE telegram_chat_hash IS NOT NULL"
+            ))
+            print("  Added telegram_chat_hash VARCHAR(64) with unique index.")
+
+        # Add description_search to expenses
+        exists = conn.execute(text("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'expenses' AND column_name = 'description_search'
+            )
+        """)).scalar()
+
+        if exists:
+            print("  description_search already exists. Skipping.")
+        else:
+            conn.execute(text(
+                "ALTER TABLE expenses ADD COLUMN description_search VARCHAR"
+            ))
+            conn.execute(text(
+                "CREATE INDEX ix_expenses_description_search ON expenses (description_search)"
+            ))
+            print("  Added description_search VARCHAR with index.")
+
+        # Expand column sizes for encrypted data
+        print("  Expanding column sizes for encrypted data...")
+
+        # audit_logs.ip_address: VARCHAR(45) -> TEXT
+        conn.execute(text(
+            "ALTER TABLE audit_logs ALTER COLUMN ip_address TYPE TEXT"
+        ))
+        print("    audit_logs.ip_address -> TEXT")
+
+        # audit_logs.user_agent: VARCHAR(500) -> TEXT
+        conn.execute(text(
+            "ALTER TABLE audit_logs ALTER COLUMN user_agent TYPE TEXT"
+        ))
+        print("    audit_logs.user_agent -> TEXT")
+
+        # users.mfa_secret: VARCHAR(32) -> TEXT
+        conn.execute(text(
+            "ALTER TABLE users ALTER COLUMN mfa_secret TYPE TEXT"
+        ))
+        print("    users.mfa_secret -> TEXT")
+
+        # users.telegram_chat_id: TEXT (already TEXT, but let's be safe)
+        # users.full_name: TEXT (already TEXT)
+        # cards columns: TEXT (already TEXT)
+        # expenses columns: TEXT (already TEXT)
+        # investments.notes: TEXT (already TEXT)
+        # monthly_reports.report_data: TEXT (already TEXT)
+
+
 def main():
     engine = get_engine()
 
@@ -260,6 +338,7 @@ def main():
     step4_indexes(engine)
     step5_onboarding_completed(engine)
     step6_whats_new_seen(engine)
+    step7_encryption_columns(engine)
 
     print("\n" + "=" * 60)
     print("Migration complete!")

@@ -76,6 +76,14 @@ class TestEncryption(unittest.TestCase):
         """is_encrypted returns False for None."""
         self.assertFalse(is_encrypted(None))
 
+    def test_is_encrypted_fernet_prefix(self):
+        """is_encrypted detects Fernet token prefix."""
+        # Fernet tokens start with 'gAAAAAB'
+        self.assertTrue(is_encrypted("gAAAAABqZ3jJ-1GzGpLcQ3a"))
+        self.assertTrue(is_encrypted("gaaaaabqZ3jJ-1GzGpLcQ3a"))  # Case-insensitive
+        self.assertFalse(is_encrypted("not-encrypted"))
+        self.assertFalse(is_encrypted("gAAAA"))  # Too short
+
 
 class TestHMAC(unittest.TestCase):
     """Test HMAC computation."""
