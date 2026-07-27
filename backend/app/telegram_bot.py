@@ -163,12 +163,9 @@ def _parse_bank_notification(text: str) -> dict | None:
     today = date.today().strftime("%Y-%m-%d")
     prompt = BANK_NOTIFICATION_PARSE_PROMPT.format(today=today) + f"\n\nNotificación: {text}"
 
-    api_key = os.getenv("LLM_API_KEY", "")
-    if not api_key:
-        return None
-
     try:
-        client = genai.Client(api_key=api_key)
+        logger.info("[BANK_PARSE] Parsing bank notification: %s", text[:100])
+        client = _gemini_client()
         response = client.models.generate_content(
             model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"), contents=prompt
         )
@@ -179,10 +176,14 @@ def _parse_bank_notification(text: str) -> dict | None:
                 raw = raw[4:]
             raw = raw.strip()
         result = json.loads(raw)
+        logger.info("[BANK_PARSE] LLM result: %s", result)
 
         # Strip payment entity prefixes from description (e.g., "MERPAGO*BABYPOP" -> "BABYPOP")
         if result and result.get("description"):
+            original = result["description"]
             result["description"] = _strip_payment_prefix(result["description"])
+            if original != result["description"]:
+                logger.info("[BANK_PARSE] Stripped prefix: '%s' -> '%s'", original, result["description"])
 
         return result
     except Exception as e:
