@@ -33,6 +33,7 @@ from app.routers import (
     mfa,
     notifications,
     scheduled_expenses,
+    suggestions,
 )
 from app.scheduler import price_refresh_loop
 from app.seed import _apply_base_hierarchy
@@ -122,3 +123,4 @@ app.include_router(groups.router)
 app.include_router(notifications.router)
 app.include_router(scheduled_expenses.router)
 app.include_router(budgets.router)
+app.include_router(suggestions.router)

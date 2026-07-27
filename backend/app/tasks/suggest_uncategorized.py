@@ -5,7 +5,7 @@ import logging
 
 from app.celery_app import celery_app
 from app.database import SessionLocal
-from app.models import Expense, Notification, User
+from app.models import CategorySuggestion, Expense, Notification, User
 from app.services.categorization import llm_categorize
 
 logger = logging.getLogger(__name__)
@@ -18,7 +18,7 @@ MAX_DAYS_LOOKBACK = 7
 def suggest_uncategorized_categories():
     """Find uncategorized expenses and suggest categories via LLM (high temperature).
 
-    Creates in-app notifications with suggestions — does NOT modify expenses.
+    Stores suggestions in category_suggestions table and creates notification.
     Capped at MAX_EXPENSES_PER_USER per user, last MAX_DAYS_LOOKBACK days.
     """
     db = SessionLocal()
@@ -73,7 +73,7 @@ def suggest_uncategorized_categories():
                 continue
 
             # Suggest categories for each expense (high temperature for ambiguous descriptions)
-            suggestions = []
+            suggestions_data = []
             for exp in expenses:
                 result = llm_categorize(
                     exp.description,
@@ -84,7 +84,18 @@ def suggest_uncategorized_categories():
                     temperature=0.7,
                 )
                 if result and result["confidence"] >= 0.4:
-                    suggestions.append(
+                    # Store in CategorySuggestion table
+                    suggestion = CategorySuggestion(
+                        expense_id=exp.id,
+                        user_id=user.id,
+                        suggested_category_id=result["category_id"],
+                        confidence=round(result["confidence"], 2),
+                        status="pending",
+                        source="llm",
+                    )
+                    db.add(suggestion)
+
+                    suggestions_data.append(
                         {
                             "expense_id": exp.id,
                             "description": exp.description,
@@ -97,17 +108,17 @@ def suggest_uncategorized_categories():
                         }
                     )
 
-            if not suggestions:
+            if not suggestions_data:
                 continue
 
             # Create single notification with all suggestions
-            count = len(suggestions)
+            count = len(suggestions_data)
             notification = Notification(
                 user_id=user.id,
                 type="category_suggestions",
                 title=f"✨ {count} gasto{'s' if count != 1 else ''} sugieren categorías",
                 body="La IA encontró categorías sugeridas para gastos sin clasificar.",
-                data=json.dumps({"suggestions": suggestions, "count": count}),
+                data=json.dumps({"suggestions": suggestions_data, "count": count}),
                 read=False,
             )
             db.add(notification)
