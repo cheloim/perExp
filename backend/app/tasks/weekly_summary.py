@@ -276,11 +276,11 @@ def send_weekly_reports():
                 llm = report_data.get("llm_analysis", {})
 
                 caption = (
-                    f"📊 *Resumen Semanal — NikoFin*\n"
+                    f"📊 <b>Resumen Semanal — NikoFin</b>\n"
                     f"📅 Semana del {start.strftime('%d/%m')} al {end.strftime('%d/%m/%Y')}\n\n"
-                    f"💰 Gasto semanal: *${total:,.0f}*\n"
-                    f"📈 Acumulado mes: *${accumulated:,.0f}*\n"
-                    f"📋 Transacciones: *{count}*"
+                    f"💰 <b>Gasto semanal:</b> ${total:,.0f}\n"
+                    f"📈 <b>Acumulado mes:</b> ${accumulated:,.0f}\n"
+                    f"📋 <b>Transacciones:</b> {count}"
                 )
 
                 if llm and llm.get("summary"):

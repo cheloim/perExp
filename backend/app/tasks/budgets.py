@@ -81,13 +81,16 @@ def _send_telegram_alert(chat_id: str, category_name: str, pct: float, spent: fl
         from app.telegram_bot import send_message_to_chat
 
         emoji = "🔴" if pct >= 1.0 else "🟡"
+        remaining = budget - spent
+        remaining_pct = (remaining / budget * 100) if budget > 0 else 0
         send_message_to_chat(
             chat_id,
-            f"{emoji} *Alerta de Presupuesto*\n\n"
-            f"*{category_name}*\n"
-            f"Gastado: ${spent:,.0f} / ${budget:,.0f}\n"
-            f"Porcentaje: {pct:.0%}\n\n"
-            f"{'⚠️ Presupuesto excedido!' if pct >= 1.0 else '⚠️ Te acercás al límite.'}",
+            f"{emoji} <b>Alerta de Presupuesto</b>\n\n"
+            f"<b>{category_name}</b>\n"
+            f"💰 Gastado: ${spent:,.0f} de ${budget:,.0f}\n"
+            f"📊 Uso: {pct:.0%}\n"
+            f"💸 Te quedan: ${remaining:,.0f} ({remaining_pct:.0f}%)\n\n"
+            f"{'⚠️ Presupuesto excedido! Revisá tus gastos.' if pct >= 1.0 else '⚠️ Te estás acercando al límite. Revisá tus gastos en esta categoría.'}",
         )
     except Exception as e:
         print(f"[BUDGET ALERT] Failed to send Telegram alert: {e}")
@@ -103,13 +106,16 @@ def _send_group_telegram_alert(
         emoji = "🔴" if pct >= 1.0 else "🟡"
         display_names = {"necesidades": "Necesidades", "gustos": "Gustos", "ahorro": "Ahorro"}
         display_name = display_names.get(group_name, group_name)
+        remaining = budget - spent
+        remaining_pct = (remaining / budget * 100) if budget > 0 else 0
 
         send_message_to_chat(
             chat_id,
-            f"{emoji} *Alerta de Presupuesto — {display_name}*\n\n"
-            f"Gastado: ${spent:,.0f} / ${budget:,.0f}\n"
-            f"Porcentaje: {pct:.0%}\n\n"
-            f"{'⚠️ Macrogrupo excedido!' if pct >= 1.0 else '⚠️ Te acercás al límite.'}",
+            f"{emoji} <b>Alerta de Presupuesto — {display_name}</b>\n\n"
+            f"💰 Gastado: ${spent:,.0f} de ${budget:,.0f}\n"
+            f"📊 Uso: {pct:.0%}\n"
+            f"💸 Te quedan: ${remaining:,.0f} ({remaining_pct:.0f}%)\n\n"
+            f"{'⚠️ Macrogrupo excedido! Revisá tus gastos.' if pct >= 1.0 else f'⚠️ Te estás acercando al límite del macrogrupo {display_name}.'}",
         )
     except Exception as e:
         print(f"[BUDGET ALERT] Failed to send Telegram alert: {e}")
