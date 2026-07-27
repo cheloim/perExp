@@ -22,7 +22,6 @@ import CardAccountModal from "../components/CardAccountModal";
 import type { Expense, ExpenseCreate } from "../types";
 import { ExpenseModal } from "../components/ExpenseModals";
 import { formatCurrency, toUpperCase, getContrastTextColor, formatDateDMY } from "../utils/format";
-import EmptyState from "../components/ui/EmptyState";
 
 const MONTHS_ES = [
   "Enero",
