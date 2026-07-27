@@ -15,19 +15,11 @@ function Section({
     <section id={id} className="mb-10">
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center flex-shrink-0">
-          <SymbolicIcon
-            name={icon}
-            size={20}
-            className="text-[var(--color-primary)]"
-          />
+          <SymbolicIcon name={icon} size={20} className="text-[var(--color-primary)]" />
         </div>
-        <h2 className="text-xl font-bold text-[var(--text-primary)]">
-          {title}
-        </h2>
+        <h2 className="text-xl font-bold text-[var(--text-primary)]">{title}</h2>
       </div>
-      <div className="space-y-4 text-[var(--text-secondary)] leading-relaxed">
-        {children}
-      </div>
+      <div className="space-y-4 text-[var(--text-secondary)] leading-relaxed">{children}</div>
     </section>
   );
 }
@@ -40,9 +32,7 @@ function Steps({ items }: { items: string[] }) {
           <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center text-xs font-bold">
             {i + 1}
           </span>
-          <span className="text-sm text-[var(--text-secondary)] pt-0.5">
-            {item}
-          </span>
+          <span className="text-sm text-[var(--text-secondary)] pt-0.5">{item}</span>
         </li>
       ))}
     </ol>
@@ -70,12 +60,9 @@ export default function GuideInvestmentsPage() {
               />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-[var(--text-primary)]">
-                Guía de Inversiones
-              </h1>
+              <h1 className="text-3xl font-bold text-[var(--text-primary)]">Guía de Inversiones</h1>
               <p className="text-[var(--text-secondary)]">
-                Todo lo que necesitás saber para trackear tus inversiones y tu
-                portfolio
+                Todo lo que necesitás saber para trackear tus inversiones y tu portfolio
               </p>
             </div>
           </div>
@@ -112,52 +99,40 @@ export default function GuideInvestmentsPage() {
         </nav>
 
         {/* Section 1: What is Investments tracking */}
-        <Section
-          id="que-es"
-          icon="arrow-up-right"
-          title="¿Qué es el seguimiento de inversiones?"
-        >
+        <Section id="que-es" icon="arrow-up-right" title="¿Qué es el seguimiento de inversiones?">
           <p>
             El módulo de inversiones te permite{" "}
-            <strong>ver todas tus inversiones en un solo lugar</strong>, tanto
-            las que cargás manualmente como las que se sincronizan
-            automáticamente desde tu broker.
+            <strong>ver todas tus inversiones en un solo lugar</strong>, tanto las que cargás
+            manualmente como las que se sincronizan automáticamente desde tu broker.
           </p>
           <p>
-            Podés trackear acciones, bonos, Cedears, plazos fijos, fondos
-            comunes y más. El sistema calcula automáticamente tus ganancias y
-            pérdidas en tiempo real.
+            Podés trackear acciones, bonos, Cedears, plazos fijos, fondos comunes y más. El sistema
+            calcula automáticamente tus ganancias y pérdidas en tiempo real.
           </p>
           <div className="p-4 rounded-xl bg-[var(--color-primary)]/5 border border-[var(--color-primary)]/20">
             <p className="text-sm">
-              <strong>💡 Ejemplo:</strong> Tenés 100 Cedears de AAPL comprados a
-              $15.000 c/u. El sistema muestra el precio actual de Yahoo Finance,
-              calcula tu ganancia/pérdida, y te muestra la composición de tu
-              portfolio por activo y por broker.
+              <strong>💡 Ejemplo:</strong> Tenés 100 Cedears de AAPL comprados a $15.000 c/u. El
+              sistema muestra el precio actual de Yahoo Finance, calcula tu ganancia/pérdida, y te
+              muestra la composición de tu portfolio por activo y por broker.
             </p>
           </div>
           <p>Hay dos formas de cargar inversiones:</p>
           <ul className="list-disc ml-5 space-y-1">
             <li>
-              <strong>Manual</strong> — Cargás vos mismo el ticker, cantidad y
-              costo
+              <strong>Manual</strong> — Cargás vos mismo el ticker, cantidad y costo
             </li>
             <li>
-              <strong>Automática (Sync)</strong> — Conectás tu broker (IOL o
-              PPI) y el sistema importa tu portfolio
+              <strong>Automática (Sync)</strong> — Conectás tu broker (IOL o PPI) y el sistema
+              importa tu portfolio
             </li>
           </ul>
         </Section>
 
         {/* Section 2: Add investments manually */}
-        <Section
-          id="agregar-manual"
-          icon="arrow-up-right"
-          title="Agregar inversiones manualmente"
-        >
+        <Section id="agregar-manual" icon="arrow-up-right" title="Agregar inversiones manualmente">
           <p>
-            Si tu broker no tiene sync automático o preferís cargar vos mismo,
-            podés agregar inversiones de forma manual.
+            Si tu broker no tiene sync automático o preferís cargar vos mismo, podés agregar
+            inversiones de forma manual.
           </p>
           <Steps
             items={[
@@ -182,8 +157,7 @@ export default function GuideInvestmentsPage() {
                 <strong>Cantidad</strong> — Número de títulos (obligatorio)
               </li>
               <li>
-                <strong>Costo total</strong> — Cuanto pagaste en total
-                (obligatorio)
+                <strong>Costo total</strong> — Cuanto pagaste en total (obligatorio)
               </li>
               <li>
                 <strong>Broker</strong> — Opcional, para agrupar por broker
@@ -193,19 +167,12 @@ export default function GuideInvestmentsPage() {
         </Section>
 
         {/* Section 3: IOL sync */}
-        <Section
-          id="sync-iol"
-          icon="sparkles"
-          title="Sincronización con IOL (Invertir Online)"
-        >
+        <Section id="sync-iol" icon="sparkles" title="Sincronización con IOL (Invertir Online)">
           <p>
-            Si usás Invertir Online como broker, podés conectar tu cuenta para
-            que el sistema importe automáticamente tu portfolio. No tenés que
-            cargar nada manualmente.
+            Si usás Invertir Online como broker, podés conectar tu cuenta para que el sistema
+            importe automáticamente tu portfolio. No tenés que cargar nada manualmente.
           </p>
-          <p className="text-sm font-semibold text-[var(--text-primary)]">
-            Cómo funciona OAuth2:
-          </p>
+          <p className="text-sm font-semibold text-[var(--text-primary)]">Cómo funciona OAuth2:</p>
           <Steps
             items={[
               'En "Inversiones", hacé click en "Conectar broker" y seleccioná IOL',
@@ -221,23 +188,16 @@ export default function GuideInvestmentsPage() {
               ¿Qué datos se sincronizan?
             </p>
             <ul className="text-xs text-[var(--text-secondary)] space-y-1 ml-3 list-disc">
-              <li>
-                Todas tus posiciones actuales (ticker, cantidad, costo de
-                compra)
-              </li>
+              <li>Todas tus posiciones actuales (ticker, cantidad, costo de compra)</li>
               <li>El sistema calcula automáticamente el costo promedio</li>
-              <li>
-                Las posiciones nuevas aparecen en tu portfolio sin que hagas
-                nada
-              </li>
+              <li>Las posiciones nuevas aparecen en tu portfolio sin que hagas nada</li>
             </ul>
           </div>
           <div className="mt-3 p-4 rounded-xl bg-[var(--color-warning)]/5 border border-[var(--color-warning)]/20">
             <p className="text-sm">
-              <strong>⚠️ Seguridad:</strong> La app solo tiene permiso de
-              lectura. No puede hacer operaciones ni modificar tu cuenta de IOL.
-              Podés revocar el acceso desde la configuración de IOL en cualquier
-              momento.
+              <strong>⚠️ Seguridad:</strong> La app solo tiene permiso de lectura. No puede hacer
+              operaciones ni modificar tu cuenta de IOL. Podés revocar el acceso desde la
+              configuración de IOL en cualquier momento.
             </p>
           </div>
         </Section>
@@ -249,8 +209,8 @@ export default function GuideInvestmentsPage() {
           title="Sincronización con PPI (Portfolio Personal Inversiones)"
         >
           <p>
-            Si usás PPI como broker, la conexión se hace mediante API key. Es un
-            proceso diferente al de IOL pero igual de simple.
+            Si usás PPI como broker, la conexión se hace mediante API key. Es un proceso diferente
+            al de IOL pero igual de simple.
           </p>
           <Steps
             items={[
@@ -266,19 +226,14 @@ export default function GuideInvestmentsPage() {
               ¿Dónde obtengo la API key?
             </p>
             <p className="text-xs text-[var(--text-secondary)]">
-              Entrá a tu cuenta en PPI → Configuración → API Keys → Generar
-              nueva key. Copiá la key y pegala en la app. Guardala en un lugar
-              seguro, no la compartas.
+              Entrá a tu cuenta en PPI → Configuración → API Keys → Generar nueva key. Copiá la key
+              y pegala en la app. Guardala en un lugar seguro, no la compartas.
             </p>
           </div>
         </Section>
 
         {/* Section 5: Price refresh */}
-        <Section
-          id="refresh-precios"
-          icon="arrow-up-right"
-          title="Actualización de precios"
-        >
+        <Section id="refresh-precios" icon="arrow-up-right" title="Actualización de precios">
           <p>
             Los precios de tus inversiones se actualizan automáticamente usando{" "}
             <strong>Yahoo Finance</strong> como fuente de datos.
@@ -289,9 +244,9 @@ export default function GuideInvestmentsPage() {
                 🕐 Frecuencia de actualización
               </p>
               <p className="text-xs text-[var(--text-secondary)]">
-                Cada <strong>15 minutos</strong> durante el horario de mercado
-                abierto (NYSE: 10:30-17:00 ET, BYMA: 11:00-17:00 ART). Fuera de
-                horario, los precios se mantienen al último cierre.
+                Cada <strong>15 minutos</strong> durante el horario de mercado abierto (NYSE:
+                10:30-17:00 ET, BYMA: 11:00-17:00 ART). Fuera de horario, los precios se mantienen
+                al último cierre.
               </p>
             </div>
             <div className="p-3 rounded-lg border border-[var(--border-color)]">
@@ -299,9 +254,9 @@ export default function GuideInvestmentsPage() {
                 🌐 Activos soportados
               </p>
               <p className="text-xs text-[var(--text-secondary)]">
-                Acciones argentinas (GGAL, YPF, etc.), Cedears (AAPL, TSLA,
-                etc.), bonos (AL30, GD30), ETFs, y acciones de mercados
-                internacionales. Si Yahoo Finance lo tiene, lo podemos trackear.
+                Acciones argentinas (GGAL, YPF, etc.), Cedears (AAPL, TSLA, etc.), bonos (AL30,
+                GD30), ETFs, y acciones de mercados internacionales. Si Yahoo Finance lo tiene, lo
+                podemos trackear.
               </p>
             </div>
             <div className="p-3 rounded-lg border border-[var(--border-color)]">
@@ -309,71 +264,55 @@ export default function GuideInvestmentsPage() {
                 💱 Conversión automática
               </p>
               <p className="text-xs text-[var(--text-secondary)]">
-                Los precios en USD se convierten a ARS usando el tipo de cambio
-                actual (ver sección siguiente) para mostrar todo en una misma
-                moneda en el portfolio.
+                Los precios en USD se convierten a ARS usando el tipo de cambio actual (ver sección
+                siguiente) para mostrar todo en una misma moneda en el portfolio.
               </p>
             </div>
           </div>
         </Section>
 
         {/* Section 6: USD/ARS rate */}
-        <Section
-          id="tipo-cambio"
-          icon="arrow-up-right"
-          title="Tipo de cambio USD/ARS"
-        >
+        <Section id="tipo-cambio" icon="arrow-up-right" title="Tipo de cambio USD/ARS">
           <p>
-            Para mostrar todas tus inversiones en una moneda común, el sistema
-            necesita saber el tipo de cambio USD/ARS. Se obtiene de dos fuentes:
+            Para mostrar todas tus inversiones en una moneda común, el sistema necesita saber el
+            tipo de cambio USD/ARS. Se obtiene de dos fuentes:
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="p-4 rounded-xl border-2 border-[var(--color-primary)]/30">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-8 h-8 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center">
-                  <span className="text-xs font-bold text-[var(--color-primary)]">
-                    BNA
-                  </span>
+                  <span className="text-xs font-bold text-[var(--color-primary)]">BNA</span>
                 </div>
-                <p className="text-sm font-semibold text-[var(--text-primary)]">
-                  Banco Nación
-                </p>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">Banco Nación</p>
               </div>
               <p className="text-xs text-[var(--text-secondary)]">
-                Tipo de cambio oficial del Banco Nación. Se actualiza varias
-                veces al día. Es la referencia para el dólar oficial.
+                Tipo de cambio oficial del Banco Nación. Se actualiza varias veces al día. Es la
+                referencia para el dólar oficial.
               </p>
             </div>
             <div className="p-4 rounded-xl border-2 border-[var(--color-warning)]/30">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-8 h-8 rounded-full bg-[var(--color-warning)]/10 flex items-center justify-center">
-                  <span className="text-xs font-bold text-[var(--color-warning)]">
-                    ADR
-                  </span>
+                  <span className="text-xs font-bold text-[var(--color-warning)]">ADR</span>
                 </div>
-                <p className="text-sm font-semibold text-[var(--text-primary)]">
-                  ADR implícito
-                </p>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">ADR implícito</p>
               </div>
               <p className="text-xs text-[var(--text-secondary)]">
-                Tipo de cambio implícito calculado a partir de los precios de
-                acciones argentinas que cotizan en NYSE como ADRs. Refleja el
-                dólar "de mercado".
+                Tipo de cambio implícito calculado a partir de los precios de acciones argentinas
+                que cotizan en NYSE como ADRs. Refleja el dólar "de mercado".
               </p>
             </div>
           </div>
           <p className="mt-3 text-sm">
-            El sistema usa el tipo de cambio ADR implícito como referencia
-            principal para la conversión de moneda en tu portfolio, ya que
-            refleja mejor el valor real de mercado.
+            El sistema usa el tipo de cambio ADR implícito como referencia principal para la
+            conversión de moneda en tu portfolio, ya que refleja mejor el valor real de mercado.
           </p>
         </Section>
 
         {/* Section 7: Portfolio view */}
         <Section id="portfolio" icon="chart-bar" title="Vista del portfolio">
           <p>
-            La vista de portfolio te muestra toda la información de tus
-            inversiones de un vistazo:
+            La vista de portfolio te muestra toda la información de tus inversiones de un vistazo:
           </p>
           <div className="space-y-3">
             <div className="p-3 rounded-lg border border-[var(--border-color)]">
@@ -381,9 +320,8 @@ export default function GuideInvestmentsPage() {
                 📋 Listado de holdings
               </p>
               <p className="text-xs text-[var(--text-secondary)]">
-                Cada posición muestra: ticker, nombre del activo, cantidad,
-                precio actual, valor de mercado, costo de compra, y
-                ganancia/pérdida tanto en monto como en porcentaje.
+                Cada posición muestra: ticker, nombre del activo, cantidad, precio actual, valor de
+                mercado, costo de compra, y ganancia/pérdida tanto en monto como en porcentaje.
               </p>
             </div>
             <div className="p-3 rounded-lg border border-[var(--border-color)]">
@@ -391,9 +329,8 @@ export default function GuideInvestmentsPage() {
                 📊 Ganancias y pérdidas
               </p>
               <p className="text-xs text-[var(--text-secondary)]">
-                Cada posición muestra con color verde (ganancia) o rojo
-                (pérdida) el resultado. Al fondo del listado, el total
-                consolidado de todo tu portfolio.
+                Cada posición muestra con color verde (ganancia) o rojo (pérdida) el resultado. Al
+                fondo del listado, el total consolidado de todo tu portfolio.
               </p>
             </div>
             <div className="p-3 rounded-lg border border-[var(--border-color)]">
@@ -401,9 +338,8 @@ export default function GuideInvestmentsPage() {
                 🥧 Composición por activo
               </p>
               <p className="text-xs text-[var(--text-secondary)]">
-                Gráfico de torta que muestra qué porcentaje de tu portfolio está
-                en cada activo. Te ayuda a ver si estás diversificado o
-                concentrado en un solo activo.
+                Gráfico de torta que muestra qué porcentaje de tu portfolio está en cada activo. Te
+                ayuda a ver si estás diversificado o concentrado en un solo activo.
               </p>
             </div>
             <div className="p-3 rounded-lg border border-[var(--border-color)]">
@@ -411,28 +347,23 @@ export default function GuideInvestmentsPage() {
                 🏦 Filtro por broker
               </p>
               <p className="text-xs text-[var(--text-secondary)]">
-                Podés filtrar el portfolio por broker para ver las posiciones de
-                IOL, PPI, o las que cargaste manualmente por separado.
+                Podés filtrar el portfolio por broker para ver las posiciones de IOL, PPI, o las que
+                cargaste manualmente por separado.
               </p>
             </div>
           </div>
         </Section>
 
         {/* Section 8: Tips */}
-        <Section
-          id="consejos"
-          icon="sparkles"
-          title="Consejos para trackear inversiones"
-        >
+        <Section id="consejos" icon="sparkles" title="Consejos para trackear inversiones">
           <div className="space-y-3">
             <div className="p-3 rounded-lg border border-[var(--border-color)]">
               <p className="text-xs font-semibold text-[var(--text-primary)]">
                 💡 Usá sync automático si podés
               </p>
               <p className="text-xs text-[var(--text-secondary)]">
-                Conectar IOL o PPI te ahorra tiempo y evita errores de carga
-                manual. Las posiciones nuevas se importan solas y los costos se
-                calculan automáticamente.
+                Conectar IOL o PPI te ahorra tiempo y evita errores de carga manual. Las posiciones
+                nuevas se importan solas y los costos se calculan automáticamente.
               </p>
             </div>
             <div className="p-3 rounded-lg border border-[var(--border-color)]">
@@ -440,9 +371,8 @@ export default function GuideInvestmentsPage() {
                 💡 Cargá manualmente para casos especiales
               </p>
               <p className="text-xs text-[var(--text-secondary)]">
-                Si tenés inversiones en brokers que no tienen sync (o en otro
-                tipo de activo como plazo fijo o FCI), cargalos manualmente. Es
-                rápido y te da la vista completa.
+                Si tenés inversiones en brokers que no tienen sync (o en otro tipo de activo como
+                plazo fijo o FCI), cargalos manualmente. Es rápido y te da la vista completa.
               </p>
             </div>
             <div className="p-3 rounded-lg border border-[var(--border-color)]">
@@ -450,9 +380,8 @@ export default function GuideInvestmentsPage() {
                 💡 Revisá la composición del portfolio
               </p>
               <p className="text-xs text-[var(--text-secondary)]">
-                Si el 80% de tu portfolio está en un solo activo, es momento de
-                diversificar. La vista de composición te ayuda a detectar
-                concentración excesiva.
+                Si el 80% de tu portfolio está en un solo activo, es momento de diversificar. La
+                vista de composición te ayuda a detectar concentración excesiva.
               </p>
             </div>
             <div className="p-3 rounded-lg border border-[var(--border-color)]">
@@ -460,19 +389,15 @@ export default function GuideInvestmentsPage() {
                 💡 Los precios se actualizan solos
               </p>
               <p className="text-xs text-[var(--text-secondary)]">
-                No tenés que refrescar nada. Los precios se actualizan cada 15
-                minutos en horario de mercado. Fuera de horario, se mantiene el
-                último cierre.
+                No tenés que refrescar nada. Los precios se actualizan cada 15 minutos en horario de
+                mercado. Fuera de horario, se mantiene el último cierre.
               </p>
             </div>
             <div className="p-3 rounded-lg border border-[var(--border-color)]">
-              <p className="text-xs font-semibold text-[var(--text-primary)]">
-                💡 Combiná fuentes
-              </p>
+              <p className="text-xs font-semibold text-[var(--text-primary)]">💡 Combiná fuentes</p>
               <p className="text-xs text-[var(--text-secondary)]">
-                Podés tener posiciones de IOL sincronizadas, posiciones de PPI
-                sincronizadas, y además cargar algunas manualmente. Todo se ve
-                unificado en el portfolio.
+                Podés tener posiciones de IOL sincronizadas, posiciones de PPI sincronizadas, y
+                además cargar algunas manualmente. Todo se ve unificado en el portfolio.
               </p>
             </div>
           </div>

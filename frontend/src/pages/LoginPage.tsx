@@ -60,8 +60,7 @@ const BLOCKED_DOMAINS = new Set([
 
 function validateEmail(email: string): string | null {
   if (!email.trim()) return "El email es requerido";
-  if (!EMAIL_REGEX.test(email.trim()))
-    return "El formato del email no es válido";
+  if (!EMAIL_REGEX.test(email.trim())) return "El formato del email no es válido";
   const domain = email.trim().toLowerCase().split("@")[1];
   if (BLOCKED_DOMAINS.has(domain))
     return "Este dominio de email no está permitido. Usá un email real.";
@@ -70,9 +69,9 @@ function validateEmail(email: string): string | null {
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<
-    "login" | "register" | "forgot" | "force-change" | "mfa"
-  >("login");
+  const [mode, setMode] = useState<"login" | "register" | "forgot" | "force-change" | "mfa">(
+    "login",
+  );
   const [forceToken, setForceToken] = useState("");
   const [mfaToken, setMfaToken] = useState("");
 
@@ -127,14 +126,9 @@ export default function LoginPage() {
           />
         )}
         {mode === "register" && (
-          <RegisterForm
-            onLogin={() => setMode("login")}
-            onSuccess={() => navigate("/")}
-          />
+          <RegisterForm onLogin={() => setMode("login")} onSuccess={() => navigate("/")} />
         )}
-        {mode === "forgot" && (
-          <ForgotPasswordForm onBack={() => setMode("login")} />
-        )}
+        {mode === "forgot" && <ForgotPasswordForm onBack={() => setMode("login")} />}
         {mode === "force-change" && (
           <ForceChangeForm
             token={forceToken}
@@ -240,10 +234,7 @@ function LoginForm({
     <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-gnome p-6 flex flex-col gap-4">
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
-          <label
-            className="text-sm font-medium text-[var(--text-primary)]"
-            htmlFor="email"
-          >
+          <label className="text-sm font-medium text-[var(--text-primary)]" htmlFor="email">
             Correo electrónico
           </label>
           <input
@@ -260,10 +251,7 @@ function LoginForm({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label
-            className="text-sm font-medium text-[var(--text-primary)]"
-            htmlFor="password"
-          >
+          <label className="text-sm font-medium text-[var(--text-primary)]" htmlFor="password">
             Contraseña
           </label>
           <input
@@ -289,15 +277,9 @@ function LoginForm({
         </div>
 
         {error && <div className="alert-error">{error}</div>}
-        {authRedirectError && (
-          <div className="alert-error">{authRedirectError}</div>
-        )}
+        {authRedirectError && <div className="alert-error">{authRedirectError}</div>}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="gnome-btn-primary w-full mt-1"
-        >
+        <button type="submit" disabled={loading} className="gnome-btn-primary w-full mt-1">
           {loading ? "Ingresando..." : "Ingresar"}
         </button>
       </form>
@@ -368,11 +350,7 @@ function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
       setSent(true);
     } catch (err: any) {
       const detail = err?.response?.data?.detail;
-      setError(
-        typeof detail === "string"
-          ? detail
-          : "Error al enviar el email. Intentá de nuevo.",
-      );
+      setError(typeof detail === "string" ? detail : "Error al enviar el email. Intentá de nuevo.");
     } finally {
       setLoading(false);
     }
@@ -418,18 +396,12 @@ function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
               />
             </svg>
           </div>
-          <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
-            Email enviado
-          </h2>
+          <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Email enviado</h2>
           <p className="text-sm text-[var(--text-secondary)] mb-4">
-            Si el email <strong>{email}</strong> está registrado, recibirás un
-            enlace para restablecer tu contraseña.
+            Si el email <strong>{email}</strong> está registrado, recibirás un enlace para
+            restablecer tu contraseña.
           </p>
-          <button
-            type="button"
-            onClick={onBack}
-            className="gnome-btn-primary w-full"
-          >
+          <button type="button" onClick={onBack} className="gnome-btn-primary w-full">
             Volver al inicio de sesión
           </button>
         </div>
@@ -440,8 +412,7 @@ function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
               Restablecer contraseña
             </h2>
             <p className="text-sm text-[var(--text-secondary)] mt-1">
-              Ingresá tu email y te enviaremos un enlace para crear una nueva
-              contraseña.
+              Ingresá tu email y te enviaremos un enlace para crear una nueva contraseña.
             </p>
           </div>
 
@@ -468,11 +439,7 @@ function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
 
             {error && <div className="alert-error">{error}</div>}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="gnome-btn-primary w-full mt-1"
-            >
+            <button type="submit" disabled={loading} className="gnome-btn-primary w-full mt-1">
               {loading ? "Enviando..." : "Enviar enlace"}
             </button>
           </form>
@@ -482,13 +449,7 @@ function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
   );
 }
 
-function RegisterForm({
-  onLogin,
-  onSuccess,
-}: {
-  onLogin: () => void;
-  onSuccess: () => void;
-}) {
+function RegisterForm({ onLogin, onSuccess }: { onLogin: () => void; onSuccess: () => void }) {
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -525,27 +486,17 @@ function RegisterForm({
       return;
     }
     if (!SPECIAL_CHARS.test(password)) {
-      setError(
-        "La contraseña debe contener al menos un carácter especial (!@#$%^&*...)",
-      );
+      setError("La contraseña debe contener al menos un carácter especial (!@#$%^&*...)");
       return;
     }
     setLoading(true);
     try {
-      const token = await register(
-        nombre.trim(),
-        email.trim().toLowerCase(),
-        password,
-      );
+      const token = await register(nombre.trim(), email.trim().toLowerCase(), password);
       storeToken(token.access_token);
       onSuccess();
     } catch (err: any) {
       const detail = err?.response?.data?.detail;
-      setError(
-        typeof detail === "string"
-          ? detail
-          : "Error al registrar. Intentá de nuevo.",
-      );
+      setError(typeof detail === "string" ? detail : "Error al registrar. Intentá de nuevo.");
     } finally {
       setLoading(false);
     }
@@ -573,15 +524,10 @@ function RegisterForm({
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-          Crear cuenta
-        </h2>
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Crear cuenta</h2>
 
         <div className="flex flex-col gap-1">
-          <label
-            className="text-sm font-medium text-[var(--text-primary)]"
-            htmlFor="nombre"
-          >
+          <label className="text-sm font-medium text-[var(--text-primary)]" htmlFor="nombre">
             Nombre completo
           </label>
           <input
@@ -600,10 +546,7 @@ function RegisterForm({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label
-            className="text-sm font-medium text-[var(--text-primary)]"
-            htmlFor="reg-email"
-          >
+          <label className="text-sm font-medium text-[var(--text-primary)]" htmlFor="reg-email">
             Correo electrónico
           </label>
           <input
@@ -620,10 +563,7 @@ function RegisterForm({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label
-            className="text-sm font-medium text-[var(--text-primary)]"
-            htmlFor="reg-password"
-          >
+          <label className="text-sm font-medium text-[var(--text-primary)]" htmlFor="reg-password">
             Contraseña
           </label>
           <input
@@ -637,16 +577,12 @@ function RegisterForm({
             className="input"
           />
           <span className="text-xs text-[var(--text-tertiary)]">
-            Mín. 8 caracteres, 1 mayúscula, 1 minúscula, 1 número, 1 especial
-            (!@#$%^&*...)
+            Mín. 8 caracteres, 1 mayúscula, 1 minúscula, 1 número, 1 especial (!@#$%^&*...)
           </span>
         </div>
 
         <div className="flex flex-col gap-1">
-          <label
-            className="text-sm font-medium text-[var(--text-primary)]"
-            htmlFor="reg-confirm"
-          >
+          <label className="text-sm font-medium text-[var(--text-primary)]" htmlFor="reg-confirm">
             Confirmar contraseña
           </label>
           <input
@@ -663,11 +599,7 @@ function RegisterForm({
 
         {error && <div className="alert-error">{error}</div>}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="gnome-btn-primary w-full mt-1"
-        >
+        <button type="submit" disabled={loading} className="gnome-btn-primary w-full mt-1">
           {loading ? "Registrando..." : "Crear cuenta"}
         </button>
       </form>
@@ -724,9 +656,7 @@ function ForceChangeForm({
       return;
     }
     if (!SPECIAL_CHARS.test(password)) {
-      setError(
-        "La contraseña debe contener al menos un carácter especial (!@#$%^&*...)",
-      );
+      setError("La contraseña debe contener al menos un carácter especial (!@#$%^&*...)");
       return;
     }
     setLoading(true);
@@ -737,9 +667,7 @@ function ForceChangeForm({
     } catch (err: any) {
       const detail = err?.response?.data?.detail;
       setError(
-        typeof detail === "string"
-          ? detail
-          : "Error al cambiar contraseña. Intentá de nuevo.",
+        typeof detail === "string" ? detail : "Error al cambiar contraseña. Intentá de nuevo.",
       );
     } finally {
       setLoading(false);
@@ -753,17 +681,14 @@ function ForceChangeForm({
           Cambio de contraseña obligatorio
         </h2>
         <p className="text-sm text-[var(--text-secondary)] mt-1">
-          Por seguridad, debés crear una nueva contraseña que cumpla con los
-          requisitos de seguridad actualizados.
+          Por seguridad, debés crear una nueva contraseña que cumpla con los requisitos de seguridad
+          actualizados.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
-          <label
-            className="text-sm font-medium text-[var(--text-primary)]"
-            htmlFor="force-new-pw"
-          >
+          <label className="text-sm font-medium text-[var(--text-primary)]" htmlFor="force-new-pw">
             Nueva contraseña
           </label>
           <input
@@ -777,8 +702,7 @@ function ForceChangeForm({
             className="input"
           />
           <span className="text-xs text-[var(--text-tertiary)]">
-            Mín. 8 caracteres, 1 mayúscula, 1 minúscula, 1 número, 1 especial
-            (!@#$%^&*...)
+            Mín. 8 caracteres, 1 mayúscula, 1 minúscula, 1 número, 1 especial (!@#$%^&*...)
           </span>
         </div>
 
@@ -803,11 +727,7 @@ function ForceChangeForm({
 
         {error && <div className="alert-error">{error}</div>}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="gnome-btn-primary w-full mt-1"
-        >
+        <button type="submit" disabled={loading} className="gnome-btn-primary w-full mt-1">
           {loading ? "Guardando..." : "Guardar nueva contraseña"}
         </button>
       </form>
@@ -861,17 +781,14 @@ function MfaForm({
           Verificación de seguridad
         </h2>
         <p className="text-sm text-[var(--text-secondary)] mt-1">
-          Ingresá el código de 6 dígitos de tu aplicación de autenticación
-          (Google Authenticator, Authy, etc.).
+          Ingresá el código de 6 dígitos de tu aplicación de autenticación (Google Authenticator,
+          Authy, etc.).
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
-          <label
-            className="text-sm font-medium text-[var(--text-primary)]"
-            htmlFor="mfa-code"
-          >
+          <label className="text-sm font-medium text-[var(--text-primary)]" htmlFor="mfa-code">
             Código de verificación
           </label>
           <input

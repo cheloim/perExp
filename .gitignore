@@ -12,6 +12,7 @@ dist/
 node_modules/
 frontend/dist/
 frontend/.vite/
+.nvmrc
 
 # DB
 *.db

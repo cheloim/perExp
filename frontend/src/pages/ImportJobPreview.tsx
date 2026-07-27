@@ -1,18 +1,8 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  getImportJob,
-  confirmImportJob,
-  deleteImportJob,
-  getCards,
-} from "../api/client";
+import { getImportJob, confirmImportJob, deleteImportJob, getCards } from "../api/client";
 import { useState, useEffect } from "react";
-import type {
-  SmartImportRow,
-  DetectedCard,
-  CardsMapping,
-  Card,
-} from "../types";
+import type { SmartImportRow, DetectedCard, CardsMapping, Card } from "../types";
 import { formatCurrency } from "../utils/format";
 import { useModalWithData } from "../hooks/useModal";
 import { TransactionDetailModal } from "../components/TransactionDetailModal";
@@ -66,18 +56,9 @@ export default function ImportJobPreview() {
   });
 
   const confirmMutation = useMutation({
-    mutationFn: ({
-      rows,
-      cardsMapping,
-    }: {
-      rows: SmartImportRow[];
-      cardsMapping?: CardsMapping;
-    }) => confirmImportJob(Number(jobId), rows, cardsMapping),
-    onSuccess: (result: {
-      imported: number;
-      scheduled: number;
-      skipped: number;
-    }) => {
+    mutationFn: ({ rows, cardsMapping }: { rows: SmartImportRow[]; cardsMapping?: CardsMapping }) =>
+      confirmImportJob(Number(jobId), rows, cardsMapping),
+    onSuccess: (result: { imported: number; scheduled: number; skipped: number }) => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["cards"] });
@@ -88,9 +69,7 @@ export default function ImportJobPreview() {
       setShowResultModal(true);
     },
     onError: (err: any) => {
-      setPageError(
-        err?.response?.data?.detail || err.message || "Error al importar",
-      );
+      setPageError(err?.response?.data?.detail || err.message || "Error al importar");
     },
   });
 
@@ -119,12 +98,8 @@ export default function ImportJobPreview() {
 
   const nonDuplicateCount = rows.filter((r) => !r.is_duplicate).length;
   const duplicateCount = rows.filter((r) => r.is_duplicate).length;
-  const scheduledCount = rows.filter(
-    (r) => r.is_scheduled || r.installment_total,
-  ).length;
-  const uniqueCards = [
-    ...new Set(rows.map((r) => r.card_header).filter(Boolean)),
-  ];
+  const scheduledCount = rows.filter((r) => r.is_scheduled || r.installment_total).length;
+  const uniqueCards = [...new Set(rows.map((r) => r.card_header).filter(Boolean))];
 
   const handleConfirm = () => {
     const cardsMapping: CardsMapping = {};
@@ -147,8 +122,7 @@ export default function ImportJobPreview() {
     }
     confirmMutation.mutate({
       rows,
-      cardsMapping:
-        Object.keys(cardsMapping).length > 0 ? cardsMapping : undefined,
+      cardsMapping: Object.keys(cardsMapping).length > 0 ? cardsMapping : undefined,
     });
   };
 
@@ -168,8 +142,7 @@ export default function ImportJobPreview() {
       <div className="flex flex-col items-center justify-center h-64 gap-4">
         <div className="text-4xl opacity-30">📄</div>
         <p className="text-[var(--text-secondary)] text-sm">
-          {"status" in (error || {}) &&
-          (error as { status?: number }).status === 410
+          {"status" in (error || {}) && (error as { status?: number }).status === 410
             ? "Esta importación expiró (TTL: 24h)"
             : "Error al cargar la importación"}
         </p>
@@ -188,9 +161,7 @@ export default function ImportJobPreview() {
       <div className="flex flex-col items-center justify-center h-64 gap-4">
         <div className="w-10 h-10 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
         <div className="text-center">
-          <p className="text-[var(--text-primary)] font-medium">
-            Procesando archivo
-          </p>
+          <p className="text-[var(--text-primary)] font-medium">Procesando archivo</p>
           <p className="text-[var(--text-tertiary)] text-sm mt-1">
             La IA está analizando tus transacciones...
           </p>
@@ -211,9 +182,7 @@ export default function ImportJobPreview() {
         <div className="text-4xl opacity-30">⚠️</div>
         <div className="text-center">
           <p className="text-red-500 font-medium">Error al procesar</p>
-          <p className="text-[var(--text-tertiary)] text-sm mt-1 max-w-md">
-            {job.error_message}
-          </p>
+          <p className="text-[var(--text-tertiary)] text-sm mt-1 max-w-md">{job.error_message}</p>
         </div>
         <button
           onClick={() => navigate("/")}
@@ -230,10 +199,7 @@ export default function ImportJobPreview() {
       {pageError && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-center justify-between">
           <span>{pageError}</span>
-          <button
-            onClick={() => setPageError(null)}
-            className="text-red-500 hover:text-red-700"
-          >
+          <button onClick={() => setPageError(null)} className="text-red-500 hover:text-red-700">
             ✕
           </button>
         </div>
@@ -242,9 +208,7 @@ export default function ImportJobPreview() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-[var(--text-primary)]">
-            {job.filename}
-          </h1>
+          <h1 className="text-xl font-semibold text-[var(--text-primary)]">{job.filename}</h1>
           <p className="text-sm text-[var(--text-tertiary)]">
             {nonDuplicateCount} transacciones
             {duplicateCount > 0 && ` · ${duplicateCount} duplicadas`}
@@ -296,8 +260,7 @@ export default function ImportJobPreview() {
 
         <p className="text-sm text-[var(--text-secondary)] mb-3">
           Se importarán <strong>{nonDuplicateCount} transacciones</strong>
-          {scheduledCount > 0 &&
-            `, de las cuales ${scheduledCount} son cuotas futuras`}
+          {scheduledCount > 0 && `, de las cuales ${scheduledCount} son cuotas futuras`}
           {duplicateCount > 0 && (
             <span className="text-[var(--text-tertiary)]">
               {" "}
@@ -396,9 +359,7 @@ export default function ImportJobPreview() {
                     : "hover:bg-[var(--color-base-alt)]"
                 }`}
               >
-                <td className="py-2.5 px-4 text-[var(--text-secondary)]">
-                  {row.date}
-                </td>
+                <td className="py-2.5 px-4 text-[var(--text-secondary)]">{row.date}</td>
                 <td className="py-2.5 px-4 text-[var(--text-primary)] max-w-xs truncate">
                   {row.description}
                 </td>
@@ -406,9 +367,7 @@ export default function ImportJobPreview() {
                   {formatCurrency(row.amount, row.currency)}
                 </td>
                 <td className="py-2.5 px-4 text-[var(--text-secondary)]">
-                  {row.suggested_category || (
-                    <span className="text-[var(--text-tertiary)]">—</span>
-                  )}
+                  {row.suggested_category || <span className="text-[var(--text-tertiary)]">—</span>}
                 </td>
                 <td className="py-2.5 px-4 text-center">
                   {row.is_duplicate && (
@@ -422,9 +381,7 @@ export default function ImportJobPreview() {
                     </span>
                   )}
                   {!row.is_duplicate && !row.is_auto_generated && (
-                    <span className="text-xs text-[var(--text-tertiary)]">
-                      —
-                    </span>
+                    <span className="text-xs text-[var(--text-tertiary)]">—</span>
                   )}
                 </td>
               </tr>
@@ -451,15 +408,11 @@ export default function ImportJobPreview() {
                   if (arsTotal > 0 && usdTotal > 0) {
                     return (
                       <span className="text-xs">
-                        {formatCurrency(arsTotal, "ARS")} +{" "}
-                        {formatCurrency(usdTotal, "USD")}
+                        {formatCurrency(arsTotal, "ARS")} + {formatCurrency(usdTotal, "USD")}
                       </span>
                     );
                   }
-                  return formatCurrency(
-                    arsTotal || usdTotal,
-                    arsTotal > 0 ? "ARS" : "USD",
-                  );
+                  return formatCurrency(arsTotal || usdTotal, arsTotal > 0 ? "ARS" : "USD");
                 })()}
               </td>
               <td colSpan={2}></td>
@@ -471,9 +424,7 @@ export default function ImportJobPreview() {
       {rows.length === 0 && (
         <div className="text-center py-12">
           <div className="text-4xl opacity-30 mb-3">📭</div>
-          <p className="text-[var(--text-tertiary)] text-sm">
-            No se encontraron transacciones
-          </p>
+          <p className="text-[var(--text-tertiary)] text-sm">No se encontraron transacciones</p>
         </div>
       )}
 
@@ -489,8 +440,7 @@ export default function ImportJobPreview() {
               Descartar importación
             </h2>
             <p className="text-sm text-[var(--text-secondary)] mb-4">
-              Se eliminará esta importación y su notificación. Esta acción no se
-              puede deshacer.
+              Se eliminará esta importación y su notificación. Esta acción no se puede deshacer.
             </p>
             <div className="flex gap-3">
               <button
@@ -540,9 +490,7 @@ export default function ImportJobPreview() {
               {importResult.skipped > 0 && (
                 <div className="flex justify-between">
                   <span>Duplicados omitidos</span>
-                  <span className="text-[var(--text-tertiary)]">
-                    {importResult.skipped}
-                  </span>
+                  <span className="text-[var(--text-tertiary)]">{importResult.skipped}</span>
                 </div>
               )}
             </div>

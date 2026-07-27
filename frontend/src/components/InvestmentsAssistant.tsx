@@ -98,11 +98,7 @@ function buildPortfolioContext(investments: Investment[]): string {
 
 // ── Streaming helper ──────────────────────────────────────────────────────────
 
-async function streamTo(
-  url: string,
-  body: object,
-  onChunk: (t: string) => void,
-): Promise<string> {
+async function streamTo(url: string, body: object, onChunk: (t: string) => void): Promise<string> {
   const token = localStorage.getItem("auth_token");
   const resp = await fetch(url, {
     method: "POST",
@@ -278,10 +274,7 @@ function SummaryIcon() {
 function ThinkingDots() {
   const [d, setD] = useState(".");
   useEffect(() => {
-    const id = setInterval(
-      () => setD((p) => (p.length >= 3 ? "." : p + ".")),
-      400,
-    );
+    const id = setInterval(() => setD((p) => (p.length >= 3 ? "." : p + ".")), 400);
     return () => clearInterval(id);
   }, []);
   return <span className="text-tertiary text-sm">{d}</span>;
@@ -303,19 +296,14 @@ function MessageList({
           <span className="text-tertiary">
             <ChatBubbleIcon />
           </span>
-          <p className="text-sm text-secondary">
-            Preguntame sobre tus inversiones
-          </p>
+          <p className="text-sm text-secondary">Preguntame sobre tus inversiones</p>
           <p className="text-xs text-tertiary">
             Ej: ¿Cómo están mis CEDEARs? ¿Qué bonos convienen hoy?
           </p>
         </div>
       )}
       {messages.map((msg, i) => (
-        <div
-          key={i}
-          className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-        >
+        <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
           <div
             className={`max-w-[80%] px-3 py-2 rounded-xl text-sm leading-normal whitespace-pre-wrap ${
               msg.role === "user"
@@ -325,12 +313,7 @@ function MessageList({
           >
             {msg.role === "assistant" && msg.text
               ? formatAIResponse(msg.text)
-              : msg.text ||
-                (streaming && i === messages.length - 1 ? (
-                  <ThinkingDots />
-                ) : (
-                  ""
-                ))}
+              : msg.text || (streaming && i === messages.length - 1 ? <ThinkingDots /> : "")}
           </div>
         </div>
       ))}
@@ -391,9 +374,7 @@ function SessionCard({
               <p className="text-[10px] font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-1 flex items-center gap-1">
                 <SummaryIcon /> Resumen
               </p>
-              <p className="text-xs text-primary leading-relaxed">
-                {session.summary}
-              </p>
+              <p className="text-xs text-primary leading-relaxed">{session.summary}</p>
             </div>
           )}
           <div className="px-3 py-2 space-y-2 overflow-y-auto flex-1 min-h-0">
@@ -409,9 +390,7 @@ function SessionCard({
                       : "bg-[var(--color-base-alt)] text-primary"
                   }`}
                 >
-                  {m.role === "assistant" && m.text
-                    ? formatAIResponse(m.text)
-                    : m.text}
+                  {m.role === "assistant" && m.text ? formatAIResponse(m.text) : m.text}
                 </div>
               </div>
             ))}
@@ -476,10 +455,7 @@ export default function InvestmentsAssistant() {
   });
 
   const activeSession = sessions.find((s) => s.id === activeId);
-  const messages = useMemo(
-    () => activeSession?.messages ?? [],
-    [activeSession],
-  );
+  const messages = useMemo(() => activeSession?.messages ?? [], [activeSession]);
 
   const updateSession = (id: string, updater: (s: Session) => Session) => {
     setSessions((prev) => {
@@ -517,23 +493,16 @@ export default function InvestmentsAssistant() {
     const text = input.trim();
     if (!text || streaming) return;
     setInput("");
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", text },
-      { role: "assistant", text: "" },
-    ]);
+    setMessages((prev) => [...prev, { role: "user", text }, { role: "assistant", text: "" }]);
     setStreaming(true);
     const context = buildPortfolioContext(investments);
     try {
-      await streamTo(
-        "/api/investments/chat/stream",
-        { question: text, context },
-        (full) =>
-          setMessages((prev) => {
-            const u = [...prev];
-            u[u.length - 1] = { role: "assistant", text: full };
-            return u;
-          }),
+      await streamTo("/api/investments/chat/stream", { question: text, context }, (full) =>
+        setMessages((prev) => {
+          const u = [...prev];
+          u[u.length - 1] = { role: "assistant", text: full };
+          return u;
+        }),
       );
     } catch {
       setMessages((prev) => {
@@ -549,21 +518,14 @@ export default function InvestmentsAssistant() {
     }
   };
 
-  const summarizeSession = async (
-    sessionId: string,
-    sessionMessages: ChatMessage[],
-  ) => {
+  const summarizeSession = async (sessionId: string, sessionMessages: ChatMessage[]) => {
     if (sessionMessages.length === 0) return;
     setSummarizing(true);
     try {
       let summary = "";
-      await streamTo(
-        "/api/analysis/summarize",
-        { messages: sessionMessages },
-        (full) => {
-          summary = full;
-        },
-      );
+      await streamTo("/api/analysis/summarize", { messages: sessionMessages }, (full) => {
+        summary = full;
+      });
       if (summary) updateSession(sessionId, (s) => ({ ...s, summary }));
     } catch {
       /* ignore */
@@ -631,11 +593,7 @@ export default function InvestmentsAssistant() {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             title="Generar resumen de la sesión"
           >
-            {summarizing ? (
-              <span className="animate-spin inline-block">↻</span>
-            ) : (
-              "Resumir"
-            )}
+            {summarizing ? <span className="animate-spin inline-block">↻</span> : "Resumir"}
           </button>
         )}
         {!isExpanded && (
@@ -740,9 +698,7 @@ export default function InvestmentsAssistant() {
   const historyJsx = (
     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
       {sessions.length === 0 ? (
-        <p className="text-sm text-secondary text-center py-8">
-          Sin historial aún
-        </p>
+        <p className="text-sm text-secondary text-center py-8">Sin historial aún</p>
       ) : (
         [...sessions]
           .reverse()
@@ -819,11 +775,7 @@ export default function InvestmentsAssistant() {
             {showHistory ? (
               historyJsx
             ) : (
-              <MessageList
-                messages={messages}
-                streaming={streaming}
-                endRef={chatEndRef}
-              />
+              <MessageList messages={messages} streaming={streaming} endRef={chatEndRef} />
             )}
           </div>
           {!showHistory && inputBarJsx(inputRef)}
@@ -833,10 +785,7 @@ export default function InvestmentsAssistant() {
       {/* Modal overlay - expanded mode, GNOME 50 bottom-sheet on mobile */}
       {isExpanded && (
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setIsExpanded(false)}
-          />
+          <div className="absolute inset-0 bg-black/50" onClick={() => setIsExpanded(false)} />
           <div className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-t-lg sm:rounded-lg shadow-xl flex flex-col w-full sm:max-w-2xl max-h-[90dvh] sm:max-h-[85vh] overflow-hidden">
             {headerJsx}
             {toolbarJsx}
@@ -844,11 +793,7 @@ export default function InvestmentsAssistant() {
               {showHistory ? (
                 historyJsx
               ) : (
-                <MessageList
-                  messages={messages}
-                  streaming={streaming}
-                  endRef={chatEndRef}
-                />
+                <MessageList messages={messages} streaming={streaming} endRef={chatEndRef} />
               )}
             </div>
             {!showHistory && inputBarJsx(inputRef)}

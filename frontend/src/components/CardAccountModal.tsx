@@ -1,12 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  createCard,
-  createAccount,
-  getAccounts,
-  getCards,
-  updateCard,
-} from "../api/client";
+import { createCard, createAccount, getAccounts, getCards, updateCard } from "../api/client";
 import type { Account } from "../types";
 import { Select } from "./ui/Select";
 
@@ -30,9 +24,7 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
   const [cardName, setCardName] = useState("");
   const [bank, setBank] = useState("");
   const [cardType, setCardType] = useState("credito");
-  const [errors, setErrors] = useState<{ card_name?: string; bank?: string }>(
-    {},
-  );
+  const [errors, setErrors] = useState<{ card_name?: string; bank?: string }>({});
   const [linkedAccountId, setLinkedAccountId] = useState<number | null>(null);
   const [linkedCardId, setLinkedCardId] = useState<number | null>(null);
 
@@ -63,13 +55,8 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
   const availableDebitCards = cards.filter((c) => c.card_type === "debito");
 
   const updateCardLinkMut = useMutation({
-    mutationFn: ({
-      cardId,
-      accountId,
-    }: {
-      cardId: number;
-      accountId: number | null;
-    }) => updateCard(cardId, { linked_account_id: accountId }),
+    mutationFn: ({ cardId, accountId }: { cardId: number; accountId: number | null }) =>
+      updateCard(cardId, { linked_account_id: accountId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cards"] });
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
@@ -104,8 +91,7 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
 
     const newErrors: { card_name?: string; bank?: string } = {};
     if (accountType === "tarjeta") {
-      if (!cardName.trim())
-        newErrors.card_name = "El nombre de la tarjeta es obligatorio";
+      if (!cardName.trim()) newErrors.card_name = "El nombre de la tarjeta es obligatorio";
       if (!bank.trim()) newErrors.bank = "El banco es obligatorio";
     } else {
       if (!cardName.trim()) newErrors.card_name = "El nombre es obligatorio";
@@ -208,9 +194,7 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
                 </div>
               )}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[var(--text-secondary)]">
-                  Banco
-                </label>
+                <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
                 <input
                   type="text"
                   value={bank}
@@ -225,9 +209,7 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
                   }`}
                   placeholder="Ej: Galicia"
                 />
-                {errors.bank && (
-                  <p className="text-xs text-red-500">{errors.bank}</p>
-                )}
+                {errors.bank && <p className="text-xs text-red-500">{errors.bank}</p>}
               </div>
             </div>
           )}
@@ -273,13 +255,9 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
                   ? "border-red-500 focus:ring-red-300 focus:border-red-500"
                   : "border-[var(--border-color)] focus:border-primary"
               }`}
-              placeholder={
-                accountType === "tarjeta" ? "Ej: Visa Galicia" : "Ej: Mi Cuenta"
-              }
+              placeholder={accountType === "tarjeta" ? "Ej: Visa Galicia" : "Ej: Mi Cuenta"}
             />
-            {errors.card_name && (
-              <p className="text-xs text-red-500">{errors.card_name}</p>
-            )}
+            {errors.card_name && <p className="text-xs text-red-500">{errors.card_name}</p>}
           </div>
 
           <div className="flex gap-2 pt-2">

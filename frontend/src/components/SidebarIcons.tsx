@@ -15,12 +15,7 @@ export const sidebarIcons = {
         strokeWidth="1.5"
         strokeLinejoin="round"
       />
-      <path
-        d="M7 18V12h6v6"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
+      <path d="M7 18V12h6v6" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
     </svg>
   ),
   accounts: (
@@ -33,15 +28,7 @@ export const sidebarIcons = {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <rect
-        x="2"
-        y="4"
-        width="16"
-        height="12"
-        rx="1.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
+      <rect x="2" y="4" width="16" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
       <path d="M2 8h16" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   ),
@@ -91,42 +78,10 @@ export const sidebarIcons = {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <rect
-        x="3"
-        y="3"
-        width="6"
-        height="6"
-        rx="1"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <rect
-        x="11"
-        y="3"
-        width="6"
-        height="6"
-        rx="1"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <rect
-        x="3"
-        y="11"
-        width="6"
-        height="6"
-        rx="1"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <rect
-        x="11"
-        y="11"
-        width="6"
-        height="6"
-        rx="1"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
+      <rect x="3" y="3" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="11" y="3" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="3" y="11" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="11" y="11" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   ),
   installments: (
@@ -139,12 +94,7 @@ export const sidebarIcons = {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <path
-        d="M10 4v12M4 10h12"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
+      <path d="M10 4v12M4 10h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   ),
@@ -291,33 +241,9 @@ export const sidebarIcons = {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <rect
-        x="2"
-        y="10"
-        width="3"
-        height="8"
-        rx="0.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <rect
-        x="8.5"
-        y="6"
-        width="3"
-        height="12"
-        rx="0.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <rect
-        x="15"
-        y="3"
-        width="3"
-        height="15"
-        rx="0.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
+      <rect x="2" y="10" width="3" height="8" rx="0.5" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="8.5" y="6" width="3" height="12" rx="0.5" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="15" y="3" width="3" height="15" rx="0.5" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   ),
   guide: (
@@ -336,12 +262,7 @@ export const sidebarIcons = {
         strokeWidth="1.5"
         strokeLinejoin="round"
       />
-      <path
-        d="M6 10h8M6 13h5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
+      <path d="M6 10h8M6 13h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   ),
 };

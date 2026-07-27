@@ -17,17 +17,11 @@ export default function EmptyState({
   className = "",
 }: EmptyStateProps) {
   return (
-    <div
-      className={`flex flex-col items-center justify-center text-center py-8 ${className}`}
-    >
+    <div className={`flex flex-col items-center justify-center text-center py-8 ${className}`}>
       {icon && <span className="text-3xl opacity-30 mb-2">{icon}</span>}
-      <p className="text-sm font-medium text-[var(--text-secondary)]">
-        {title}
-      </p>
+      <p className="text-sm font-medium text-[var(--text-secondary)]">{title}</p>
       {description && (
-        <p className="text-xs text-[var(--text-tertiary)] mt-1 max-w-xs">
-          {description}
-        </p>
+        <p className="text-xs text-[var(--text-tertiary)] mt-1 max-w-xs">{description}</p>
       )}
       {action && (
         <button

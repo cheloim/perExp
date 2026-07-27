@@ -42,9 +42,7 @@ export default function CategoryDashboard() {
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const [month, setMonth] = useState(currentMonth);
-  const [selectedCategoryName, setSelectedCategoryName] = useState<
-    string | null
-  >(null);
+  const [selectedCategoryName, setSelectedCategoryName] = useState<string | null>(null);
   const [trendMonths, setTrendMonths] = useState(6);
   const [merchantTab, setMerchantTab] = useState<"amount" | "count">("amount");
   const [personFilter, setPersonFilter] = useState<string | null>(null);
@@ -54,8 +52,7 @@ export default function CategoryDashboard() {
     const [y, m] = month.split("-").map(Number);
     const end = new Date(y, m - 1, 1);
     const start = new Date(y, m - 1 - (trendMonths - 1), 1);
-    const fmt = (d: Date) =>
-      `${MONTH_NAMES[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
+    const fmt = (d: Date) => `${MONTH_NAMES[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
     return `${fmt(start)} – ${fmt(end)}`;
   }, [month, trendMonths]);
 
@@ -75,8 +72,7 @@ export default function CategoryDashboard() {
     isError: trendError,
   } = useQuery({
     queryKey: ["category-trend", month, trendMonths, personFilter],
-    queryFn: () =>
-      getCategoryTrend(trendMonths, month, personFilter ?? undefined),
+    queryFn: () => getCategoryTrend(trendMonths, month, personFilter ?? undefined),
     staleTime: 60_000,
   });
 
@@ -86,16 +82,12 @@ export default function CategoryDashboard() {
     isError: merchantsError,
   } = useQuery({
     queryKey: ["top-merchants", month, personFilter],
-    queryFn: () =>
-      getTopMerchants({ month, limit: 20, person: personFilter ?? undefined }),
+    queryFn: () => getTopMerchants({ month, limit: 20, person: personFilter ?? undefined }),
     staleTime: 60_000,
   });
 
   const categories = summary?.by_category ?? [];
-  const grandTotal = useMemo(
-    () => categories.reduce((s, c) => s + c.total, 0),
-    [categories],
-  );
+  const grandTotal = useMemo(() => categories.reduce((s, c) => s + c.total, 0), [categories]);
 
   const activeCat = selectedCategoryName
     ? (categories.find((c) => c.category_name === selectedCategoryName) ?? null)
@@ -103,28 +95,19 @@ export default function CategoryDashboard() {
 
   const activeGroup = useMemo(() => {
     if (!selectedCategoryName || activeCat) return null;
-    const children = categories.filter(
-      (c) => c.parent_name === selectedCategoryName,
-    );
+    const children = categories.filter((c) => c.parent_name === selectedCategoryName);
     if (children.length === 0) return null;
     // Also include parent's own ID if it has a direct category entry
-    const parentEntry = categories.find(
-      (c) => c.category_name === selectedCategoryName,
-    );
+    const parentEntry = categories.find((c) => c.category_name === selectedCategoryName);
     const allIds = [
       ...(parentEntry?.category_id != null ? [parentEntry.category_id] : []),
-      ...children
-        .map((c) => c.category_id)
-        .filter((id): id is number => id != null),
+      ...children.map((c) => c.category_id).filter((id): id is number => id != null),
     ];
     return {
       name: selectedCategoryName,
-      color:
-        children[0].parent_color ?? parentEntry?.category_color ?? "#6b7280",
-      total:
-        (parentEntry?.total ?? 0) + children.reduce((s, c) => s + c.total, 0),
-      count:
-        (parentEntry?.count ?? 0) + children.reduce((s, c) => s + c.count, 0),
+      color: children[0].parent_color ?? parentEntry?.category_color ?? "#6b7280",
+      total: (parentEntry?.total ?? 0) + children.reduce((s, c) => s + c.total, 0),
+      count: (parentEntry?.count ?? 0) + children.reduce((s, c) => s + c.count, 0),
       previous_total:
         (parentEntry?.previous_total ?? 0) +
         children.reduce((s, c) => s + (c.previous_total ?? 0), 0),
@@ -146,28 +129,19 @@ export default function CategoryDashboard() {
     return activeGroup;
   }, [activeCat, activeGroup]);
 
-  const displayTotal = activeSelection
-    ? activeSelection.total
-    : (summary?.total_amount ?? 0);
-  const displayCount = activeSelection
-    ? activeSelection.count
-    : (summary?.total_expenses ?? 0);
+  const displayTotal = activeSelection ? activeSelection.total : (summary?.total_amount ?? 0);
+  const displayCount = activeSelection ? activeSelection.count : (summary?.total_expenses ?? 0);
   const displayAvg = displayCount > 0 ? displayTotal / displayCount : 0;
 
   const previousTotal = useMemo(
     () =>
       activeSelection
         ? (activeSelection.previous_total ?? 0)
-        : (summary?.by_category?.reduce(
-            (s, c) => s + (c.previous_total ?? 0),
-            0,
-          ) ?? 0),
+        : (summary?.by_category?.reduce((s, c) => s + (c.previous_total ?? 0), 0) ?? 0),
     [activeSelection, summary],
   );
   const pctChange =
-    previousTotal > 0
-      ? ((displayTotal - previousTotal) / previousTotal) * 100
-      : null;
+    previousTotal > 0 ? ((displayTotal - previousTotal) / previousTotal) * 100 : null;
 
   const visibleCategories = trendData?.categories ?? [];
 
@@ -184,9 +158,7 @@ export default function CategoryDashboard() {
       const childNames = categories
         .filter((c) => c.parent_name === activeSelection.name)
         .map((c) => c.category_name);
-      return (
-        childNames.length > 0 && childNames.includes(m.category_name ?? "")
-      );
+      return childNames.length > 0 && childNames.includes(m.category_name ?? "");
     });
   }, [merchantsRaw, activeSelection, categories]);
 
@@ -194,9 +166,7 @@ export default function CategoryDashboard() {
     () =>
       [...filteredMerchants]
         .sort((a, b) =>
-          merchantTab === "amount"
-            ? b.total_amount - a.total_amount
-            : b.count - a.count,
+          merchantTab === "amount" ? b.total_amount - a.total_amount : b.count - a.count,
         )
         .slice(0, 10),
     [filteredMerchants, merchantTab],
@@ -206,9 +176,7 @@ export default function CategoryDashboard() {
     () =>
       sortedMerchants.length > 0
         ? Math.max(
-            ...sortedMerchants.map((m) =>
-              merchantTab === "amount" ? m.total_amount : m.count,
-            ),
+            ...sortedMerchants.map((m) => (merchantTab === "amount" ? m.total_amount : m.count)),
           )
         : 1,
     [sortedMerchants, merchantTab],
@@ -264,17 +232,13 @@ export default function CategoryDashboard() {
   const goToExpenses = () => {
     if (activeCat) {
       if (activeCat.category_id != null) {
-        navigate(
-          `/expenses?category_id=${activeCat.category_id}&month=${month}`,
-        );
+        navigate(`/expenses?category_id=${activeCat.category_id}&month=${month}`);
       } else {
         navigate(`/expenses?uncategorized=1&month=${month}`);
       }
     } else if (activeGroup) {
       if (activeGroup.childIds.length > 0) {
-        navigate(
-          `/expenses?category_ids=${activeGroup.childIds.join(",")}&month=${month}`,
-        );
+        navigate(`/expenses?category_ids=${activeGroup.childIds.join(",")}&month=${month}`);
       } else {
         navigate(`/expenses?uncategorized=1&month=${month}`);
       }
@@ -286,13 +250,9 @@ export default function CategoryDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold text-primary tracking-tight">
-            Categorías
-          </h1>
+          <h1 className="text-2xl font-semibold text-primary tracking-tight">Categorías</h1>
           {activeSelection && (
-            <span className="text-sm text-[var(--text-tertiary)]">
-              / {activeSelection.name}
-            </span>
+            <span className="text-sm text-[var(--text-tertiary)]">/ {activeSelection.name}</span>
           )}
         </div>
         <div className="flex items-center gap-3">
@@ -341,12 +301,8 @@ export default function CategoryDashboard() {
               : undefined
           }
         >
-          <p className="text-xs font-medium text-[var(--text-primary)] mb-1">
-            Transacciones
-          </p>
-          <p className="text-2xl font-bold text-[var(--text-primary)]">
-            {displayCount}
-          </p>
+          <p className="text-xs font-medium text-[var(--text-primary)] mb-1">Transacciones</p>
+          <p className="text-2xl font-bold text-[var(--text-primary)]">{displayCount}</p>
         </div>
         <div
           className="card p-4 transition-all duration-200"
@@ -356,9 +312,7 @@ export default function CategoryDashboard() {
               : undefined
           }
         >
-          <p className="text-xs font-medium text-[var(--text-primary)] mb-1">
-            Promedio
-          </p>
+          <p className="text-xs font-medium text-[var(--text-primary)] mb-1">Promedio</p>
           <p className="text-2xl font-bold text-[var(--text-primary)]">
             {formatCurrency(displayAvg)}
           </p>
@@ -372,9 +326,7 @@ export default function CategoryDashboard() {
           {members.map((m) => (
             <button
               key={m.id}
-              onClick={() =>
-                setPersonFilter(personFilter === m.name ? null : m.name)
-              }
+              onClick={() => setPersonFilter(personFilter === m.name ? null : m.name)}
               className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
                 personFilter === m.name
                   ? "bg-[var(--color-primary)] text-[var(--color-on-primary)] border-[var(--color-primary)]"
@@ -392,9 +344,7 @@ export default function CategoryDashboard() {
         {/* Treemap */}
         <div className="card p-5 flex flex-col">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-semibold text-primary">
-              Gastos por categoría
-            </h2>
+            <h2 className="text-base font-semibold text-primary">Gastos por categoría</h2>
             {selectedCategoryName && (
               <button
                 onClick={() => setSelectedCategoryName(null)}
@@ -416,9 +366,7 @@ export default function CategoryDashboard() {
               ))}
             </div>
           ) : summaryError ? (
-            <p className="text-danger text-sm text-center py-10">
-              Error al cargar datos
-            </p>
+            <p className="text-danger text-sm text-center py-10">Error al cargar datos</p>
           ) : (
             <div className="flex-1 min-h-[300px]">
               <CategoryTreemap
@@ -459,12 +407,10 @@ export default function CategoryDashboard() {
                 </div>
                 {grandTotal > 0 && (
                   <div className="text-[var(--text-secondary)]">
-                    {((activeSelection.total / grandTotal) * 100).toFixed(1)}%
-                    del total
+                    {((activeSelection.total / grandTotal) * 100).toFixed(1)}% del total
                   </div>
                 )}
-                {activeSelection.previous_total != null &&
-                activeSelection.previous_total > 0 ? (
+                {activeSelection.previous_total != null && activeSelection.previous_total > 0 ? (
                   <div
                     className={
                       activeSelection.total > activeSelection.previous_total
@@ -472,21 +418,16 @@ export default function CategoryDashboard() {
                         : "text-success"
                     }
                   >
-                    {activeSelection.total > activeSelection.previous_total
-                      ? "↑"
-                      : "↓"}{" "}
+                    {activeSelection.total > activeSelection.previous_total ? "↑" : "↓"}{" "}
                     {Math.abs(
-                      ((activeSelection.total -
-                        activeSelection.previous_total) /
+                      ((activeSelection.total - activeSelection.previous_total) /
                         activeSelection.previous_total) *
                         100,
                     ).toFixed(0)}
                     % vs mes anterior
                   </div>
                 ) : activeSelection.previous_total === 0 ? (
-                  <div className="text-[var(--text-tertiary)]">
-                    Nuevo este mes
-                  </div>
+                  <div className="text-[var(--text-tertiary)]">Nuevo este mes</div>
                 ) : null}
               </div>
             </div>
@@ -527,39 +468,22 @@ export default function CategoryDashboard() {
                 <div className="h-[240px] rounded bg-[var(--color-base-alt)]" />
                 <div className="flex gap-4 justify-center">
                   {Array.from({ length: 3 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="h-3 w-16 rounded bg-[var(--color-base-alt)]"
-                    />
+                    <div key={i} className="h-3 w-16 rounded bg-[var(--color-base-alt)]" />
                   ))}
                 </div>
               </div>
             ) : trendError ? (
-              <p className="text-danger text-sm text-center py-12">
-                Error al cargar tendencia
-              </p>
+              <p className="text-danger text-sm text-center py-12">Error al cargar tendencia</p>
             ) : visibleCategories.length === 0 ? (
-              <p className="text-[var(--text-secondary)] text-sm text-center py-12">
-                Sin datos
-              </p>
+              <p className="text-[var(--text-secondary)] text-sm text-center py-12">Sin datos</p>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
-                <AreaChart
-                  data={chartData}
-                  margin={{ top: 4, right: 8, left: 4, bottom: 4 }}
-                >
+                <AreaChart data={chartData} margin={{ top: 4, right: 8, left: 4, bottom: 4 }}>
                   <defs>
                     {topTrendCategories.map((cat) => {
                       const gradId = `grad-${cat.name.replace(/[^a-zA-Z0-9]/g, "-")}`;
                       return (
-                        <linearGradient
-                          key={gradId}
-                          id={gradId}
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
+                        <linearGradient key={gradId} id={gradId} x1="0" y1="0" x2="0" y2="1">
                           <stop
                             offset="0%"
                             stopColor={cat.color || "var(--chart-text)"}
@@ -603,10 +527,7 @@ export default function CategoryDashboard() {
                       color: "var(--chart-tooltip-text)",
                     }}
                     itemStyle={{ color: "var(--chart-tooltip-text)" }}
-                    formatter={(v: number, name: string) => [
-                      formatCurrency(v),
-                      name,
-                    ]}
+                    formatter={(v: number, name: string) => [formatCurrency(v), name]}
                     labelFormatter={(l: string) => {
                       const [y, m] = l.split("-");
                       return `${MONTH_NAMES[parseInt(m) - 1]} ${y}`;
@@ -640,16 +561,10 @@ export default function CategoryDashboard() {
                         fill={`url(#${gradId})`}
                         strokeWidth={selectedCategoryName === cat.name ? 3 : 2}
                         strokeOpacity={
-                          selectedCategoryName &&
-                          selectedCategoryName !== cat.name
-                            ? 0.2
-                            : 1
+                          selectedCategoryName && selectedCategoryName !== cat.name ? 0.2 : 1
                         }
                         fillOpacity={
-                          selectedCategoryName &&
-                          selectedCategoryName !== cat.name
-                            ? 0.05
-                            : 1
+                          selectedCategoryName && selectedCategoryName !== cat.name ? 0.05 : 1
                         }
                         dot={{ r: 3, fill: cat.color || "var(--chart-text)" }}
                         activeDot={{
@@ -712,30 +627,20 @@ export default function CategoryDashboard() {
                 ))}
               </div>
             ) : merchantsError ? (
-              <p className="text-danger text-sm text-center py-8">
-                Error al cargar comercios
-              </p>
+              <p className="text-danger text-sm text-center py-8">Error al cargar comercios</p>
             ) : sortedMerchants.length === 0 ? (
-              <p className="text-[var(--text-secondary)] text-sm text-center py-8">
-                Sin datos
-              </p>
+              <p className="text-[var(--text-secondary)] text-sm text-center py-8">Sin datos</p>
             ) : (
               <div className="space-y-3">
                 {sortedMerchants.map((m, i) => {
-                  const val =
-                    merchantTab === "amount" ? m.total_amount : m.count;
-                  const pct =
-                    maxMerchantVal > 0 ? (val / maxMerchantVal) * 100 : 0;
+                  const val = merchantTab === "amount" ? m.total_amount : m.count;
+                  const pct = maxMerchantVal > 0 ? (val / maxMerchantVal) * 100 : 0;
                   return (
-                    <div
-                      key={i}
-                      className="flex items-center gap-3 group/merchant"
-                    >
+                    <div key={i} className="flex items-center gap-3 group/merchant">
                       <span
                         className="w-2 h-2 rounded-full flex-shrink-0"
                         style={{
-                          backgroundColor:
-                            m.category_color || "var(--color-primary)",
+                          backgroundColor: m.category_color || "var(--color-primary)",
                         }}
                       />
                       <button
@@ -754,15 +659,12 @@ export default function CategoryDashboard() {
                           className="h-full rounded-full transition-all"
                           style={{
                             width: `${pct}%`,
-                            backgroundColor:
-                              m.category_color || "var(--color-primary)",
+                            backgroundColor: m.category_color || "var(--color-primary)",
                           }}
                         />
                       </div>
                       <span className="text-xs text-[var(--text-tertiary)] flex-shrink-0 w-24 text-right">
-                        {merchantTab === "amount"
-                          ? formatCurrency(m.total_amount)
-                          : `${m.count}×`}
+                        {merchantTab === "amount" ? formatCurrency(m.total_amount) : `${m.count}×`}
                       </span>
                     </div>
                   );

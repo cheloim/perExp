@@ -18,13 +18,7 @@ export function SkeletonCard({ lines = 3 }: { lines?: number }) {
   );
 }
 
-export function SkeletonTable({
-  rows = 5,
-  cols = 4,
-}: {
-  rows?: number;
-  cols?: number;
-}) {
+export function SkeletonTable({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
   return (
     <div className="card overflow-hidden">
       <div className="p-4 space-y-3">

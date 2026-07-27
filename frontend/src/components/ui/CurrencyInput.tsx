@@ -39,9 +39,7 @@ export function CurrencyInput({
   placeholder?: string;
 }) {
   const isEmpty = (v: number | null) => v === null || v === 0;
-  const [raw, setRaw] = useState(
-    isEmpty(value) ? "" : formatCurrencyAR(value!),
-  );
+  const [raw, setRaw] = useState(isEmpty(value) ? "" : formatCurrencyAR(value!));
   const [focused, setFocused] = useState(false);
 
   useEffect(() => {

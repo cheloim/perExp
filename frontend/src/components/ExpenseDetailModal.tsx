@@ -15,19 +15,13 @@ const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   mercadopago: "MercadoPago",
 };
 
-export default function ExpenseDetailModal({
-  expense,
-  onClose,
-  onEdit,
-}: Props) {
+export default function ExpenseDetailModal({ expense, onClose, onEdit }: Props) {
   const accountLabel = (() => {
     if (expense.card) {
       return `${expense.card}${expense.bank ? ` · ${expense.bank}` : ""}`;
     }
     if (expense.account_rel?.name) {
-      const typeLabel =
-        ACCOUNT_TYPE_LABELS[expense.account_rel.type] ||
-        expense.account_rel.type;
+      const typeLabel = ACCOUNT_TYPE_LABELS[expense.account_rel.type] || expense.account_rel.type;
       return `${expense.account_rel.name} (${typeLabel})`;
     }
     if (expense.bank) return expense.bank;
@@ -46,10 +40,7 @@ export default function ExpenseDetailModal({
       <div className="space-y-4">
         {/* Monto */}
         <div className="bg-[var(--color-base-alt)] rounded-lg p-4 text-center">
-          <span
-            className="text-2xl font-bold"
-            style={{ color: "var(--text-primary)" }}
-          >
+          <span className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
             {formatCurrency(expense.amount, expense.currency)}
           </span>
         </div>
@@ -59,9 +50,7 @@ export default function ExpenseDetailModal({
           <DetailField label="Fecha" value={formatDateDMY(expense.date)} />
           <DetailField label="Cuenta" value={accountLabel} />
           <div>
-            <dt className="text-[var(--text-tertiary)] text-xs uppercase">
-              Categoría
-            </dt>
+            <dt className="text-[var(--text-tertiary)] text-xs uppercase">Categoría</dt>
             <dd>
               {expense.category_name ? (
                 <span
@@ -88,9 +77,7 @@ export default function ExpenseDetailModal({
 
         {/* Notas */}
         <div className="flex items-center justify-between px-1 py-2 border-t border-[var(--border-color)]">
-          <span className="text-xs text-[var(--text-tertiary)] uppercase">
-            Notas
-          </span>
+          <span className="text-xs text-[var(--text-tertiary)] uppercase">Notas</span>
           <span
             className={`text-sm text-right max-w-[60%] truncate ${
               expense.notes ? "" : "italic text-[var(--text-tertiary)]"
@@ -104,10 +91,7 @@ export default function ExpenseDetailModal({
 
         {/* Actions */}
         <div className="flex gap-2 pt-2 border-t border-[var(--border-color)]">
-          <button
-            onClick={onClose}
-            className="gnome-btn-secondary flex-1 text-sm"
-          >
+          <button onClick={onClose} className="gnome-btn-secondary flex-1 text-sm">
             Cerrar
           </button>
           <button onClick={onEdit} className="gnome-btn-primary flex-1 text-sm">
@@ -123,9 +107,7 @@ function DetailField({ label, value }: { label: string; value: string }) {
   return (
     <>
       <dt className="text-[var(--text-tertiary)] text-xs uppercase">{label}</dt>
-      <dd className="text-[var(--text-primary)] font-medium text-sm">
-        {value}
-      </dd>
+      <dd className="text-[var(--text-primary)] font-medium text-sm">{value}</dd>
     </>
   );
 }

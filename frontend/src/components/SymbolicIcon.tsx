@@ -51,8 +51,7 @@ const icons: Record<IconName, string> = {
   eye: "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zm11-3a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
   book: "M4 4h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8 10v4m4-6v6m4-8v8",
   list: "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01",
-  smartphone:
-    "M7 2h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zm5 17h.01",
+  smartphone: "M7 2h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zm5 17h.01",
   users:
     "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2m22-9a4 4 0 1 0-8 0 4 4 0 0 0 8 0zm-6 0a4 4 0 1 0-8 0 4 4 0 0 0 8 0z",
   settings:
@@ -70,11 +69,7 @@ interface SymbolicIconProps {
   size?: number;
 }
 
-export default function SymbolicIcon({
-  name,
-  className = "",
-  size = 24,
-}: SymbolicIconProps) {
+export default function SymbolicIcon({ name, className = "", size = 24 }: SymbolicIconProps) {
   const d = icons[name];
   if (!d) return null;
   return (

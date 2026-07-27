@@ -1,11 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from "react";
-import {
-  Routes,
-  Route,
-  NavLink,
-  useLocation,
-  Navigate,
-} from "react-router-dom";
+import { Routes, Route, NavLink, useLocation, Navigate } from "react-router-dom";
 import AIAssistant from "./components/AIAssistant";
 import InvestmentsAssistant from "./components/InvestmentsAssistant";
 import UserPanel from "./components/UserPanel";
@@ -14,10 +8,7 @@ import NotificationsPanel from "./components/NotificationsPanel";
 import ImportUploadButton from "./components/ImportUploadButton";
 import { usePanelWidth } from "./context/PanelWidthContext";
 import { UploadProgressProvider } from "./context/UploadProgressContext";
-import {
-  NotificationsProvider,
-  useNotifications,
-} from "./context/NotificationsContext";
+import { NotificationsProvider, useNotifications } from "./context/NotificationsContext";
 import { FamilyGroupProvider } from "./context/FamilyGroupContext";
 import { sidebarIcons } from "./components/SidebarIcons";
 import { getStoredToken } from "./api/client";
@@ -43,14 +34,10 @@ const GuideBudgetingPage = lazy(() => import("./pages/GuideBudgetingPage"));
 const GuideSmartImportPage = lazy(() => import("./pages/GuideSmartImportPage"));
 const GuideTelegramBotPage = lazy(() => import("./pages/GuideTelegramBotPage"));
 const GuideAIAnalysisPage = lazy(() => import("./pages/GuideAIAnalysisPage"));
-const GuideFamilyGroupsPage = lazy(
-  () => import("./pages/GuideFamilyGroupsPage"),
-);
+const GuideFamilyGroupsPage = lazy(() => import("./pages/GuideFamilyGroupsPage"));
 const GuideInvestmentsPage = lazy(() => import("./pages/GuideInvestmentsPage"));
 const GuideCategoriesPage = lazy(() => import("./pages/GuideCategoriesPage"));
-const OnboardingWalkthrough = lazy(
-  () => import("./components/OnboardingWalkthrough"),
-);
+const OnboardingWalkthrough = lazy(() => import("./components/OnboardingWalkthrough"));
 const WhatsNewModal = lazy(() => import("./components/WhatsNewModal"));
 
 const TABS = [
@@ -365,9 +352,7 @@ function MainLayout() {
 
                       <span
                         className={`w-5 h-5 flex-shrink-0 flex items-center justify-center ${
-                          isActive
-                            ? "text-[var(--color-sidebar-icon-active)]"
-                            : ""
+                          isActive ? "text-[var(--color-sidebar-icon-active)]" : ""
                         }`}
                       >
                         {sidebarIcons[tab.icon as keyof typeof sidebarIcons]}
@@ -407,16 +392,10 @@ function MainLayout() {
                         />
                         <span
                           className={`w-5 h-5 flex-shrink-0 flex items-center justify-center ${
-                            isActive
-                              ? "text-[var(--color-sidebar-icon-active)]"
-                              : ""
+                            isActive ? "text-[var(--color-sidebar-icon-active)]" : ""
                           }`}
                         >
-                          {
-                            sidebarIcons[
-                              settingsTab.icon as keyof typeof sidebarIcons
-                            ]
-                          }
+                          {sidebarIcons[settingsTab.icon as keyof typeof sidebarIcons]}
                         </span>
                         <span className="whitespace-nowrap overflow-hidden w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300">
                           {settingsTab.label}
@@ -478,9 +457,7 @@ function MainLayout() {
                     />
                     <span
                       className={`w-5 h-5 flex-shrink-0 flex items-center justify-center ${
-                        isActive
-                          ? "text-[var(--color-sidebar-icon-active)]"
-                          : ""
+                        isActive ? "text-[var(--color-sidebar-icon-active)]" : ""
                       }`}
                     >
                       {sidebarIcons.guide}
@@ -512,17 +489,9 @@ function MainLayout() {
           {/* Main content */}
           <div
             className={`md:pl-16 pb-14 flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ${
-              isInvestments
-                ? isCollapsed
-                  ? "mr-0"
-                  : `mr-0 sm:mr-[${panelWidth}px]`
-                : "mr-0"
+              isInvestments ? (isCollapsed ? "mr-0" : `mr-0 sm:mr-[${panelWidth}px]`) : "mr-0"
             }`}
-            style={
-              isInvestments && !isCollapsed
-                ? { marginRight: panelWidth }
-                : undefined
-            }
+            style={isInvestments && !isCollapsed ? { marginRight: panelWidth } : undefined}
           >
             {/* Mobile header */}
             <header className="md:hidden h-14 border-b border-[var(--border-color)] bg-sidebar flex items-center px-4 sticky top-0 z-40">
@@ -540,9 +509,7 @@ function MainLayout() {
             <main className="flex-1 overflow-y-auto overflow-x-auto relative z-10">
               <div
                 className={`w-full px-4 sm:px-6 lg:px-8 ${
-                  location.pathname.startsWith("/import-jobs")
-                    ? "py-0"
-                    : "py-8 md:py-10"
+                  location.pathname.startsWith("/import-jobs") ? "py-0" : "py-8 md:py-10"
                 }`}
               >
                 <ErrorBoundary>
@@ -636,34 +603,13 @@ function MainLayout() {
                         }
                       />
                       <Route path="/guide" element={<GuidePage />} />
-                      <Route
-                        path="/guide/budgeting"
-                        element={<GuideBudgetingPage />}
-                      />
-                      <Route
-                        path="/guide/smart-import"
-                        element={<GuideSmartImportPage />}
-                      />
-                      <Route
-                        path="/guide/telegram-bot"
-                        element={<GuideTelegramBotPage />}
-                      />
-                      <Route
-                        path="/guide/ai-analysis"
-                        element={<GuideAIAnalysisPage />}
-                      />
-                      <Route
-                        path="/guide/family-groups"
-                        element={<GuideFamilyGroupsPage />}
-                      />
-                      <Route
-                        path="/guide/investments"
-                        element={<GuideInvestmentsPage />}
-                      />
-                      <Route
-                        path="/guide/categories"
-                        element={<GuideCategoriesPage />}
-                      />
+                      <Route path="/guide/budgeting" element={<GuideBudgetingPage />} />
+                      <Route path="/guide/smart-import" element={<GuideSmartImportPage />} />
+                      <Route path="/guide/telegram-bot" element={<GuideTelegramBotPage />} />
+                      <Route path="/guide/ai-analysis" element={<GuideAIAnalysisPage />} />
+                      <Route path="/guide/family-groups" element={<GuideFamilyGroupsPage />} />
+                      <Route path="/guide/investments" element={<GuideInvestmentsPage />} />
+                      <Route path="/guide/categories" element={<GuideCategoriesPage />} />
                       <Route
                         path="*"
                         element={
@@ -700,9 +646,7 @@ function MainLayout() {
                   <span className="w-5 h-5 mb-0.5">
                     {sidebarIcons[tab.icon as keyof typeof sidebarIcons]}
                   </span>
-                  <span className="truncate w-full text-center">
-                    {tab.label.split(" ")[0]}
-                  </span>
+                  <span className="truncate w-full text-center">{tab.label.split(" ")[0]}</span>
                 </NavLink>
               ))}
               <button
@@ -714,10 +658,7 @@ function MainLayout() {
               </button>
               {showMoreNav && (
                 <>
-                  <div
-                    className="fixed inset-0 z-30"
-                    onClick={() => setShowMoreNav(false)}
-                  />
+                  <div className="fixed inset-0 z-30" onClick={() => setShowMoreNav(false)} />
                   <div className="absolute bottom-full right-2 mb-2 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-lg py-2 min-w-[180px] z-40">
                     {/* User account button */}
                     <button
@@ -774,21 +715,13 @@ function MainLayout() {
             )}
 
             {!isInvestments && (
-              <AIAssistant
-                open={aiDrawerOpen}
-                onToggle={() => toggleDrawer(!aiDrawerOpen)}
-              />
+              <AIAssistant open={aiDrawerOpen} onToggle={() => toggleDrawer(!aiDrawerOpen)} />
             )}
             {isInvestments && <InvestmentsAssistant />}
           </div>
 
-          <UserPanel
-            open={userPanelOpen}
-            onClose={() => setUserPanelOpen(false)}
-          />
-          {notifOpen && (
-            <NotificationsPanel onClose={() => setNotifOpen(false)} />
-          )}
+          <UserPanel open={userPanelOpen} onClose={() => setUserPanelOpen(false)} />
+          {notifOpen && <NotificationsPanel onClose={() => setNotifOpen(false)} />}
         </div>
       </FamilyGroupProvider>
       {/* Onboarding - rendered at root to avoid overflow clipping */}

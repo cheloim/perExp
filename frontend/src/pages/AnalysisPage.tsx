@@ -85,8 +85,7 @@ function HistorySection({ onDelete }: { onDelete: (id: number) => void }) {
                 </span>
               )}
               <span className="text-sm text-tertiary truncate">
-                {h.question ||
-                  `${h.expense_count} gastos · ${formatARS(h.total_amount)}`}
+                {h.question || `${h.expense_count} gastos · ${formatARS(h.total_amount)}`}
               </span>
             </div>
             <div className="flex items-center gap-3 ml-3 flex-shrink-0">
@@ -99,9 +98,7 @@ function HistorySection({ onDelete }: { onDelete: (id: number) => void }) {
               >
                 ✕
               </button>
-              <span className="text-tertiary text-xs">
-                {expanded === h.id ? "▲" : "▼"}
-              </span>
+              <span className="text-tertiary text-xs">{expanded === h.id ? "▲" : "▼"}</span>
             </div>
           </div>
           {expanded === h.id && (
@@ -126,10 +123,7 @@ export default function AnalysisPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const outputRef = useRef<HTMLDivElement>(null);
 
-  const refreshSaved = useCallback(
-    () => setSavedQueries(loadSavedQueries()),
-    [],
-  );
+  const refreshSaved = useCallback(() => setSavedQueries(loadSavedQueries()), []);
 
   const deleteMut = useMutation({
     mutationFn: deleteAnalysisHistory,
@@ -204,28 +198,21 @@ export default function AnalysisPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="card p-6 space-y-4">
-        <h2 className="text-lg font-semibold text-primary">
-          📈 Análisis de consumo
-        </h2>
+        <h2 className="text-lg font-semibold text-primary">📈 Análisis de consumo</h2>
         <p className="text-sm text-tertiary">
-          Gemini analizará tus gastos y te dará sugerencias personalizadas de
-          ahorro.
+          Gemini analizará tus gastos y te dará sugerencias personalizadas de ahorro.
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-secondary mb-1">
-              Mes a analizar
-            </label>
+            <label className="block text-sm font-medium text-secondary mb-1">Mes a analizar</label>
             <input
               type="month"
               value={month}
               onChange={(e) => setMonth(e.target.value)}
               className="w-full input"
             />
-            <p className="text-xs text-tertiary mt-1">
-              Dejá vacío para analizar todos los gastos
-            </p>
+            <p className="text-xs text-tertiary mt-1">Dejá vacío para analizar todos los gastos</p>
           </div>
 
           <div>
@@ -244,9 +231,7 @@ export default function AnalysisPage() {
 
         {savedQueries.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs text-tertiary font-medium">
-              Consultas guardadas
-            </p>
+            <p className="text-xs text-tertiary font-medium">Consultas guardadas</p>
             <div className="flex flex-wrap gap-2">
               {savedQueries.map((q) => (
                 <span
@@ -287,9 +272,7 @@ export default function AnalysisPage() {
         </button>
       </div>
 
-      {error && (
-        <div className="alert-danger rounded-lg p-4 text-sm">{error}</div>
-      )}
+      {error && <div className="alert-danger rounded-lg p-4 text-sm">{error}</div>}
 
       {(output || streaming) && (
         <div className="card">

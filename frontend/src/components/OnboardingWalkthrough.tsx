@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  Joyride,
-  STATUS,
-  type EventData,
-  type Step,
-  type TooltipRenderProps,
-} from "react-joyride";
+import { Joyride, STATUS, type EventData, type Step, type TooltipRenderProps } from "react-joyride";
 import { getMe, markOnboardingCompleted } from "../api/client";
 import SymbolicIcon, { type IconName } from "./SymbolicIcon";
 
@@ -32,8 +26,7 @@ function getTourSteps(openPanel: (open: boolean) => void): TourStepConfig[] {
     {
       target: '[data-tour="sidebar-home"]',
       title: "Panel de control",
-      content:
-        "Acá vas a ver un resumen de tus finanzas: gastos del mes, categorías y tendencias.",
+      content: "Acá vas a ver un resumen de tus finanzas: gastos del mes, categorías y tendencias.",
       icon: "home",
       color: "#3584e4",
       placement: "right",
@@ -166,11 +159,7 @@ function ProgressDots({
             height: 8,
             borderRadius: 4,
             backgroundColor:
-              i === current
-                ? "#3584e4"
-                : i < current
-                  ? "#62a0ea"
-                  : "rgba(0,0,0,0.15)",
+              i === current ? "#3584e4" : i < current ? "#62a0ea" : "rgba(0,0,0,0.15)",
             transition: "all 0.25s ease",
             border: "none",
             cursor: onDotClick ? "pointer" : "default",
@@ -237,9 +226,7 @@ function CustomTooltip({
             <SymbolicIcon name="sparkles" size={32} />
           </div>
         )}
-        {!isWelcome && stepData && (
-          <StepIcon icon={stepData.icon} color={stepData.color} />
-        )}
+        {!isWelcome && stepData && <StepIcon icon={stepData.icon} color={stepData.color} />}
         {step.title && (
           <h4
             style={{
@@ -315,9 +302,7 @@ function CustomTooltip({
             <button
               {...primaryProps}
               style={{
-                background: isWelcome
-                  ? "linear-gradient(135deg, #3584e4, #1c71d8)"
-                  : "#3584e4",
+                background: isWelcome ? "linear-gradient(135deg, #3584e4, #1c71d8)" : "#3584e4",
                 color: "#fff",
                 border: "none",
                 borderRadius: 10,
@@ -325,16 +310,10 @@ function CustomTooltip({
                 fontSize: 15,
                 fontWeight: 600,
                 cursor: "pointer",
-                boxShadow: isWelcome
-                  ? "0 2px 8px rgba(53,132,228,0.3)"
-                  : "none",
+                boxShadow: isWelcome ? "0 2px 8px rgba(53,132,228,0.3)" : "none",
               }}
             >
-              {isLastStep
-                ? "Entendido"
-                : isWelcome
-                  ? "Comenzar"
-                  : primaryProps.title}
+              {isLastStep ? "Entendido" : isWelcome ? "Comenzar" : primaryProps.title}
             </button>
           )}
         </div>
@@ -400,9 +379,7 @@ export default function OnboardingWalkthrough({
     ...(cfg.target ? { target: cfg.target } : { target: "body" }),
     title: cfg.title,
     content: cfg.content,
-    ...(cfg.placement
-      ? { placement: cfg.placement }
-      : { placement: "center" as const }),
+    ...(cfg.placement ? { placement: cfg.placement } : { placement: "center" as const }),
     skipBeacon: true,
     data: { ...cfg, _total: totalSteps } as unknown,
     ...(cfg.before ? { before: cfg.before } : {}),

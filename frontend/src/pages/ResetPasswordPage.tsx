@@ -31,8 +31,7 @@ export default function ResetPasswordPage() {
               Enlace inválido
             </h2>
             <p className="text-sm text-[var(--text-secondary)] mb-4">
-              El enlace para restablecer la contraseña no es válido o ya fue
-              utilizado.
+              El enlace para restablecer la contraseña no es válido o ya fue utilizado.
             </p>
             <button
               type="button"
@@ -82,11 +81,7 @@ export default function ResetPasswordPage() {
       setSuccess(true);
     } catch (err: any) {
       const detail = err?.response?.data?.detail;
-      setError(
-        typeof detail === "string"
-          ? detail
-          : "Error al restablecer la contraseña",
-      );
+      setError(typeof detail === "string" ? detail : "Error al restablecer la contraseña");
     } finally {
       setLoading(false);
     }
@@ -100,8 +95,7 @@ export default function ResetPasswordPage() {
             F
           </div>
           <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
-            Financial{" "}
-            <span className="text-[var(--color-primary)]">Planning</span>
+            Financial <span className="text-[var(--color-primary)]">Planning</span>
           </h1>
         </div>
 
@@ -129,8 +123,8 @@ export default function ResetPasswordPage() {
                 Contraseña actualizada
               </h2>
               <p className="text-sm text-[var(--text-secondary)] mb-4">
-                Tu contraseña fue restablecida correctamente. Ya podés iniciar
-                sesión con tu nueva contraseña.
+                Tu contraseña fue restablecida correctamente. Ya podés iniciar sesión con tu nueva
+                contraseña.
               </p>
               <button
                 type="button"
@@ -194,11 +188,7 @@ export default function ResetPasswordPage() {
 
                 {error && <div className="alert-error">{error}</div>}
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="gnome-btn-primary w-full mt-1"
-                >
+                <button type="submit" disabled={loading} className="gnome-btn-primary w-full mt-1">
                   {loading ? "Guardando..." : "Restablecer contraseña"}
                 </button>
               </form>

@@ -66,11 +66,7 @@ function CategoryForm({
       <div className="card w-full max-w-md animate-modal-content">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border-color">
           <h2 className="text-base font-semibold text-primary">
-            {initial
-              ? "Editar"
-              : isParentForm
-                ? "Nueva Categoría Padre"
-                : "Nueva Subcategoría"}
+            {initial ? "Editar" : isParentForm ? "Nueva Categoría Padre" : "Nueva Subcategoría"}
           </h2>
           <button
             onClick={onClose}
@@ -110,31 +106,25 @@ function CategoryForm({
             <div className="flex items-center gap-2 text-xs text-warning bg-warning/10 border border-warning/20 rounded-lg px-3 py-2">
               <span>ℹ</span>
               <span>
-                Las categorías padre son agrupadores. Los gastos se asignan a
-                las subcategorías, no a las padres.
+                Las categorías padre son agrupadores. Los gastos se asignan a las subcategorías, no
+                a las padres.
               </span>
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-medium text-tertiary mb-1.5">
-              Nombre
-            </label>
+            <label className="block text-xs font-medium text-tertiary mb-1.5">Nombre</label>
             <input
               type="text"
               value={form.name}
               onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-              placeholder={
-                isParentForm ? "Ej: Alimentación" : "Ej: Supermercado"
-              }
+              placeholder={isParentForm ? "Ej: Alimentación" : "Ej: Supermercado"}
               className="input placeholder:text-tertiary"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-tertiary mb-1.5">
-              Color
-            </label>
+            <label className="block text-xs font-medium text-tertiary mb-1.5">Color</label>
             <div className="flex flex-wrap gap-2">
               {COLORS.map((c) => (
                 <button
@@ -151,9 +141,7 @@ function CategoryForm({
               <input
                 type="color"
                 value={form.color}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, color: e.target.value }))
-                }
+                onChange={(e) => setForm((p) => ({ ...p, color: e.target.value }))}
                 className="w-7 h-7 rounded-full cursor-pointer border-0 p-0 overflow-hidden bg-transparent"
                 title="Color personalizado"
               />
@@ -168,9 +156,7 @@ function CategoryForm({
               </label>
               <textarea
                 value={form.keywords}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, keywords: e.target.value }))
-                }
+                onChange={(e) => setForm((p) => ({ ...p, keywords: e.target.value }))}
                 rows={3}
                 placeholder="Ej: coto, carrefour, dia, supermercado"
                 className="input placeholder:text-tertiary"
@@ -186,9 +172,7 @@ function CategoryForm({
             Cancelar
           </button>
           <button
-            onClick={() =>
-              onSave({ ...form, keywords: isParentForm ? "" : form.keywords })
-            }
+            onClick={() => onSave({ ...form, keywords: isParentForm ? "" : form.keywords })}
             disabled={!form.name || isSaving}
             className="gnome-btn-primary"
           >
@@ -201,13 +185,7 @@ function CategoryForm({
 }
 
 /* ─── Category detail drawer ─── */
-function CategoryDetail({
-  cat,
-  onClose,
-}: {
-  cat: Category;
-  onClose: () => void;
-}) {
+function CategoryDetail({ cat, onClose }: { cat: Category; onClose: () => void }) {
   const { data: expenses = [], isLoading } = useQuery({
     queryKey: ["expenses", "category", cat.id],
     queryFn: () => getExpenses({ category_id: cat.id, limit: 200 }),
@@ -222,12 +200,8 @@ function CategoryDetail({
             className="w-4 h-4 rounded-full flex-shrink-0"
             style={{ backgroundColor: cat.color }}
           />
-          <h2 className="text-base font-semibold text-primary flex-1">
-            {cat.name}
-          </h2>
-          <span className="text-sm text-secondary">
-            {expenses.length} gastos
-          </span>
+          <h2 className="text-base font-semibold text-primary flex-1">{cat.name}</h2>
+          <span className="text-sm text-secondary">{expenses.length} gastos</span>
           <button
             onClick={onClose}
             className="text-tertiary hover:text-primary text-xl ml-2 leading-none"
@@ -239,16 +213,12 @@ function CategoryDetail({
           <div className="px-5 py-3 bg-base-alt border-b border-border-color flex-shrink-0 flex gap-6 text-sm">
             <div>
               <span className="text-tertiary">Total: </span>
-              <span className="font-semibold text-primary">
-                {formatCurrency(total)}
-              </span>
+              <span className="font-semibold text-primary">{formatCurrency(total)}</span>
             </div>
             <div>
               <span className="text-tertiary">Promedio: </span>
               <span className="font-semibold text-primary">
-                {formatCurrency(
-                  expenses.length > 0 ? total / expenses.length : 0,
-                )}
+                {formatCurrency(expenses.length > 0 ? total / expenses.length : 0)}
               </span>
             </div>
           </div>
@@ -312,9 +282,9 @@ type Tab = "parents" | "subcategories";
 export default function CategoriesPage() {
   const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>("parents");
-  const [editing, setEditing] = useState<
-    { cat: Category | null; isParent: boolean } | undefined
-  >(undefined);
+  const [editing, setEditing] = useState<{ cat: Category | null; isParent: boolean } | undefined>(
+    undefined,
+  );
   const [browsing, setBrowsing] = useState<Category | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Category | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -341,21 +311,16 @@ export default function CategoriesPage() {
   const countMap = useMemo(
     () =>
       allExpenses.reduce<Record<number, number>>((acc, e) => {
-        if (e.category_id != null)
-          acc[e.category_id] = (acc[e.category_id] ?? 0) + 1;
+        if (e.category_id != null) acc[e.category_id] = (acc[e.category_id] ?? 0) + 1;
         return acc;
       }, {}),
     [allExpenses],
   );
 
   // Classify categories
-  const childParentIds = new Set(
-    categories.filter((c) => c.parent_id).map((c) => c.parent_id!),
-  );
+  const childParentIds = new Set(categories.filter((c) => c.parent_id).map((c) => c.parent_id!));
   const parentCats = categories.filter((c) => !c.parent_id);
-  const standaloneLeaves = categories.filter(
-    (c) => !c.parent_id && !childParentIds.has(c.id),
-  );
+  const standaloneLeaves = categories.filter((c) => !c.parent_id && !childParentIds.has(c.id));
   const childCats = categories.filter((c) => !!c.parent_id);
   const hasHierarchy = parentCats.length > 0;
 
@@ -363,18 +328,14 @@ export default function CategoriesPage() {
   const filteredParentCats = useMemo(
     () =>
       parentCats.filter(
-        (c) =>
-          !searchQuery ||
-          c.name.toLowerCase().includes(searchQuery.toLowerCase()),
+        (c) => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase()),
       ),
     [parentCats, searchQuery],
   );
   const filteredChildCats = useMemo(
     () =>
       childCats.filter(
-        (c) =>
-          !searchQuery ||
-          c.name.toLowerCase().includes(searchQuery.toLowerCase()),
+        (c) => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase()),
       ),
     [childCats, searchQuery],
   );
@@ -467,9 +428,7 @@ export default function CategoriesPage() {
               {cat.name}
             </button>
             {count > 0 && (
-              <span className="text-xs text-tertiary flex-shrink-0">
-                {count} gastos
-              </span>
+              <span className="text-xs text-tertiary flex-shrink-0">{count} gastos</span>
             )}
           </div>
           {parent && (
@@ -482,10 +441,7 @@ export default function CategoriesPage() {
             </div>
           )}
           {cat.keywords && (
-            <p
-              className="text-xs text-secondary truncate ml-4 mt-1"
-              title={cat.keywords}
-            >
+            <p className="text-xs text-secondary truncate ml-4 mt-1" title={cat.keywords}>
               {cat.keywords
                 .split(",")
                 .slice(0, 4)
@@ -531,9 +487,7 @@ export default function CategoriesPage() {
             {cat.name}
           </span>
           {totalCount > 0 && (
-            <span className="text-xs text-tertiary flex-shrink-0">
-              {totalCount} gastos
-            </span>
+            <span className="text-xs text-tertiary flex-shrink-0">{totalCount} gastos</span>
           )}
           <div className="flex gap-0.5 sm:gap-1 flex-shrink-0">
             <button
@@ -572,9 +526,7 @@ export default function CategoriesPage() {
                     {child.name}
                   </button>
                   {count > 0 && (
-                    <span className="text-xs text-secondary flex-shrink-0">
-                      {count}
-                    </span>
+                    <span className="text-xs text-secondary flex-shrink-0">{count}</span>
                   )}
                   {child.keywords && (
                     <span className="text-[11px] text-secondary truncate hidden sm:block max-w-[160px]">
@@ -588,9 +540,7 @@ export default function CategoriesPage() {
                   )}
                   <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0">
                     <button
-                      onClick={() =>
-                        setEditing({ cat: child, isParent: false })
-                      }
+                      onClick={() => setEditing({ cat: child, isParent: false })}
                       className="text-tertiary hover:text-primary text-xs p-1 rounded"
                     >
                       ✏
@@ -607,9 +557,7 @@ export default function CategoriesPage() {
             })}
           </div>
         ) : (
-          <p className="text-xs text-secondary px-4 py-3">
-            Sin subcategorías aún
-          </p>
+          <p className="text-xs text-secondary px-4 py-3">Sin subcategorías aún</p>
         )}
 
         {/* Add child shortcut */}
@@ -655,9 +603,7 @@ export default function CategoriesPage() {
             disabled={recatMut.isPending}
             className="gnome-btn-secondary-round text-sm"
           >
-            {recatMut.isPending
-              ? "Recategorizando..."
-              : "↺ Recategorizar sin categoría"}
+            {recatMut.isPending ? "Recategorizando..." : "↺ Recategorizar sin categoría"}
           </button>
           {recatResult && (
             <span className="text-xs text-tertiary">
@@ -689,13 +635,10 @@ export default function CategoriesPage() {
       {!hasHierarchy && !hierarchyResult && (
         <div className="card p-4 border border-warning/20 bg-warning/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm font-medium text-warning">
-              Configurar estructura base
-            </p>
+            <p className="text-sm font-medium text-warning">Configurar estructura base</p>
             <p className="text-xs text-tertiary mt-0.5">
-              Crea una jerarquía recomendada: Alimentación, Transporte,
-              Entretenimiento, Salud, Hogar y más, con sus subcategorías y
-              palabras clave ya configuradas.
+              Crea una jerarquía recomendada: Alimentación, Transporte, Entretenimiento, Salud,
+              Hogar y más, con sus subcategorías y palabras clave ya configuradas.
             </p>
           </div>
           <button
@@ -703,9 +646,7 @@ export default function CategoriesPage() {
             disabled={hierarchyMut.isPending}
             className="gnome-btn-primary-round flex-shrink-0 whitespace-nowrap"
           >
-            {hierarchyMut.isPending
-              ? "Aplicando..."
-              : "Aplicar estructura base"}
+            {hierarchyMut.isPending ? "Aplicando..." : "Aplicar estructura base"}
           </button>
         </div>
       )}
@@ -780,9 +721,7 @@ export default function CategoriesPage() {
         <div className="space-y-4">
           {parentCats.length === 0 ? (
             <div className="card p-10 text-center">
-              <p className="text-tertiary text-sm">
-                No hay categorías padre aún.
-              </p>
+              <p className="text-tertiary text-sm">No hay categorías padre aún.</p>
               <p className="text-tertiary text-xs mt-1">
                 Aplicá la estructura base o creá una manualmente.
               </p>
@@ -800,9 +739,7 @@ export default function CategoriesPage() {
         <div className="space-y-6">
           {/* Children grouped by parent */}
           {filteredParentCats.map((parent) => {
-            const children = filteredChildCats.filter(
-              (c) => c.parent_id === parent.id,
-            );
+            const children = filteredChildCats.filter((c) => c.parent_id === parent.id);
             if (children.length === 0) return null;
             return (
               <div key={parent.id} className="space-y-2">
@@ -814,9 +751,7 @@ export default function CategoriesPage() {
                   <h3 className="text-xs font-semibold text-tertiary uppercase tracking-wider">
                     {parent.name}
                   </h3>
-                  <span className="text-xs text-secondary">
-                    {children.length}
-                  </span>
+                  <span className="text-xs text-secondary">{children.length}</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {children.map((cat) => (
@@ -834,9 +769,7 @@ export default function CategoriesPage() {
                 <h3 className="text-xs font-semibold text-secondary uppercase tracking-wider">
                   Sin categoría padre
                 </h3>
-                <span className="text-xs text-secondary">
-                  {standaloneLeaves.length}
-                </span>
+                <span className="text-xs text-secondary">{standaloneLeaves.length}</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {standaloneLeaves.map((cat) => (
@@ -866,9 +799,7 @@ export default function CategoriesPage() {
         />
       )}
 
-      {browsing && (
-        <CategoryDetail cat={browsing} onClose={() => setBrowsing(null)} />
-      )}
+      {browsing && <CategoryDetail cat={browsing} onClose={() => setBrowsing(null)} />}
 
       {deleteConfirm && (
         <ConfirmDialog
@@ -887,10 +818,7 @@ export default function CategoriesPage() {
       {deleteError && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-start gap-2 bg-danger/10 border border-danger/30 rounded-lg px-4 py-3 text-sm text-danger shadow-lg">
           <span>{deleteError}</span>
-          <button
-            onClick={() => setDeleteError(null)}
-            className="ml-2 hover:opacity-70"
-          >
+          <button onClick={() => setDeleteError(null)} className="ml-2 hover:opacity-70">
             ✕
           </button>
         </div>

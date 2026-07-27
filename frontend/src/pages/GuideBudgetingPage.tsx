@@ -15,19 +15,11 @@ function Section({
     <section id={id} className="mb-10">
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center flex-shrink-0">
-          <SymbolicIcon
-            name={icon}
-            size={20}
-            className="text-[var(--color-primary)]"
-          />
+          <SymbolicIcon name={icon} size={20} className="text-[var(--color-primary)]" />
         </div>
-        <h2 className="text-xl font-bold text-[var(--text-primary)]">
-          {title}
-        </h2>
+        <h2 className="text-xl font-bold text-[var(--text-primary)]">{title}</h2>
       </div>
-      <div className="space-y-4 text-[var(--text-secondary)] leading-relaxed">
-        {children}
-      </div>
+      <div className="space-y-4 text-[var(--text-secondary)] leading-relaxed">{children}</div>
     </section>
   );
 }
@@ -40,9 +32,7 @@ function Steps({ items }: { items: string[] }) {
           <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center text-xs font-bold">
             {i + 1}
           </span>
-          <span className="text-sm text-[var(--text-secondary)] pt-0.5">
-            {item}
-          </span>
+          <span className="text-sm text-[var(--text-secondary)] pt-0.5">{item}</span>
         </li>
       ))}
     </ol>
@@ -63,19 +53,14 @@ export default function GuideBudgetingPage() {
           </a>
           <div className="flex items-center gap-3 mb-2">
             <div className="w-12 h-12 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center">
-              <SymbolicIcon
-                name="chart-bar"
-                size={26}
-                className="text-[var(--color-primary)]"
-              />
+              <SymbolicIcon name="chart-bar" size={26} className="text-[var(--color-primary)]" />
             </div>
             <div>
               <h1 className="text-3xl font-bold text-[var(--text-primary)]">
                 Guía de Presupuestos
               </h1>
               <p className="text-[var(--text-secondary)]">
-                Todo lo que necesitás saber para controlar tus gastos con
-                presupuestos
+                Todo lo que necesitás saber para controlar tus gastos con presupuestos
               </p>
             </div>
           </div>
@@ -114,26 +99,21 @@ export default function GuideBudgetingPage() {
         </nav>
 
         {/* Section 1: What is budgeting */}
-        <Section
-          id="que-es"
-          icon="chart-bar"
-          title="¿Qué son los presupuestos?"
-        >
+        <Section id="que-es" icon="chart-bar" title="¿Qué son los presupuestos?">
           <p>
-            Los presupuestos son <strong>límites de gasto mensual</strong> que
-            asignás a cada categoría de tus gastos. En lugar de revisar tus
-            gastos al final del mes y darte cuenta de que te pasaste, el sistema
-            te avisa <strong>mientras estás gastando</strong>.
+            Los presupuestos son <strong>límites de gasto mensual</strong> que asignás a cada
+            categoría de tus gastos. En lugar de revisar tus gastos al final del mes y darte cuenta
+            de que te pasaste, el sistema te avisa <strong>mientras estás gastando</strong>.
           </p>
           <p>
-            Es como tener un semáforo para cada categoría: 🟢 cuando vas bien,
-            🟡 cuando te acercás al límite, y 🔴 cuando te pasaste.
+            Es como tener un semáforo para cada categoría: 🟢 cuando vas bien, 🟡 cuando te acercás
+            al límite, y 🔴 cuando te pasaste.
           </p>
           <div className="p-4 rounded-xl bg-[var(--color-primary)]/5 border border-[var(--color-primary)]/20">
             <p className="text-sm">
-              <strong>💡 Ejemplo:</strong> Si asignás $80.000 a "Supermercado" y
-              ya gastaste $72.000, verás una barra amarilla al 90% y una alerta
-              de "Cuidado, te acercás al límite".
+              <strong>💡 Ejemplo:</strong> Si asignás $80.000 a "Supermercado" y ya gastaste
+              $72.000, verás una barra amarilla al 90% y una alerta de "Cuidado, te acercás al
+              límite".
             </p>
           </div>
         </Section>
@@ -146,24 +126,21 @@ export default function GuideBudgetingPage() {
           </p>
           <ul className="list-disc ml-5 space-y-2">
             <li>
-              <strong>Sorpresas al final del mes</strong> — Sabés exactamente
-              cuánto te queda en cada categoría
+              <strong>Sorpresas al final del mes</strong> — Sabés exactamente cuánto te queda en
+              cada categoría
             </li>
             <li>
-              <strong>Decisiones informadas</strong> — Antes de gastar, sabés si
-              podés o no
+              <strong>Decisiones informadas</strong> — Antes de gastar, sabés si podés o no
             </li>
             <li>
-              <strong>Hábitos más sanos</strong> — La app te avisa cuando te
-              acercás al límite
+              <strong>Hábitos más sanos</strong> — La app te avisa cuando te acercás al límite
             </li>
             <li>
-              <strong>Metas de ahorro</strong> — Asigná un porcentaje a ahorro y
-              seguí el progreso
+              <strong>Metas de ahorro</strong> — Asigná un porcentaje a ahorro y seguí el progreso
             </li>
             <li>
-              <strong>Eventos especiales</strong> — Creá presupuestos temporales
-              para vacaciones o viajes
+              <strong>Eventos especiales</strong> — Creá presupuestos temporales para vacaciones o
+              viajes
             </li>
           </ul>
         </Section>
@@ -178,8 +155,8 @@ export default function GuideBudgetingPage() {
                 1️⃣ Grupos (60/40)
               </p>
               <p className="text-xs">
-                Tu ingreso se divide en Necesidades (60%) y Gustos (40%). Cada
-                categoría pertenece a un grupo.
+                Tu ingreso se divide en Necesidades (60%) y Gustos (40%). Cada categoría pertenece a
+                un grupo.
               </p>
             </div>
             <div className="p-3 rounded-lg border border-[var(--border-color)]">
@@ -187,8 +164,8 @@ export default function GuideBudgetingPage() {
                 2️⃣ Categorías con límite
               </p>
               <p className="text-xs">
-                Cada subcategoría puede tener un presupuesto mensual. Ejemplo:
-                Supermercado $80.000, Restaurantes $15.000.
+                Cada subcategoría puede tener un presupuesto mensual. Ejemplo: Supermercado $80.000,
+                Restaurantes $15.000.
               </p>
             </div>
             <div className="p-3 rounded-lg border border-[var(--border-color)]">
@@ -196,8 +173,8 @@ export default function GuideBudgetingPage() {
                 3️⃣ Seguimiento automático
               </p>
               <p className="text-xs">
-                Cada gasto que registrás se descuenta automáticamente del
-                presupuesto de su categoría.
+                Cada gasto que registrás se descuenta automáticamente del presupuesto de su
+                categoría.
               </p>
             </div>
           </div>
@@ -215,45 +192,36 @@ export default function GuideBudgetingPage() {
             ]}
           />
           <p className="mt-3 text-sm">
-            <strong>Tip:</strong> Empezá con pocas categorías. Después vas
-            agregando más según necesités.
+            <strong>Tip:</strong> Empezá con pocas categorías. Después vas agregando más según
+            necesités.
           </p>
         </Section>
 
         {/* Section 5: Groups */}
         <Section id="grupos" icon="chart-bar" title="Grupos de presupuesto">
           <p>
-            Los grupos son la forma en que organizás tu ingreso. Cada grupo
-            representa un porcentaje de tu ingreso mensual:
+            Los grupos son la forma en que organizás tu ingreso. Cada grupo representa un porcentaje
+            de tu ingreso mensual:
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="p-4 rounded-xl border-2 border-[var(--color-primary)]/30">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-8 h-8 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center">
-                  <span className="text-xs font-bold text-[var(--color-primary)]">
-                    60%
-                  </span>
+                  <span className="text-xs font-bold text-[var(--color-primary)]">60%</span>
                 </div>
-                <p className="text-sm font-semibold text-[var(--text-primary)]">
-                  Necesidades
-                </p>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">Necesidades</p>
               </div>
               <p className="text-xs text-[var(--text-secondary)]">
-                Gastos esenciales: Alimentación, Transporte, Salud, Hogar,
-                Servicios
+                Gastos esenciales: Alimentación, Transporte, Salud, Hogar, Servicios
               </p>
             </div>
             <div className="p-4 rounded-xl border-2 border-[var(--color-warning)]/30">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-8 h-8 rounded-full bg-[var(--color-warning)]/10 flex items-center justify-center">
-                  <span className="text-xs font-bold text-[var(--color-warning)]">
-                    40%
-                  </span>
+                  <span className="text-xs font-bold text-[var(--color-warning)]">40%</span>
                 </div>
-                <p className="text-sm font-semibold text-[var(--text-primary)]">
-                  Gustos
-                </p>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">Gustos</p>
               </div>
               <p className="text-xs text-[var(--text-secondary)]">
                 Entretenimiento: Ropa, Streaming, Salidas, Restaurantes, Viajes
@@ -262,52 +230,42 @@ export default function GuideBudgetingPage() {
           </div>
 
           <p className="mt-3 text-sm">
-            Podés ajustar los porcentajes haciendo click en "Editar grupos" en
-            la página de presupuesto.
+            Podés ajustar los porcentajes haciendo click en "Editar grupos" en la página de
+            presupuesto.
           </p>
         </Section>
 
         {/* Section 6: Categories */}
-        <Section
-          id="categorias"
-          icon="chart-bar"
-          title="Categorías con presupuesto"
-        >
+        <Section id="categorias" icon="chart-bar" title="Categorías con presupuesto">
           <p>
-            Cada subcategoría puede tener su propio límite mensual. Por ejemplo,
-            dentro de "Alimentación":
+            Cada subcategoría puede tener su propio límite mensual. Por ejemplo, dentro de
+            "Alimentación":
           </p>
           <div className="p-3 rounded-lg border border-[var(--border-color)] space-y-1.5">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[var(--color-success)]" />
-              <span className="text-xs">
-                🟢 Supermercado — $45.000 / $80.000 (56%)
-              </span>
+              <span className="text-xs">🟢 Supermercado — $45.000 / $80.000 (56%)</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[var(--color-warning)]" />
-              <span className="text-xs">
-                🟡 Delivery — $8.000 / $10.000 (80%)
-              </span>
+              <span className="text-xs">🟡 Delivery — $8.000 / $10.000 (80%)</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[var(--color-danger)]" />
-              <span className="text-xs">
-                🔴 Restaurantes — $18.000 / $15.000 (120%)
-              </span>
+              <span className="text-xs">🔴 Restaurantes — $18.000 / $15.000 (120%)</span>
             </div>
           </div>
           <p className="mt-3 text-sm">
-            La barra cambia de color según el porcentaje: verde (bien), amarillo
-            (cuidado), rojo (alerta).
+            La barra cambia de color según el porcentaje: verde (bien), amarillo (cuidado), rojo
+            (alerta).
           </p>
         </Section>
 
         {/* Section 7: Temporal events */}
         <Section id="eventos" icon="chart-bar" title="Eventos temporales">
           <p>
-            Los eventos temporales son presupuestos para un período específico:
-            vacaciones, un viaje, un casamiento, etc.
+            Los eventos temporales son presupuestos para un período específico: vacaciones, un
+            viaje, un casamiento, etc.
           </p>
           <Steps
             items={[
@@ -318,14 +276,12 @@ export default function GuideBudgetingPage() {
             ]}
           />
           <div className="mt-3 p-3 rounded-lg border border-[var(--border-color)]">
-            <p className="text-xs font-semibold text-[var(--text-primary)] mb-1">
-              Ejemplo:
-            </p>
+            <p className="text-xs font-semibold text-[var(--text-primary)] mb-1">Ejemplo:</p>
             <p className="text-xs text-[var(--text-secondary)]">
               "Vacaciones Europa" — 01/07 al 15/07 — $500.000
               <br />
-              Los gastos de hotel, vuelos y comida durante esas fechas se
-              vinculan al evento automáticamente.
+              Los gastos de hotel, vuelos y comida durante esas fechas se vinculan al evento
+              automáticamente.
             </p>
           </div>
         </Section>
@@ -333,24 +289,18 @@ export default function GuideBudgetingPage() {
         {/* Section 8: Telegram */}
         <Section id="telegram" icon="telegram" title="Telegram y presupuestos">
           <p>
-            El bot de Telegram está integrado con el sistema de presupuestos.
-            Cuando guardás un gasto:
+            El bot de Telegram está integrado con el sistema de presupuestos. Cuando guardás un
+            gasto:
           </p>
           <ul className="list-disc ml-5 space-y-1">
             <li>
-              Si el gasto cae dentro de un evento temporal, el bot te pregunta
-              si pertenece a él
+              Si el gasto cae dentro de un evento temporal, el bot te pregunta si pertenece a él
             </li>
-            <li>
-              Si la categoría supera el umbral de alerta, el bot te envía una
-              notificación
-            </li>
+            <li>Si la categoría supera el umbral de alerta, el bot te envía una notificación</li>
             <li>Si un grupo supera el 80%, recibís una alerta diaria</li>
           </ul>
           <div className="mt-3 p-3 rounded-lg border border-[var(--border-color)]">
-            <p className="text-xs font-semibold text-[var(--text-primary)] mb-1">
-              Ejemplo:
-            </p>
+            <p className="text-xs font-semibold text-[var(--text-primary)] mb-1">Ejemplo:</p>
             <p className="text-xs text-[var(--text-secondary)]">
               Vos: "supermercado 12000"
               <br />
@@ -371,9 +321,7 @@ export default function GuideBudgetingPage() {
               <p className="text-xs font-semibold text-[var(--text-primary)]">
                 🟡 Al guardar un gasto que supera el 80%
               </p>
-              <p className="text-xs text-[var(--text-secondary)]">
-                Alerta inmediata por Telegram
-              </p>
+              <p className="text-xs text-[var(--text-secondary)]">Alerta inmediata por Telegram</p>
             </div>
             <div className="p-3 rounded-lg border border-[var(--border-color)]">
               <p className="text-xs font-semibold text-[var(--text-primary)]">
@@ -402,8 +350,8 @@ export default function GuideBudgetingPage() {
                 💡 Empezá con pocas categorías
               </p>
               <p className="text-xs text-[var(--text-secondary)]">
-                No intentes presupuestar todo de una vez. Empezá con las
-                categorías donde más gastás.
+                No intentes presupuestar todo de una vez. Empezá con las categorías donde más
+                gastás.
               </p>
             </div>
             <div className="p-3 rounded-lg border border-[var(--border-color)]">
@@ -411,8 +359,7 @@ export default function GuideBudgetingPage() {
                 💡 Revisá semanalmente
               </p>
               <p className="text-xs text-[var(--text-secondary)]">
-                No esperes al final del mes. Revisá tu progreso cada semana para
-                ajustar a tiempo.
+                No esperes al final del mes. Revisá tu progreso cada semana para ajustar a tiempo.
               </p>
             </div>
             <div className="p-3 rounded-lg border border-[var(--border-color)]">
@@ -420,8 +367,7 @@ export default function GuideBudgetingPage() {
                 💡 Usá el bot de Telegram
               </p>
               <p className="text-xs text-[var(--text-secondary)]">
-                Registrar gastos por Telegram es más rápido. El bot te avisa si
-                te pasás del límite.
+                Registrar gastos por Telegram es más rápido. El bot te avisa si te pasás del límite.
               </p>
             </div>
             <div className="p-3 rounded-lg border border-[var(--border-color)]">
@@ -429,8 +375,8 @@ export default function GuideBudgetingPage() {
                 💡 No te castigues por pasarte
               </p>
               <p className="text-xs text-[var(--text-secondary)]">
-                Si te pasás de un presupuesto, analizá por qué y ajustá el mes
-                que viene. El presupuesto es una guía, no una prisión.
+                Si te pasás de un presupuesto, analizá por qué y ajustá el mes que viene. El
+                presupuesto es una guía, no una prisión.
               </p>
             </div>
           </div>

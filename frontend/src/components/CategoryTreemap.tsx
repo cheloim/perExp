@@ -145,8 +145,7 @@ export default function CategoryTreemap({
   const grandTotal = useMemo(() => {
     function sumLeaves(items: TreemapDatum[]): number {
       return items.reduce((s, d) => {
-        if (d.children && d.children.length > 0)
-          return s + sumLeaves(d.children);
+        if (d.children && d.children.length > 0) return s + sumLeaves(d.children);
         return s + d.total;
       }, 0);
     }
@@ -182,10 +181,7 @@ export default function CategoryTreemap({
   }, [data, size]);
 
   const leaves = useMemo(
-    () =>
-      rects.filter(
-        (r) => r.depth === 2 || (r.depth === 1 && !r.data.children?.length),
-      ),
+    () => rects.filter((r) => r.depth === 2 || (r.depth === 1 && !r.data.children?.length)),
     [rects],
   );
   const parentGroups = useMemo(
@@ -239,13 +235,7 @@ export default function CategoryTreemap({
             }`;
             return (
               <clipPath key={clipId} id={clipId}>
-                <rect
-                  x={r.x0}
-                  y={r.y0}
-                  width={r.x1 - r.x0}
-                  height={r.y1 - r.y0}
-                  rx={4}
-                />
+                <rect x={r.x0} y={r.y0} width={r.x1 - r.x0} height={r.y1 - r.y0} rx={4} />
               </clipPath>
             );
           })}
@@ -259,8 +249,7 @@ export default function CategoryTreemap({
           const parentColor = r.data.color || "#6b7280";
           const isSelected = selectedCategoryName === r.data.name;
           const isHovered = hovered === r.data.name;
-          const isFaded =
-            selectedCategoryName !== null && !isSelected && !isHovered;
+          const isFaded = selectedCategoryName !== null && !isSelected && !isHovered;
 
           return (
             <rect
@@ -296,8 +285,7 @@ export default function CategoryTreemap({
 
           const isSelected = selectedCategoryName === r.data.name;
           const isHovered = hovered === r.data.name;
-          const isFaded =
-            selectedCategoryName !== null && !isSelected && !isHovered;
+          const isFaded = selectedCategoryName !== null && !isSelected && !isHovered;
           const textColor = getContrastTextColor(r.data.color);
           const showLabel = w >= 24 && h >= 12;
           const clipId = `clip-${r.data.category_id ?? r.data.name.replace(/[^a-zA-Z0-9]/g, "-")}`;
@@ -326,19 +314,11 @@ export default function CategoryTreemap({
                 rx={4}
                 fill={r.data.color}
                 opacity={isFaded ? 0.3 : 1}
-                stroke={
-                  isSelected
-                    ? "#fff"
-                    : isHovered
-                      ? "rgba(255,255,255,0.5)"
-                      : "transparent"
-                }
+                stroke={isSelected ? "#fff" : isHovered ? "rgba(255,255,255,0.5)" : "transparent"}
                 strokeWidth={isSelected ? 2 : 1}
                 className="cursor-pointer transition-all duration-200"
                 onMouseEnter={() => setHovered(r.data.name)}
-                onMouseMove={(e) =>
-                  handleMouseMove(e, r.data.name, r.data.total, r.data.count)
-                }
+                onMouseMove={(e) => handleMouseMove(e, r.data.name, r.data.total, r.data.count)}
                 onMouseLeave={handleMouseLeave}
               />
               {showLabel && (
@@ -369,9 +349,7 @@ export default function CategoryTreemap({
                   opacity={isFaded ? 0.3 : 0.8}
                   clipPath={`url(#${clipId})`}
                 >
-                  {amountStr.length > maxChars
-                    ? amountStr.slice(0, maxChars) + "…"
-                    : amountStr}
+                  {amountStr.length > maxChars ? amountStr.slice(0, maxChars) + "…" : amountStr}
                 </text>
               )}
             </g>
@@ -391,12 +369,9 @@ export default function CategoryTreemap({
               }`.trim() || undefined,
           }}
         >
-          <p className="text-xs font-semibold text-[var(--text-primary)]">
-            {tooltip.name}
-          </p>
+          <p className="text-xs font-semibold text-[var(--text-primary)]">{tooltip.name}</p>
           <p className="text-xs text-[var(--text-secondary)]">
-            {formatCurrency(tooltip.total)} · {tooltip.count}× ·{" "}
-            {tooltip.pct.toFixed(1)}%
+            {formatCurrency(tooltip.total)} · {tooltip.count}× · {tooltip.pct.toFixed(1)}%
           </p>
         </div>
       )}

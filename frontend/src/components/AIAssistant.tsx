@@ -92,9 +92,7 @@ function AnalyzeButton({ onClick }: { onClick: () => void }) {
         <span>✨</span>
         <span>Analizar gastos del mes</span>
       </button>
-      <p className="text-xs text-tertiary">
-        Obtené un resumen de tus gastos del mes
-      </p>
+      <p className="text-xs text-tertiary">Obtené un resumen de tus gastos del mes</p>
     </div>
   );
 }
@@ -102,10 +100,7 @@ function AnalyzeButton({ onClick }: { onClick: () => void }) {
 function ThinkingDots() {
   const [d, setD] = useState(".");
   useEffect(() => {
-    const id = setInterval(
-      () => setD((p) => (p.length >= 3 ? "." : p + ".")),
-      400,
-    );
+    const id = setInterval(() => setD((p) => (p.length >= 3 ? "." : p + ".")), 400);
     return () => clearInterval(id);
   }, []);
   return <span className="text-[var(--text-tertiary)] text-sm">{d}</span>;
@@ -172,9 +167,7 @@ function SessionCard({
         onClick={onToggle}
       >
         <div className="flex-1 min-w-0 pr-8">
-          <p className="text-sm text-[var(--text-primary)] truncate">
-            {preview}
-          </p>
+          <p className="text-sm text-[var(--text-primary)] truncate">{preview}</p>
           <p className="text-xs text-[var(--text-tertiary)]">
             {dateStr} · {userMsgs.length} preguntas
           </p>
@@ -189,9 +182,7 @@ function SessionCard({
           >
             <TrashIcon />
           </button>
-          <span className="text-[var(--text-tertiary)] text-xs">
-            {expanded ? "▲" : "▼"}
-          </span>
+          <span className="text-[var(--text-tertiary)] text-xs">{expanded ? "▲" : "▼"}</span>
         </div>
       </div>
       {expanded && (
@@ -243,12 +234,7 @@ function SessionCard({
   );
 }
 
-export default function AIAssistant({
-  open,
-}: {
-  open: boolean;
-  onToggle?: () => void;
-}) {
+export default function AIAssistant({ open }: { open: boolean; onToggle?: () => void }) {
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
@@ -274,18 +260,14 @@ export default function AIAssistant({
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const isLocalhost =
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1";
+    window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const activeSession = sessions.find((s) => s.id === activeId);
-  const messages = useMemo(
-    () => activeSession?.messages ?? [],
-    [activeSession],
-  );
+  const messages = useMemo(() => activeSession?.messages ?? [], [activeSession]);
 
   // Handle keyboard visibility on mobile
   useEffect(() => {
@@ -307,16 +289,13 @@ export default function AIAssistant({
     };
   }, []);
 
-  const updateSession = useCallback(
-    (id: string, updater: (s: Session) => Session) => {
-      setSessions((prev) => {
-        const next = prev.map((s) => (s.id === id ? updater(s) : s));
-        saveSessions(next);
-        return next;
-      });
-    },
-    [],
-  );
+  const updateSession = useCallback((id: string, updater: (s: Session) => Session) => {
+    setSessions((prev) => {
+      const next = prev.map((s) => (s.id === id ? updater(s) : s));
+      saveSessions(next);
+      return next;
+    });
+  }, []);
 
   const setMessages = (updater: (prev: ChatMessage[]) => ChatMessage[]) => {
     updateSession(activeId, (s) => ({
@@ -332,13 +311,9 @@ export default function AIAssistant({
       setSummarizing(true);
       try {
         let summary = "";
-        await streamTo(
-          "/api/analysis/summarize",
-          { messages: sessionMessages },
-          (full) => {
-            summary = full;
-          },
-        );
+        await streamTo("/api/analysis/summarize", { messages: sessionMessages }, (full) => {
+          summary = full;
+        });
         if (summary) updateSession(sessionId, (s) => ({ ...s, summary }));
       } catch {
       } finally {
@@ -376,11 +351,7 @@ export default function AIAssistant({
       const hoursSinceLastMessage = (Date.now() - lastTs) / (1000 * 60 * 60);
       if (hoursSinceLastMessage > 2) {
         const curSession = sessions.find((s) => s.id === activeId);
-        if (
-          curSession &&
-          curSession.messages.length > 0 &&
-          !curSession.summary
-        ) {
+        if (curSession && curSession.messages.length > 0 && !curSession.summary) {
           summarizeSession(activeId, curSession.messages);
         }
         const id = newSessionId();
@@ -403,11 +374,7 @@ export default function AIAssistant({
     const text = input.trim();
     if (!text || streaming) return;
     setInput("");
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", text },
-      { role: "assistant", text: "" },
-    ]);
+    setMessages((prev) => [...prev, { role: "user", text }, { role: "assistant", text: "" }]);
     setStreaming(true);
     try {
       await streamTo(
@@ -445,8 +412,7 @@ export default function AIAssistant({
     try {
       const data = await getDashboardAITrends({ month: currentMonth });
 
-      const trendIcon =
-        data.trend === "up" ? "↑" : data.trend === "down" ? "↓" : "→";
+      const trendIcon = data.trend === "up" ? "↑" : data.trend === "down" ? "↓" : "→";
       const trendLabel =
         data.trend === "up"
           ? "Tendencia alcista"
@@ -455,10 +421,8 @@ export default function AIAssistant({
             : "Estable";
 
       let responseText = `${trendIcon} ${trendLabel}\n\n${data.trend_explanation}`;
-      if (data.top_rising_category)
-        responseText += `\n\n↑ Subió: ${data.top_rising_category}`;
-      if (data.top_falling_category)
-        responseText += `\n\n↓ Bajó: ${data.top_falling_category}`;
+      if (data.top_rising_category) responseText += `\n\n↑ Subió: ${data.top_rising_category}`;
+      if (data.top_falling_category) responseText += `\n\n↓ Bajó: ${data.top_falling_category}`;
       if (data.recommendation) responseText += `\n\n💡 ${data.recommendation}`;
       if (data.alert) responseText += `\n\n⚠ ${data.alert}`;
 
@@ -469,8 +433,7 @@ export default function AIAssistant({
       });
     } catch (err) {
       console.error("analyzeMonth error:", err);
-      const errorMessage =
-        err instanceof Error ? err.message : "Error desconocido";
+      const errorMessage = err instanceof Error ? err.message : "Error desconocido";
       setMessages((prev) => {
         const u = [...prev];
         u[u.length - 1] = {
@@ -546,9 +509,7 @@ export default function AIAssistant({
             <line x1="6" y1="20" x2="6" y2="14" />
           </svg>
         </span>
-        <span className="text-base font-semibold text-primary">
-          Asistente de Gastos
-        </span>
+        <span className="text-base font-semibold text-primary">Asistente de Gastos</span>
       </div>
       <div className="flex items-center gap-1.5">
         {messages.length > 0 && (
@@ -557,11 +518,7 @@ export default function AIAssistant({
             disabled={summarizing}
             className="gnome-btn-secondary-round text-sm"
           >
-            {summarizing ? (
-              <span className="animate-spin inline-block">↻</span>
-            ) : (
-              "Resumir"
-            )}
+            {summarizing ? <span className="animate-spin inline-block">↻</span> : "Resumir"}
           </button>
         )}
         {isLocalhost && (
@@ -666,10 +623,7 @@ export default function AIAssistant({
         </button>
       </div>
       {!showHistory && (
-        <button
-          onClick={startNewSession}
-          className="gnome-btn-secondary-round text-sm"
-        >
+        <button onClick={startNewSession} className="gnome-btn-secondary-round text-sm">
           <svg
             width="14"
             height="14"
@@ -691,9 +645,7 @@ export default function AIAssistant({
   const historyJsx = (
     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
       {sessions.length === 0 ? (
-        <p className="text-sm text-secondary text-center py-8">
-          Sin historial aún
-        </p>
+        <p className="text-sm text-secondary text-center py-8">Sin historial aún</p>
       ) : (
         [...sessions]
           .reverse()
@@ -714,9 +666,7 @@ export default function AIAssistant({
 
   const messageListJsx = (
     <div className="flex-1 flex flex-col px-5 py-4 space-y-3 min-h-0 overflow-y-auto">
-      {messages.length === 0 && !streaming && (
-        <AnalyzeButton onClick={analyzeMonth} />
-      )}
+      {messages.length === 0 && !streaming && <AnalyzeButton onClick={analyzeMonth} />}
       {messages.length === 0 && streaming && (
         <div className="flex flex-col items-center justify-center h-full text-center space-y-2">
           <svg
@@ -743,10 +693,7 @@ export default function AIAssistant({
       )}
       <div className="flex-1 space-y-3 overflow-y-auto min-h-0">
         {messages.map((msg, i) => (
-          <div
-            key={i}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-          >
+          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
               className={`max-w-[85%] px-4 py-3 rounded-lg text-sm leading-relaxed ${
                 msg.role === "user"
@@ -757,9 +704,7 @@ export default function AIAssistant({
               {msg.role === "assistant" && msg.text
                 ? formatAIResponse(msg.text)
                 : msg.text ||
-                  (streaming &&
-                  i === messages.length - 1 &&
-                  msg.role === "assistant" ? (
+                  (streaming && i === messages.length - 1 && msg.role === "assistant" ? (
                     <ThinkingDots />
                   ) : (
                     ""
@@ -858,10 +803,7 @@ export default function AIAssistant({
       {/* Modal overlay - expanded mode, GNOME 50 bottom-sheet on mobile */}
       {isExpanded && (
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setIsExpanded(false)}
-          />
+          <div className="absolute inset-0 bg-black/50" onClick={() => setIsExpanded(false)} />
           <div className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-t-lg sm:rounded-lg shadow-xl flex flex-col w-full sm:max-w-2xl max-h-[90dvh] sm:max-h-[85vh] overflow-hidden">
             {headerJsx}
             {toolbarJsx}

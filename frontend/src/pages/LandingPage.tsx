@@ -38,7 +38,9 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
             <div
               ref={hero.ref}
-              className={`transition-all duration-700 ${hero.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+              className={`transition-all duration-700 ${
+                hero.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+              }`}
             >
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--gnome-blue-1)]/30 text-[var(--color-primary)] text-xs font-medium mb-6">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary)] animate-pulse" />
@@ -46,15 +48,11 @@ export default function LandingPage() {
               </div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[var(--text-primary)] tracking-tight mb-6 leading-[1.1]">
                 Organizá tus finanzas
-                <span className="text-[var(--color-primary)]">
-                  {" "}
-                  sin esfuerzo
-                </span>
+                <span className="text-[var(--color-primary)]"> sin esfuerzo</span>
               </h1>
               <p className="text-lg text-[var(--text-secondary)] mb-8 leading-relaxed max-w-lg">
-                Registra gastos con un mensaje, analizá tus hábitos y tomá
-                mejores decisiones. Todo con inteligencia artificial y desde tu
-                celular.
+                Registra gastos con un mensaje, analizá tus hábitos y tomá mejores decisiones. Todo
+                con inteligencia artificial y desde tu celular.
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <a
@@ -72,26 +70,20 @@ export default function LandingPage() {
               </div>
               <div className="flex items-center gap-6 mt-8 text-sm text-[var(--text-secondary)]">
                 <span className="flex items-center gap-1.5">
-                  <SymbolicIcon
-                    name="check"
-                    size={14}
-                    className="text-[var(--gnome-green-5)]"
-                  />
+                  <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
                   Sin tarjeta de crédito
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <SymbolicIcon
-                    name="check"
-                    size={14}
-                    className="text-[var(--gnome-green-5)]"
-                  />
+                  <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
                   Datos seguros
                 </span>
               </div>
             </div>
             <div
               ref={hero.ref}
-              className={`transition-all duration-700 delay-200 ${hero.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+              className={`transition-all duration-700 delay-200 ${
+                hero.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+              }`}
             >
               <AppWindowMockup />
             </div>
@@ -104,14 +96,15 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <div
             ref={features.ref}
-            className={`text-center mb-14 transition-all duration-700 ${features.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+            className={`text-center mb-14 transition-all duration-700 ${
+              features.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+            }`}
           >
             <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
               ¿Por qué Oikonomia?
             </h2>
             <p className="text-lg text-[var(--text-secondary)] max-w-2xl mx-auto">
-              Herramientas diseñadas para que tomes el control de tus finanzas
-              personales.
+              Herramientas diseñadas para que tomes el control de tus finanzas personales.
             </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -158,8 +151,8 @@ export default function LandingPage() {
                 Controlá tus gastos con presupuestos
               </h2>
               <p className="text-lg text-[var(--text-secondary)] mb-6 leading-relaxed">
-                Asigná límites por categoría y recibí alertas cuando te acercás
-                al límite. Creá eventos temporales para vacaciones o viajes.
+                Asigná límites por categoría y recibí alertas cuando te acercás al límite. Creá
+                eventos temporales para vacaciones o viajes.
               </p>
               <ul className="space-y-3 text-[var(--text-secondary)]">
                 <li className="flex items-start gap-3">
@@ -198,18 +191,20 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <div
             ref={steps.ref}
-            className={`text-center mb-14 transition-all duration-700 ${steps.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+            className={`text-center mb-14 transition-all duration-700 ${
+              steps.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+            }`}
           >
             <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
               ¿Cómo registrar tus gastos?
             </h2>
-            <p className="text-lg text-[var(--text-secondary)]">
-              Dos formas, una preferida.
-            </p>
+            <p className="text-lg text-[var(--text-secondary)]">Dos formas, una preferida.</p>
           </div>
           <div
             ref={steps.ref}
-            className={`grid md:grid-cols-2 gap-6 md:gap-8 items-stretch transition-all duration-700 delay-200 ${steps.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+            className={`grid md:grid-cols-2 gap-6 md:gap-8 items-stretch transition-all duration-700 delay-200 ${
+              steps.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+            }`}
           >
             <MethodCard
               icon="settings"
@@ -236,15 +231,16 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
             <div
               ref={reporting.ref}
-              className={`transition-all duration-700 ${reporting.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+              className={`transition-all duration-700 ${
+                reporting.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+              }`}
             >
               <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
                 Reportes que te ayudan a decidir
               </h2>
               <p className="text-lg text-[var(--text-secondary)] mb-6 leading-relaxed">
-                Visualizá tus gastos por categoría, mes y tarjeta. Analizá
-                tendencias y compará meses anteriores para saber exactamente a
-                dónde va tu dinero.
+                Visualizá tus gastos por categoría, mes y tarjeta. Analizá tendencias y compará
+                meses anteriores para saber exactamente a dónde va tu dinero.
               </p>
               <ul className="space-y-3 text-[var(--text-secondary)]">
                 <li className="flex items-start gap-3">
@@ -275,7 +271,9 @@ export default function LandingPage() {
             </div>
             <div
               ref={reporting.ref}
-              className={`transition-all duration-700 delay-200 ${reporting.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+              className={`transition-all duration-700 delay-200 ${
+                reporting.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+              }`}
             >
               <ReportMockup />
             </div>
@@ -289,15 +287,16 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
             <div
               ref={openSource.ref}
-              className={`transition-all duration-700 ${openSource.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"} md:order-last`}
+              className={`transition-all duration-700 ${
+                openSource.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+              } md:order-last`}
             >
               <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
                 Código abierto y auditable
               </h2>
               <p className="text-lg text-[var(--text-secondary)] mb-6 leading-relaxed">
-                Nuestro código está publicado en GitHub. Cualquiera puede
-                auditar cómo procesamos tus datos, qué algoritmos usamos y cómo
-                protegemos tu información.
+                Nuestro código está publicado en GitHub. Cualquiera puede auditar cómo procesamos
+                tus datos, qué algoritmos usamos y cómo protegemos tu información.
               </p>
               <a
                 href="https://github.com/cheloim/perExp"
@@ -311,7 +310,9 @@ export default function LandingPage() {
             </div>
             <div
               ref={openSource.ref}
-              className={`transition-all duration-700 delay-200 ${openSource.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"} md:order-first`}
+              className={`transition-all duration-700 delay-200 ${
+                openSource.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+              } md:order-first`}
             >
               <AboutWindowMockup />
             </div>
@@ -324,14 +325,15 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto text-center">
           <div
             ref={security.ref}
-            className={`transition-all duration-700 ${security.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+            className={`transition-all duration-700 ${
+              security.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+            }`}
           >
             <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
               Tus datos están seguros
             </h2>
             <p className="text-lg text-[var(--text-secondary)] max-w-2xl mx-auto mb-10">
-              Cifrado de extremo a extremo, servidores seguros y control total
-              sobre tus datos.
+              Cifrado de extremo a extremo, servidores seguros y control total sobre tus datos.
             </p>
             <div className="grid sm:grid-cols-3 gap-5">
               <SecurityItem
@@ -358,7 +360,9 @@ export default function LandingPage() {
       <section className="py-16 md:py-24 px-4 bg-[var(--color-base-alt)]">
         <div
           ref={faq.ref}
-          className={`max-w-3xl mx-auto transition-all duration-700 ${faq.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+          className={`max-w-3xl mx-auto transition-all duration-700 ${
+            faq.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+          }`}
         >
           <h2 className="text-3xl font-bold text-[var(--text-primary)] text-center mb-12">
             Preguntas frecuentes
@@ -388,14 +392,15 @@ export default function LandingPage() {
       <section className="py-16 md:py-24 px-4">
         <div
           ref={cta.ref}
-          className={`max-w-2xl mx-auto text-center transition-all duration-700 ${cta.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+          className={`max-w-2xl mx-auto text-center transition-all duration-700 ${
+            cta.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+          }`}
         >
           <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
             ¿Listo para tomar el control?
           </h2>
           <p className="text-lg text-[var(--text-secondary)] mb-8">
-            Uní miles de personas que ya están organizando sus finanzas con
-            Oikonomia.
+            Uní miles de personas que ya están organizando sus finanzas con Oikonomia.
           </p>
           <a
             href="https://platform.oikonomia.ar/register"
@@ -405,10 +410,7 @@ export default function LandingPage() {
           </a>
           <p className="mt-4 text-sm text-[var(--text-secondary)]">
             ¿Tenés dudas?{" "}
-            <a
-              href="/guide"
-              className="text-[var(--color-primary)] hover:underline font-medium"
-            >
+            <a href="/guide" className="text-[var(--color-primary)] hover:underline font-medium">
               Mirá la guía de usuario
             </a>
           </p>
@@ -424,18 +426,14 @@ export default function LandingPage() {
                 <div className="w-8 h-8 rounded-lg bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-sm">
                   O
                 </div>
-                <span className="font-semibold text-[var(--text-primary)]">
-                  Oikonomia
-                </span>
+                <span className="font-semibold text-[var(--text-primary)]">Oikonomia</span>
               </div>
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                 Tu planificador financiero personal con inteligencia artificial.
               </p>
             </div>
             <div>
-              <h4 className="font-semibold text-[var(--text-primary)] mb-3">
-                Producto
-              </h4>
+              <h4 className="font-semibold text-[var(--text-primary)] mb-3">Producto</h4>
               <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
                 <li>
                   <a
@@ -446,10 +444,7 @@ export default function LandingPage() {
                   </a>
                 </li>
                 <li>
-                  <a
-                    href="/guide"
-                    className="hover:text-[var(--text-primary)] transition"
-                  >
+                  <a href="/guide" className="hover:text-[var(--text-primary)] transition">
                     Guía de usuario
                   </a>
                 </li>
@@ -472,15 +467,10 @@ export default function LandingPage() {
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-[var(--text-primary)] mb-3">
-                Legal
-              </h4>
+              <h4 className="font-semibold text-[var(--text-primary)] mb-3">Legal</h4>
               <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
                 <li>
-                  <a
-                    href="/privacy"
-                    className="hover:text-[var(--text-primary)] transition"
-                  >
+                  <a href="/privacy" className="hover:text-[var(--text-primary)] transition">
                     Política de Privacidad
                   </a>
                 </li>
@@ -496,8 +486,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="pt-8 border-t border-[var(--border-color)] text-center text-sm text-[var(--text-secondary)]">
-            © {new Date().getFullYear()} Oikonomia. Todos los derechos
-            reservados.
+            © {new Date().getFullYear()} Oikonomia. Todos los derechos reservados.
           </div>
         </div>
       </footer>
@@ -518,10 +507,7 @@ function BudgetMockup() {
           <div className="w-3 h-3 rounded-full bg-[var(--color-danger)]" />
           <div className="w-3 h-3 rounded-full bg-[var(--gnome-yellow-4)]" />
           <div className="w-3 h-3 rounded-full bg-[var(--gnome-green-4)]" />
-          <span
-            className="ml-2 text-xs font-medium"
-            style={{ color: "var(--text-primary)" }}
-          >
+          <span className="ml-2 text-xs font-medium" style={{ color: "var(--text-primary)" }}>
             Presupuesto
           </span>
         </div>
@@ -536,10 +522,7 @@ function BudgetMockup() {
               >
                 Presupuestado
               </p>
-              <p
-                className="text-[10px] font-bold"
-                style={{ color: "var(--color-primary)" }}
-              >
+              <p className="text-[10px] font-bold" style={{ color: "var(--color-primary)" }}>
                 $225.000
               </p>
             </div>
@@ -550,10 +533,7 @@ function BudgetMockup() {
               >
                 Gastado
               </p>
-              <p
-                className="text-[10px] font-bold"
-                style={{ color: "var(--color-primary)" }}
-              >
+              <p className="text-[10px] font-bold" style={{ color: "var(--color-primary)" }}>
                 $145.000
               </p>
             </div>
@@ -564,10 +544,7 @@ function BudgetMockup() {
               >
                 Quedan
               </p>
-              <p
-                className="text-[10px] font-bold"
-                style={{ color: "var(--gnome-green-5)" }}
-              >
+              <p className="text-[10px] font-bold" style={{ color: "var(--gnome-green-5)" }}>
                 $80.000
               </p>
             </div>
@@ -598,24 +575,15 @@ function BudgetMockup() {
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span
-                    className="text-[8px] font-bold"
-                    style={{ color: "var(--color-primary)" }}
-                  >
+                  <span className="text-[8px] font-bold" style={{ color: "var(--color-primary)" }}>
                     80%
                   </span>
                 </div>
               </div>
-              <p
-                className="text-[8px] font-medium"
-                style={{ color: "var(--text-primary)" }}
-              >
+              <p className="text-[8px] font-medium" style={{ color: "var(--text-primary)" }}>
                 Necesidades
               </p>
-              <p
-                className="text-[7px]"
-                style={{ color: "var(--text-secondary)" }}
-              >
+              <p className="text-[7px]" style={{ color: "var(--text-secondary)" }}>
                 $80k rest.
               </p>
             </div>
@@ -642,24 +610,15 @@ function BudgetMockup() {
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span
-                    className="text-[8px] font-bold"
-                    style={{ color: "var(--gnome-yellow-4)" }}
-                  >
+                  <span className="text-[8px] font-bold" style={{ color: "var(--gnome-yellow-4)" }}>
                     45%
                   </span>
                 </div>
               </div>
-              <p
-                className="text-[8px] font-medium"
-                style={{ color: "var(--text-primary)" }}
-              >
+              <p className="text-[8px] font-medium" style={{ color: "var(--text-primary)" }}>
                 Gustos
               </p>
-              <p
-                className="text-[7px]"
-                style={{ color: "var(--text-secondary)" }}
-              >
+              <p className="text-[7px]" style={{ color: "var(--text-secondary)" }}>
                 $55k rest.
               </p>
             </div>
@@ -703,10 +662,7 @@ function BudgetMockup() {
                     }}
                   />
                 </div>
-                <span
-                  className="text-[8px] w-12 text-right"
-                  style={{ color: cat.color }}
-                >
+                <span className="text-[8px] w-12 text-right" style={{ color: cat.color }}>
                   {cat.amt}
                 </span>
               </div>
@@ -727,10 +683,7 @@ function AppWindowMockup() {
           <div className="w-3 h-3 rounded-full bg-[var(--color-danger)]" />
           <div className="w-3 h-3 rounded-full bg-[var(--gnome-yellow-4)]" />
           <div className="w-3 h-3 rounded-full bg-[var(--gnome-green-4)]" />
-          <span
-            className="ml-2 text-xs font-medium"
-            style={{ color: "var(--text-primary)" }}
-          >
+          <span className="ml-2 text-xs font-medium" style={{ color: "var(--text-primary)" }}>
             Oikonomia
           </span>
         </div>
@@ -745,16 +698,10 @@ function AppWindowMockup() {
               >
                 Total gastado
               </p>
-              <p
-                className="text-sm font-bold"
-                style={{ color: "var(--color-primary)" }}
-              >
+              <p className="text-sm font-bold" style={{ color: "var(--color-primary)" }}>
                 $187.450
               </p>
-              <p
-                className="text-[9px] mt-0.5"
-                style={{ color: "var(--text-secondary)" }}
-              >
+              <p className="text-[9px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
                 42 transacciones
               </p>
             </div>
@@ -765,16 +712,10 @@ function AppWindowMockup() {
               >
                 Deuda tarjetas
               </p>
-              <p
-                className="text-sm font-bold"
-                style={{ color: "var(--color-danger)" }}
-              >
+              <p className="text-sm font-bold" style={{ color: "var(--color-danger)" }}>
                 $321.800
               </p>
-              <p
-                className="text-[9px] mt-0.5"
-                style={{ color: "var(--text-secondary)" }}
-              >
+              <p className="text-[9px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
                 8 cuotas pendientes
               </p>
             </div>
@@ -785,16 +726,10 @@ function AppWindowMockup() {
               >
                 Cuotas este mes
               </p>
-              <p
-                className="text-sm font-bold"
-                style={{ color: "var(--color-primary)" }}
-              >
+              <p className="text-sm font-bold" style={{ color: "var(--color-primary)" }}>
                 $54.200
               </p>
-              <p
-                className="text-[9px] mt-0.5"
-                style={{ color: "var(--text-secondary)" }}
-              >
+              <p className="text-[9px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
                 6 cuotas
               </p>
             </div>
@@ -805,37 +740,23 @@ function AppWindowMockup() {
               >
                 vs Mes anterior
               </p>
-              <p
-                className="text-sm font-bold"
-                style={{ color: "var(--gnome-green-5)" }}
-              >
+              <p className="text-sm font-bold" style={{ color: "var(--gnome-green-5)" }}>
                 ↓ 12.3%
               </p>
-              <p
-                className="text-[9px] mt-0.5"
-                style={{ color: "var(--text-secondary)" }}
-              >
+              <p className="text-[9px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
                 Gastaste menos
               </p>
             </div>
           </div>
           {/* Category section - matches real "Gastos por Categoría" */}
           <div className="rounded-xl border border-[var(--border-color)] p-2.5">
-            <p
-              className="text-[10px] font-semibold mb-2"
-              style={{ color: "var(--color-primary)" }}
-            >
+            <p className="text-[10px] font-semibold mb-2" style={{ color: "var(--color-primary)" }}>
               Gastos por Categoría
             </p>
             <div className="flex gap-3">
               {/* Mini donut */}
               <div className="flex-shrink-0">
-                <svg
-                  width="64"
-                  height="64"
-                  viewBox="0 0 36 36"
-                  className="-rotate-90"
-                >
+                <svg width="64" height="64" viewBox="0 0 36 36" className="-rotate-90">
                   <circle
                     cx="18"
                     cy="18"
@@ -941,10 +862,7 @@ function AppWindowMockup() {
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span
-                          className="text-[8px] font-medium"
-                          style={{ color: cat.varColor }}
-                        >
+                        <span className="text-[8px] font-medium" style={{ color: cat.varColor }}>
                           {cat.var}
                         </span>
                         <span
@@ -981,10 +899,7 @@ function ReportMockup() {
       <div className="bg-[var(--color-surface)] rounded-2xl shadow-2xl border border-[var(--border-color)] p-4 max-w-sm mx-auto">
         {/* Header — matches real Dashboard card header */}
         <div className="flex items-center justify-between mb-3">
-          <p
-            className="text-sm font-semibold"
-            style={{ color: "var(--color-primary)" }}
-          >
+          <p className="text-sm font-semibold" style={{ color: "var(--color-primary)" }}>
             Gastos por Categoría
           </p>
           <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
@@ -995,12 +910,7 @@ function ReportMockup() {
         <div className="grid grid-cols-2 gap-3">
           {/* Donut chart */}
           <div className="flex items-center justify-center">
-            <svg
-              width="100"
-              height="100"
-              viewBox="0 0 36 36"
-              className="-rotate-90"
-            >
+            <svg width="100" height="100" viewBox="0 0 36 36" className="-rotate-90">
               <circle
                 cx="18"
                 cy="18"
@@ -1118,10 +1028,7 @@ function ReportMockup() {
                   </div>
                   <div className="flex items-center gap-1">
                     {cat.var && (
-                      <span
-                        className="text-[8px] font-medium"
-                        style={{ color: cat.varColor }}
-                      >
+                      <span className="text-[8px] font-medium" style={{ color: cat.varColor }}>
                         {cat.var}
                       </span>
                     )}
@@ -1199,9 +1106,7 @@ function TelegramCarousel() {
           </div>
           <div>
             <div className="text-white text-sm font-medium">NikoFin</div>
-            <div className="text-[10px] text-[var(--gnome-green-2)]">
-              ● en línea
-            </div>
+            <div className="text-[10px] text-[var(--gnome-green-2)]">● en línea</div>
           </div>
         </div>
         <div className="space-y-3 min-h-[140px]">
@@ -1230,7 +1135,9 @@ function TelegramCarousel() {
             <button
               key={i}
               onClick={() => setActive(i)}
-              className={`w-2 h-2 rounded-full transition-all duration-300 ${i === active ? "bg-[var(--color-primary)] w-5" : "bg-[var(--gnome-gray-3)]"}`}
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                i === active ? "bg-[var(--color-primary)] w-5" : "bg-[var(--gnome-gray-3)]"
+              }`}
               aria-label={`Demo ${i + 1}`}
             />
           ))}
@@ -1252,43 +1159,23 @@ function AboutWindowMockup() {
         <div className="w-16 h-16 rounded-2xl bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-2xl mx-auto mb-4">
           O
         </div>
-        <div className="text-lg font-bold text-[var(--text-primary)]">
-          Oikonomia
-        </div>
-        <div className="text-xs text-[var(--text-primary)] mb-4">
-          Versión 1.0 · GPLv3
-        </div>
+        <div className="text-lg font-bold text-[var(--text-primary)]">Oikonomia</div>
+        <div className="text-xs text-[var(--text-primary)] mb-4">Versión 1.0 · GPLv3</div>
         <div className="space-y-2 text-sm text-[var(--text-secondary)]">
           <div className="flex items-center justify-center gap-2">
-            <SymbolicIcon
-              name="check"
-              size={14}
-              className="text-[var(--gnome-green-5)]"
-            />
+            <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
             <span>Código abierto y revisable</span>
           </div>
           <div className="flex items-center justify-center gap-2">
-            <SymbolicIcon
-              name="check"
-              size={14}
-              className="text-[var(--gnome-green-5)]"
-            />
+            <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
             <span>Sin tracking ni analytics</span>
           </div>
           <div className="flex items-center justify-center gap-2">
-            <SymbolicIcon
-              name="check"
-              size={14}
-              className="text-[var(--gnome-green-5)]"
-            />
+            <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
             <span>Datos 100% voluntarios</span>
           </div>
           <div className="flex items-center justify-center gap-2">
-            <SymbolicIcon
-              name="check"
-              size={14}
-              className="text-[var(--gnome-green-5)]"
-            />
+            <SymbolicIcon name="check" size={14} className="text-[var(--gnome-green-5)]" />
             <span>Eliminación en cualquier momento</span>
           </div>
         </div>
@@ -1309,22 +1196,12 @@ function FeatureCard({
   return (
     <div className="p-5 rounded-2xl border border-[var(--border-color)] bg-[var(--color-surface)] hover:shadow-md hover:border-[var(--color-primary)]/20 transition-all duration-200">
       <div className="w-10 h-10 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center mb-3">
-        <SymbolicIcon
-          name={icon}
-          size={20}
-          className="text-[var(--color-primary)]"
-        />
+        <SymbolicIcon name={icon} size={20} className="text-[var(--color-primary)]" />
       </div>
-      <h3
-        className="text-base font-bold mb-1.5"
-        style={{ color: "var(--text-primary)" }}
-      >
+      <h3 className="text-base font-bold mb-1.5" style={{ color: "var(--text-primary)" }}>
         {title}
       </h3>
-      <p
-        className="text-sm leading-relaxed"
-        style={{ color: "var(--text-secondary)" }}
-      >
+      <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
         {description}
       </p>
     </div>
@@ -1361,39 +1238,25 @@ function MethodCard({
       <div className="flex items-start gap-4 mb-4">
         <div
           className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${
-            highlight
-              ? "bg-[var(--color-primary)]/15"
-              : "bg-[var(--color-base-alt)]"
+            highlight ? "bg-[var(--color-primary)]/15" : "bg-[var(--color-base-alt)]"
           }`}
         >
           <SymbolicIcon
             name={icon}
             size={22}
-            className={
-              highlight
-                ? "text-[var(--color-primary)]"
-                : "text-[var(--text-secondary)]"
-            }
+            className={highlight ? "text-[var(--color-primary)]" : "text-[var(--text-secondary)]"}
           />
         </div>
         <div>
-          <h3
-            className="text-lg font-bold mb-1"
-            style={{ color: "var(--text-primary)" }}
-          >
+          <h3 className="text-lg font-bold mb-1" style={{ color: "var(--text-primary)" }}>
             {title}
           </h3>
-          <p
-            className="text-sm leading-relaxed"
-            style={{ color: "var(--text-secondary)" }}
-          >
+          <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
             {description}
           </p>
         </div>
       </div>
-      <div className="flex-1 flex items-center justify-center mt-2">
-        {children}
-      </div>
+      <div className="flex-1 flex items-center justify-center mt-2">{children}</div>
     </div>
   );
 }
@@ -1409,9 +1272,7 @@ function ExpenseFormMockup() {
             <div className="w-2 h-2 rounded-full bg-[var(--gnome-yellow-4)]" />
             <div className="w-2 h-2 rounded-full bg-[var(--gnome-green-4)]" />
           </div>
-          <span className="text-[10px] font-medium text-[var(--text-secondary)]">
-            Nuevo gasto
-          </span>
+          <span className="text-[10px] font-medium text-[var(--text-secondary)]">Nuevo gasto</span>
           <span className="text-[10px] text-[var(--text-secondary)]">✕</span>
         </div>
         {/* Form content */}
@@ -1436,9 +1297,7 @@ function ExpenseFormMockup() {
               Fecha <span className="text-[var(--color-danger)]">*</span>
             </div>
             <div className="w-full h-7 rounded-md border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 flex items-center">
-              <span className="text-[10px] text-[var(--text-secondary)]">
-                16/07/2026
-              </span>
+              <span className="text-[10px] text-[var(--text-secondary)]">16/07/2026</span>
             </div>
           </div>
           {/* Amount + Currency */}
@@ -1448,9 +1307,7 @@ function ExpenseFormMockup() {
                 Monto <span className="text-[var(--color-danger)]">*</span>
               </div>
               <div className="w-full h-7 rounded-md border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 flex items-center">
-                <span className="text-[10px] text-[var(--text-primary)] font-medium">
-                  15.200
-                </span>
+                <span className="text-[10px] text-[var(--text-primary)] font-medium">15.200</span>
               </div>
             </div>
             <div>
@@ -1458,12 +1315,8 @@ function ExpenseFormMockup() {
                 Moneda
               </div>
               <div className="w-full h-7 rounded-md border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 flex items-center justify-between">
-                <span className="text-[10px] text-[var(--text-primary)]">
-                  ARS $
-                </span>
-                <span className="text-[8px] text-[var(--text-secondary)]">
-                  ▾
-                </span>
+                <span className="text-[10px] text-[var(--text-primary)]">ARS $</span>
+                <span className="text-[8px] text-[var(--text-secondary)]">▾</span>
               </div>
             </div>
           </div>
@@ -1471,13 +1324,10 @@ function ExpenseFormMockup() {
           <div className="grid grid-cols-2 gap-1.5">
             <div>
               <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider mb-1">
-                Descripción{" "}
-                <span className="text-[var(--color-danger)]">*</span>
+                Descripción <span className="text-[var(--color-danger)]">*</span>
               </div>
               <div className="w-full h-7 rounded-md border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 flex items-center">
-                <span className="text-[10px] text-[var(--text-primary)]">
-                  Supermercado Coto
-                </span>
+                <span className="text-[10px] text-[var(--text-primary)]">Supermercado Coto</span>
               </div>
             </div>
             <div>
@@ -1485,12 +1335,8 @@ function ExpenseFormMockup() {
                 Categoría
               </div>
               <div className="w-full h-7 rounded-md border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 flex items-center justify-between">
-                <span className="text-[10px] text-[var(--text-primary)]">
-                  Alimentación
-                </span>
-                <span className="text-[8px] text-[var(--text-secondary)]">
-                  ▾
-                </span>
+                <span className="text-[10px] text-[var(--text-primary)]">Alimentación</span>
+                <span className="text-[8px] text-[var(--text-secondary)]">▾</span>
               </div>
             </div>
           </div>
@@ -1501,12 +1347,8 @@ function ExpenseFormMockup() {
                 Banco
               </div>
               <div className="w-full h-7 rounded-md border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 flex items-center justify-between">
-                <span className="text-[10px] text-[var(--text-primary)]">
-                  Galicia
-                </span>
-                <span className="text-[8px] text-[var(--text-secondary)]">
-                  ▾
-                </span>
+                <span className="text-[10px] text-[var(--text-primary)]">Galicia</span>
+                <span className="text-[8px] text-[var(--text-secondary)]">▾</span>
               </div>
             </div>
             <div>
@@ -1514,26 +1356,18 @@ function ExpenseFormMockup() {
                 Tarjeta
               </div>
               <div className="w-full h-7 rounded-md border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 flex items-center justify-between">
-                <span className="text-[10px] text-[var(--text-primary)]">
-                  Visa
-                </span>
-                <span className="text-[8px] text-[var(--text-secondary)]">
-                  ▾
-                </span>
+                <span className="text-[10px] text-[var(--text-primary)]">Visa</span>
+                <span className="text-[8px] text-[var(--text-secondary)]">▾</span>
               </div>
             </div>
           </div>
           {/* Buttons */}
           <div className="flex gap-1.5 pt-1">
             <div className="flex-1 h-7 rounded-md border border-[var(--border-color)] flex items-center justify-center">
-              <span className="text-[10px] text-[var(--text-secondary)]">
-                Cancelar
-              </span>
+              <span className="text-[10px] text-[var(--text-secondary)]">Cancelar</span>
             </div>
             <div className="flex-1 h-7 rounded-md bg-[var(--color-primary)] flex items-center justify-center">
-              <span className="text-[10px] text-white font-medium">
-                Guardar
-              </span>
+              <span className="text-[10px] text-white font-medium">Guardar</span>
             </div>
           </div>
         </div>
@@ -1554,16 +1388,9 @@ function SecurityItem({
   return (
     <div className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--border-color)]">
       <div className="w-10 h-10 rounded-xl bg-[var(--gnome-green-1)]/20 flex items-center justify-center mb-3">
-        <SymbolicIcon
-          name={icon}
-          size={20}
-          className="text-[var(--gnome-green-5)]"
-        />
+        <SymbolicIcon name={icon} size={20} className="text-[var(--gnome-green-5)]" />
       </div>
-      <h4
-        className="font-semibold mb-1"
-        style={{ color: "var(--text-primary)" }}
-      >
+      <h4 className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>
         {title}
       </h4>
       <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -1586,15 +1413,17 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
         <SymbolicIcon
           name="chevron"
           size={16}
-          className={`text-[var(--text-secondary)] transition-transform duration-200 flex-shrink-0 ${open ? "rotate-90" : ""}`}
+          className={`text-[var(--text-secondary)] transition-transform duration-200 flex-shrink-0 ${
+            open ? "rotate-90" : ""
+          }`}
         />
       </div>
       <div
-        className={`overflow-hidden transition-all duration-300 ${open ? "max-h-40 mt-3" : "max-h-0"}`}
+        className={`overflow-hidden transition-all duration-300 ${
+          open ? "max-h-40 mt-3" : "max-h-0"
+        }`}
       >
-        <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-          {answer}
-        </p>
+        <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{answer}</p>
       </div>
     </button>
   );

@@ -63,15 +63,11 @@ function EvolutionRow({
         <span className="text-xs text-[var(--text-primary)] font-medium">
           {fmt(price, currency)}
         </span>
-        <span
-          className={`text-xs font-medium ${isPositive ? "text-success" : "text-danger"}`}
-        >
+        <span className={`text-xs font-medium ${isPositive ? "text-success" : "text-danger"}`}>
           {isPositive ? "+" : ""}
           {changePct.toFixed(2)}%
         </span>
-        <span
-          className={`text-xs ${isPositive ? "text-success" : "text-danger"}`}
-        >
+        <span className={`text-xs ${isPositive ? "text-success" : "text-danger"}`}>
           {isPositive ? "↑" : "↓"}
         </span>
       </div>
@@ -114,10 +110,7 @@ export function InvestmentDetailModal({
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node)
-      ) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setShowEditDropdown(false);
       }
     }
@@ -134,10 +127,7 @@ export function InvestmentDetailModal({
   const currency = investment.currency || "ARS";
 
   const totalQuantity = investments.reduce((s, i) => s + i.quantity, 0);
-  const totalCostBasis = investments.reduce(
-    (s, i) => s + (i.cost_basis ?? 0),
-    0,
-  );
+  const totalCostBasis = investments.reduce((s, i) => s + (i.cost_basis ?? 0), 0);
   const totalCurrentValue = investments.reduce(
     (s, i) => s + (i.current_value ?? i.cost_basis ?? 0),
     0,
@@ -174,54 +164,36 @@ export function InvestmentDetailModal({
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
           <div>
-            <dt className="text-[var(--text-tertiary)] text-xs uppercase">
-              Cantidad
-            </dt>
+            <dt className="text-[var(--text-tertiary)] text-xs uppercase">Cantidad</dt>
             <dd className="text-[var(--text-primary)] font-medium">
               {fmtQty(totalQuantity)} unidades
             </dd>
           </div>
           <div>
-            <dt className="text-[var(--text-tertiary)] text-xs uppercase">
-              Precio Promedio
-            </dt>
+            <dt className="text-[var(--text-tertiary)] text-xs uppercase">Precio Promedio</dt>
+            <dd className="text-[var(--text-primary)] font-medium">{fmt(avgCost, currency)}</dd>
+          </div>
+          <div>
+            <dt className="text-[var(--text-tertiary)] text-xs uppercase">Precio Actual</dt>
             <dd className="text-[var(--text-primary)] font-medium">
-              {fmt(avgCost, currency)}
+              {investment.current_price !== null ? fmt(investment.current_price, currency) : "—"}
             </dd>
           </div>
           <div>
-            <dt className="text-[var(--text-tertiary)] text-xs uppercase">
-              Precio Actual
-            </dt>
-            <dd className="text-[var(--text-primary)] font-medium">
-              {investment.current_price !== null
-                ? fmt(investment.current_price, currency)
-                : "—"}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-[var(--text-tertiary)] text-xs uppercase">
-              Valorización
-            </dt>
+            <dt className="text-[var(--text-tertiary)] text-xs uppercase">Valorización</dt>
             <dd className="text-[var(--text-primary)] font-medium">
               {fmt(totalCurrentValue, currency)}
             </dd>
           </div>
           <div>
-            <dt className="text-[var(--text-tertiary)] text-xs uppercase">
-              Costo Total
-            </dt>
+            <dt className="text-[var(--text-tertiary)] text-xs uppercase">Costo Total</dt>
             <dd className="text-[var(--text-primary)] font-medium">
               {fmt(totalCostBasis, currency)}
             </dd>
           </div>
           <div>
-            <dt className="text-[var(--text-tertiary)] text-xs uppercase">
-              P&L
-            </dt>
-            <dd
-              className={`font-medium ${totalPnl >= 0 ? "text-success" : "text-danger"}`}
-            >
+            <dt className="text-[var(--text-tertiary)] text-xs uppercase">P&L</dt>
+            <dd className={`font-medium ${totalPnl >= 0 ? "text-success" : "text-danger"}`}>
               {totalPnl >= 0 ? "+" : ""}
               {fmt(totalPnl, currency)}
               <span className="ml-1 text-xs">
@@ -239,9 +211,7 @@ export function InvestmentDetailModal({
               className="flex items-center gap-2 text-sm text-secondary hover:text-[var(--text-primary)] transition-colors"
             >
               <span>{showBrokers ? "▲" : "▼"}</span>
-              <span>
-                {showBrokers ? "Ocultar" : "Ver"} posiciones por broker
-              </span>
+              <span>{showBrokers ? "Ocultar" : "Ver"} posiciones por broker</span>
             </button>
 
             {showBrokers && (
@@ -266,18 +236,12 @@ export function InvestmentDetailModal({
                   <tbody className="divide-y divide-[var(--border-color)]">
                     {investments.map((inv) => {
                       const costBasis = inv.quantity * inv.avg_cost;
-                      const currentValue =
-                        inv.current_value ?? inv.cost_basis ?? 0;
+                      const currentValue = inv.current_value ?? inv.cost_basis ?? 0;
                       const pnl = currentValue - costBasis;
                       const pnlPct = costBasis ? (pnl / costBasis) * 100 : 0;
                       return (
-                        <tr
-                          key={inv.id}
-                          className="hover:bg-[var(--color-base-alt)]/50"
-                        >
-                          <td className="px-3 py-2 text-[var(--text-primary)]">
-                            {inv.broker}
-                          </td>
+                        <tr key={inv.id} className="hover:bg-[var(--color-base-alt)]/50">
+                          <td className="px-3 py-2 text-[var(--text-primary)]">{inv.broker}</td>
                           <td className="px-3 py-2 text-right font-medium">
                             {fmtQty(inv.quantity)}
                           </td>
@@ -304,15 +268,10 @@ export function InvestmentDetailModal({
             <div className="mt-4">
               <p className="text-[var(--text-tertiary)] text-xs uppercase mb-2">
                 Evolución (vs precio actual{" "}
-                {investment.current_price !== null
-                  ? fmt(investment.current_price, currency)
-                  : "—"}
-                )
+                {investment.current_price !== null ? fmt(investment.current_price, currency) : "—"})
               </p>
               {loading ? (
-                <p className="text-xs text-[var(--text-tertiary)] py-2">
-                  Cargando...
-                </p>
+                <p className="text-xs text-[var(--text-tertiary)] py-2">Cargando...</p>
               ) : (
                 <div className="border border-[var(--border-color)] rounded-lg p-2 space-y-0.5">
                   <EvolutionRow
@@ -343,15 +302,10 @@ export function InvestmentDetailModal({
           <div className="border-t border-[var(--border-color)] pt-3">
             <p className="text-[var(--text-tertiary)] text-xs uppercase mb-2">
               Evolución (vs precio actual{" "}
-              {investment.current_price !== null
-                ? fmt(investment.current_price, currency)
-                : "—"}
-              )
+              {investment.current_price !== null ? fmt(investment.current_price, currency) : "—"})
             </p>
             {loading ? (
-              <p className="text-xs text-[var(--text-tertiary)] py-2">
-                Cargando...
-              </p>
+              <p className="text-xs text-[var(--text-tertiary)] py-2">Cargando...</p>
             ) : (
               <div className="border border-[var(--border-color)] rounded-lg p-2 space-y-0.5">
                 <EvolutionRow
@@ -379,12 +333,8 @@ export function InvestmentDetailModal({
 
         {investment.notes && !isCombined && (
           <div className="border-t border-[var(--border-color)] pt-3">
-            <p className="text-[var(--text-tertiary)] text-xs uppercase mb-1">
-              Notas
-            </p>
-            <p className="text-sm text-[var(--text-primary)]">
-              {investment.notes}
-            </p>
+            <p className="text-[var(--text-tertiary)] text-xs uppercase mb-1">Notas</p>
+            <p className="text-sm text-[var(--text-primary)]">{investment.notes}</p>
           </div>
         )}
 
@@ -410,9 +360,7 @@ export function InvestmentDetailModal({
                       className="w-full px-3 py-2 text-sm text-left hover:bg-[var(--color-base-alt)] flex items-center justify-between"
                     >
                       <span>{inv.broker}</span>
-                      <span className="text-xs text-secondary">
-                        {inv.ticker || inv.name}
-                      </span>
+                      <span className="text-xs text-secondary">{inv.ticker || inv.name}</span>
                     </button>
                   ))}
                 </div>
@@ -429,10 +377,7 @@ export function InvestmentDetailModal({
               Editar
             </button>
           )}
-          <button
-            onClick={onClose}
-            className="gnome-btn-secondary flex-1 text-sm"
-          >
+          <button onClick={onClose} className="gnome-btn-secondary flex-1 text-sm">
             Cerrar
           </button>
         </div>

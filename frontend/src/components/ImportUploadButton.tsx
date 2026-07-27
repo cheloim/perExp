@@ -26,13 +26,9 @@ export default function ImportUploadButton() {
 
       try {
         // Pass abort signal and upload progress callback to createImportJob
-        const job = await createImportJob(
-          file,
-          abortController.signal,
-          (progress) => {
-            updateUpload(uploadId, { progress });
-          },
-        );
+        const job = await createImportJob(file, abortController.signal, (progress) => {
+          updateUpload(uploadId, { progress });
+        });
         // Set status based on backend response (QUEUED or PROCESSING)
         const initialStatus = job.status === "QUEUED" ? "queued" : "processing";
         updateUpload(uploadId, {
@@ -54,12 +50,7 @@ export default function ImportUploadButton() {
             status: "failed",
             error: err.message ?? "Error",
           });
-          showToast(
-            `Error: ${err.message ?? "Unknown"}`,
-            "error",
-            5000,
-            "top-right",
-          );
+          showToast(`Error: ${err.message ?? "Unknown"}`, "error", 5000, "top-right");
         }
       }
     }

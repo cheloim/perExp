@@ -68,9 +68,7 @@ function WhatsNewModal({ onClose }: WhatsNewModalProps) {
             </div>
             <div>
               <h2 className="text-lg font-bold">¡Novedades!</h2>
-              <p className="text-sm text-white/80">
-                Lo que agregamos recientemente
-              </p>
+              <p className="text-sm text-white/80">Lo que agregamos recientemente</p>
             </div>
           </div>
         </div>
@@ -86,12 +84,8 @@ function WhatsNewModal({ onClose }: WhatsNewModalProps) {
                 <SymbolicIcon name={feature.icon} size={18} />
               </div>
               <div>
-                <p className="text-sm font-semibold text-[var(--text-primary)]">
-                  {feature.title}
-                </p>
-                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                  {feature.description}
-                </p>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">{feature.title}</p>
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">{feature.description}</p>
               </div>
             </div>
           ))}
@@ -115,9 +109,7 @@ function WhatsNewModal({ onClose }: WhatsNewModalProps) {
               onChange={(e) => setDontShowAgain(e.target.checked)}
               className="w-4 h-4 rounded accent-[var(--color-primary)]"
             />
-            <span className="text-xs text-[var(--text-secondary)]">
-              No mostrar de nuevo
-            </span>
+            <span className="text-xs text-[var(--text-secondary)]">No mostrar de nuevo</span>
           </label>
           <button
             onClick={handleClose}

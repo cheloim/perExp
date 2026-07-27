@@ -61,19 +61,11 @@ interface Props {
   filterMonth: string;
 }
 
-export function CardEvolutionChart({
-  cardData,
-  activeCard,
-  filterMonth,
-}: Props) {
+export function CardEvolutionChart({ cardData, activeCard, filterMonth }: Props) {
   if (cardData.length === 0) return null;
 
-  const historyMonths = Array.from({ length: 4 }, (_, i) =>
-    addMonths(filterMonth, i - 3),
-  );
-  const projMonths = Array.from({ length: 2 }, (_, i) =>
-    addMonths(filterMonth, i + 1),
-  );
+  const historyMonths = Array.from({ length: 4 }, (_, i) => addMonths(filterMonth, i - 3));
+  const projMonths = Array.from({ length: 2 }, (_, i) => addMonths(filterMonth, i + 1));
 
   const chartData = historyMonths.map((month) => {
     const point: Record<string, number | string | boolean> = {
@@ -102,9 +94,7 @@ export function CardEvolutionChart({
       const vals = historyMonths
         .map((hm) => card.monthly?.find((m) => m.month === hm)?.total ?? null)
         .filter((v): v is number => v !== null);
-      const avg = vals.length
-        ? vals.reduce((a, b) => a + b, 0) / vals.length
-        : 0;
+      const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
       const proj = Math.round(avg * (1 + (i + 1) * 0.02));
       point[ckey(card)] = proj;
       total += proj;
@@ -121,10 +111,7 @@ export function CardEvolutionChart({
         Evolución por Tarjeta — 4 meses + proyección 2 meses
       </h2>
       <ResponsiveContainer width="100%" height={320}>
-        <ComposedChart
-          data={fullData}
-          margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-        >
+        <ComposedChart data={fullData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
           <XAxis
             dataKey="month"
@@ -150,10 +137,7 @@ export function CardEvolutionChart({
             formatter={(v: number, name: string) => {
               if (name === "total") return [formatCurrency(v), "Total"];
               const card = cardData.find((c) => ckey(c) === name);
-              return [
-                formatCurrency(v),
-                card ? cardLabel(card, cardData) : name,
-              ];
+              return [formatCurrency(v), card ? cardLabel(card, cardData) : name];
             }}
             labelFormatter={fmtMonth}
           />
@@ -194,14 +178,10 @@ export function CardEvolutionChart({
       </ResponsiveContainer>
       <div className="flex items-center gap-4 mt-3 flex-wrap">
         <span className="flex items-center gap-1.5 text-xs text-secondary">
-          <span className="w-3 h-2 rounded-sm bg-[var(--color-primary)] inline-block" />{" "}
-          Total
+          <span className="w-3 h-2 rounded-sm bg-[var(--color-primary)] inline-block" /> Total
         </span>
         {cardData.slice(0, 6).map((card, idx) => (
-          <span
-            key={ckey(card)}
-            className="flex items-center gap-1.5 text-xs text-secondary"
-          >
+          <span key={ckey(card)} className="flex items-center gap-1.5 text-xs text-secondary">
             <span
               className="w-2 h-2 rounded-full inline-block"
               style={{ backgroundColor: COLORS[idx % COLORS.length] }}
@@ -209,9 +189,7 @@ export function CardEvolutionChart({
             {cardLabel(card, cardData)}
           </span>
         ))}
-        <span className="ml-auto text-[10px] text-tertiary">
-          --- proyección
-        </span>
+        <span className="ml-auto text-[10px] text-tertiary">--- proyección</span>
       </div>
     </div>
   );

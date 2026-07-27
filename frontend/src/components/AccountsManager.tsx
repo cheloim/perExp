@@ -64,9 +64,7 @@ export default function AccountsManager() {
 
   // Debit cards not already linked to another account
   const availableDebitCards = cards.filter(
-    (c) =>
-      c.card_type === "debito" &&
-      (!c.linked_account_id || c.linked_account_id === editId),
+    (c) => c.card_type === "debito" && (!c.linked_account_id || c.linked_account_id === editId),
   );
 
   const createMut = useMutation({
@@ -109,13 +107,8 @@ export default function AccountsManager() {
   });
 
   const updateMut = useMutation({
-    mutationFn: ({
-      id,
-      data,
-    }: {
-      id: number;
-      data: { name?: string; type?: string };
-    }) => updateAccount(id, data),
+    mutationFn: ({ id, data }: { id: number; data: { name?: string; type?: string } }) =>
+      updateAccount(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       setEditId(null);
@@ -133,11 +126,7 @@ export default function AccountsManager() {
   });
 
   const createCardMut = useMutation({
-    mutationFn: (data: {
-      card_name: string;
-      bank: string;
-      card_type: string;
-    }) => createCard(data),
+    mutationFn: (data: { card_name: string; bank: string; card_type: string }) => createCard(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cards"] });
       setEditId(null);
@@ -150,13 +139,8 @@ export default function AccountsManager() {
   });
 
   const updateCardLinkMut = useMutation({
-    mutationFn: ({
-      cardId,
-      accountId,
-    }: {
-      cardId: number;
-      accountId: number | null;
-    }) => updateCard(cardId, { linked_account_id: accountId }),
+    mutationFn: ({ cardId, accountId }: { cardId: number; accountId: number | null }) =>
+      updateCard(cardId, { linked_account_id: accountId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cards"] });
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
@@ -192,9 +176,7 @@ export default function AccountsManager() {
 
     if (type === "tarjeta") {
       if (editId && editId > 0) {
-        setError(
-          "La edición de tarjetas se puede hacer desde la sección de Tarjetas",
-        );
+        setError("La edición de tarjetas se puede hacer desde la sección de Tarjetas");
         return;
       }
       if (!cardName.trim()) {
@@ -217,9 +199,7 @@ export default function AccountsManager() {
         // Handle card linking for caja_ahorro accounts
         if (type === "caja_ahorro") {
           // Find the currently linked card (if any)
-          const currentlyLinkedCard = cards.find(
-            (c) => c.linked_account_id === editId,
-          );
+          const currentlyLinkedCard = cards.find((c) => c.linked_account_id === editId);
           const currentlyLinkedId = currentlyLinkedCard?.id || null;
 
           if (linkedCardId && linkedCardId !== currentlyLinkedId) {
@@ -252,13 +232,9 @@ export default function AccountsManager() {
 
   return (
     <div className="px-4 py-2 space-y-2">
-      <h3 className="text-xs font-semibold text-secondary uppercase tracking-wide mb-3">
-        Cuentas
-      </h3>
+      <h3 className="text-xs font-semibold text-secondary uppercase tracking-wide mb-3">Cuentas</h3>
       {accounts.map((account) => {
-        const typeInfo =
-          ACCOUNT_TYPES.find((t) => t.value === account.type) ||
-          ACCOUNT_TYPES[4];
+        const typeInfo = ACCOUNT_TYPES.find((t) => t.value === account.type) || ACCOUNT_TYPES[4];
         const isEditing = editId === account.id;
         const isMenuOpen = menuOpen === account.id;
 
@@ -287,9 +263,7 @@ export default function AccountsManager() {
                         ? "border-red-500 focus:ring-red-300 focus:border-red-500"
                         : "border-[var(--border-color)] focus:border-primary"
                     }`}
-                    placeholder={
-                      type === "tarjeta" ? "Ej: Visa Galicia" : "Ej: Mi Cuenta"
-                    }
+                    placeholder={type === "tarjeta" ? "Ej: Visa Galicia" : "Ej: Mi Cuenta"}
                     autoFocus
                   />
                   {error && <p className="text-xs text-red-500">{error}</p>}
@@ -305,8 +279,7 @@ export default function AccountsManager() {
                       className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 ${
                         type === "tarjeta"
                           ? "badge-neutral"
-                          : ACCOUNT_TYPES.find((t) => t.value === type)
-                              ?.color || "badge-neutral"
+                          : ACCOUNT_TYPES.find((t) => t.value === type)?.color || "badge-neutral"
                       }`}
                     >
                       {type === "efectivo"
@@ -401,9 +374,7 @@ export default function AccountsManager() {
                     disabled={createMut.isPending || updateMut.isPending}
                     className="flex-1 gnome-btn-primary"
                   >
-                    {createMut.isPending || updateMut.isPending
-                      ? "Guardando..."
-                      : "Guardar"}
+                    {createMut.isPending || updateMut.isPending ? "Guardando..." : "Guardar"}
                   </button>
                   <button
                     type="button"
@@ -433,9 +404,7 @@ export default function AccountsManager() {
                           : "💰"}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-primary truncate">
-                    {account.name}
-                  </div>
+                  <div className="text-sm font-semibold text-primary truncate">{account.name}</div>
                   <div className="text-xs text-secondary">{typeInfo.label}</div>
                   {account.linked_card_name && (
                     <div className="text-xs text-[var(--color-success)] mt-0.5">
@@ -455,10 +424,7 @@ export default function AccountsManager() {
                   </button>
                   {isMenuOpen && (
                     <>
-                      <div
-                        className="fixed inset-0 z-40"
-                        onClick={() => setMenuOpen(null)}
-                      />
+                      <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(null)} />
                       <div className="absolute right-0 top-8 z-50 w-28 bg-surface border border-border-color rounded-lg shadow-lg overflow-hidden">
                         <button
                           onClick={(e) => {
@@ -546,9 +512,7 @@ export default function AccountsManager() {
               </button>
               <button
                 onClick={() => {
-                  const accountToEdit = accounts.find(
-                    (a) => a.id === duplicateFound.id,
-                  );
+                  const accountToEdit = accounts.find((a) => a.id === duplicateFound.id);
                   if (accountToEdit) {
                     setEditId(duplicateFound.id);
                     setName(duplicateFound.name);
