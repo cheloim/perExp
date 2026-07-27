@@ -46,8 +46,11 @@ function saveActiveId(id: string) {
   localStorage.setItem(ACTIVE_KEY, id);
 }
 function newSessionId() {
-  // lgtm[js/insecure-randomness] session ID for UI state only, not a security token
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const bytes = crypto.getRandomValues(new Uint8Array(4));
+  const suffix = Array.from(bytes, (b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .slice(0, 8);
+  return `${Date.now()}-${suffix}`;
 }
 
 // ── Portfolio context ─────────────────────────────────────────────────────────
