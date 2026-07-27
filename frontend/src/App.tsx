@@ -41,14 +41,58 @@ const OnboardingWalkthrough = lazy(() => import("./components/OnboardingWalkthro
 const WhatsNewModal = lazy(() => import("./components/WhatsNewModal"));
 
 const TABS = [
-  { path: "/", label: "Inicio", icon: "home", exact: true, tour: "sidebar-home" },
-  { path: "/accounts", label: "Cuentas", icon: "accounts", exact: false, tour: "sidebar-accounts" },
-  { path: "/expenses", label: "Gastos", icon: "expenses", exact: false, tour: "sidebar-expenses" },
-  { path: "/cat-dashboard", label: "Categorías", icon: "catDashboard", exact: false },
-  { path: "/budget", label: "Presupuesto", icon: "chartBar", exact: false, tour: "sidebar-budget" },
-  { path: "/installments", label: "Cuotas", icon: "installments", exact: false },
-  { path: "/investments", label: "Inversiones", icon: "investments", exact: false },
-  { path: "/categories", label: "Config. Categorías", icon: "settings", exact: false },
+  {
+    path: "/",
+    label: "Inicio",
+    icon: "home",
+    exact: true,
+    tour: "sidebar-home",
+  },
+  {
+    path: "/accounts",
+    label: "Cuentas",
+    icon: "accounts",
+    exact: false,
+    tour: "sidebar-accounts",
+  },
+  {
+    path: "/expenses",
+    label: "Gastos",
+    icon: "expenses",
+    exact: false,
+    tour: "sidebar-expenses",
+  },
+  {
+    path: "/cat-dashboard",
+    label: "Categorías",
+    icon: "catDashboard",
+    exact: false,
+  },
+  {
+    path: "/budget",
+    label: "Presupuesto",
+    icon: "chartBar",
+    exact: false,
+    tour: "sidebar-budget",
+  },
+  {
+    path: "/installments",
+    label: "Cuotas",
+    icon: "installments",
+    exact: false,
+  },
+  {
+    path: "/investments",
+    label: "Inversiones",
+    icon: "investments",
+    exact: false,
+  },
+  {
+    path: "/categories",
+    label: "Config. Categorías",
+    icon: "settings",
+    exact: false,
+  },
 ];
 
 const AI_DRAWER_STATE_KEY = "ai_drawer_open";
@@ -191,7 +235,7 @@ function MainLayout() {
         if (!SHOW_WHATS_NEW) return;
         const { getMe } = await import("./api/client");
         const user = await getMe();
-        if (user && !user.whats_new_seen) {
+        if (user && user.onboarding_completed && !user.whats_new_seen) {
           // Show modal after a short delay to let the page render
           setTimeout(() => setShowWhatsNew(true), 1500);
         }
@@ -247,7 +291,9 @@ function MainLayout() {
   useEffect(() => {
     if ("virtualKeyboard" in navigator) {
       (
-        navigator as unknown as { virtualKeyboard: { overlaysContent: boolean } }
+        navigator as unknown as {
+          virtualKeyboard: { overlaysContent: boolean };
+        }
       ).virtualKeyboard.overlaysContent = true;
     }
   }, []);

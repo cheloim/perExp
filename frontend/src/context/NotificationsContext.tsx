@@ -132,7 +132,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       });
       workerPort = worker.port;
       workerPort.start();
-      workerPort.postMessage({ type: "new_token", token } as WorkerOutgoingMessage);
+      workerPort.postMessage({
+        type: "new_token",
+        token,
+      } as WorkerOutgoingMessage);
     } catch {
       setState((s) => ({ ...s, connected: false }));
       return;
@@ -269,7 +272,14 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   return (
     <NotificationsContext.Provider
-      value={{ ...state, markRead, markAllRead, deleteNotification, deleteAllRead, refresh }}
+      value={{
+        ...state,
+        markRead,
+        markAllRead,
+        deleteNotification,
+        deleteAllRead,
+        refresh,
+      }}
     >
       {children}
     </NotificationsContext.Provider>

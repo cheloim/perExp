@@ -12,6 +12,60 @@ import {
 import { APP_NAME } from "../config";
 
 const SPECIAL_CHARS = /[!@#$%^&*()\-_+=<>?/[\]{}|]/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const BLOCKED_DOMAINS = new Set([
+  "test.com",
+  "example.com",
+  "fake.com",
+  "email.com",
+  "mail.com",
+  "nomail.com",
+  "noemail.com",
+  "noway.com",
+  "notmail.com",
+  "spam.com",
+  "throwaway.com",
+  "trashmail.com",
+  "tempmail.com",
+  "temporary.com",
+  "guerrillamail.com",
+  "guerrillamail.net",
+  "guerrillamail.org",
+  "mailinator.com",
+  "mailinator.net",
+  "mailinator.org",
+  "yopmail.com",
+  "yopmail.fr",
+  "yopmail.net",
+  "sharklasers.com",
+  "grr.la",
+  "guerrillamailblock.com",
+  "dispostable.com",
+  "tempail.com",
+  "temp-mail.org",
+  "fakeinbox.com",
+  "trashymail.com",
+  "trashymail.net",
+  "maildrop.cc",
+  "discard.email",
+  "discardmail.com",
+  "mailnesia.com",
+  "mailcatch.com",
+  "tempinbox.com",
+  "mohmal.com",
+  "burnermail.io",
+  "anonaddy.com",
+]);
+
+function validateEmail(email: string): string | null {
+  if (!email.trim()) return "El email es requerido";
+  if (!EMAIL_REGEX.test(email.trim())) return "El formato del email no es válido";
+  const domain = email.trim().toLowerCase().split("@")[1];
+  if (BLOCKED_DOMAINS.has(domain))
+    return "Este dominio de email no está permitido. Usá un email real.";
+  return null;
+}
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -142,6 +196,11 @@ function LoginForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    const emailError = validateEmail(email);
+    if (emailError) {
+      setError(emailError);
+      return;
+    }
     setLoading(true);
     try {
       const token = await login(email.trim().toLowerCase(), password);
@@ -155,8 +214,17 @@ function LoginForm({
       }
       storeToken(token.access_token);
       onSuccess();
-    } catch {
-      setError("Email o contraseña incorrectos");
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const detail = err?.response?.data?.detail;
+      if (status === 423) {
+        setError(
+          detail ||
+            "Cuenta bloqueada por demasiados intentos fallidos. Intentá de nuevo en 15 minutos.",
+        );
+      } else {
+        setError("Email o contraseña incorrectos");
+      }
     } finally {
       setLoading(false);
     }
@@ -271,6 +339,11 @@ function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    const emailError = validateEmail(email);
+    if (emailError) {
+      setError(emailError);
+      return;
+    }
     setLoading(true);
     try {
       await forgotPassword(email.trim().toLowerCase());
@@ -387,6 +460,11 @@ function RegisterForm({ onLogin, onSuccess }: { onLogin: () => void; onSuccess: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    const emailError = validateEmail(email);
+    if (emailError) {
+      setError(emailError);
+      return;
+    }
     if (password !== confirm) {
       setError("Las contraseñas no coinciden");
       return;

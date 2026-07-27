@@ -390,7 +390,10 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
     } catch {
       setMessages((prev) => {
         const u = [...prev];
-        u[u.length - 1] = { role: "assistant", text: "Error al procesar la consulta." };
+        u[u.length - 1] = {
+          role: "assistant",
+          text: "Error al procesar la consulta.",
+        };
         return u;
       });
     } finally {

@@ -347,6 +347,7 @@ export interface CardSummary {
   card_name: string;
   card_type: string;
   account_id?: number | null;
+  linked_account_name?: string | null;
   total_amount: number;
   count: number;
   currency: string;

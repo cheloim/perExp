@@ -38,17 +38,16 @@ function CardRow({
   total,
   cardType,
   holder,
+  linkedAccountName,
 }: {
   cardName: string;
   bank: string;
   total: number;
   cardType?: string;
   holder?: string;
+  linkedAccountName?: string | null;
 }) {
-  const isAccount =
-    !bank ||
-    cardName.toLowerCase().includes("efectivo") ||
-    cardName.toLowerCase().includes("cuenta");
+  const isAccount = !bank && !linkedAccountName;
 
   const renderIcon = () => {
     if (isAccount) {
@@ -76,7 +75,7 @@ function CardRow({
       <div className="flex items-center gap-3">
         <div
           className={`w-8 h-8 rounded-lg ${
-            isAccount ? "bg-success/10" : "bg-base-alt"
+            isAccount ? "bg-gnomeOrange5/10" : "bg-base-alt"
           } flex items-center justify-center text-xs`}
         >
           {renderIcon()}
@@ -86,7 +85,14 @@ function CardRow({
             {displayName}
             {bank ? ` | ${bank}` : ""}
           </p>
-          {holder && <p className="text-xs text-tertiary leading-tight">{holder}</p>}
+          {linkedAccountName && (
+            <p className="text-xs text-[var(--color-success)] leading-tight">
+              ↳ {linkedAccountName}
+            </p>
+          )}
+          {holder && !linkedAccountName && (
+            <p className="text-xs text-tertiary leading-tight">{holder}</p>
+          )}
         </div>
       </div>
       <span className="text-sm font-semibold text-primary">{formatCurrency(total)}</span>
@@ -359,7 +365,8 @@ export default function Dashboard() {
           <span className="text-lg">⚠</span>
           <div className="text-left">
             <p className="text-sm font-medium">
-              Tenés {uncategorizedCount} gasto{uncategorizedCount !== 1 ? "s" : ""} sin categorí
+              Tenés {uncategorizedCount} gasto
+              {uncategorizedCount !== 1 ? "s" : ""} sin categorí
               {uncategorizedCount !== 1 ? "as" : "a"}
             </p>
             <p className="text-xs opacity-70">
@@ -632,7 +639,10 @@ export default function Dashboard() {
                   ? "Probá seleccionando otra categoría"
                   : "Tus gastos del mes aparecerán aquí"
               }
-              action={{ label: "Ver todos los gastos", onClick: () => navigate("/expenses") }}
+              action={{
+                label: "Ver todos los gastos",
+                onClick: () => navigate("/expenses"),
+              }}
             />
           ) : (
             <div className="divide-y divide-border-color overflow-y-auto flex-1 min-h-0">
@@ -644,7 +654,9 @@ export default function Dashboard() {
                   <div className="flex items-center gap-3 min-w-0">
                     <span
                       className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: exp.category_color || "#3584e4" }}
+                      style={{
+                        backgroundColor: exp.category_color || "#3584e4",
+                      }}
                     />
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-primary truncate">
@@ -694,7 +706,10 @@ export default function Dashboard() {
               icon="💳"
               title="Sin tarjetas ni cuentas"
               description="Creá una tarjeta o cuenta para ver el resumen"
-              action={{ label: "Crear cuenta", onClick: () => navigate("/accounts") }}
+              action={{
+                label: "Crear cuenta",
+                onClick: () => navigate("/accounts"),
+              }}
             />
           ) : (
             <div className="divide-y divide-border-color">
@@ -708,6 +723,7 @@ export default function Dashboard() {
                     total={monthEntry?.total ?? 0}
                     cardType={card.card_type}
                     holder={card.holder}
+                    linkedAccountName={card.linked_account_name}
                   />
                 );
               })}

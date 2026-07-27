@@ -375,7 +375,9 @@ export default function UserPanel({ open, onClose }: Props) {
       queryClient.invalidateQueries({ queryKey: ["top-merchants"] });
       queryClient.invalidateQueries({ queryKey: ["distinct-values"] });
       queryClient.invalidateQueries({ queryKey: ["credit-card-pasivos"] });
-      queryClient.invalidateQueries({ queryKey: ["installments-monthly-load"] });
+      queryClient.invalidateQueries({
+        queryKey: ["installments-monthly-load"],
+      });
       setInviteSuccess(false);
       setInviteError(null);
       setLeaveError(null);

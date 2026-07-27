@@ -219,7 +219,10 @@ export default function CategoryDashboard() {
       color: "#94a3b8",
       total: Object.values(otrosByMonth).reduce((s, v) => s + v, 0),
     };
-    return { chartData: enrichedRows, topTrendCategories: [...top5, otherLine] };
+    return {
+      chartData: enrichedRows,
+      topTrendCategories: [...top5, otherLine],
+    };
   }, [trendData]);
 
   const handleCategorySelect = (name: string | null) => {
@@ -510,7 +513,9 @@ export default function CategoryDashboard() {
                   />
                   <YAxis
                     tickFormatter={(v) =>
-                      new Intl.NumberFormat("es-AR", { notation: "compact" }).format(v)
+                      new Intl.NumberFormat("es-AR", {
+                        notation: "compact",
+                      }).format(v)
                     }
                     tick={{ fontSize: 11, fill: "var(--chart-text)" }}
                     width={52}
@@ -562,7 +567,10 @@ export default function CategoryDashboard() {
                           selectedCategoryName && selectedCategoryName !== cat.name ? 0.05 : 1
                         }
                         dot={{ r: 3, fill: cat.color || "var(--chart-text)" }}
-                        activeDot={{ r: 5, onClick: () => handleCategorySelect(cat.name) }}
+                        activeDot={{
+                          r: 5,
+                          onClick: () => handleCategorySelect(cat.name),
+                        }}
                         connectNulls
                       />
                     );
@@ -631,7 +639,9 @@ export default function CategoryDashboard() {
                     <div key={i} className="flex items-center gap-3 group/merchant">
                       <span
                         className="w-2 h-2 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: m.category_color || "var(--color-primary)" }}
+                        style={{
+                          backgroundColor: m.category_color || "var(--color-primary)",
+                        }}
                       />
                       <button
                         onClick={() =>

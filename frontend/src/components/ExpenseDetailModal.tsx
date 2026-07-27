@@ -55,7 +55,10 @@ export default function ExpenseDetailModal({ expense, onClose, onEdit }: Props) 
               {expense.category_name ? (
                 <span
                   className="px-2 py-0.5 rounded text-xs font-medium"
-                  style={{ backgroundColor: categoryColor + "20", color: categoryColor }}
+                  style={{
+                    backgroundColor: categoryColor + "20",
+                    color: categoryColor,
+                  }}
                 >
                   {expense.category_name}
                 </span>

@@ -198,7 +198,10 @@ export default function ExpensesPage() {
     };
   }, [filterKey, visibleCount]);
 
-  const { data: categories = [] } = useQuery({ queryKey: ["categories"], queryFn: getCategories });
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: getCategories,
+  });
 
   // Prefetch cards and accounts so modal opens instantly
   const { data: cards = [] } = useQuery({
@@ -288,9 +291,10 @@ export default function ExpensesPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [bulkCategoryId, setBulkCategoryId] = useState<string>("");
   const [bulkPaymentMethod, setBulkPaymentMethod] = useState<string>("");
-  const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; description: string } | null>(
-    null,
-  );
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    id: number;
+    description: string;
+  } | null>(null);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
   const clearBulkState = () => {
@@ -494,7 +498,9 @@ export default function ExpensesPage() {
       e.person || "",
     ]);
     const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob(["\uFEFF" + csv], {
+      type: "text/csv;charset=utf-8;",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -563,7 +569,9 @@ export default function ExpensesPage() {
                 onClick={async () => {
                   for (const s of suggestions) {
                     if (s.confidence >= 0.7) {
-                      await updateExpense(s.expense_id, { category_id: s.suggested_category_id });
+                      await updateExpense(s.expense_id, {
+                        category_id: s.suggested_category_id,
+                      });
                     }
                   }
                   queryClient.invalidateQueries({ queryKey: ["expenses"] });
@@ -668,7 +676,10 @@ export default function ExpensesPage() {
                 });
                 // Accounts from API: just name
                 accounts.forEach((a) => {
-                  cuentaOptions.push({ value: `account:${a.id}`, label: a.name });
+                  cuentaOptions.push({
+                    value: `account:${a.id}`,
+                    label: a.name,
+                  });
                 });
                 // Reconstruct current value from URL params by looking up matching card/account
                 const matchedCard = filterCard
@@ -889,7 +900,9 @@ export default function ExpensesPage() {
                             >
                               <span
                                 className="w-2 h-2 rounded-full flex-shrink-0"
-                                style={{ backgroundColor: cat.category_color || "#94a3b8" }}
+                                style={{
+                                  backgroundColor: cat.category_color || "#94a3b8",
+                                }}
                               />
                               <span className="text-secondary truncate flex-1">
                                 {cat.category_name}
@@ -1071,7 +1084,10 @@ export default function ExpensesPage() {
                       action={
                         activeFiltersCount > 0
                           ? { label: "Limpiar filtros", onClick: clearFilters }
-                          : { label: "Crear gasto", onClick: () => setEditing(null) }
+                          : {
+                              label: "Crear gasto",
+                              onClick: () => setEditing(null),
+                            }
                       }
                     />
                   </td>
@@ -1194,11 +1210,21 @@ export default function ExpensesPage() {
                                       updateExpense(exp.id, {
                                         category_id: s.suggested_category_id,
                                       }).then(() =>
-                                        queryClient.invalidateQueries({ queryKey: ["expenses"] }),
+                                        queryClient.invalidateQueries({
+                                          queryKey: ["expenses"],
+                                        }),
                                       );
                                     }}
                                     className="px-2 py-1 rounded text-xs font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 transition"
-                                    title={`Sugerencia: ${suggestionsByExpenseId.get(exp.id)!.parent_name ? suggestionsByExpenseId.get(exp.id)!.parent_name + " > " : ""}${suggestionsByExpenseId.get(exp.id)!.category_name} (${Math.round(suggestionsByExpenseId.get(exp.id)!.confidence * 100)}%)`}
+                                    title={`Sugerencia: ${
+                                      suggestionsByExpenseId.get(exp.id)!.parent_name
+                                        ? suggestionsByExpenseId.get(exp.id)!.parent_name + " > "
+                                        : ""
+                                    }${
+                                      suggestionsByExpenseId.get(exp.id)!.category_name
+                                    } (${Math.round(
+                                      suggestionsByExpenseId.get(exp.id)!.confidence * 100,
+                                    )}%)`}
                                   >
                                     ✨ {suggestionsByExpenseId.get(exp.id)!.category_name}
                                   </button>
@@ -1243,7 +1269,10 @@ export default function ExpensesPage() {
                                 </button>
                                 <button
                                   onClick={() =>
-                                    setDeleteConfirm({ id: exp.id, description: exp.description })
+                                    setDeleteConfirm({
+                                      id: exp.id,
+                                      description: exp.description,
+                                    })
                                   }
                                   className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-danger hover:bg-[var(--color-base-alt)] transition"
                                   title="Eliminar"

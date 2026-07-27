@@ -48,7 +48,10 @@ export function formatMonthYear(dateStr: string): string {
   if (!dateStr) return "";
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return dateStr;
-  return new Intl.DateTimeFormat("es-AR", { month: "long", year: "numeric" }).format(date);
+  return new Intl.DateTimeFormat("es-AR", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
 }
 
 export function titleCase(str: string): string {

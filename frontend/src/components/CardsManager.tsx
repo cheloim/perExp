@@ -377,7 +377,11 @@ export default function CardsManager() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setDeleteConfirm({ type: "card", id: card.id, name: card.card_name });
+                            setDeleteConfirm({
+                              type: "card",
+                              id: card.id,
+                              name: card.card_name,
+                            });
                           }}
                           disabled={deleteMut.isPending}
                           className="w-full px-3 py-2 text-xs text-left text-danger hover:bg-danger/10 transition-colors disabled:opacity-50"
@@ -430,7 +434,10 @@ export default function CardsManager() {
             <Select
               value={accountType}
               onChange={(v) => setAccountType(v)}
-              options={ACCOUNT_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+              options={ACCOUNT_TYPES.map((t) => ({
+                value: t.value,
+                label: t.label,
+              }))}
             />
           </div>
 

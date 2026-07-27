@@ -1238,12 +1238,16 @@ function Chapter({
           <SymbolicIcon
             name="chevron"
             size={16}
-            className={`text-[var(--text-secondary)] transition-transform duration-200 flex-shrink-0 ${expanded ? "rotate-90" : ""}`}
+            className={`text-[var(--text-secondary)] transition-transform duration-200 flex-shrink-0 ${
+              expanded ? "rotate-90" : ""
+            }`}
           />
         </div>
       </button>
       <div
-        className={`overflow-hidden transition-all duration-300 ${expanded ? "max-h-[5000px] mt-3" : "max-h-0"}`}
+        className={`overflow-hidden transition-all duration-300 ${
+          expanded ? "max-h-[5000px] mt-3" : "max-h-0"
+        }`}
       >
         <div className="p-5 rounded-xl border border-[var(--border-color)] bg-[var(--color-surface)] space-y-4 text-sm text-[var(--text-secondary)] leading-relaxed">
           {children}
@@ -1280,7 +1284,11 @@ function Callout({
     info: "bg-[var(--gnome-blue-1)]/15 border-[var(--color-primary)]/30",
     warning: "bg-[var(--gnome-yellow-1)]/15 border-[var(--gnome-yellow-4)]/30",
   };
-  const icons = { tip: "check" as const, info: "eye" as const, warning: "sparkles" as const };
+  const icons = {
+    tip: "check" as const,
+    info: "eye" as const,
+    warning: "sparkles" as const,
+  };
   return (
     <div className={`p-4 rounded-lg border text-sm ${styles[type]}`}>
       <div className="flex items-start gap-3">

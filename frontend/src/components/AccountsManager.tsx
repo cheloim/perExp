@@ -15,7 +15,11 @@ import { Skeleton, SkeletonList } from "./ui/Skeleton";
 
 const ACCOUNT_TYPES = [
   { value: "efectivo", label: "Efectivo", color: "badge-success" },
-  { value: "cuenta_corriente", label: "Cta. Corriente", color: "badge-primary" },
+  {
+    value: "cuenta_corriente",
+    label: "Cta. Corriente",
+    color: "badge-primary",
+  },
   { value: "caja_ahorro", label: "Caja de Ahorro", color: "badge-warning" },
   { value: "mercadopago", label: "MercadoPago", color: "badge-neutral" },
   { value: "tarjeta", label: "Tarjeta", color: "badge-neutral" },
@@ -69,7 +73,10 @@ export default function AccountsManager() {
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       // Link debit card if one was selected during creation
       if (type === "caja_ahorro" && linkedCardId) {
-        updateCardLinkMut.mutate({ cardId: linkedCardId, accountId: created.id });
+        updateCardLinkMut.mutate({
+          cardId: linkedCardId,
+          accountId: created.id,
+        });
       }
       setEditId(null);
       setCardName("");
@@ -197,10 +204,16 @@ export default function AccountsManager() {
 
           if (linkedCardId && linkedCardId !== currentlyLinkedId) {
             // Link new card
-            updateCardLinkMut.mutate({ cardId: linkedCardId, accountId: editId });
+            updateCardLinkMut.mutate({
+              cardId: linkedCardId,
+              accountId: editId,
+            });
           } else if (!linkedCardId && currentlyLinkedId) {
             // Unlink
-            updateCardLinkMut.mutate({ cardId: currentlyLinkedId, accountId: null });
+            updateCardLinkMut.mutate({
+              cardId: currentlyLinkedId,
+              accountId: null,
+            });
           }
         }
       } else {
@@ -304,7 +317,10 @@ export default function AccountsManager() {
                       <Select
                         value={cardType}
                         onChange={(v) => setCardType(v)}
-                        options={CARD_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+                        options={CARD_TYPES.map((t) => ({
+                          value: t.value,
+                          label: t.label,
+                        }))}
                       />
                     </div>
 

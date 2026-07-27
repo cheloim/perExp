@@ -17,7 +17,12 @@ export function useUndoToast() {
   // Listen for global toast events
   useEffect(() => {
     const handleToast = (
-      e: CustomEvent<{ message: string; type: string; duration: number; position: string }>,
+      e: CustomEvent<{
+        message: string;
+        type: string;
+        duration: number;
+        position: string;
+      }>,
     ) => {
       const { message, type, duration, position } = e.detail;
       const id = ++toastId;
@@ -71,7 +76,13 @@ export function useUndoToast() {
 
       setToasts((prev) => [
         ...prev,
-        { id, message, onUndo: handleUndo, type: "undo", position: "bottom-center" },
+        {
+          id,
+          message,
+          onUndo: handleUndo,
+          type: "undo",
+          position: "bottom-center",
+        },
       ]);
     },
     [],

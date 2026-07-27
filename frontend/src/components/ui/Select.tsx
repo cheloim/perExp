@@ -61,9 +61,17 @@ export function Select({
       const spaceBelow = window.innerHeight - rect.bottom;
       const dropdownHeight = 260;
       if (spaceBelow < dropdownHeight && rect.top > dropdownHeight) {
-        setDropdownPos({ top: rect.top - dropdownHeight - 4, left: rect.left, width: rect.width });
+        setDropdownPos({
+          top: rect.top - dropdownHeight - 4,
+          left: rect.left,
+          width: rect.width,
+        });
       } else {
-        setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+        setDropdownPos({
+          top: rect.bottom + 4,
+          left: rect.left,
+          width: rect.width,
+        });
       }
     }
   }, [isOpen]);
@@ -215,7 +223,11 @@ export function Select({
       {isOpen && dropdownPos && (
         <div
           className="fixed z-[9999] bg-[var(--color-surface)] border border-[var(--border-color)] rounded-md shadow-lg overflow-hidden max-h-60 flex flex-col"
-          style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
+          style={{
+            top: dropdownPos.top,
+            left: dropdownPos.left,
+            width: dropdownPos.width,
+          }}
         >
           <div className="p-2 border-b border-[var(--border-color)]">
             <input

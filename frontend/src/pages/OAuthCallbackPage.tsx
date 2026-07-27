@@ -34,7 +34,10 @@ export default function OAuthCallbackPage() {
           return;
         }
         if (token.mfa_required) {
-          navigate("/login?mfa=1", { replace: true, state: { token: token.access_token } });
+          navigate("/login?mfa=1", {
+            replace: true,
+            state: { token: token.access_token },
+          });
           return;
         }
         storeToken(token.access_token);

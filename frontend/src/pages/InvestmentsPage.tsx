@@ -619,7 +619,9 @@ export default function InvestmentsPage() {
   const isBusinessHoursARG = () => {
     const now = new Date();
     const argTime = new Date(
-      now.toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }),
+      now.toLocaleString("en-US", {
+        timeZone: "America/Argentina/Buenos_Aires",
+      }),
     );
     const hours = argTime.getHours();
     return hours >= 8 && hours < 19;
@@ -801,7 +803,10 @@ export default function InvestmentsPage() {
   };
 
   // ── Aggregate by ticker ───────────────────────────────────────────────────────
-  type AggregatedInv = Investment & { brokers: string[]; investments: Investment[] };
+  type AggregatedInv = Investment & {
+    brokers: string[];
+    investments: Investment[];
+  };
 
   const { sorted } = useMemo(() => {
     const tickerMap = new Map<string, AggregatedInv>();
@@ -1073,7 +1078,10 @@ export default function InvestmentsPage() {
             </p>
             {usdRate && (
               <p className="text-xs text-[var(--text-tertiary)]">
-                USD: {usdRate.rate.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                USD:{" "}
+                {usdRate.rate.toLocaleString("es-AR", {
+                  minimumFractionDigits: 2,
+                })}
               </p>
             )}
           </div>

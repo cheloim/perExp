@@ -1547,6 +1547,19 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
 
     cards_by_id, user_accounts_by_id = _load_cards_and_accounts(uid_list, exps, db)
 
+    # Build account_id → card_id mapping for linked debit cards
+    account_to_card: dict[int, int] = {}
+    card_linked_account: dict[int, dict] = {}  # card_id → {account_id, account_name}
+    for c in cards_by_id.values():
+        if c.linked_account_id:
+            account_to_card[c.linked_account_id] = c.id
+            acct_info = user_accounts_by_id.get(c.linked_account_id)
+            if acct_info:
+                card_linked_account[c.id] = {
+                    "account_id": c.linked_account_id,
+                    "account_name": acct_info["name"],
+                }
+
     # Group by card_id (primary) or account_id (fallback)
     by_card: dict = {}
     by_card_monthly: dict = {}
@@ -1554,8 +1567,12 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
     for e in exps:
         month_key = e.date.strftime("%Y-%m") if e.date else "1970-01"
 
+        # Determine grouping key: card takes priority, then linked account, then standalone account
         if e.card_id and e.card_id in cards_by_id:
             key = f"card:{e.card_id}"
+        elif e.account_id and e.account_id in account_to_card:
+            # Account is linked to a debit card — merge into that card's entry
+            key = f"card:{account_to_card[e.account_id]}"
         elif e.account_id:
             key = f"account:{e.account_id}"
         else:
@@ -1564,6 +1581,7 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
         if key not in by_card:
             if key.startswith("card:"):
                 c = cards_by_id[int(key.split(":")[1])]
+                linked = card_linked_account.get(c.id)
                 by_card[key] = {
                     "bank": c.bank or "",
                     "network": _card_network(c.card_name),
@@ -1576,7 +1594,11 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
                     "last_used": None,
                     "card_ids": {c.id: 1},
                     "account_ids": {},
+                    "linked_account_name": linked["account_name"] if linked else None,
                 }
+                # Pre-populate account_ids if card has a linked account
+                if linked:
+                    by_card[key]["account_ids"][linked["account_id"]] = 0
             else:
                 acct_id = int(key.split(":")[1])
                 acct_info = user_accounts_by_id.get(
@@ -1594,6 +1616,7 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
                     "last_used": None,
                     "card_ids": {},
                     "account_ids": {acct_id: 1},
+                    "linked_account_name": None,
                 }
             by_card_monthly[key] = {}
 
@@ -1607,9 +1630,6 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
         if e.account_id:
             g["account_ids"][e.account_id] = g["account_ids"].get(e.account_id, 0) + 1
         by_card_monthly[key][month_key] = by_card_monthly[key].get(month_key, 0.0) + e.amount
-
-    # Merge cards with the same card_id (same physical card)
-    # This is already handled by grouping on card_id above
 
     result = []
     for key, g in by_card.items():
@@ -1626,6 +1646,7 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
                 "account_id": g.get("account_ids", {}).keys().__iter__().__next__()
                 if g.get("account_ids")
                 else None,
+                "linked_account_name": g.get("linked_account_name"),
                 "total_amount": g["total_amount"],
                 "count": g["count"],
                 "currency": g["currency"],

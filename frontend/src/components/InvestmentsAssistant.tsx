@@ -46,8 +46,11 @@ function saveActiveId(id: string) {
   localStorage.setItem(ACTIVE_KEY, id);
 }
 function newSessionId() {
-  // lgtm[js/insecure-randomness] session ID for UI state only, not a security token
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const bytes = crypto.getRandomValues(new Uint8Array(4));
+  const suffix = Array.from(bytes, (b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .slice(0, 8);
+  return `${Date.now()}-${suffix}`;
 }
 
 // ── Portfolio context ─────────────────────────────────────────────────────────
@@ -55,7 +58,10 @@ function newSessionId() {
 function buildPortfolioContext(investments: Investment[]): string {
   if (!investments.length) return "";
   const fmt = (n: number) =>
-    n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    n.toLocaleString("es-AR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   const ars = investments.filter((i) => i.currency === "ARS");
   const usd = investments.filter((i) => i.currency === "USD");
   const arsV = ars.reduce((s, i) => s + (i.current_value ?? i.cost_basis), 0);
@@ -501,7 +507,10 @@ export default function InvestmentsAssistant() {
     } catch {
       setMessages((prev) => {
         const u = [...prev];
-        u[u.length - 1] = { role: "assistant", text: "Error al procesar la consulta." };
+        u[u.length - 1] = {
+          role: "assistant",
+          text: "Error al procesar la consulta.",
+        };
         return u;
       });
     } finally {

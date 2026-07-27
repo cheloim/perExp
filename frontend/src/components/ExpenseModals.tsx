@@ -76,9 +76,18 @@ export function ExpenseModal({
   mode,
 }: ExpenseModalProps) {
   const queryClient = useQueryClient();
-  const { data: categories = [] } = useQuery({ queryKey: ["categories"], queryFn: getCategories });
-  const { data: cards = [] } = useQuery({ queryKey: ["cards"], queryFn: getCards });
-  const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: getAccounts });
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: getCategories,
+  });
+  const { data: cards = [] } = useQuery({
+    queryKey: ["cards"],
+    queryFn: getCards,
+  });
+  const { data: accounts = [] } = useQuery({
+    queryKey: ["accounts"],
+    queryFn: getAccounts,
+  });
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -436,7 +445,10 @@ export function ExpenseModal({
                     ? [
                         {
                           label: "—",
-                          options: orphans.map((c) => ({ value: String(c.id), label: c.name })),
+                          options: orphans.map((c) => ({
+                            value: String(c.id),
+                            label: c.name,
+                          })),
                         },
                       ]
                     : []),
@@ -472,7 +484,10 @@ export function ExpenseModal({
                   const selected = availableCards.find((c) => String(c.id) === v);
                   if (selected) handleCardSelect(selected);
                 }}
-                options={availableCards.map((c) => ({ value: String(c.id), label: c.card_name }))}
+                options={availableCards.map((c) => ({
+                  value: String(c.id),
+                  label: c.card_name,
+                }))}
                 placeholder="— Tarjeta —"
                 disabled={payMethod === "cash"}
               />

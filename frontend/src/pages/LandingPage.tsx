@@ -38,7 +38,9 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
             <div
               ref={hero.ref}
-              className={`transition-all duration-700 ${hero.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+              className={`transition-all duration-700 ${
+                hero.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+              }`}
             >
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--gnome-blue-1)]/30 text-[var(--color-primary)] text-xs font-medium mb-6">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary)] animate-pulse" />
@@ -79,7 +81,9 @@ export default function LandingPage() {
             </div>
             <div
               ref={hero.ref}
-              className={`transition-all duration-700 delay-200 ${hero.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+              className={`transition-all duration-700 delay-200 ${
+                hero.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+              }`}
             >
               <AppWindowMockup />
             </div>
@@ -92,7 +96,9 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <div
             ref={features.ref}
-            className={`text-center mb-14 transition-all duration-700 ${features.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+            className={`text-center mb-14 transition-all duration-700 ${
+              features.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+            }`}
           >
             <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
               ¿Por qué Oikonomia?
@@ -185,7 +191,9 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <div
             ref={steps.ref}
-            className={`text-center mb-14 transition-all duration-700 ${steps.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+            className={`text-center mb-14 transition-all duration-700 ${
+              steps.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+            }`}
           >
             <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
               ¿Cómo registrar tus gastos?
@@ -194,7 +202,9 @@ export default function LandingPage() {
           </div>
           <div
             ref={steps.ref}
-            className={`grid md:grid-cols-2 gap-6 md:gap-8 items-stretch transition-all duration-700 delay-200 ${steps.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+            className={`grid md:grid-cols-2 gap-6 md:gap-8 items-stretch transition-all duration-700 delay-200 ${
+              steps.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+            }`}
           >
             <MethodCard
               icon="settings"
@@ -221,7 +231,9 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
             <div
               ref={reporting.ref}
-              className={`transition-all duration-700 ${reporting.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+              className={`transition-all duration-700 ${
+                reporting.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+              }`}
             >
               <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
                 Reportes que te ayudan a decidir
@@ -259,7 +271,9 @@ export default function LandingPage() {
             </div>
             <div
               ref={reporting.ref}
-              className={`transition-all duration-700 delay-200 ${reporting.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+              className={`transition-all duration-700 delay-200 ${
+                reporting.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+              }`}
             >
               <ReportMockup />
             </div>
@@ -273,7 +287,9 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
             <div
               ref={openSource.ref}
-              className={`transition-all duration-700 ${openSource.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"} md:order-last`}
+              className={`transition-all duration-700 ${
+                openSource.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+              } md:order-last`}
             >
               <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
                 Código abierto y auditable
@@ -294,7 +310,9 @@ export default function LandingPage() {
             </div>
             <div
               ref={openSource.ref}
-              className={`transition-all duration-700 delay-200 ${openSource.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"} md:order-first`}
+              className={`transition-all duration-700 delay-200 ${
+                openSource.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+              } md:order-first`}
             >
               <AboutWindowMockup />
             </div>
@@ -307,7 +325,9 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto text-center">
           <div
             ref={security.ref}
-            className={`transition-all duration-700 ${security.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+            className={`transition-all duration-700 ${
+              security.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+            }`}
           >
             <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
               Tus datos están seguros
@@ -340,7 +360,9 @@ export default function LandingPage() {
       <section className="py-16 md:py-24 px-4 bg-[var(--color-base-alt)]">
         <div
           ref={faq.ref}
-          className={`max-w-3xl mx-auto transition-all duration-700 ${faq.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+          className={`max-w-3xl mx-auto transition-all duration-700 ${
+            faq.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+          }`}
         >
           <h2 className="text-3xl font-bold text-[var(--text-primary)] text-center mb-12">
             Preguntas frecuentes
@@ -370,7 +392,9 @@ export default function LandingPage() {
       <section className="py-16 md:py-24 px-4">
         <div
           ref={cta.ref}
-          className={`max-w-2xl mx-auto text-center transition-all duration-700 ${cta.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+          className={`max-w-2xl mx-auto text-center transition-all duration-700 ${
+            cta.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+          }`}
         >
           <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
             ¿Listo para tomar el control?
@@ -603,9 +627,24 @@ function BudgetMockup() {
           {/* Category bars */}
           <div className="space-y-1.5">
             {[
-              { name: "Supermercado", pct: 56, color: "var(--gnome-green-5)", amt: "$45k rest." },
-              { name: "Transporte", pct: 82, color: "var(--gnome-yellow-4)", amt: "$9k rest." },
-              { name: "Restaurantes", pct: 105, color: "var(--color-danger)", amt: "-$2k" },
+              {
+                name: "Supermercado",
+                pct: 56,
+                color: "var(--gnome-green-5)",
+                amt: "$45k rest.",
+              },
+              {
+                name: "Transporte",
+                pct: 82,
+                color: "var(--gnome-yellow-4)",
+                amt: "$9k rest.",
+              },
+              {
+                name: "Restaurantes",
+                pct: 105,
+                color: "var(--color-danger)",
+                amt: "-$2k",
+              },
             ].map((cat) => (
               <div key={cat.name} className="flex items-center gap-2">
                 <span
@@ -617,7 +656,10 @@ function BudgetMockup() {
                 <div className="flex-1 h-1.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full"
-                    style={{ width: `${Math.min(cat.pct, 100)}%`, backgroundColor: cat.color }}
+                    style={{
+                      width: `${Math.min(cat.pct, 100)}%`,
+                      backgroundColor: cat.color,
+                    }}
                   />
                 </div>
                 <span className="text-[8px] w-12 text-right" style={{ color: cat.color }}>
@@ -1093,7 +1135,9 @@ function TelegramCarousel() {
             <button
               key={i}
               onClick={() => setActive(i)}
-              className={`w-2 h-2 rounded-full transition-all duration-300 ${i === active ? "bg-[var(--color-primary)] w-5" : "bg-[var(--gnome-gray-3)]"}`}
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                i === active ? "bg-[var(--color-primary)] w-5" : "bg-[var(--gnome-gray-3)]"
+              }`}
               aria-label={`Demo ${i + 1}`}
             />
           ))}
@@ -1369,11 +1413,15 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
         <SymbolicIcon
           name="chevron"
           size={16}
-          className={`text-[var(--text-secondary)] transition-transform duration-200 flex-shrink-0 ${open ? "rotate-90" : ""}`}
+          className={`text-[var(--text-secondary)] transition-transform duration-200 flex-shrink-0 ${
+            open ? "rotate-90" : ""
+          }`}
         />
       </div>
       <div
-        className={`overflow-hidden transition-all duration-300 ${open ? "max-h-40 mt-3" : "max-h-0"}`}
+        className={`overflow-hidden transition-all duration-300 ${
+          open ? "max-h-40 mt-3" : "max-h-0"
+        }`}
       >
         <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{answer}</p>
       </div>

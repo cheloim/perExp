@@ -34,7 +34,9 @@ const DonutCircle = memo(function DonutCircle({
 
   return (
     <div
-      className={`card p-5 flex flex-col items-center cursor-pointer transition-all ${selected ? "ring-2 ring-[var(--color-primary)] shadow-md" : "hover:shadow-md"}`}
+      className={`card p-5 flex flex-col items-center cursor-pointer transition-all ${
+        selected ? "ring-2 ring-[var(--color-primary)] shadow-md" : "hover:shadow-md"
+      }`}
       onClick={onSelect}
     >
       <div className="relative w-28 h-28 mb-3">
@@ -119,7 +121,11 @@ function CategoryBar({
     } else if (pct >= 60) {
       statusBadge = { label: "Normal", color: "#e5a50a", bg: "#e5a50a/10" };
     } else {
-      statusBadge = { label: "Bien", color: "var(--color-success)", bg: "var(--color-success)/10" };
+      statusBadge = {
+        label: "Bien",
+        color: "var(--color-success)",
+        bg: "var(--color-success)/10",
+      };
     }
   }
 
@@ -169,7 +175,10 @@ function CategoryBar({
           <div className="flex-1 h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
             <div
               className="h-full rounded-full transition-all"
-              style={{ width: `${Math.min(noBudgetPct, 100)}%`, backgroundColor: noBudgetBarColor }}
+              style={{
+                width: `${Math.min(noBudgetPct, 100)}%`,
+                backgroundColor: noBudgetBarColor,
+              }}
             />
           </div>
           <span className="text-xs text-[var(--text-secondary)] whitespace-nowrap font-medium">
@@ -192,7 +201,9 @@ function CategoryBar({
       className="py-3 px-4 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors cursor-pointer"
       style={
         isOverBudget
-          ? { backgroundColor: "color-mix(in srgb, var(--color-danger) 10%, transparent)" }
+          ? {
+              backgroundColor: "color-mix(in srgb, var(--color-danger) 10%, transparent)",
+            }
           : undefined
       }
       onClick={onClick}
@@ -218,11 +229,16 @@ function CategoryBar({
         <div className="flex-1 h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
           <div
             className="h-full rounded-full transition-all"
-            style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }}
+            style={{
+              width: `${Math.min(pct, 100)}%`,
+              backgroundColor: barColor,
+            }}
           />
         </div>
         <span
-          className={`text-xs font-semibold whitespace-nowrap ${remaining < 0 ? "text-[var(--color-danger)]" : "text-[var(--text-primary)]"}`}
+          className={`text-xs font-semibold whitespace-nowrap ${
+            remaining < 0 ? "text-[var(--color-danger)]" : "text-[var(--text-primary)]"
+          }`}
         >
           {remaining >= 0
             ? `${formatCurrency(remaining)} rest.`
@@ -290,7 +306,9 @@ function CategoryGroupSection({
         <div className="flex items-center gap-4">
           {totalBudget > 0 && (
             <span
-              className={`text-xs font-semibold ${totalRemaining < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"}`}
+              className={`text-xs font-semibold ${
+                totalRemaining < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"
+              }`}
             >
               {totalRemaining >= 0
                 ? `${formatCurrency(totalRemaining)} rest.`
@@ -304,7 +322,9 @@ function CategoryGroupSection({
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
-            className={`text-[var(--text-tertiary)] transition-transform ${expanded ? "rotate-180" : ""}`}
+            className={`text-[var(--text-tertiary)] transition-transform ${
+              expanded ? "rotate-180" : ""
+            }`}
           >
             <path d="m6 9 6 6 6-6" />
           </svg>
@@ -402,7 +422,9 @@ function EventCard({
         <div className="text-center">
           <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Restantes</p>
           <p
-            className={`text-sm font-bold ${daysLeft === 0 ? "text-[var(--text-tertiary)]" : "text-[var(--color-primary)]"}`}
+            className={`text-sm font-bold ${
+              daysLeft === 0 ? "text-[var(--text-tertiary)]" : "text-[var(--color-primary)]"
+            }`}
           >
             {daysLeft}
           </p>
@@ -410,7 +432,13 @@ function EventCard({
         <div className="text-center">
           <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Usado</p>
           <p
-            className={`text-sm font-bold ${pct >= 100 ? "text-[var(--color-danger)]" : pct >= 80 ? "text-[#e8a100]" : "text-[var(--color-success)]"}`}
+            className={`text-sm font-bold ${
+              pct >= 100
+                ? "text-[var(--color-danger)]"
+                : pct >= 80
+                  ? "text-[#e8a100]"
+                  : "text-[var(--color-success)]"
+            }`}
           >
             {Math.round(pct)}%
           </p>
@@ -418,7 +446,9 @@ function EventCard({
         <div className="text-center">
           <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Quedan</p>
           <p
-            className={`text-sm font-bold ${remaining < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"}`}
+            className={`text-sm font-bold ${
+              remaining < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"
+            }`}
           >
             {formatCurrency(remaining)}
           </p>
@@ -491,7 +521,9 @@ function SuggestionsBanner({ suggestions }: { suggestions: BudgetSuggestion[] })
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
-          className={`text-[var(--text-tertiary)] transition-transform ${expanded ? "rotate-180" : ""}`}
+          className={`text-[var(--text-tertiary)] transition-transform ${
+            expanded ? "rotate-180" : ""
+          }`}
         >
           <path d="m6 9 6 6 6-6" />
         </svg>
@@ -564,7 +596,10 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
   // Group by parent for display
   const groupedByParent = new Map<
     string,
-    { parent: (typeof allCategories)[0] | null; children: typeof leafCategories }
+    {
+      parent: (typeof allCategories)[0] | null;
+      children: typeof leafCategories;
+    }
   >();
   for (const cat of categoriesWithSpending) {
     const parentId = String(cat.parent_id ?? "root");
@@ -623,7 +658,10 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
   // Group filtered categories by parent for display
   const filteredGrouped = new Map<
     string,
-    { parent: (typeof allCategories)[0] | null; children: typeof leafCategories }
+    {
+      parent: (typeof allCategories)[0] | null;
+      children: typeof leafCategories;
+    }
   >();
   for (const cat of filteredCategories) {
     const parentId = String(cat.parent_id ?? "root");
@@ -687,7 +725,12 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
                     </span>
                     <Select
                       value={groupAssignments[cat.id] || ""}
-                      onChange={(v) => setGroupAssignments({ ...groupAssignments, [cat.id]: v })}
+                      onChange={(v) =>
+                        setGroupAssignments({
+                          ...groupAssignments,
+                          [cat.id]: v,
+                        })
+                      }
                       options={[
                         { value: "", label: "Sin grupo" },
                         { value: "necesidades", label: "Necesidades" },
@@ -699,7 +742,10 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
                       type="number"
                       value={amounts[cat.id] || budgetAmounts.get(cat.id) || ""}
                       onChange={(e) =>
-                        setAmounts({ ...amounts, [cat.id]: parseFloat(e.target.value) || 0 })
+                        setAmounts({
+                          ...amounts,
+                          [cat.id]: parseFloat(e.target.value) || 0,
+                        })
                       }
                       placeholder={
                         budgetAmounts.has(cat.id) ? formatCurrency(budgetAmounts.get(cat.id)!) : "0"
@@ -766,7 +812,10 @@ function EditGroupModal({ onClose }: { onClose: () => void }) {
         const grp = allGroups.find((g) => g.name === name);
         if (grp) {
           promises.push(
-            updateBudgetGroup(grp.id, { percentage: data.percentage, amount: data.amount }),
+            updateBudgetGroup(grp.id, {
+              percentage: data.percentage,
+              amount: data.amount,
+            }),
           );
         }
       }
@@ -802,7 +851,10 @@ function EditGroupModal({ onClose }: { onClose: () => void }) {
                         ((groupData[g.name]?.percentage || 1) / 100);
                       setGroupData({
                         ...groupData,
-                        [g.name]: { percentage: p, amount: Math.round((total * p) / 100) },
+                        [g.name]: {
+                          percentage: p,
+                          amount: Math.round((total * p) / 100),
+                        },
                       });
                     }}
                     min="0"
@@ -820,7 +872,10 @@ function EditGroupModal({ onClose }: { onClose: () => void }) {
                     onChange={(e) =>
                       setGroupData({
                         ...groupData,
-                        [g.name]: { ...groupData[g.name], amount: parseFloat(e.target.value) || 0 },
+                        [g.name]: {
+                          ...groupData[g.name],
+                          amount: parseFloat(e.target.value) || 0,
+                        },
                       })
                     }
                     className="input w-full text-xs"
@@ -1171,7 +1226,11 @@ function EventSidePanel({ event, onClose }: { event: BudgetEvent; onClose: () =>
             <div className="text-center">
               <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Restante</p>
               <p
-                className={`text-sm font-bold ${event.total_amount - event.spent < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"}`}
+                className={`text-sm font-bold ${
+                  event.total_amount - event.spent < 0
+                    ? "text-[var(--color-danger)]"
+                    : "text-[var(--color-success)]"
+                }`}
               >
                 {formatCurrency(event.total_amount - event.spent)}
               </p>
@@ -1477,7 +1536,9 @@ export default function BudgetPage() {
         <>
           {/* KPI Row */}
           <div
-            className={`grid gap-4 mb-6 ${unbudgetedCount > 0 ? "grid-cols-2 md:grid-cols-4" : "grid-cols-1 sm:grid-cols-3"}`}
+            className={`grid gap-4 mb-6 ${
+              unbudgetedCount > 0 ? "grid-cols-2 md:grid-cols-4" : "grid-cols-1 sm:grid-cols-3"
+            }`}
           >
             <div className="card p-4">
               <p className="text-[10px] text-[var(--text-tertiary)] uppercase mb-1">
@@ -1492,7 +1553,9 @@ export default function BudgetPage() {
             <div className="card p-4">
               <p className="text-[10px] text-[var(--text-tertiary)] uppercase mb-1">Quedan</p>
               <p
-                className={`text-lg font-bold ${totalAvailable < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"}`}
+                className={`text-lg font-bold ${
+                  totalAvailable < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"
+                }`}
               >
                 {formatCurrency(totalAvailable)}
               </p>
@@ -1657,7 +1720,9 @@ export default function BudgetPage() {
             </p>
           </div>
           <div
-            className={`grid grid-cols-1 sm:grid-cols-${budgetConfig?.ahorro_enabled ? 3 : 2} gap-4 mb-6`}
+            className={`grid grid-cols-1 sm:grid-cols-${
+              budgetConfig?.ahorro_enabled ? 3 : 2
+            } gap-4 mb-6`}
           >
             <div className="p-4 rounded-xl border border-[var(--border-color)] text-center">
               <div className="w-10 h-10 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center mx-auto mb-2">

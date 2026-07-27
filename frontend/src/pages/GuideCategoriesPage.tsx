@@ -264,7 +264,10 @@ export default function GuideCategoriesPage() {
                 <span
                   key={cat.name}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
-                  style={{ backgroundColor: `${cat.color}20`, color: cat.color }}
+                  style={{
+                    backgroundColor: `${cat.color}20`,
+                    color: cat.color,
+                  }}
                 >
                   <span
                     className="w-2.5 h-2.5 rounded-full"

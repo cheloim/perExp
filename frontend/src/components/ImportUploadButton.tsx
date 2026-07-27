@@ -46,7 +46,10 @@ export default function ImportUploadButton() {
           updateUpload(uploadId, { status: "failed", error: "Cancelado" });
         } else {
           // Marcar como fallido
-          updateUpload(uploadId, { status: "failed", error: err.message ?? "Error" });
+          updateUpload(uploadId, {
+            status: "failed",
+            error: err.message ?? "Error",
+          });
           showToast(`Error: ${err.message ?? "Unknown"}`, "error", 5000, "top-right");
         }
       }

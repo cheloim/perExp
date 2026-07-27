@@ -85,11 +85,17 @@ function CategoryForm({
               <Select
                 value={form.parent_id?.toString() ?? ""}
                 onChange={(value) =>
-                  setForm((p) => ({ ...p, parent_id: value ? parseInt(value) : null }))
+                  setForm((p) => ({
+                    ...p,
+                    parent_id: value ? parseInt(value) : null,
+                  }))
                 }
                 options={[
                   { value: "", label: "— Sin padre (independiente) —" },
-                  ...parentCategories.map((p) => ({ value: p.id.toString(), label: p.name })),
+                  ...parentCategories.map((p) => ({
+                    value: p.id.toString(),
+                    label: p.name,
+                  })),
                 ]}
                 placeholder="Seleccionar categoría padre"
               />
@@ -367,7 +373,10 @@ export default function CategoriesPage() {
       setDeleteError(err?.response?.data?.detail ?? "Error al eliminar"),
   });
 
-  const [recatResult, setRecatResult] = useState<{ updated: number; total: number } | null>(null);
+  const [recatResult, setRecatResult] = useState<{
+    updated: number;
+    total: number;
+  } | null>(null);
   const recatMut = useMutation({
     mutationFn: (only: boolean) => recategorizeExpenses(only),
     onSuccess: (data) => {
@@ -556,7 +565,13 @@ export default function CategoriesPage() {
           <button
             onClick={() =>
               setEditing({
-                cat: { id: 0, name: "", color: cat.color, keywords: "", parent_id: cat.id },
+                cat: {
+                  id: 0,
+                  name: "",
+                  color: cat.color,
+                  keywords: "",
+                  parent_id: cat.id,
+                },
                 isParent: false,
               })
             }
@@ -648,7 +663,11 @@ export default function CategoriesPage() {
       <div className="flex gap-1 p-1 bg-[var(--color-base-alt)] rounded-lg w-fit">
         {(
           [
-            { key: "parents", label: "Categorías Padre", count: parentCats.length },
+            {
+              key: "parents",
+              label: "Categorías Padre",
+              count: parentCats.length,
+            },
             {
               key: "subcategories",
               label: "Subcategorías",

@@ -2,12 +2,77 @@ import re
 from datetime import date, datetime
 from typing import Any
 
+import dns.resolver
 import pandas as pd
-from pydantic import BaseModel, computed_field, field_serializer, field_validator
+from pydantic import BaseModel, EmailStr, computed_field, field_serializer, field_validator
 
 from app.services.date_utils import _normalize_date_str
 
 SPECIAL_CHARS = "!@#$%^&*()-_+=<>?/[]{}|"
+
+BLOCKED_DOMAINS = {
+    "test.com",
+    "example.com",
+    "fake.com",
+    "email.com",
+    "mail.com",
+    "nomail.com",
+    "noemail.com",
+    "noway.com",
+    "notmail.com",
+    "spam.com",
+    "throwaway.com",
+    "trashmail.com",
+    "tempmail.com",
+    "temporary.com",
+    "guerrillamail.com",
+    "guerrillamail.net",
+    "guerrillamail.org",
+    "mailinator.com",
+    "mailinator.net",
+    "mailinator.org",
+    "yopmail.com",
+    "yopmail.fr",
+    "yopmail.net",
+    "sharklasers.com",
+    "grr.la",
+    "guerrillamailblock.com",
+    "dispostable.com",
+    "tempail.com",
+    "temp-mail.org",
+    "fakeinbox.com",
+    "trashymail.com",
+    "trashymail.net",
+    "maildrop.cc",
+    "discard.email",
+    "discardmail.com",
+    "mailnesia.com",
+    "mailcatch.com",
+    "tempinbox.com",
+    "mohmal.com",
+    "burnermail.io",
+    "anonaddy.com",
+}
+
+
+def _validate_email_format(v: str) -> str:
+    email = v.lower().strip()
+    domain = email.split("@")[1] if "@" in email else ""
+
+    if domain in BLOCKED_DOMAINS:
+        raise ValueError("Este dominio de email no está permitido. Usá un email real.")
+
+    try:
+        dns.resolver.resolve(domain, "MX")
+    except (
+        dns.resolver.NXDOMAIN,
+        dns.resolver.NoAnswer,
+        dns.resolver.NoNameservers,
+        dns.resolver.LifetimeTimeout,
+    ):
+        raise ValueError(f"El dominio '{domain}' no parece ser un dominio de email válido.")
+
+    return email
 
 
 def _validate_password_strength(v: str) -> str:
@@ -27,14 +92,24 @@ def _validate_password_strength(v: str) -> str:
 
 
 class LoginRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        return _validate_email_format(v)
 
 
 class UserCreate(BaseModel):
     full_name: str
-    email: str
+    email: EmailStr
     password: str
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        return _validate_email_format(v)
 
     @field_validator("password")
     @classmethod
@@ -110,7 +185,12 @@ class DeleteAccountRequest(BaseModel):
 
 
 class ForgotPasswordRequest(BaseModel):
-    email: str
+    email: EmailStr
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        return _validate_email_format(v)
 
 
 class ResetPasswordRequest(BaseModel):

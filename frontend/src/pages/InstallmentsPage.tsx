@@ -31,7 +31,9 @@ export default function InstallmentsPage() {
     onSuccess: () => {
       setEditing(undefined);
       queryClient.invalidateQueries({ queryKey: ["installments"] });
-      queryClient.invalidateQueries({ queryKey: ["installments-monthly-load"] });
+      queryClient.invalidateQueries({
+        queryKey: ["installments-monthly-load"],
+      });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
     onError: (err: Error) => setSaveError(err.message),
@@ -273,7 +275,9 @@ export default function InstallmentsPage() {
                         fontSize: 10,
                         fill: "var(--text-secondary)",
                         formatter: (v: number) =>
-                          new Intl.NumberFormat("es-AR", { notation: "compact" }).format(v),
+                          new Intl.NumberFormat("es-AR", {
+                            notation: "compact",
+                          }).format(v),
                       }}
                     >
                       {monthlyLoad.map((e) => (
@@ -342,7 +346,9 @@ export default function InstallmentsPage() {
                         <div className="flex items-start gap-2.5 min-w-0 flex-1">
                           <span
                             className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1"
-                            style={{ backgroundColor: g.category_color || "#3584e4" }}
+                            style={{
+                              backgroundColor: g.category_color || "#3584e4",
+                            }}
                           />
                           <div className="min-w-0">
                             <p

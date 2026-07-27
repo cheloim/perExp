@@ -24,12 +24,14 @@ function timeAgo(dateStr: string): string {
 
 export default function NotificationsPanel({ onClose }: Props) {
   const navigate = useNavigate();
-  const [disclaimer, setDisclaimer] = useState<{ notifId: number; inviterName: string } | null>(
-    null,
-  );
-  const [confirmDelete, setConfirmDelete] = useState<{ jobId: number; notifId: number } | null>(
-    null,
-  );
+  const [disclaimer, setDisclaimer] = useState<{
+    notifId: number;
+    inviterName: string;
+  } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{
+    jobId: number;
+    notifId: number;
+  } | null>(null);
   const [confirmReject, setConfirmReject] = useState<number | null>(null);
   const [confirmClearRead, setConfirmClearRead] = useState(false);
   const { uploads, removeUpload, cancelUpload } = useUploadProgress();
@@ -656,7 +658,8 @@ export default function NotificationsPanel({ onClose }: Props) {
               Limpiar notificaciones leídas
             </h2>
             <p className="text-[var(--text-secondary)] text-sm mb-4">
-              Se eliminarán {readCount} notificación{readCount !== 1 ? "es" : ""} leída
+              Se eliminarán {readCount} notificación
+              {readCount !== 1 ? "es" : ""} leída
               {readCount !== 1 ? "s" : ""}. Esta acción no se puede deshacer.
             </p>
             <div className="flex gap-3">

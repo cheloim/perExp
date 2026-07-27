@@ -68,7 +68,10 @@ export function CardEvolutionChart({ cardData, activeCard, filterMonth }: Props)
   const projMonths = Array.from({ length: 2 }, (_, i) => addMonths(filterMonth, i + 1));
 
   const chartData = historyMonths.map((month) => {
-    const point: Record<string, number | string | boolean> = { month, isFuture: false };
+    const point: Record<string, number | string | boolean> = {
+      month,
+      isFuture: false,
+    };
     let total = 0;
     cardData.forEach((card) => {
       const entry = card.monthly?.find((m) => m.month === month);
@@ -82,7 +85,10 @@ export function CardEvolutionChart({ cardData, activeCard, filterMonth }: Props)
   });
 
   const projections = projMonths.map((month, i) => {
-    const point: Record<string, number | string | boolean> = { month, isFuture: true };
+    const point: Record<string, number | string | boolean> = {
+      month,
+      isFuture: true,
+    };
     let total = 0;
     cardData.forEach((card) => {
       const vals = historyMonths

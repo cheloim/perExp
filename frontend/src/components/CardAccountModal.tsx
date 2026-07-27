@@ -77,7 +77,10 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
     onSuccess: (created: Account) => {
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       if (linkedCardId) {
-        updateCardLinkMut.mutate({ cardId: linkedCardId, accountId: created.id });
+        updateCardLinkMut.mutate({
+          cardId: linkedCardId,
+          accountId: created.id,
+        });
       }
       onClose();
     },
@@ -142,7 +145,10 @@ export default function CardAccountModal({ onClose }: CardAccountModalProps) {
             <Select
               value={accountType}
               onChange={setAccountType}
-              options={ACCOUNT_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+              options={ACCOUNT_TYPES.map((t) => ({
+                value: t.value,
+                label: t.label,
+              }))}
             />
           </div>
 

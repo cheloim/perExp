@@ -146,7 +146,12 @@ export const createBudget = (data: {
 
 export const updateBudget = (
   id: number,
-  data: { amount?: number; alert_threshold?: number; rollover?: boolean; is_active?: boolean },
+  data: {
+    amount?: number;
+    alert_threshold?: number;
+    rollover?: boolean;
+    is_active?: boolean;
+  },
 ) => api.put<Budget>(`/budgets/${id}`, data).then((r) => r.data);
 
 export const deleteBudget = (id: number) => api.delete(`/budgets/${id}`).then((r) => r.data);
@@ -205,12 +210,18 @@ export const deleteBudgetEvent = (id: number) =>
 // Category Group Assignment
 export const updateCategoryGroup = (categoryId: number, groupName: string) =>
   api
-    .put(`/budgets/category-group/${categoryId}`, null, { params: { group_name: groupName } })
+    .put(`/budgets/category-group/${categoryId}`, null, {
+      params: { group_name: groupName },
+    })
     .then((r) => r.data);
 
 export const autoAssignGroups = () =>
   api
-    .post<{ ok: boolean; updated: number; total: number }>("/budgets/auto-assign-groups")
+    .post<{
+      ok: boolean;
+      updated: number;
+      total: number;
+    }>("/budgets/auto-assign-groups")
     .then((r) => r.data);
 
 // Budget Events
@@ -287,7 +298,11 @@ export const getExpensesTrend = (params?: { months?: number }) =>
 
 export const getDistinctValues = () =>
   api
-    .get<{ banks: string[]; persons: string[]; cards: string[] }>("/expenses/distinct-values")
+    .get<{
+      banks: string[];
+      persons: string[];
+      cards: string[];
+    }>("/expenses/distinct-values")
     .then((r) => r.data);
 
 export const getCardOptions = () =>
@@ -343,7 +358,12 @@ export const getMonthlyReport = (params?: { month?: string }) =>
       total_income: number;
       savings_rate: number;
       expense_count: number;
-      top_categories: { total: number; count: number; name: string; color: string }[];
+      top_categories: {
+        total: number;
+        count: number;
+        name: string;
+        color: string;
+      }[];
       previous_total: number;
       previous_income: number;
       mom_change: number;
@@ -376,7 +396,10 @@ export const getMonthlyReports = () =>
 
 export const generateMonthlyReport = (month: string) =>
   api
-    .post<{ month: string; status: string }>(`/dashboard/monthly-reports/generate?month=${month}`)
+    .post<{
+      month: string;
+      status: string;
+    }>(`/dashboard/monthly-reports/generate?month=${month}`)
     .then((r) => r.data);
 
 export const downloadReportPdf = async (month: string) => {
@@ -396,7 +419,13 @@ export const getInstallmentsDashboard = () =>
 export const getInstallmentsMonthlyLoad = () =>
   api
     .get<
-      { month: string; total: number; count: number; is_past: boolean; is_current: boolean }[]
+      {
+        month: string;
+        total: number;
+        count: number;
+        is_past: boolean;
+        is_current: boolean;
+      }[]
     >("/dashboard/installments/monthly-load")
     .then((r) => r.data);
 
@@ -512,7 +541,9 @@ export const getCategoryTrend = (months = 4, anchorMonth?: string, person?: stri
     .get<{
       rows: Record<string, number | string>[];
       categories: { name: string; color: string }[];
-    }>("/dashboard/category-trend", { params: { months, anchor_month: anchorMonth, person } })
+    }>("/dashboard/category-trend", {
+      params: { months, anchor_month: anchorMonth, person },
+    })
     .then((r) => r.data);
 
 export const getCardCategoryBreakdown = (params?: { month?: string; bank?: string }) =>
@@ -539,12 +570,18 @@ export const bulkUpdateFields = (
 
 export const recategorizeExpenses = (only_uncategorized = false) =>
   api
-    .post<{ updated: number; total: number }>("/expenses/recategorize", { only_uncategorized })
+    .post<{
+      updated: number;
+      total: number;
+    }>("/expenses/recategorize", { only_uncategorized })
     .then((r) => r.data);
 
 export const applyBaseHierarchy = () =>
   api
-    .post<{ created: number; updated: number }>("/categories/apply-base-hierarchy")
+    .post<{
+      created: number;
+      updated: number;
+    }>("/categories/apply-base-hierarchy")
     .then((r) => r.data);
 
 // Investments
@@ -583,7 +620,11 @@ export const lookupSymbol = (symbol: string) =>
 export const fetchUsdRate = () =>
   lookupSymbol("USDARS=X").then((data) => {
     if (!data || !data.price) return null;
-    return { rate: data.price, date: new Date().toISOString().split("T")[0], source: "Yahoo" };
+    return {
+      rate: data.price,
+      date: new Date().toISOString().split("T")[0],
+      source: "Yahoo",
+    };
   });
 
 export const lookupSymbols = (symbols: string[]) =>
@@ -619,7 +660,11 @@ export const syncIOL = () =>
 
 export const syncPPI = () =>
   api
-    .post<{ broker: string; created: number; updated: number }>("/investments/sync/ppi")
+    .post<{
+      broker: string;
+      created: number;
+      updated: number;
+    }>("/investments/sync/ppi")
     .then((r) => r.data);
 
 export const deduplicateInvestments = () =>
@@ -627,7 +672,11 @@ export const deduplicateInvestments = () =>
 
 export const getUsdRate = () =>
   api
-    .get<{ rate: number; date: string; source: string }>("/investments/usd-rate")
+    .get<{
+      rate: number;
+      date: string;
+      source: string;
+    }>("/investments/usd-rate")
     .then((r) => r.data);
 
 export const refreshManualPrices = () =>
@@ -642,7 +691,10 @@ export const getManualCashBalances = () =>
 
 export const putManualCashBalance = (broker: string, ars: number | null, usd: number | null) =>
   api
-    .put(`/investments/manual-cash-balances/${encodeURIComponent(broker)}`, { ars, usd })
+    .put(`/investments/manual-cash-balances/${encodeURIComponent(broker)}`, {
+      ars,
+      usd,
+    })
     .then((r) => r.data);
 
 export const deleteManualCashBalance = (broker: string) =>
@@ -651,7 +703,12 @@ export const deleteManualCashBalance = (broker: string) =>
 export const getCashBalances = () =>
   api
     .get<{
-      iol: { ars: number | null; usd: number | null; configured: boolean; error?: string };
+      iol: {
+        ars: number | null;
+        usd: number | null;
+        configured: boolean;
+        error?: string;
+      };
       ppi: {
         ars: number | null;
         usd: number | null;

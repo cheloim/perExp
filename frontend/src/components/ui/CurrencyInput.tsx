@@ -16,7 +16,10 @@ export function parseCurrency(s: string): number | null {
 }
 
 export function formatCurrencyAR(n: number): string {
-  return n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return n.toLocaleString("es-AR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function formatWhileTyping(s: string): string {
