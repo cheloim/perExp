@@ -159,10 +159,11 @@ export const rejectSuggestion = (id: number) =>
   api.post(`/suggestions/${id}/reject`).then((r) => r.data);
 
 export const approveAllSuggestions = (minConfidence: number = 0.7) =>
-  api.post("/suggestions/approve-all", null, { params: { min_confidence: minConfidence } }).then((r) => r.data);
+  api
+    .post("/suggestions/approve-all", null, { params: { min_confidence: minConfidence } })
+    .then((r) => r.data);
 
-export const discardAllSuggestions = () =>
-  api.post("/suggestions/discard-all").then((r) => r.data);
+export const discardAllSuggestions = () => api.post("/suggestions/discard-all").then((r) => r.data);
 
 // Budgets
 export const getBudgets = () => api.get<Budget[]>("/budgets").then((r) => r.data);
