@@ -266,6 +266,25 @@ class CategorySuggestion(Base):
     suggested_category = relationship("Category")
 
 
+class MerchantPreference(Base):
+    __tablename__ = "merchant_preferences"
+    __table_args__ = (
+        Index("ix_merchant_preferences_user_id", "user_id"),
+        UniqueConstraint("user_id", "merchant_key", name="uq_user_merchant"),
+    )
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    merchant_key = Column(String(255), nullable=False)
+    category_id = Column(Integer, ForeignKey("categories.id", ondelete="CASCADE"), nullable=False)
+    confidence = Column(Float, default=1.0)
+    usage_count = Column(Integer, default=1)
+    last_used_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+    category = relationship("Category")
+
+
 class AnalysisHistory(Base):
     __tablename__ = "analysis_history"
     __table_args__ = (Index("ix_analysis_history_user_id", "user_id"),)

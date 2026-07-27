@@ -1,6 +1,6 @@
 import re
 from calendar import monthrange
-from datetime import date
+from datetime import date, datetime
 
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -13,11 +13,44 @@ from app.models import Card, Category, Expense, Notification, User
 from app.routers.groups import get_group_user_ids
 from app.schemas import ExpenseCreate, ExpenseResponse, ExpenseUpdate
 from app.services.auth import get_current_user
-from app.services.categorization import _resolve_category, auto_categorize
+from app.services.categorization import _normalize_merchant_key, _resolve_category, auto_categorize
 from app.services.date_utils import _normalize_date_str, add_months
 from app.services.import_utils import _is_duplicate, _normalize_text
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
+
+
+def _track_merchant_preference(user_id: int, description: str, category_id: int, db: Session):
+    """Track or update merchant preference for user."""
+    from app.models import MerchantPreference
+
+    merchant_key = _normalize_merchant_key(description)
+    if not merchant_key:
+        return
+
+    pref = (
+        db.query(MerchantPreference)
+        .filter(
+            MerchantPreference.user_id == user_id,
+            MerchantPreference.merchant_key == merchant_key,
+        )
+        .first()
+    )
+
+    if pref:
+        pref.category_id = category_id
+        pref.usage_count += 1
+        pref.confidence = min(1.0, pref.confidence + 0.1)
+        pref.last_used_at = datetime.utcnow()
+    else:
+        pref = MerchantPreference(
+            user_id=user_id,
+            merchant_key=merchant_key,
+            category_id=category_id,
+            confidence=1.0,
+            usage_count=1,
+        )
+        db.add(pref)
 
 
 @router.get("", response_model=list[ExpenseResponse])
@@ -399,6 +432,17 @@ def update_expense(
         setattr(db_exp, k, v)
     db.commit()
     db.refresh(db_exp)
+
+    # Track merchant preference when user manually changes category
+    if "category_id" in data and data["category_id"] is not None:
+        _track_merchant_preference(
+            user_id=current_user.id,
+            description=db_exp.description,
+            category_id=data["category_id"],
+            db=db,
+        )
+        db.commit()
+
     return db_exp
 
 

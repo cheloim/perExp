@@ -109,6 +109,106 @@ def _get_setting(db: Session, key: str, user_id: int) -> str | None:
     return row.value if row else None
 
 
+def _normalize_merchant_key(description: str) -> str:
+    """Normalize merchant description for preference matching.
+
+    Examples:
+        "MERPAGO*BABYPOP" -> "BABYPOP"
+        "Netflix 03/06" -> "NETFLIX"
+        "RAPPI*FOOD" -> "RAPPI FOOD"
+    """
+    import re
+
+    from app.services.import_utils import _normalize_text, _strip_installment_suffix
+
+    # Strip payment prefixes
+    payment_prefixes = [
+        "MERPAGO*",
+        "MP*",
+        "MERCADOPAGO*",
+        "PAGO*MISCUENTAS*",
+        "PAGO*",
+        "DEB.CAJERO*",
+        "DEBITO*",
+        "DEB*",
+        "COMPRA*",
+    ]
+    text = description.strip()
+    upper = text.upper()
+    for prefix in payment_prefixes:
+        if upper.startswith(prefix):
+            text = text[len(prefix) :].strip()
+            break
+
+    # Strip installment suffixes
+    text = _strip_installment_suffix(text)
+
+    # Normalize to uppercase
+    text = _normalize_text(text)
+
+    # Remove common noise words
+    noise_words = ["COMPRA", "DEBITO", "CREDITO", "CONSUMO", "APROBADA", "APROBADO"]
+    for word in noise_words:
+        text = re.sub(rf"\b{word}\b", "", text, flags=re.IGNORECASE)
+
+    # Clean up whitespace
+    text = " ".join(text.split()).strip()
+
+    # Truncate to 255 chars
+    return text[:255] if text else ""
+
+
+def check_user_preference(description: str, user_id: int, db: Session) -> int | None:
+    """Check if user has a stored preference for this merchant.
+
+    Returns category_id if found, None otherwise.
+    """
+    from app.models import MerchantPreference
+
+    merchant_key = _normalize_merchant_key(description)
+    if not merchant_key:
+        return None
+
+    pref = (
+        db.query(MerchantPreference)
+        .filter(
+            MerchantPreference.user_id == user_id,
+            MerchantPreference.merchant_key == merchant_key,
+        )
+        .first()
+    )
+
+    if pref and pref.confidence >= 0.5:
+        return pref.category_id
+    return None
+
+
+def _build_user_history(user_id: int, db: Session) -> str:
+    """Build user's recent categorization history for LLM prompt."""
+    from app.models import MerchantPreference
+
+    prefs = (
+        db.query(MerchantPreference)
+        .filter(
+            MerchantPreference.user_id == user_id,
+            MerchantPreference.usage_count >= 2,
+        )
+        .order_by(MerchantPreference.usage_count.desc())
+        .limit(10)
+        .all()
+    )
+
+    if not prefs:
+        return ""
+
+    lines = ["Tus categorizaciones más usadas:"]
+    for p in prefs:
+        cat_name = p.category.name if p.category else "?"
+        lines.append(f'- "{p.merchant_key}" → {cat_name} ({p.usage_count} veces)')
+
+    return "\n".join(lines) + "\n\n"
+
+
 def _build_formatted_categories(cats: list) -> str:
     """Build formatted category list for the LLM prompt."""
     children_map: dict[int | None, list[Category]] = {}
@@ -166,8 +266,10 @@ def llm_categorize(
             return None
 
         amount_str = f"${amount:,.2f}" if amount is not None else "no especificado"
+        user_history = _build_user_history(user_id, db)
         prompt = CATEGORY_SUGGEST_PROMPT.format(
             formatted_categories=formatted,
+            user_history=user_history,
             description=description,
             amount=amount_str,
         )
