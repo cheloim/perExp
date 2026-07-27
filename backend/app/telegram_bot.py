@@ -178,7 +178,13 @@ def _parse_bank_notification(text: str) -> dict | None:
             if raw.startswith("json"):
                 raw = raw[4:]
             raw = raw.strip()
-        return json.loads(raw)
+        result = json.loads(raw)
+
+        # Strip payment entity prefixes from description (e.g., "MERPAGO*BABYPOP" -> "BABYPOP")
+        if result and result.get("description"):
+            result["description"] = _strip_payment_prefix(result["description"])
+
+        return result
     except Exception as e:
         logger.error("Bank notification parse error: %s", e)
         return None
@@ -345,6 +351,40 @@ def _format_amount(amount: float, currency: str) -> str:
     if currency == "USD":
         return f"USD {amount:,.2f}"
     return f"${amount:,.0f}"
+
+
+# Payment entity prefixes to strip from bank notification descriptions
+_PAYMENT_PREFIXES = [
+    "MERPAGO*",
+    "MP*",
+    "MERCADOPAGO*",
+    "PAGO*MISCUENTAS*",
+    "PAGO*",
+    "DEB.CAJERO*",
+    "DEBITO*",
+    "DEB*",
+    "COMPRA*",
+]
+
+
+def _strip_payment_prefix(description: str) -> str:
+    """Strip payment entity prefixes from bank notification descriptions.
+
+    Examples:
+        "MERPAGO*BABYPOP" -> "BABYPOP"
+        "MP*STARBUCKS" -> "STARBUCKS"
+        "COMPRA*NOMBRE LOCAL" -> "NOMBRE LOCAL"
+        "Uber Eats" -> "Uber Eats" (no change)
+    """
+    if not description:
+        return description
+    upper = description.upper().strip()
+    for prefix in _PAYMENT_PREFIXES:
+        if upper.startswith(prefix):
+            cleaned = description[len(prefix):].strip()
+            if cleaned:
+                return cleaned
+    return description
 
 
 _MONTHS_ES = [
