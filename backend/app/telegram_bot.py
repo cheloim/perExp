@@ -8,6 +8,7 @@ from datetime import date, datetime
 
 from google import genai
 from sqlalchemy import func
+import telegram
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Application,
