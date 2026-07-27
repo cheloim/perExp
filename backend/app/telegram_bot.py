@@ -395,18 +395,18 @@ def _confirm_text(
     debug_info: str = "",
     installments: int | None = None,
 ) -> str:
-    desc = _escape_md(parsed.get("description", ""))
+    desc = _escape_html(parsed.get("description", ""))
     total_amount = parsed["amount"]
     currency = parsed.get("currency", "ARS")
     date_str = _format_date_es(parsed.get("date", date.today().strftime("%Y-%m-%d")))
-    safe_label = _escape_md(payment_label)
+    safe_label = _escape_html(payment_label)
     cat_tree = ""
     if cat_levels:
         indents = ["", "  └ ", "      └ "]
         for i, name in enumerate(cat_levels):
             indent = indents[i] if i < len(indents) else indents[-1]
             cat_tree += f"{indent}{_cat_emoji(name)} {name}\n"
-    debug_line = f"\n`{debug_info}`" if debug_info else ""
+    debug_line = f"\n<code>{debug_info}</code>" if debug_info else ""
     if installments and installments >= 2:
         per_cuota = round(total_amount / installments, 2)
         amount_line = (
@@ -417,7 +417,7 @@ def _confirm_text(
         amount_line = f"💰 {_format_amount(total_amount, currency)}"
     return (
         f"Esto es lo que voy a guardar:\n\n"
-        f"🛒 *{desc}*\n"
+        f"🛒 <b>{desc}</b>\n"
         f"{amount_line}\n"
         f"📅 {date_str}\n"
         f"💳 {safe_label}\n"
@@ -495,7 +495,7 @@ async def _enhance_with_llm(
             ),
             chat_id=chat_id,
             message_id=message_id,
-            parse_mode="Markdown",
+            parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup(confirm_keyboard),
         )
     except Exception:
@@ -555,11 +555,33 @@ _CAT_EMOJI: dict[str, str] = {
 }
 
 
-def _escape_md(text: str) -> str:
-    """Escape Telegram Markdown special characters to prevent parse errors."""
-    for ch in ("\\", "*", "_", "[", "`"):
-        text = text.replace(ch, f"\\{ch}")
-    return text
+def _escape_html(text: str) -> str:
+    """Escape HTML special characters for Telegram."""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+async def _reply_html(update, text: str, **kwargs):
+    """Reply with HTML, fallback to plain text on error."""
+    import re as _re
+
+    try:
+        await update.message.reply_text(text, parse_mode="HTML", **kwargs)
+    except telegram.error.BadRequest as e:
+        logger.warning(f"[TELEGRAM] HTML parse failed, retrying as plain text: {e}")
+        plain = _re.sub(r"<[^>]+>", "", text)
+        await update.message.reply_text(plain, **kwargs)
+
+
+async def _edit_html(query, text: str, **kwargs):
+    """Edit message with HTML, fallback to plain text on error."""
+    import re as _re
+
+    try:
+        await query.edit_message_text(text, parse_mode="HTML", **kwargs)
+    except telegram.error.BadRequest as e:
+        logger.warning(f"[TELEGRAM] HTML parse failed, retrying as plain text: {e}")
+        plain = _re.sub(r"<[^>]+>", "", text)
+        await query.edit_message_text(plain, **kwargs)
 
 
 def _cat_emoji(name: str) -> str:
@@ -569,7 +591,7 @@ def _cat_emoji(name: str) -> str:
 def _saved_text(expense: "Expense", payment_label: str) -> str:
     amount_str = _format_amount(expense.amount, expense.currency)
     date_str = _format_date_es(expense.date.strftime("%Y-%m-%d"))
-    safe_label = _escape_md(payment_label)
+    safe_label = _escape_html(payment_label)
     levels = getattr(expense, "_cat_levels", [])
 
     # Build category tree with emojis; description is always the leaf with 📝
@@ -580,14 +602,14 @@ def _saved_text(expense: "Expense", payment_label: str) -> str:
         tree_lines.append(f"{indent}{_cat_emoji(name)} {name}")
     # Description as final leaf
     leaf_indent = indents[min(len(levels), len(indents) - 1)]
-    tree_lines.append(f"{leaf_indent}📝 {_escape_md(expense.description)}")
+    tree_lines.append(f"{leaf_indent}📝 {_escape_html(expense.description)}")
     cat_tree = "\n".join(tree_lines)
 
     installment_info = ""
     if expense.installment_total and expense.installment_total >= 2:
         total = round(expense.amount * expense.installment_total, 2)
         installment_info = (
-            f"\n💳 {_escape_md(payment_label)} — {expense.installment_total} cuotas\n"
+            f"\n💳 {_escape_html(payment_label)} — {expense.installment_total} cuotas\n"
             f"💰 {_format_amount(total, expense.currency)} → "
             f"{expense.installment_total}× {amount_str}"
         )
@@ -655,7 +677,7 @@ def send_message_to_chat(chat_id: str, text: str) -> None:
 
     async def _send():
         try:
-            await _bot_app.bot.send_message(chat_id=chat_id, text=text, parse_mode="Markdown")
+            await _bot_app.bot.send_message(chat_id=chat_id, text=text, parse_mode="HTML")
         except Exception as e:
             logger.warning(f"[TELEGRAM] Could not send message to {chat_id}: {e}")
 
@@ -678,7 +700,7 @@ def send_photo_to_chat(chat_id: str, image_bytes: bytes, caption: str = None) ->
                 photo = BytesIO(image_bytes)
                 photo.name = "report.png"
                 await _bot_app.bot.send_photo(
-                    chat_id=chat_id, photo=photo, caption=caption, parse_mode="Markdown"
+                    chat_id=chat_id, photo=photo, caption=caption, parse_mode="HTML"
                 )
                 return True
             except Exception as e:
@@ -714,7 +736,7 @@ def _send_photo_via_api(chat_id: str, image_bytes: bytes, caption: str = None) -
         url = f"https://api.telegram.org/bot{token}/sendPhoto"
 
         files = {"photo": ("report.png", BytesIO(image_bytes), "image/png")}
-        data = {"chat_id": chat_id, "parse_mode": "Markdown"}
+        data = {"chat_id": chat_id, "parse_mode": "HTML"}
         if caption:
             data["caption"] = caption[:1024]
 
@@ -738,7 +760,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         if user:
             await update.message.reply_text(
                 f"¡Hola de nuevo, *{user.full_name}*! 🎉 ¿Qué gastaste hoy?",
-                parse_mode="Markdown",
+                parse_mode="HTML",
             )
             return ConversationHandler.END
     finally:
@@ -748,7 +770,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         "👋 ¡Hola! Soy *NikoFin*, tu asistente de finanzas personales.\n\n"
         "Para conectarte con tu cuenta, ingresá tu clave de 12 caracteres.\n"
         "La encontrás en la app → Configuración → Telegram Bot.",
-        parse_mode="Markdown",
+        parse_mode="HTML",
     )
     return WAITING_AUTH
 
@@ -775,7 +797,7 @@ async def handle_auth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             '• _"Netflix USD 5"_\n\n'
             "Yo me encargo del resto 📊\n"
             "Te voy a mostrar el gasto parseado y te voy a pedir que confirmes el medio de pago.",
-            parse_mode="Markdown",
+            parse_mode="HTML",
         )
         return ConversationHandler.END
     finally:
@@ -783,23 +805,23 @@ async def handle_auth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
 
 _HELP_TEXT = (
-    "📝 *Así registrás tus gastos con NikoFin:*\n\n"
+    "📝 <b>Así registrás tus gastos con NikoFin:</b>\n\n"
     "Escribime de forma natural:\n"
-    '• _"farmacity 3200"_\n'
-    '• _"almuerzo con el equipo 8500 pesos"_\n'
-    '• _"uber ayer 1800"_\n'
-    '• _"Netflix USD 5"_\n'
-    '• _"cargué nafta 15000 el viernes"_\n\n'
-    "🔔 *O reenviame notificaciones de tu banco:*\n"
-    '• _"Compra aprobada Visa ****4521 $15.200 Supermercado"_\n'
-    '• _"Débito Mastercard ****1234 $8.500 Netflix"_\n\n'
+    '• <i>"farmacity 3200"</i>\n'
+    '• <i>"almuerzo con el equipo 8500 pesos"</i>\n'
+    '• <i>"uber ayer 1800"</i>\n'
+    '• <i>"Netflix USD 5"</i>\n'
+    '• <i>"cargué nafta 15000 el viernes"</i>\n\n'
+    "🔔 <b>O reenviame notificaciones de tu banco:</b>\n"
+    '• <i>"Compra aprobada Visa ****4521 $15.200 Supermercado"</i>\n'
+    '• <i>"Débito Mastercard ****1234 $8.500 Netflix"</i>\n\n'
     "Si detecto los datos de tu tarjeta, te muestro todo junto para confirmar."
 )
 
 _UNRECOGNIZED_MESSAGES = [
     "No encontré un monto en tu mensaje. ¿Podés contarme qué gastaste y cuánto?",
     "Necesito al menos el monto para registrar el gasto. ¿Cuánto fue?",
-    'No pude identificar el importe. Probá con algo como _"supermercado 4500"_ o _"taxi 1200 ayer"_.',
+    'No pude identificar el importe. Probá con algo como <i>"supermercado 4500"</i> o <i>"taxi 1200 ayer"</i>.',
     "Hmm, no entendí bien. ¿Podés decirme qué compraste y por cuánto?",
 ]
 
@@ -814,7 +836,7 @@ async def _handle_bank_notification(
         await update.message.reply_text(
             "🔔 Notificación bancaria detectada pero no pude parsear el monto.\n"
             "¿Podés decirme cuánto fue?",
-            parse_mode="Markdown",
+            parse_mode="HTML",
         )
         # Fall back to normal flow — store partial data
         fallback_parsed = await asyncio.to_thread(_parse_expense, text)
@@ -829,17 +851,17 @@ async def _handle_bank_notification(
                     InlineKeyboardButton("💳 Tarjeta", callback_data="pay:tarjeta"),
                 ]
             ]
-            desc = _escape_md(fallback_parsed.get("description", ""))
+            desc = _escape_html(fallback_parsed.get("description", ""))
             amount_str = _format_amount(
                 fallback_parsed["amount"], fallback_parsed.get("currency", "ARS")
             )
             await update.message.reply_text(
                 f"*{desc}* — {amount_str}\n\n¿Cómo pagaste?",
-                parse_mode="Markdown",
+                parse_mode="HTML",
                 reply_markup=InlineKeyboardMarkup(keyboard),
             )
             return WAITING_PAYMENT
-        await update.message.reply_text(_HELP_TEXT, parse_mode="Markdown")
+        await update.message.reply_text(_HELP_TEXT, parse_mode="HTML")
         return ConversationHandler.END
 
     user_id = context.user_data["user_id"]
@@ -856,7 +878,7 @@ async def _handle_bank_notification(
 
         if not card:
             # Card not found — show notification info and fall back to normal flow
-            desc = _escape_md(parsed.get("description", ""))
+            desc = _escape_html(parsed.get("description", ""))
             amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
             card_info = f"••{parsed.get('card_last4', '????')}" if parsed.get("card_last4") else ""
             bank_info = parsed.get("bank", "")
@@ -868,7 +890,7 @@ async def _handle_bank_notification(
                 f"💳 {label}\n\n"
                 f"No encontré esta tarjeta en tu cuenta.\n"
                 f"Elegí el medio de pago:",
-                parse_mode="Markdown",
+                parse_mode="HTML",
                 reply_markup=InlineKeyboardMarkup(
                     [
                         [
@@ -924,7 +946,7 @@ async def _handle_bank_notification(
                 indent = indents[i] if i < len(indents) else indents[-1]
                 cat_tree += f"{indent}{_cat_emoji(name)} {name}\n"
 
-        desc = _escape_md(parsed.get("description", ""))
+        desc = _escape_html(parsed.get("description", ""))
         amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
         date_str = _format_date_es(parsed.get("date", date.today().strftime("%Y-%m-%d")))
 
@@ -942,7 +964,7 @@ async def _handle_bank_notification(
             f"💳 {payment_label}\n"
             f"{cat_tree}"
             f"\n¿Lo guardamos?",
-            parse_mode="Markdown",
+            parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup(confirm_keyboard),
         )
 
@@ -962,7 +984,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     text = update.message.text.strip()
 
     if "ayuda" in text.lower():
-        await update.message.reply_text(_HELP_TEXT, parse_mode="Markdown")
+        await update.message.reply_text(_HELP_TEXT, parse_mode="HTML")
         return ConversationHandler.END
 
     # Circuit 1: Bank notification detection
@@ -977,7 +999,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if not parsed or not parsed.get("amount"):
         # Show help text instead of generic error
-        await update.message.reply_text(_HELP_TEXT, parse_mode="Markdown")
+        await update.message.reply_text(_HELP_TEXT, parse_mode="HTML")
         return ConversationHandler.END
 
     context.user_data["parsed"] = parsed
@@ -1058,7 +1080,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
                     ]
                 ]
-                desc = _escape_md(parsed.get("description", ""))
+                desc = _escape_html(parsed.get("description", ""))
                 amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
                 date_str = _format_date_es(parsed.get("date", date.today().strftime("%Y-%m-%d")))
 
@@ -1068,14 +1090,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     f"📅 {date_str}\n"
                     f"💳 {payment_label}\n"
                     f"\n¿Lo guardamos?",
-                    parse_mode="Markdown",
+                    parse_mode="HTML",
                     reply_markup=InlineKeyboardMarkup(confirm_keyboard),
                 )
                 return WAITING_CONFIRM
         finally:
             db.close()
 
-    desc = _escape_md(parsed.get("description", ""))
+    desc = _escape_html(parsed.get("description", ""))
     amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
     date_str = parsed.get("date", date.today().strftime("%Y-%m-%d"))
 
@@ -1089,7 +1111,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     ]
     await update.message.reply_text(
         f"*{desc}* — {amount_str} ({date_str})\n\n¿Cómo pagaste?",
-        parse_mode="Markdown",
+        parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(keyboard),
     )
     return WAITING_PAYMENT
@@ -1121,7 +1143,7 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 "• _Cuenta Galicia_ — cuenta bancaria\n"
                 "• _Cuenta USD_ — ahorros en dólares\n\n"
                 "💡 Podés cambiar el nombre después desde la web.",
-                parse_mode="Markdown",
+                parse_mode="HTML",
             )
             return WAITING_ACCOUNT_CREATE_NAME
 
@@ -1156,7 +1178,7 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         ]
         await query.edit_message_text(
             "💳 *No tenés tarjetas registradas*\n\n¿Qué preferís?",
-            parse_mode="Markdown",
+            parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup(keyboard),
         )
         return WAITING_CARD_CREATE_CHOICE
@@ -1184,7 +1206,7 @@ async def handle_card_bank(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.edit_message_text(
             f"No encontré tarjetas de {bank} registradas.\n"
             "¿Cómo se llama la tarjeta? Escribila, por ejemplo: _Visa_ o _Mastercard_.",
-            parse_mode="Markdown",
+            parse_mode="HTML",
         )
         return WAITING_CARD_MANUAL
 
@@ -1259,7 +1281,7 @@ async def handle_card_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             ]
             await query.edit_message_text(
                 _confirm_text(parsed, label, cat_levels),
-                parse_mode="Markdown",
+                parse_mode="HTML",
                 reply_markup=InlineKeyboardMarkup(confirm_keyboard),
             )
             return WAITING_CONFIRM
@@ -1299,7 +1321,7 @@ async def handle_installment_question(update: Update, context: ContextTypes.DEFA
                 cat_levels,
                 context.user_data.get("cat_debug", ""),
             ),
-            parse_mode="Markdown",
+            parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup(confirm_keyboard),
         )
         return WAITING_CONFIRM
@@ -1355,7 +1377,7 @@ async def handle_installment_number(update: Update, context: ContextTypes.DEFAUL
             context.user_data.get("cat_debug", ""),
             installments,
         ),
-        parse_mode="Markdown",
+        parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(confirm_keyboard),
     )
     return WAITING_CONFIRM
@@ -1381,7 +1403,7 @@ async def handle_account_select(update: Update, context: ContextTypes.DEFAULT_TY
             "• _Cuenta Galicia_\n"
             "• _Cuenta USD_\n\n"
             "💡 Podés editar el nombre después desde la web.",
-            parse_mode="Markdown",
+            parse_mode="HTML",
         )
         return WAITING_ACCOUNT_CREATE_NAME
 
@@ -1421,7 +1443,7 @@ async def handle_account_select(update: Update, context: ContextTypes.DEFAULT_TY
     ]
     await query.edit_message_text(
         _confirm_text(context.user_data["parsed"], context.user_data["payment_label"], cat_levels),
-        parse_mode="Markdown",
+        parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(confirm_keyboard),
     )
     return WAITING_CONFIRM
@@ -1441,8 +1463,8 @@ async def handle_account_create_name(update: Update, context: ContextTypes.DEFAU
         [InlineKeyboardButton("💰 Otro", callback_data="acctype:otro")],
     ]
     await update.message.reply_text(
-        f"✅ Perfecto, *{_escape_md(account_name)}*\n\nAhora elegí el tipo de cuenta:",
-        parse_mode="Markdown",
+        f"✅ Perfecto, *{_escape_html(account_name)}*\n\nAhora elegí el tipo de cuenta:",
+        parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(keyboard),
     )
     return WAITING_ACCOUNT_CREATE_TYPE
@@ -1493,7 +1515,7 @@ async def handle_account_create_type(update: Update, context: ContextTypes.DEFAU
     ]
     await query.edit_message_text(
         _confirm_text(context.user_data["parsed"], context.user_data["payment_label"], cat_levels),
-        parse_mode="Markdown",
+        parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(confirm_keyboard),
     )
     return WAITING_CONFIRM
@@ -1509,7 +1531,7 @@ async def handle_card_create_choice(update: Update, context: ContextTypes.DEFAUL
     if choice == "new":
         await query.edit_message_text(
             "💳 *Nueva Tarjeta*\n\nPrimero, elegí el tipo de tarjeta:",
-            parse_mode="Markdown",
+            parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup(
                 [
                     [InlineKeyboardButton("💳 Crédito", callback_data="cardctype:credito")],
@@ -1539,7 +1561,7 @@ async def handle_card_create_type(update: Update, context: ContextTypes.DEFAULT_
         "• _Naranja_\n"
         "• _Mercado Pago_\n\n"
         "💡 Puedo detectar automáticamente la franquicia y el banco.",
-        parse_mode="Markdown",
+        parse_mode="HTML",
     )
     return WAITING_CARD_CREATE_NAME
 
@@ -1578,12 +1600,12 @@ async def handle_card_create_name(update: Update, context: ContextTypes.DEFAULT_
 
     await update.message.reply_text(
         "🔍 *Detectado*\n\n"
-        f"💳 Tarjeta: *{_escape_md(card_name)}*\n"
-        f"🏦 Banco: *{_escape_md(bank_display)}*\n"
-        f"👤 Titular: *{_escape_md(holder)}*\n"
-        f"💳 Tipo: *{_escape_md(card_type)}*\n\n"
+        f"💳 Tarjeta: *{_escape_html(card_name)}*\n"
+        f"🏦 Banco: *{_escape_html(bank_display)}*\n"
+        f"👤 Titular: *{_escape_html(holder)}*\n"
+        f"💳 Tipo: *{_escape_html(card_type)}*\n\n"
         "¿Confirmás la creación de esta tarjeta?",
-        parse_mode="Markdown",
+        parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("✅ Sí, crear", callback_data="cardconfirm:yes")],
@@ -1644,7 +1666,7 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
         if existing:
             await query.message.reply_text(
                 "❌ Ya existe una tarjeta con ese nombre y banco. Probá con otro nombre.",
-                parse_mode="Markdown",
+                parse_mode="HTML",
             )
             return ConversationHandler.END
 
@@ -1678,8 +1700,8 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
                 ]
             ]
             await query.edit_message_text(
-                f"✅ *Tarjeta {_escape_md(card_name)} creada!*\n\n¿Lo pagaste en cuotas?",
-                parse_mode="Markdown",
+                f"✅ *Tarjeta {_escape_html(card_name)} creada!*\n\n¿Lo pagaste en cuotas?",
+                parse_mode="HTML",
                 reply_markup=InlineKeyboardMarkup(installment_keyboard),
             )
             return WAITING_INSTALLMENT_QUESTION
@@ -1692,9 +1714,9 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
                 ]
             ]
             await query.edit_message_text(
-                f"✅ *Tarjeta {_escape_md(card_name)} creada!*\n\n"
+                f"✅ *Tarjeta {_escape_html(card_name)} creada!*\n\n"
                 + _confirm_text(parsed, context.user_data["payment_label"], cat_levels),
-                parse_mode="Markdown",
+                parse_mode="HTML",
                 reply_markup=InlineKeyboardMarkup(confirm_keyboard),
             )
             return WAITING_CONFIRM
@@ -1774,7 +1796,7 @@ async def handle_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await query.edit_message_text(
             _confirm_text(parsed, payment_label)
             + "\n\n📅 *¿Este gasto pertenece a un evento temporal?*",
-            parse_mode="Markdown",
+            parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup(keyboard),
         )
         return WAITING_EVENT_CONFIRM
@@ -1785,7 +1807,7 @@ async def handle_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if expense:
             await query.edit_message_text(
                 _saved_text(expense, payment_label),
-                parse_mode="Markdown",
+                parse_mode="HTML",
             )
         else:
             await query.edit_message_text("Error al guardar el gasto.")
@@ -1914,17 +1936,17 @@ async def handle_event_confirm(update: Update, context: ContextTypes.DEFAULT_TYP
                 db.commit()
                 await query.edit_message_text(
                     _saved_text(expense, payment_label) + f"\n\n📅 Vinculado a *{event.name}*",
-                    parse_mode="Markdown",
+                    parse_mode="HTML",
                 )
             else:
                 await query.edit_message_text(
                     _saved_text(expense, payment_label),
-                    parse_mode="Markdown",
+                    parse_mode="HTML",
                 )
         else:
             await query.edit_message_text(
                 _saved_text(expense, payment_label),
-                parse_mode="Markdown",
+                parse_mode="HTML",
             )
 
         context.user_data.pop("pending_expense", None)
@@ -1994,7 +2016,7 @@ async def handle_card_manual(update: Update, context: ContextTypes.DEFAULT_TYPE)
             ]
             confirm_msg = await update.message.reply_text(
                 _confirm_text(parsed, label, cat_levels),
-                parse_mode="Markdown",
+                parse_mode="HTML",
                 reply_markup=InlineKeyboardMarkup(confirm_keyboard),
             )
             # Fire LLM in background (bank notification — no mount-time categorization)
