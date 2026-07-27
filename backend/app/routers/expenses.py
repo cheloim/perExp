@@ -74,15 +74,15 @@ def get_expenses(
         q = q.filter(Expense.category_id.is_(None))
     if bank:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.bank.ilike(f"%{bank}%")
+            Card.bank_search.ilike(f"%{bank}%")
         )
     if person:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.holder.ilike(f"%{person}%")
+            Card.holder_search.ilike(f"%{person}%")
         )
     if card:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.card_name.ilike(f"%{card}%")
+            Card.card_name_search.ilike(f"%{card}%")
         )
     if card_type:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
@@ -590,11 +590,11 @@ def get_expense_stats(
         )
     elif card:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.card_name.ilike(f"%{card}%")
+            Card.card_name_search.ilike(f"%{card}%")
         )
     elif bank:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.bank.ilike(f"%{bank}%")
+            Card.bank_search.ilike(f"%{bank}%")
         )
 
     total, count = q.one()
@@ -616,11 +616,11 @@ def get_expense_stats(
             pass
     if card:
         last_used_q = last_used_q.join(Card, Expense.card_id == Card.id).filter(
-            Card.card_name.ilike(f"%{card}%")
+            Card.card_name_search.ilike(f"%{card}%")
         )
     elif bank:
         last_used_q = last_used_q.join(Card, Expense.card_id == Card.id).filter(
-            Card.bank.ilike(f"%{bank}%")
+            Card.bank_search.ilike(f"%{bank}%")
         )
     last_used = last_used_q.scalar()
 
@@ -675,7 +675,7 @@ def get_expenses_by_category(
         q = q.filter(Expense.account_id == account_id)
     if card:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.card_name.ilike(f"%{card}%")
+            Card.card_name_search.ilike(f"%{card}%")
         )
 
     rows = q.all()

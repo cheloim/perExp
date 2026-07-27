@@ -325,6 +325,37 @@ def step7_encryption_columns(engine):
         # monthly_reports.report_data: TEXT (already TEXT)
 
 
+def step8_card_search_columns(engine):
+    """Add search columns for encrypted Card fields."""
+    print("\n[Step 8/8] Adding Card search columns...")
+
+    with engine.begin() as conn:
+        dialect = engine.dialect.name
+
+        if dialect != "postgresql":
+            print("  Skipping — only supported on PostgreSQL.")
+            return
+
+        for column in ['card_name_search', 'bank_search', 'holder_search']:
+            exists = conn.execute(text("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'cards' AND column_name = :col
+                )
+            """), {"col": column}).scalar()
+
+            if exists:
+                print(f"  {column} already exists. Skipping.")
+            else:
+                conn.execute(text(
+                    f"ALTER TABLE cards ADD COLUMN {column} VARCHAR"
+                ))
+                conn.execute(text(
+                    f"CREATE INDEX ix_cards_{column} ON cards ({column})"
+                ))
+                print(f"  Added {column} VARCHAR with index.")
+
+
 def main():
     engine = get_engine()
 
@@ -339,6 +370,7 @@ def main():
     step5_onboarding_completed(engine)
     step6_whats_new_seen(engine)
     step7_encryption_columns(engine)
+    step8_card_search_columns(engine)
 
     print("\n" + "=" * 60)
     print("Migration complete!")

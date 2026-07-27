@@ -9,6 +9,7 @@ from app.database import get_db
 from app.models import Card, User
 from app.routers.groups import get_group_user_ids
 from app.services.auth import get_current_user
+from app.services.encryption import tokenize_description
 
 router = APIRouter(prefix="/cards", tags=["cards"])
 
@@ -129,8 +130,8 @@ def create_card(
         db.query(Card)
         .filter(
             Card.user_id == current_user.id,
-            func.lower(func.trim(Card.card_name)) == card_name.lower(),
-            func.lower(func.trim(Card.bank)) == bank.lower(),
+            func.lower(Card.card_name_search) == card_name.lower(),
+            func.lower(Card.bank_search) == bank.lower(),
             Card.card_type == card.card_type,
         )
         .first()
@@ -154,8 +155,11 @@ def create_card(
 
     db_card = Card(
         card_name=card_name,
+        card_name_search=tokenize_description(card_name),
         bank=bank,
+        bank_search=tokenize_description(bank),
         holder=holder,
+        holder_search=tokenize_description(holder),
         card_type=card.card_type,
         linked_account_id=linked_account_id,
         user_id=current_user.id,
@@ -231,6 +235,14 @@ def update_card(
         if isinstance(value, str):
             value = value.strip()
         setattr(db_card, key, value)
+
+    # Update search tokens if card_name, bank, or holder changed
+    if "card_name" in update_data:
+        db_card.card_name_search = tokenize_description(db_card.card_name)
+    if "bank" in update_data:
+        db_card.bank_search = tokenize_description(db_card.bank)
+    if "holder" in update_data:
+        db_card.holder_search = tokenize_description(db_card.holder)
 
     db.commit()
     db.refresh(db_card)

@@ -723,13 +723,46 @@ jobs:
             source .env
             set +a
 
-            echo "Running database migrations..."
+            echo "=== Step 1: Database structure migration ==="
             for script in migrate_add_reset_token migrate_remove_haberes migrate_encrypt_settings migrate_add_monthly_reports migrate_db_structure migrate_add_card_account_link migrate_add_budgets migrate_add_category_suggestions; do
               if ! podman-compose run --rm backend python -m scripts.$script; then
                 echo "::warning::Migration $script had issues (may already be applied)"
               fi
             done
-            echo "Migrations complete"
+
+            echo "=== Step 2: Dry-run encryption migration ==="
+            DRY_RUN=$(podman-compose run --rm backend python scripts/dry_run_migration.py 2>&1)
+            echo "$DRY_RUN"
+
+            if echo "$DRY_RUN" | grep -q "Status: FAIL"; then
+              echo "::error::Dry-run failed! Aborting deployment."
+              exit 1
+            fi
+
+            echo "=== Step 3: Run encryption migration ==="
+            if ! podman-compose run --rm backend python scripts/migrate_encrypt_fields.py; then
+              echo "::error::Encryption migration failed!"
+              exit 1
+            fi
+
+            echo "=== Step 4: Verify encryption ==="
+            VERIFY=$(podman-compose run --rm backend python scripts/verify_encryption.py 2>&1)
+            echo "$VERIFY"
+
+            if echo "$VERIFY" | grep -q "Status: FAIL"; then
+              echo "::error::Verification failed! Rolling back database..."
+              LATEST=$(ls -t /opt/creditcardanalyzer/backups/db_*.sql.gz | head -1)
+              if [ -n "$LATEST" ]; then
+                echo "Restoring from: $LATEST"
+                gunzip -c $LATEST | podman exec -i creditcardanalyzer_db_1 psql -U expenses_user expenses
+                echo "Database restored from backup"
+              else
+                echo "::error::No backup found!"
+              fi
+              exit 1
+            fi
+
+            echo "=== Migration complete and verified ==="
 
   restart-and-verify:
     runs-on: ubuntu-latest

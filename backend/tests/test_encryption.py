@@ -45,10 +45,10 @@ class TestEncryption(unittest.TestCase):
         self.assertIsNone(decrypt_value(None))
 
     def test_decrypt_plaintext_fallback(self):
-        """Decryption of plaintext returns plaintext (migration support)."""
+        """Decryption of plaintext returns '[encrypted]' placeholder."""
         plaintext = "not-encrypted-data"
         result = decrypt_value(plaintext)
-        self.assertEqual(result, plaintext)
+        self.assertEqual(result, "[encrypted]")
 
     def test_encrypt_deterministic(self):
         """Same input produces same ciphertext (Fernet with same key)."""
@@ -203,6 +203,72 @@ class TestMigrationLogic(unittest.TestCase):
         encrypted = encrypt_value("secret-data")
         self.assertTrue(is_encrypted(encrypted))
         self.assertFalse(is_encrypted("plain-data"))
+
+
+class TestCardSearchColumns(unittest.TestCase):
+    """Test Card search column tokenization."""
+
+    def test_tokenize_card_name(self):
+        """tokenize_description works for card names."""
+        assert tokenize_description("Visa Signature") == "visa signature"
+        assert tokenize_description("Mastercard Gold") == "mastercard gold"
+        assert tokenize_description("American Express") == "american express"
+
+    def test_tokenize_bank(self):
+        """tokenize_description works for bank names."""
+        assert tokenize_description("Banco Nación") == "banco nacion"
+        assert tokenize_description("BBVA Argentina") == "bbva argentina"
+        assert tokenize_description("Banco Santander") == "banco santander"
+
+    def test_tokenize_holder(self):
+        """tokenize_description works for holder names."""
+        assert tokenize_description("Mendoza, Marcelo") == "mendoza marcelo"
+        assert tokenize_description("Pérez, José") == "perez jose"
+        assert tokenize_description("García López") == "garcia lopez"
+
+    def test_card_search_roundtrip(self):
+        """Encrypt card, generate search token, verify search works."""
+        card_name = "Visa Signature"
+        encrypted = encrypt_value(card_name)
+        search = tokenize_description(card_name)
+
+        # Verify encryption
+        self.assertTrue(is_encrypted(encrypted))
+        self.assertEqual(decrypt_value(encrypted), card_name)
+
+        # Verify search
+        self.assertEqual(search, "visa signature")
+        self.assertIn("visa", search)
+        self.assertIn("signature", search)
+
+    def test_bank_search_roundtrip(self):
+        """Encrypt bank, generate search token, verify search works."""
+        bank = "Banco Nación"
+        encrypted = encrypt_value(bank)
+        search = tokenize_description(bank)
+
+        # Verify encryption
+        self.assertTrue(is_encrypted(encrypted))
+        self.assertEqual(decrypt_value(encrypted), bank)
+
+        # Verify search
+        self.assertEqual(search, "banco nacion")
+        self.assertIn("banco", search)
+        self.assertIn("nacion", search)
+
+
+class TestDecryptFallback(unittest.TestCase):
+    """Test decrypt_value fallback behavior."""
+
+    def test_decrypt_returns_encrypted_placeholder_on_failure(self):
+        """Decrypt returns '[encrypted]' for invalid data."""
+        result = decrypt_value("not-encrypted-data")
+        self.assertEqual(result, "[encrypted]")
+
+    def test_decrypt_returns_empty_for_none(self):
+        """Decrypt returns None for None input."""
+        self.assertIsNone(decrypt_value(None))
+        self.assertEqual(decrypt_value(""), "")
 
 
 if __name__ == "__main__":

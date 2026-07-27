@@ -1,10 +1,13 @@
 import base64
 import hashlib
 import hmac
+import logging
 import os
 import unicodedata
 
 from cryptography.fernet import Fernet
+
+logger = logging.getLogger(__name__)
 
 _fernet_instance = None
 
@@ -29,13 +32,14 @@ def encrypt_value(value: str) -> str:
 
 
 def decrypt_value(value: str) -> str:
-    """Decrypt a Fernet-encrypted value. Falls back to plaintext if decryption fails."""
+    """Decrypt a Fernet-encrypted value. Falls back to '[encrypted]' if decryption fails."""
     if not value:
         return value
     try:
         return get_fernet().decrypt(value.encode()).decode()
-    except Exception:
-        return value
+    except Exception as e:
+        logger.warning(f"Decryption failed for value starting with '{value[:30]}...': {e}")
+        return "[encrypted]"
 
 
 def compute_hmac(value: str) -> str:

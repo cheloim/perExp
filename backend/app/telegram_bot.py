@@ -24,6 +24,7 @@ from app.database import SessionLocal
 from app.models import Account, Card, Category, Expense, User
 from app.prompts import CARD_EXTRACT_PROMPT, EXPENSE_PARSE_PROMPT
 from app.services.categorization import auto_categorize, llm_categorize
+from app.services.encryption import tokenize_description
 from app.services.import_utils import _normalize_text
 
 logger = logging.getLogger(__name__)
@@ -1712,8 +1713,8 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
             db.query(Card)
             .filter(
                 Card.user_id == user_id,
-                func.lower(func.trim(Card.card_name)) == card_name.lower(),
-                func.lower(func.trim(Card.bank)) == bank.lower(),
+                func.lower(Card.card_name_search) == card_name.lower(),
+                func.lower(Card.bank_search) == bank.lower(),
             )
             .first()
         )
@@ -1726,8 +1727,11 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
 
         new_card = Card(
             card_name=card_name,
+            card_name_search=tokenize_description(card_name),
             bank=bank,
+            bank_search=tokenize_description(bank),
             holder=holder,
+            holder_search=tokenize_description(holder),
             card_type=card_type,
             user_id=user_id,
         )

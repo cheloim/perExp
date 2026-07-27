@@ -92,13 +92,13 @@ def _apply_filters(q, month_val, search_val, person_val, cat_id_val, bank_val=No
         q = q.filter(Expense.description.ilike(f"%{search_val}%"))
     if person_val:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.holder.ilike(f"%{person_val}%")
+            Card.holder_search.ilike(f"%{person_val}%")
         )
     if cat_id_val is not None:
         q = q.filter(Expense.category_id == cat_id_val)
     if bank_val:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.bank.ilike(f"%{bank_val}%")
+            Card.bank_search.ilike(f"%{bank_val}%")
         )
     return q
 
@@ -1482,11 +1482,11 @@ def get_top_merchants(
             pass
     if person:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.holder.ilike(f"%{person}%")
+            Card.holder_search.ilike(f"%{person}%")
         )
     if bank:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.bank.ilike(f"%{bank}%")
+            Card.bank_search.ilike(f"%{bank}%")
         )
 
     rows = q.all()
@@ -1693,7 +1693,7 @@ def get_card_category_breakdown(
             pass
     if bank:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.bank.ilike(f"%{bank}%")
+            Card.bank_search.ilike(f"%{bank}%")
         )
 
     exps = q.all()
@@ -1776,7 +1776,7 @@ def get_category_trend(
     )
     if person:
         rows_raw = rows_raw.outerjoin(Card, Expense.card_id == Card.id).filter(
-            Card.holder.ilike(f"%{person}%")
+            Card.holder_search.ilike(f"%{person}%")
         )
     rows_raw = rows_raw.group_by(
         func.to_char(Expense.date, "YYYY-MM"), Category.name, Category.color

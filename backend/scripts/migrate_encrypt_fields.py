@@ -75,7 +75,7 @@ def _migrate_users(db):
 
 
 def _migrate_cards(db):
-    """Encrypt card fields."""
+    """Encrypt card fields and generate search tokens."""
     logger.info("Migrating cards table...")
     offset = 0
     migrated = 0
@@ -88,18 +88,41 @@ def _migrate_cards(db):
         for card in cards:
             changed = False
 
-            # Note: EncryptedType handles encryption automatically
-            # We just need to touch the field to trigger update
+            # Encrypt card_name and generate search token
             if card.card_name and not is_encrypted(card.card_name):
                 card.card_name = card.card_name  # Touch to trigger update
+                card.card_name_search = tokenize_description(card.card_name)
+                changed = True
+            elif card.card_name and (
+                not card.card_name_search or is_encrypted(card.card_name_search)
+            ):
+                # Already encrypted but missing or encrypted search token
+                from app.services.encryption import decrypt_value
+                card.card_name_search = tokenize_description(decrypt_value(card.card_name))
                 changed = True
 
+            # Encrypt bank and generate search token
             if card.bank and not is_encrypted(card.bank):
                 card.bank = card.bank  # Touch to trigger update
+                card.bank_search = tokenize_description(card.bank)
+                changed = True
+            elif card.bank and (
+                not card.bank_search or is_encrypted(card.bank_search)
+            ):
+                from app.services.encryption import decrypt_value
+                card.bank_search = tokenize_description(decrypt_value(card.bank))
                 changed = True
 
+            # Encrypt holder and generate search token
             if card.holder and not is_encrypted(card.holder):
                 card.holder = card.holder  # Touch to trigger update
+                card.holder_search = tokenize_description(card.holder)
+                changed = True
+            elif card.holder and (
+                not card.holder_search or is_encrypted(card.holder_search)
+            ):
+                from app.services.encryption import decrypt_value
+                card.holder_search = tokenize_description(decrypt_value(card.holder))
                 changed = True
 
             if changed:

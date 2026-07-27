@@ -195,10 +195,13 @@ class Card(Base):
     )
     id = Column(Integer, primary_key=True, index=True)
     card_name = Column(EncryptedType, nullable=False)  # Visa, Mastercard, etc
+    card_name_search = Column(String, nullable=True, index=True)
     bank = Column(EncryptedType, default="")
+    bank_search = Column(String, nullable=True, index=True)
     holder = Column(
         EncryptedType, default=""
     )  # Primer nombre del usuario (para agrupar en grupo familiar)
+    holder_search = Column(String, nullable=True, index=True)
     card_type = Column(String, default="credito")  # credito, debito
     linked_account_id = Column(
         Integer, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
