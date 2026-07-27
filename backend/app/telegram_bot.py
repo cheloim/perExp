@@ -184,7 +184,9 @@ def _parse_bank_notification(text: str) -> dict | None:
             original = result["description"]
             result["description"] = _strip_payment_prefix(result["description"])
             if original != result["description"]:
-                logger.info("[BANK_PARSE] Stripped prefix: '%s' -> '%s'", original, result["description"])
+                logger.info(
+                    "[BANK_PARSE] Stripped prefix: '%s' -> '%s'", original, result["description"]
+                )
 
         return result
     except Exception as e:
@@ -383,7 +385,7 @@ def _strip_payment_prefix(description: str) -> str:
     upper = description.upper().strip()
     for prefix in _PAYMENT_PREFIXES:
         if upper.startswith(prefix):
-            cleaned = description[len(prefix):].strip()
+            cleaned = description[len(prefix) :].strip()
             if cleaned:
                 return cleaned
     return description
