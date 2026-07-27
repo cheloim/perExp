@@ -47,7 +47,6 @@ import {
 } from "../utils/format";
 import { useExpenseFilters } from "../hooks/useExpenseFilters";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { useNotifications } from "../hooks/useNotifications";
 
 type SortField = "date" | "description" | "category" | "bank" | "person" | "amount";
 type SortDir = "asc" | "desc";
