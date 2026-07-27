@@ -14,6 +14,11 @@ import {
   deleteExpense,
   bulkDeleteExpenses,
   bulkUpdateFields,
+  getSuggestions,
+  approveSuggestion,
+  rejectSuggestion,
+  approveAllSuggestions,
+  discardAllSuggestions,
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
 import { Select } from "../components/ui/Select";
@@ -42,7 +47,6 @@ import {
 } from "../utils/format";
 import { useExpenseFilters } from "../hooks/useExpenseFilters";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { useNotifications } from "../hooks/useNotifications";
 
 type SortField = "date" | "description" | "category" | "bank" | "person" | "amount";
 type SortDir = "asc" | "desc";
@@ -90,17 +94,16 @@ export default function ExpensesPage() {
   const filterDateTo = filters.dateTo;
   const filterSearch = filters.search;
 
-  // Category suggestions from notifications
-  const { notifications, markRead } = useNotifications();
-  const showSuggestions = searchParams.get("category_suggestions") === "1";
-  const suggestionNotif = notifications.find(
-    (n): n is import("../types").CategorySuggestionNotification =>
-      n.type === "category_suggestions" && !n.read,
-  );
-  const suggestions = suggestionNotif?.data.suggestions ?? [];
+  // Category suggestions from API
+  const { data: suggestionsData = [], refetch: refetchSuggestions } = useQuery({
+    queryKey: ["suggestions"],
+    queryFn: () => getSuggestions("pending"),
+    staleTime: 30_000,
+  });
+  const showSuggestions = suggestionsData.length > 0;
   const suggestionsByExpenseId = useMemo(
-    () => new Map(suggestions.map((s) => [s.expense_id, s])),
-    [suggestions],
+    () => new Map(suggestionsData.map((s) => [s.expense_id, s])),
+    [suggestionsData],
   );
 
   const now = new Date();
@@ -552,13 +555,13 @@ export default function ExpensesPage() {
       </div>
 
       {/* Category suggestions banner */}
-      {showSuggestions && suggestions.length > 0 && (
+      {showSuggestions && (
         <div className="card border-l-4 border-l-purple-500 bg-purple-500/5">
           <div className="px-4 py-3 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-[var(--text-primary)]">
-                ✨ IA sugirió categorías para {suggestions.length} gasto
-                {suggestions.length !== 1 ? "s" : ""}
+                ✨ IA sugirió categorías para {suggestionsData.length} gasto
+                {suggestionsData.length !== 1 ? "s" : ""}
               </p>
               <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
                 Revisá las sugerencias inline y aplicá las que correspondan
@@ -567,31 +570,22 @@ export default function ExpensesPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={async () => {
-                  for (const s of suggestions) {
-                    if (s.confidence >= 0.7) {
-                      await updateExpense(s.expense_id, {
-                        category_id: s.suggested_category_id,
-                      });
-                    }
-                  }
+                  await approveAllSuggestions(0.7);
                   queryClient.invalidateQueries({ queryKey: ["expenses"] });
-                  markRead(suggestionNotif!.id);
+                  refetchSuggestions();
                 }}
                 className="gnome-btn-secondary-round text-xs"
               >
                 Aplicar todas (≥70%)
               </button>
               <button
-                onClick={() => {
-                  markRead(suggestionNotif!.id);
-                  setSearchParams((prev) => {
-                    prev.delete("category_suggestions");
-                    return prev;
-                  });
+                onClick={async () => {
+                  await discardAllSuggestions();
+                  refetchSuggestions();
                 }}
                 className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
               >
-                Cerrar
+                Descartar todas
               </button>
             </div>
           </div>
@@ -1204,18 +1198,18 @@ export default function ExpensesPage() {
                                 <span className="inline-flex items-center gap-1.5">
                                   <span className="text-[var(--text-tertiary)]">—</span>
                                   <button
-                                    onClick={(e) => {
+                                    onClick={async (e) => {
                                       e.stopPropagation();
                                       const s = suggestionsByExpenseId.get(exp.id)!;
-                                      updateExpense(exp.id, {
-                                        category_id: s.suggested_category_id,
-                                      }).then(() =>
-                                        queryClient.invalidateQueries({
-                                          queryKey: ["expenses"],
-                                        }),
-                                      );
+                                      await approveSuggestion(s.id);
+                                      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+                                      refetchSuggestions();
                                     }}
-                                    className="px-2 py-1 rounded text-xs font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 transition"
+                                    className={`px-2 py-1 rounded text-xs font-medium transition ${
+                                      suggestionsByExpenseId.get(exp.id)!.confidence >= 0.7
+                                        ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20"
+                                        : "bg-purple-500/5 text-purple-400/70 dark:text-purple-500/50 hover:bg-purple-500/10"
+                                    }`}
                                     title={`Sugerencia: ${
                                       suggestionsByExpenseId.get(exp.id)!.parent_name
                                         ? suggestionsByExpenseId.get(exp.id)!.parent_name + " > "
@@ -1227,6 +1221,18 @@ export default function ExpensesPage() {
                                     )}%)`}
                                   >
                                     ✨ {suggestionsByExpenseId.get(exp.id)!.category_name}
+                                  </button>
+                                  <button
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      const s = suggestionsByExpenseId.get(exp.id)!;
+                                      await rejectSuggestion(s.id);
+                                      refetchSuggestions();
+                                    }}
+                                    className="text-[var(--text-tertiary)] hover:text-red-500 transition text-xs"
+                                    title="Descartar sugerencia"
+                                  >
+                                    ✗
                                   </button>
                                 </span>
                               ) : (

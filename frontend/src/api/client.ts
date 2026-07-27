@@ -134,6 +134,37 @@ export const deleteCategory = (id: number) => api.delete(`/categories/${id}`).th
 export const suggestCategory = (data: { description: string; amount?: number }) =>
   api.post<CategorySuggestion | null>("/categories/suggest", data).then((r) => r.data);
 
+// Suggestions (AI auto-categorization)
+export interface SuggestionItem {
+  id: number;
+  expense_id: number;
+  description: string;
+  amount: number;
+  date: string;
+  suggested_category_id: number;
+  category_name: string;
+  parent_name?: string | null;
+  confidence: number;
+  status: string;
+  source: string;
+}
+
+export const getSuggestions = (status: string = "pending") =>
+  api.get<SuggestionItem[]>("/suggestions", { params: { status } }).then((r) => r.data);
+
+export const approveSuggestion = (id: number) =>
+  api.post(`/suggestions/${id}/approve`).then((r) => r.data);
+
+export const rejectSuggestion = (id: number) =>
+  api.post(`/suggestions/${id}/reject`).then((r) => r.data);
+
+export const approveAllSuggestions = (minConfidence: number = 0.7) =>
+  api
+    .post("/suggestions/approve-all", null, { params: { min_confidence: minConfidence } })
+    .then((r) => r.data);
+
+export const discardAllSuggestions = () => api.post("/suggestions/discard-all").then((r) => r.data);
+
 // Budgets
 export const getBudgets = () => api.get<Budget[]>("/budgets").then((r) => r.data);
 
