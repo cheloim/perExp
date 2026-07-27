@@ -671,7 +671,9 @@ def _saved_text(expense: "Expense", payment_label: str) -> str:
 def _get_user_by_chat_id(chat_id: str) -> User | None:
     db = SessionLocal()
     try:
-        return db.query(User).filter(User.telegram_chat_id == chat_id).first()
+        from app.services.encryption import compute_hmac
+        chat_hash = compute_hmac(chat_id)
+        return db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
     finally:
         db.close()
 
@@ -800,7 +802,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = str(update.effective_chat.id)
     db = SessionLocal()
     try:
-        user = db.query(User).filter(User.telegram_chat_id == chat_id).first()
+        from app.services.encryption import compute_hmac
+        chat_hash = compute_hmac(chat_id)
+        user = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
         if user:
             await update.message.reply_text(
                 f"¡Hola de nuevo, <b>{user.full_name}</b>! 🎉 ¿Qué gastaste hoy?",
@@ -829,6 +833,8 @@ async def handle_auth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             await update.message.reply_text("Clave incorrecta. Intentá de nuevo.")
             return WAITING_AUTH
         user.telegram_chat_id = chat_id
+        from app.services.encryption import compute_hmac
+        user.telegram_chat_hash = compute_hmac(chat_id)
         user.telegram_key = None  # Invalidate key after use
         db.commit()
         db.refresh(user)
@@ -1618,7 +1624,9 @@ async def handle_card_create_name(update: Update, context: ContextTypes.DEFAULT_
     db = SessionLocal()
     try:
         chat_id = str(update.effective_chat.id)
-        user = db.query(User).filter(User.telegram_chat_id == chat_id).first()
+        from app.services.encryption import compute_hmac
+        chat_hash = compute_hmac(chat_id)
+        user = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
         user_full_name = user.full_name if user else ""
     finally:
         db.close()
@@ -1681,7 +1689,9 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
     chat_id = str(update.effective_chat.id)
     db = SessionLocal()
     try:
-        user = db.query(User).filter(User.telegram_chat_id == chat_id).first()
+        from app.services.encryption import compute_hmac
+        chat_hash = compute_hmac(chat_id)
+        user = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
         if not user:
             await query.message.reply_text("❌ Error: usuario no encontrado.")
             return ConversationHandler.END

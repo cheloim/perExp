@@ -133,7 +133,7 @@ def check_budget_alerts():
         year, month = today.year, today.month
         month_key = f"{year}-{month:02d}"
 
-        users = db.query(User).filter(User.telegram_chat_id.isnot(None)).all()
+        users = db.query(User).filter(User.telegram_chat_hash.isnot(None)).all()
 
         alerts_sent = 0
         for user in users:

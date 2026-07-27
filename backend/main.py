@@ -44,7 +44,19 @@ from app.services.auth import get_password_hash
 async def lifespan(application: FastAPI):
     # Create tables if they don't exist
     Base.metadata.create_all(bind=engine)
-    
+
+    # Validate SECRET_KEY length
+    secret_key = os.getenv("SECRET_KEY", "")
+    if len(secret_key) < 32:
+        raise RuntimeError(
+            "SECRET_KEY must be at least 32 characters. "
+            'Generate one with: python -c "import secrets; print(secrets.token_urlsafe(64))"'
+        )
+
+    # Run encryption migration for existing plaintext data
+    from scripts.migrate_encrypt_fields import migrate_plaintext_data
+    migrate_plaintext_data()
+
     db = SessionLocal()
     if db.query(Category).count() == 0:
         _apply_base_hierarchy(db)

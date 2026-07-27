@@ -248,7 +248,7 @@ def send_weekly_reports():
             return
 
         # Get all users with Telegram connected
-        users = db.query(User).filter(User.telegram_chat_id.isnot(None)).all()
+        users = db.query(User).filter(User.telegram_chat_hash.isnot(None)).all()
 
         sent_count = 0
         for user in users:

@@ -570,6 +570,7 @@ def regenerate_telegram_key(
 
     current_user.telegram_key = _generate_telegram_key()
     current_user.telegram_chat_id = None
+    current_user.telegram_chat_hash = None
     db.commit()
     db.refresh(current_user)
     return TelegramKeyResponse(telegram_key=current_user.telegram_key)

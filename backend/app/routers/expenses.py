@@ -15,6 +15,7 @@ from app.schemas import ExpenseCreate, ExpenseResponse, ExpenseUpdate
 from app.services.auth import get_current_user
 from app.services.categorization import _resolve_category, auto_categorize
 from app.services.date_utils import _normalize_date_str, add_months
+from app.services.encryption import tokenize_description
 from app.services.import_utils import _is_duplicate, _normalize_text
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
@@ -100,7 +101,7 @@ def get_expenses(
             Account.name.ilike(f"%{account}%")
         )
     if search:
-        q = q.filter(Expense.description.ilike(f"%{search}%"))
+        q = q.filter(Expense.description_search.ilike(f"%{search}%"))
     # Only exclude future installments when NOT filtering by specific category
     # (category-specific views like side panel need to show all expenses)
     if not category_id and not category_ids:
@@ -289,6 +290,7 @@ def create_expense(
     # Normalize description
     if data.get("description"):
         data["description"] = _normalize_text(data["description"])
+        data["description_search"] = tokenize_description(data["description"])
 
     # Always store amount as positive (no sign convention)
     data["amount"] = abs(data["amount"])
@@ -397,6 +399,9 @@ def update_expense(
             data["date"] = pd.to_datetime(normalized, dayfirst=True).date()
     for k, v in data.items():
         setattr(db_exp, k, v)
+    # Update search index if description changed
+    if "description" in data:
+        db_exp.description_search = tokenize_description(data["description"])
     db.commit()
     db.refresh(db_exp)
     return db_exp
