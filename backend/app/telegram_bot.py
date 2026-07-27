@@ -6,9 +6,9 @@ import re
 import uuid
 from datetime import date, datetime
 
+import telegram
 from google import genai
 from sqlalchemy import func
-import telegram
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Application,
