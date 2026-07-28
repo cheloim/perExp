@@ -37,6 +37,8 @@ const GuideAIAnalysisPage = lazy(() => import("./pages/GuideAIAnalysisPage"));
 const GuideFamilyGroupsPage = lazy(() => import("./pages/GuideFamilyGroupsPage"));
 const GuideInvestmentsPage = lazy(() => import("./pages/GuideInvestmentsPage"));
 const GuideCategoriesPage = lazy(() => import("./pages/GuideCategoriesPage"));
+const ChangesPage = lazy(() => import("./pages/ChangesPage"));
+const NovedadesPage = lazy(() => import("./pages/NovedadesPage"));
 const OnboardingWalkthrough = lazy(() => import("./components/OnboardingWalkthrough"));
 const WhatsNewModal = lazy(() => import("./components/WhatsNewModal"));
 
@@ -180,6 +182,20 @@ export default function App() {
         </Suspense>
       );
     }
+    if (location.pathname.startsWith("/changes")) {
+      return (
+        <Suspense>
+          <ChangesPage />
+        </Suspense>
+      );
+    }
+    if (location.pathname === "/novedades") {
+      return (
+        <Suspense>
+          <NovedadesPage />
+        </Suspense>
+      );
+    }
     return (
       <Suspense>
         <LandingPage />
@@ -227,10 +243,11 @@ function MainLayout() {
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const { ToastContainer } = useUndoToast();
 
-  // Check if we should show What's New modal
+  // Check if we should show What's New modal (only on /)
   useEffect(() => {
     const checkWhatsNew = async () => {
       try {
+        if (location.pathname !== "/") return;
         const { SHOW_WHATS_NEW } = await import("./components/WhatsNewModal");
         if (!SHOW_WHATS_NEW) return;
         const { getMe } = await import("./api/client");
@@ -244,7 +261,7 @@ function MainLayout() {
       }
     };
     checkWhatsNew();
-  }, []);
+  }, [location.pathname]);
 
   useEffect(() => {
     const main = document.querySelector("main");
@@ -610,6 +627,9 @@ function MainLayout() {
                       <Route path="/guide/family-groups" element={<GuideFamilyGroupsPage />} />
                       <Route path="/guide/investments" element={<GuideInvestmentsPage />} />
                       <Route path="/guide/categories" element={<GuideCategoriesPage />} />
+                      <Route path="/changes" element={<ChangesPage />} />
+                      <Route path="/changes/:version" element={<ChangesPage />} />
+                      <Route path="/novedades" element={<NovedadesPage />} />
                       <Route
                         path="*"
                         element={
