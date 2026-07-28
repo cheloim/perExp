@@ -673,6 +673,7 @@ def _get_user_by_chat_id(chat_id: str) -> User | None:
     db = SessionLocal()
     try:
         from app.services.encryption import compute_hmac
+
         chat_hash = compute_hmac(chat_id)
         return db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
     finally:
@@ -804,6 +805,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     db = SessionLocal()
     try:
         from app.services.encryption import compute_hmac
+
         chat_hash = compute_hmac(chat_id)
         user = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
         if user:
@@ -835,6 +837,7 @@ async def handle_auth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             return WAITING_AUTH
         user.telegram_chat_id = chat_id
         from app.services.encryption import compute_hmac
+
         user.telegram_chat_hash = compute_hmac(chat_id)
         user.telegram_key = None  # Invalidate key after use
         db.commit()
@@ -1626,6 +1629,7 @@ async def handle_card_create_name(update: Update, context: ContextTypes.DEFAULT_
     try:
         chat_id = str(update.effective_chat.id)
         from app.services.encryption import compute_hmac
+
         chat_hash = compute_hmac(chat_id)
         user = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
         user_full_name = user.full_name if user else ""
@@ -1691,6 +1695,7 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
     db = SessionLocal()
     try:
         from app.services.encryption import compute_hmac
+
         chat_hash = compute_hmac(chat_id)
         user = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
         if not user:
