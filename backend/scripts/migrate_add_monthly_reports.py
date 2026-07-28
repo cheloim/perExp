@@ -38,23 +38,27 @@ def main():
             conn.execute(text("SET search_path TO public"))
 
             # Check if table already exists
-            exists = conn.execute(text("""
+            exists = conn.execute(
+                text("""
                 SELECT EXISTS (
                     SELECT 1 FROM information_schema.tables
                     WHERE table_schema = 'public' AND table_name = 'monthly_reports'
                 )
-            """)).scalar()
+            """)
+            ).scalar()
 
             if exists:
                 print("Table already exists. Checking for columns...")
 
                 # Ensure png_data column exists
-                has_png = conn.execute(text("""
+                has_png = conn.execute(
+                    text("""
                     SELECT EXISTS (
                         SELECT 1 FROM information_schema.columns
                         WHERE table_name = 'monthly_reports' AND column_name = 'png_data'
                     )
-                """)).scalar()
+                """)
+                ).scalar()
                 if not has_png:
                     print("Adding png_data column...")
                     conn.execute(text("ALTER TABLE monthly_reports ADD COLUMN png_data BYTEA"))
@@ -63,12 +67,14 @@ def main():
                     print("png_data column already exists.")
 
                 # Ensure pdf_data column exists
-                has_pdf = conn.execute(text("""
+                has_pdf = conn.execute(
+                    text("""
                     SELECT EXISTS (
                         SELECT 1 FROM information_schema.columns
                         WHERE table_name = 'monthly_reports' AND column_name = 'pdf_data'
                     )
-                """)).scalar()
+                """)
+                ).scalar()
                 if not has_pdf:
                     print("Adding pdf_data column...")
                     conn.execute(text("ALTER TABLE monthly_reports ADD COLUMN pdf_data BYTEA"))
@@ -77,27 +83,37 @@ def main():
                     print("pdf_data column already exists.")
 
                 # Ensure status column exists
-                has_status = conn.execute(text("""
+                has_status = conn.execute(
+                    text("""
                     SELECT EXISTS (
                         SELECT 1 FROM information_schema.columns
                         WHERE table_name = 'monthly_reports' AND column_name = 'status'
                     )
-                """)).scalar()
+                """)
+                ).scalar()
                 if not has_status:
                     print("Adding status column...")
-                    conn.execute(text("ALTER TABLE monthly_reports ADD COLUMN status VARCHAR(20) DEFAULT 'READY'"))
-                    conn.execute(text("UPDATE monthly_reports SET status = 'READY' WHERE status IS NULL"))
+                    conn.execute(
+                        text(
+                            "ALTER TABLE monthly_reports ADD COLUMN status VARCHAR(20) DEFAULT 'READY'"
+                        )
+                    )
+                    conn.execute(
+                        text("UPDATE monthly_reports SET status = 'READY' WHERE status IS NULL")
+                    )
                     print("status column added!")
                 else:
                     print("status column already exists.")
 
                 # Ensure error_message column exists
-                has_error = conn.execute(text("""
+                has_error = conn.execute(
+                    text("""
                     SELECT EXISTS (
                         SELECT 1 FROM information_schema.columns
                         WHERE table_name = 'monthly_reports' AND column_name = 'error_message'
                     )
-                """)).scalar()
+                """)
+                ).scalar()
                 if not has_error:
                     print("Adding error_message column...")
                     conn.execute(text("ALTER TABLE monthly_reports ADD COLUMN error_message TEXT"))
@@ -106,7 +122,8 @@ def main():
                     print("error_message column already exists.")
             else:
                 print("Creating monthly_reports table...")
-                conn.execute(text("""
+                conn.execute(
+                    text("""
                     CREATE TABLE IF NOT EXISTS monthly_reports (
                         id SERIAL PRIMARY KEY,
                         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -119,13 +136,16 @@ def main():
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         generated_at TIMESTAMP
                     )
-                """))
+                """)
+                )
 
                 print("Creating index on user_id and month...")
-                conn.execute(text("""
+                conn.execute(
+                    text("""
                     CREATE UNIQUE INDEX IF NOT EXISTS ix_monthly_reports_user_month
                     ON monthly_reports (user_id, month)
-                """))
+                """)
+                )
 
                 print("Migration complete!")
         else:

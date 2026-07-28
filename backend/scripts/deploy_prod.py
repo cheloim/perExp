@@ -31,7 +31,9 @@ def run_command(cmd: str, check: bool = True, capture: bool = False) -> subproce
 
 def main():
     parser = argparse.ArgumentParser(description="Deploy to production")
-    parser.add_argument("--dry-run", action="store_true", help="Show what would be done without executing")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Show what would be done without executing"
+    )
     parser.add_argument("--skip-restart", action="store_true", help="Skip service restart")
     args = parser.parse_args()
 
@@ -42,12 +44,22 @@ def main():
     if args.dry_run:
         print("\n[DRY RUN] No changes will be made.\n")
 
-    # Step 1: Run migration
-    print("\n[Step 1] Running database migration...")
+    # Step 1: Run migrations
+    print("\n[Step 1] Running database migrations...")
     if args.dry_run:
-        print("  Would run: podman-compose run --rm --no-deps backend python -m scripts.migrate_add_reset_token")
+        print(
+            "  Would run: podman-compose run --rm --no-deps backend python -m scripts.migrate_add_reset_token"
+        )
+        print(
+            "  Would run: podman-compose run --rm --no-deps backend python -m scripts.migrate_db_structure"
+        )
     else:
-        run_command("cd /home/chelo/creditCardAnalyzer && podman-compose run --rm --no-deps backend python -m scripts.migrate_add_reset_token")
+        run_command(
+            "cd /home/chelo/creditCardAnalyzer && podman-compose run --rm --no-deps backend python -m scripts.migrate_add_reset_token"
+        )
+        run_command(
+            "cd /home/chelo/creditCardAnalyzer && podman-compose run --rm --no-deps backend python -m scripts.migrate_db_structure"
+        )
 
     # Step 2: Restart backend
     if not args.skip_restart:
@@ -71,7 +83,11 @@ def main():
         print("  Would verify API health endpoint")
     else:
         # Quick health check
-        result = run_command("curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/docs", check=False, capture=True)
+        result = run_command(
+            "curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/docs",
+            check=False,
+            capture=True,
+        )
         if result.stdout.strip() == "200":
             print("  Backend is healthy!")
         else:

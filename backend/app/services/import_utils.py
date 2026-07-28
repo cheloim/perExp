@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Expense
 from app.services.date_utils import add_months
+from app.services.encryption import tokenize_description
 
 
 def _strip_installment_suffix(desc: str) -> str:
@@ -146,7 +147,7 @@ def _is_duplicate(
             db.query(Expense)
             .filter(
                 Expense.amount == amount,
-                func.lower(Expense.description) == description.lower(),
+                func.lower(Expense.description_search) == tokenize_description(description),
                 Expense.installment_number == installment_number,
                 Expense.installment_total == installment_total,
                 Expense.date >= month_start,
@@ -169,7 +170,7 @@ def _is_duplicate(
     q = db.query(Expense).filter(
         Expense.date == exp_date,
         Expense.amount == amount,
-        func.lower(Expense.description) == description.lower(),
+        func.lower(Expense.description_search) == tokenize_description(description),
     )
     if installment_number is not None:
         q = q.filter(Expense.installment_number == installment_number)
@@ -226,7 +227,7 @@ def _is_scheduled_duplicate(
         ScheduledExpense.scheduled_date == scheduled_date,
         ScheduledExpense.installment_number == installment_number,
         ScheduledExpense.installment_total == installment_total,
-        func.lower(ScheduledExpense.description) == description.lower(),
+        func.lower(ScheduledExpense.description_search) == tokenize_description(description),
         ScheduledExpense.status == "PENDING",
     )
     if installment_group_id:

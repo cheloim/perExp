@@ -53,12 +53,7 @@ def table_exists(conn, table: str) -> bool:
 
 def index_exists(conn, index_name: str) -> bool:
     result = conn.execute(
-        text(
-            "SELECT EXISTS ("
-            "  SELECT 1 FROM pg_indexes"
-            "  WHERE indexname = :name"
-            ")"
-        ),
+        text("SELECT EXISTS (  SELECT 1 FROM pg_indexes  WHERE indexname = :name)"),
         {"name": index_name},
     )
     return result.scalar()
@@ -128,7 +123,9 @@ def main():
         ).scalar()
         if unverified > 0:
             print(f"  Auto-verifying {unverified} existing users...")
-            conn.execute(text("UPDATE users SET email_verified = true WHERE email_verified = false"))
+            conn.execute(
+                text("UPDATE users SET email_verified = true WHERE email_verified = false")
+            )
 
         # Idempotency guard: only flag users if no one is flagged yet (first run)
         already_flagged = conn.execute(
@@ -142,7 +139,9 @@ def main():
                 )
             ).scalar()
             if needs_password_change > 0:
-                print(f"  Flagging {needs_password_change} users for forced password change...")  # lgtm[py/clear-text-logging-sensitive-information]
+                print(
+                    f"  Flagging {needs_password_change} users for forced password change..."
+                )  # lgtm[py/clear-text-logging-sensitive-information]
                 conn.execute(
                     text(
                         "UPDATE users SET force_password_change = true"

@@ -23,13 +23,15 @@ done
 
 # Step 1: Database migration
 echo ""
-echo "[Step 1/3] Running database migration..."
+echo "[Step 1/3] Running database migrations..."
 if [ "$DRY_RUN" = true ]; then
   echo "  Would run: podman-compose run --rm --no-deps backend python -m scripts.migrate_add_reset_token"
   echo "  Would run: podman-compose run --rm --no-deps backend python -m scripts.migrate_remove_haberes"
+  echo "  Would run: podman-compose run --rm --no-deps backend python -m scripts.migrate_db_structure"
 else
   podman-compose run --rm --no-deps backend python -m scripts.migrate_add_reset_token
   podman-compose run --rm --no-deps backend python -m scripts.migrate_remove_haberes
+  podman-compose run --rm --no-deps backend python -m scripts.migrate_db_structure
 fi
 
 # Step 2: Restart services

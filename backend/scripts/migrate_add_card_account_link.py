@@ -39,46 +39,56 @@ def main():
             conn.execute(text("SET search_path TO public"))
 
             # Check if column already exists
-            has_column = conn.execute(text("""
+            has_column = conn.execute(
+                text("""
                 SELECT EXISTS (
                     SELECT 1 FROM information_schema.columns
                     WHERE table_name = 'cards' AND column_name = 'linked_account_id'
                 )
-            """)).scalar()
+            """)
+            ).scalar()
 
             if has_column:
                 print("Column linked_account_id already exists. Skipping.")
             else:
                 print("Adding linked_account_id column to cards...")
-                conn.execute(text("""
+                conn.execute(
+                    text("""
                     ALTER TABLE cards ADD COLUMN linked_account_id INTEGER
                     REFERENCES accounts(id) ON DELETE SET NULL
-                """))
+                """)
+                )
                 print("  ✓ Column added")
 
             # Ensure index exists
-            has_index = conn.execute(text("""
+            has_index = conn.execute(
+                text("""
                 SELECT EXISTS (
                     SELECT 1 FROM pg_indexes
                     WHERE tablename = 'cards' AND indexname = 'ix_cards_linked_account_id'
                 )
-            """)).scalar()
+            """)
+            ).scalar()
 
             if not has_index:
                 print("Creating index ix_cards_linked_account_id...")
-                conn.execute(text("""
+                conn.execute(
+                    text("""
                     CREATE INDEX ix_cards_linked_account_id ON cards (linked_account_id)
-                """))
+                """)
+                )
                 print("  ✓ Index created")
             else:
                 print("Index ix_cards_linked_account_id already exists. Skipping.")
 
             # Verify
-            verify = conn.execute(text("""
+            verify = conn.execute(
+                text("""
                 SELECT c.column_name, c.is_nullable
                 FROM information_schema.columns c
                 WHERE c.table_name = 'cards' AND c.column_name = 'linked_account_id'
-            """)).fetchone()
+            """)
+            ).fetchone()
 
             if verify:
                 print(f"\nVerification passed:")

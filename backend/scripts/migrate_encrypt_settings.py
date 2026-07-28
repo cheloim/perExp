@@ -43,11 +43,7 @@ def migrate():
 
         for key_suffix in SENSITIVE_KEYS:
             # Find all settings with this key suffix
-            rows = (
-                db.query(Setting)
-                .filter(Setting.key.like(f"%:{key_suffix}"))
-                .all()
-            )
+            rows = db.query(Setting).filter(Setting.key.like(f"%:{key_suffix}")).all()
 
             for row in rows:
                 if not row.value or _is_already_encrypted(row.value):

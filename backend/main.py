@@ -44,7 +44,27 @@ from app.services.auth import get_password_hash
 async def lifespan(application: FastAPI):
     # Create tables if they don't exist
     Base.metadata.create_all(bind=engine)
-    
+
+    # Validate SECRET_KEY length
+    secret_key = os.getenv("SECRET_KEY", "")
+    if len(secret_key) < 32:
+        raise RuntimeError(
+            "SECRET_KEY must be at least 32 characters. "
+            'Generate one with: python -c "import secrets; print(secrets.token_urlsafe(64))"'
+        )
+
+    # Verify SECRET_KEY can encrypt/decrypt (fail fast)
+    from app.services.encryption import verify_key_works
+    if not verify_key_works():
+        logger.error("SECRET_KEY cannot encrypt/decrypt! Check that the key hasn't changed.")
+        raise RuntimeError("SECRET_KEY is invalid - cannot encrypt/decrypt data. Aborting.")
+
+    # Run encryption migration for existing plaintext data (only if needed)
+    from app.services.encryption import needs_migration
+    if needs_migration():
+        from scripts.migrate_encrypt_fields import migrate_plaintext_data
+        migrate_plaintext_data()
+
     db = SessionLocal()
     if db.query(Category).count() == 0:
         _apply_base_hierarchy(db)

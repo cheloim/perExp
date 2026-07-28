@@ -133,7 +133,7 @@ def check_budget_alerts():
         year, month = today.year, today.month
         month_key = f"{year}-{month:02d}"
 
-        users = db.query(User).filter(User.telegram_chat_id.isnot(None)).all()
+        users = db.query(User).filter(User.telegram_chat_hash.isnot(None)).all()
 
         alerts_sent = 0
         for user in users:
@@ -194,7 +194,7 @@ def check_budget_alerts():
                 db.add(notification)
                 alerts_sent += 1
 
-                if user.telegram_chat_id:
+                if user.telegram_chat_id and user.telegram_chat_id != "[encrypted]":
                     _send_group_telegram_alert(
                         user.telegram_chat_id,
                         group.name,
@@ -251,7 +251,7 @@ def check_budget_alerts():
                 db.add(notification)
                 alerts_sent += 1
 
-                if user.telegram_chat_id:
+                if user.telegram_chat_id and user.telegram_chat_id != "[encrypted]":
                     _send_telegram_alert(
                         user.telegram_chat_id,
                         cat.name,
