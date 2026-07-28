@@ -163,6 +163,42 @@ export const approveAllSuggestions = (minConfidence: number = 0.7) =>
 
 export const discardAllSuggestions = () => api.post("/suggestions/discard-all").then((r) => r.data);
 
+// Recurring Expenses
+export interface RecurringExpense {
+  id: number;
+  merchant_key: string;
+  description: string;
+  amount: number;
+  currency: string;
+  category_id?: number | null;
+  card_id?: number | null;
+  account_id?: number | null;
+  frequency: string;
+  next_charge_date?: string | null;
+  alert_days_before: number;
+  is_active: boolean;
+  last_seen_at?: string | null;
+  created_at: string;
+}
+
+export const getRecurringExpenses = (status: string = "active") =>
+  api.get<RecurringExpense[]>("/recurring", { params: { status } }).then((r) => r.data);
+
+export const updateRecurringExpense = (id: number, data: {
+  amount?: number;
+  frequency?: string;
+  next_charge_date?: string;
+  alert_days_before?: number;
+  is_active?: boolean;
+  category_id?: number;
+}) => api.put<RecurringExpense>(`/recurring/${id}`, data).then((r) => r.data);
+
+export const pauseRecurringExpense = (id: number) =>
+  api.post(`/recurring/${id}/pause`).then((r) => r.data);
+
+export const deleteRecurringExpense = (id: number) =>
+  api.delete(`/recurring/${id}`).then((r) => r.data);
+
 // Budgets
 export const getBudgets = () => api.get<Budget[]>("/budgets").then((r) => r.data);
 

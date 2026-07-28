@@ -283,6 +283,32 @@ class AnalysisHistory(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
 
+class RecurringExpense(Base):
+    __tablename__ = "recurring_expenses"
+    __table_args__ = (Index("ix_recurring_expenses_user_id", "user_id"),)
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    merchant_key = Column(String(255), nullable=False)
+    description = Column(String(500), nullable=False)
+    amount = Column(Float, nullable=False)
+    currency = Column(String, default="ARS")
+    category_id = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
+    card_id = Column(Integer, ForeignKey("cards.id", ondelete="SET NULL"), nullable=True)
+    account_id = Column(Integer, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True)
+    frequency = Column(String, default="monthly")
+    next_charge_date = Column(Date, nullable=True)
+    alert_days_before = Column(Integer, default=3)
+    is_active = Column(Boolean, default=True)
+    last_seen_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, onupdate=datetime.utcnow)
+
+    user = relationship("User")
+    category = relationship("Category")
+    card = relationship("Card")
+    account = relationship("Account")
+
+
 class Setting(Base):
     __tablename__ = "settings"
     key = Column(String, primary_key=True)

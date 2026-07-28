@@ -33,6 +33,7 @@ from app.routers import (
     mfa,
     notifications,
     scheduled_expenses,
+    recurring,
     suggestions,
 )
 from app.scheduler import price_refresh_loop
@@ -144,3 +145,4 @@ app.include_router(notifications.router)
 app.include_router(scheduled_expenses.router)
 app.include_router(budgets.router)
 app.include_router(suggestions.router)
+app.include_router(recurring.router)

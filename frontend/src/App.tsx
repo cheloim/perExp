@@ -22,7 +22,7 @@ const ImportJobPreview = lazy(() => import("./pages/ImportJobPreview"));
 const CategoriesPage = lazy(() => import("./pages/CategoriesPage"));
 const CategoryDashboard = lazy(() => import("./pages/CategoryDashboard"));
 const BudgetPage = lazy(() => import("./pages/BudgetPage"));
-const InstallmentsPage = lazy(() => import("./pages/InstallmentsPage"));
+const GastosProgramadosPage = lazy(() => import("./pages/GastosProgramadosPage"));
 const InvestmentsPage = lazy(() => import("./pages/InvestmentsPage"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
@@ -78,9 +78,9 @@ const TABS = [
     tour: "sidebar-budget",
   },
   {
-    path: "/installments",
-    label: "Cuotas",
-    icon: "installments",
+    path: "/programados",
+    label: "Programados",
+    icon: "calendar_month",
     exact: false,
   },
   {
@@ -578,10 +578,10 @@ function MainLayout() {
                         }
                       />
                       <Route
-                        path="/installments"
+                        path="/programados"
                         element={
                           <RequireAuth>
-                            <InstallmentsPage />
+                            <GastosProgramadosPage />
                           </RequireAuth>
                         }
                       />

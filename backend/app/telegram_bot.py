@@ -2123,6 +2123,10 @@ async def _run_bot(token: str) -> None:
 
     conv_handler = ConversationHandler(
         entry_points=[
+            CommandHandler("suscripciones", cmd_suscripciones),
+            CommandHandler("pausar", cmd_pausar),
+            CommandHandler("cancelar", cmd_cancelar),
+            CommandHandler("ver", cmd_ver),
             CommandHandler("start", start),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
         ],
@@ -2184,3 +2188,231 @@ async def _run_bot(token: str) -> None:
         await app.updater.stop()
         await app.stop()
         await app.shutdown()
+
+
+# ─── Recurring expenses commands ──────────────────────────────────────────────
+
+
+async def cmd_suscripciones(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /suscripciones command - list active subscriptions."""
+    user = _get_user_by_chat_id(str(update.effective_chat.id))
+    if not user:
+        await update.message.reply_text("Primero autenticate con /start.")
+        return
+
+    db = SessionLocal()
+    try:
+        from app.models import RecurringExpense
+
+        subs = (
+            db.query(RecurringExpense)
+            .filter(
+                RecurringExpense.user_id == user.id,
+                RecurringExpense.is_active == True,  # noqa: E712
+            )
+            .order_by(RecurringExpense.next_charge_date.asc().nullslast())
+            .all()
+        )
+
+        if not subs:
+            await update.message.reply_text("No tenés suscripciones activas.", parse_mode="HTML")
+            return
+
+        lines = ["<b>📅 Tus suscripciones:</b>\n"]
+        total = 0
+        for s in subs:
+            days_until = (s.next_charge_date - date.today()).days if s.next_charge_date else None
+            days_str = f" (en {days_until} días)" if days_until is not None else ""
+            date_str = s.next_charge_date.strftime("%d/%m") if s.next_charge_date else "?"
+            lines.append(
+                f"• {_escape_html(s.description)} — {_format_amount(s.amount, s.currency)} (próx: {date_str}{days_str})"
+            )
+            total += s.amount
+
+        lines.append(f"\n💰 <b>Total mensual:</b> {_format_amount(total, 'ARS')}")
+
+        await update.message.reply_text("\n".join(lines), parse_mode="HTML")
+    finally:
+        db.close()
+
+
+async def cmd_pausar(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /pausar command - pause a subscription immediately."""
+    user = _get_user_by_chat_id(str(update.effective_chat.id))
+    if not user:
+        await update.message.reply_text("Primero autenticate con /start.")
+        return
+
+    args = context.args
+    if not args:
+        await update.message.reply_text(
+            "Uso: /pausar <nombre>\nEjemplo: /pausar Netflix",
+            parse_mode="HTML",
+        )
+        return
+
+    name = " ".join(args)
+    db = SessionLocal()
+    try:
+        from app.models import RecurringExpense
+        from app.services.categorization import _normalize_merchant_key
+
+        # Fuzzy match
+        rec = _find_recurring(user.id, name, db)
+
+        if not rec:
+            await update.message.reply_text(
+                f"No encontré una suscripción que coincida con '{name}'.",
+                parse_mode="HTML",
+            )
+            return
+
+        rec.is_active = False
+        db.commit()
+
+        await update.message.reply_text(
+            f"⏸️ <b>{_escape_html(rec.description)}</b> pausado.\n"
+            f"Usá /suscripciones para ver el listado.",
+            parse_mode="HTML",
+        )
+    finally:
+        db.close()
+
+
+async def cmd_cancelar(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /cancelar command - permanently delete a subscription."""
+    user = _get_user_by_chat_id(str(update.effective_chat.id))
+    if not user:
+        await update.message.reply_text("Primero autenticate con /start.")
+        return
+
+    args = context.args
+    if not args:
+        await update.message.reply_text(
+            "Uso: /cancelar <nombre>\nEjemplo: /cancelar Netflix",
+            parse_mode="HTML",
+        )
+        return
+
+    name = " ".join(args)
+    db = SessionLocal()
+    try:
+        from app.models import RecurringExpense
+
+        rec = _find_recurring(user.id, name, db)
+
+        if not rec:
+            await update.message.reply_text(
+                f"No encontré una suscripción que coincida con '{name}'.",
+                parse_mode="HTML",
+            )
+            return
+
+        desc = _escape_html(rec.description)
+        db.delete(rec)
+        db.commit()
+
+        await update.message.reply_text(
+            f"🗑️ <b>{desc}</b> eliminado permanentemente.\nUsá /suscripciones para ver el listado.",
+            parse_mode="HTML",
+        )
+    finally:
+        db.close()
+
+
+async def cmd_ver(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /ver command - show subscription details."""
+    user = _get_user_by_chat_id(str(update.effective_chat.id))
+    if not user:
+        await update.message.reply_text("Primero autenticate con /start.")
+        return
+
+    args = context.args
+    if not args:
+        await update.message.reply_text(
+            "Uso: /ver <nombre>\nEjemplo: /ver Netflix",
+            parse_mode="HTML",
+        )
+        return
+
+    name = " ".join(args)
+    db = SessionLocal()
+    try:
+        from app.models import RecurringExpense
+
+        rec = _find_recurring(user.id, name, db)
+
+        if not rec:
+            await update.message.reply_text(
+                f"No encontré una suscripción que coincida con '{name}'.",
+                parse_mode="HTML",
+            )
+            return
+
+        # Build category tree
+        cat_name = ""
+        if rec.category:
+            cat_name = rec.category.name
+
+        status = "✅ Activo" if rec.is_active else "⏸️ Pausado"
+        next_date = (
+            rec.next_charge_date.strftime("%d/%m/%Y") if rec.next_charge_date else "No definido"
+        )
+
+        msg = (
+            f"📺 <b>{_escape_html(rec.description)}</b>\n\n"
+            f"💰 {_format_amount(rec.amount, rec.currency)}/mes\n"
+            f"📅 Próximo cargo: {next_date}\n"
+            f"🔔 Alerta: {rec.alert_days_before} días antes\n"
+            f"📊 Estado: {status}\n"
+            f"📂 Categoría: {cat_name or 'Sin categoría'}"
+        )
+
+        if rec.last_seen_at:
+            msg += f"\n🕐 Último visto: {rec.last_seen_at.strftime('%d/%m/%Y')}"
+
+        await update.message.reply_text(msg, parse_mode="HTML")
+    finally:
+        db.close()
+
+
+def _find_recurring(user_id: int, name: str, db) -> "RecurringExpense | None":
+    """Find recurring expense by fuzzy name match."""
+    from app.models import RecurringExpense
+
+    name_lower = name.lower().strip()
+
+    # 1. Exact match (case-insensitive)
+    exact = (
+        db.query(RecurringExpense)
+        .filter(
+            RecurringExpense.user_id == user_id,
+            func.lower(RecurringExpense.description) == name_lower,
+        )
+        .first()
+    )
+    if exact:
+        return exact
+
+    # 2. Contains match
+    contains = (
+        db.query(RecurringExpense)
+        .filter(
+            RecurringExpense.user_id == user_id,
+            RecurringExpense.description.ilike(f"%{name_lower}%"),
+        )
+        .first()
+    )
+    if contains:
+        return contains
+
+    # 3. Startswith match
+    starts = (
+        db.query(RecurringExpense)
+        .filter(
+            RecurringExpense.user_id == user_id,
+            RecurringExpense.description.ilike(f"{name_lower}%"),
+        )
+        .first()
+    )
+    return starts
