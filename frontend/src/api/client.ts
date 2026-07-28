@@ -83,8 +83,6 @@ export const getMe = () => api.get<User>("/auth/me").then((r) => r.data);
 export const markOnboardingCompleted = () =>
   api.put<User>("/auth/me/onboarding").then((r) => r.data);
 
-export const markWhatsNewSeen = () => api.put<User>("/auth/me/whats-new").then((r) => r.data);
-
 export const changePassword = (current_password: string, new_password: string) =>
   api.put("/auth/password", { current_password, new_password });
 
@@ -660,9 +658,10 @@ export const fetchUsdRate = () =>
 
 export const lookupSymbols = (symbols: string[]) =>
   api
-    .get<
-      Record<string, { symbol: string; name: string; price: number | null; currency: string }>
-    >("/investments/lookup-batch", { params: { symbols: symbols.join(",") } })
+    .get<Record<string, { symbol: string; name: string; price: number | null; currency: string }>>(
+      "/investments/lookup-batch",
+      { params: { symbols: symbols.join(",") } },
+    )
     .then((r) => r.data);
 
 export const deleteInvestment = (id: number) =>
@@ -715,9 +714,9 @@ export const refreshManualPrices = () =>
 
 export const getManualCashBalances = () =>
   api
-    .get<
-      Record<string, { ars: number | null; usd: number | null }>
-    >("/investments/manual-cash-balances")
+    .get<Record<string, { ars: number | null; usd: number | null }>>(
+      "/investments/manual-cash-balances",
+    )
     .then((r) => r.data);
 
 export const putManualCashBalance = (broker: string, ars: number | null, usd: number | null) =>

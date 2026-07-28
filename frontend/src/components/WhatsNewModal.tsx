@@ -1,7 +1,4 @@
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { markWhatsNewSeen } from "../api/client";
-import SymbolicIcon from "./SymbolicIcon";
+import { SymbolicIcon } from "./SymbolicIcon";
 import { CHANGES, LATEST_VERSION } from "../data/changes";
 
 // Set this to false to hide the "What's New" modal for all users
@@ -13,25 +10,6 @@ interface WhatsNewModalProps {
 }
 
 function WhatsNewModal({ onClose }: WhatsNewModalProps) {
-  const qc = useQueryClient();
-  const [dontShowAgain, setDontShowAgain] = useState(false);
-
-  const markSeenMutation = useMutation({
-    mutationFn: markWhatsNewSeen,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["user"] });
-      onClose();
-    },
-  });
-
-  const handleClose = () => {
-    if (dontShowAgain) {
-      markSeenMutation.mutate();
-    } else {
-      onClose();
-    }
-  };
-
   const latestVersion = CHANGES[0];
 
   if (!SHOW_WHATS_NEW) return null;
@@ -82,18 +60,9 @@ function WhatsNewModal({ onClose }: WhatsNewModalProps) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 pb-6 space-y-3">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={dontShowAgain}
-              onChange={(e) => setDontShowAgain(e.target.checked)}
-              className="w-4 h-4 rounded accent-[var(--color-primary)]"
-            />
-            <span className="text-xs text-[var(--text-secondary)]">No mostrar de nuevo</span>
-          </label>
+        <div className="px-6 pb-6">
           <button
-            onClick={handleClose}
+            onClick={onClose}
             className="w-full px-4 py-2.5 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90"
           >
             Entendido
