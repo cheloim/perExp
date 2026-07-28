@@ -420,7 +420,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="py-12 px-4 border-t border-[var(--border-color)]">
         <div className="max-w-4xl mx-auto">
-          <div className="grid sm:grid-cols-3 gap-8 mb-8">
+          <div className="grid sm:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-8 h-8 rounded-lg bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-sm">
@@ -444,24 +444,34 @@ export default function LandingPage() {
                   </a>
                 </li>
                 <li>
+                  <a
+                    href="https://t.me/NikoFin_bot"
+                    className="hover:text-[var(--text-primary)] transition"
+                  >
+                    Bot de Telegram
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://github.com/cheloim/perExp"
+                    className="hover:text-[var(--text-primary)] transition"
+                  >
+                    GitHub
+                  </a>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold text-[var(--text-primary)] mb-3">Documentación</h4>
+              <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
+                <li>
                   <a href="/guide" className="hover:text-[var(--text-primary)] transition">
                     Guía de usuario
                   </a>
                 </li>
                 <li>
-                  <a
-                    href="https://platform.oikonomia.ar/login"
-                    className="hover:text-[var(--text-primary)] transition"
-                  >
-                    Iniciar sesión
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://platform.oikonomia.ar/register"
-                    className="hover:text-[var(--text-primary)] transition"
-                  >
-                    Registrarse
+                  <a href="/novedades" className="hover:text-[var(--text-primary)] transition">
+                    Novedades
                   </a>
                 </li>
               </ul>
