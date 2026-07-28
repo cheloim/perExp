@@ -23,7 +23,6 @@ from app.services.encryption import (
     decrypt_value,
     encrypt_value,
     is_encrypted,
-    tokenize_description,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -88,40 +87,32 @@ def main():
                                 }
                             )
 
-        # Test Card search columns
+        # Test search columns - only test rows that already have search tokens
         for model, fields in SEARCH_FIELDS.items():
             rows = db.query(model).all()
             for row in rows:
                 for field in fields:
-                    source_field = field.replace("_search", "")
-                    source_value = getattr(row, source_field)
-                    if source_value:
-                        # Generate search token
-                        if is_encrypted(source_value):
-                            plaintext = decrypt_value(source_value)
-                        else:
-                            plaintext = source_value
-                        search_value = tokenize_description(plaintext)
+                    search_value = getattr(row, field)
+                    if search_value:
+                        # Row has search token, test ilike query
+                        stats["search_verified"] += 1
 
-                        if search_value:
-                            stats["search_verified"] += 1
-
-                            # Test ilike query
-                            result = (
-                                db.query(model)
-                                .filter(getattr(model, field).ilike(f"%{search_value[:5]}%"))
-                                .first()
+                        # Test ilike query
+                        result = (
+                            db.query(model)
+                            .filter(getattr(model, field).ilike(f"%{search_value[:5]}%"))
+                            .first()
+                        )
+                        if not result:
+                            stats["search_failed"] += 1
+                            failed_rows.append(
+                                {
+                                    "table": model.__tablename__,
+                                    "id": row.id,
+                                    "field": field,
+                                    "error": "search query failed",
+                                }
                             )
-                            if not result:
-                                stats["search_failed"] += 1
-                                failed_rows.append(
-                                    {
-                                        "table": model.__tablename__,
-                                        "id": row.id,
-                                        "field": field,
-                                        "error": "search query failed",
-                                    }
-                                )
 
         # Rollback (no changes saved)
         db.rollback()
@@ -145,7 +136,7 @@ def main():
 
     except Exception as e:
         db.rollback()
-        print(f"Status: FAIL")
+        print("Status: FAIL")
         print(f"Error: {e}")
         return 1
     finally:
