@@ -1,12 +1,15 @@
 """API endpoints for AI category suggestions."""
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import CategorySuggestion, Expense, Notification
+from app.models import CategorySuggestion, Expense, MerchantPreference, Notification
 from app.services.auth import get_current_user
+from app.services.categorization import _normalize_merchant_key
 
 router = APIRouter(prefix="/suggestions", tags=["suggestions"])
 
@@ -94,6 +97,32 @@ def approve_suggestion(
     if expense:
         expense.category_id = suggestion.suggested_category_id
 
+        # Track merchant preference
+        merchant_key = _normalize_merchant_key(expense.description)
+        if merchant_key:
+            pref = (
+                db.query(MerchantPreference)
+                .filter(
+                    MerchantPreference.user_id == current_user.id,
+                    MerchantPreference.merchant_key == merchant_key,
+                )
+                .first()
+            )
+            if pref:
+                pref.category_id = suggestion.suggested_category_id
+                pref.usage_count += 1
+                pref.confidence = min(1.0, pref.confidence + 0.1)
+                pref.last_used_at = datetime.utcnow()
+            else:
+                pref = MerchantPreference(
+                    user_id=current_user.id,
+                    merchant_key=merchant_key,
+                    category_id=suggestion.suggested_category_id,
+                    confidence=1.0,
+                    usage_count=1,
+                )
+                db.add(pref)
+
     # Mark suggestion as approved
     suggestion.status = "approved"
 
@@ -153,6 +182,33 @@ def approve_all_suggestions(
         expense = db.query(Expense).filter(Expense.id == s.expense_id).first()
         if expense:
             expense.category_id = s.suggested_category_id
+
+            # Track merchant preference
+            merchant_key = _normalize_merchant_key(expense.description)
+            if merchant_key:
+                pref = (
+                    db.query(MerchantPreference)
+                    .filter(
+                        MerchantPreference.user_id == current_user.id,
+                        MerchantPreference.merchant_key == merchant_key,
+                    )
+                    .first()
+                )
+                if pref:
+                    pref.category_id = s.suggested_category_id
+                    pref.usage_count += 1
+                    pref.confidence = min(1.0, pref.confidence + 0.1)
+                    pref.last_used_at = datetime.utcnow()
+                else:
+                    pref = MerchantPreference(
+                        user_id=current_user.id,
+                        merchant_key=merchant_key,
+                        category_id=s.suggested_category_id,
+                        confidence=1.0,
+                        usage_count=1,
+                    )
+                    db.add(pref)
+
         s.status = "approved"
         count += 1
 

@@ -144,7 +144,7 @@ CATEGORY_SUGGEST_PROMPT = """Sos un asistente que sugiere categorías de gastos 
 Categorías disponibles (formato: ID:N Padre > Hijo [palabras clave]):
 {formatted_categories}
 
-Transacción:
+{user_history}Transacción:
 - Descripción: {description}
 - Monto: {amount}
 
@@ -153,6 +153,7 @@ Reglas:
 - Usá el NUMERO de ID (ej: ID:15), NO el nombre
 - Si ninguna categoría encaja, devolvé category_id: null
 - Respondé SOLO con JSON: {{"category_id": N, "confidence": 0.0-1.0}}
+- Si el usuario ya categorizó este comercio antes, priorizá esa categoría
 
 Si no estás seguro (confidence < 0.5), devolvé {{"category_id": null, "confidence": 0.0}}"""
 
