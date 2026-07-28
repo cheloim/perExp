@@ -2254,9 +2254,6 @@ async def cmd_pausar(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     name = " ".join(args)
     db = SessionLocal()
     try:
-        from app.models import RecurringExpense
-        from app.services.categorization import _normalize_merchant_key
-
         # Fuzzy match
         rec = _find_recurring(user.id, name, db)
 
@@ -2297,8 +2294,6 @@ async def cmd_cancelar(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     name = " ".join(args)
     db = SessionLocal()
     try:
-        from app.models import RecurringExpense
-
         rec = _find_recurring(user.id, name, db)
 
         if not rec:
@@ -2338,7 +2333,6 @@ async def cmd_ver(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     name = " ".join(args)
     db = SessionLocal()
     try:
-
         rec = _find_recurring(user.id, name, db)
 
         if not rec:
