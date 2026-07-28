@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getRecurringExpenses, pauseRecurringExpense, deleteRecurringExpense } from "../api/client";
-import type { RecurringExpense } from "../api/client";
 import { formatCurrency, formatDateDMY } from "../utils/format";
 import EmptyState from "../components/ui/EmptyState";
 

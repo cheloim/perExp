@@ -2338,7 +2338,6 @@ async def cmd_ver(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     name = " ".join(args)
     db = SessionLocal()
     try:
-        from app.models import RecurringExpense
 
         rec = _find_recurring(user.id, name, db)
 
@@ -2376,7 +2375,7 @@ async def cmd_ver(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         db.close()
 
 
-def _find_recurring(user_id: int, name: str, db) -> "RecurringExpense | None":
+def _find_recurring(user_id: int, name: str, db):
     """Find recurring expense by fuzzy name match."""
     from app.models import RecurringExpense
 
