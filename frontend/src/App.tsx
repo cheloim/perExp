@@ -244,18 +244,16 @@ function MainLayout() {
   const { ToastContainer } = useUndoToast();
 
   // Check if we should show What's New modal (only on /)
+  // Uses sessionStorage: shows once per browser session, resets on new version
   useEffect(() => {
     const checkWhatsNew = async () => {
       try {
         if (location.pathname !== "/") return;
+        if (sessionStorage.getItem("whats_new_dismissed") === "true") return;
         const { SHOW_WHATS_NEW } = await import("./components/WhatsNewModal");
         if (!SHOW_WHATS_NEW) return;
-        const { getMe } = await import("./api/client");
-        const user = await getMe();
-        if (user && user.onboarding_completed && !user.whats_new_seen) {
-          // Show modal after a short delay to let the page render
-          setTimeout(() => setShowWhatsNew(true), 1500);
-        }
+        sessionStorage.setItem("whats_new_dismissed", "true");
+        setTimeout(() => setShowWhatsNew(true), 1500);
       } catch {
         // Ignore errors
       }
