@@ -72,10 +72,10 @@ function processLine(line: string, lineIdx: number): React.ReactNode {
     const level = trimmed.startsWith("#### ")
       ? 4
       : trimmed.startsWith("### ")
-        ? 3
-        : trimmed.startsWith("## ")
-          ? 2
-          : 1;
+      ? 3
+      : trimmed.startsWith("## ")
+      ? 2
+      : 1;
     const text = trimmed.replace(/^#{1,4}\s*/, "");
     return (
       <p

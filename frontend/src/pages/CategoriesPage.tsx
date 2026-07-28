@@ -57,7 +57,7 @@ function CategoryForm({
           name: "",
           color: "#3b82f6",
           keywords: "",
-          parent_id: isParentForm ? null : (parentCategories[0]?.id ?? null),
+          parent_id: isParentForm ? null : parentCategories[0]?.id ?? null,
         },
   );
 

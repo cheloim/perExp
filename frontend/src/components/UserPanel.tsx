@@ -450,7 +450,7 @@ export default function UserPanel({ open, onClose }: Props) {
       const detail = e?.response?.data?.detail;
       const msg = Array.isArray(detail)
         ? detail.map((d) => d.msg ?? String(d)).join(", ")
-        : (detail ?? "Error al eliminar cuenta");
+        : detail ?? "Error al eliminar cuenta";
       setDeleteError(msg);
     },
   });
@@ -751,15 +751,15 @@ export default function UserPanel({ open, onClose }: Props) {
                               m.status === "accepted"
                                 ? "bg-[var(--gnome-green-3,#33d17a)]/20 text-[var(--gnome-green-5,#26a269)]"
                                 : m.status === "pending"
-                                  ? "bg-[var(--gnome-yellow-3,#f6d32d)]/20 text-[var(--gnome-yellow-5,#e5a50a)]"
-                                  : "bg-[var(--color-base-alt)] text-[var(--text-tertiary)]"
+                                ? "bg-[var(--gnome-yellow-3,#f6d32d)]/20 text-[var(--gnome-yellow-5,#e5a50a)]"
+                                : "bg-[var(--color-base-alt)] text-[var(--text-tertiary)]"
                             }`}
                           >
                             {m.status === "accepted"
                               ? "Activo"
                               : m.status === "pending"
-                                ? "Pendiente"
-                                : m.status}
+                              ? "Pendiente"
+                              : m.status}
                           </span>
                         </li>
                       ))}
@@ -1334,10 +1334,10 @@ export default function UserPanel({ open, onClose }: Props) {
                         {deleteStep === "email"
                           ? "Siguiente"
                           : deleteStep === "password"
-                            ? deleteAccountMut.isPending
-                              ? "Eliminando..."
-                              : "Eliminar cuenta"
-                            : "Siguiente"}
+                          ? deleteAccountMut.isPending
+                            ? "Eliminando..."
+                            : "Eliminar cuenta"
+                          : "Siguiente"}
                       </button>
                       <button
                         onClick={() => {
