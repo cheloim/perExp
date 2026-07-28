@@ -53,11 +53,13 @@ def step1_unique_constraint(engine):
             if _constraint_exists(conn, "uq_group_member"):
                 print("  Constraint uq_group_member already exists. Skipping.")
             else:
-                conn.execute(text("""
+                conn.execute(
+                    text("""
                     ALTER TABLE group_members
                     ADD CONSTRAINT uq_group_member
                     UNIQUE (group_id, user_id)
-                """))
+                """)
+                )
                 print("  Added UNIQUE(group_id, user_id) constraint.")
         else:
             print("  Skipping — only supported on PostgreSQL.")
@@ -72,12 +74,14 @@ def step2_card_closing_card_id(engine):
 
         # Check if column already exists
         if dialect == "postgresql":
-            exists = conn.execute(text("""
+            exists = conn.execute(
+                text("""
                 SELECT EXISTS (
                     SELECT 1 FROM information_schema.columns
                     WHERE table_name = 'card_closings' AND column_name = 'card_id'
                 )
-            """)).scalar()
+            """)
+            ).scalar()
         else:
             exists = False
 
@@ -88,7 +92,8 @@ def step2_card_closing_card_id(engine):
             print("  Added card_id column.")
 
         # Backfill: match card_closings to cards by (user_id, card_name, bank)
-        result = conn.execute(text("""
+        result = conn.execute(
+            text("""
             UPDATE card_closings cc
             SET card_id = c.id
             FROM cards c
@@ -96,17 +101,20 @@ def step2_card_closing_card_id(engine):
             AND cc.user_id = c.user_id
             AND LOWER(TRIM(cc.card)) = LOWER(TRIM(c.card_name))
             AND LOWER(TRIM(COALESCE(cc.bank, ''))) = LOWER(TRIM(COALESCE(c.bank, '')))
-        """))
+        """)
+        )
         print(f"  Backfilled {result.rowcount} card_closings with card_id.")
 
         # Add FK constraint
         if dialect == "postgresql":
             try:
-                conn.execute(text("""
+                conn.execute(
+                    text("""
                     ALTER TABLE card_closings
                     ADD CONSTRAINT fk_card_closings_card_id
                     FOREIGN KEY (card_id) REFERENCES cards(id)
-                """))
+                """)
+                )
                 print("  Added FK constraint.")
             except Exception as e:
                 print(f"  FK constraint warning: {e}")
@@ -123,23 +131,27 @@ def step3_nullable_user_id(engine):
 
         for table in tables:
             # Backfill NULL user_id with first seed user
-            result = conn.execute(text(f"""
+            result = conn.execute(
+                text(f"""
                 UPDATE {table}
                 SET user_id = (
                     SELECT id FROM users ORDER BY id LIMIT 1
                 )
                 WHERE user_id IS NULL
-            """))
+            """)
+            )
             if result.rowcount > 0:
                 print(f"  {table}: backfilled {result.rowcount} rows with seed user_id.")
 
             # Set NOT NULL
             if dialect == "postgresql":
                 try:
-                    conn.execute(text(f"""
+                    conn.execute(
+                        text(f"""
                         ALTER TABLE {table}
                         ALTER COLUMN user_id SET NOT NULL
-                    """))
+                    """)
+                    )
                     print(f"  {table}.user_id → NOT NULL.")
                 except Exception as e:
                     print(f"  {table}: could not set NOT NULL — {e}")
@@ -203,48 +215,51 @@ def step5_onboarding_completed(engine):
         dialect = engine.dialect.name
 
         if dialect == "postgresql":
-            exists = conn.execute(text("""
+            exists = conn.execute(
+                text("""
                 SELECT EXISTS (
                     SELECT 1 FROM information_schema.columns
                     WHERE table_name = 'users' AND column_name = 'onboarding_completed'
                 )
-            """)).scalar()
+            """)
+            ).scalar()
         else:
             exists = False
 
         if exists:
             print("  onboarding_completed already exists. Skipping.")
         else:
-            conn.execute(text(
-                "ALTER TABLE users ADD COLUMN onboarding_completed BOOLEAN DEFAULT FALSE"
-            ))
+            conn.execute(
+                text("ALTER TABLE users ADD COLUMN onboarding_completed BOOLEAN DEFAULT FALSE")
+            )
             print("  Added onboarding_completed BOOLEAN DEFAULT FALSE.")
 
 
-def step6_whats_new_seen(engine):
-    """Add whats_new_seen column to users table."""
-    print("\n[Step 6/6] Adding whats_new_seen to users...")
+def step6_drop_whats_new_seen(engine):
+    """Drop whats_new_seen column from users table."""
+    print("\n[Step 6] Dropping whats_new_seen column...")
 
     with engine.begin() as conn:
         dialect = engine.dialect.name
 
-        if dialect == "postgresql":
-            exists = conn.execute(text("""
-                SELECT EXISTS (
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_name = 'users' AND column_name = 'whats_new_seen'
-                )
-            """)).scalar()
-        else:
-            exists = False
+        if dialect != "postgresql":
+            print("  Skipping — only supported on PostgreSQL.")
+            return
+
+        exists = conn.execute(
+            text("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'users' AND column_name = 'whats_new_seen'
+            )
+        """)
+        ).scalar()
 
         if exists:
-            print("  whats_new_seen already exists. Skipping.")
+            conn.execute(text("ALTER TABLE users DROP COLUMN whats_new_seen"))
+            print("  Dropped whats_new_seen column.")
         else:
-            conn.execute(text(
-                "ALTER TABLE users ADD COLUMN whats_new_seen BOOLEAN DEFAULT FALSE"
-            ))
-            print("  Added whats_new_seen BOOLEAN DEFAULT FALSE.")
+            print("  whats_new_seen already dropped. Skipping.")
 
 
 def main():
@@ -259,7 +274,7 @@ def main():
     step3_nullable_user_id(engine)
     step4_indexes(engine)
     step5_onboarding_completed(engine)
-    step6_whats_new_seen(engine)
+    step6_drop_whats_new_seen(engine)
 
     print("\n" + "=" * 60)
     print("Migration complete!")

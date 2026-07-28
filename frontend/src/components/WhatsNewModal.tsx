@@ -1,7 +1,5 @@
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { markWhatsNewSeen } from "../api/client";
-import SymbolicIcon from "./SymbolicIcon";
+import { SymbolicIcon } from "./SymbolicIcon";
+import { CHANGES, LATEST_VERSION } from "../data/changes";
 
 // Set this to false to hide the "What's New" modal for all users
 // Re-enable by setting to true when you want to show it
@@ -12,48 +10,7 @@ interface WhatsNewModalProps {
 }
 
 function WhatsNewModal({ onClose }: WhatsNewModalProps) {
-  const qc = useQueryClient();
-  const [dontShowAgain, setDontShowAgain] = useState(false);
-
-  const markSeenMutation = useMutation({
-    mutationFn: markWhatsNewSeen,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["user"] });
-      onClose();
-    },
-  });
-
-  const handleClose = () => {
-    if (dontShowAgain) {
-      markSeenMutation.mutate();
-    } else {
-      onClose();
-    }
-  };
-
-  const features = [
-    {
-      icon: "chart-bar" as const,
-      title: "Presupuestos por categoría",
-      description:
-        "Distribuí tu ingreso en Necesidades y Gustos, asigná límites por categoría y recibí alertas cuando te acercás al límite.",
-      color: "#3584e4",
-    },
-    {
-      icon: "chart-bar" as const,
-      title: "Eventos temporales",
-      description:
-        "Creá presupuestos para vacaciones, viajes o cualquier evento especial. Vinculá gastos directamente al evento desde Telegram.",
-      color: "#2ec27e",
-    },
-    {
-      icon: "bot" as const,
-      title: "Mejoras en el bot de Telegram",
-      description:
-        "El bot ahora detecta automáticamente si un gasto pertenece a un evento temporal y te pregunta antes de guardarlo.",
-      color: "#3584e4",
-    },
-  ];
+  const latestVersion = CHANGES[0];
 
   if (!SHOW_WHATS_NEW) return null;
 
@@ -68,14 +25,16 @@ function WhatsNewModal({ onClose }: WhatsNewModalProps) {
             </div>
             <div>
               <h2 className="text-lg font-bold">¡Novedades!</h2>
-              <p className="text-sm text-white/80">Lo que agregamos recientemente</p>
+              <p className="text-sm text-white/80">
+                {latestVersion.version} — {latestVersion.title}
+              </p>
             </div>
           </div>
         </div>
 
         {/* Features */}
         <div className="p-6 space-y-4">
-          {features.map((feature, i) => (
+          {latestVersion.features.map((feature, i) => (
             <div key={i} className="flex items-start gap-3">
               <div
                 className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -92,27 +51,18 @@ function WhatsNewModal({ onClose }: WhatsNewModalProps) {
 
           <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
             <a
-              href="/guide"
+              href={`/changes/${LATEST_VERSION}`}
               className="text-sm text-[var(--color-primary)] hover:underline font-medium"
             >
-              Ver guía completa →
+              Ver cambios →
             </a>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-6 pb-6 space-y-3">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={dontShowAgain}
-              onChange={(e) => setDontShowAgain(e.target.checked)}
-              className="w-4 h-4 rounded accent-[var(--color-primary)]"
-            />
-            <span className="text-xs text-[var(--text-secondary)]">No mostrar de nuevo</span>
-          </label>
+        <div className="px-6 pb-6">
           <button
-            onClick={handleClose}
+            onClick={onClose}
             className="w-full px-4 py-2.5 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90"
           >
             Entendido
