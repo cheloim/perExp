@@ -1,10 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  getRecurringExpenses,
-  pauseRecurringExpense,
-  deleteRecurringExpense,
-} from "../api/client";
+import { getRecurringExpenses, pauseRecurringExpense, deleteRecurringExpense } from "../api/client";
 import type { RecurringExpense } from "../api/client";
 import { formatCurrency, formatDateDMY } from "../utils/format";
 import EmptyState from "../components/ui/EmptyState";
@@ -13,8 +9,7 @@ type Tab = "cuotas" | "recurrentes" | "manuales";
 
 function RecurringIcon({ name }: { name: string }) {
   const lower = name.toLowerCase();
-  if (lower.includes("netflix") || lower.includes("spotify") || lower.includes("hbo"))
-    return "📺";
+  if (lower.includes("netflix") || lower.includes("spotify") || lower.includes("hbo")) return "📺";
   if (lower.includes("gym") || lower.includes("fitness")) return "💪";
   if (lower.includes("internet") || lower.includes("wifi")) return "🌐";
   if (lower.includes("seguro") || lower.includes("insurance")) return "🛡️";
@@ -121,15 +116,15 @@ export default function GastosProgramadosPage() {
           {/* Recurring list */}
           {filteredRecurring.map((rec) => {
             const daysUntil = rec.next_charge_date
-              ? Math.max(0, Math.ceil((new Date(rec.next_charge_date).getTime() - Date.now()) / 86400000))
+              ? Math.max(
+                  0,
+                  Math.ceil((new Date(rec.next_charge_date).getTime() - Date.now()) / 86400000),
+                )
               : null;
             const isPaused = !rec.is_active;
 
             return (
-              <div
-                key={rec.id}
-                className={`card p-4 ${isPaused ? "opacity-60" : ""}`}
-              >
+              <div key={rec.id} className={`card p-4 ${isPaused ? "opacity-60" : ""}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="text-2xl">{RecurringIcon({ name: rec.description })}</span>
@@ -143,9 +138,7 @@ export default function GastosProgramadosPage() {
                           <span className="ml-2">
                             · Próx: {formatDateDMY(rec.next_charge_date)}
                             {daysUntil !== null && daysUntil <= 3 && (
-                              <span className="text-[var(--gnome-yellow-4)]">
-                                {" "}({daysUntil}d)
-                              </span>
+                              <span className="text-[var(--gnome-yellow-4)]"> ({daysUntil}d)</span>
                             )}
                           </span>
                         )}
@@ -182,11 +175,7 @@ export default function GastosProgramadosPage() {
         <div className="card">
           <EmptyState
             icon="📝"
-            title={
-              tab === "cuotas"
-                ? "Sin gastos en cuotas"
-                : "Sin gastos manuales programados"
-            }
+            title={tab === "cuotas" ? "Sin gastos en cuotas" : "Sin gastos manuales programados"}
             description={
               tab === "cuotas"
                 ? "Las cuotas de tus compras aparecerán aquí"

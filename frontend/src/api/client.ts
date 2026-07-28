@@ -184,14 +184,17 @@ export interface RecurringExpense {
 export const getRecurringExpenses = (status: string = "active") =>
   api.get<RecurringExpense[]>("/recurring", { params: { status } }).then((r) => r.data);
 
-export const updateRecurringExpense = (id: number, data: {
-  amount?: number;
-  frequency?: string;
-  next_charge_date?: string;
-  alert_days_before?: number;
-  is_active?: boolean;
-  category_id?: number;
-}) => api.put<RecurringExpense>(`/recurring/${id}`, data).then((r) => r.data);
+export const updateRecurringExpense = (
+  id: number,
+  data: {
+    amount?: number;
+    frequency?: string;
+    next_charge_date?: string;
+    alert_days_before?: number;
+    is_active?: boolean;
+    category_id?: number;
+  },
+) => api.put<RecurringExpense>(`/recurring/${id}`, data).then((r) => r.data);
 
 export const pauseRecurringExpense = (id: number) =>
   api.post(`/recurring/${id}/pause`).then((r) => r.data);
