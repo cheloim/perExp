@@ -723,6 +723,21 @@ jobs:
             source .env
             set +a
 
+            echo "=== Step 0: Verify SECRET_KEY ==="
+            KEY_CHECK=$(podman-compose run --rm backend python -c "
+            from app.services.encryption import verify_key_works
+            if verify_key_works():
+                print('KEY_VALID')
+            else:
+                print('KEY_INVALID')
+            " 2>&1)
+
+            if echo "$KEY_CHECK" | grep -q "KEY_INVALID"; then
+              echo "::error::SECRET_KEY cannot encrypt/decrypt! Aborting deployment."
+              exit 1
+            fi
+            echo "SECRET_KEY verified successfully"
+
             echo "=== Step 1: Database structure migration ==="
             for script in migrate_add_reset_token migrate_remove_haberes migrate_encrypt_settings migrate_add_monthly_reports migrate_db_structure migrate_add_card_account_link migrate_add_budgets migrate_add_category_suggestions; do
               if ! podman-compose run --rm backend python -m scripts.$script; then
