@@ -1,4 +1,4 @@
-import { SymbolicIcon } from "./SymbolicIcon";
+import SymbolicIcon from "./SymbolicIcon";
 import { CHANGES, LATEST_VERSION } from "../data/changes";
 
 // Set this to false to hide the "What's New" modal for all users
