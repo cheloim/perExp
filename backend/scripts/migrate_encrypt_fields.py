@@ -9,8 +9,8 @@ Idempotent: safe to run multiple times (skips already-encrypted rows).
 """
 
 import logging
-import sys
 import os
+import sys
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -19,7 +19,6 @@ from app.database import SessionLocal
 from app.models import AuditLog, Card, Expense, Investment, MonthlyReport, User
 from app.services.encryption import (
     compute_hmac,
-    encrypt_value,
     is_encrypted,
     tokenize_description,
 )
@@ -32,6 +31,8 @@ BATCH_SIZE = 100
 
 def _migrate_users(db):
     """Encrypt user fields and generate telegram_chat_hash."""
+    from sqlalchemy import text
+
     logger.info("Migrating users table...")
     offset = 0
     migrated = 0
@@ -40,6 +41,16 @@ def _migrate_users(db):
         users = db.query(User).offset(offset).limit(BATCH_SIZE).all()
         if not users:
             break
+
+        # Pre-fetch raw telegram_chat_id values from DB (bypass EncryptedType)
+        user_ids = [u.id for u in users]
+        raw_chat_ids = {}
+        if user_ids:
+            placeholders = ",".join([str(i) for i in user_ids])
+            rows = db.execute(
+                text(f"SELECT id, telegram_chat_id FROM users WHERE id IN ({placeholders})")
+            ).fetchall()
+            raw_chat_ids = {r[0]: r[1] for r in rows}
 
         for user in users:
             changed = False
@@ -53,12 +64,15 @@ def _migrate_users(db):
                 changed = True
 
             # Generate telegram_chat_hash if missing
-            if user.telegram_chat_id and not user.telegram_chat_hash:
-                from app.services.encryption import decrypt_value
-
-                # Get the plaintext value (already decrypted by ORM)
-                original_value = user.telegram_chat_id
-                user.telegram_chat_hash = compute_hmac(original_value)
+            # Use raw value from DB to avoid EncryptedType decrypt fallback
+            raw_chat_id = raw_chat_ids.get(user.id)
+            if raw_chat_id and not is_encrypted(raw_chat_id) and not user.telegram_chat_hash:
+                # Value is plaintext, compute HMAC on raw value
+                user.telegram_chat_hash = compute_hmac(raw_chat_id)
+                changed = True
+            elif raw_chat_id and is_encrypted(raw_chat_id) and not user.telegram_chat_hash:
+                # Value is encrypted, decrypt then compute HMAC
+                user.telegram_chat_hash = compute_hmac(user.telegram_chat_id)
                 changed = True
 
             # Encrypt mfa_secret if plaintext
