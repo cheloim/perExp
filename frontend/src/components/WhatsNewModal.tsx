@@ -43,12 +43,8 @@ function WhatsNewModal({ onClose }: WhatsNewModalProps) {
                 <SymbolicIcon name={feature.icon} size={18} />
               </div>
               <div>
-                <p className="text-sm font-semibold text-[var(--text-primary)]">
-                  {feature.title}
-                </p>
-                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                  {feature.description}
-                </p>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">{feature.title}</p>
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">{feature.description}</p>
               </div>
             </div>
           ))}
