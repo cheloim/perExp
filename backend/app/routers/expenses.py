@@ -15,6 +15,7 @@ from app.schemas import ExpenseCreate, ExpenseResponse, ExpenseUpdate
 from app.services.auth import get_current_user
 from app.services.categorization import _normalize_merchant_key, _resolve_category, auto_categorize
 from app.services.date_utils import _normalize_date_str, add_months
+from app.services.encryption import tokenize_description
 from app.services.import_utils import _is_duplicate, _normalize_text
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
@@ -106,15 +107,15 @@ def get_expenses(
         q = q.filter(Expense.category_id.is_(None))
     if bank:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.bank.ilike(f"%{bank}%")
+            Card.bank_search.ilike(f"%{bank}%")
         )
     if person:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.holder.ilike(f"%{person}%")
+            Card.holder_search.ilike(f"%{person}%")
         )
     if card:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.card_name.ilike(f"%{card}%")
+            Card.card_name_search.ilike(f"%{card}%")
         )
     if card_type:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
@@ -133,7 +134,7 @@ def get_expenses(
             Account.name.ilike(f"%{account}%")
         )
     if search:
-        q = q.filter(Expense.description.ilike(f"%{search}%"))
+        q = q.filter(Expense.description_search.ilike(f"%{search}%"))
     # Only exclude future installments when NOT filtering by specific category
     # (category-specific views like side panel need to show all expenses)
     if not category_id and not category_ids:
@@ -285,7 +286,7 @@ def check_duplicate(
         dupe = base.filter(
             Expense.date == exp_date,
             Expense.amount == amount,
-            func.lower(Expense.description) == description.lower(),
+            func.lower(Expense.description_search) == tokenize_description(description),
         ).first()
     if dupe:
         return {
@@ -322,6 +323,7 @@ def create_expense(
     # Normalize description
     if data.get("description"):
         data["description"] = _normalize_text(data["description"])
+        data["description_search"] = tokenize_description(data["description"])
 
     # Always store amount as positive (no sign convention)
     data["amount"] = abs(data["amount"])
@@ -430,6 +432,9 @@ def update_expense(
             data["date"] = pd.to_datetime(normalized, dayfirst=True).date()
     for k, v in data.items():
         setattr(db_exp, k, v)
+    # Update search index if description changed
+    if "description" in data:
+        db_exp.description_search = tokenize_description(data["description"])
     db.commit()
     db.refresh(db_exp)
 
@@ -629,11 +634,11 @@ def get_expense_stats(
         )
     elif card:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.card_name.ilike(f"%{card}%")
+            Card.card_name_search.ilike(f"%{card}%")
         )
     elif bank:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.bank.ilike(f"%{bank}%")
+            Card.bank_search.ilike(f"%{bank}%")
         )
 
     total, count = q.one()
@@ -655,11 +660,11 @@ def get_expense_stats(
             pass
     if card:
         last_used_q = last_used_q.join(Card, Expense.card_id == Card.id).filter(
-            Card.card_name.ilike(f"%{card}%")
+            Card.card_name_search.ilike(f"%{card}%")
         )
     elif bank:
         last_used_q = last_used_q.join(Card, Expense.card_id == Card.id).filter(
-            Card.bank.ilike(f"%{bank}%")
+            Card.bank_search.ilike(f"%{bank}%")
         )
     last_used = last_used_q.scalar()
 
@@ -714,7 +719,7 @@ def get_expenses_by_category(
         q = q.filter(Expense.account_id == account_id)
     if card:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.card_name.ilike(f"%{card}%")
+            Card.card_name_search.ilike(f"%{card}%")
         )
 
     rows = q.all()

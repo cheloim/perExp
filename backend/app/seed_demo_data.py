@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models import Account, Card, Category, Expense, ScheduledExpense, User
 from app.seed import _apply_base_hierarchy_for_user
+from app.services.encryption import tokenize_description
 
 # ─── Merchant pools per category ─────────────────────────────────────────────
 
@@ -373,9 +374,12 @@ def get_or_create_cards(db: Session, user_id: int) -> list[Card]:
         card = Card(
             user_id=user_id,
             card_name=card_name,
+            card_name_search=tokenize_description(card_name),
             bank=bank,
+            bank_search=tokenize_description(bank),
             card_type=card_type,
             holder=first_name,
+            holder_search=tokenize_description(first_name),
         )
         db.add(card)
     db.commit()
@@ -479,6 +483,7 @@ def seed_demo_expenses(db: Session, user_id: int, count: int = 60):
         expense = Expense(
             date=exp_date,
             description=merchant,
+            description_search=tokenize_description(merchant),
             amount=amount,
             category_id=cat.id if cat else None,
             currency="ARS",

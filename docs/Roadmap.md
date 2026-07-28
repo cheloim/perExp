@@ -27,6 +27,7 @@
 | 21 | Recurring expenses tracking | ⏳ Backlog | Medium | - | - | Mark expenses as recurring, auto-suggest duplicates, manage subscriptions |
 | 22 | Savings goals | ⏳ Backlog | Low | - | #8 | Create, track, and visualize savings targets with progress indicators |
 | 23 | Bill reminders | ⏳ Backlog | Low | - | #21 | Upcoming bill notifications via Telegram and dashboard alerts |
+| 24 | Field-level encryption | ✅ Done | High | - | - | Encrypt sensitive user data (PII, financial) at rest using Fernet (AES-128-CBC). Protects against database breaches. Includes Card search columns, HMAC for Telegram lookups, dry-run migration, verification scripts, CI/CD integration with automatic rollback |
 
 ## Backlog Details
 
@@ -150,3 +151,15 @@ Generate a monthly summary report with:
 - Mark bill as paid (auto-creates expense if desired)
 - Calendar view of monthly bills
 - Estimated total bill spending per month
+
+### Field-level Encryption ✅
+- Application-level encryption using Fernet (AES-128-CBC) derived from SECRET_KEY
+- Encrypted fields: User (full_name, telegram_chat_id, mfa_secret), Card (card_name, bank, holder), Expense (description, notes), Investment (notes), AuditLog (ip_address, user_agent), MonthlyReport (report_data)
+- Card search columns (card_name_search, bank_search, holder_search) for ilike filtering
+- Expense search column (description_search) for text search
+- HMAC-SHA256 hash for Telegram bot lookups (O(1) index seek)
+- Automatic migration on startup (idempotent)
+- Dry-run migration script (encrypt → verify Card search → rollback)
+- Encryption verification script (verify all fields decrypt)
+- CI/CD integration with automatic database rollback if verification fails
+- 38 unit tests passing

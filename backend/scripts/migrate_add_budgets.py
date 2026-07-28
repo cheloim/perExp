@@ -44,7 +44,8 @@ def main():
         if dialect == "postgresql":
             # ─── 1. Create budgets table ─────────────────────────────
             print("\n[1/5] Creating budgets table...")
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 CREATE TABLE IF NOT EXISTS budgets (
                     id SERIAL PRIMARY KEY,
                     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -56,12 +57,14 @@ def main():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP
                 )
-            """))
+            """)
+            )
             print("  budgets table OK")
 
             # ─── 2. Create budget_groups table ────────────────────────
             print("\n[2/5] Creating budget_groups table...")
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 CREATE TABLE IF NOT EXISTS budget_groups (
                     id SERIAL PRIMARY KEY,
                     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -74,12 +77,14 @@ def main():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP
                 )
-            """))
+            """)
+            )
             print("  budget_groups table OK")
 
             # ─── 3. Create budget_events table ────────────────────────
             print("\n[3/5] Creating budget_events table...")
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 CREATE TABLE IF NOT EXISTS budget_events (
                     id SERIAL PRIMARY KEY,
                     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -93,22 +98,27 @@ def main():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP
                 )
-            """))
+            """)
+            )
             print("  budget_events table OK")
 
             # ─── 4. Add budget_group column to categories ─────────────
             print("\n[4/5] Adding budget_group column to categories...")
-            has_column = conn.execute(text("""
+            has_column = conn.execute(
+                text("""
                 SELECT EXISTS (
                     SELECT 1 FROM information_schema.columns
                     WHERE table_name = 'categories' AND column_name = 'budget_group'
                 )
-            """)).scalar()
+            """)
+            ).scalar()
 
             if not has_column:
-                conn.execute(text("""
+                conn.execute(
+                    text("""
                     ALTER TABLE categories ADD COLUMN budget_group VARCHAR(20) DEFAULT 'necesidades'
-                """))
+                """)
+                )
                 print("  budget_group column added")
             else:
                 print("  budget_group column already exists")
@@ -116,29 +126,45 @@ def main():
             # ─── 5. Create indexes ────────────────────────────────────
             print("\n[5/5] Creating indexes...")
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_budgets_user_id ON budgets (user_id)"))
-            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_budgets_category_id ON budgets (category_id)"))
-            conn.execute(text("""
+            conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_budgets_category_id ON budgets (category_id)")
+            )
+            conn.execute(
+                text("""
                 CREATE UNIQUE INDEX IF NOT EXISTS uq_budget_user_cat
                 ON budgets (user_id, category_id)
-            """))
-            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_budget_groups_user_id ON budget_groups (user_id)"))
-            conn.execute(text("""
+            """)
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_budget_groups_user_id ON budget_groups (user_id)"
+                )
+            )
+            conn.execute(
+                text("""
                 CREATE UNIQUE INDEX IF NOT EXISTS uq_budget_group_user_name
                 ON budget_groups (user_id, name)
-            """))
-            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_budget_events_user_id ON budget_events (user_id)"))
+            """)
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_budget_events_user_id ON budget_events (user_id)"
+                )
+            )
             print("  All indexes OK")
 
             # ─── Verification ─────────────────────────────────────────
             print("\n[Verification] Checking all tables and columns...")
             tables = ["budgets", "budget_groups", "budget_events"]
             for table in tables:
-                exists = conn.execute(text(f"""
+                exists = conn.execute(
+                    text(f"""
                     SELECT EXISTS (
                         SELECT 1 FROM information_schema.tables
                         WHERE table_schema = 'public' AND table_name = '{table}'
                     )
-                """)).scalar()
+                """)
+                ).scalar()
                 if exists:
                     print(f"  ✓ {table} exists")
                 else:
@@ -146,12 +172,14 @@ def main():
                     raise RuntimeError(f"Table {table} was not created")
 
             # Check budget_group column
-            has_bg = conn.execute(text("""
+            has_bg = conn.execute(
+                text("""
                 SELECT EXISTS (
                     SELECT 1 FROM information_schema.columns
                     WHERE table_name = 'categories' AND column_name = 'budget_group'
                 )
-            """)).scalar()
+            """)
+            ).scalar()
             if has_bg:
                 print("  ✓ categories.budget_group exists")
             else:
@@ -161,7 +189,8 @@ def main():
             # ─── 6. Auto-assign categories to macro groups ────────────────
             print("\n[6/6] Auto-assigning categories to macro groups...")
             try:
-                conn.execute(text("""
+                conn.execute(
+                    text("""
                     UPDATE categories SET budget_group = 'gustos'
                     WHERE budget_group = 'necesidades'
                     AND LOWER(name) LIKE ANY(ARRAY[
@@ -174,8 +203,10 @@ def main():
                         '%viajes%', '%hotel%', '%aerolínea%', '%turismo%',
                         '%mascotas%', '%vacaciones%'
                     ])
-                """))
-                conn.execute(text("""
+                """)
+                )
+                conn.execute(
+                    text("""
                     UPDATE categories SET budget_group = 'ahorro'
                     WHERE budget_group = 'necesidades'
                     AND LOWER(name) LIKE ANY(ARRAY[
@@ -183,7 +214,8 @@ def main():
                         '%plazo fijo%', '%fci%', '%bonos%', '%acciones%',
                         '%dólar%', '%crypto%'
                     ])
-                """))
+                """)
+                )
                 conn.commit()
                 print("  Categories auto-assigned to groups")
             except Exception as e:
@@ -195,9 +227,11 @@ def main():
             if not ahorro_enabled:
                 try:
                     with engine.begin() as conn2:
-                        conn2.execute(text(
-                            "UPDATE budget_groups SET is_active = false WHERE name = 'ahorro' AND is_active = true"
-                        ))
+                        conn2.execute(
+                            text(
+                                "UPDATE budget_groups SET is_active = false WHERE name = 'ahorro' AND is_active = true"
+                            )
+                        )
                     print("  Ahorro group deactivated (BUDGET_AHORRO_ENABLED=false)")
                 except Exception as e:
                     print(f"  Warning: Ahorro deactivation failed ({e}), skipping")
@@ -208,11 +242,13 @@ def main():
             print("\n[8/8] Adding budget_event_id to expenses...")
             try:
                 with engine.begin() as conn2:
-                    conn2.execute(text("""
+                    conn2.execute(
+                        text("""
                         ALTER TABLE expenses 
                         ADD COLUMN IF NOT EXISTS budget_event_id INTEGER 
                         REFERENCES budget_events(id) ON DELETE SET NULL
-                    """))
+                    """)
+                    )
                 print("  budget_event_id column added to expenses")
             except Exception as e:
                 print(f"  Warning: budget_event_id already exists or failed ({e}), skipping")

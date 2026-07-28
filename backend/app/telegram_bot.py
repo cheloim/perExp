@@ -24,6 +24,7 @@ from app.database import SessionLocal
 from app.models import Account, Card, Category, Expense, User
 from app.prompts import CARD_EXTRACT_PROMPT, EXPENSE_PARSE_PROMPT
 from app.services.categorization import auto_categorize, llm_categorize
+from app.services.encryption import tokenize_description
 from app.services.import_utils import _normalize_text
 
 logger = logging.getLogger(__name__)
@@ -289,6 +290,7 @@ def _save_expense(
         expense = Expense(
             date=expense_date,
             description=_normalize_text(parsed.get("description", "")),
+            description_search=tokenize_description(_normalize_text(parsed.get("description", ""))),
             amount=installment_amount,
             currency=parsed.get("currency", "ARS"),
             category_id=category_id,
@@ -671,7 +673,10 @@ def _saved_text(expense: "Expense", payment_label: str) -> str:
 def _get_user_by_chat_id(chat_id: str) -> User | None:
     db = SessionLocal()
     try:
-        return db.query(User).filter(User.telegram_chat_id == chat_id).first()
+        from app.services.encryption import compute_hmac
+
+        chat_hash = compute_hmac(chat_id)
+        return db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
     finally:
         db.close()
 
@@ -800,7 +805,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = str(update.effective_chat.id)
     db = SessionLocal()
     try:
-        user = db.query(User).filter(User.telegram_chat_id == chat_id).first()
+        from app.services.encryption import compute_hmac
+
+        chat_hash = compute_hmac(chat_id)
+        user = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
         if user:
             await update.message.reply_text(
                 f"¡Hola de nuevo, <b>{user.full_name}</b>! 🎉 ¿Qué gastaste hoy?",
@@ -829,6 +837,9 @@ async def handle_auth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             await update.message.reply_text("Clave incorrecta. Intentá de nuevo.")
             return WAITING_AUTH
         user.telegram_chat_id = chat_id
+        from app.services.encryption import compute_hmac
+
+        user.telegram_chat_hash = compute_hmac(chat_id)
         user.telegram_key = None  # Invalidate key after use
         db.commit()
         db.refresh(user)
@@ -1281,8 +1292,8 @@ async def handle_card_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             db_card.query(Card)
             .filter(
                 Card.user_id == context.user_data["user_id"],
-                func.lower(Card.card_name) == card.lower(),
-                func.lower(Card.bank) == bank.lower(),
+                func.lower(Card.card_name_search) == tokenize_description(card),
+                func.lower(Card.bank_search) == tokenize_description(bank),
             )
             .first()
         )
@@ -1618,7 +1629,10 @@ async def handle_card_create_name(update: Update, context: ContextTypes.DEFAULT_
     db = SessionLocal()
     try:
         chat_id = str(update.effective_chat.id)
-        user = db.query(User).filter(User.telegram_chat_id == chat_id).first()
+        from app.services.encryption import compute_hmac
+
+        chat_hash = compute_hmac(chat_id)
+        user = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
         user_full_name = user.full_name if user else ""
     finally:
         db.close()
@@ -1681,7 +1695,10 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
     chat_id = str(update.effective_chat.id)
     db = SessionLocal()
     try:
-        user = db.query(User).filter(User.telegram_chat_id == chat_id).first()
+        from app.services.encryption import compute_hmac
+
+        chat_hash = compute_hmac(chat_id)
+        user = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
         if not user:
             await query.message.reply_text("❌ Error: usuario no encontrado.")
             return ConversationHandler.END
@@ -1702,8 +1719,8 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
             db.query(Card)
             .filter(
                 Card.user_id == user_id,
-                func.lower(func.trim(Card.card_name)) == card_name.lower(),
-                func.lower(func.trim(Card.bank)) == bank.lower(),
+                func.lower(Card.card_name_search) == card_name.lower(),
+                func.lower(Card.bank_search) == bank.lower(),
             )
             .first()
         )
@@ -1716,8 +1733,11 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
 
         new_card = Card(
             card_name=card_name,
+            card_name_search=tokenize_description(card_name),
             bank=bank,
+            bank_search=tokenize_description(bank),
             holder=holder,
+            holder_search=tokenize_description(holder),
             card_type=card_type,
             user_id=user_id,
         )
@@ -1935,6 +1955,7 @@ def _save_expense_from_context(context, db):
                 amount=expense.amount,
                 currency=expense.currency,
                 description=expense.description,
+                description_search=tokenize_description(expense.description),
                 card_id=expense.card_id,
                 account_id=expense.account_id,
                 category_id=expense.category_id,
@@ -2018,8 +2039,8 @@ async def handle_card_manual(update: Update, context: ContextTypes.DEFAULT_TYPE)
             db_card.query(Card)
             .filter(
                 Card.user_id == context.user_data["user_id"],
-                func.lower(Card.card_name) == card_name.lower(),
-                func.lower(Card.bank) == bank.lower() if bank else True,
+                func.lower(Card.card_name_search) == tokenize_description(card_name),
+                func.lower(Card.bank_search) == tokenize_description(bank) if bank else True,
             )
             .first()
         )
