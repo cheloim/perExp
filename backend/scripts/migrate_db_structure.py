@@ -246,20 +246,156 @@ def step6_drop_whats_new_seen(engine):
             print("  Skipping — only supported on PostgreSQL.")
             return
 
-        exists = conn.execute(
-            text("""
+        exists = conn.execute(text("""
             SELECT EXISTS (
                 SELECT 1 FROM information_schema.columns
                 WHERE table_name = 'users' AND column_name = 'whats_new_seen'
             )
-        """)
-        ).scalar()
+        """)).scalar()
 
         if exists:
             conn.execute(text("ALTER TABLE users DROP COLUMN whats_new_seen"))
             print("  Dropped whats_new_seen column.")
         else:
             print("  whats_new_seen already dropped. Skipping.")
+
+
+def step7_encryption_columns(engine):
+    """Add columns needed for field-level encryption."""
+    print("\n[Step 7/7] Adding encryption-related columns...")
+
+    with engine.begin() as conn:
+        dialect = engine.dialect.name
+
+        if dialect != "postgresql":
+            print("  Skipping — only supported on PostgreSQL.")
+            return
+
+        # Add telegram_chat_hash to users
+        exists = conn.execute(
+            text("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'users' AND column_name = 'telegram_chat_hash'
+            )
+        """)
+        ).scalar()
+
+        if exists:
+            print("  telegram_chat_hash already exists. Skipping.")
+        else:
+            conn.execute(text("ALTER TABLE users ADD COLUMN telegram_chat_hash VARCHAR(64)"))
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX ix_users_telegram_chat_hash ON users (telegram_chat_hash) WHERE telegram_chat_hash IS NOT NULL"
+                )
+            )
+            print("  Added telegram_chat_hash VARCHAR(64) with unique index.")
+
+        # Add description_search to expenses
+        exists = conn.execute(
+            text("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'expenses' AND column_name = 'description_search'
+            )
+        """)
+        ).scalar()
+
+        if exists:
+            print("  description_search already exists. Skipping.")
+        else:
+            conn.execute(text("ALTER TABLE expenses ADD COLUMN description_search VARCHAR"))
+            conn.execute(
+                text("CREATE INDEX ix_expenses_description_search ON expenses (description_search)")
+            )
+            print("  Added description_search VARCHAR with index.")
+
+        # Expand column sizes for encrypted data
+        print("  Expanding column sizes for encrypted data...")
+
+        # audit_logs.ip_address: VARCHAR(45) -> TEXT
+        conn.execute(text("ALTER TABLE audit_logs ALTER COLUMN ip_address TYPE TEXT"))
+        print("    audit_logs.ip_address -> TEXT")
+
+        # audit_logs.user_agent: VARCHAR(500) -> TEXT
+        conn.execute(text("ALTER TABLE audit_logs ALTER COLUMN user_agent TYPE TEXT"))
+        print("    audit_logs.user_agent -> TEXT")
+
+        # users.mfa_secret: VARCHAR(32) -> TEXT
+        conn.execute(text("ALTER TABLE users ALTER COLUMN mfa_secret TYPE TEXT"))
+        print("    users.mfa_secret -> TEXT")
+
+        # users.telegram_chat_id: TEXT (already TEXT, but let's be safe)
+        # users.full_name: TEXT (already TEXT)
+        # cards columns: TEXT (already TEXT)
+        # expenses columns: TEXT (already TEXT)
+        # investments.notes: TEXT (already TEXT)
+        # monthly_reports.report_data: TEXT (already TEXT)
+
+
+def step8_card_search_columns(engine):
+    """Add search columns for encrypted Card fields."""
+    print("\n[Step 8/8] Adding Card search columns...")
+
+    with engine.begin() as conn:
+        dialect = engine.dialect.name
+
+        if dialect != "postgresql":
+            print("  Skipping — only supported on PostgreSQL.")
+            return
+
+        for column in ["card_name_search", "bank_search", "holder_search"]:
+            exists = conn.execute(
+                text("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'cards' AND column_name = :col
+                )
+            """),
+                {"col": column},
+            ).scalar()
+
+            if exists:
+                print(f"  {column} already exists. Skipping.")
+            else:
+                conn.execute(text(f"ALTER TABLE cards ADD COLUMN {column} VARCHAR"))
+                conn.execute(text(f"CREATE INDEX ix_cards_{column} ON cards ({column})"))
+                print(f"  Added {column} VARCHAR with index.")
+
+
+def step9_scheduled_expense_search_columns(engine):
+    """Add search columns for encrypted ScheduledExpense fields."""
+    print("\n[Step 9/9] Adding ScheduledExpense search columns...")
+
+    with engine.begin() as conn:
+        dialect = engine.dialect.name
+
+        if dialect != "postgresql":
+            print("  Skipping — only supported on PostgreSQL.")
+            return
+
+        exists = conn.execute(
+            text("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'scheduled_expenses' AND column_name = 'description_search'
+            )
+        """)
+        ).scalar()
+
+        if exists:
+            print("  description_search already exists. Skipping.")
+        else:
+            conn.execute(
+                text("ALTER TABLE scheduled_expenses ADD COLUMN description_search VARCHAR")
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX ix_scheduled_expenses_description_search ON scheduled_expenses (description_search)"
+                )
+            )
+            print("  Added description_search VARCHAR with index.")
 
 
 def main():
@@ -275,6 +411,9 @@ def main():
     step4_indexes(engine)
     step5_onboarding_completed(engine)
     step6_drop_whats_new_seen(engine)
+    step7_encryption_columns(engine)
+    step8_card_search_columns(engine)
+    step9_scheduled_expense_search_columns(engine)
 
     print("\n" + "=" * 60)
     print("Migration complete!")

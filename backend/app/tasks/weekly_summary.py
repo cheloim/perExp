@@ -248,7 +248,7 @@ def send_weekly_reports():
             return
 
         # Get all users with Telegram connected
-        users = db.query(User).filter(User.telegram_chat_id.isnot(None)).all()
+        users = db.query(User).filter(User.telegram_chat_hash.isnot(None)).all()
 
         sent_count = 0
         for user in users:
@@ -295,11 +295,12 @@ def send_weekly_reports():
                 # Send via Telegram
                 from app.telegram_bot import send_photo_to_chat
 
-                if send_photo_to_chat(user.telegram_chat_id, png_bytes, caption):
-                    sent_count += 1
-                    logger.info(f"[WEEKLY REPORT] Sent report to user {user.id}")
-                else:
-                    logger.warning(f"[WEEKLY REPORT] Failed to send report to user {user.id}")
+                if user.telegram_chat_id and user.telegram_chat_id != "[encrypted]":
+                    if send_photo_to_chat(user.telegram_chat_id, png_bytes, caption):
+                        sent_count += 1
+                        logger.info(f"[WEEKLY REPORT] Sent report to user {user.id}")
+                    else:
+                        logger.warning(f"[WEEKLY REPORT] Failed to send report to user {user.id}")
 
             except Exception as e:
                 logger.error(f"[WEEKLY REPORT] Error sending to user {user.id}: {e}")

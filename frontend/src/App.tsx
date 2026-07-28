@@ -37,6 +37,8 @@ const GuideAIAnalysisPage = lazy(() => import("./pages/GuideAIAnalysisPage"));
 const GuideFamilyGroupsPage = lazy(() => import("./pages/GuideFamilyGroupsPage"));
 const GuideInvestmentsPage = lazy(() => import("./pages/GuideInvestmentsPage"));
 const GuideCategoriesPage = lazy(() => import("./pages/GuideCategoriesPage"));
+const ChangesPage = lazy(() => import("./pages/ChangesPage"));
+const NovedadesPage = lazy(() => import("./pages/NovedadesPage"));
 const OnboardingWalkthrough = lazy(() => import("./components/OnboardingWalkthrough"));
 const WhatsNewModal = lazy(() => import("./components/WhatsNewModal"));
 
@@ -177,6 +179,20 @@ export default function App() {
       return (
         <Suspense>
           <GuidePage />
+        </Suspense>
+      );
+    }
+    if (location.pathname.startsWith("/changes")) {
+      return (
+        <Suspense>
+          <ChangesPage />
+        </Suspense>
+      );
+    }
+    if (location.pathname === "/novedades") {
+      return (
+        <Suspense>
+          <NovedadesPage />
         </Suspense>
       );
     }
@@ -609,6 +625,9 @@ function MainLayout() {
                       <Route path="/guide/family-groups" element={<GuideFamilyGroupsPage />} />
                       <Route path="/guide/investments" element={<GuideInvestmentsPage />} />
                       <Route path="/guide/categories" element={<GuideCategoriesPage />} />
+                      <Route path="/changes" element={<ChangesPage />} />
+                      <Route path="/changes/:version" element={<ChangesPage />} />
+                      <Route path="/novedades" element={<NovedadesPage />} />
                       <Route
                         path="*"
                         element={

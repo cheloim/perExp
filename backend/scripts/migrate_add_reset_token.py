@@ -35,32 +35,40 @@ def main():
 
         if dialect == "postgresql":
             # Check if columns already exist
-            exists = conn.execute(text("""
+            exists = conn.execute(
+                text("""
                 SELECT EXISTS (
                     SELECT 1 FROM information_schema.columns
                     WHERE table_name = 'users' AND column_name = 'reset_token'
                 )
-            """)).scalar()
+            """)
+            ).scalar()
 
             if exists:
                 print("Columns already exist. Skipping.")
             else:
                 print("Adding reset_token column...")
-                conn.execute(text("""
+                conn.execute(
+                    text("""
                     ALTER TABLE users
                     ADD COLUMN reset_token VARCHAR(64) UNIQUE
-                """))
+                """)
+                )
 
                 print("Adding reset_token_expires column...")
-                conn.execute(text("""
+                conn.execute(
+                    text("""
                     ALTER TABLE users
                     ADD COLUMN reset_token_expires TIMESTAMP
-                """))
+                """)
+                )
 
                 print("Creating index on reset_token...")
-                conn.execute(text("""
+                conn.execute(
+                    text("""
                     CREATE INDEX ix_users_reset_token ON users (reset_token)
-                """))
+                """)
+                )
 
                 print("Migration complete!")
         else:

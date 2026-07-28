@@ -29,9 +29,35 @@ env:
   FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/perexp/frontend
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run encryption tests
+        env:
+          SECRET_KEY: "test-secret-key-for-ci-that-is-at-least-32-chars"
+        run: |
+          cd backend
+          python -m pytest tests/test_encryption.py -v
+
   build-and-push:
     if: github.event_name == 'push' || inputs.action == 'full'
     runs-on: ubuntu-latest
+    needs: test
     permissions:
       contents: read
       packages: write
@@ -697,13 +723,61 @@ jobs:
             source .env
             set +a
 
-            echo "Running database migrations..."
+            echo "=== Step 0: Verify SECRET_KEY ==="
+            KEY_CHECK=$(podman-compose run --rm backend python -c "
+            from app.services.encryption import verify_key_works
+            if verify_key_works():
+                print('KEY_VALID')
+            else:
+                print('KEY_INVALID')
+            " 2>&1)
+
+            if echo "$KEY_CHECK" | grep -q "KEY_INVALID"; then
+              echo "::error::SECRET_KEY cannot encrypt/decrypt! Aborting deployment."
+              exit 1
+            fi
+            echo "SECRET_KEY verified successfully"
+
+            echo "=== Step 1: Database structure migration ==="
             for script in migrate_add_reset_token migrate_remove_haberes migrate_encrypt_settings migrate_add_monthly_reports migrate_db_structure migrate_add_card_account_link migrate_add_budgets migrate_add_category_suggestions; do
               if ! podman-compose run --rm backend python -m scripts.$script; then
                 echo "::warning::Migration $script had issues (may already be applied)"
               fi
             done
-            echo "Migrations complete"
+
+            echo "=== Step 2: Dry-run encryption migration ==="
+            DRY_RUN=$(podman-compose run --rm backend python scripts/dry_run_migration.py 2>&1)
+            echo "$DRY_RUN"
+
+            if echo "$DRY_RUN" | grep -q "Status: FAIL"; then
+              echo "::error::Dry-run failed! Aborting deployment."
+              exit 1
+            fi
+
+            echo "=== Step 3: Run encryption migration ==="
+            if ! podman-compose run --rm backend python scripts/migrate_encrypt_fields.py; then
+              echo "::error::Encryption migration failed!"
+              exit 1
+            fi
+
+            echo "=== Step 4: Verify encryption ==="
+            VERIFY=$(podman-compose run --rm backend python scripts/verify_encryption.py 2>&1)
+            echo "$VERIFY"
+
+            if echo "$VERIFY" | grep -q "Status: FAIL"; then
+              echo "::error::Verification failed! Rolling back database..."
+              LATEST=$(ls -t /opt/creditcardanalyzer/backups/db_*.sql.gz | head -1)
+              if [ -n "$LATEST" ]; then
+                echo "Restoring from: $LATEST"
+                gunzip -c $LATEST | podman exec -i creditcardanalyzer_db_1 psql -U expenses_user expenses
+                echo "Database restored from backup"
+              else
+                echo "::error::No backup found!"
+              fi
+              exit 1
+            fi
+
+            echo "=== Migration complete and verified ==="
 
   restart-and-verify:
     runs-on: ubuntu-latest

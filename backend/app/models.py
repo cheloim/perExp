@@ -17,26 +17,28 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from app.database import Base
+from app.types.encrypted import EncryptedType
 
 
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
-    full_name = Column(String, nullable=False, default="")
+    full_name = Column(EncryptedType, nullable=False, default="")
     email = Column(String, unique=True, nullable=False)
     invite_code = Column(String(8), nullable=True, unique=True, index=True)
     hashed_password = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     telegram_key = Column(String(12), nullable=True, unique=True, index=True)
-    telegram_chat_id = Column(String, nullable=True, unique=True, index=True)
+    telegram_chat_id = Column(EncryptedType, nullable=True)
+    telegram_chat_hash = Column(String(64), nullable=True, unique=True, index=True)
     provider = Column(String, nullable=True)
     provider_id = Column(String, nullable=True, index=True)
     avatar_url = Column(String, nullable=True)
     reset_token = Column(String(64), nullable=True, unique=True, index=True)
     reset_token_expires = Column(DateTime, nullable=True)
     # Security: MFA
-    mfa_secret = Column(String(32), nullable=True)
+    mfa_secret = Column(EncryptedType, nullable=True)
     mfa_enabled = Column(Boolean, default=False)
     # Security: Email verification
     email_verified = Column(Boolean, default=False)
@@ -190,11 +192,14 @@ class Card(Base):
         Index("ix_cards_linked_account_id", "linked_account_id"),
     )
     id = Column(Integer, primary_key=True, index=True)
-    card_name = Column(String, nullable=False)  # Visa, Mastercard, etc
-    bank = Column(String, default="")
+    card_name = Column(EncryptedType, nullable=False)  # Visa, Mastercard, etc
+    card_name_search = Column(String, nullable=True, index=True)
+    bank = Column(EncryptedType, default="")
+    bank_search = Column(String, nullable=True, index=True)
     holder = Column(
-        String, default=""
+        EncryptedType, default=""
     )  # Primer nombre del usuario (para agrupar en grupo familiar)
+    holder_search = Column(String, nullable=True, index=True)
     card_type = Column(String, default="credito")  # credito, debito
     linked_account_id = Column(
         Integer, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
@@ -218,10 +223,11 @@ class Expense(Base):
     )
     id = Column(Integer, primary_key=True, index=True)
     date = Column(Date, nullable=False)
-    description = Column(String, nullable=False)
+    description = Column(EncryptedType, nullable=False)
+    description_search = Column(String, nullable=True, index=True)
     amount = Column(Float, nullable=False)
     category_id = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
-    notes = Column(Text, default="")
+    notes = Column(EncryptedType, default="")
     transaction_id = Column(String, nullable=True, index=True)
     currency = Column(String, default="ARS")
     installment_number = Column(Integer, nullable=True)
@@ -298,7 +304,7 @@ class Investment(Base):
     avg_cost = Column(Float, default=0.0)
     current_price = Column(Float, nullable=True)
     currency = Column(String, default="ARS")
-    notes = Column(Text, default="")
+    notes = Column(EncryptedType, default="")
     updated_at = Column(DateTime, default=datetime.utcnow)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
@@ -335,7 +341,8 @@ class ScheduledExpense(Base):
     scheduled_date = Column(Date, nullable=False, index=True)
     amount = Column(Float, nullable=False)
     currency = Column(String, default="ARS")
-    description = Column(String, nullable=False)
+    description = Column(EncryptedType, nullable=False)
+    description_search = Column(String, nullable=True, index=True)
 
     # Structured fields
     card_id = Column(Integer, ForeignKey("cards.id", ondelete="SET NULL"), nullable=True)
@@ -373,7 +380,7 @@ class MonthlyReport(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     month = Column(String(7), nullable=False)  # YYYY-MM format
     status = Column(String(20), default="READY")  # PENDING | READY | FAILED
-    report_data = Column(Text, nullable=True)  # JSON with full report data
+    report_data = Column(EncryptedType, nullable=True)  # JSON with full report data
     pdf_data = Column(LargeBinary, nullable=True)  # Generated PDF bytes (legacy)
     png_data = Column(LargeBinary, nullable=True)  # Generated PNG image bytes
     error_message = Column(Text, nullable=True)  # Error if FAILED
@@ -388,7 +395,7 @@ class AuditLog(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     action = Column(String(50), nullable=False)
-    ip_address = Column(String(45), nullable=True)
-    user_agent = Column(String(500), nullable=True)
+    ip_address = Column(EncryptedType, nullable=True)
+    user_agent = Column(EncryptedType, nullable=True)
     details = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

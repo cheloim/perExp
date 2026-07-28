@@ -552,13 +552,14 @@ def regenerate_telegram_key(
     db: Session = Depends(get_db),
 ):
     # Notify the bot before clearing the session
-    if current_user.telegram_chat_id:
+    if current_user.telegram_chat_id and current_user.telegram_chat_id != "[encrypted]":
         from app.telegram_bot import send_disconnect_notification
 
         send_disconnect_notification(current_user.telegram_chat_id)
 
     current_user.telegram_key = _generate_telegram_key()
     current_user.telegram_chat_id = None
+    current_user.telegram_chat_hash = None
     db.commit()
     db.refresh(current_user)
     return TelegramKeyResponse(telegram_key=current_user.telegram_key)
