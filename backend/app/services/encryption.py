@@ -98,8 +98,9 @@ def verify_key_works() -> bool:
 
 def needs_migration() -> bool:
     """Check if any encrypted fields contain plaintext data."""
-    from app.database import SessionLocal
     from sqlalchemy import text
+
+    from app.database import SessionLocal
 
     db = SessionLocal()
     try:
