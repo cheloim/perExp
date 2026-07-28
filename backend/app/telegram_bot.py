@@ -290,6 +290,7 @@ def _save_expense(
         expense = Expense(
             date=expense_date,
             description=_normalize_text(parsed.get("description", "")),
+            description_search=tokenize_description(_normalize_text(parsed.get("description", ""))),
             amount=installment_amount,
             currency=parsed.get("currency", "ARS"),
             category_id=category_id,
@@ -1291,8 +1292,8 @@ async def handle_card_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             db_card.query(Card)
             .filter(
                 Card.user_id == context.user_data["user_id"],
-                func.lower(Card.card_name) == card.lower(),
-                func.lower(Card.bank) == bank.lower(),
+                func.lower(Card.card_name_search) == tokenize_description(card),
+                func.lower(Card.bank_search) == tokenize_description(bank),
             )
             .first()
         )
@@ -1954,6 +1955,7 @@ def _save_expense_from_context(context, db):
                 amount=expense.amount,
                 currency=expense.currency,
                 description=expense.description,
+                description_search=tokenize_description(expense.description),
                 card_id=expense.card_id,
                 account_id=expense.account_id,
                 category_id=expense.category_id,
@@ -2037,8 +2039,8 @@ async def handle_card_manual(update: Update, context: ContextTypes.DEFAULT_TYPE)
             db_card.query(Card)
             .filter(
                 Card.user_id == context.user_data["user_id"],
-                func.lower(Card.card_name) == card_name.lower(),
-                func.lower(Card.bank) == bank.lower() if bank else True,
+                func.lower(Card.card_name_search) == tokenize_description(card_name),
+                func.lower(Card.bank_search) == tokenize_description(bank) if bank else True,
             )
             .first()
         )

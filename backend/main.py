@@ -53,9 +53,17 @@ async def lifespan(application: FastAPI):
             'Generate one with: python -c "import secrets; print(secrets.token_urlsafe(64))"'
         )
 
-    # Run encryption migration for existing plaintext data
-    from scripts.migrate_encrypt_fields import migrate_plaintext_data
-    migrate_plaintext_data()
+    # Verify SECRET_KEY can encrypt/decrypt (fail fast)
+    from app.services.encryption import verify_key_works
+    if not verify_key_works():
+        logger.error("SECRET_KEY cannot encrypt/decrypt! Check that the key hasn't changed.")
+        raise RuntimeError("SECRET_KEY is invalid - cannot encrypt/decrypt data. Aborting.")
+
+    # Run encryption migration for existing plaintext data (only if needed)
+    from app.services.encryption import needs_migration
+    if needs_migration():
+        from scripts.migrate_encrypt_fields import migrate_plaintext_data
+        migrate_plaintext_data()
 
     db = SessionLocal()
     if db.query(Category).count() == 0:

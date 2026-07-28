@@ -32,7 +32,9 @@ def migrate():
 
         # Create indexes
         conn.execute(
-            text("CREATE INDEX IF NOT EXISTS ix_category_suggestions_user_id ON category_suggestions(user_id)")
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_category_suggestions_user_id ON category_suggestions(user_id)"
+            )
         )
         conn.execute(
             text(
@@ -40,7 +42,9 @@ def migrate():
             )
         )
         conn.execute(
-            text("CREATE INDEX IF NOT EXISTS ix_category_suggestions_status ON category_suggestions(status)")
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_category_suggestions_status ON category_suggestions(status)"
+            )
         )
 
         print("✅ category_suggestions table created successfully")

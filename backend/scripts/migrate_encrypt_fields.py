@@ -55,6 +55,7 @@ def _migrate_users(db):
             # Generate telegram_chat_hash if missing
             if user.telegram_chat_id and not user.telegram_chat_hash:
                 from app.services.encryption import decrypt_value
+
                 # Get the plaintext value (already decrypted by ORM)
                 original_value = user.telegram_chat_id
                 user.telegram_chat_hash = compute_hmac(original_value)
@@ -98,6 +99,7 @@ def _migrate_cards(db):
             ):
                 # Already encrypted but missing or encrypted search token
                 from app.services.encryption import decrypt_value
+
                 card.card_name_search = tokenize_description(decrypt_value(card.card_name))
                 changed = True
 
@@ -106,10 +108,9 @@ def _migrate_cards(db):
                 card.bank = card.bank  # Touch to trigger update
                 card.bank_search = tokenize_description(card.bank)
                 changed = True
-            elif card.bank and (
-                not card.bank_search or is_encrypted(card.bank_search)
-            ):
+            elif card.bank and (not card.bank_search or is_encrypted(card.bank_search)):
                 from app.services.encryption import decrypt_value
+
                 card.bank_search = tokenize_description(decrypt_value(card.bank))
                 changed = True
 
@@ -118,10 +119,9 @@ def _migrate_cards(db):
                 card.holder = card.holder  # Touch to trigger update
                 card.holder_search = tokenize_description(card.holder)
                 changed = True
-            elif card.holder and (
-                not card.holder_search or is_encrypted(card.holder_search)
-            ):
+            elif card.holder and (not card.holder_search or is_encrypted(card.holder_search)):
                 from app.services.encryption import decrypt_value
+
                 card.holder_search = tokenize_description(decrypt_value(card.holder))
                 changed = True
 
@@ -268,6 +268,45 @@ def _migrate_monthly_reports(db):
     logger.info(f"  Migrated {migrated} monthly reports")
 
 
+def _migrate_scheduled_expenses(db):
+    """Encrypt scheduled expense fields and generate search tokens."""
+    from app.models import ScheduledExpense
+
+    logger.info("Migrating scheduled_expenses table...")
+    offset = 0
+    migrated = 0
+
+    while True:
+        expenses = db.query(ScheduledExpense).offset(offset).limit(BATCH_SIZE).all()
+        if not expenses:
+            break
+
+        for expense in expenses:
+            changed = False
+
+            if expense.description and not is_encrypted(expense.description):
+                expense.description = expense.description
+                expense.description_search = tokenize_description(expense.description)
+                changed = True
+            elif expense.description and (
+                not expense.description_search or is_encrypted(expense.description_search)
+            ):
+                from app.services.encryption import decrypt_value
+
+                expense.description_search = tokenize_description(
+                    decrypt_value(expense.description)
+                )
+                changed = True
+
+            if changed:
+                migrated += 1
+
+        db.commit()
+        offset += BATCH_SIZE
+
+    logger.info(f"  Migrated {migrated} scheduled expenses")
+
+
 def migrate_plaintext_data():
     """Main migration function. Idempotent - safe to run multiple times."""
     db = SessionLocal()
@@ -280,6 +319,7 @@ def migrate_plaintext_data():
         _migrate_investments(db)
         _migrate_audit_logs(db)
         _migrate_monthly_reports(db)
+        _migrate_scheduled_expenses(db)
 
         logger.info("Encryption migration completed successfully!")
     except Exception as e:

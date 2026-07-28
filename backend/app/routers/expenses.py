@@ -253,7 +253,7 @@ def check_duplicate(
         dupe = base.filter(
             Expense.date == exp_date,
             Expense.amount == amount,
-            func.lower(Expense.description) == description.lower(),
+            func.lower(Expense.description_search) == tokenize_description(description),
         ).first()
     if dupe:
         return {

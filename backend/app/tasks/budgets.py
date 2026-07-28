@@ -194,7 +194,7 @@ def check_budget_alerts():
                 db.add(notification)
                 alerts_sent += 1
 
-                if user.telegram_chat_id:
+                if user.telegram_chat_id and user.telegram_chat_id != "[encrypted]":
                     _send_group_telegram_alert(
                         user.telegram_chat_id,
                         group.name,
@@ -251,7 +251,7 @@ def check_budget_alerts():
                 db.add(notification)
                 alerts_sent += 1
 
-                if user.telegram_chat_id:
+                if user.telegram_chat_id and user.telegram_chat_id != "[encrypted]":
                     _send_telegram_alert(
                         user.telegram_chat_id,
                         cat.name,

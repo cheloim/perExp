@@ -83,3 +83,34 @@ def is_encrypted(value: str) -> bool:
     # Fernet tokens always start with 'gAAAAAB' (version byte + timestamp)
     # Use case-insensitive comparison to handle tokenized values
     return value.upper().startswith("GAAAAAB")
+
+
+def verify_key_works() -> bool:
+    """Verify the current SECRET_KEY can encrypt and decrypt."""
+    try:
+        test = "key_verification_test"
+        encrypted = encrypt_value(test)
+        decrypted = decrypt_value(encrypted)
+        return decrypted == test
+    except Exception:
+        return False
+
+
+def needs_migration() -> bool:
+    """Check if any encrypted fields contain plaintext data."""
+    from app.database import SessionLocal
+    from sqlalchemy import text
+
+    db = SessionLocal()
+    try:
+        # Quick check: if any user has plaintext full_name
+        result = db.execute(
+            text(
+                "SELECT COUNT(*) FROM users WHERE full_name IS NOT NULL AND full_name NOT LIKE 'gAAAAAB%'"
+            )
+        ).scalar()
+        return result > 0
+    except Exception:
+        return True  # If check fails, run migration to be safe
+    finally:
+        db.close()

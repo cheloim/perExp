@@ -77,12 +77,14 @@ def main():
                             stats["verified"] += 1
                         else:
                             stats["failed"] += 1
-                            failed_rows.append({
-                                "table": model.__tablename__,
-                                "id": row.id,
-                                "field": field,
-                                "error": "decrypt mismatch",
-                            })
+                            failed_rows.append(
+                                {
+                                    "table": model.__tablename__,
+                                    "id": row.id,
+                                    "field": field,
+                                    "error": "decrypt mismatch",
+                                }
+                            )
 
         # Test Card search columns
         for model, fields in SEARCH_FIELDS.items():
@@ -103,17 +105,21 @@ def main():
                             stats["search_verified"] += 1
 
                             # Test ilike query
-                            result = db.query(model).filter(
-                                getattr(model, field).ilike(f"%{search_value[:5]}%")
-                            ).first()
+                            result = (
+                                db.query(model)
+                                .filter(getattr(model, field).ilike(f"%{search_value[:5]}%"))
+                                .first()
+                            )
                             if not result:
                                 stats["search_failed"] += 1
-                                failed_rows.append({
-                                    "table": model.__tablename__,
-                                    "id": row.id,
-                                    "field": field,
-                                    "error": "search query failed",
-                                })
+                                failed_rows.append(
+                                    {
+                                        "table": model.__tablename__,
+                                        "id": row.id,
+                                        "field": field,
+                                        "error": "search query failed",
+                                    }
+                                )
 
         # Rollback (no changes saved)
         db.rollback()

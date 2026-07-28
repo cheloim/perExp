@@ -15,6 +15,7 @@ from app.models import Card, Category, Expense, MonthlyReport, Notification, Use
 from app.routers.groups import get_group_user_ids
 from app.services.auth import get_current_user
 from app.services.date_utils import add_months
+from app.services.encryption import tokenize_description
 from app.services.normalizers import normalize_bank
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -89,7 +90,7 @@ def _apply_filters(q, month_val, search_val, person_val, cat_id_val, bank_val=No
         except (ValueError, IndexError):
             pass
     if search_val:
-        q = q.filter(Expense.description.ilike(f"%{search_val}%"))
+        q = q.filter(Expense.description_search.ilike(f"%{tokenize_description(search_val)}%"))
     if person_val:
         q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
             Card.holder_search.ilike(f"%{person_val}%")

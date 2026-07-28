@@ -302,6 +302,7 @@ def sync_card_holders(
 
         card.holder = get_first_name(current_user.full_name or "")
         if card.holder:
+            card.holder_search = tokenize_description(card.holder)
             updated += 1
 
     db.commit()

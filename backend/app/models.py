@@ -343,7 +343,8 @@ class ScheduledExpense(Base):
     scheduled_date = Column(Date, nullable=False, index=True)
     amount = Column(Float, nullable=False)
     currency = Column(String, default="ARS")
-    description = Column(String, nullable=False)
+    description = Column(EncryptedType, nullable=False)
+    description_search = Column(String, nullable=True, index=True)
 
     # Structured fields
     card_id = Column(Integer, ForeignKey("cards.id", ondelete="SET NULL"), nullable=True)
