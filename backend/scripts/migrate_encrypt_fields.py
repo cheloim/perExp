@@ -16,9 +16,10 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.database import SessionLocal
-from app.models import AuditLog, Card, Expense, Investment, MonthlyReport, User
+from app.models import Card, Expense, ScheduledExpense, User
 from app.services.encryption import (
     compute_hmac,
+    encrypt_value,
     is_encrypted,
     tokenize_description,
 )
@@ -34,290 +35,267 @@ def _migrate_users(db):
     from sqlalchemy import text
 
     logger.info("Migrating users table...")
-    offset = 0
     migrated = 0
 
-    while True:
-        users = db.query(User).offset(offset).limit(BATCH_SIZE).all()
-        if not users:
-            break
+    # Fetch ALL raw values from DB (bypass EncryptedType which returns [encrypted] for plaintext)
+    raw_rows = db.execute(text("SELECT id, full_name, telegram_chat_id, mfa_secret FROM users")).fetchall()
+    raw_data = {r[0]: {"full_name": r[1], "telegram_chat_id": r[2], "mfa_secret": r[3]} for r in raw_rows}
 
-        # Pre-fetch raw telegram_chat_id values from DB (bypass EncryptedType)
-        user_ids = [u.id for u in users]
-        raw_chat_ids = {}
-        if user_ids:
-            placeholders = ",".join([str(i) for i in user_ids])
-            rows = db.execute(
-                text(f"SELECT id, telegram_chat_id FROM users WHERE id IN ({placeholders})")
-            ).fetchall()
-            raw_chat_ids = {r[0]: r[1] for r in rows}
+    for user_id, raw in raw_data.items():
+        if not raw["full_name"] and not raw["telegram_chat_id"] and not raw["mfa_secret"]:
+            continue
 
-        for user in users:
-            changed = False
+        # Use raw SQL UPDATE to encrypt (bypass ORM EncryptedType)
+        updates = []
+        params = {"uid": user_id}
 
-            # Encrypt full_name if plaintext
-            # Note: EncryptedType handles encryption automatically when writing
-            # We just need to check if the value in DB is already encrypted
-            if user.full_name and not is_encrypted(user.full_name):
-                # Value is plaintext, mark for re-save (EncryptedType will encrypt)
-                user.full_name = user.full_name  # Touch to trigger update
-                changed = True
+        if raw["full_name"] and not is_encrypted(raw["full_name"]):
+            updates.append("full_name = :full_name")
+            params["full_name"] = encrypt_value(raw["full_name"])
 
-            # Generate telegram_chat_hash if missing
-            # Use raw value from DB to avoid EncryptedType decrypt fallback
-            raw_chat_id = raw_chat_ids.get(user.id)
-            if raw_chat_id and not is_encrypted(raw_chat_id) and not user.telegram_chat_hash:
-                # Value is plaintext, compute HMAC on raw value
-                user.telegram_chat_hash = compute_hmac(raw_chat_id)
-                changed = True
-            elif raw_chat_id and is_encrypted(raw_chat_id) and not user.telegram_chat_hash:
-                # Value is encrypted, decrypt then compute HMAC
-                user.telegram_chat_hash = compute_hmac(user.telegram_chat_id)
-                changed = True
+        if raw["telegram_chat_id"] and not is_encrypted(raw["telegram_chat_id"]):
+            updates.append("telegram_chat_id = :telegram_chat_id")
+            params["telegram_chat_id"] = encrypt_value(raw["telegram_chat_id"])
+            # Generate HMAC from raw plaintext
+            updates.append("telegram_chat_hash = :telegram_chat_hash")
+            params["telegram_chat_hash"] = compute_hmac(raw["telegram_chat_id"])
+        elif raw["telegram_chat_id"] and is_encrypted(raw["telegram_chat_id"]):
+            # Already encrypted, just generate hash if missing
+            user = db.query(User).get(user_id)
+            if user and not user.telegram_chat_hash:
+                updates.append("telegram_chat_hash = :telegram_chat_hash")
+                params["telegram_chat_hash"] = compute_hmac(user.telegram_chat_id)
 
-            # Encrypt mfa_secret if plaintext
-            if user.mfa_secret and not is_encrypted(user.mfa_secret):
-                user.mfa_secret = user.mfa_secret  # Touch to trigger update
-                changed = True
+        if raw["mfa_secret"] and not is_encrypted(raw["mfa_secret"]):
+            updates.append("mfa_secret = :mfa_secret")
+            params["mfa_secret"] = encrypt_value(raw["mfa_secret"])
 
-            if changed:
-                migrated += 1
+        if updates:
+            sql = f"UPDATE users SET {', '.join(updates)} WHERE id = :uid"
+            db.execute(text(sql), params)
+            migrated += 1
 
-        db.commit()
-        offset += BATCH_SIZE
-
+    db.commit()
     logger.info(f"  Migrated {migrated} users")
 
 
 def _migrate_cards(db):
     """Encrypt card fields and generate search tokens."""
+    from sqlalchemy import text
+
     logger.info("Migrating cards table...")
-    offset = 0
     migrated = 0
 
-    while True:
-        cards = db.query(Card).offset(offset).limit(BATCH_SIZE).all()
-        if not cards:
-            break
+    # Fetch ALL raw values from DB
+    raw_rows = db.execute(
+        text("SELECT id, card_name, bank, holder FROM cards")
+    ).fetchall()
+    raw_data = {r[0]: {"card_name": r[1], "bank": r[2], "holder": r[3]} for r in raw_rows}
 
-        for card in cards:
-            changed = False
+    for card_id, raw in raw_data.items():
+        updates = []
+        params = {"cid": card_id}
 
-            # Encrypt card_name and generate search token
-            if card.card_name and not is_encrypted(card.card_name):
-                card.card_name = card.card_name  # Touch to trigger update
-                card.card_name_search = tokenize_description(card.card_name)
-                changed = True
-            elif card.card_name and (
-                not card.card_name_search or is_encrypted(card.card_name_search)
-            ):
-                # Already encrypted but missing or encrypted search token
-                from app.services.encryption import decrypt_value
+        if raw["card_name"] and not is_encrypted(raw["card_name"]):
+            updates.append("card_name = :card_name")
+            params["card_name"] = encrypt_value(raw["card_name"])
+            updates.append("card_name_search = :card_name_search")
+            params["card_name_search"] = tokenize_description(raw["card_name"])
+        elif raw["card_name"] and is_encrypted(raw["card_name"]):
+            # Already encrypted, generate search if missing
+            card = db.query(Card).get(card_id)
+            if card and (not card.card_name_search or is_encrypted(card.card_name_search)):
+                updates.append("card_name_search = :card_name_search")
+                params["card_name_search"] = tokenize_description(card.card_name)
 
-                card.card_name_search = tokenize_description(decrypt_value(card.card_name))
-                changed = True
+        if raw["bank"] and not is_encrypted(raw["bank"]):
+            updates.append("bank = :bank")
+            params["bank"] = encrypt_value(raw["bank"])
+            updates.append("bank_search = :bank_search")
+            params["bank_search"] = tokenize_description(raw["bank"])
+        elif raw["bank"] and is_encrypted(raw["bank"]):
+            card = db.query(Card).get(card_id)
+            if card and (not card.bank_search or is_encrypted(card.bank_search)):
+                updates.append("bank_search = :bank_search")
+                params["bank_search"] = tokenize_description(card.bank)
 
-            # Encrypt bank and generate search token
-            if card.bank and not is_encrypted(card.bank):
-                card.bank = card.bank  # Touch to trigger update
-                card.bank_search = tokenize_description(card.bank)
-                changed = True
-            elif card.bank and (not card.bank_search or is_encrypted(card.bank_search)):
-                from app.services.encryption import decrypt_value
+        if raw["holder"] and not is_encrypted(raw["holder"]):
+            updates.append("holder = :holder")
+            params["holder"] = encrypt_value(raw["holder"])
+            updates.append("holder_search = :holder_search")
+            params["holder_search"] = tokenize_description(raw["holder"])
+        elif raw["holder"] and is_encrypted(raw["holder"]):
+            card = db.query(Card).get(card_id)
+            if card and (not card.holder_search or is_encrypted(card.holder_search)):
+                updates.append("holder_search = :holder_search")
+                params["holder_search"] = tokenize_description(card.holder)
 
-                card.bank_search = tokenize_description(decrypt_value(card.bank))
-                changed = True
+        if updates:
+            sql = f"UPDATE cards SET {', '.join(updates)} WHERE id = :cid"
+            db.execute(text(sql), params)
+            migrated += 1
 
-            # Encrypt holder and generate search token
-            if card.holder and not is_encrypted(card.holder):
-                card.holder = card.holder  # Touch to trigger update
-                card.holder_search = tokenize_description(card.holder)
-                changed = True
-            elif card.holder and (not card.holder_search or is_encrypted(card.holder_search)):
-                from app.services.encryption import decrypt_value
-
-                card.holder_search = tokenize_description(decrypt_value(card.holder))
-                changed = True
-
-            if changed:
-                migrated += 1
-
-        db.commit()
-        offset += BATCH_SIZE
-
+    db.commit()
     logger.info(f"  Migrated {migrated} cards")
 
 
 def _migrate_expenses(db):
     """Encrypt expense fields and generate description_search."""
+    from sqlalchemy import text
+
     logger.info("Migrating expenses table...")
-    offset = 0
     migrated = 0
 
-    while True:
-        expenses = db.query(Expense).offset(offset).limit(BATCH_SIZE).all()
-        if not expenses:
-            break
+    # Fetch ALL raw values from DB
+    raw_rows = db.execute(
+        text("SELECT id, description, notes FROM expenses")
+    ).fetchall()
+    raw_data = {r[0]: {"description": r[1], "notes": r[2]} for r in raw_rows}
 
-        for expense in expenses:
-            changed = False
+    for exp_id, raw in raw_data.items():
+        updates = []
+        params = {"eid": exp_id}
 
-            # Note: EncryptedType handles encryption automatically
-            # We just need to touch the field to trigger update
-            if expense.description and not is_encrypted(expense.description):
-                # Value is plaintext, get it before ORM encrypts
-                original_value = expense.description
-                # Touch to trigger update (EncryptedType will encrypt)
-                expense.description = original_value
-                # Generate search tokens from plaintext
-                expense.description_search = tokenize_description(original_value)
-                changed = True
-            elif expense.description and (
-                not expense.description_search or is_encrypted(expense.description_search)
-            ):
-                # Already encrypted but missing search tokens
-                # or search tokens are encrypted (need to regenerate)
-                # ORM already decrypted it, so we can use the value directly
-                expense.description_search = tokenize_description(expense.description)
-                changed = True
+        if raw["description"] and not is_encrypted(raw["description"]):
+            updates.append("description = :description")
+            params["description"] = encrypt_value(raw["description"])
+            updates.append("description_search = :description_search")
+            params["description_search"] = tokenize_description(raw["description"])
+        elif raw["description"] and is_encrypted(raw["description"]):
+            # Already encrypted, generate search if missing
+            exp = db.query(Expense).get(exp_id)
+            if exp and (not exp.description_search or is_encrypted(exp.description_search)):
+                updates.append("description_search = :description_search")
+                params["description_search"] = tokenize_description(exp.description)
 
-            if expense.notes and not is_encrypted(expense.notes):
-                expense.notes = expense.notes  # Touch to trigger update
-                changed = True
+        if raw["notes"] and not is_encrypted(raw["notes"]):
+            updates.append("notes = :notes")
+            params["notes"] = encrypt_value(raw["notes"])
 
-            if changed:
-                migrated += 1
+        if updates:
+            sql = f"UPDATE expenses SET {', '.join(updates)} WHERE id = :eid"
+            db.execute(text(sql), params)
+            migrated += 1
 
-        db.commit()
-        offset += BATCH_SIZE
-
+    db.commit()
     logger.info(f"  Migrated {migrated} expenses")
 
 
 def _migrate_investments(db):
     """Encrypt investment notes."""
+    from sqlalchemy import text
+
     logger.info("Migrating investments table...")
-    offset = 0
     migrated = 0
 
-    while True:
-        investments = db.query(Investment).offset(offset).limit(BATCH_SIZE).all()
-        if not investments:
-            break
+    raw_rows = db.execute(text("SELECT id, notes FROM investments")).fetchall()
+    raw_data = {r[0]: {"notes": r[1]} for r in raw_rows}
 
-        for inv in investments:
-            changed = False
+    for inv_id, raw in raw_data.items():
+        if raw["notes"] and not is_encrypted(raw["notes"]):
+            db.execute(
+                text("UPDATE investments SET notes = :notes WHERE id = :iid"),
+                {"notes": encrypt_value(raw["notes"]), "iid": inv_id},
+            )
+            migrated += 1
 
-            # Note: EncryptedType handles encryption automatically
-            if inv.notes and not is_encrypted(inv.notes):
-                inv.notes = inv.notes  # Touch to trigger update
-                changed = True
-
-            if changed:
-                migrated += 1
-
-        db.commit()
-        offset += BATCH_SIZE
-
+    db.commit()
     logger.info(f"  Migrated {migrated} investments")
 
 
 def _migrate_audit_logs(db):
     """Encrypt audit log fields."""
+    from sqlalchemy import text
+
     logger.info("Migrating audit_logs table...")
-    offset = 0
     migrated = 0
 
-    while True:
-        logs = db.query(AuditLog).offset(offset).limit(BATCH_SIZE).all()
-        if not logs:
-            break
+    raw_rows = db.execute(
+        text("SELECT id, ip_address, user_agent FROM audit_logs")
+    ).fetchall()
+    raw_data = {r[0]: {"ip_address": r[1], "user_agent": r[2]} for r in raw_rows}
 
-        for log in logs:
-            changed = False
+    for log_id, raw in raw_data.items():
+        updates = []
+        params = {"lid": log_id}
 
-            # Note: EncryptedType handles encryption automatically
-            if log.ip_address and not is_encrypted(log.ip_address):
-                log.ip_address = log.ip_address  # Touch to trigger update
-                changed = True
+        if raw["ip_address"] and not is_encrypted(raw["ip_address"]):
+            updates.append("ip_address = :ip_address")
+            params["ip_address"] = encrypt_value(raw["ip_address"])
 
-            if log.user_agent and not is_encrypted(log.user_agent):
-                log.user_agent = log.user_agent  # Touch to trigger update
-                changed = True
+        if raw["user_agent"] and not is_encrypted(raw["user_agent"]):
+            updates.append("user_agent = :user_agent")
+            params["user_agent"] = encrypt_value(raw["user_agent"])
 
-            if changed:
-                migrated += 1
+        if updates:
+            sql = f"UPDATE audit_logs SET {', '.join(updates)} WHERE id = :lid"
+            db.execute(text(sql), params)
+            migrated += 1
 
-        db.commit()
-        offset += BATCH_SIZE
-
+    db.commit()
     logger.info(f"  Migrated {migrated} audit logs")
 
 
 def _migrate_monthly_reports(db):
     """Encrypt monthly report data."""
+    from sqlalchemy import text
+
     logger.info("Migrating monthly_reports table...")
-    offset = 0
     migrated = 0
 
-    while True:
-        reports = db.query(MonthlyReport).offset(offset).limit(BATCH_SIZE).all()
-        if not reports:
-            break
+    raw_rows = db.execute(text("SELECT id, report_data FROM monthly_reports")).fetchall()
+    raw_data = {r[0]: {"report_data": r[1]} for r in raw_rows}
 
-        for report in reports:
-            changed = False
+    for report_id, raw in raw_data.items():
+        if raw["report_data"] and not is_encrypted(raw["report_data"]):
+            db.execute(
+                text("UPDATE monthly_reports SET report_data = :report_data WHERE id = :rid"),
+                {"report_data": encrypt_value(raw["report_data"]), "rid": report_id},
+            )
+            migrated += 1
 
-            # Note: EncryptedType handles encryption automatically
-            if report.report_data and not is_encrypted(report.report_data):
-                report.report_data = report.report_data  # Touch to trigger update
-                changed = True
-
-            if changed:
-                migrated += 1
-
-        db.commit()
-        offset += BATCH_SIZE
-
+    db.commit()
     logger.info(f"  Migrated {migrated} monthly reports")
 
 
 def _migrate_scheduled_expenses(db):
     """Encrypt scheduled expense fields and generate search tokens."""
-    from app.models import ScheduledExpense
+    from sqlalchemy import text
 
     logger.info("Migrating scheduled_expenses table...")
-    offset = 0
     migrated = 0
 
-    while True:
-        expenses = db.query(ScheduledExpense).offset(offset).limit(BATCH_SIZE).all()
-        if not expenses:
-            break
+    raw_rows = db.execute(
+        text("SELECT id, description FROM scheduled_expenses")
+    ).fetchall()
+    raw_data = {r[0]: {"description": r[1]} for r in raw_rows}
 
-        for expense in expenses:
-            changed = False
-
-            if expense.description and not is_encrypted(expense.description):
-                expense.description = expense.description
-                expense.description_search = tokenize_description(expense.description)
-                changed = True
-            elif expense.description and (
-                not expense.description_search or is_encrypted(expense.description_search)
-            ):
-                from app.services.encryption import decrypt_value
-
-                expense.description_search = tokenize_description(
-                    decrypt_value(expense.description)
+    for exp_id, raw in raw_data.items():
+        if raw["description"] and not is_encrypted(raw["description"]):
+            db.execute(
+                text(
+                    "UPDATE scheduled_expenses SET description = :desc, description_search = :search WHERE id = :eid"
+                ),
+                {
+                    "desc": encrypt_value(raw["description"]),
+                    "search": tokenize_description(raw["description"]),
+                    "eid": exp_id,
+                },
+            )
+            migrated += 1
+        elif raw["description"] and is_encrypted(raw["description"]):
+            # Already encrypted, generate search if missing
+            exp = db.query(ScheduledExpense).get(exp_id)
+            if exp and (not exp.description_search or is_encrypted(exp.description_search)):
+                db.execute(
+                    text(
+                        "UPDATE scheduled_expenses SET description_search = :search WHERE id = :eid"
+                    ),
+                    {"search": tokenize_description(exp.description), "eid": exp_id},
                 )
-                changed = True
-
-            if changed:
                 migrated += 1
 
-        db.commit()
-        offset += BATCH_SIZE
-
+    db.commit()
     logger.info(f"  Migrated {migrated} scheduled expenses")
 
 
