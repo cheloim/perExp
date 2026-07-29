@@ -54,6 +54,7 @@ export default function InstallmentsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editAmount, setEditAmount] = useState("");
   const [editDate, setEditDate] = useState("");
+  const [listFilter, setListFilter] = useState<"all" | "cuotas" | "recurrentes">("all");
 
   // Close modal on Escape key
   useEffect(() => {
@@ -139,6 +140,13 @@ export default function InstallmentsPage() {
       return a.next_date.localeCompare(b.next_date);
     });
   }, [activeGroups, activeRecurring, recurringExpenses, showPaused]);
+
+  // Filtered payments based on listFilter
+  const filteredPayments = useMemo(() => {
+    if (listFilter === "cuotas") return allPayments.filter((p) => p.type === "installment");
+    if (listFilter === "recurrentes") return allPayments.filter((p) => p.type === "recurring");
+    return allPayments;
+  }, [allPayments, listFilter]);
 
   // Category breakdown for horizontal bar chart
   const categoryData = useMemo(() => {
@@ -350,21 +358,56 @@ export default function InstallmentsPage() {
       <div className="card p-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-primary">Próximos pagos</h2>
-          {pausedRecurring.length > 0 && (
-            <button
-              onClick={() => setShowPaused(!showPaused)}
-              className="text-xs text-tertiary hover:text-primary transition"
-            >
-              {showPaused ? "Ocultar pausadas" : `Mostrar pausadas (${pausedRecurring.length})`}
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {pausedRecurring.length > 0 && (
+              <button
+                onClick={() => setShowPaused(!showPaused)}
+                className="text-xs text-tertiary hover:text-primary transition"
+              >
+                {showPaused ? "Ocultar pausadas" : `Mostrar pausadas (${pausedRecurring.length})`}
+              </button>
+            )}
+          </div>
         </div>
 
-        {allPayments.length === 0 ? (
+        {/* Filter buttons */}
+        <div className="flex gap-1 mb-3">
+          {[
+            { key: "all" as const, label: "Todos", count: allPayments.length },
+            {
+              key: "cuotas" as const,
+              label: "Cuotas",
+              count: allPayments.filter((p) => p.type === "installment").length,
+              color: "bg-gnomeBlue5",
+            },
+            {
+              key: "recurrentes" as const,
+              label: "Recurrentes",
+              count: allPayments.filter((p) => p.type === "recurring").length,
+              color: "bg-gnomePurple5",
+            },
+          ].map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setListFilter(listFilter === f.key ? "all" : f.key)}
+              className={`text-xs px-2.5 py-1 rounded-full border transition-all flex items-center gap-1 ${
+                listFilter === f.key
+                  ? "bg-primary text-on-primary border-primary"
+                  : "border-border-color text-tertiary hover:text-primary"
+              }`}
+            >
+              {f.color && <span className={`w-1.5 h-1.5 rounded-full ${f.color}`} />}
+              {f.label}
+              <span className="text-[10px] opacity-60">({f.count})</span>
+            </button>
+          ))}
+        </div>
+
+        {filteredPayments.length === 0 ? (
           <p className="text-sm text-tertiary py-4 text-center">Sin pagos próximos</p>
         ) : (
           <div className="space-y-1">
-            {allPayments.map((item) => {
+            {filteredPayments.map((item) => {
               const isPaused = item.type === "recurring" && item.is_active === false;
               const isInstallment = item.type === "installment";
               return (
