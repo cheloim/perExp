@@ -24,10 +24,12 @@
 | 18 | Mensaje completo del bot: transacción + tarjeta + banco | ✅ Done | Medium | #128 | - | Cuando el bot recibe una notificación bancaria, envía un único mensaje consolidado con monto, descripción, fecha, tarjeta + banco y categoría. Incluye detección de cuotas para montos altos en crédito |
 | 19 | Google OAuth login | ✅ Done | Medium | #112, #115, #116, #117 | - | Login con Google OAuth con renderButton (FedCM compatible). MFA respeta configuración del usuario. CSP configurado para Google Identity Services |
 | 20 | Gestión automática de cuotas desde Telegram | ✅ Done | Medium | #128 | - | Cuando se registra un gasto con tarjeta de crédito, preguntar automáticamente si fue en cuotas. El monto total se divide por la cantidad de cuotas. Aplica para montos > $10.000 en crédito o categorías especiales (Viajes, Educación, Indumentaria). Flujo completo: división de monto, mensaje de confirmación con desglose, ScheduledExpenses con monto por cuota |
-| 21 | Recurring expenses tracking | ⏳ Backlog | Medium | - | - | Mark expenses as recurring, auto-suggest duplicates, manage subscriptions |
+| 21 | Recurring expenses tracking | ✅ Done | Medium | #135, #145 | - | Auto-detect subscriptions, unified Programados page with installments + recurring, pause/edit/delete, Telegram commands (/suscripciones, /pausar, /cancelar) |
 | 22 | Savings goals | ⏳ Backlog | Low | - | #8 | Create, track, and visualize savings targets with progress indicators |
 | 23 | Bill reminders | ⏳ Backlog | Low | - | #21 | Upcoming bill notifications via Telegram and dashboard alerts |
 | 24 | Field-level encryption | ✅ Done | High | - | - | Encrypt sensitive user data (PII, financial) at rest using Fernet (AES-128-CBC). Protects against database breaches. Includes Card search columns, HMAC for Telegram lookups, dry-run migration, verification scripts, CI/CD integration with automatic rollback |
+| 25 | Email validation | ✅ Done | Low | #134 | - | Validate email format and domain existence. Block fake domains (test.com, mailinator.com, etc.). DNS MX record validation. Frontend + backend validation |
+| 26 | Merchant preference learning | ✅ Done | Medium | #137 | - | Track user category preferences per merchant. Prioritize user preferences over LLM suggestions. Include user history in LLM prompt |
 
 ## Backlog Details
 
@@ -126,14 +128,16 @@ Generate a monthly summary report with:
 - Mensaje de confirmación muestra desglose: `$6.000 → 4× $1.500`
 - Mensaje de guardado muestra info de cuotas: `💳 Visa Galicia — 4 cuotas`
 
-### Recurring Expenses Tracking (Phase 1)
-- Mark expenses as recurring (subscriptions, gym, insurance, etc.)
-- Auto-suggest potential recurring expenses based on merchant + amount matching
-- Subscriptions dashboard: list all recurring with next charge date
-- Monthly summary card on dashboard
-- Telegram bot: Parse recurring from messages ("Netflix $5 every month")
-- Ability to pause/cancel recurring
-- Alert before next charge (configurable days before)
+### Recurring Expenses Tracking ✅
+- Auto-detect recurring expenses from transaction history (2+ occurrences, 10% amount tolerance)
+- Unified Programados page showing installments + recurring together
+- Pause/resume and delete recurring expenses
+- Edit amount and next charge date
+- Filter by Cuotas/Recurrentes
+- Category breakdown horizontal bar chart
+- Trend line on BarChart
+- Telegram commands: /suscripciones, /pausar, /cancelar, /ver
+- Alerts 3 days before next charge via notifications
 
 ### Savings Goals (Phase 1)
 - Create goals: name, target amount, target date

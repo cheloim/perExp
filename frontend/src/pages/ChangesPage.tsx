@@ -7,6 +7,10 @@ import {
   SearchMockup,
   TelegramHMACMockup,
   MigrationMockup,
+  ProgramadosMockup,
+  SubscriptionsMockup,
+  TrendChartMockup,
+  EmailValidationMockup,
 } from "./changes/FeatureMockups";
 
 const FEATURE_MOCKUPS: Record<string, React.FC> = {
@@ -14,6 +18,10 @@ const FEATURE_MOCKUPS: Record<string, React.FC> = {
   "Búsqueda Inteligente": SearchMockup,
   "Seguridad del Bot de Telegram": TelegramHMACMockup,
   "Migración Segura": MigrationMockup,
+  "Página de Programados": ProgramadosMockup,
+  "Gestión de Suscripciones": SubscriptionsMockup,
+  "Mejoras en el Gráfico de Tendencia": TrendChartMockup,
+  "Validación de Email": EmailValidationMockup,
 };
 
 export default function ChangesPage() {

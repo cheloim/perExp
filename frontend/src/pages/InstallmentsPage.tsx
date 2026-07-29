@@ -1,43 +1,50 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
+import { Bar, XAxis, Tooltip, ResponsiveContainer, Cell, ComposedChart, Line } from "recharts";
 import {
   getInstallmentsDashboard,
   getInstallmentsMonthlyLoad,
   getScheduledExpenses,
   executeScheduledExpense,
-  cancelScheduledExpense,
-  createExpense,
+  getRecurringExpenses,
+  pauseRecurringExpense,
+  deleteRecurringExpense,
+  updateRecurringExpense,
 } from "../api/client";
-import type { InstallmentGroup, ExpenseCreate } from "../types";
-import { ConfirmDialog } from "../components/ConfirmDialog";
-import { ExpenseModal } from "../components/ExpenseModals";
-import { formatCurrency, toUpperCase, formatDateDMY, MONTHS_ES_SHORT } from "../utils/format";
+import { formatCurrency, formatDateDMY, MONTHS_ES_SHORT } from "../utils/format";
+
+type PaymentItem = {
+  id: string | number;
+  type: "installment" | "recurring";
+  description: string;
+  amount: number;
+  category_name: string | null;
+  category_color: string | null;
+  next_date: string | null;
+  installment_info: string;
+  recurring_id?: number;
+  is_active?: boolean;
+};
 
 export default function InstallmentsPage() {
   const queryClient = useQueryClient();
-  const [paymentFilter, setPaymentFilter] = useState<string | null>(null);
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [personFilter, setPersonFilter] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
-  const [selectedGroup, setSelectedGroup] = useState<InstallmentGroup | null>(null);
-  const [showScheduledModal, setShowScheduledModal] = useState(false);
-  const [cancelConfirm, setCancelConfirm] = useState<number | null>(null);
-  const [editing, setEditing] = useState<null | undefined>(undefined);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [showPaused, setShowPaused] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<PaymentItem | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [editAmount, setEditAmount] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [listFilter, setListFilter] = useState<"all" | "cuotas" | "recurrentes">("all");
 
-  const createMut = useMutation({
-    mutationFn: (data: ExpenseCreate) => createExpense(data),
-    onSuccess: () => {
-      setEditing(undefined);
-      queryClient.invalidateQueries({ queryKey: ["installments"] });
-      queryClient.invalidateQueries({
-        queryKey: ["installments-monthly-load"],
-      });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-    },
-    onError: (err: Error) => setSaveError(err.message),
-  });
+  // Close modal on Escape key
+  useEffect(() => {
+    if (!showModal) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeModal();
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [showModal]);
 
   const { data: groups = [], isLoading } = useQuery({
     queryKey: ["installments"],
@@ -51,73 +58,147 @@ export default function InstallmentsPage() {
     staleTime: 60_000,
   });
 
-  const { data: scheduledForGroup = [], isLoading: scheduledLoading } = useQuery({
-    queryKey: ["scheduled-expenses", selectedGroup?.installment_group_id],
-    queryFn: () =>
-      getScheduledExpenses({
-        installment_group_id: selectedGroup?.installment_group_id,
-        status: "PENDING",
-      }),
-    enabled: !!selectedGroup,
+  const { data: recurringExpenses = [] } = useQuery({
+    queryKey: ["recurring", "all"],
+    queryFn: () => getRecurringExpenses("all"),
+    staleTime: 60_000,
   });
 
-  const executeMutation = useMutation({
-    mutationFn: executeScheduledExpense,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["installments"] });
-      queryClient.invalidateQueries({ queryKey: ["scheduled-expenses"] });
-    },
-    onError: () => alert("Error al ejecutar el pago"),
-  });
-
-  useEffect(() => {
-    if (!showScheduledModal) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setShowScheduledModal(false);
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [showScheduledModal]);
-
-  const cancelMutation = useMutation({
-    mutationFn: cancelScheduledExpense,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["installments"] });
-      queryClient.invalidateQueries({ queryKey: ["scheduled-expenses"] });
-    },
-    onError: () => alert("Error al cancelar"),
-  });
+  const activeGroups = groups.filter((g) => g.remaining_installments > 0);
+  const activeRecurring = recurringExpenses.filter((r) => r.is_active);
+  const pausedRecurring = recurringExpenses.filter((r) => !r.is_active);
 
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-
-  const activeGroups = groups.filter((g) => g.remaining_installments > 0);
+  const currentMonthData = monthlyLoad.find((e) => e.month === currentMonth);
+  const currentMonthTotal = currentMonthData?.total ?? 0;
+  const currentMonthCount = currentMonthData?.count ?? 0;
 
   const totalPending = activeGroups.reduce(
     (s, g) => s + g.installment_amount * g.remaining_installments,
     0,
   );
+  const recurringTotal = activeRecurring.reduce((s, r) => s + r.amount, 0);
+  const recurringCount = activeRecurring.length;
 
-  const currentMonthData = monthlyLoad.find((e) => e.month === currentMonth);
-  const currentMonthTotal = currentMonthData?.total ?? 0;
-  const currentMonthCount = currentMonthData?.count ?? 0;
+  // Build unified payment list
+  const allPayments = useMemo(() => {
+    const items: PaymentItem[] = [];
 
-  const paymentMethods = [
-    ...new Set(groups.map((g) => (g.card ? `${g.bank} · ${g.card}` : g.bank || "Sin definir"))),
-  ].sort();
-  const categories = [...new Set(groups.map((g) => g.category_name).filter(Boolean))].sort();
-  const persons = [...new Set(groups.map((g) => g.person).filter(Boolean))].sort();
-
-  const filtered = groups.filter((g) => {
-    if (!showCompleted && g.remaining_installments === 0) return false;
-    if (paymentFilter) {
-      const displayKey = g.card ? `${g.bank} · ${g.card}` : g.bank || "Sin definir";
-      if (displayKey !== paymentFilter) return false;
+    for (const g of activeGroups) {
+      items.push({
+        id: g.installment_group_id,
+        type: "installment",
+        description: g.description,
+        amount: g.installment_amount,
+        category_name: g.category_name,
+        category_color: g.category_color,
+        next_date: g.next_date,
+        installment_info: `Cuota ${g.installments_paid + 1}/${g.installment_total}`,
+      });
     }
-    if (categoryFilter && g.category_name !== categoryFilter) return false;
-    if (personFilter && g.person !== personFilter) return false;
-    return true;
+
+    const recurringToShow = showPaused ? recurringExpenses : activeRecurring;
+    for (const r of recurringToShow) {
+      items.push({
+        id: `rec-${r.id}`,
+        type: "recurring",
+        description: r.merchant_key || r.description,
+        amount: r.amount,
+        category_name: "Suscripciones",
+        category_color: "var(--gnome-purple-3)",
+        next_date: r.next_charge_date || null,
+        installment_info: r.frequency === "monthly" ? "Mensual" : r.frequency,
+        recurring_id: r.id,
+        is_active: r.is_active,
+      });
+    }
+
+    return items.sort((a, b) => {
+      if (!a.next_date) return 1;
+      if (!b.next_date) return -1;
+      return a.next_date.localeCompare(b.next_date);
+    });
+  }, [activeGroups, activeRecurring, recurringExpenses, showPaused]);
+
+  // Filtered payments based on listFilter
+  const filteredPayments = useMemo(() => {
+    if (listFilter === "cuotas") return allPayments.filter((p) => p.type === "installment");
+    if (listFilter === "recurrentes") return allPayments.filter((p) => p.type === "recurring");
+    return allPayments;
+  }, [allPayments, listFilter]);
+
+  // Category breakdown for horizontal bar chart
+  const categoryData = useMemo(() => {
+    const catMap: Record<string, { value: number; color: string }> = {};
+    for (const item of allPayments) {
+      const name = item.category_name || "Sin categoría";
+      if (!catMap[name]) {
+        catMap[name] = { value: 0, color: item.category_color || "var(--gnome-purple-3)" };
+      }
+      catMap[name].value += item.amount * 12;
+    }
+    const total = Object.values(catMap).reduce((s, c) => s + c.value, 0);
+    return Object.entries(catMap)
+      .map(([name, data]) => ({
+        name,
+        value: data.value,
+        color: data.color,
+        percentage: total > 0 ? Math.round((data.value / total) * 100) : 0,
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [allPayments]);
+
+  // Scheduled expenses for selected group
+  const { data: scheduledForGroup = [] } = useQuery({
+    queryKey: ["scheduled-expenses", selectedItem?.id],
+    queryFn: () =>
+      getScheduledExpenses({
+        installment_group_id: selectedItem?.id as string,
+        status: "PENDING",
+      }),
+    enabled: !!selectedItem && selectedItem.type === "installment",
   });
+
+  const executeMut = useMutation({
+    mutationFn: executeScheduledExpense,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["installments"] });
+      queryClient.invalidateQueries({ queryKey: ["scheduled-expenses"] });
+    },
+  });
+
+  const handlePauseRecurring = async (id: number) => {
+    await pauseRecurringExpense(id);
+    queryClient.invalidateQueries({ queryKey: ["recurring"] });
+  };
+
+  const handleDeleteRecurring = async (id: number) => {
+    if (confirm("¿Eliminar esta suscripción permanentemente?")) {
+      await deleteRecurringExpense(id);
+      queryClient.invalidateQueries({ queryKey: ["recurring"] });
+    }
+  };
+
+  const updateRecurringMut = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: any }) => updateRecurringExpense(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recurring"] });
+      closeModal();
+    },
+  });
+
+  const openGestionar = (item: PaymentItem) => {
+    setSelectedItem(item);
+    setEditAmount(item.amount.toString());
+    setEditDate(item.next_date || "");
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setSelectedItem(null);
+    setShowModal(false);
+  };
 
   if (isLoading) {
     return (
@@ -127,15 +208,13 @@ export default function InstallmentsPage() {
     );
   }
 
-  if (groups.length === 0) {
+  if (groups.length === 0 && recurringExpenses.length === 0) {
     return (
       <div className="text-center py-20">
         <p className="text-4xl mb-4">💳</p>
-        <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
-          Sin compras en cuotas
-        </h2>
-        <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-          Importá extractos con cuotas para ver la proyección.
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Sin gastos programados</h2>
+        <p className="text-sm mt-1 text-[var(--text-secondary)]">
+          Importá extractos con cuotas o agregá suscripciones para ver la proyección.
         </p>
       </div>
     );
@@ -143,585 +222,419 @@ export default function InstallmentsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold text-primary">Gastos en Cuotas</h1>
-        <button onClick={() => setEditing(null)} className="gnome-btn-primary-round text-sm">
-          <span className="text-base leading-none">+</span>
-          <span>Nuevo gasto</span>
+        <h1 className="text-2xl font-semibold text-primary">Programados</h1>
+        <button
+          onClick={() => setShowCompleted(!showCompleted)}
+          className="gnome-btn-secondary-round text-sm"
+        >
+          {showCompleted ? "Ocultar completadas" : "Mostrar completadas"}
         </button>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="card p-4">
-          <p className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>
-            Este mes
-          </p>
-          <p className="text-2xl font-bold" style={{ color: "var(--color-success)" }}>
-            {currentMonthCount}
-          </p>
-          <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-            {formatCurrency(currentMonthTotal)}
-          </p>
+          <p className="text-[10px] text-tertiary uppercase mb-1">Este mes</p>
+          <p className="text-lg font-bold text-[var(--color-success)]">{currentMonthCount}</p>
+          <p className="text-xs text-tertiary mt-1">{formatCurrency(currentMonthTotal)}</p>
         </div>
         <div className="card p-4">
-          <p className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>
-            Total pendiente
-          </p>
-          <p className="text-2xl font-bold" style={{ color: "var(--color-primary)" }}>
+          <p className="text-[10px] text-tertiary uppercase mb-1">Pendiente</p>
+          <p className="text-lg font-bold text-[var(--color-primary)]">
             {formatCurrency(totalPending)}
           </p>
-          <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-            {activeGroups.length} grupos
+          <p className="text-xs text-tertiary mt-1">{activeGroups.length} grupos</p>
+        </div>
+        <div className="card p-4">
+          <p className="text-[10px] text-tertiary uppercase mb-1">Recurrentes</p>
+          <p className="text-lg font-bold text-[var(--gnome-purple-3)]">
+            {formatCurrency(recurringTotal)}
           </p>
+          <p className="text-xs text-tertiary mt-1">{recurringCount} gastos/mes</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2 space-y-5">
-          <div className="card p-5">
-            <h2 className="text-base font-semibold mb-1" style={{ color: "var(--text-primary)" }}>
-              Carga Mensual En Cuotas
-            </h2>
-            {(() => {
-              const currentEntry = monthlyLoad.find((e) => e.is_current);
-              const currentTotal = currentEntry?.total ?? 0;
-              return (
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={monthlyLoad} margin={{ top: 20, right: 8, left: 8, bottom: 0 }}>
-                    <defs>
-                      {monthlyLoad.map((e) => {
-                        let baseColor = "var(--color-primary)";
-                        if (e.is_current) baseColor = "var(--color-success)";
-                        else if (e.is_past) baseColor = "var(--gnome-yellow-3)";
-                        else if (currentTotal > 0)
-                          baseColor =
-                            e.total > currentTotal ? "var(--color-danger)" : "var(--color-primary)";
-                        return (
-                          <linearGradient
-                            key={e.month}
-                            id={`bar-${e.month}`}
-                            x1="0"
-                            y1="0"
-                            x2="0"
-                            y2="1"
-                          >
-                            <stop offset="0%" stopColor={baseColor} stopOpacity={1} />
-                            <stop offset="100%" stopColor={baseColor} stopOpacity={0.55} />
-                          </linearGradient>
-                        );
-                      })}
-                    </defs>
-                    <XAxis
-                      dataKey="month"
-                      tick={{ fontSize: 10, fill: "var(--chart-text)" }}
-                      tickFormatter={(v: string) => {
-                        const [y, m] = v.split("-");
-                        return `${MONTHS_ES_SHORT[parseInt(m) - 1]} ${y.slice(2)}`;
-                      }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    {currentTotal > 0 && (
-                      <ReferenceLine
-                        y={currentTotal}
-                        stroke="var(--text-tertiary)"
-                        strokeDasharray="4 4"
-                        strokeWidth={1}
-                      />
-                    )}
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "var(--chart-tooltip-bg)",
-                        borderColor: "var(--chart-tooltip-border)",
-                        color: "var(--chart-tooltip-text)",
-                        borderRadius: 12,
-                        boxShadow: "0 4px 16px rgba(0,0,0,0.10)",
-                      }}
-                      labelStyle={{ fontWeight: 600, marginBottom: 4 }}
-                      itemStyle={{ color: "var(--chart-tooltip-text)" }}
-                      formatter={(v: number, _: string, props: any) => {
-                        const entry = props.payload;
-                        const kind = entry?.is_current
-                          ? "Mes actual"
-                          : entry?.is_past
-                            ? "Pagado"
-                            : "Proyectado";
-                        if (!entry?.is_current && currentTotal > 0) {
-                          const pct = ((v - currentTotal) / currentTotal) * 100;
-                          const sign = pct > 0 ? "+" : "";
-                          const color = pct > 0 ? "var(--color-danger)" : "var(--color-success)";
-                          return [
-                            <span>
-                              {formatCurrency(v)}{" "}
-                              <span style={{ color, fontWeight: 700 }}>
-                                ({sign}
-                                {pct.toFixed(2)}%)
-                              </span>
-                            </span>,
-                            kind,
-                          ];
-                        }
-                        return [formatCurrency(v), kind];
-                      }}
-                      labelFormatter={(l: string) => {
-                        const [y, m] = l.split("-");
-                        return `${MONTHS_ES_SHORT[parseInt(m) - 1]} ${y}`;
-                      }}
-                    />
-                    <Bar
-                      dataKey="total"
-                      radius={[4, 4, 0, 0]}
-                      label={{
-                        position: "top",
-                        fontSize: 10,
-                        fill: "var(--text-secondary)",
-                        formatter: (v: number) =>
-                          new Intl.NumberFormat("es-AR", {
-                            notation: "compact",
-                          }).format(v),
-                      }}
-                    >
-                      {monthlyLoad.map((e) => (
-                        <Cell
-                          key={e.month}
-                          fill={`url(#bar-${e.month})`}
-                          fillOpacity={e.is_past ? 0.7 : 1}
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              );
-            })()}
-          </div>
-
-          <div className="card overflow-hidden">
-            <div
-              className="px-5 py-3 border-b flex items-center justify-between"
-              style={{ borderColor: "var(--border-color)" }}
-            >
-              <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
-                Compras En Cuotas
-                <span className="ml-2 text-xs" style={{ color: "var(--text-secondary)" }}>
-                  {filtered.length} registros
-                </span>
-              </h2>
-              <button
-                onClick={() => setShowCompleted((v) => !v)}
-                className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
-                  showCompleted ? "" : ""
-                }`}
-                style={{
-                  backgroundColor: showCompleted ? "var(--color-primary)" : "transparent",
-                  color: showCompleted ? "var(--color-on-primary)" : "var(--text-secondary)",
-                  borderColor: showCompleted ? "var(--color-primary)" : "var(--border-color)",
+      {/* Charts: BarChart (focus) + Horizontal bar (compact) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* BarChart: Tendencia mensual (2 columns - main focus) */}
+        <div className="lg:col-span-2 card p-4">
+          <h2 className="text-sm font-semibold text-primary mb-3">Tendencia mensual</h2>
+          <ResponsiveContainer width="100%" height={200}>
+            <ComposedChart data={monthlyLoad} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 10, fill: "var(--chart-text)" }}
+                tickFormatter={(v) => {
+                  const [, m] = v.split("-");
+                  return MONTHS_ES_SHORT[parseInt(m) - 1];
                 }}
-              >
-                {showCompleted ? "Ocultar completadas" : "Mostrar completadas"}
-              </button>
-            </div>
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "var(--chart-tooltip-bg)",
+                  borderColor: "var(--chart-tooltip-border)",
+                  color: "var(--chart-tooltip-text)",
+                }}
+                formatter={(v: number) => [formatCurrency(v), "Total"]}
+              />
+              <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+                {monthlyLoad.map((entry, index) => (
+                  <Cell
+                    key={index}
+                    fill={
+                      entry.is_current
+                        ? "var(--color-success)"
+                        : entry.is_past
+                          ? "var(--gnome-yellow-3)"
+                          : "var(--color-primary)"
+                    }
+                  />
+                ))}
+              </Bar>
+              <Line
+                type="monotone"
+                dataKey="total"
+                stroke="var(--gnome-purple-3)"
+                strokeWidth={2}
+                dot={{ r: 3, fill: "var(--gnome-purple-3)" }}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
 
-            {filtered.length === 0 ? (
-              <p className="text-sm text-center py-10" style={{ color: "var(--text-secondary)" }}>
-                Sin resultados para los filtros seleccionados
-              </p>
-            ) : (
-              <div className="divide-y" style={{ borderColor: "var(--border-color)" }}>
-                {filtered.map((g) => {
-                  const pct =
-                    g.installment_total > 0 ? (g.installments_paid / g.installment_total) * 100 : 0;
-                  const done = g.remaining_installments === 0;
-                  return (
+        {/* Horizontal Bar Chart: Compromisos por categoría (1 column - compact) */}
+        {categoryData.length > 0 && (
+          <div className="card p-4">
+            <h2 className="text-sm font-semibold text-primary mb-3">Por categoría</h2>
+            <div className="space-y-2">
+              {categoryData.map((cat) => (
+                <div key={cat.name} className="flex items-center gap-3 overflow-hidden">
+                  <span className="text-xs text-primary w-24 truncate flex-shrink-0">
+                    {cat.name}
+                  </span>
+                  <div className="flex-1 h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden min-w-0">
                     <div
-                      key={g.installment_group_id}
-                      className="px-5 py-3 hover:bg-[var(--color-base-alt)] transition-colors cursor-pointer"
-                      style={{ backgroundColor: "transparent" }}
-                      onClick={() => {
-                        if (g.remaining_installments > 0) {
-                          setSelectedGroup(g);
-                          setShowScheduledModal(true);
-                        }
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${Math.max(cat.percentage, 2)}%`,
+                        backgroundColor: cat.color,
                       }}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                          <span
-                            className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1"
-                            style={{
-                              backgroundColor: g.category_color || "#3584e4",
-                            }}
-                          />
-                          <div className="min-w-0">
-                            <p
-                              className="text-sm font-medium truncate"
-                              style={{
-                                color: done ? "var(--text-secondary)" : "var(--text-primary)",
-                              }}
-                            >
-                              {toUpperCase(g.description)}
-                              {g.remaining_installments > 0 && (
-                                <span
-                                  className="ml-2 text-[10px] px-1.5 py-0.5 rounded"
-                                  style={{
-                                    backgroundColor: "var(--color-base-alt)",
-                                    color: "var(--text-secondary)",
-                                  }}
-                                >
-                                  {g.remaining_installments} programada
-                                  {g.remaining_installments > 1 ? "s" : ""}
-                                </span>
-                              )}
-                            </p>
-                            <p
-                              className="text-xs mt-0.5"
-                              style={{ color: "var(--text-secondary)" }}
-                            >
-                              {g.person && (
-                                <span className="text-[var(--color-primary)]">{g.person}</span>
-                              )}
-                              {g.person && g.bank ? " · " : ""}
-                              {g.bank}
-                              {g.card ? ` · ${g.card}` : ""}
-                              {g.next_date && !done && (
-                                <> · próxima: {formatDateDMY(g.next_date, "—")}</>
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
-                          <div>
-                            <p
-                              className="text-sm font-medium"
-                              style={{
-                                color: done ? "var(--text-secondary)" : "var(--text-primary)",
-                              }}
-                            >
-                              {formatCurrency(g.installment_amount, g.currency)}
-                            </p>
-                            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                              {done ? (
-                                <span style={{ color: "var(--color-success)" }}>✓ Completada</span>
-                              ) : (
-                                <>
-                                  {g.remaining_installments} restante
-                                  {g.remaining_installments !== 1 ? "s" : ""}
-                                </>
-                              )}
-                            </p>
-                          </div>
-                          {g.remaining_installments > 0 && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedGroup(g);
-                                setShowScheduledModal(true);
-                              }}
-                              className="text-xs underline transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                            >
-                              Gestionar
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="mt-2 flex items-center gap-2">
-                        <div
-                          className="flex-1 h-1.5 rounded-full overflow-hidden"
-                          style={{ backgroundColor: "var(--color-base-alt)" }}
-                        >
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{
-                              width: `${pct}%`,
-                              backgroundColor: g.category_color || "#3584e4",
-                            }}
-                          />
-                        </div>
-                        <span
-                          className="text-[10px] flex-shrink-0"
-                          style={{ color: "var(--text-secondary)" }}
-                        >
-                          {g.installments_paid}/{g.installment_total}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="xl:col-span-1">
-          <div className="card p-5 sticky top-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
-                Filtros
-              </h2>
-              {(paymentFilter || categoryFilter) && (
-                <button
-                  onClick={() => {
-                    setPaymentFilter(null);
-                    setCategoryFilter(null);
-                  }}
-                  className="text-xs transition-colors hover:text-[var(--text-primary)]"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  Limpiar
-                </button>
-              )}
+                    />
+                  </div>
+                  <span className="text-xs text-tertiary flex-shrink-0 text-right">
+                    {formatCurrency(cat.value / 12)}
+                  </span>
+                </div>
+              ))}
             </div>
-
-            <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-              {filtered.length} cuotas · {activeGroups.length} grupos activos
-            </p>
-
-            {paymentMethods.length > 0 && (
-              <div>
-                <p
-                  className="text-[10px] uppercase tracking-wide mb-1.5"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  Medio de pago
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {paymentMethods.length > 1 && (
-                    <button
-                      onClick={() => setPaymentFilter(null)}
-                      className="text-xs px-3 py-1.5 rounded-lg border transition-all"
-                      style={{
-                        backgroundColor: !paymentFilter ? "var(--color-primary)" : "transparent",
-                        color: !paymentFilter ? "var(--color-on-primary)" : "var(--text-secondary)",
-                        borderColor: !paymentFilter
-                          ? "var(--color-primary)"
-                          : "var(--border-color)",
-                      }}
-                    >
-                      Todos
-                    </button>
-                  )}
-                  {paymentMethods.map((pm) => (
-                    <button
-                      key={pm}
-                      onClick={() => setPaymentFilter(paymentFilter === pm ? null : pm)}
-                      className="text-xs px-3 py-1.5 rounded-lg border transition-all"
-                      style={{
-                        backgroundColor:
-                          paymentFilter === pm ? "var(--color-primary)" : "transparent",
-                        color:
-                          paymentFilter === pm
-                            ? "var(--color-on-primary)"
-                            : "var(--text-secondary)",
-                        borderColor:
-                          paymentFilter === pm ? "var(--color-primary)" : "var(--border-color)",
-                      }}
-                    >
-                      {pm}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {categories.length > 0 && (
-              <div>
-                <p
-                  className="text-[10px] uppercase tracking-wide mb-1.5"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  Categoría
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {categories.length > 1 && (
-                    <button
-                      onClick={() => setCategoryFilter(null)}
-                      className="text-xs px-3 py-1.5 rounded-lg border transition-all"
-                      style={{
-                        backgroundColor: !categoryFilter ? "var(--color-primary)" : "transparent",
-                        color: !categoryFilter
-                          ? "var(--color-on-primary)"
-                          : "var(--text-secondary)",
-                        borderColor: !categoryFilter
-                          ? "var(--color-primary)"
-                          : "var(--border-color)",
-                      }}
-                    >
-                      Todas
-                    </button>
-                  )}
-                  {categories.map((c) => (
-                    <button
-                      key={c}
-                      onClick={() => setCategoryFilter(categoryFilter === c ? null : c)}
-                      className="text-xs px-3 py-1.5 rounded-lg border transition-all"
-                      style={{
-                        backgroundColor:
-                          categoryFilter === c ? "var(--color-primary)" : "transparent",
-                        color:
-                          categoryFilter === c
-                            ? "var(--color-on-primary)"
-                            : "var(--text-secondary)",
-                        borderColor:
-                          categoryFilter === c ? "var(--color-primary)" : "var(--border-color)",
-                      }}
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {persons.length > 1 && (
-              <div>
-                <p
-                  className="text-[10px] uppercase tracking-wide mb-1.5"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  Persona
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {persons.length > 1 && (
-                    <button
-                      onClick={() => setPersonFilter(null)}
-                      className="text-xs px-3 py-1.5 rounded-lg border transition-all"
-                      style={{
-                        backgroundColor: !personFilter ? "var(--color-primary)" : "transparent",
-                        color: !personFilter ? "var(--color-on-primary)" : "var(--text-secondary)",
-                        borderColor: !personFilter ? "var(--color-primary)" : "var(--border-color)",
-                      }}
-                    >
-                      Todas
-                    </button>
-                  )}
-                  {persons.map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => setPersonFilter(personFilter === p ? null : p)}
-                      className="text-xs px-3 py-1.5 rounded-lg border transition-all"
-                      style={{
-                        backgroundColor:
-                          personFilter === p ? "var(--color-primary)" : "transparent",
-                        color:
-                          personFilter === p ? "var(--color-on-primary)" : "var(--text-secondary)",
-                        borderColor:
-                          personFilter === p ? "var(--color-primary)" : "var(--border-color)",
-                      }}
-                    >
-                      {p}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
-        </div>
+        )}
       </div>
 
-      {showScheduledModal && selectedGroup && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-modal-backdrop"
-          onClick={() => setShowScheduledModal(false)}
-        >
-          <div
-            className="bg-[var(--color-surface)] border rounded-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-xl animate-modal-content"
-            style={{ borderColor: "var(--border-color)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              className="flex items-center justify-between mb-4 pb-3 border-b"
-              style={{ borderColor: "var(--border-color)" }}
-            >
-              <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
-                Cuotas Programadas: {toUpperCase(selectedGroup.description)}
-              </h2>
+      {/* Próximos pagos: Unified list sorted by date */}
+      <div className="card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-primary">Próximos pagos</h2>
+          <div className="flex items-center gap-2">
+            {pausedRecurring.length > 0 && (
               <button
-                onClick={() => setShowScheduledModal(false)}
-                className="text-lg leading-none transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                onClick={() => setShowPaused(!showPaused)}
+                className="text-xs text-tertiary hover:text-primary transition"
               >
-                ✕
+                {showPaused ? "Ocultar pausadas" : `Mostrar pausadas (${pausedRecurring.length})`}
               </button>
-            </div>
+            )}
+          </div>
+        </div>
 
-            <div className="space-y-2">
-              {scheduledLoading ? (
-                <div className="space-y-2 py-4">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="h-16 rounded-lg bg-[var(--color-base-alt)] animate-pulse"
-                    />
-                  ))}
-                </div>
-              ) : scheduledForGroup.length === 0 ? (
-                <p className="text-sm text-center py-4" style={{ color: "var(--text-secondary)" }}>
-                  No hay cuotas programadas
-                </p>
-              ) : (
-                scheduledForGroup.map((s) => (
-                  <div
-                    key={s.id}
-                    className="flex items-center justify-between p-3 rounded-lg transition-colors hover:bg-[var(--color-base-alt)] cursor-pointer"
-                  >
-                    <div>
-                      <p className="font-medium" style={{ color: "var(--text-primary)" }}>
-                        Cuota {s.installment_number}/{s.installment_total}
+        {/* Filter buttons */}
+        <div className="flex gap-1 mb-3">
+          {[
+            { key: "all" as const, label: "Todos", count: allPayments.length },
+            {
+              key: "cuotas" as const,
+              label: "Cuotas",
+              count: allPayments.filter((p) => p.type === "installment").length,
+              color: "bg-gnomeBlue5",
+            },
+            {
+              key: "recurrentes" as const,
+              label: "Recurrentes",
+              count: allPayments.filter((p) => p.type === "recurring").length,
+              color: "bg-gnomePurple5",
+            },
+          ].map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setListFilter(listFilter === f.key ? "all" : f.key)}
+              className={`text-xs px-2.5 py-1 rounded-full border transition-all flex items-center gap-1 ${
+                listFilter === f.key
+                  ? "bg-primary text-on-primary border-primary"
+                  : "border-border-color text-tertiary hover:text-primary"
+              }`}
+            >
+              {f.color && <span className={`w-1.5 h-1.5 rounded-full ${f.color}`} />}
+              {f.label}
+              <span className="text-[10px] opacity-60">({f.count})</span>
+            </button>
+          ))}
+        </div>
+
+        {filteredPayments.length === 0 ? (
+          <p className="text-sm text-tertiary py-4 text-center">Sin pagos próximos</p>
+        ) : (
+          <div className="space-y-1">
+            {filteredPayments.map((item) => {
+              const isPaused = item.type === "recurring" && item.is_active === false;
+              const isInstallment = item.type === "installment";
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => openGestionar(item)}
+                  className={`w-full flex items-center justify-between py-3 px-3 rounded-lg transition hover:ring-1 hover:ring-[var(--border-color)] ${
+                    isPaused ? "opacity-50" : ""
+                  } ${isInstallment ? "bg-gnomeBlue5/5" : "bg-gnomePurple5/5"}`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                        isInstallment
+                          ? "bg-[var(--gnome-blue-1)]/20 text-[var(--gnome-blue-5)]"
+                          : "bg-[var(--gnome-purple-1)]/20 text-[var(--gnome-purple-3)]"
+                      }`}
+                    >
+                      {item.description.charAt(0)}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-primary truncate">
+                          {item.description}
+                        </p>
+                        {item.category_name && (
+                          <span className="flex items-center gap-1 flex-shrink-0">
+                            <span
+                              className="w-2 h-2 rounded-full"
+                              style={{
+                                backgroundColor: item.category_color || "var(--gnome-purple-3)",
+                              }}
+                            />
+                            <span className="text-[10px] text-tertiary">{item.category_name}</span>
+                          </span>
+                        )}
+                        {isPaused && (
+                          <span className="text-[10px] text-[var(--gnome-yellow-4)] font-medium flex-shrink-0">
+                            PAUSADO
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-tertiary">
+                        {item.installment_info}
+                        {item.next_date && (
+                          <span className="ml-2">· Próx: {formatDateDMY(item.next_date)}</span>
+                        )}
                       </p>
-                      <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-                        {formatDateDMY(s.scheduled_date)} · {formatCurrency(s.amount, s.currency)}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => executeMutation.mutate(s.id)}
-                        className="px-3 py-1.5 text-xs rounded-lg transition-all bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 active:scale-95"
-                        disabled={executeMutation.isPending}
-                      >
-                        Ejecutar ahora
-                      </button>
-                      <button
-                        onClick={() => setCancelConfirm(s.id)}
-                        className="px-3 py-1.5 text-xs rounded-lg border transition-colors border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
-                        disabled={cancelMutation.isPending}
-                      >
-                        Cancelar
-                      </button>
                     </div>
                   </div>
-                ))
+                  <span className="text-sm font-medium text-primary flex-shrink-0">
+                    {formatCurrency(item.amount)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Gestionar Modal */}
+      {showModal && selectedItem && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-backdrop bg-black/60"
+          onClick={closeModal}
+        >
+          <div
+            className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-xl w-full max-w-md max-h-[85vh] overflow-hidden flex flex-col animate-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-color)]">
+              <div className="min-w-0 flex-1">
+                <h2
+                  className="text-base font-semibold truncate"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  {selectedItem.description}
+                </h2>
+                <p className="text-xs text-[var(--text-tertiary)]">
+                  {selectedItem.type === "installment" ? "Cuota" : "Suscripción"}
+                </p>
+              </div>
+              <button
+                onClick={closeModal}
+                className="ml-3 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] text-xl flex-shrink-0"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="overflow-y-auto flex-1 p-5">
+              {/* Info grid */}
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm mb-4">
+                <div>
+                  <p className="text-[var(--text-tertiary)] text-xs uppercase">Monto</p>
+                  <p className="font-medium text-[var(--text-primary)]">
+                    {formatCurrency(selectedItem.amount)}
+                  </p>
+                </div>
+                {selectedItem.category_name && (
+                  <div>
+                    <p className="text-[var(--text-tertiary)] text-xs uppercase">Categoría</p>
+                    <p className="text-[var(--text-primary)]">{selectedItem.category_name}</p>
+                  </div>
+                )}
+                {selectedItem.next_date && (
+                  <div>
+                    <p className="text-[var(--text-tertiary)] text-xs uppercase">Próximo pago</p>
+                    <p className="text-[var(--text-primary)]">
+                      {formatDateDMY(selectedItem.next_date)}
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-[var(--text-tertiary)] text-xs uppercase">Tipo</p>
+                  <p className="text-[var(--text-primary)]">{selectedItem.installment_info}</p>
+                </div>
+              </div>
+
+              {/* Scheduled payments for installments */}
+              {selectedItem.type === "installment" && scheduledForGroup.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">
+                    Próximos pagos ({scheduledForGroup.length})
+                  </h3>
+                  <div className="divide-y divide-[var(--border-color)]">
+                    {scheduledForGroup.slice(0, 5).map((payment: any) => (
+                      <div key={payment.id} className="flex items-center justify-between py-2">
+                        <div>
+                          <p className="text-sm text-[var(--text-primary)]">
+                            Cuota {payment.installment_number}/{payment.installment_total}
+                          </p>
+                          <p className="text-xs text-[var(--text-tertiary)]">
+                            {formatDateDMY(payment.scheduled_date)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-[var(--text-primary)]">
+                            {formatCurrency(payment.amount)}
+                          </span>
+                          <button
+                            onClick={() => executeMut.mutate(payment.id)}
+                            className="text-xs text-[var(--color-primary)] hover:underline"
+                          >
+                            Ejecutar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {scheduledForGroup.length > 5 && (
+                      <p className="text-xs text-[var(--text-tertiary)] py-2 text-center">
+                        +{scheduledForGroup.length - 5} más...
+                      </p>
+                    )}
+                  </div>
+                </div>
               )}
+
+              {/* Edit form for recurring */}
+              {selectedItem.type === "recurring" && (
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Editar</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 block">
+                        Monto
+                      </label>
+                      <input
+                        type="number"
+                        value={editAmount}
+                        onChange={(e) => setEditAmount(e.target.value)}
+                        className="input w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 block">
+                        Próximo cargo
+                      </label>
+                      <input
+                        type="date"
+                        value={editDate}
+                        onChange={(e) => setEditDate(e.target.value)}
+                        className="input w-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3 border-t border-[var(--border-color)] flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {selectedItem.type === "recurring" && (
+                    <>
+                      <button
+                        onClick={() => {
+                          handlePauseRecurring(selectedItem.recurring_id!);
+                          closeModal();
+                        }}
+                        className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:underline"
+                      >
+                        {selectedItem.is_active ? "Pausar" : "Reanudar"}
+                      </button>
+                      <span className="text-[var(--border-color)]">·</span>
+                      <button
+                        onClick={() => {
+                          handleDeleteRecurring(selectedItem.recurring_id!);
+                          closeModal();
+                        }}
+                        className="text-xs text-[var(--gnome-red-3)] hover:underline"
+                      >
+                        Eliminar
+                      </button>
+                    </>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={closeModal}
+                    className="px-3 py-1.5 text-xs font-medium rounded-md border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
+                  >
+                    Cerrar
+                  </button>
+                  {selectedItem.type === "recurring" && (
+                    <button
+                      onClick={() => {
+                        updateRecurringMut.mutate({
+                          id: selectedItem.recurring_id!,
+                          data: {
+                            amount: parseFloat(editAmount),
+                            next_charge_date: editDate,
+                          },
+                        });
+                      }}
+                      className="px-3 py-1.5 text-xs font-medium rounded-md bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 transition"
+                    >
+                      Guardar
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      )}
-
-      <ConfirmDialog
-        isOpen={cancelConfirm !== null}
-        title="Cancelar cuota programada"
-        message="¿Estás seguro que querés cancelar esta cuota? Esta acción no se puede deshacer."
-        confirmLabel="Cancelar cuota"
-        cancelLabel="Volver"
-        variant="danger"
-        onConfirm={() => {
-          if (cancelConfirm !== null) {
-            cancelMutation.mutate(cancelConfirm);
-            setCancelConfirm(null);
-          }
-        }}
-        onCancel={() => setCancelConfirm(null)}
-      />
-
-      {editing !== undefined && (
-        <ExpenseModal
-          initial={editing}
-          mode="installments-only"
-          onClose={() => {
-            setEditing(undefined);
-            setSaveError(null);
-          }}
-          onSave={(data) => createMut.mutate(data)}
-          saveError={saveError}
-          isSaving={createMut.isPending}
-        />
       )}
     </div>
   );

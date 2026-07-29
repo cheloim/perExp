@@ -160,3 +160,154 @@ export function MigrationMockup() {
     </div>
   );
 }
+
+/* ─── Programados Mockup ────────────────────────────── */
+
+export function ProgramadosMockup() {
+  return (
+    <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 rounded-2xl p-5 border border-green-500/20">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center">
+          <SymbolicIcon name="installments" size={20} />
+        </div>
+        <div>
+          <p className="font-semibold text-sm text-[var(--text-primary)]">Programados</p>
+          <p className="text-xs text-[var(--text-secondary)]">Cuotas + Recurrentes</p>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg p-2 text-center">
+            <p className="text-[10px] text-[var(--text-secondary)]">Este mes</p>
+            <p className="text-sm font-bold text-green-500">5</p>
+          </div>
+          <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg p-2 text-center">
+            <p className="text-[10px] text-[var(--text-secondary)]">Pendiente</p>
+            <p className="text-sm font-bold text-blue-500">$450K</p>
+          </div>
+          <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg p-2 text-center">
+            <p className="text-[10px] text-[var(--text-secondary)]">Recurrentes</p>
+            <p className="text-sm font-bold text-purple-500">$37K</p>
+          </div>
+        </div>
+        <div className="space-y-1">
+          {[
+            { icon: "📺", name: "Netflix", amount: "$5,000", color: "bg-purple-500/10" },
+            { icon: "📱", name: "iPhone 15", amount: "$173K", color: "bg-blue-500/10" },
+            { icon: "💪", name: "Gym", amount: "$8,000", color: "bg-green-500/10" },
+          ].map((item) => (
+            <div
+              key={item.name}
+              className={`flex items-center justify-between px-3 py-2 rounded-lg ${item.color}`}
+            >
+              <span className="text-xs text-[var(--text-primary)]">
+                {item.icon} {item.name}
+              </span>
+              <span className="text-xs font-medium text-[var(--text-primary)]">{item.amount}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Subscriptions Mockup ──────────────────────────── */
+
+export function SubscriptionsMockup() {
+  return (
+    <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-2xl p-5 border border-purple-500/20">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+          <SymbolicIcon name="sparkles" size={20} />
+        </div>
+        <div>
+          <p className="font-semibold text-sm text-[var(--text-primary)]">Suscripciones</p>
+          <p className="text-xs text-[var(--text-secondary)]">Gestión inteligente</p>
+        </div>
+      </div>
+      <div className="space-y-2">
+        {[
+          { name: "Netflix", amount: "$5,000", status: "Activo", color: "text-green-500" },
+          { name: "Spotify", amount: "$2,500", status: "Activo", color: "text-green-500" },
+          { name: "Gym", amount: "$8,000", status: "Pausado", color: "text-amber-500" },
+        ].map((sub) => (
+          <div
+            key={sub.name}
+            className="flex items-center justify-between bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-2"
+          >
+            <span className="text-xs text-[var(--text-primary)]">{sub.name}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-[var(--text-primary)]">{sub.amount}</span>
+              <span className={`text-[10px] font-medium ${sub.color}`}>{sub.status}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Trend Chart Mockup ────────────────────────────── */
+
+export function TrendChartMockup() {
+  return (
+    <div className="bg-gradient-to-br from-blue-500/10 to-indigo-500/10 rounded-2xl p-5 border border-blue-500/20">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+          <SymbolicIcon name="chart-bar" size={20} />
+        </div>
+        <div>
+          <p className="font-semibold text-sm text-[var(--text-primary)]">Tendencia Mensual</p>
+          <p className="text-xs text-[var(--text-secondary)]">Gráfico mejorado</p>
+        </div>
+      </div>
+      <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg p-4">
+        <div className="flex items-end gap-1 h-20">
+          {[40, 55, 45, 70, 60, 80].map((h, i) => (
+            <div
+              key={i}
+              className={`flex-1 rounded-t ${i === 5 ? "bg-green-500" : i === 4 ? "bg-yellow-500" : "bg-blue-500"}`}
+              style={{ height: `${h}%` }}
+            />
+          ))}
+        </div>
+        <div className="flex justify-between mt-2">
+          {["Feb", "Mar", "Abr", "May", "Jun", "Jul"].map((m) => (
+            <span key={m} className="text-[10px] text-[var(--text-secondary)]">
+              {m}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Email Validation Mockup ───────────────────────── */
+
+export function EmailValidationMockup() {
+  return (
+    <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 rounded-2xl p-5 border border-amber-500/20">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
+          <SymbolicIcon name="settings" size={20} />
+        </div>
+        <div>
+          <p className="font-semibold text-sm text-[var(--text-primary)]">Validación de Email</p>
+          <p className="text-xs text-[var(--text-secondary)]">DNS + Dominios bloqueados</p>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg p-3">
+          <p className="text-xs text-[var(--text-secondary)] mb-1">Email válido</p>
+          <p className="text-xs text-green-500 font-medium">✓ usuario@gmail.com</p>
+        </div>
+        <div className="bg-[var(--bg-primary)] border border-red-500/30 rounded-lg p-3">
+          <p className="text-xs text-[var(--text-secondary)] mb-1">Email inválido</p>
+          <p className="text-xs text-red-500 font-medium">✗ test@test.com (dominio bloqueado)</p>
+        </div>
+      </div>
+    </div>
+  );
+}

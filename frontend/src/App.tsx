@@ -79,9 +79,10 @@ const TABS = [
   },
   {
     path: "/installments",
-    label: "Cuotas",
+    label: "Programados",
     icon: "installments",
     exact: false,
+    tour: "sidebar-programados",
   },
   {
     path: "/investments",
@@ -244,15 +245,17 @@ function MainLayout() {
   const { ToastContainer } = useUndoToast();
 
   // Check if we should show What's New modal (only on /)
-  // Uses sessionStorage: shows once per browser session, resets on new version
+  // Shows every time on main page unless user opted out entirely
   useEffect(() => {
     const checkWhatsNew = async () => {
       try {
         if (location.pathname !== "/") return;
-        if (sessionStorage.getItem("whats_new_dismissed") === "true") return;
         const { SHOW_WHATS_NEW } = await import("./components/WhatsNewModal");
         if (!SHOW_WHATS_NEW) return;
-        sessionStorage.setItem("whats_new_dismissed", "true");
+
+        const dontRemind = localStorage.getItem("whats_new_dont_remind") === "true";
+        if (dontRemind) return;
+
         setTimeout(() => setShowWhatsNew(true), 1500);
       } catch {
         // Ignore errors
@@ -645,7 +648,14 @@ function MainLayout() {
             {/* What's New Modal - rendered outside main to avoid overflow clipping */}
             {showWhatsNew && (
               <Suspense fallback={null}>
-                <WhatsNewModal onClose={() => setShowWhatsNew(false)} />
+                <WhatsNewModal
+                  onClose={(dontRemind) => {
+                    setShowWhatsNew(false);
+                    if (dontRemind) {
+                      localStorage.setItem("whats_new_dont_remind", "true");
+                    }
+                  }}
+                />
               </Suspense>
             )}
 
