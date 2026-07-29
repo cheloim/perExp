@@ -559,50 +559,57 @@ export default function InstallmentsPage() {
 
             {/* Footer */}
             <div className="px-5 py-3 border-t border-[var(--border-color)] flex-shrink-0">
-              <div className="flex gap-2">
-                <button onClick={closeModal} className="gnome-btn-secondary flex-1 text-sm">
-                  Cerrar
-                </button>
-                {selectedItem.type === "recurring" && (
-                  <button
-                    onClick={() => {
-                      updateRecurringMut.mutate({
-                        id: selectedItem.recurring_id!,
-                        data: {
-                          amount: parseFloat(editAmount),
-                          next_charge_date: editDate,
-                        },
-                      });
-                    }}
-                    className="gnome-btn-primary flex-1 text-sm"
-                  >
-                    Guardar
-                  </button>
-                )}
-              </div>
-              {selectedItem.type === "recurring" && (
-                <div className="flex items-center gap-3 mt-2 justify-center">
-                  <button
-                    onClick={() => {
-                      handlePauseRecurring(selectedItem.recurring_id!);
-                      closeModal();
-                    }}
-                    className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:underline"
-                  >
-                    {selectedItem.is_active ? "Pausar" : "Reanudar"}
-                  </button>
-                  <span className="text-[var(--border-color)]">·</span>
-                  <button
-                    onClick={() => {
-                      handleDeleteRecurring(selectedItem.recurring_id!);
-                      closeModal();
-                    }}
-                    className="text-xs text-[var(--gnome-red-3)] hover:underline"
-                  >
-                    Eliminar
-                  </button>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {selectedItem.type === "recurring" && (
+                    <>
+                      <button
+                        onClick={() => {
+                          handlePauseRecurring(selectedItem.recurring_id!);
+                          closeModal();
+                        }}
+                        className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:underline"
+                      >
+                        {selectedItem.is_active ? "Pausar" : "Reanudar"}
+                      </button>
+                      <span className="text-[var(--border-color)]">·</span>
+                      <button
+                        onClick={() => {
+                          handleDeleteRecurring(selectedItem.recurring_id!);
+                          closeModal();
+                        }}
+                        className="text-xs text-[var(--gnome-red-3)] hover:underline"
+                      >
+                        Eliminar
+                      </button>
+                    </>
+                  )}
                 </div>
-              )}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={closeModal}
+                    className="px-3 py-1.5 text-xs font-medium rounded-md border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
+                  >
+                    Cerrar
+                  </button>
+                  {selectedItem.type === "recurring" && (
+                    <button
+                      onClick={() => {
+                        updateRecurringMut.mutate({
+                          id: selectedItem.recurring_id!,
+                          data: {
+                            amount: parseFloat(editAmount),
+                            next_charge_date: editDate,
+                          },
+                        });
+                      }}
+                      className="px-3 py-1.5 text-xs font-medium rounded-md bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 transition"
+                    >
+                      Guardar
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
