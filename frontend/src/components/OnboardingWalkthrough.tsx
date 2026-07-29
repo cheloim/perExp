@@ -54,7 +54,7 @@ function getTourSteps(openPanel: (open: boolean) => void): TourStepConfig[] {
       title: "Programados",
       content:
         "Acá ves tus cuotas y gastos recurrentes juntos. Podés gestionar suscripciones, ver próximos pagos y pausar o eliminar cuando quieras.",
-      icon: "calendar-month",
+      icon: "installments",
       color: "#2ec27e",
       placement: "right",
     },

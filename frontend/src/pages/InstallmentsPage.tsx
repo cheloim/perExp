@@ -1,17 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Line,
-  ComposedChart,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-  ReferenceLine,
-} from "recharts";
+import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell, ComposedChart } from "recharts";
 import {
   getInstallmentsDashboard,
   getInstallmentsMonthlyLoad,
@@ -23,17 +12,8 @@ import {
   deleteRecurringExpense,
   updateRecurringExpense,
 } from "../api/client";
-import type { InstallmentGroup, RecurringExpense, ExpenseCreate } from "../types";
+import type { InstallmentGroup, ExpenseCreate } from "../types";
 import { formatCurrency, formatDateDMY, MONTHS_ES_SHORT } from "../utils/format";
-
-const GNOME_COLORS = [
-  "var(--gnome-blue-3)",
-  "var(--gnome-green-3)",
-  "var(--gnome-purple-3)",
-  "var(--gnome-orange-3)",
-  "var(--gnome-yellow-3)",
-  "var(--gnome-red-3)",
-];
 
 type PaymentItem = {
   id: string | number;
@@ -129,7 +109,7 @@ export default function InstallmentsPage() {
         amount: r.amount,
         category_name: "Suscripciones",
         category_color: "var(--gnome-purple-3)",
-        next_date: r.next_charge_date,
+        next_date: r.next_charge_date || null,
         installment_info: r.frequency === "monthly" ? "Mensual" : r.frequency,
         recurring_id: r.id,
         is_active: r.is_active,
@@ -184,14 +164,6 @@ export default function InstallmentsPage() {
 
   const executeMut = useMutation({
     mutationFn: executeScheduledExpense,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["installments"] });
-      queryClient.invalidateQueries({ queryKey: ["scheduled-expenses"] });
-    },
-  });
-
-  const cancelMut = useMutation({
-    mutationFn: cancelScheduledExpense,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["installments"] });
       queryClient.invalidateQueries({ queryKey: ["scheduled-expenses"] });
