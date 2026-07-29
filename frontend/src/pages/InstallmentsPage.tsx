@@ -348,24 +348,27 @@ export default function InstallmentsPage() {
         {allPayments.length === 0 ? (
           <p className="text-sm text-tertiary py-4 text-center">Sin pagos próximos</p>
         ) : (
-          <div className="divide-y divide-border-color">
+          <div className="space-y-1">
             {allPayments.map((item) => {
               const isPaused = item.type === "recurring" && item.is_active === false;
+              const isInstallment = item.type === "installment";
               return (
                 <div
                   key={item.id}
-                  className={`flex items-center justify-between py-3 ${
+                  className={`flex items-center justify-between py-3 px-3 rounded-lg ${
                     isPaused ? "opacity-50" : ""
-                  } ${
-                    item.type === "installment"
-                      ? "bg-[var(--gnome-blue-5)]/10"
-                      : "bg-[var(--gnome-purple-5)]/10"
                   }`}
+                  style={{
+                    backgroundColor: isInstallment
+                      ? "var(--gnome-blue-5)"
+                      : "var(--gnome-purple-5)",
+                    opacity: isPaused ? 0.5 : 0.08,
+                  }}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <span
                       className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 ${
-                        item.type === "installment"
+                        isInstallment
                           ? "bg-[var(--gnome-blue-1)]/20 text-[var(--gnome-blue-5)]"
                           : "bg-[var(--gnome-purple-1)]/20 text-[var(--gnome-purple-3)]"
                       }`}
