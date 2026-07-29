@@ -19,10 +19,10 @@ export const LATEST_VERSION = "v1.2";
 
 export const CHANGES: ChangeVersion[] = [
   {
-    version: "v1.1",
-    date: "28 de Julio, 2026",
-    title: "Encriptación y Seguridad",
-    previous: "v1.0",
+    version: "v1.2",
+    date: "29 de Julio, 2026",
+    title: "Programados y Mejoras de UX",
+    previous: "v1.1",
     features: [
       {
         title: "Página de Programados",
