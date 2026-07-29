@@ -245,22 +245,16 @@ function MainLayout() {
   const { ToastContainer } = useUndoToast();
 
   // Check if we should show What's New modal (only on /)
-  // Uses localStorage: shows for each new version unless user opted out
+  // Shows every time on main page unless user opted out entirely
   useEffect(() => {
     const checkWhatsNew = async () => {
       try {
         if (location.pathname !== "/") return;
-        const { SHOW_WHATS_NEW, default: WhatsNewModal } =
-          await import("./components/WhatsNewModal");
+        const { SHOW_WHATS_NEW } = await import("./components/WhatsNewModal");
         if (!SHOW_WHATS_NEW) return;
 
-        const { LATEST_VERSION } = await import("./data/changes");
-        const dismissedVersion = localStorage.getItem("whats_new_dismissed");
         const dontRemind = localStorage.getItem("whats_new_dont_remind") === "true";
-
-        // If user opted out entirely, or already dismissed this version, skip
         if (dontRemind) return;
-        if (dismissedVersion === LATEST_VERSION) return;
 
         setTimeout(() => setShowWhatsNew(true), 1500);
       } catch {
@@ -657,14 +651,8 @@ function MainLayout() {
                 <WhatsNewModal
                   onClose={(dontRemind) => {
                     setShowWhatsNew(false);
-                    // Save preference
                     if (dontRemind) {
                       localStorage.setItem("whats_new_dont_remind", "true");
-                    } else {
-                      // Mark this version as dismissed
-                      import("./data/changes").then(({ LATEST_VERSION }) => {
-                        localStorage.setItem("whats_new_dismissed", LATEST_VERSION);
-                      });
                     }
                   }}
                 />
