@@ -19,6 +19,7 @@ import {
   getRecurringExpenses,
   pauseRecurringExpense,
   deleteRecurringExpense,
+  updateRecurringExpense,
 } from "../api/client";
 import type { InstallmentGroup, RecurringExpense, ExpenseCreate } from "../types";
 import { formatCurrency, formatDateDMY, MONTHS_ES_SHORT } from "../utils/format";
@@ -51,6 +52,8 @@ export default function InstallmentsPage() {
   const [showPaused, setShowPaused] = useState(false);
   const [selectedItem, setSelectedItem] = useState<PaymentItem | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [editAmount, setEditAmount] = useState("");
+  const [editDate, setEditDate] = useState("");
 
   const { data: groups = [], isLoading } = useQuery({
     queryKey: ["installments"],
@@ -187,8 +190,18 @@ export default function InstallmentsPage() {
     }
   };
 
+  const updateRecurringMut = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: any }) => updateRecurringExpense(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recurring"] });
+      closeModal();
+    },
+  });
+
   const openGestionar = (item: PaymentItem) => {
     setSelectedItem(item);
+    setEditAmount(item.amount.toString());
+    setEditDate(item.next_date || "");
     setShowModal(true);
   };
 
@@ -253,6 +266,45 @@ export default function InstallmentsPage() {
         </div>
       </div>
 
+      {/* BarChart: Tendencia mensual */}
+      <div className="card p-4">
+        <h2 className="text-sm font-semibold text-primary mb-3">Tendencia mensual</h2>
+        <ResponsiveContainer width="100%" height={140}>
+          <BarChart data={monthlyLoad} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+            <XAxis
+              dataKey="month"
+              tick={{ fontSize: 10, fill: "var(--chart-text)" }}
+              tickFormatter={(v) => {
+                const [, m] = v.split("-");
+                return MONTHS_ES_SHORT[parseInt(m) - 1];
+              }}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "var(--chart-tooltip-bg)",
+                borderColor: "var(--chart-tooltip-border)",
+                color: "var(--chart-tooltip-text)",
+              }}
+              formatter={(v: number) => [formatCurrency(v), "Total"]}
+            />
+            <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+              {monthlyLoad.map((entry, index) => (
+                <Cell
+                  key={index}
+                  fill={
+                    entry.is_current
+                      ? "var(--color-success)"
+                      : entry.is_past
+                        ? "var(--gnome-yellow-3)"
+                        : "var(--color-primary)"
+                  }
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
       {/* Horizontal Bar Chart: Compromisos por categoría */}
       {categoryData.length > 0 && (
         <div className="card p-4">
@@ -302,7 +354,13 @@ export default function InstallmentsPage() {
               return (
                 <div
                   key={item.id}
-                  className={`flex items-center justify-between py-3 ${isPaused ? "opacity-50" : ""}`}
+                  className={`flex items-center justify-between py-3 ${
+                    isPaused ? "opacity-50" : ""
+                  } ${
+                    item.type === "installment"
+                      ? "bg-[var(--gnome-blue-5)]/[0.03]"
+                      : "bg-[var(--gnome-purple-5)]/[0.03]"
+                  }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <span
@@ -350,9 +408,14 @@ export default function InstallmentsPage() {
                     </span>
                     <button
                       onClick={() => openGestionar(item)}
-                      className="text-xs underline text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition"
+                      className="p-1.5 rounded-md hover:bg-[var(--color-base-alt)] transition"
+                      title="Gestionar"
                     >
-                      Gestionar
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <circle cx="8" cy="8" r="2" fill="currentColor" />
+                        <circle cx="8" cy="2.5" r="1.5" fill="currentColor" />
+                        <circle cx="8" cy="13.5" r="1.5" fill="currentColor" />
+                      </svg>
                     </button>
                   </div>
                 </div>
@@ -360,45 +423,6 @@ export default function InstallmentsPage() {
             })}
           </div>
         )}
-      </div>
-
-      {/* Vertical BarChart: Tendencia mensual */}
-      <div className="card p-4">
-        <h2 className="text-sm font-semibold text-primary mb-3">Tendencia mensual</h2>
-        <ResponsiveContainer width="100%" height={140}>
-          <BarChart data={monthlyLoad} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-            <XAxis
-              dataKey="month"
-              tick={{ fontSize: 10, fill: "var(--chart-text)" }}
-              tickFormatter={(v) => {
-                const [, m] = v.split("-");
-                return MONTHS_ES_SHORT[parseInt(m) - 1];
-              }}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "var(--chart-tooltip-bg)",
-                borderColor: "var(--chart-tooltip-border)",
-                color: "var(--chart-tooltip-text)",
-              }}
-              formatter={(v: number) => [formatCurrency(v), "Total"]}
-            />
-            <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-              {monthlyLoad.map((entry, index) => (
-                <Cell
-                  key={index}
-                  fill={
-                    entry.is_current
-                      ? "var(--color-success)"
-                      : entry.is_past
-                        ? "var(--gnome-yellow-3)"
-                        : "var(--color-primary)"
-                  }
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
       </div>
 
       {/* Gestionar Modal */}
@@ -494,24 +518,63 @@ export default function InstallmentsPage() {
             <div className="flex gap-2 pt-4 border-t border-[var(--border-color)]">
               {selectedItem.type === "recurring" && (
                 <>
-                  <button
-                    onClick={() => {
-                      handlePauseRecurring(selectedItem.recurring_id!);
-                      closeModal();
-                    }}
-                    className="gnome-btn-secondary-round text-sm"
-                  >
-                    {selectedItem.is_active ? "Pausar" : "Reanudar"}
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleDeleteRecurring(selectedItem.recurring_id!);
-                      closeModal();
-                    }}
-                    className="gnome-btn-danger-round text-sm"
-                  >
-                    Eliminar
-                  </button>
+                  {/* Inline edit form for recurring */}
+                  <div className="flex-1">
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      <div>
+                        <label className="text-[10px] text-tertiary uppercase">Monto</label>
+                        <input
+                          type="number"
+                          value={editAmount}
+                          onChange={(e) => setEditAmount(e.target.value)}
+                          className="input text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-tertiary uppercase">Próximo cargo</label>
+                        <input
+                          type="date"
+                          value={editDate}
+                          onChange={(e) => setEditDate(e.target.value)}
+                          className="input text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          updateRecurringMut.mutate({
+                            id: selectedItem.recurring_id!,
+                            data: {
+                              amount: parseFloat(editAmount),
+                              next_charge_date: editDate,
+                            },
+                          });
+                        }}
+                        className="gnome-btn-primary-round text-sm"
+                      >
+                        Guardar
+                      </button>
+                      <button
+                        onClick={() => {
+                          handlePauseRecurring(selectedItem.recurring_id!);
+                          closeModal();
+                        }}
+                        className="gnome-btn-secondary-round text-sm"
+                      >
+                        {selectedItem.is_active ? "Pausar" : "Reanudar"}
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleDeleteRecurring(selectedItem.recurring_id!);
+                          closeModal();
+                        }}
+                        className="gnome-btn-danger-round text-sm"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </div>
                 </>
               )}
               <button onClick={closeModal} className="gnome-btn-secondary-round text-sm ml-auto">
