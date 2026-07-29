@@ -21,7 +21,7 @@ export const CHANGES: ChangeVersion[] = [
   {
     version: "v1.2",
     date: "29 de Julio, 2026",
-    title: "Programados y Mejoras de UX",
+    title: "Gastos Programados y Mejoras Visuales",
     previous: "v1.1",
     features: [
       {
