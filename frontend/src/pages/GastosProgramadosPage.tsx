@@ -6,13 +6,42 @@ import EmptyState from "../components/ui/EmptyState";
 
 type Tab = "cuotas" | "recurrentes" | "manuales";
 
-function RecurringIcon({ name }: { name: string }) {
+function RecurringIcon({ name, className = "" }: { name: string; className?: string }) {
   const lower = name.toLowerCase();
-  if (lower.includes("netflix") || lower.includes("spotify") || lower.includes("hbo")) return "📺";
-  if (lower.includes("gym") || lower.includes("fitness")) return "💪";
-  if (lower.includes("internet") || lower.includes("wifi")) return "🌐";
-  if (lower.includes("seguro") || lower.includes("insurance")) return "🛡️";
-  return "🔄";
+  let icon = "R"; // Default recurring
+  let bgColor = "bg-[var(--color-primary)]/10";
+  let textColor = "text-[var(--color-primary)]";
+
+  if (
+    lower.includes("netflix") ||
+    lower.includes("spotify") ||
+    lower.includes("hbo") ||
+    lower.includes("disney")
+  ) {
+    icon = "V"; // Video/streaming
+    bgColor = "bg-[var(--gnome-purple-1)]/20";
+    textColor = "text-[var(--gnome-purple-3)]";
+  } else if (lower.includes("gym") || lower.includes("fitness")) {
+    icon = "G"; // Gym
+    bgColor = "bg-[var(--gnome-green-1)]/20";
+    textColor = "text-[var(--gnome-green-5)]";
+  } else if (lower.includes("internet") || lower.includes("wifi") || lower.includes("telecom")) {
+    icon = "T"; // Telecom
+    bgColor = "bg-[var(--gnome-blue-1)]/20";
+    textColor = "text-[var(--gnome-blue-5)]";
+  } else if (lower.includes("seguro") || lower.includes("insurance")) {
+    icon = "S"; // Seguro
+    bgColor = "bg-[var(--gnome-orange-1)]/20";
+    textColor = "text-[var(--gnome-orange-3)]";
+  }
+
+  return (
+    <span
+      className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 ${bgColor} ${textColor} ${className}`}
+    >
+      {icon}
+    </span>
+  );
 }
 
 export default function GastosProgramadosPage() {
@@ -46,9 +75,9 @@ export default function GastosProgramadosPage() {
     .reduce((sum, r) => sum + r.amount, 0);
 
   const tabs = [
-    { key: "cuotas" as const, label: "Cuotas", icon: "🛒" },
-    { key: "recurrentes" as const, label: "Recurrentes", icon: "🔄" },
-    { key: "manuales" as const, label: "Manuales", icon: "📝" },
+    { key: "cuotas" as const, label: "Cuotas" },
+    { key: "recurrentes" as const, label: "Recurrentes" },
+    { key: "manuales" as const, label: "Manuales" },
   ];
 
   return (
@@ -69,7 +98,6 @@ export default function GastosProgramadosPage() {
                 : "text-tertiary hover:text-primary"
             }`}
           >
-            <span className="mr-1">{t.icon}</span>
             {t.label}
           </button>
         ))}
@@ -99,7 +127,7 @@ export default function GastosProgramadosPage() {
       ) : tab === "recurrentes" && filteredRecurring.length === 0 ? (
         <div className="card">
           <EmptyState
-            icon="🔄"
+            icon="R"
             title="Sin gastos recurrentes"
             description="Los gastos que se repiten mensualmente aparecerán aquí automáticamente"
           />
@@ -152,17 +180,34 @@ export default function GastosProgramadosPage() {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handlePause(rec.id)}
-                      className="p-1.5 rounded-md hover:bg-[var(--color-base-alt)] transition text-xs"
+                      className="p-1.5 rounded-md hover:bg-[var(--color-base-alt)] transition"
                       title={isPaused ? "Reanudar" : "Pausar"}
                     >
-                      {isPaused ? "▶️" : "⏸️"}
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        {isPaused ? (
+                          <path d="M4 2l10 6-10 6V2z" fill="currentColor" />
+                        ) : (
+                          <>
+                            <rect x="3" y="2" width="4" height="12" rx="0.5" fill="currentColor" />
+                            <rect x="9" y="2" width="4" height="12" rx="0.5" fill="currentColor" />
+                          </>
+                        )}
+                      </svg>
                     </button>
                     <button
                       onClick={() => handleDelete(rec.id)}
-                      className="p-1.5 rounded-md hover:bg-[var(--color-base-alt)] transition text-xs"
+                      className="p-1.5 rounded-md hover:bg-[var(--color-base-alt)] transition text-[var(--gnome-red-3)]"
                       title="Eliminar"
                     >
-                      🗑️
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path
+                          d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M10 7v5M3 4l1 9a1 1 0 001 1h6a1 1 0 001-1l1-9"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
                     </button>
                   </div>
                 </div>
@@ -173,7 +218,7 @@ export default function GastosProgramadosPage() {
       ) : (
         <div className="card">
           <EmptyState
-            icon="📝"
+            icon="M"
             title={tab === "cuotas" ? "Sin gastos en cuotas" : "Sin gastos manuales programados"}
             description={
               tab === "cuotas"
