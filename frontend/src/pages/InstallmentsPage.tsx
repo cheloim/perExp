@@ -55,6 +55,16 @@ export default function InstallmentsPage() {
   const [editAmount, setEditAmount] = useState("");
   const [editDate, setEditDate] = useState("");
 
+  // Close modal on Escape key
+  useEffect(() => {
+    if (!showModal) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeModal();
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [showModal]);
+
   const { data: groups = [], isLoading } = useQuery({
     queryKey: ["installments"],
     queryFn: getInstallmentsDashboard,
@@ -422,7 +432,7 @@ export default function InstallmentsPage() {
           onClick={closeModal}
         >
           <div
-            className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col animate-modal-content"
+            className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-xl w-full max-w-md max-h-[85vh] overflow-hidden flex flex-col animate-modal-content"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -480,10 +490,10 @@ export default function InstallmentsPage() {
               {selectedItem.type === "installment" && scheduledForGroup.length > 0 && (
                 <div className="mb-4">
                   <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">
-                    Próximos pagos
+                    Próximos pagos ({scheduledForGroup.length})
                   </h3>
                   <div className="divide-y divide-[var(--border-color)]">
-                    {scheduledForGroup.map((payment: any) => (
+                    {scheduledForGroup.slice(0, 5).map((payment: any) => (
                       <div key={payment.id} className="flex items-center justify-between py-2">
                         <div>
                           <p className="text-sm text-[var(--text-primary)]">
@@ -506,6 +516,11 @@ export default function InstallmentsPage() {
                         </div>
                       </div>
                     ))}
+                    {scheduledForGroup.length > 5 && (
+                      <p className="text-xs text-[var(--text-tertiary)] py-2 text-center">
+                        +{scheduledForGroup.length - 5} más...
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
