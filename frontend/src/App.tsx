@@ -80,7 +80,7 @@ const TABS = [
   {
     path: "/programados",
     label: "Programados",
-    icon: "calendar_month",
+    icon: "installments",
     exact: false,
   },
   {
