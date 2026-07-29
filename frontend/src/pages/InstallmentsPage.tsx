@@ -5,6 +5,8 @@ import {
   Bar,
   XAxis,
   YAxis,
+  Line,
+  ComposedChart,
   Tooltip,
   ResponsiveContainer,
   Cell,
@@ -290,7 +292,7 @@ export default function InstallmentsPage() {
         <div className="lg:col-span-2 card p-4">
           <h2 className="text-sm font-semibold text-primary mb-3">Tendencia mensual</h2>
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={monthlyLoad} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
+            <ComposedChart data={monthlyLoad} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
               <XAxis
                 dataKey="month"
                 tick={{ fontSize: 10, fill: "var(--chart-text)" }}
@@ -321,7 +323,14 @@ export default function InstallmentsPage() {
                   />
                 ))}
               </Bar>
-            </BarChart>
+              <Line
+                type="monotone"
+                dataKey="total"
+                stroke="var(--gnome-purple-3)"
+                strokeWidth={2}
+                dot={{ r: 3, fill: "var(--gnome-purple-3)" }}
+              />
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
 
