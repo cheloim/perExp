@@ -358,8 +358,8 @@ export default function InstallmentsPage() {
                     isPaused ? "opacity-50" : ""
                   } ${
                     item.type === "installment"
-                      ? "bg-[var(--gnome-blue-5)]/[0.03]"
-                      : "bg-[var(--gnome-purple-5)]/[0.03]"
+                      ? "bg-[var(--gnome-blue-5)]/10"
+                      : "bg-[var(--gnome-purple-5)]/10"
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -428,33 +428,27 @@ export default function InstallmentsPage() {
       {/* Gestionar Modal */}
       {showModal && selectedItem && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-backdrop bg-black/60"
           onClick={closeModal}
         >
           <div
-            className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-xl"
+            className="card w-full max-w-md animate-modal-content max-h-[80vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Header */}
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-primary">
-                Detalle: {selectedItem.description}
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+                {selectedItem.description}
               </h2>
               <button
                 onClick={closeModal}
-                className="p-1 rounded hover:bg-[var(--color-base-alt)] transition"
+                className="text-[var(--text-tertiary)] hover:text-[var(--color-primary)] text-xl"
               >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path
-                    d="M3 3l10 10M13 3L3 13"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
+                ×
               </button>
             </div>
 
-            {/* Info */}
+            {/* Info grid */}
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <p className="text-[10px] text-tertiary uppercase">Tipo</p>
@@ -514,72 +508,76 @@ export default function InstallmentsPage() {
               </div>
             )}
 
-            {/* Actions */}
-            <div className="flex gap-2 pt-4 border-t border-[var(--border-color)]">
-              {selectedItem.type === "recurring" && (
-                <>
-                  {/* Inline edit form for recurring */}
-                  <div className="flex-1">
-                    <div className="grid grid-cols-2 gap-3 mb-3">
-                      <div>
-                        <label className="text-[10px] text-tertiary uppercase">Monto</label>
-                        <input
-                          type="number"
-                          value={editAmount}
-                          onChange={(e) => setEditAmount(e.target.value)}
-                          className="input text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-tertiary uppercase">Próximo cargo</label>
-                        <input
-                          type="date"
-                          value={editDate}
-                          onChange={(e) => setEditDate(e.target.value)}
-                          className="input text-sm"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          updateRecurringMut.mutate({
-                            id: selectedItem.recurring_id!,
-                            data: {
-                              amount: parseFloat(editAmount),
-                              next_charge_date: editDate,
-                            },
-                          });
-                        }}
-                        className="gnome-btn-primary-round text-sm"
-                      >
-                        Guardar
-                      </button>
-                      <button
-                        onClick={() => {
-                          handlePauseRecurring(selectedItem.recurring_id!);
-                          closeModal();
-                        }}
-                        className="gnome-btn-secondary-round text-sm"
-                      >
-                        {selectedItem.is_active ? "Pausar" : "Reanudar"}
-                      </button>
-                      <button
-                        onClick={() => {
-                          handleDeleteRecurring(selectedItem.recurring_id!);
-                          closeModal();
-                        }}
-                        className="gnome-btn-danger-round text-sm"
-                      >
-                        Eliminar
-                      </button>
-                    </div>
+            {/* Edit form for recurring */}
+            {selectedItem.type === "recurring" && (
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-primary mb-2">Editar</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-tertiary mb-1.5 block">Monto</label>
+                    <input
+                      type="number"
+                      value={editAmount}
+                      onChange={(e) => setEditAmount(e.target.value)}
+                      className="input w-full"
+                    />
                   </div>
-                </>
-              )}
-              <button onClick={closeModal} className="gnome-btn-secondary-round text-sm ml-auto">
+                  <div>
+                    <label className="text-xs font-medium text-tertiary mb-1.5 block">
+                      Próximo cargo
+                    </label>
+                    <input
+                      type="date"
+                      value={editDate}
+                      onChange={(e) => setEditDate(e.target.value)}
+                      className="input w-full"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="flex gap-2 pt-4 border-t border-[var(--border-color)]">
+              <button onClick={closeModal} className="gnome-btn-secondary flex-1 text-sm">
                 Cerrar
               </button>
+              {selectedItem.type === "recurring" && (
+                <>
+                  <button
+                    onClick={() => {
+                      updateRecurringMut.mutate({
+                        id: selectedItem.recurring_id!,
+                        data: {
+                          amount: parseFloat(editAmount),
+                          next_charge_date: editDate,
+                        },
+                      });
+                    }}
+                    className="gnome-btn-primary flex-1 text-sm"
+                  >
+                    Guardar
+                  </button>
+                  <button
+                    onClick={() => {
+                      handlePauseRecurring(selectedItem.recurring_id!);
+                      closeModal();
+                    }}
+                    className="gnome-btn-secondary text-sm"
+                  >
+                    {selectedItem.is_active ? "Pausar" : "Reanudar"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleDeleteRecurring(selectedItem.recurring_id!);
+                      closeModal();
+                    }}
+                    className="gnome-btn-danger text-sm"
+                  >
+                    Eliminar
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
