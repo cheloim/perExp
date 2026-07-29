@@ -1,12 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell, ComposedChart } from "recharts";
+import { Bar, XAxis, Tooltip, ResponsiveContainer, Cell, ComposedChart, Line } from "recharts";
 import {
   getInstallmentsDashboard,
   getInstallmentsMonthlyLoad,
   getScheduledExpenses,
   executeScheduledExpense,
-  cancelScheduledExpense,
   getRecurringExpenses,
   pauseRecurringExpense,
   deleteRecurringExpense,
