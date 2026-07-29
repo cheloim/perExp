@@ -1,3 +1,4 @@
+import { useState } from "react";
 import SymbolicIcon from "./SymbolicIcon";
 import { CHANGES, LATEST_VERSION } from "../data/changes";
 
@@ -6,11 +7,12 @@ import { CHANGES, LATEST_VERSION } from "../data/changes";
 const SHOW_WHATS_NEW = true;
 
 interface WhatsNewModalProps {
-  onClose: () => void;
+  onClose: (dontRemind?: boolean) => void;
 }
 
 function WhatsNewModal({ onClose }: WhatsNewModalProps) {
   const latestVersion = CHANGES[0];
+  const [dontRemind, setDontRemind] = useState(false);
 
   if (!SHOW_WHATS_NEW) return null;
 
@@ -60,9 +62,18 @@ function WhatsNewModal({ onClose }: WhatsNewModalProps) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 pb-6">
+        <div className="px-6 pb-6 space-y-3">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={dontRemind}
+              onChange={(e) => setDontRemind(e.target.checked)}
+              className="w-4 h-4 rounded border-[var(--border-color)]"
+            />
+            <span className="text-xs text-[var(--text-tertiary)]">No recordarme esta versión</span>
+          </label>
           <button
-            onClick={onClose}
+            onClick={() => onClose(dontRemind)}
             className="w-full px-4 py-2.5 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90"
           >
             Entendido

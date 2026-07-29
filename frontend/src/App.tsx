@@ -245,15 +245,23 @@ function MainLayout() {
   const { ToastContainer } = useUndoToast();
 
   // Check if we should show What's New modal (only on /)
-  // Uses sessionStorage: shows once per browser session, resets on new version
+  // Uses localStorage: shows for each new version unless user opted out
   useEffect(() => {
     const checkWhatsNew = async () => {
       try {
         if (location.pathname !== "/") return;
-        if (sessionStorage.getItem("whats_new_dismissed") === "true") return;
-        const { SHOW_WHATS_NEW } = await import("./components/WhatsNewModal");
+        const { SHOW_WHATS_NEW, default: WhatsNewModal } =
+          await import("./components/WhatsNewModal");
         if (!SHOW_WHATS_NEW) return;
-        sessionStorage.setItem("whats_new_dismissed", "true");
+
+        const { LATEST_VERSION } = await import("./data/changes");
+        const dismissedVersion = localStorage.getItem("whats_new_dismissed");
+        const dontRemind = localStorage.getItem("whats_new_dont_remind") === "true";
+
+        // If user opted out entirely, or already dismissed this version, skip
+        if (dontRemind) return;
+        if (dismissedVersion === LATEST_VERSION) return;
+
         setTimeout(() => setShowWhatsNew(true), 1500);
       } catch {
         // Ignore errors
@@ -646,7 +654,20 @@ function MainLayout() {
             {/* What's New Modal - rendered outside main to avoid overflow clipping */}
             {showWhatsNew && (
               <Suspense fallback={null}>
-                <WhatsNewModal onClose={() => setShowWhatsNew(false)} />
+                <WhatsNewModal
+                  onClose={(dontRemind) => {
+                    setShowWhatsNew(false);
+                    // Save preference
+                    if (dontRemind) {
+                      localStorage.setItem("whats_new_dont_remind", "true");
+                    } else {
+                      // Mark this version as dismissed
+                      import("./data/changes").then(({ LATEST_VERSION }) => {
+                        localStorage.setItem("whats_new_dismissed", LATEST_VERSION);
+                      });
+                    }
+                  }}
+                />
               </Suspense>
             )}
 
