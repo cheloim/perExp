@@ -358,9 +358,10 @@ export default function InstallmentsPage() {
               const isPaused = item.type === "recurring" && item.is_active === false;
               const isInstallment = item.type === "installment";
               return (
-                <div
+                <button
                   key={item.id}
-                  className={`flex items-center justify-between py-3 px-3 rounded-lg ${
+                  onClick={() => openGestionar(item)}
+                  className={`w-full flex items-center justify-between py-3 px-3 rounded-lg transition hover:ring-1 hover:ring-[var(--border-color)] ${
                     isPaused ? "opacity-50" : ""
                   } ${isInstallment ? "bg-gnomeBlue5/5" : "bg-gnomePurple5/5"}`}
                 >
@@ -404,23 +405,10 @@ export default function InstallmentsPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-sm font-medium text-primary">
-                      {formatCurrency(item.amount)}
-                    </span>
-                    <button
-                      onClick={() => openGestionar(item)}
-                      className="p-1.5 rounded-md hover:bg-[var(--color-base-alt)] transition"
-                      title="Gestionar"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <circle cx="8" cy="8" r="2" fill="currentColor" />
-                        <circle cx="8" cy="2.5" r="1.5" fill="currentColor" />
-                        <circle cx="8" cy="13.5" r="1.5" fill="currentColor" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
+                  <span className="text-sm font-medium text-primary flex-shrink-0">
+                    {formatCurrency(item.amount)}
+                  </span>
+                </button>
               );
             })}
           </div>
@@ -434,113 +422,128 @@ export default function InstallmentsPage() {
           onClick={closeModal}
         >
           <div
-            className="card w-full max-w-md animate-modal-content max-h-[80vh] overflow-y-auto"
+            className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col animate-modal-content"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-                {selectedItem.description}
-              </h2>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-color)]">
+              <div className="min-w-0 flex-1">
+                <h2
+                  className="text-base font-semibold truncate"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  {selectedItem.description}
+                </h2>
+                <p className="text-xs text-[var(--text-tertiary)]">
+                  {selectedItem.type === "installment" ? "Cuota" : "Suscripción"}
+                </p>
+              </div>
               <button
                 onClick={closeModal}
-                className="text-[var(--text-tertiary)] hover:text-[var(--color-primary)] text-xl"
+                className="ml-3 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] text-xl flex-shrink-0"
               >
                 ×
               </button>
             </div>
 
-            {/* Info grid */}
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
-                <p className="text-[10px] text-tertiary uppercase">Tipo</p>
-                <p className="text-sm text-primary">
-                  {selectedItem.type === "installment" ? "Cuota" : "Suscripción"}
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] text-tertiary uppercase">Monto</p>
-                <p className="text-sm font-medium text-primary">
-                  {formatCurrency(selectedItem.amount)}
-                </p>
-              </div>
-              {selectedItem.category_name && (
+            {/* Body */}
+            <div className="overflow-y-auto flex-1 p-5">
+              {/* Info grid */}
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm mb-4">
                 <div>
-                  <p className="text-[10px] text-tertiary uppercase">Categoría</p>
-                  <p className="text-sm text-primary">{selectedItem.category_name}</p>
+                  <p className="text-[var(--text-tertiary)] text-xs uppercase">Monto</p>
+                  <p className="font-medium text-[var(--text-primary)]">
+                    {formatCurrency(selectedItem.amount)}
+                  </p>
+                </div>
+                {selectedItem.category_name && (
+                  <div>
+                    <p className="text-[var(--text-tertiary)] text-xs uppercase">Categoría</p>
+                    <p className="text-[var(--text-primary)]">{selectedItem.category_name}</p>
+                  </div>
+                )}
+                {selectedItem.next_date && (
+                  <div>
+                    <p className="text-[var(--text-tertiary)] text-xs uppercase">Próximo pago</p>
+                    <p className="text-[var(--text-primary)]">
+                      {formatDateDMY(selectedItem.next_date)}
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-[var(--text-tertiary)] text-xs uppercase">Tipo</p>
+                  <p className="text-[var(--text-primary)]">{selectedItem.installment_info}</p>
+                </div>
+              </div>
+
+              {/* Scheduled payments for installments */}
+              {selectedItem.type === "installment" && scheduledForGroup.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">
+                    Próximos pagos
+                  </h3>
+                  <div className="divide-y divide-[var(--border-color)]">
+                    {scheduledForGroup.map((payment: any) => (
+                      <div key={payment.id} className="flex items-center justify-between py-2">
+                        <div>
+                          <p className="text-sm text-[var(--text-primary)]">
+                            Cuota {payment.installment_number}/{payment.installment_total}
+                          </p>
+                          <p className="text-xs text-[var(--text-tertiary)]">
+                            {formatDateDMY(payment.scheduled_date)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-[var(--text-primary)]">
+                            {formatCurrency(payment.amount)}
+                          </span>
+                          <button
+                            onClick={() => executeMut.mutate(payment.id)}
+                            className="text-xs text-[var(--color-primary)] hover:underline"
+                          >
+                            Ejecutar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
-              {selectedItem.next_date && (
-                <div>
-                  <p className="text-[10px] text-tertiary uppercase">Próximo pago</p>
-                  <p className="text-sm text-primary">{formatDateDMY(selectedItem.next_date)}</p>
+
+              {/* Edit form for recurring */}
+              {selectedItem.type === "recurring" && (
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Editar</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 block">
+                        Monto
+                      </label>
+                      <input
+                        type="number"
+                        value={editAmount}
+                        onChange={(e) => setEditAmount(e.target.value)}
+                        className="input w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 block">
+                        Próximo cargo
+                      </label>
+                      <input
+                        type="date"
+                        value={editDate}
+                        onChange={(e) => setEditDate(e.target.value)}
+                        className="input w-full"
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Scheduled payments for installments */}
-            {selectedItem.type === "installment" && scheduledForGroup.length > 0 && (
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold text-primary mb-2">Próximos pagos</h3>
-                <div className="divide-y divide-border-color">
-                  {scheduledForGroup.map((payment: any) => (
-                    <div key={payment.id} className="flex items-center justify-between py-2">
-                      <div>
-                        <p className="text-sm text-primary">
-                          Cuota {payment.installment_number}/{payment.installment_total}
-                        </p>
-                        <p className="text-xs text-tertiary">
-                          {formatDateDMY(payment.scheduled_date)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-primary">
-                          {formatCurrency(payment.amount)}
-                        </span>
-                        <button
-                          onClick={() => executeMut.mutate(payment.id)}
-                          className="text-xs underline text-[var(--color-primary)] hover:text-[var(--text-primary)]"
-                        >
-                          Ejecutar
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Edit form for recurring */}
-            {selectedItem.type === "recurring" && (
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold text-primary mb-2">Editar</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-medium text-tertiary mb-1.5 block">Monto</label>
-                    <input
-                      type="number"
-                      value={editAmount}
-                      onChange={(e) => setEditAmount(e.target.value)}
-                      className="input w-full"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-tertiary mb-1.5 block">
-                      Próximo cargo
-                    </label>
-                    <input
-                      type="date"
-                      value={editDate}
-                      onChange={(e) => setEditDate(e.target.value)}
-                      className="input w-full"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Footer */}
-            <div className="flex gap-2 pt-4 border-t border-[var(--border-color)]">
+            <div className="flex gap-2 px-5 py-3 border-t border-[var(--border-color)] flex-shrink-0">
               <button onClick={closeModal} className="gnome-btn-secondary flex-1 text-sm">
                 Cerrar
               </button>
