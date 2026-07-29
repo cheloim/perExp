@@ -67,10 +67,14 @@ def update_recurring(
     current_user=Depends(get_current_user),
 ):
     """Update a recurring expense."""
-    rec = db.query(RecurringExpense).filter(
-        RecurringExpense.id == recurring_id,
-        RecurringExpense.user_id == current_user.id,
-    ).first()
+    rec = (
+        db.query(RecurringExpense)
+        .filter(
+            RecurringExpense.id == recurring_id,
+            RecurringExpense.user_id == current_user.id,
+        )
+        .first()
+    )
     if not rec:
         raise HTTPException(status_code=404, detail="Gasto recurrente no encontrado")
 
@@ -90,10 +94,14 @@ def pause_recurring(
     current_user=Depends(get_current_user),
 ):
     """Toggle pause/resume for a recurring expense."""
-    rec = db.query(RecurringExpense).filter(
-        RecurringExpense.id == recurring_id,
-        RecurringExpense.user_id == current_user.id,
-    ).first()
+    rec = (
+        db.query(RecurringExpense)
+        .filter(
+            RecurringExpense.id == recurring_id,
+            RecurringExpense.user_id == current_user.id,
+        )
+        .first()
+    )
     if not rec:
         raise HTTPException(status_code=404, detail="Gasto recurrente no encontrado")
 
@@ -111,10 +119,14 @@ def delete_recurring(
     current_user=Depends(get_current_user),
 ):
     """Permanently delete a recurring expense."""
-    rec = db.query(RecurringExpense).filter(
-        RecurringExpense.id == recurring_id,
-        RecurringExpense.user_id == current_user.id,
-    ).first()
+    rec = (
+        db.query(RecurringExpense)
+        .filter(
+            RecurringExpense.id == recurring_id,
+            RecurringExpense.user_id == current_user.id,
+        )
+        .first()
+    )
     if not rec:
         raise HTTPException(status_code=404, detail="Gasto recurrente no encontrado")
 
