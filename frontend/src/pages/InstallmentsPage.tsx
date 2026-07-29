@@ -558,12 +558,12 @@ export default function InstallmentsPage() {
             </div>
 
             {/* Footer */}
-            <div className="flex gap-2 px-5 py-3 border-t border-[var(--border-color)] flex-shrink-0">
-              <button onClick={closeModal} className="gnome-btn-secondary flex-1 text-sm">
-                Cerrar
-              </button>
-              {selectedItem.type === "recurring" && (
-                <>
+            <div className="px-5 py-3 border-t border-[var(--border-color)] flex-shrink-0">
+              <div className="flex gap-2">
+                <button onClick={closeModal} className="gnome-btn-secondary flex-1 text-sm">
+                  Cerrar
+                </button>
+                {selectedItem.type === "recurring" && (
                   <button
                     onClick={() => {
                       updateRecurringMut.mutate({
@@ -578,25 +578,30 @@ export default function InstallmentsPage() {
                   >
                     Guardar
                   </button>
+                )}
+              </div>
+              {selectedItem.type === "recurring" && (
+                <div className="flex items-center gap-3 mt-2 justify-center">
                   <button
                     onClick={() => {
                       handlePauseRecurring(selectedItem.recurring_id!);
                       closeModal();
                     }}
-                    className="gnome-btn-secondary text-sm"
+                    className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:underline"
                   >
                     {selectedItem.is_active ? "Pausar" : "Reanudar"}
                   </button>
+                  <span className="text-[var(--border-color)]">·</span>
                   <button
                     onClick={() => {
                       handleDeleteRecurring(selectedItem.recurring_id!);
                       closeModal();
                     }}
-                    className="gnome-btn-danger text-sm"
+                    className="text-xs text-[var(--gnome-red-3)] hover:underline"
                   >
                     Eliminar
                   </button>
-                </>
+                </div>
               )}
             </div>
           </div>
