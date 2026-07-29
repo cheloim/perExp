@@ -15,9 +15,45 @@ export interface ChangeVersion {
   previous?: string;
 }
 
-export const LATEST_VERSION = "v1.1";
+export const LATEST_VERSION = "v1.2";
 
 export const CHANGES: ChangeVersion[] = [
+  {
+    version: "v1.1",
+    date: "28 de Julio, 2026",
+    title: "Encriptación y Seguridad",
+    previous: "v1.0",
+    features: [
+      {
+        title: "Página de Programados",
+        icon: "installments",
+        color: "#2ec27e",
+        description:
+          "Unificamos cuotas y gastos recurrentes en una sola página. Ahora podés ver todos tus compromisos de pago en un solo lugar, con filtros para separar cuotas de suscripciones.",
+      },
+      {
+        title: "Gestión de Suscripciones",
+        icon: "sparkles",
+        color: "#8b5cf6",
+        description:
+          "La IA detecta automáticamente tus gastos recurrentes. Podés pausar, editar o eliminar suscripciones directamente desde la página de Programados.",
+      },
+      {
+        title: "Mejoras en el Gráfico de Tendencia",
+        icon: "chart-bar",
+        color: "#3584e4",
+        description:
+          "El gráfico de tendencia mensual ahora muestra una línea de tendencia y está más prominente en la página.",
+      },
+      {
+        title: "Validación de Email",
+        icon: "settings",
+        color: "#e5a50a",
+        description:
+          "Ahora validamos que los emails sean reales al registrarse. Bloqueamos dominios falsos y verificamos que el dominio exista.",
+      },
+    ],
+  },
   {
     version: "v1.1",
     date: "28 de Julio, 2026",

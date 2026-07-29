@@ -79,9 +79,10 @@ const TABS = [
   },
   {
     path: "/installments",
-    label: "Cuotas",
+    label: "Programados",
     icon: "installments",
     exact: false,
+    tour: "sidebar-programados",
   },
   {
     path: "/investments",
