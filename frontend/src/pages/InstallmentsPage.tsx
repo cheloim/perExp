@@ -5,6 +5,7 @@ import {
   Bar,
   XAxis,
   YAxis,
+  Line,
   Tooltip,
   ResponsiveContainer,
   Cell,
@@ -284,13 +285,13 @@ export default function InstallmentsPage() {
         </div>
       </div>
 
-      {/* Charts side by side */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* BarChart: Tendencia mensual */}
-        <div className="card p-4">
+      {/* Charts: BarChart (focus) + Horizontal bar (compact) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* BarChart: Tendencia mensual (2 columns - main focus) */}
+        <div className="lg:col-span-2 card p-4">
           <h2 className="text-sm font-semibold text-primary mb-3">Tendencia mensual</h2>
-          <ResponsiveContainer width="100%" height={140}>
-            <BarChart data={monthlyLoad} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={monthlyLoad} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
               <XAxis
                 dataKey="month"
                 tick={{ fontSize: 10, fill: "var(--chart-text)" }}
@@ -321,14 +322,22 @@ export default function InstallmentsPage() {
                   />
                 ))}
               </Bar>
+              <Line
+                type="monotone"
+                dataKey="total"
+                stroke="var(--gnome-purple-3)"
+                strokeWidth={2}
+                dot={false}
+                strokeDasharray="5 5"
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Horizontal Bar Chart: Compromisos por categoría */}
+        {/* Horizontal Bar Chart: Compromisos por categoría (1 column - compact) */}
         {categoryData.length > 0 && (
           <div className="card p-4">
-            <h2 className="text-sm font-semibold text-primary mb-3">Compromisos por categoría</h2>
+            <h2 className="text-sm font-semibold text-primary mb-3">Por categoría</h2>
             <div className="space-y-2">
               {categoryData.map((cat) => (
                 <div key={cat.name} className="flex items-center gap-3 overflow-hidden">
