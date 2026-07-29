@@ -259,9 +259,9 @@ export default function InstallmentsPage() {
           <h2 className="text-sm font-semibold text-primary mb-3">Compromisos por categoría</h2>
           <div className="space-y-2">
             {categoryData.map((cat) => (
-              <div key={cat.name} className="flex items-center gap-3">
-                <span className="text-xs text-primary w-28 truncate">{cat.name}</span>
-                <div className="flex-1 h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+              <div key={cat.name} className="flex items-center gap-3 overflow-hidden">
+                <span className="text-xs text-primary w-24 truncate flex-shrink-0">{cat.name}</span>
+                <div className="flex-1 h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden min-w-0">
                   <div
                     className="h-full rounded-full transition-all duration-500"
                     style={{
@@ -270,8 +270,8 @@ export default function InstallmentsPage() {
                     }}
                   />
                 </div>
-                <span className="text-xs text-tertiary w-16 text-right">
-                  {formatCurrency(cat.value / 12)}/mes
+                <span className="text-xs text-tertiary flex-shrink-0 text-right">
+                  {formatCurrency(cat.value / 12)}
                 </span>
               </div>
             ))}
@@ -348,62 +348,12 @@ export default function InstallmentsPage() {
                     <span className="text-sm font-medium text-primary">
                       {formatCurrency(item.amount)}
                     </span>
-                    {item.type === "installment" ? (
-                      <button
-                        onClick={() => openGestionar(item)}
-                        className="text-xs underline text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition"
-                      >
-                        Gestionar
-                      </button>
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handlePauseRecurring(item.recurring_id!)}
-                          className="p-1 rounded hover:bg-[var(--color-base-alt)] transition"
-                          title={item.is_active ? "Pausar" : "Reanudar"}
-                        >
-                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                            {item.is_active ? (
-                              <>
-                                <rect
-                                  x="3"
-                                  y="2"
-                                  width="4"
-                                  height="12"
-                                  rx="0.5"
-                                  fill="currentColor"
-                                />
-                                <rect
-                                  x="9"
-                                  y="2"
-                                  width="4"
-                                  height="12"
-                                  rx="0.5"
-                                  fill="currentColor"
-                                />
-                              </>
-                            ) : (
-                              <path d="M4 2l10 6-10 6V2z" fill="currentColor" />
-                            )}
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleDeleteRecurring(item.recurring_id!)}
-                          className="p-1 rounded hover:bg-[var(--color-base-alt)] transition text-[var(--gnome-red-3)]"
-                          title="Eliminar"
-                        >
-                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                            <path
-                              d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M10 7v5M3 4l1 9a1 1 0 001 1h6a1 1 0 001-1l1-9"
-                              stroke="currentColor"
-                              strokeWidth="1.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    )}
+                    <button
+                      onClick={() => openGestionar(item)}
+                      className="text-xs underline text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition"
+                    >
+                      Gestionar
+                    </button>
                   </div>
                 </div>
               );
