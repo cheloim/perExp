@@ -11,7 +11,6 @@ import {
   deleteRecurringExpense,
   updateRecurringExpense,
 } from "../api/client";
-import type { InstallmentGroup, ExpenseCreate } from "../types";
 import { formatCurrency, formatDateDMY, MONTHS_ES_SHORT } from "../utils/format";
 
 type PaymentItem = {
