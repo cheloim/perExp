@@ -79,7 +79,7 @@ const TABS = [
   },
   {
     path: "/installments",
-    label: "Gastos en Cuotas",
+    label: "Compromisos",
     icon: "installments",
     exact: false,
   },

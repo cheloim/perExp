@@ -34,6 +34,7 @@ from app.routers import (
     notifications,
     scheduled_expenses,
     suggestions,
+    recurring,
 )
 from app.scheduler import price_refresh_loop
 from app.seed import _apply_base_hierarchy
@@ -144,3 +145,4 @@ app.include_router(notifications.router)
 app.include_router(scheduled_expenses.router)
 app.include_router(budgets.router)
 app.include_router(suggestions.router)
+app.include_router(recurring.router)
