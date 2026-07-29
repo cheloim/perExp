@@ -5,7 +5,6 @@ import {
   Bar,
   XAxis,
   YAxis,
-  Line,
   Tooltip,
   ResponsiveContainer,
   Cell,
@@ -322,14 +321,6 @@ export default function InstallmentsPage() {
                   />
                 ))}
               </Bar>
-              <Line
-                type="monotone"
-                dataKey="total"
-                stroke="var(--gnome-purple-3)"
-                strokeWidth={2}
-                dot={false}
-                strokeDasharray="5 5"
-              />
             </BarChart>
           </ResponsiveContainer>
         </div>
