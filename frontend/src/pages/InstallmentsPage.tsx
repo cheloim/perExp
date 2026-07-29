@@ -266,70 +266,75 @@ export default function InstallmentsPage() {
         </div>
       </div>
 
-      {/* BarChart: Tendencia mensual */}
-      <div className="card p-4">
-        <h2 className="text-sm font-semibold text-primary mb-3">Tendencia mensual</h2>
-        <ResponsiveContainer width="100%" height={140}>
-          <BarChart data={monthlyLoad} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-            <XAxis
-              dataKey="month"
-              tick={{ fontSize: 10, fill: "var(--chart-text)" }}
-              tickFormatter={(v) => {
-                const [, m] = v.split("-");
-                return MONTHS_ES_SHORT[parseInt(m) - 1];
-              }}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "var(--chart-tooltip-bg)",
-                borderColor: "var(--chart-tooltip-border)",
-                color: "var(--chart-tooltip-text)",
-              }}
-              formatter={(v: number) => [formatCurrency(v), "Total"]}
-            />
-            <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-              {monthlyLoad.map((entry, index) => (
-                <Cell
-                  key={index}
-                  fill={
-                    entry.is_current
-                      ? "var(--color-success)"
-                      : entry.is_past
-                        ? "var(--gnome-yellow-3)"
-                        : "var(--color-primary)"
-                  }
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Horizontal Bar Chart: Compromisos por categoría */}
-      {categoryData.length > 0 && (
+      {/* Charts side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* BarChart: Tendencia mensual */}
         <div className="card p-4">
-          <h2 className="text-sm font-semibold text-primary mb-3">Compromisos por categoría</h2>
-          <div className="space-y-2">
-            {categoryData.map((cat) => (
-              <div key={cat.name} className="flex items-center gap-3 overflow-hidden">
-                <span className="text-xs text-primary w-24 truncate flex-shrink-0">{cat.name}</span>
-                <div className="flex-1 h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden min-w-0">
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${Math.max(cat.percentage, 2)}%`,
-                      backgroundColor: cat.color,
-                    }}
+          <h2 className="text-sm font-semibold text-primary mb-3">Tendencia mensual</h2>
+          <ResponsiveContainer width="100%" height={140}>
+            <BarChart data={monthlyLoad} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 10, fill: "var(--chart-text)" }}
+                tickFormatter={(v) => {
+                  const [, m] = v.split("-");
+                  return MONTHS_ES_SHORT[parseInt(m) - 1];
+                }}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "var(--chart-tooltip-bg)",
+                  borderColor: "var(--chart-tooltip-border)",
+                  color: "var(--chart-tooltip-text)",
+                }}
+                formatter={(v: number) => [formatCurrency(v), "Total"]}
+              />
+              <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+                {monthlyLoad.map((entry, index) => (
+                  <Cell
+                    key={index}
+                    fill={
+                      entry.is_current
+                        ? "var(--color-success)"
+                        : entry.is_past
+                          ? "var(--gnome-yellow-3)"
+                          : "var(--color-primary)"
+                    }
                   />
-                </div>
-                <span className="text-xs text-tertiary flex-shrink-0 text-right">
-                  {formatCurrency(cat.value / 12)}
-                </span>
-              </div>
-            ))}
-          </div>
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </div>
-      )}
+
+        {/* Horizontal Bar Chart: Compromisos por categoría */}
+        {categoryData.length > 0 && (
+          <div className="card p-4">
+            <h2 className="text-sm font-semibold text-primary mb-3">Compromisos por categoría</h2>
+            <div className="space-y-2">
+              {categoryData.map((cat) => (
+                <div key={cat.name} className="flex items-center gap-3 overflow-hidden">
+                  <span className="text-xs text-primary w-24 truncate flex-shrink-0">
+                    {cat.name}
+                  </span>
+                  <div className="flex-1 h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden min-w-0">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${Math.max(cat.percentage, 2)}%`,
+                        backgroundColor: cat.color,
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs text-tertiary flex-shrink-0 text-right">
+                    {formatCurrency(cat.value / 12)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Próximos pagos: Unified list sorted by date */}
       <div className="card p-4">
@@ -357,13 +362,7 @@ export default function InstallmentsPage() {
                   key={item.id}
                   className={`flex items-center justify-between py-3 px-3 rounded-lg ${
                     isPaused ? "opacity-50" : ""
-                  }`}
-                  style={{
-                    backgroundColor: isInstallment
-                      ? "var(--gnome-blue-5)"
-                      : "var(--gnome-purple-5)",
-                    opacity: isPaused ? 0.5 : 0.08,
-                  }}
+                  } ${isInstallment ? "bg-gnomeBlue5/5" : "bg-gnomePurple5/5"}`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <span
