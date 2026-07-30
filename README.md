@@ -32,9 +32,35 @@ Personal finance management with intelligent bank statement import, AI auto-cate
 - **Telegram Bot**: Log expenses via Telegram (@NikoFin_bot) with natural language parsing
 - **Google OAuth**: Login with Google (same-window redirect)
 - **Onboarding Tour**: First-time guided walkthrough of all features
-- **User Guide**: Comprehensive 15-chapter guide at /guide
+- **User Guide**: Comprehensive 16-chapter guide at /guide
 - **Landing Page**: GNOME 50-inspired design with visual mockups
 - **Multi-Domain**: Landing page at oikonomia.ar, app at platform.oikonomia.ar
+
+## Recent Updates
+
+- **Gastos Programados y Mejoras Visuales**
+  - Unified Programados page with installments + recurring expenses
+  - Auto-detect subscriptions from transaction history
+  - Pause/resume/delete recurring expenses
+  - Telegram commands: /suscripciones, /pausar, /cancelar, /ver
+  - AI-powered category suggestions with inline approval
+  - Merchant preference learning (prioritizes user history over LLM)
+  - Email validation with DNS MX record verification
+  - Onboarding walkthrough with per-release feature announcements
+
+- **Budgets and Reports**
+  - Expense budgets with 50/30/20 macro groups
+  - Weekly Telegram reports
+  - Monthly analysis PNG reports
+  - Family groups
+
+- **Core Features**
+  - Smart Import (PDF/CSV/XLSX)
+  - AI auto-categorization
+  - Installment tracking
+  - Investment sync (IOL/PPI)
+  - Google OAuth
+  - Field-level encryption
 
 ## Onboarding
 
