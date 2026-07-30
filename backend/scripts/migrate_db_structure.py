@@ -7,6 +7,11 @@ Migration: Database structure improvements.
 3. Fix nullable user_id → NOT NULL on expenses, analysis_history, investments, card_closings, categories
 4. Add missing performance indexes
 5. Add onboarding_completed to users
+6. Drop whats_new_seen from users
+7. Add encryption-related columns (telegram_chat_hash, description_search, expand encrypted columns)
+8. Add card search columns (card_name_search, bank_search, holder_search)
+9. Add scheduled expense search columns (description_search)
+10. Migrate to HMAC columns and encrypt Account.name
 
 Run with: python -m scripts.migrate_db_structure
 """
@@ -262,7 +267,7 @@ def step6_drop_whats_new_seen(engine):
 
 def step7_encryption_columns(engine):
     """Add columns needed for field-level encryption."""
-    print("\n[Step 7/7] Adding encryption-related columns...")
+    print("\n[Step 7/10] Adding encryption-related columns...")
 
     with engine.begin() as conn:
         dialect = engine.dialect.name
@@ -336,7 +341,7 @@ def step7_encryption_columns(engine):
 
 def step8_card_search_columns(engine):
     """Add search columns for encrypted Card fields."""
-    print("\n[Step 8/8] Adding Card search columns...")
+    print("\n[Step 8/10] Adding Card search columns...")
 
     with engine.begin() as conn:
         dialect = engine.dialect.name
@@ -366,7 +371,7 @@ def step8_card_search_columns(engine):
 
 def step9_scheduled_expense_search_columns(engine):
     """Add search columns for encrypted ScheduledExpense fields."""
-    print("\n[Step 9/9] Adding ScheduledExpense search columns...")
+    print("\n[Step 9/10] Adding ScheduledExpense search columns...")
 
     with engine.begin() as conn:
         dialect = engine.dialect.name
@@ -398,6 +403,196 @@ def step9_scheduled_expense_search_columns(engine):
             print("  Added description_search VARCHAR with index.")
 
 
+def step10_hmac_migration(engine):
+    """Migrate from search columns to HMAC columns and encrypt Account.name."""
+    print("\n[Step 10/10] Migrating to HMAC columns and encrypting Account.name...")
+
+    with engine.begin() as conn:
+        dialect = engine.dialect.name
+
+        if dialect != "postgresql":
+            print("  Skipping — only supported on PostgreSQL.")
+            return
+
+        # 1. Drop old search columns (idempotent)
+        print("  Dropping old search columns...")
+        search_columns_to_drop = [
+            ("expenses", "description_search"),
+            ("scheduled_expenses", "description_search"),
+            ("cards", "card_name_search"),
+            ("cards", "bank_search"),
+            ("cards", "holder_search"),
+        ]
+
+        for table, column in search_columns_to_drop:
+            exists = conn.execute(
+                text("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = :table AND column_name = :column
+                )
+            """),
+                {"table": table, "column": column},
+            ).scalar()
+
+            if exists:
+                # Drop index first (if exists)
+                index_name = f"ix_{table}_{column}"
+                try:
+                    conn.execute(text(f"DROP INDEX IF EXISTS {index_name}"))
+                except Exception:
+                    pass
+                conn.execute(text(f"ALTER TABLE {table} DROP COLUMN {column}"))
+                print(f"    Dropped {table}.{column}")
+            else:
+                print(f"    {table}.{column} already dropped. Skipping.")
+
+        # 2. Add new HMAC columns (idempotent)
+        print("  Adding new HMAC columns...")
+        hmac_columns_to_add = [
+            ("expenses", "description_hmac"),
+            ("scheduled_expenses", "description_hmac"),
+            ("cards", "card_name_hmac"),
+            ("cards", "bank_hmac"),
+            ("accounts", "name_hmac"),
+        ]
+
+        for table, column in hmac_columns_to_add:
+            exists = conn.execute(
+                text("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = :table AND column_name = :column
+                )
+            """),
+                {"table": table, "column": column},
+            ).scalar()
+
+            if exists:
+                print(f"    {table}.{column} already exists. Skipping.")
+            else:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} VARCHAR(64)"))
+                index_name = f"ix_{table}_{column}"
+                conn.execute(text(f"CREATE INDEX {index_name} ON {table} ({column})"))
+                print(f"    Added {table}.{column} VARCHAR(64) with index.")
+
+        # 3. Encrypt Account.name column (migrate from plain String to encrypted)
+        print("  Encrypting Account.name column...")
+        from app.services.encryption import encrypt_value, is_encrypted
+
+        accounts = conn.execute(
+            text("SELECT id, name FROM accounts WHERE name IS NOT NULL")
+        ).fetchall()
+
+        encrypted_count = 0
+        for account_id, name in accounts:
+            if name and not is_encrypted(name):
+                encrypted_name = encrypt_value(name)
+                conn.execute(
+                    text("UPDATE accounts SET name = :name WHERE id = :id"),
+                    {"name": encrypted_name, "id": account_id},
+                )
+                encrypted_count += 1
+
+        if encrypted_count > 0:
+            print(f"    Encrypted {encrypted_count} account names.")
+        else:
+            print("    All account names already encrypted.")
+
+        # 4. Populate HMAC columns from encrypted data
+        print("  Populating HMAC columns from encrypted data...")
+        from app.services.encryption import compute_hmac, decrypt_value
+
+        # Expenses: description_hmac
+        expenses = conn.execute(
+            text("SELECT id, description FROM expenses WHERE description IS NOT NULL AND description_hmac IS NULL")
+        ).fetchall()
+
+        hmac_count = 0
+        for expense_id, description in expenses:
+            if description:
+                try:
+                    decrypted = decrypt_value(description)
+                    hmac_value = compute_hmac(decrypted)
+                    conn.execute(
+                        text("UPDATE expenses SET description_hmac = :hmac WHERE id = :id"),
+                        {"hmac": hmac_value, "id": expense_id},
+                    )
+                    hmac_count += 1
+                except Exception as e:
+                    print(f"    Warning: Could not process expense {expense_id}: {e}")
+
+        print(f"    Populated {hmac_count} expense description_hmac values.")
+
+        # Scheduled expenses: description_hmac
+        scheduled = conn.execute(
+            text("SELECT id, description FROM scheduled_expenses WHERE description IS NOT NULL AND description_hmac IS NULL")
+        ).fetchall()
+
+        hmac_count = 0
+        for se_id, description in scheduled:
+            if description:
+                try:
+                    decrypted = decrypt_value(description)
+                    hmac_value = compute_hmac(decrypted)
+                    conn.execute(
+                        text("UPDATE scheduled_expenses SET description_hmac = :hmac WHERE id = :id"),
+                        {"hmac": hmac_value, "id": se_id},
+                    )
+                    hmac_count += 1
+                except Exception as e:
+                    print(f"    Warning: Could not process scheduled expense {se_id}: {e}")
+
+        print(f"    Populated {hmac_count} scheduled_expenses description_hmac values.")
+
+        # Cards: card_name_hmac and bank_hmac
+        cards = conn.execute(
+            text("SELECT id, card_name, bank FROM cards WHERE card_name_hmac IS NULL")
+        ).fetchall()
+
+        hmac_count = 0
+        for card_id, card_name, bank in cards:
+            try:
+                if card_name:
+                    decrypted_name = decrypt_value(card_name)
+                    conn.execute(
+                        text("UPDATE cards SET card_name_hmac = :hmac WHERE id = :id"),
+                        {"hmac": compute_hmac(decrypted_name.lower()), "id": card_id},
+                    )
+                if bank:
+                    decrypted_bank = decrypt_value(bank)
+                    conn.execute(
+                        text("UPDATE cards SET bank_hmac = :hmac WHERE id = :id"),
+                        {"hmac": compute_hmac(decrypted_bank.lower()), "id": card_id},
+                    )
+                hmac_count += 1
+            except Exception as e:
+                print(f"    Warning: Could not process card {card_id}: {e}")
+
+        print(f"    Populated {hmac_count} card HMAC values.")
+
+        # Accounts: name_hmac
+        accounts = conn.execute(
+            text("SELECT id, name FROM accounts WHERE name IS NOT NULL AND name_hmac IS NULL")
+        ).fetchall()
+
+        hmac_count = 0
+        for account_id, name in accounts:
+            if name:
+                try:
+                    decrypted = decrypt_value(name)
+                    hmac_value = compute_hmac(decrypted.strip().lower())
+                    conn.execute(
+                        text("UPDATE accounts SET name_hmac = :hmac WHERE id = :id"),
+                        {"hmac": hmac_value, "id": account_id},
+                    )
+                    hmac_count += 1
+                except Exception as e:
+                    print(f"    Warning: Could not process account {account_id}: {e}")
+
+        print(f"    Populated {hmac_count} account name_hmac values.")
+
+
 def main():
     engine = get_engine()
 
@@ -414,6 +609,7 @@ def main():
     step7_encryption_columns(engine)
     step8_card_search_columns(engine)
     step9_scheduled_expense_search_columns(engine)
+    step10_hmac_migration(engine)
 
     print("\n" + "=" * 60)
     print("Migration complete!")

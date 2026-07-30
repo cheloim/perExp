@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect, useCallback, Fragment } from "react";
+import { useState, useMemo, useRef, useEffect, Fragment } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUndoToast } from "../hooks/useUndoToast";
 import {
@@ -92,7 +92,6 @@ export default function ExpensesPage() {
   const filterAccount = filters.account;
   const filterDateFrom = filters.dateFrom;
   const filterDateTo = filters.dateTo;
-  const filterSearch = filters.search;
 
   // Category suggestions from API
   const { data: suggestionsData = [], refetch: refetchSuggestions } = useQuery({
@@ -137,13 +136,12 @@ export default function ExpensesPage() {
     filterAccount,
     filterDateFrom,
     filterDateTo,
-    filterSearch,
   ].filter(Boolean).length;
 
   const [visibleCount, setVisibleCount] = useState(100);
 
   // Reset visible count when filters change
-  const filterKey = `${filterCategory}-${filterUncategorized}-${filterBank}-${filterPerson}-${filterCard}-${filterCardType}-${filterInstallment}-${filterAccount}-${filterDateFrom}-${filterDateTo}-${filterSearch}`;
+  const filterKey = `${filterCategory}-${filterUncategorized}-${filterBank}-${filterPerson}-${filterCard}-${filterCardType}-${filterInstallment}-${filterAccount}-${filterDateFrom}-${filterDateTo}`;
   const prevFilterKey = useRef(filterKey);
   if (filterKey !== prevFilterKey.current) {
     prevFilterKey.current = filterKey;
@@ -178,7 +176,6 @@ export default function ExpensesPage() {
       account: filterAccount,
       date_from: filterDateFrom,
       date_to: filterDateTo,
-      search: filterSearch,
       limit: visibleCount,
     })
       .then((data) => {
@@ -251,40 +248,12 @@ export default function ExpensesPage() {
     queryFn: () => getExpensesByPerson({ month: month || undefined }),
   });
 
-  // Categories that match the current search term
-  const matchingCategories = useMemo(() => {
-    if (!filterSearch || expenses.length === 0) return new Set<number>();
-    const ids = new Set<number>();
-    expenses.forEach((e) => {
-      if (e.category_id != null) ids.add(e.category_id);
-    });
-    return ids;
-  }, [filterSearch, expenses]);
-
   const [editing, setEditing] = useState<Expense | null | undefined>(undefined);
   const [detailExpense, setDetailExpense] = useState<Expense | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [debouncedSearch, setDebouncedSearch] = useState(filterSearch ?? "");
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [selectedDonutCategory, setSelectedDonutCategory] = useState<string | null>(null);
   const [showAllCategories, setShowAllCategories] = useState(false);
-  const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  // Sync debouncedSearch when filterSearch changes externally (e.g., clear filters)
-  useEffect(() => {
-    setDebouncedSearch(filterSearch ?? "");
-  }, [filterSearch]);
-
-  const handleSearchChange = useCallback(
-    (value: string) => {
-      clearTimeout(searchTimeout.current);
-      searchTimeout.current = setTimeout(() => {
-        setFilter("search", value || undefined);
-      }, 300);
-      setDebouncedSearch(value);
-    },
-    [setFilter],
-  );
   const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({
     field: "date",
     dir: "desc",
@@ -477,7 +446,6 @@ export default function ExpensesPage() {
       card: filterCard,
       date_from: filterDateFrom,
       date_to: filterDateTo,
-      search: filterSearch,
       limit: 10000,
     });
     const headers = [
@@ -739,15 +707,6 @@ export default function ExpensesPage() {
                 placeholder="Hasta"
               />
             </div>
-
-            {/* Search */}
-            <input
-              type="text"
-              value={debouncedSearch}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Buscar en descripción..."
-              className="w-full text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition placeholder:text-[var(--text-tertiary)]"
-            />
           </div>
         )}
       </div>
@@ -843,16 +802,7 @@ export default function ExpensesPage() {
                             >
                               {pieData.map((entry, i) => {
                                 const isSelected = selectedDonutCategory === entry.name;
-                                const isSearchMatch =
-                                  filterSearch &&
-                                  matchingCategories.size > 0 &&
-                                  entry.categoryId != null &&
-                                  matchingCategories.has(entry.categoryId);
-                                const isHighlighted = selectedDonutCategory
-                                  ? isSelected
-                                  : filterSearch
-                                    ? isSearchMatch
-                                    : true;
+                                const isHighlighted = selectedDonutCategory ? isSelected : true;
                                 return (
                                   <Cell
                                     key={i}
@@ -885,11 +835,7 @@ export default function ExpensesPage() {
                               className={`flex items-center gap-2 text-xs text-left w-full rounded px-1 py-0.5 transition ${
                                 selectedDonutCategory === cat.category_name
                                   ? "bg-[var(--color-primary)]/10"
-                                  : filterSearch &&
-                                      cat.category_id != null &&
-                                      matchingCategories.has(cat.category_id)
-                                    ? "bg-[var(--color-primary)]/5"
-                                    : "hover:bg-[var(--color-base-alt)]"
+                                  : "hover:bg-[var(--color-base-alt)]"
                               }`}
                             >
                               <span

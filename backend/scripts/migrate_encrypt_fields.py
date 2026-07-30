@@ -22,7 +22,6 @@ from app.services.encryption import (
     compute_hmac,
     encrypt_value,
     is_encrypted,
-    tokenize_description,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -84,20 +83,18 @@ def _migrate_cards(db):
         if cn and not is_encrypted(cn):
             updates.append("card_name = :cn")
             params["cn"] = encrypt_value(cn)
-            updates.append("card_name_search = :cns")
-            params["cns"] = tokenize_description(cn)
+            updates.append("card_name_hmac = :cns")
+            params["cns"] = compute_hmac(cn.lower())
 
         if bk and not is_encrypted(bk):
             updates.append("bank = :bk")
             params["bk"] = encrypt_value(bk)
-            updates.append("bank_search = :bks")
-            params["bks"] = tokenize_description(bk)
+            updates.append("bank_hmac = :bks")
+            params["bks"] = compute_hmac(bk.lower())
 
         if ho and not is_encrypted(ho):
             updates.append("holder = :ho")
             params["ho"] = encrypt_value(ho)
-            updates.append("holder_search = :hos")
-            params["hos"] = tokenize_description(ho)
 
         if updates:
             db.execute(
@@ -124,8 +121,8 @@ def _migrate_expenses(db):
         if desc and not is_encrypted(desc):
             updates.append("description = :desc")
             params["desc"] = encrypt_value(desc)
-            updates.append("description_search = :search")
-            params["search"] = tokenize_description(desc)
+            updates.append("description_hmac = :search")
+            params["search"] = compute_hmac(desc)
 
         if notes and not is_encrypted(notes):
             updates.append("notes = :notes")
@@ -197,6 +194,32 @@ def _migrate_audit_logs(db):
     logger.info(f"  Migrated {migrated} audit logs")
 
 
+def _migrate_accounts(db):
+    """Encrypt account fields and generate HMAC."""
+    logger.info("Migrating accounts table...")
+
+    raw = db.execute(text("SELECT id, name FROM accounts")).fetchall()
+    migrated = 0
+
+    for row in raw:
+        aid, name = row
+        if name and not is_encrypted(name):
+            db.execute(
+                text(
+                    "UPDATE accounts SET name = :name, name_hmac = :hmac WHERE id = :aid"
+                ),
+                {
+                    "name": encrypt_value(name),
+                    "hmac": compute_hmac(name),
+                    "aid": aid,
+                },
+            )
+            migrated += 1
+
+    db.commit()
+    logger.info(f"  Migrated {migrated} accounts")
+
+
 def _migrate_monthly_reports(db):
     """Encrypt monthly report data."""
     logger.info("Migrating monthly_reports table...")
@@ -233,11 +256,11 @@ def _migrate_scheduled_expenses(db):
         if desc and not is_encrypted(desc):
             db.execute(
                 text(
-                    "UPDATE scheduled_expenses SET description = :desc, description_search = :search WHERE id = :sid"
+                    "UPDATE scheduled_expenses SET description = :desc, description_hmac = :search WHERE id = :sid"
                 ),
                 {
                     "desc": encrypt_value(desc),
-                    "search": tokenize_description(desc),
+                    "search": compute_hmac(desc),
                     "sid": sid,
                 },
             )
@@ -254,6 +277,7 @@ def migrate_plaintext_data():
         logger.info("Starting encryption migration...")
 
         _migrate_users(db)
+        _migrate_accounts(db)
         _migrate_cards(db)
         _migrate_expenses(db)
         _migrate_investments(db)

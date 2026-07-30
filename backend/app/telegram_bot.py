@@ -8,7 +8,6 @@ from datetime import date, datetime
 
 import telegram
 from google import genai
-from sqlalchemy import func
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Application,
@@ -24,7 +23,7 @@ from app.database import SessionLocal
 from app.models import Account, Card, Category, Expense, User
 from app.prompts import CARD_EXTRACT_PROMPT, EXPENSE_PARSE_PROMPT
 from app.services.categorization import auto_categorize, llm_categorize
-from app.services.encryption import tokenize_description
+from app.services.encryption import compute_hmac
 from app.services.import_utils import _normalize_text
 
 logger = logging.getLogger(__name__)
@@ -290,7 +289,7 @@ def _save_expense(
         expense = Expense(
             date=expense_date,
             description=_normalize_text(parsed.get("description", "")),
-            description_search=tokenize_description(_normalize_text(parsed.get("description", ""))),
+            description_hmac=compute_hmac(_normalize_text(parsed.get("description", ""))),
             amount=installment_amount,
             currency=parsed.get("currency", "ARS"),
             category_id=category_id,
@@ -1288,14 +1287,17 @@ async def handle_card_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     # Look up card_id from DB so the expense is linked to the card
     db_card = SessionLocal()
     try:
-        card_obj = (
-            db_card.query(Card)
-            .filter(
-                Card.user_id == context.user_data["user_id"],
-                func.lower(Card.card_name_search) == tokenize_description(card),
-                func.lower(Card.bank_search) == tokenize_description(bank),
-            )
-            .first()
+        all_cards = db_card.query(Card).filter(Card.user_id == context.user_data["user_id"]).all()
+        card_obj = next(
+            (
+                c
+                for c in all_cards
+                if c.card_name
+                and c.card_name.lower() == card.lower()
+                and c.bank
+                and c.bank.lower() == bank.lower()
+            ),
+            None,
         )
         if card_obj:
             context.user_data["card_id"] = card_obj.id
@@ -1542,6 +1544,7 @@ async def handle_account_create_type(update: Update, context: ContextTypes.DEFAU
     try:
         new_account = Account(
             name=account_name,
+            name_hmac=compute_hmac(account_name.strip().lower()),
             type=account_type,
             user_id=user_id,
         )
@@ -1719,8 +1722,8 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
             db.query(Card)
             .filter(
                 Card.user_id == user_id,
-                func.lower(Card.card_name_search) == card_name.lower(),
-                func.lower(Card.bank_search) == bank.lower(),
+                Card.card_name_hmac == compute_hmac(card_name.lower()),
+                Card.bank_hmac == compute_hmac(bank.lower()),
             )
             .first()
         )
@@ -1733,11 +1736,10 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
 
         new_card = Card(
             card_name=card_name,
-            card_name_search=tokenize_description(card_name),
+            card_name_hmac=compute_hmac(card_name.lower()),
             bank=bank,
-            bank_search=tokenize_description(bank),
+            bank_hmac=compute_hmac(bank.lower()),
             holder=holder,
-            holder_search=tokenize_description(holder),
             card_type=card_type,
             user_id=user_id,
         )
@@ -1955,7 +1957,7 @@ def _save_expense_from_context(context, db):
                 amount=expense.amount,
                 currency=expense.currency,
                 description=expense.description,
-                description_search=tokenize_description(expense.description),
+                description_hmac=compute_hmac(expense.description),
                 card_id=expense.card_id,
                 account_id=expense.account_id,
                 category_id=expense.category_id,
@@ -2035,14 +2037,16 @@ async def handle_card_manual(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # Look up card_id from DB if the card exists
     db_card = SessionLocal()
     try:
-        card_obj = (
-            db_card.query(Card)
-            .filter(
-                Card.user_id == context.user_data["user_id"],
-                func.lower(Card.card_name_search) == tokenize_description(card_name),
-                func.lower(Card.bank_search) == tokenize_description(bank) if bank else True,
-            )
-            .first()
+        all_cards = db_card.query(Card).filter(Card.user_id == context.user_data["user_id"]).all()
+        card_obj = next(
+            (
+                c
+                for c in all_cards
+                if c.card_name
+                and c.card_name.lower() == card_name.lower()
+                and (not bank or (c.bank and c.bank.lower() == bank.lower()))
+            ),
+            None,
         )
         if card_obj:
             context.user_data["card_id"] = card_obj.id

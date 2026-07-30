@@ -15,7 +15,7 @@ from app.schemas import ExpenseCreate, ExpenseResponse, ExpenseUpdate
 from app.services.auth import get_current_user
 from app.services.categorization import _normalize_merchant_key, _resolve_category, auto_categorize
 from app.services.date_utils import _normalize_date_str, add_months
-from app.services.encryption import tokenize_description
+from app.services.encryption import compute_hmac
 from app.services.import_utils import _is_duplicate, _normalize_text
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
@@ -69,7 +69,6 @@ def get_expenses(
     installment: bool | None = None,
     account: str | None = None,
     account_id: int | None = None,
-    search: str | None = None,
     skip: int = 0,
     limit: int = 200,
     db: Session = Depends(get_db),
@@ -105,22 +104,21 @@ def get_expenses(
             q = q.filter(Expense.category_id.in_(id_list))
     elif uncategorized:
         q = q.filter(Expense.category_id.is_(None))
-    if bank:
-        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.bank_search.ilike(f"%{bank}%")
-        )
-    if person:
-        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.holder_search.ilike(f"%{person}%")
-        )
-    if card:
-        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.card_name_search.ilike(f"%{card}%")
-        )
-    if card_type:
-        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.card_type == card_type
-        )
+    # Application-level filtering for bank, person, card, account
+    if bank or person or card or card_type:
+        all_cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
+        if bank:
+            matching_ids = [c.id for c in all_cards if bank.lower() in (c.bank or "").lower()]
+            q = q.filter(Expense.card_id.in_(matching_ids))
+        if person:
+            matching_ids = [c.id for c in all_cards if person.lower() in (c.holder or "").lower()]
+            q = q.filter(Expense.card_id.in_(matching_ids))
+        if card:
+            matching_ids = [c.id for c in all_cards if card.lower() in (c.card_name or "").lower()]
+            q = q.filter(Expense.card_id.in_(matching_ids))
+        if card_type:
+            matching_ids = [c.id for c in all_cards if c.card_type == card_type]
+            q = q.filter(Expense.card_id.in_(matching_ids))
     if installment is True:
         q = q.filter(Expense.installment_group_id.isnot(None))
     elif installment is False:
@@ -130,11 +128,9 @@ def get_expenses(
     if account:
         from app.models import Account
 
-        q = q.join(Account, Expense.account_id == Account.id, isouter=True).filter(
-            Account.name.ilike(f"%{account}%")
-        )
-    if search:
-        q = q.filter(Expense.description_search.ilike(f"%{search}%"))
+        all_accounts = db.query(Account).filter(Account.user_id.in_(uid_list)).all()
+        matching_ids = [a.id for a in all_accounts if account.lower() in (a.name or "").lower()]
+        q = q.filter(Expense.account_id.in_(matching_ids))
     # Only exclude future installments when NOT filtering by specific category
     # (category-specific views like side panel need to show all expenses)
     if not category_id and not category_ids:
@@ -286,7 +282,7 @@ def check_duplicate(
         dupe = base.filter(
             Expense.date == exp_date,
             Expense.amount == amount,
-            func.lower(Expense.description_search) == tokenize_description(description),
+            Expense.description_hmac == compute_hmac(description),
         ).first()
     if dupe:
         return {
@@ -323,7 +319,7 @@ def create_expense(
     # Normalize description
     if data.get("description"):
         data["description"] = _normalize_text(data["description"])
-        data["description_search"] = tokenize_description(data["description"])
+        data["description_hmac"] = compute_hmac(data["description"])
 
     # Always store amount as positive (no sign convention)
     data["amount"] = abs(data["amount"])
@@ -432,9 +428,9 @@ def update_expense(
             data["date"] = pd.to_datetime(normalized, dayfirst=True).date()
     for k, v in data.items():
         setattr(db_exp, k, v)
-    # Update search index if description changed
+    # Update HMAC if description changed
     if "description" in data:
-        db_exp.description_search = tokenize_description(data["description"])
+        db_exp.description_hmac = compute_hmac(data["description"])
     db.commit()
     db.refresh(db_exp)
 
@@ -629,17 +625,17 @@ def get_expense_stats(
     elif account:
         from app.models import Account
 
-        q = q.join(Account, Expense.account_id == Account.id, isouter=True).filter(
-            Account.name.ilike(f"%{account}%")
-        )
-    elif card:
-        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.card_name_search.ilike(f"%{card}%")
-        )
-    elif bank:
-        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.bank_search.ilike(f"%{bank}%")
-        )
+        all_accounts = db.query(Account).filter(Account.user_id.in_(uid_list)).all()
+        matching_ids = [a.id for a in all_accounts if account.lower() in (a.name or "").lower()]
+        q = q.filter(Expense.account_id.in_(matching_ids))
+    elif card or bank:
+        all_cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
+        if card:
+            matching_ids = [c.id for c in all_cards if card.lower() in (c.card_name or "").lower()]
+            q = q.filter(Expense.card_id.in_(matching_ids))
+        elif bank:
+            matching_ids = [c.id for c in all_cards if bank.lower() in (c.bank or "").lower()]
+            q = q.filter(Expense.card_id.in_(matching_ids))
 
     total, count = q.one()
 
@@ -658,14 +654,14 @@ def get_expense_stats(
             )
         except (ValueError, IndexError):
             pass
-    if card:
-        last_used_q = last_used_q.join(Card, Expense.card_id == Card.id).filter(
-            Card.card_name_search.ilike(f"%{card}%")
-        )
-    elif bank:
-        last_used_q = last_used_q.join(Card, Expense.card_id == Card.id).filter(
-            Card.bank_search.ilike(f"%{bank}%")
-        )
+    if card or bank:
+        all_cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
+        if card:
+            matching_ids = [c.id for c in all_cards if card.lower() in (c.card_name or "").lower()]
+            last_used_q = last_used_q.filter(Expense.card_id.in_(matching_ids))
+        elif bank:
+            matching_ids = [c.id for c in all_cards if bank.lower() in (c.bank or "").lower()]
+            last_used_q = last_used_q.filter(Expense.card_id.in_(matching_ids))
     last_used = last_used_q.scalar()
 
     total, count = q.one()
@@ -718,9 +714,9 @@ def get_expenses_by_category(
     if account_id:
         q = q.filter(Expense.account_id == account_id)
     if card:
-        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.card_name_search.ilike(f"%{card}%")
-        )
+        all_cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
+        matching_ids = [c.id for c in all_cards if card.lower() in (c.card_name or "").lower()]
+        q = q.filter(Expense.card_id.in_(matching_ids))
 
     rows = q.all()
     result = []

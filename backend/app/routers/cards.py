@@ -2,14 +2,13 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Card, User
 from app.routers.groups import get_group_user_ids
 from app.services.auth import get_current_user
-from app.services.encryption import tokenize_description
+from app.services.encryption import compute_hmac
 
 router = APIRouter(prefix="/cards", tags=["cards"])
 
@@ -130,8 +129,8 @@ def create_card(
         db.query(Card)
         .filter(
             Card.user_id == current_user.id,
-            func.lower(Card.card_name_search) == card_name.lower(),
-            func.lower(Card.bank_search) == bank.lower(),
+            Card.card_name_hmac == compute_hmac(card_name.lower()),
+            Card.bank_hmac == compute_hmac(bank.lower()),
             Card.card_type == card.card_type,
         )
         .first()
@@ -155,11 +154,10 @@ def create_card(
 
     db_card = Card(
         card_name=card_name,
-        card_name_search=tokenize_description(card_name),
+        card_name_hmac=compute_hmac(card_name.lower()),
         bank=bank,
-        bank_search=tokenize_description(bank),
+        bank_hmac=compute_hmac(bank.lower()),
         holder=holder,
-        holder_search=tokenize_description(holder),
         card_type=card.card_type,
         linked_account_id=linked_account_id,
         user_id=current_user.id,
@@ -236,13 +234,11 @@ def update_card(
             value = value.strip()
         setattr(db_card, key, value)
 
-    # Update search tokens if card_name, bank, or holder changed
+    # Update HMAC if card_name or bank changed
     if "card_name" in update_data:
-        db_card.card_name_search = tokenize_description(db_card.card_name)
+        db_card.card_name_hmac = compute_hmac(db_card.card_name.lower())
     if "bank" in update_data:
-        db_card.bank_search = tokenize_description(db_card.bank)
-    if "holder" in update_data:
-        db_card.holder_search = tokenize_description(db_card.holder)
+        db_card.bank_hmac = compute_hmac(db_card.bank.lower())
 
     db.commit()
     db.refresh(db_card)
@@ -302,7 +298,6 @@ def sync_card_holders(
 
         card.holder = get_first_name(current_user.full_name or "")
         if card.holder:
-            card.holder_search = tokenize_description(card.holder)
             updated += 1
 
     db.commit()

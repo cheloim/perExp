@@ -11,7 +11,7 @@ import sys
 sys.path.insert(0, ".")
 
 from app.database import SessionLocal
-from app.models import AuditLog, Card, Expense, Investment, MonthlyReport, ScheduledExpense, User
+from app.models import Account, AuditLog, Card, Expense, Investment, MonthlyReport, ScheduledExpense, User
 from app.services.encryption import decrypt_value, is_encrypted
 
 logging.basicConfig(level=logging.INFO)
@@ -28,9 +28,10 @@ ENCRYPTED_FIELDS = {
 }
 
 SEARCH_FIELDS = {
-    Card: ["card_name_search", "bank_search", "holder_search"],
-    Expense: ["description_search"],
-    ScheduledExpense: ["description_search"],
+    Card: ["card_name_hmac", "bank_hmac"],
+    Expense: ["description_hmac"],
+    ScheduledExpense: ["description_hmac"],
+    Account: ["name_hmac"],
 }
 
 
