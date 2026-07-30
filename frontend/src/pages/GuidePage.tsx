@@ -612,24 +612,40 @@ export default function GuidePage() {
             id="programados"
             title="Gastos programados"
             icon="list"
-            subtitle="Gastos futuros que se ejecutan automáticamente."
+            subtitle="Cuotas y gastos recurrentes en un solo lugar."
             expanded={expandedChapters.has("programados")}
             onToggle={() => toggleChapter("programados")}
           >
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Los gastos programados son cuotas pendientes de compras en cuotas. Se ejecutan
-              automáticamente cuando llega la fecha.
+              La página Programados muestra todos tus gastos futuros: tanto cuotas pendientes como
+              gastos recurrentes (suscripciones). Se ejecutan automáticamente cuando llega la fecha.
             </p>
-            <h4 className="font-semibold text-[var(--text-primary)] mb-2">Flujo automático</h4>
+
+            <h4 className="font-semibold text-[var(--text-primary)] mb-2">Filtrar por tipo</h4>
+            <p className="text-sm text-[var(--text-secondary)] mb-3">
+              Usá las pestañas "Todos", "Cuotas" o "Recurrentes" para ver solo el tipo de gasto que
+              necesitás.
+            </p>
+
+            <h4 className="font-semibold text-[var(--text-primary)] mt-4 mb-2">Flujo automático</h4>
             <ul className="list-disc list-inside text-sm text-[var(--text-secondary)] space-y-1 mb-3">
               <li>Cada día a las 02:00 UTC, un proceso revisa cuotas con fecha ≤ hoy</li>
               <li>Las cuotas vencidas se convierten en gastos reales automáticamente</li>
               <li>Se mantiene el registro de cuotas pagadas y pendientes</li>
             </ul>
+
+            <h4 className="font-semibold text-[var(--text-primary)] mt-4 mb-2">
+              Gastos recurrentes (suscripciones)
+            </h4>
+            <p className="text-sm text-[var(--text-secondary)] mb-3">
+              La app detecta automáticamente gastos que se repiten mensualmente (como Netflix,
+              Spotify, etc.). Se muestran en la pestaña "Recurrentes" junto a las cuotas.
+            </p>
+
             <h4 className="font-semibold text-[var(--text-primary)] mt-4 mb-2">
               Acciones manuales
             </h4>
-            <ul className="list-disc list-inside text-sm text-[var(--text-secondary)] space-y-1">
+            <ul className="list-disc list-inside text-sm text-[var(--text-secondary)] space-y-1 mb-3">
               <li>
                 <strong>Ejecutar ahora:</strong> Registrar una cuota antes de la fecha programada
               </li>
@@ -640,8 +656,27 @@ export default function GuidePage() {
                 <strong>Editar:</strong> Modificar fecha, monto, descripción o categoría de una
                 cuota pendiente
               </li>
+              <li>
+                <strong>Pausar/Reanudar:</strong> Pausar temporalmente un gasto recurrente o
+                reactivarlo
+              </li>
+              <li>
+                <strong>Eliminar:</strong> Eliminar permanentemente un gasto recurrente
+              </li>
             </ul>
+
+            <Callout type="info">
+              También podés gestionar tus suscripciones desde Telegram con los comandos:
+              /suscripciones (ver), /pausar (pausar), /cancelar (eliminar).
+            </Callout>
           </Chapter>
+
+          <a
+            href="/guide/recurring"
+            className="inline-flex items-center gap-1 text-sm text-[var(--color-primary)] hover:underline mt-3"
+          >
+            📖 Guía completa de gastos recurrentes →
+          </a>
 
           <a
             href="/guide/ai-analysis"

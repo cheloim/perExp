@@ -37,6 +37,7 @@ const GuideAIAnalysisPage = lazy(() => import("./pages/GuideAIAnalysisPage"));
 const GuideFamilyGroupsPage = lazy(() => import("./pages/GuideFamilyGroupsPage"));
 const GuideInvestmentsPage = lazy(() => import("./pages/GuideInvestmentsPage"));
 const GuideCategoriesPage = lazy(() => import("./pages/GuideCategoriesPage"));
+const GuideRecurringPage = lazy(() => import("./pages/GuideRecurringPage"));
 const ChangesPage = lazy(() => import("./pages/ChangesPage"));
 const NovedadesPage = lazy(() => import("./pages/NovedadesPage"));
 const OnboardingWalkthrough = lazy(() => import("./components/OnboardingWalkthrough"));
@@ -173,6 +174,13 @@ export default function App() {
       return (
         <Suspense>
           <GuideCategoriesPage />
+        </Suspense>
+      );
+    }
+    if (location.pathname === "/guide/recurring") {
+      return (
+        <Suspense>
+          <GuideRecurringPage />
         </Suspense>
       );
     }
@@ -628,6 +636,7 @@ function MainLayout() {
                       <Route path="/guide/family-groups" element={<GuideFamilyGroupsPage />} />
                       <Route path="/guide/investments" element={<GuideInvestmentsPage />} />
                       <Route path="/guide/categories" element={<GuideCategoriesPage />} />
+                      <Route path="/guide/recurring" element={<GuideRecurringPage />} />
                       <Route path="/changes" element={<ChangesPage />} />
                       <Route path="/changes/:version" element={<ChangesPage />} />
                       <Route path="/novedades" element={<NovedadesPage />} />
