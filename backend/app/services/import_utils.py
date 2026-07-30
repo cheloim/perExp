@@ -7,7 +7,6 @@ from datetime import date, timedelta
 import pandas as pd
 
 logger = logging.getLogger(__name__)
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models import Expense

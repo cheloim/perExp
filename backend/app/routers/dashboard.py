@@ -15,7 +15,6 @@ from app.models import Card, Category, Expense, MonthlyReport, Notification, Use
 from app.routers.groups import get_group_user_ids
 from app.services.auth import get_current_user
 from app.services.date_utils import add_months
-from app.services.encryption import compute_hmac
 from app.services.normalizers import normalize_bank
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
