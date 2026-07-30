@@ -1288,9 +1288,17 @@ async def handle_card_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     db_card = SessionLocal()
     try:
         all_cards = db_card.query(Card).filter(Card.user_id == context.user_data["user_id"]).all()
-        card_obj = next((c for c in all_cards if
-            c.card_name and c.card_name.lower() == card.lower() and
-            c.bank and c.bank.lower() == bank.lower()), None)
+        card_obj = next(
+            (
+                c
+                for c in all_cards
+                if c.card_name
+                and c.card_name.lower() == card.lower()
+                and c.bank
+                and c.bank.lower() == bank.lower()
+            ),
+            None,
+        )
         if card_obj:
             context.user_data["card_id"] = card_obj.id
     finally:
@@ -1710,11 +1718,15 @@ async def handle_card_create_confirm(update: Update, context: ContextTypes.DEFAU
         else:
             holder = ""
 
-        existing = db.query(Card).filter(
-            Card.user_id == user_id,
-            Card.card_name_hmac == compute_hmac(card_name.lower()),
-            Card.bank_hmac == compute_hmac(bank.lower()),
-        ).first()
+        existing = (
+            db.query(Card)
+            .filter(
+                Card.user_id == user_id,
+                Card.card_name_hmac == compute_hmac(card_name.lower()),
+                Card.bank_hmac == compute_hmac(bank.lower()),
+            )
+            .first()
+        )
         if existing:
             await query.message.reply_text(
                 "❌ Ya existe una tarjeta con ese nombre y banco. Probá con otro nombre.",
@@ -2026,9 +2038,16 @@ async def handle_card_manual(update: Update, context: ContextTypes.DEFAULT_TYPE)
     db_card = SessionLocal()
     try:
         all_cards = db_card.query(Card).filter(Card.user_id == context.user_data["user_id"]).all()
-        card_obj = next((c for c in all_cards if
-            c.card_name and c.card_name.lower() == card_name.lower() and
-            (not bank or (c.bank and c.bank.lower() == bank.lower()))), None)
+        card_obj = next(
+            (
+                c
+                for c in all_cards
+                if c.card_name
+                and c.card_name.lower() == card_name.lower()
+                and (not bank or (c.bank and c.bank.lower() == bank.lower()))
+            ),
+            None,
+        )
         if card_obj:
             context.user_data["card_id"] = card_obj.id
     finally:

@@ -72,7 +72,9 @@ def _load_cards_and_accounts(uid_list: list[int], expenses: list[Expense], db: S
     return cards_by_id, accounts_by_id
 
 
-def _apply_filters(q, month_val, search_val, person_val, cat_id_val, bank_val=None, uid_list=None, db=None):
+def _apply_filters(
+    q, month_val, search_val, person_val, cat_id_val, bank_val=None, uid_list=None, db=None
+):
     if month_val:
         try:
             if "-" in month_val:
@@ -91,7 +93,9 @@ def _apply_filters(q, month_val, search_val, person_val, cat_id_val, bank_val=No
     if (person_val or bank_val) and uid_list and db:
         all_cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
         if person_val:
-            matching_ids = [c.id for c in all_cards if person_val.lower() in (c.holder or "").lower()]
+            matching_ids = [
+                c.id for c in all_cards if person_val.lower() in (c.holder or "").lower()
+            ]
             q = q.filter(Expense.card_id.in_(matching_ids))
         if bank_val:
             matching_ids = [c.id for c in all_cards if bank_val.lower() in (c.bank or "").lower()]
