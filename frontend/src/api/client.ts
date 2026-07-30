@@ -311,7 +311,6 @@ export const getExpenses = (params?: {
   card_type?: string;
   installment?: boolean;
   account?: string;
-  search?: string;
   date_from?: string;
   date_to?: string;
   limit?: number;

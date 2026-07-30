@@ -2,7 +2,6 @@
 
 import os
 import unittest
-from unittest.mock import patch
 
 # Set SECRET_KEY before importing encryption module
 os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-testing"
@@ -12,7 +11,6 @@ from app.services.encryption import (
     decrypt_value,
     encrypt_value,
     is_encrypted,
-    tokenize_description,
 )
 
 
@@ -114,48 +112,6 @@ class TestHMAC(unittest.TestCase):
         self.assertIsNone(compute_hmac(None))
 
 
-class TestTokenization(unittest.TestCase):
-    """Test description tokenization."""
-
-    def test_basic_tokenization(self):
-        """Basic lowercase and cleanup."""
-        result = tokenize_description("Farmacity $1500 medicamentos")
-        self.assertEqual(result, "farmacity 1500 medicamentos")
-
-    def test_accent_removal(self):
-        """Accents are removed."""
-        result = tokenize_description("Farmacía medicamentos")
-        self.assertEqual(result, "farmacia medicamentos")
-
-    def test_special_characters(self):
-        """Special characters replaced with spaces."""
-        result = tokenize_description("Netflix USD 5.99")
-        self.assertEqual(result, "netflix usd 5 99")
-
-    def test_multiple_spaces_collapsed(self):
-        """Multiple spaces collapsed to single space."""
-        result = tokenize_description("  hello   world  ")
-        self.assertEqual(result, "hello world")
-
-    def test_empty_string(self):
-        """Empty string returns empty string."""
-        self.assertEqual(tokenize_description(""), "")
-
-    def test_none(self):
-        """None returns None."""
-        self.assertIsNone(tokenize_description(None))
-
-    def test_spanish_text(self):
-        """Spanish text with accents and special chars."""
-        result = tokenize_description("Almuerzo con José María - $8.500")
-        self.assertEqual(result, "almuerzo con jose maria 8 500")
-
-    def test_mixed_case(self):
-        """Mixed case normalized to lowercase."""
-        result = tokenize_description("UBER Eats Delivery")
-        self.assertEqual(result, "uber eats delivery")
-
-
 class TestEncryptionTypeDecorator(unittest.TestCase):
     """Test SQLAlchemy EncryptedType decorator."""
 
@@ -203,58 +159,6 @@ class TestMigrationLogic(unittest.TestCase):
         encrypted = encrypt_value("secret-data")
         self.assertTrue(is_encrypted(encrypted))
         self.assertFalse(is_encrypted("plain-data"))
-
-
-class TestCardSearchColumns(unittest.TestCase):
-    """Test Card search column tokenization."""
-
-    def test_tokenize_card_name(self):
-        """tokenize_description works for card names."""
-        assert tokenize_description("Visa Signature") == "visa signature"
-        assert tokenize_description("Mastercard Gold") == "mastercard gold"
-        assert tokenize_description("American Express") == "american express"
-
-    def test_tokenize_bank(self):
-        """tokenize_description works for bank names."""
-        assert tokenize_description("Banco Nación") == "banco nacion"
-        assert tokenize_description("BBVA Argentina") == "bbva argentina"
-        assert tokenize_description("Banco Santander") == "banco santander"
-
-    def test_tokenize_holder(self):
-        """tokenize_description works for holder names."""
-        assert tokenize_description("Mendoza, Marcelo") == "mendoza marcelo"
-        assert tokenize_description("Pérez, José") == "perez jose"
-        assert tokenize_description("García López") == "garcia lopez"
-
-    def test_card_search_roundtrip(self):
-        """Encrypt card, generate search token, verify search works."""
-        card_name = "Visa Signature"
-        encrypted = encrypt_value(card_name)
-        search = tokenize_description(card_name)
-
-        # Verify encryption
-        self.assertTrue(is_encrypted(encrypted))
-        self.assertEqual(decrypt_value(encrypted), card_name)
-
-        # Verify search
-        self.assertEqual(search, "visa signature")
-        self.assertIn("visa", search)
-        self.assertIn("signature", search)
-
-    def test_bank_search_roundtrip(self):
-        """Encrypt bank, generate search token, verify search works."""
-        bank = "Banco Nación"
-        encrypted = encrypt_value(bank)
-        search = tokenize_description(bank)
-
-        # Verify encryption
-        self.assertTrue(is_encrypted(encrypted))
-        self.assertEqual(decrypt_value(encrypted), bank)
-
-        # Verify search
-        self.assertEqual(search, "banco nacion")
-        self.assertIn("banco", search)
-        self.assertIn("nacion", search)
 
 
 class TestDecryptFallback(unittest.TestCase):

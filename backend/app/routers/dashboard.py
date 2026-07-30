@@ -15,7 +15,7 @@ from app.models import Card, Category, Expense, MonthlyReport, Notification, Use
 from app.routers.groups import get_group_user_ids
 from app.services.auth import get_current_user
 from app.services.date_utils import add_months
-from app.services.encryption import tokenize_description
+from app.services.encryption import compute_hmac
 from app.services.normalizers import normalize_bank
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -73,7 +73,7 @@ def _load_cards_and_accounts(uid_list: list[int], expenses: list[Expense], db: S
     return cards_by_id, accounts_by_id
 
 
-def _apply_filters(q, month_val, search_val, person_val, cat_id_val, bank_val=None):
+def _apply_filters(q, month_val, search_val, person_val, cat_id_val, bank_val=None, uid_list=None, db=None):
     if month_val:
         try:
             if "-" in month_val:
@@ -89,18 +89,16 @@ def _apply_filters(q, month_val, search_val, person_val, cat_id_val, bank_val=No
             )
         except (ValueError, IndexError):
             pass
-    if search_val:
-        q = q.filter(Expense.description_search.ilike(f"%{tokenize_description(search_val)}%"))
-    if person_val:
-        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.holder_search.ilike(f"%{person_val}%")
-        )
+    if (person_val or bank_val) and uid_list and db:
+        all_cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
+        if person_val:
+            matching_ids = [c.id for c in all_cards if person_val.lower() in (c.holder or "").lower()]
+            q = q.filter(Expense.card_id.in_(matching_ids))
+        if bank_val:
+            matching_ids = [c.id for c in all_cards if bank_val.lower() in (c.bank or "").lower()]
+            q = q.filter(Expense.card_id.in_(matching_ids))
     if cat_id_val is not None:
         q = q.filter(Expense.category_id == cat_id_val)
-    if bank_val:
-        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.bank_search.ilike(f"%{bank_val}%")
-        )
     return q
 
 
@@ -123,7 +121,7 @@ def get_summary(
         .filter(Expense.user_id.in_(uid_list))
     )
     expenses = (
-        _apply_filters(base_q, month, search, person, category_id, bank)
+        _apply_filters(base_q, month, search, person, category_id, bank, uid_list, db)
         .order_by(desc(Expense.date))
         .all()
     )
@@ -183,7 +181,7 @@ def get_summary(
             pm = m - 1 if m > 1 else 12
             py = y if m > 1 else y - 1
             prev_expenses = _apply_filters(
-                base_q, f"{py}-{pm:02d}", search, person, category_id, bank
+                base_q, f"{py}-{pm:02d}", search, person, category_id, bank, uid_list, db
             ).all()
             for e in prev_expenses:
                 # Skip income from previous month calculation
@@ -1481,14 +1479,14 @@ def get_top_merchants(
             )
         except (ValueError, IndexError):
             pass
-    if person:
-        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.holder_search.ilike(f"%{person}%")
-        )
-    if bank:
-        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.bank_search.ilike(f"%{bank}%")
-        )
+    if person or bank:
+        all_cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
+        if person:
+            matching_ids = [c.id for c in all_cards if person.lower() in (c.holder or "").lower()]
+            q = q.filter(Expense.card_id.in_(matching_ids))
+        if bank:
+            matching_ids = [c.id for c in all_cards if bank.lower() in (c.bank or "").lower()]
+            q = q.filter(Expense.card_id.in_(matching_ids))
 
     rows = q.all()
 
@@ -1693,9 +1691,9 @@ def get_card_category_breakdown(
         except (ValueError, IndexError):
             pass
     if bank:
-        q = q.join(Card, Expense.card_id == Card.id, isouter=True).filter(
-            Card.bank_search.ilike(f"%{bank}%")
-        )
+        all_cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
+        matching_ids = [c.id for c in all_cards if bank.lower() in (c.bank or "").lower()]
+        q = q.filter(Expense.card_id.in_(matching_ids))
 
     exps = q.all()
     cards_by_id, _ = _load_cards_and_accounts(uid_list, exps, db)
@@ -1776,9 +1774,9 @@ def get_category_trend(
         )
     )
     if person:
-        rows_raw = rows_raw.outerjoin(Card, Expense.card_id == Card.id).filter(
-            Card.holder_search.ilike(f"%{person}%")
-        )
+        all_cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
+        matching_ids = [c.id for c in all_cards if person.lower() in (c.holder or "").lower()]
+        rows_raw = rows_raw.filter(Expense.card_id.in_(matching_ids))
     rows_raw = rows_raw.group_by(
         func.to_char(Expense.date, "YYYY-MM"), Category.name, Category.color
     ).all()

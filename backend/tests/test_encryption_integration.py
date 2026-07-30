@@ -3,13 +3,12 @@
 import pytest
 from datetime import date
 
-from app.models import Card, Expense, User
+from app.models import Account, Card, Expense, User
 from app.services.encryption import (
     compute_hmac,
     decrypt_value,
     encrypt_value,
     is_encrypted,
-    tokenize_description,
 )
 
 
@@ -33,34 +32,29 @@ class TestUserEncryption:
 
 
 class TestCardEncryption:
-    def test_create_card_generates_search_tokens(self, db, test_user):
-        """Card creation generates search tokens."""
+    def test_create_card_generates_hmac(self, db, test_user):
+        """Card creation generates HMAC columns."""
         card = Card(
             card_name="Visa Signature",
-            card_name_search=tokenize_description("Visa Signature"),
+            card_name_hmac=compute_hmac("visa signature"),
             bank="Banco Nación",
-            bank_search=tokenize_description("Banco Nación"),
-            holder="Test, User",
-            holder_search=tokenize_description("Test, User"),
+            bank_hmac=compute_hmac("banco nacion"),
             card_type="credito",
             user_id=test_user.id,
         )
         db.add(card)
         db.flush()
 
-        assert card.card_name_search == "visa signature"
-        assert card.bank_search == "banco nacion"
-        assert card.holder_search == "test user"
+        assert card.card_name_hmac == compute_hmac("visa signature")
+        assert card.bank_hmac == compute_hmac("banco nacion")
 
-    def test_filter_by_bank_works(self, db, test_user):
-        """Filter by bank works with search columns."""
+    def test_filter_by_bank_hmac_works(self, db, test_user):
+        """Filter by bank works with HMAC columns."""
         card = Card(
             card_name="Visa",
-            card_name_search="visa",
+            card_name_hmac=compute_hmac("visa"),
             bank="Banco Nación",
-            bank_search="banco nacion",
-            holder="Test",
-            holder_search="test",
+            bank_hmac=compute_hmac("banco nacion"),
             card_type="credito",
             user_id=test_user.id,
         )
@@ -68,28 +62,7 @@ class TestCardEncryption:
         db.flush()
 
         result = (
-            db.query(Card).filter(Card.bank_search.ilike("%banco%")).first()
-        )
-        assert result is not None
-        assert result.id == card.id
-
-    def test_filter_by_holder_works(self, db, test_user):
-        """Filter by holder works with search columns."""
-        card = Card(
-            card_name="Mastercard",
-            card_name_search="mastercard",
-            bank="BBVA",
-            bank_search="bbva",
-            holder="Marcelo",
-            holder_search="marcelo",
-            card_type="credito",
-            user_id=test_user.id,
-        )
-        db.add(card)
-        db.flush()
-
-        result = (
-            db.query(Card).filter(Card.holder_search.ilike("%marcelo%")).first()
+            db.query(Card).filter(Card.bank_hmac == compute_hmac("banco nacion")).first()
         )
         assert result is not None
         assert result.id == card.id
@@ -101,14 +74,13 @@ class TestExpenseEncryption:
         expense = Expense(
             date=date.today(),
             description="Test expense",
-            description_search="test expense",
+            description_hmac=compute_hmac("test expense"),
             amount=100.0,
             user_id=test_user.id,
         )
         db.add(expense)
         db.flush()
 
-        # Check raw database
         from sqlalchemy import text
 
         result = db.execute(
@@ -121,7 +93,7 @@ class TestExpenseEncryption:
         expense = Expense(
             date=date.today(),
             description="Farmacity medicamentos",
-            description_search="farmacity medicamentos",
+            description_hmac=compute_hmac("farmacity medicamentos"),
             amount=100.0,
             user_id=test_user.id,
         )
@@ -132,12 +104,12 @@ class TestExpenseEncryption:
         assert expense.description == "Farmacity medicamentos"
         assert not is_encrypted(expense.description)
 
-    def test_search_expenses_works(self, db, test_user):
-        """Search expenses works with encrypted fields."""
+    def test_filter_expenses_by_hmac_works(self, db, test_user):
+        """Filter expenses works with HMAC columns."""
         expense = Expense(
             date=date.today(),
             description="Farmacity medicamentos",
-            description_search="farmacity medicamentos",
+            description_hmac=compute_hmac("farmacity medicamentos"),
             amount=100.0,
             user_id=test_user.id,
         )
@@ -146,7 +118,14 @@ class TestExpenseEncryption:
 
         result = (
             db.query(Expense)
-            .filter(Expense.description_search.ilike("%farmacia%"))
+            .filter(Expense.description_hmac == compute_hmac("farmacia"))
+            .first()
+        )
+        assert result is None
+
+        result = (
+            db.query(Expense)
+            .filter(Expense.description_hmac == compute_hmac("farmacity medicamentos"))
             .first()
         )
         assert result is not None
@@ -168,6 +147,67 @@ class TestTelegramBotLookup:
         )
         assert result is not None
         assert result.id == test_user.id
+
+
+class TestAccountEncryption:
+    def test_create_account_encrypts_name(self, db, test_user):
+        """Account name is encrypted in database."""
+        account = Account(
+            name="Banco Nación Cuenta Corriente",
+            name_hmac=compute_hmac("banco nacion cuenta corriente"),
+            account_type="banco",
+            user_id=test_user.id,
+        )
+        db.add(account)
+        db.flush()
+
+        from sqlalchemy import text
+
+        result = db.execute(
+            text("SELECT name FROM accounts WHERE id = :id"), {"id": account.id}
+        ).fetchone()
+        assert is_encrypted(result[0])
+
+    def test_account_returns_decrypted_name(self, db, test_user):
+        """Account object returns decrypted name."""
+        account = Account(
+            name="Banco Nación Cuenta Corriente",
+            name_hmac=compute_hmac("banco nacion cuenta corriente"),
+            account_type="banco",
+            user_id=test_user.id,
+        )
+        db.add(account)
+        db.flush()
+
+        db.refresh(account)
+        assert account.name == "Banco Nación Cuenta Corriente"
+        assert not is_encrypted(account.name)
+
+    def test_account_name_hmac_for_duplicate_detection(self, db, test_user):
+        """Account name_hmac works for duplicate detection."""
+        account1 = Account(
+            name="Banco Nación",
+            name_hmac=compute_hmac("banco nacion"),
+            account_type="banco",
+            user_id=test_user.id,
+        )
+        db.add(account1)
+        db.flush()
+
+        result = (
+            db.query(Account)
+            .filter(Account.name_hmac == compute_hmac("banco nacion"))
+            .first()
+        )
+        assert result is not None
+        assert result.id == account1.id
+
+        different = (
+            db.query(Account)
+            .filter(Account.name_hmac == compute_hmac("otro banco"))
+            .first()
+        )
+        assert different is None
 
 
 class TestDecryptFallback:

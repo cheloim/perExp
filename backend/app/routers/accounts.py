@@ -2,12 +2,12 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Account, User
 from app.services.auth import get_current_user
+from app.services.encryption import compute_hmac
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
@@ -68,11 +68,12 @@ def create_account(
     if not name:
         raise HTTPException(status_code=400, detail="El nombre es obligatorio")
 
+    name_hmac = compute_hmac(name.strip().lower())
     existing = (
         db.query(Account)
         .filter(
             Account.user_id == current_user.id,
-            func.lower(func.trim(Account.name)) == name.lower(),
+            Account.name_hmac == name_hmac,
             Account.type == account.type,
         )
         .first()
@@ -91,6 +92,7 @@ def create_account(
 
     db_account = Account(
         name=name,
+        name_hmac=name_hmac,
         type=account.type,
         user_id=current_user.id,
     )
@@ -123,6 +125,10 @@ def update_account(
     update_data = account.model_dump(exclude_none=True)
     for key, value in update_data.items():
         setattr(db_account, key, value)
+
+    # Update HMAC if name changed
+    if "name" in update_data:
+        db_account.name_hmac = compute_hmac(db_account.name.strip().lower())
 
     db.commit()
     db.refresh(db_account)

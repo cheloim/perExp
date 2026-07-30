@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models import Account, Card, Category, Expense, ScheduledExpense, User
 from app.seed import _apply_base_hierarchy_for_user
-from app.services.encryption import tokenize_description
+from app.services.encryption import compute_hmac
 
 # ─── Merchant pools per category ─────────────────────────────────────────────
 
@@ -374,12 +374,11 @@ def get_or_create_cards(db: Session, user_id: int) -> list[Card]:
         card = Card(
             user_id=user_id,
             card_name=card_name,
-            card_name_search=tokenize_description(card_name),
+            card_name_hmac=compute_hmac(card_name.lower()),
             bank=bank,
-            bank_search=tokenize_description(bank),
+            bank_hmac=compute_hmac(bank.lower()),
             card_type=card_type,
             holder=first_name,
-            holder_search=tokenize_description(first_name),
         )
         db.add(card)
     db.commit()
@@ -398,7 +397,11 @@ def get_or_create_accounts(db: Session, user_id: int) -> list[Account]:
         {"name": "Caja de Ahorro Galicia", "type": "caja_ahorro"},
     ]
     for acc_data in demo_accounts:
-        account = Account(user_id=user_id, **acc_data)
+        account = Account(
+            user_id=user_id,
+            name_hmac=compute_hmac(acc_data["name"].strip().lower()),
+            **acc_data,
+        )
         db.add(account)
     db.commit()
     return db.query(Account).filter(Account.user_id == user_id).all()
@@ -483,7 +486,7 @@ def seed_demo_expenses(db: Session, user_id: int, count: int = 60):
         expense = Expense(
             date=exp_date,
             description=merchant,
-            description_search=tokenize_description(merchant),
+            description_hmac=compute_hmac(merchant),
             amount=amount,
             category_id=cat.id if cat else None,
             currency="ARS",

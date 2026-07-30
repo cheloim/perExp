@@ -11,7 +11,6 @@ export interface ExpenseFilters {
   account: string | undefined;
   dateFrom: string | undefined;
   dateTo: string | undefined;
-  search: string | undefined;
 }
 
 export function useExpenseFilters() {
@@ -30,7 +29,6 @@ export function useExpenseFilters() {
     account: searchParams.get("account") || undefined,
     dateFrom: searchParams.get("date_from") || undefined,
     dateTo: searchParams.get("date_to") || undefined,
-    search: searchParams.get("search") || undefined,
   };
 
   const setFilter = (key: string, value: string | undefined) => {

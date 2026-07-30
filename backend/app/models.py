@@ -176,7 +176,8 @@ class Account(Base):
     __tablename__ = "accounts"
     __table_args__ = (Index("ix_accounts_user_id", "user_id"),)
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
+    name = Column(EncryptedType, nullable=False)
+    name_hmac = Column(String(64), nullable=True, index=True)
     type = Column(
         String, default="efectivo"
     )  # efectivo, cuenta_corriente, caja_ahorro, mercadopago, etc
@@ -193,13 +194,12 @@ class Card(Base):
     )
     id = Column(Integer, primary_key=True, index=True)
     card_name = Column(EncryptedType, nullable=False)  # Visa, Mastercard, etc
-    card_name_search = Column(String, nullable=True, index=True)
+    card_name_hmac = Column(String(64), nullable=True, index=True)
     bank = Column(EncryptedType, default="")
-    bank_search = Column(String, nullable=True, index=True)
+    bank_hmac = Column(String(64), nullable=True, index=True)
     holder = Column(
         EncryptedType, default=""
     )  # Primer nombre del usuario (para agrupar en grupo familiar)
-    holder_search = Column(String, nullable=True, index=True)
     card_type = Column(String, default="credito")  # credito, debito
     linked_account_id = Column(
         Integer, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
@@ -224,7 +224,7 @@ class Expense(Base):
     id = Column(Integer, primary_key=True, index=True)
     date = Column(Date, nullable=False)
     description = Column(EncryptedType, nullable=False)
-    description_search = Column(String, nullable=True, index=True)
+    description_hmac = Column(String(64), nullable=True, index=True)
     amount = Column(Float, nullable=False)
     category_id = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
     notes = Column(EncryptedType, default="")
@@ -361,7 +361,7 @@ class ScheduledExpense(Base):
     amount = Column(Float, nullable=False)
     currency = Column(String, default="ARS")
     description = Column(EncryptedType, nullable=False)
-    description_search = Column(String, nullable=True, index=True)
+    description_hmac = Column(String(64), nullable=True, index=True)
 
     # Structured fields
     card_id = Column(Integer, ForeignKey("cards.id", ondelete="SET NULL"), nullable=True)

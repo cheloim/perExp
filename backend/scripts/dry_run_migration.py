@@ -5,9 +5,8 @@ Usage: python scripts/dry_run_migration.py
 Tests:
 1. Encrypt all fields (User, Card, Expense, etc.)
 2. Verify all encrypted fields can be decrypted
-3. Verify Card search columns work (ilike queries)
-4. Verify Expense search columns work (ilike queries)
-5. Rollback transaction (no changes saved)
+3. Verify HMAC columns are populated
+4. Rollback transaction (no changes saved)
 
 Output: Status: PASS or FAIL + verbose details
 """
@@ -18,7 +17,7 @@ import sys
 sys.path.insert(0, ".")
 
 from app.database import SessionLocal
-from app.models import AuditLog, Card, Expense, Investment, MonthlyReport, ScheduledExpense, User
+from app.models import Account, AuditLog, Card, Expense, Investment, MonthlyReport, ScheduledExpense, User
 from app.services.encryption import (
     decrypt_value,
     encrypt_value,
@@ -39,9 +38,10 @@ ENCRYPTED_FIELDS = {
 }
 
 SEARCH_FIELDS = {
-    Card: ["card_name_search", "bank_search", "holder_search"],
-    Expense: ["description_search"],
-    ScheduledExpense: ["description_search"],
+    Card: ["card_name_hmac", "bank_hmac"],
+    Expense: ["description_hmac"],
+    ScheduledExpense: ["description_hmac"],
+    Account: ["name_hmac"],
 }
 
 
@@ -87,32 +87,24 @@ def main():
                                 }
                             )
 
-        # Test search columns - only test rows that already have search tokens
+        # Verify HMAC columns - only test rows that already have HMAC values
         for model, fields in SEARCH_FIELDS.items():
             rows = db.query(model).all()
             for row in rows:
                 for field in fields:
-                    search_value = getattr(row, field)
-                    if search_value:
-                        # Row has search token, test ilike query
+                    hmac_value = getattr(row, field)
+                    if hmac_value:
                         stats["search_verified"] += 1
-
-                        # Test ilike query
-                        result = (
-                            db.query(model)
-                            .filter(getattr(model, field).ilike(f"%{search_value[:5]}%"))
-                            .first()
+                    else:
+                        stats["search_failed"] += 1
+                        failed_rows.append(
+                            {
+                                "table": model.__tablename__,
+                                "id": row.id,
+                                "field": field,
+                                "error": "HMAC column empty",
+                            }
                         )
-                        if not result:
-                            stats["search_failed"] += 1
-                            failed_rows.append(
-                                {
-                                    "table": model.__tablename__,
-                                    "id": row.id,
-                                    "field": field,
-                                    "error": "search query failed",
-                                }
-                            )
 
         # Rollback (no changes saved)
         db.rollback()
