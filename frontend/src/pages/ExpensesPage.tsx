@@ -615,8 +615,8 @@ export default function ExpensesPage() {
                       filterUncategorized
                         ? "__none__"
                         : filterCategory
-                          ? String(filterCategory)
-                          : ""
+                        ? String(filterCategory)
+                        : ""
                     }
                     onChange={(v) => handleCategoryFilter(v)}
                     options={[{ value: "__none__", label: "Sin categoría" }]}
@@ -653,8 +653,8 @@ export default function ExpensesPage() {
                 const currentCuenta = matchedCard
                   ? `card:${matchedCard.id}`
                   : matchedAccount
-                    ? `account:${matchedAccount.id}`
-                    : "";
+                  ? `account:${matchedAccount.id}`
+                  : "";
                 return (
                   <Select
                     value={currentCuenta}
@@ -707,8 +707,6 @@ export default function ExpensesPage() {
                 placeholder="Hasta"
               />
             </div>
-
-
           </div>
         )}
       </div>
@@ -804,9 +802,7 @@ export default function ExpensesPage() {
                             >
                               {pieData.map((entry, i) => {
                                 const isSelected = selectedDonutCategory === entry.name;
-                                const isHighlighted = selectedDonutCategory
-                                  ? isSelected
-                                  : true;
+                                const isHighlighted = selectedDonutCategory ? isSelected : true;
                                 return (
                                   <Cell
                                     key={i}
