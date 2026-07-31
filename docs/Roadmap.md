@@ -26,12 +26,12 @@
 | 20 | Gestión automática de cuotas desde Telegram | ✅ Done | Medium | #128 | - | Cuando se registra un gasto con tarjeta de crédito, preguntar automáticamente si fue en cuotas. El monto total se divide por la cantidad de cuotas. Aplica para montos > $10.000 en crédito o categorías especiales (Viajes, Educación, Indumentaria). Flujo completo: división de monto, mensaje de confirmación con desglose, ScheduledExpenses con monto por cuota |
 | 21 | Recurring expenses tracking | ✅ Done | Medium | #135, #145 | - | Auto-detect subscriptions, unified Programados page with installments + recurring, pause/edit/delete, Telegram commands (/suscripciones, /pausar, /cancelar) |
 | 22 | Savings goals | ⏳ Backlog | Low | - | #8 | Create, track, and visualize savings targets with progress indicators |
-| 23a | Auto-detect recurring expenses | ⏳ Backlog | Medium | - | #21 | Celery task to analyze expense history and detect recurring patterns (2+ occurrences, 10% tolerance). Auto-create RecurringExpense entries |
-| 23b | Bill reminder notifications | ⏳ Backlog | Medium | - | #23a | Daily Celery task to check upcoming charges. Send Telegram alerts and in-app notifications. Auto-advance next_charge_date |
-| 23c | Upcoming bills dashboard card | ⏳ Backlog | Low | - | #23b | Dashboard widget showing next 5 upcoming bills with merchant, amount, date, and days remaining |
-| 24 | Field-level encryption | ✅ Done | High | #141, #149 | - | Encrypt sensitive user data (PII, financial) at rest using Fernet (AES-128-CBC). Protects against database breaches. Includes HMAC for duplicate detection, Account.name encryption, dry-run migration, verification scripts, CI/CD integration with automatic rollback. Search columns removed, replaced with application-level filtering |
-| 25 | Email validation | ✅ Done | Low | #134 | - | Validate email format and domain existence. Block fake domains (test.com, mailinator.com, etc.). DNS MX record validation. Frontend + backend validation |
-| 26 | Merchant preference learning | ✅ Done | Medium | #137 | - | Track user category preferences per merchant. Prioritize user preferences over LLM suggestions. Include user history in LLM prompt |
+| 23 | Auto-detect recurring expenses | ⏳ Backlog | Medium | - | #21 | Celery task to analyze expense history and detect recurring patterns (2+ occurrences, 10% tolerance). Auto-create RecurringExpense entries |
+| 24 | Bill reminder notifications | ⏳ Backlog | Medium | - | #23 | Daily Celery task to check upcoming charges. Send Telegram alerts and in-app notifications. Auto-advance next_charge_date |
+| 25 | Upcoming bills dashboard card | ⏳ Backlog | Low | - | #24 | Dashboard widget showing next 5 upcoming bills with merchant, amount, date, and days remaining |
+| 26 | Field-level encryption | ✅ Done | High | #141, #149 | - | Encrypt sensitive user data (PII, financial) at rest using Fernet (AES-128-CBC). Protects against database breaches. Includes HMAC for duplicate detection, Account.name encryption, dry-run migration, verification scripts, CI/CD integration with automatic rollback. Search columns removed, replaced with application-level filtering |
+| 27 | Email validation | ✅ Done | Low | #134 | - | Validate email format and domain existence. Block fake domains (test.com, mailinator.com, etc.). DNS MX record validation. Frontend + backend validation |
+| 28 | Merchant preference learning | ✅ Done | Medium | #137 | - | Track user category preferences per merchant. Prioritize user preferences over LLM suggestions. Include user history in LLM prompt |
 
 ## Backlog Details
 
@@ -149,7 +149,7 @@ Generate a monthly summary report with:
 - Monthly insights: "You saved $X towards your goals"
 - Integration with budgets: Budget under X to reach goal
 
-### Auto-detect Recurring Expenses (23a)
+### Auto-detect Recurring Expenses (23)
 - Celery task runs daily at 03:00 UTC to analyze expense history
 - Detect recurring patterns: same merchant_key + similar amount (10% tolerance)
 - Minimum 2 occurrences within 90 days to qualify
@@ -160,7 +160,7 @@ Generate a monthly summary report with:
   - category_id, card_id (from most recent occurrence)
 - User can review and adjust auto-detected entries in Programados page
 
-### Bill Reminder Notifications (23b)
+### Bill Reminder Notifications (24)
 - Daily Celery task at 09:00 UTC to check upcoming charges
 - Query: `WHERE is_active = True AND next_charge_date <= today + alert_days_before`
 - Send Telegram notification via `send_message_to_chat()`:
@@ -173,7 +173,7 @@ Generate a monthly summary report with:
   - Yearly: +1 year
 - User-level preference: enable/disable reminders per recurring expense
 
-### Upcoming Bills Dashboard Card (23c)
+### Upcoming Bills Dashboard Card (25)
 - Dashboard widget showing next 5 upcoming bills
 - Display: merchant name, amount, date, days remaining
 - Color-coded urgency:
