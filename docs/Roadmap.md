@@ -29,7 +29,7 @@
 | 23a | Auto-detect recurring expenses | ⏳ Backlog | Medium | - | #21 | Celery task to analyze expense history and detect recurring patterns (2+ occurrences, 10% tolerance). Auto-create RecurringExpense entries |
 | 23b | Bill reminder notifications | ⏳ Backlog | Medium | - | #23a | Daily Celery task to check upcoming charges. Send Telegram alerts and in-app notifications. Auto-advance next_charge_date |
 | 23c | Upcoming bills dashboard card | ⏳ Backlog | Low | - | #23b | Dashboard widget showing next 5 upcoming bills with merchant, amount, date, and days remaining |
-| 24 | Field-level encryption | ✅ Done | High | - | - | Encrypt sensitive user data (PII, financial) at rest using Fernet (AES-128-CBC). Protects against database breaches. Includes Card search columns, HMAC for Telegram lookups, dry-run migration, verification scripts, CI/CD integration with automatic rollback |
+| 24 | Field-level encryption | ✅ Done | High | #141, #149 | - | Encrypt sensitive user data (PII, financial) at rest using Fernet (AES-128-CBC). Protects against database breaches. Includes HMAC for duplicate detection, Account.name encryption, dry-run migration, verification scripts, CI/CD integration with automatic rollback. Search columns removed, replaced with application-level filtering |
 | 25 | Email validation | ✅ Done | Low | #134 | - | Validate email format and domain existence. Block fake domains (test.com, mailinator.com, etc.). DNS MX record validation. Frontend + backend validation |
 | 26 | Merchant preference learning | ✅ Done | Medium | #137 | - | Track user category preferences per merchant. Prioritize user preferences over LLM suggestions. Include user history in LLM prompt |
 
@@ -185,12 +185,14 @@ Generate a monthly summary report with:
 
 ### Field-level Encryption ✅
 - Application-level encryption using Fernet (AES-128-CBC) derived from SECRET_KEY
-- Encrypted fields: User (full_name, telegram_chat_id, mfa_secret), Card (card_name, bank, holder), Expense (description, notes), Investment (notes), AuditLog (ip_address, user_agent), MonthlyReport (report_data)
-- Card search columns (card_name_search, bank_search, holder_search) for ilike filtering
-- Expense search column (description_search) for text search
-- HMAC-SHA256 hash for Telegram bot lookups (O(1) index seek)
+- Encrypted fields: User (full_name, telegram_chat_id, mfa_secret), Card (card_name, bank, holder), Expense (description, notes), Investment (notes), AuditLog (ip_address, user_agent), MonthlyReport (report_data), Account (name)
+- HMAC-SHA256 columns for duplicate detection (description_hmac, card_name_hmac, bank_hmac, name_hmac)
+- HMAC for Telegram bot lookups (O(1) index seek)
+- Search columns removed (description_search, card_name_search, bank_search, holder_search) — no more plaintext exposure
+- Application-level filtering for bank, person, card, account filters
+- Text search bar removed from frontend
 - Automatic migration on startup (idempotent)
-- Dry-run migration script (encrypt → verify Card search → rollback)
+- Dry-run migration script (encrypt → verify HMAC → rollback)
 - Encryption verification script (verify all fields decrypt)
 - CI/CD integration with automatic database rollback if verification fails
-- 38 unit tests passing
+- 27 unit tests passing
