@@ -1,12 +1,15 @@
 import re
 from datetime import date, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import dns.resolver
 import pandas as pd
 from pydantic import BaseModel, EmailStr, computed_field, field_serializer, field_validator
 
 from app.services.date_utils import _normalize_date_str
+
+BUE = ZoneInfo("America/Argentina/Buenos_Aires")
 
 SPECIAL_CHARS = "!@#$%^&*()-_+=<>?/[]{}|"
 
@@ -273,7 +276,7 @@ class ExpenseCreate(BaseModel):
             return v
         s = str(v).strip()
         if not s:
-            return date.today()
+            return datetime.now(BUE).date()
         normalized = _normalize_date_str(s)
         if re.match(r"^\d{4}-\d{2}-\d{2}$", normalized):
             return date.fromisoformat(normalized)

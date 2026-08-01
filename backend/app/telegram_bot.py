@@ -4,7 +4,10 @@ import logging
 import os
 import re
 import uuid
-from datetime import date, datetime
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+BUE = ZoneInfo("America/Argentina/Buenos_Aires")
 
 import telegram
 from google import genai
@@ -57,7 +60,7 @@ def _gemini_client() -> genai.Client:
 
 
 def _parse_expense(text: str) -> dict | None:
-    today = date.today().strftime("%Y-%m-%d")
+    today = datetime.now(BUE).date().strftime("%Y-%m-%d")
     prompt = EXPENSE_PARSE_PROMPT.format(today=today) + f"\n\nMensaje: {text}"
     logger.debug(f"[PARSE] Prompt:\n{prompt}")
     try:
@@ -161,7 +164,7 @@ def _parse_bank_notification(text: str) -> dict | None:
     """Parse a bank notification using LLM to extract structured data."""
     from app.prompts import BANK_NOTIFICATION_PARSE_PROMPT
 
-    today = date.today().strftime("%Y-%m-%d")
+    today = datetime.now(BUE).date().strftime("%Y-%m-%d")
     prompt = BANK_NOTIFICATION_PARSE_PROMPT.format(today=today) + f"\n\nNotificación: {text}"
 
     try:
@@ -274,11 +277,11 @@ def _save_expense(
             cats = db.query(Category).all()
             category_id = auto_categorize(parsed.get("description", ""), cats)
 
-        raw_date = parsed.get("date") or date.today().strftime("%Y-%m-%d")
+        raw_date = parsed.get("date") or datetime.now(BUE).date().strftime("%Y-%m-%d")
         try:
             expense_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
         except ValueError:
-            expense_date = date.today()
+            expense_date = datetime.now(BUE).date()
 
         raw_amount = float(parsed.get("amount") or 0)
         if installment_total and installment_total >= 2:
@@ -443,7 +446,7 @@ def _confirm_text(
     desc = _escape_html(parsed.get("description", ""))
     total_amount = parsed["amount"]
     currency = parsed.get("currency", "ARS")
-    date_str = _format_date_es(parsed.get("date", date.today().strftime("%Y-%m-%d")))
+    date_str = _format_date_es(parsed.get("date", datetime.now(BUE).date().strftime("%Y-%m-%d")))
     safe_label = _escape_html(payment_label)
     cat_tree = ""
     if cat_levels:
@@ -1002,7 +1005,9 @@ async def _handle_bank_notification(
 
         desc = _escape_html(parsed.get("description", ""))
         amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
-        date_str = _format_date_es(parsed.get("date", date.today().strftime("%Y-%m-%d")))
+        date_str = _format_date_es(
+            parsed.get("date", datetime.now(BUE).date().strftime("%Y-%m-%d"))
+        )
 
         confirm_keyboard = [
             [
@@ -1136,7 +1141,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 ]
                 desc = _escape_html(parsed.get("description", ""))
                 amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
-                date_str = _format_date_es(parsed.get("date", date.today().strftime("%Y-%m-%d")))
+                date_str = _format_date_es(
+                    parsed.get("date", datetime.now(BUE).date().strftime("%Y-%m-%d"))
+                )
 
                 await update.message.reply_text(
                     f"🛒 <b>{desc}</b>\n"
@@ -1153,7 +1160,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     desc = _escape_html(parsed.get("description", ""))
     amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
-    date_str = parsed.get("date", date.today().strftime("%Y-%m-%d"))
+    date_str = parsed.get("date", datetime.now(BUE).date().strftime("%Y-%m-%d"))
 
     keyboard = [
         [
@@ -1814,7 +1821,7 @@ async def handle_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     db = SessionLocal()
     expense_date = datetime.strptime(
-        parsed.get("date", date.today().strftime("%Y-%m-%d")), "%Y-%m-%d"
+        parsed.get("date", datetime.now(BUE).date().strftime("%Y-%m-%d")), "%Y-%m-%d"
     ).date()
     matching_events = (
         db.query(BudgetEvent)

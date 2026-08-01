@@ -437,6 +437,7 @@ jobs:
                   SMTP_FROM_ADDRESS: ${{ vars.SMTP_FROM_ADDRESS }}
                   FRONTEND_URL: https://${{ vars.PLATFORM_DOMAIN }}
                   CORS_ORIGINS: https://${{ vars.DOMAIN_NAME }},https://www.${{ vars.DOMAIN_NAME }},https://${{ vars.PLATFORM_DOMAIN }}
+                  TZ: America/Argentina/Buenos_Aires
                 deploy:
                   resources:
                     limits:
@@ -466,6 +467,7 @@ jobs:
                   SMTP_FROM: ${{ vars.SMTP_FROM }}
                   SMTP_FROM_ADDRESS: ${{ vars.SMTP_FROM_ADDRESS }}
                   ADMIN_EMAIL: ${ADMIN_EMAIL}
+                  TZ: America/Argentina/Buenos_Aires
                 deploy:
                   resources:
                     limits:
@@ -495,6 +497,7 @@ jobs:
                   SMTP_FROM: ${{ vars.SMTP_FROM }}
                   SMTP_FROM_ADDRESS: ${{ vars.SMTP_FROM_ADDRESS }}
                   ADMIN_EMAIL: ${ADMIN_EMAIL}
+                  TZ: America/Argentina/Buenos_Aires
                 deploy:
                   resources:
                     limits:

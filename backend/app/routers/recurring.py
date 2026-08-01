@@ -41,6 +41,19 @@ class RecurringUpdate(BaseModel):
     category_id: int | None = None
 
 
+class RecurringCreate(BaseModel):
+    merchant_key: str
+    description: str
+    amount: float
+    currency: str = "ARS"
+    category_id: int | None = None
+    card_id: int | None = None
+    account_id: int | None = None
+    frequency: str = "monthly"
+    next_charge_date: date | None = None
+    alert_days_before: int = 3
+
+
 @router.get("", response_model=list[RecurringResponse])
 def list_recurring(
     status: str = "active",
@@ -57,6 +70,32 @@ def list_recurring(
         q = q.filter(RecurringExpense.is_active == False)  # noqa: E712
 
     return q.order_by(RecurringExpense.next_charge_date.asc().nullslast()).all()
+
+
+@router.post("", response_model=RecurringResponse, status_code=201)
+def create_recurring(
+    data: RecurringCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Create a new recurring expense."""
+    new = RecurringExpense(
+        user_id=current_user.id,
+        merchant_key=data.merchant_key,
+        description=data.description,
+        amount=data.amount,
+        currency=data.currency,
+        category_id=data.category_id,
+        card_id=data.card_id,
+        account_id=data.account_id,
+        frequency=data.frequency,
+        next_charge_date=data.next_charge_date,
+        alert_days_before=data.alert_days_before,
+    )
+    db.add(new)
+    db.commit()
+    db.refresh(new)
+    return new
 
 
 @router.put("/{recurring_id}", response_model=RecurringResponse)
