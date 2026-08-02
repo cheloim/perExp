@@ -12,6 +12,7 @@ import {
   updateRecurringExpense,
 } from "../api/client";
 import { formatCurrency, formatDateDMY, MONTHS_ES_SHORT } from "../utils/format";
+import AutoDetectedBanner from "../components/AutoDetectedBanner";
 
 type PaymentItem = {
   id: string | number;
@@ -222,6 +223,9 @@ export default function InstallmentsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Auto-detected recurring expenses banner */}
+      <AutoDetectedBanner />
+
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-primary">Programados</h1>

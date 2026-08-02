@@ -610,10 +610,63 @@ def main():
     step8_card_search_columns(engine)
     step9_scheduled_expense_search_columns(engine)
     step10_hmac_migration(engine)
+    step11_recurring_source_column(engine)
 
     print("\n" + "=" * 60)
     print("Migration complete!")
     print("=" * 60)
+
+
+def step11_recurring_source_column(engine):
+    """Add source column to recurring_expenses and auto_detected_banner_dismissed_at to users."""
+    with engine.begin() as conn:
+        dialect = engine.dialect.name
+        if dialect != "postgresql":
+            print("  Skipping — only supported on PostgreSQL.")
+            return
+
+        print("[Step 11/11] Adding recurring source column and user banner dismissed...")
+
+        # Add source column to recurring_expenses
+        exists = conn.execute(
+            text("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'recurring_expenses' AND column_name = 'source'
+            )
+        """)
+        ).scalar()
+
+        if exists:
+            print("  recurring_expenses.source already exists. Skipping.")
+        else:
+            conn.execute(
+                text("ALTER TABLE recurring_expenses ADD COLUMN source VARCHAR(20) DEFAULT 'manual'")
+            )
+            conn.execute(
+                text("CREATE INDEX ix_recurring_expenses_source ON recurring_expenses (source)")
+            )
+            print("  Added recurring_expenses.source VARCHAR(20) with index.")
+
+        # Add auto_detected_banner_dismissed_at to users
+        exists = conn.execute(
+            text("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'users' AND column_name = 'auto_detected_banner_dismissed_at'
+            )
+        """)
+        ).scalar()
+
+        if exists:
+            print("  users.auto_detected_banner_dismissed_at already exists. Skipping.")
+        else:
+            conn.execute(
+                text(
+                    "ALTER TABLE users ADD COLUMN auto_detected_banner_dismissed_at TIMESTAMP NULL"
+                )
+            )
+            print("  Added users.auto_detected_banner_dismissed_at TIMESTAMP NULL.")
 
 
 if __name__ == "__main__":

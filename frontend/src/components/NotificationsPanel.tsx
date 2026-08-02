@@ -125,6 +125,10 @@ export default function NotificationsPanel({ onClose }: Props) {
       handleMarkRead(n.id);
       navigate("/expenses?category_suggestions=1");
       onClose();
+    } else if (n.type === "auto_recurring_detected") {
+      handleMarkRead(n.id);
+      navigate("/installments");
+      onClose();
     }
   };
 

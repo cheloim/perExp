@@ -177,12 +177,16 @@ export interface RecurringExpense {
   next_charge_date?: string | null;
   alert_days_before: number;
   is_active: boolean;
+  source: string;
   last_seen_at?: string | null;
   created_at: string;
 }
 
 export const getRecurringExpenses = (status: string = "active") =>
   api.get<RecurringExpense[]>("/recurring", { params: { status } }).then((r) => r.data);
+
+export const getAutoDetectedRecurring = () =>
+  api.get<RecurringExpense[]>("/recurring/auto-detected").then((r) => r.data);
 
 export const updateRecurringExpense = (
   id: number,
@@ -196,11 +200,26 @@ export const updateRecurringExpense = (
   },
 ) => api.put<RecurringExpense>(`/recurring/${id}`, data).then((r) => r.data);
 
+export const confirmRecurringExpense = (
+  id: number,
+  data?: {
+    amount?: number;
+    frequency?: string;
+    next_charge_date?: string;
+    alert_days_before?: number;
+    is_active?: boolean;
+    category_id?: number;
+  },
+) => api.post<RecurringExpense>(`/recurring/${id}/confirm`, data || {}).then((r) => r.data);
+
 export const pauseRecurringExpense = (id: number) =>
   api.post(`/recurring/${id}/pause`).then((r) => r.data);
 
 export const deleteRecurringExpense = (id: number) =>
   api.delete(`/recurring/${id}`).then((r) => r.data);
+
+export const dismissAutoDetectedBanner = () =>
+  api.put("/recurring/dismiss-banner").then((r) => r.data);
 
 // Budgets
 export const getBudgets = () => api.get<Budget[]>("/budgets").then((r) => r.data);

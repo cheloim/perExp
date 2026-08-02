@@ -1,5 +1,6 @@
 """Daily Celery task to auto-detect recurring expenses from transaction history."""
 
+import json
 import logging
 from collections import Counter
 from datetime import date, datetime, timedelta
@@ -7,7 +8,7 @@ from zoneinfo import ZoneInfo
 
 from app.celery_app import celery_app
 from app.database import SessionLocal
-from app.models import Expense, RecurringExpense
+from app.models import Expense, Notification, RecurringExpense, User
 from app.services.categorization import _normalize_merchant_key
 
 logger = logging.getLogger(__name__)
@@ -24,23 +25,30 @@ def detect_recurring_expenses():
     """Analyze last 90 days of expenses and create RecurringExpense entries for patterns."""
     db = SessionLocal()
     try:
-        from app.models import User
-
         users = db.query(User).filter(User.is_active == True).all()  # noqa: E712
         total_created = 0
         total_updated = 0
+        total_notified = 0
 
         for user in users:
             created, updated = _detect_for_user(user.id, db)
             total_created += created
             total_updated += updated
 
+            if created > 0:
+                _send_notification(user.id, created, db)
+                total_notified += 1
+
         db.commit()
         logger.info(
-            f"Detect recurring: created={total_created}, updated={total_updated} "
-            f"across {len(users)} users"
+            f"Detect recurring: created={total_created}, updated={total_updated}, "
+            f"notified={total_notified} across {len(users)} users"
         )
-        return {"created": total_created, "updated": total_updated}
+        return {
+            "created": total_created,
+            "updated": total_updated,
+            "notified": total_notified,
+        }
 
     except Exception as e:
         logger.error(f"Detect recurring failed: {e}")
@@ -139,12 +147,50 @@ def _detect_for_user(user_id: int, db) -> tuple[int, int]:
                 account_id=account_id,
                 frequency=frequency,
                 next_charge_date=next_date,
+                source="auto",
                 last_seen_at=datetime.now(BUE),
             )
             db.add(new)
             created += 1
 
     return created, updated
+
+
+def _send_notification(user_id: int, count: int, db):
+    """Send in-app notification about auto-detected recurring expenses."""
+    # Get the auto-detected recurring expenses for this user
+    auto_items = (
+        db.query(RecurringExpense)
+        .filter(
+            RecurringExpense.user_id == user_id,
+            RecurringExpense.source == "auto",
+            RecurringExpense.is_active == True,  # noqa: E712
+        )
+        .all()
+    )
+
+    if not auto_items:
+        return
+
+    merchants = [r.merchant_key for r in auto_items[:5]]
+    merchants_str = ", ".join(merchants)
+    if len(auto_items) > 5:
+        merchants_str += f" y {len(auto_items) - 5} más"
+
+    notification = Notification(
+        user_id=user_id,
+        type="auto_recurring_detected",
+        title=f"🤖 Se detectaron {count} gasto{'s' if count != 1 else ''} recurrente{'s' if count != 1 else ''}",
+        body=f"{merchants_str}. Revisá en Programados.",
+        data=json.dumps(
+            {
+                "count": count,
+                "items": [r.id for r in auto_items],
+            }
+        ),
+        read=False,
+    )
+    db.add(notification)
 
 
 def _determine_frequency(sorted_dates: list[date]) -> str:
@@ -172,7 +218,6 @@ def _estimate_next_charge(last_date: date, frequency: str) -> date:
     if frequency == "weekly":
         next_d = last_date + timedelta(weeks=1)
     elif frequency == "monthly":
-        # Add ~30 days, then adjust to same day of month
         next_d = last_date + timedelta(days=30)
     elif frequency == "quarterly":
         next_d = last_date + timedelta(days=90)

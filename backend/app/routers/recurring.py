@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import RecurringExpense
+from app.models import RecurringExpense, User
 from app.services.auth import get_current_user
 
 router = APIRouter(prefix="/recurring", tags=["recurring"])
@@ -26,6 +26,7 @@ class RecurringResponse(BaseModel):
     next_charge_date: date | None = None
     alert_days_before: int
     is_active: bool
+    source: str = "manual"
     last_seen_at: datetime | None = None
     created_at: datetime
 
@@ -72,6 +73,24 @@ def list_recurring(
     return q.order_by(RecurringExpense.next_charge_date.asc().nullslast()).all()
 
 
+@router.get("/auto-detected", response_model=list[RecurringResponse])
+def list_auto_detected(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """List auto-detected recurring expenses (source=auto, active)."""
+    return (
+        db.query(RecurringExpense)
+        .filter(
+            RecurringExpense.user_id == current_user.id,
+            RecurringExpense.source == "auto",
+            RecurringExpense.is_active == True,  # noqa: E712
+        )
+        .order_by(RecurringExpense.created_at.desc())
+        .all()
+    )
+
+
 @router.post("", response_model=RecurringResponse, status_code=201)
 def create_recurring(
     data: RecurringCreate,
@@ -91,6 +110,7 @@ def create_recurring(
         frequency=data.frequency,
         next_charge_date=data.next_charge_date,
         alert_days_before=data.alert_days_before,
+        source="manual",
     )
     db.add(new)
     db.commit()
@@ -121,6 +141,37 @@ def update_recurring(
     for k, v in update_data.items():
         setattr(rec, k, v)
 
+    db.commit()
+    db.refresh(rec)
+    return rec
+
+
+@router.post("/{recurring_id}/confirm", response_model=RecurringResponse)
+def confirm_recurring(
+    recurring_id: int,
+    data: RecurringUpdate | None = None,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Confirm an auto-detected recurring expense (changes source to manual)."""
+    rec = (
+        db.query(RecurringExpense)
+        .filter(
+            RecurringExpense.id == recurring_id,
+            RecurringExpense.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not rec:
+        raise HTTPException(status_code=404, detail="Gasto recurrente no encontrado")
+
+    # Apply any edits if provided
+    if data:
+        update_data = data.model_dump(exclude_none=True)
+        for k, v in update_data.items():
+            setattr(rec, k, v)
+
+    rec.source = "manual"
     db.commit()
     db.refresh(rec)
     return rec
@@ -172,3 +223,16 @@ def delete_recurring(
     db.delete(rec)
     db.commit()
     return {"detail": "Recurrente eliminado"}
+
+
+@router.put("/dismiss-banner")
+def dismiss_auto_detected_banner(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Dismiss the auto-detected recurring expenses banner."""
+    user = db.query(User).filter(User.id == current_user.id).first()
+    if user:
+        user.auto_detected_banner_dismissed_at = datetime.utcnow()
+        db.commit()
+    return {"detail": "Banner dismissed"}

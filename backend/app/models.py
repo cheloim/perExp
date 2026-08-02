@@ -47,6 +47,8 @@ class User(Base):
     force_password_change = Column(Boolean, default=False)
     # Onboarding
     onboarding_completed = Column(Boolean, default=False)
+    # Auto-detect recurring banner
+    auto_detected_banner_dismissed_at = Column(DateTime, nullable=True)
 
 
 class Group(Base):
@@ -436,6 +438,7 @@ class RecurringExpense(Base):
     next_charge_date = Column(Date, nullable=True)
     alert_days_before = Column(Integer, default=3)
     is_active = Column(Boolean, default=True)
+    source = Column(String(20), default="manual")  # auto | manual
     last_seen_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
