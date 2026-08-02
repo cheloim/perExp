@@ -54,6 +54,8 @@ def check_upcoming_recurring():
             for n in existing:
                 try:
                     data = json.loads(n.data)
+                    if not isinstance(data, dict):
+                        continue
                     if data.get("recurring_id") == rec.id and data.get("charge_date") == str(
                         rec.next_charge_date
                     ):
