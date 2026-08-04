@@ -636,3 +636,12 @@ export interface LoginErrorsResponse {
   }[];
   redis_lockouts: { user_id: number; email: string; ttl_seconds: number }[];
 }
+
+export interface PlatformLog {
+  id: number;
+  level: "WARNING" | "ERROR" | "CRITICAL";
+  module: string;
+  message: string;
+  details: string | null;
+  created_at: string;
+}

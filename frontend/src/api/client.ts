@@ -998,3 +998,14 @@ export const cleanupAuditLogs = () =>
 
 export const sendNotificationToUser = (userId: number, title: string, body: string) =>
   api.post(`/admin/users/${userId}/send-notification`, { title, body }).then((r) => r.data);
+
+export const getPlatformLogs = (params?: {
+  level?: string;
+  module?: string;
+  search?: string;
+  page?: number;
+  per_page?: number;
+}) => api.get("/admin/platform-logs", { params }).then((r) => r.data);
+
+export const runTask = (taskName: string) =>
+  api.post(`/admin/system/tasks/${taskName}/run`).then((r) => r.data);

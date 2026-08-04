@@ -488,3 +488,18 @@ class ImpersonationMessage(Base):
 
     session = relationship("ImpersonationSession", back_populates="messages")
     sender = relationship("User", foreign_keys=[sender_id])
+
+
+class PlatformLog(Base):
+    __tablename__ = "platform_logs"
+    __table_args__ = (
+        Index("ix_platform_logs_level_created", "level", "created_at"),
+        Index("ix_platform_logs_created_at", "created_at"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    level = Column(String(10), nullable=False)  # WARNING | ERROR | CRITICAL
+    module = Column(String(100), nullable=False)
+    message = Column(Text, nullable=False)
+    details = Column(Text, nullable=True)  # Full traceback if available
+    created_at = Column(DateTime, default=datetime.utcnow)

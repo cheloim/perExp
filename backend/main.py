@@ -11,6 +11,11 @@ load_dotenv(os.path.join(BACKEND_DIR, ".env"))
 
 logging.basicConfig(level=logging.INFO)
 
+from app.services.platform_log_handler import PlatformLogHandler
+
+_platform_log_handler = PlatformLogHandler()
+logging.getLogger().addHandler(_platform_log_handler)
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 

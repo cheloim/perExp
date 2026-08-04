@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from app.celery_app import celery_app
 from app.database import SessionLocal
-from app.models import AuditLog, ImpersonationMessage, ImpersonationSession
+from app.models import AuditLog, ImpersonationMessage, ImpersonationSession, PlatformLog
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +53,14 @@ def cleanup_old_records():
             session.ended_at = now
         if expired:
             logger.info(f"[CLEANUP] Expired {len(expired)} impersonation sessions")
+
+        # Platform logs: 45 days
+        platform_cutoff = now - timedelta(days=45)
+        deleted_platform = (
+            db.query(PlatformLog).filter(PlatformLog.created_at < platform_cutoff).delete()
+        )
+        if deleted_platform:
+            logger.info(f"[CLEANUP] Deleted {deleted_platform} platform logs older than 45 days")
 
         db.commit()
     except Exception as e:

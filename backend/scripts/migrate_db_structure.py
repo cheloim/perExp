@@ -612,6 +612,7 @@ def main():
     step10_hmac_migration(engine)
     step11_recurring_source_column(engine)
     step12_admin_panel(engine)
+    step13_platform_logs(engine)
 
     print("\n" + "=" * 60)
     print("Migration complete!")
@@ -764,6 +765,37 @@ def step12_admin_panel(engine):
                 {"slug": slug},
             )
             print(f"  Generated admin_panel_slug: {slug}")
+
+
+def step13_platform_logs(engine):
+    """Create platform_logs table for centralized WARNING+ log storage."""
+    with engine.begin() as conn:
+        dialect = engine.dialect.name
+        if dialect != "postgresql":
+            print("  Skipping — only supported on PostgreSQL.")
+            return
+
+        print("[Step 13/13] Creating platform_logs table...")
+
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS platform_logs (
+                id SERIAL PRIMARY KEY,
+                level VARCHAR(10) NOT NULL,
+                module VARCHAR(100) NOT NULL,
+                message TEXT NOT NULL,
+                details TEXT,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """))
+        conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS ix_platform_logs_level_created
+            ON platform_logs (level, created_at)
+        """))
+        conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS ix_platform_logs_created_at
+            ON platform_logs (created_at)
+        """))
+        print("  Created platform_logs table with indexes.")
 
 
 if __name__ == "__main__":

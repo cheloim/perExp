@@ -18,8 +18,10 @@ import {
   requestImpersonation,
   cleanupAuditLogs,
   sendNotificationToUser,
+  getPlatformLogs,
+  runTask,
 } from "../api/client";
-import type { AdminUser, AuditLogEntry, LoginErrorsResponse } from "../types";
+import type { AdminUser, AuditLogEntry, LoginErrorsResponse, PlatformLog } from "../types";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 
 type Tab = "users" | "logs" | "reports" | "system";
@@ -638,6 +640,143 @@ function LogsTab() {
           </button>
         </div>
       </div>
+
+      {/* Platform logs */}
+      <PlatformLogsSection />
+    </div>
+  );
+}
+
+// ── Platform Logs Section ──────────────────────────────────
+
+function PlatformLogsSection() {
+  const [levelFilter, setLevelFilter] = useState("");
+  const [moduleFilter, setModuleFilter] = useState("");
+  const [searchFilter, setSearchFilter] = useState("");
+  const [page, setPage] = useState(1);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-platform-logs", levelFilter, moduleFilter, searchFilter, page],
+    queryFn: () =>
+      getPlatformLogs({
+        level: levelFilter || undefined,
+        module: moduleFilter || undefined,
+        search: searchFilter || undefined,
+        page,
+        per_page: 100,
+      }),
+  });
+
+  const logs: PlatformLog[] = data?.logs ?? [];
+
+  const LEVEL_COLORS: Record<string, string> = {
+    WARNING: "text-orange-600 dark:text-orange-400",
+    ERROR: "text-red-600 dark:text-red-400",
+    CRITICAL: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400",
+  };
+
+  return (
+    <div className="card p-4">
+      <div className="flex items-center gap-3 mb-3">
+        <h3 className="text-sm font-semibold text-primary">Logs de Plataforma</h3>
+        <select
+          value={levelFilter}
+          onChange={(e) => {
+            setLevelFilter(e.target.value);
+            setPage(1);
+          }}
+          className="gnome-input text-xs"
+        >
+          <option value="">Todos los niveles</option>
+          <option value="WARNING">WARNING</option>
+          <option value="ERROR">ERROR</option>
+          <option value="CRITICAL">CRITICAL</option>
+        </select>
+        <input
+          type="text"
+          placeholder="Módulo..."
+          value={moduleFilter}
+          onChange={(e) => {
+            setModuleFilter(e.target.value);
+            setPage(1);
+          }}
+          className="gnome-input text-xs w-32"
+        />
+        <input
+          type="text"
+          placeholder="Buscar mensaje..."
+          value={searchFilter}
+          onChange={(e) => {
+            setSearchFilter(e.target.value);
+            setPage(1);
+          }}
+          className="gnome-input text-xs w-48"
+        />
+        <span className="text-xs text-tertiary">{data?.total ?? 0} logs</span>
+      </div>
+
+      {isLoading ? (
+        <p className="text-tertiary text-xs">Cargando...</p>
+      ) : (
+        <div className="overflow-x-auto max-h-96 overflow-y-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-[var(--border)]">
+                <th className="text-left py-1.5 px-2 text-tertiary font-medium">Fecha</th>
+                <th className="text-left py-1.5 px-2 text-tertiary font-medium">Nivel</th>
+                <th className="text-left py-1.5 px-2 text-tertiary font-medium">Módulo</th>
+                <th className="text-left py-1.5 px-2 text-tertiary font-medium">Mensaje</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs.map((log) => (
+                <tr
+                  key={log.id}
+                  className={`border-b border-[var(--border)] hover:bg-[var(--bg-hover)] ${
+                    log.level === "CRITICAL" ? "bg-red-100/50 dark:bg-red-900/20" : ""
+                  }`}
+                >
+                  <td className="py-1.5 px-2 text-tertiary whitespace-nowrap">
+                    {new Date(log.created_at).toLocaleString("es-AR")}
+                  </td>
+                  <td className={`py-1.5 px-2 font-medium ${LEVEL_COLORS[log.level] || ""}`}>
+                    {log.level}
+                  </td>
+                  <td className="py-1.5 px-2 font-mono">{log.module}</td>
+                  <td className="py-1.5 px-2 max-w-lg truncate" title={log.message}>
+                    {log.message}
+                  </td>
+                </tr>
+              ))}
+              {logs.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="py-4 text-center text-tertiary">
+                    Sin logs de plataforma
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 mt-3">
+        <button
+          onClick={() => setPage(Math.max(1, page - 1))}
+          disabled={page === 1}
+          className="gnome-btn-secondary-round text-xs"
+        >
+          Anterior
+        </button>
+        <span className="text-xs text-tertiary">Página {page}</span>
+        <button
+          onClick={() => setPage(page + 1)}
+          disabled={logs.length < 100}
+          className="gnome-btn-secondary-round text-xs"
+        >
+          Siguiente
+        </button>
+      </div>
     </div>
   );
 }
@@ -764,6 +903,7 @@ function SystemTab() {
   const queryClient = useQueryClient();
   const [editingSetting, setEditingSetting] = useState<{ key: string; value: string } | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [taskRunStates, setTaskRunStates] = useState<Record<string, "idle" | "running" | "done" | "error">>({});
 
   const { data: health } = useQuery({
     queryKey: ["admin-health"],
@@ -795,6 +935,22 @@ function SystemTab() {
       alert(`Limpieza completada: ${data.audit_logs_deleted} logs, ${data.messages_deleted} mensajes eliminados.`);
     },
   });
+
+  const handleRunTask = async (taskName: string) => {
+    setTaskRunStates((prev) => ({ ...prev, [taskName]: "running" }));
+    try {
+      await runTask(taskName);
+      setTaskRunStates((prev) => ({ ...prev, [taskName]: "done" }));
+      setTimeout(() => {
+        setTaskRunStates((prev) => ({ ...prev, [taskName]: "idle" }));
+      }, 3000);
+    } catch {
+      setTaskRunStates((prev) => ({ ...prev, [taskName]: "error" }));
+      setTimeout(() => {
+        setTaskRunStates((prev) => ({ ...prev, [taskName]: "idle" }));
+      }, 3000);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -838,17 +994,45 @@ function SystemTab() {
               <tr className="border-b border-[var(--border)]">
                 <th className="text-left py-1.5 px-2 text-tertiary font-medium">Tarea</th>
                 <th className="text-left py-1.5 px-2 text-tertiary font-medium">Última ejecución</th>
-                <th className="text-left py-1.5 px-2 text-tertiary font-medium">Estado</th>
+                <th className="text-left py-1.5 px-2 text-tertiary font-medium w-24">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {(tasks?.tasks ?? []).map((t: any) => (
-                <tr key={t.name} className="border-b border-[var(--border)]">
-                  <td className="py-1.5 px-2 font-mono">{t.name}</td>
-                  <td className="py-1.5 px-2 text-tertiary">{t.last_run}</td>
-                  <td className="py-1.5 px-2 text-tertiary">{t.last_status}</td>
-                </tr>
-              ))}
+              {(tasks?.tasks ?? []).map((t: any) => {
+                const state = taskRunStates[t.name] || "idle";
+                return (
+                  <tr key={t.name} className="border-b border-[var(--border)]">
+                    <td className="py-1.5 px-2 font-mono">{t.name}</td>
+                    <td className="py-1.5 px-2 text-tertiary">{t.last_run}</td>
+                    <td className="py-1.5 px-2">
+                      {state === "idle" && (
+                        <button
+                          onClick={() => handleRunTask(t.name)}
+                          className="text-xs px-2 py-1 rounded bg-[var(--bg-tertiary)] hover:bg-[var(--border)] text-[var(--text-primary)]"
+                          title="Ejecutar tarea"
+                        >
+                          ▶ Ejecutar
+                        </button>
+                      )}
+                      {state === "running" && (
+                        <span className="text-xs text-[var(--color-primary)] flex items-center gap-1">
+                          <span className="animate-spin">⏳</span> Ejecutando...
+                        </span>
+                      )}
+                      {state === "done" && (
+                        <span className="text-xs text-[var(--color-success)] animate-pulse">
+                          ✓ Ejecutado
+                        </span>
+                      )}
+                      {state === "error" && (
+                        <span className="text-xs text-[var(--color-danger)] animate-pulse">
+                          ✗ Error
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

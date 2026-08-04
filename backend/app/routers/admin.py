@@ -20,6 +20,7 @@ from app.models import (
     ImpersonationSession,
     MonthlyReport,
     Notification,
+    PlatformLog,
     RecurringExpense,
     Setting,
     User,
@@ -600,6 +601,90 @@ def update_setting(
         db.add(Setting(key=body.key, value=body.value))
     db.commit()
     return {"ok": True}
+
+
+# ──────────────────────────────────────────────
+# Platform Logs
+# ──────────────────────────────────────────────
+
+
+@router.get("/platform-logs")
+def get_platform_logs(
+    level: str = "",
+    module: str = "",
+    search: str = "",
+    page: int = 1,
+    per_page: int = 100,
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    query = db.query(PlatformLog)
+    if level:
+        query = query.filter(PlatformLog.level == level.upper())
+    if module:
+        query = query.filter(PlatformLog.module.ilike(f"%{module}%"))
+    if search:
+        query = query.filter(PlatformLog.message.ilike(f"%{search}%"))
+
+    total = query.count()
+    logs = (
+        query.order_by(PlatformLog.created_at.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+
+    return {
+        "logs": [
+            {
+                "id": log.id,
+                "level": log.level,
+                "module": log.module,
+                "message": log.message,
+                "details": log.details,
+                "created_at": log.created_at.isoformat() if log.created_at else "",
+            }
+            for log in logs
+        ],
+        "total": total,
+        "page": page,
+    }
+
+
+# ──────────────────────────────────────────────
+# Task Execution
+# ──────────────────────────────────────────────
+
+TASK_NAME_MAP = {
+    "execute-due-installments-daily": "app.tasks.scheduled_expenses.execute_due_installments",
+    "cleanup-expired-import-jobs-daily": "app.tasks.cleanup_import_jobs.cleanup_expired_import_jobs",
+    "daily-uncategorized-expenses": "app.tasks.daily_uncategorized.daily_uncategorized_check",
+    "send-weekly-reports": "app.tasks.weekly_summary.send_weekly_reports",
+    "generate-monthly-reports": "app.tasks.monthly_report.generate_monthly_reports",
+    "suggest-uncategorized-categories-daily": "app.tasks.suggest_uncategorized.suggest_uncategorized_categories",
+    "detect-recurring-expenses-daily": "app.tasks.detect_recurring.detect_recurring_expenses",
+    "check-upcoming-recurring-daily": "app.tasks.check_upcoming_recurring.check_upcoming_recurring",
+    "cleanup-audit-logs-daily": "app.tasks.cleanup_audit_logs.cleanup_old_records",
+}
+
+
+@router.post("/system/tasks/{task_name}/run")
+def run_task(
+    task_name: str,
+    admin: User = Depends(get_current_admin),
+):
+    celery_task = TASK_NAME_MAP.get(task_name)
+    if not celery_task:
+        raise HTTPException(404, f"Task '{task_name}' not found")
+
+    try:
+        from app.celery_app import celery_app
+
+        result = celery_app.send_task(celery_task)
+        return {"ok": True, "task_id": result.id, "task_name": task_name}
+    except Exception as e:
+        logger.error(f"Failed to enqueue task {task_name}: {e}")
+        raise HTTPException(500, f"Failed to enqueue task: {e}")
 
 
 # ──────────────────────────────────────────────
