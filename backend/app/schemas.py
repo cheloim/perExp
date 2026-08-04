@@ -101,7 +101,7 @@ class LoginRequest(BaseModel):
     @field_validator("email")
     @classmethod
     def validate_email(cls, v: str) -> str:
-        return _validate_email_format(v)
+        return v.lower().strip()
 
 
 class UserCreate(BaseModel):
