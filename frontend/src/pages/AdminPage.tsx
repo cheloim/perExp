@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
 import {
   getAdminUsers,
   getAdminUser,
@@ -35,13 +34,12 @@ const ACTION_COLORS: Record<string, string> = {
 };
 
 export default function AdminPage() {
-  const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("users");
 
   if (window.innerWidth < 1024) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <p className="text-secondary text-lg">
+      <div className="flex items-center justify-center h-[60vh]">
+        <p className="text-[var(--text-[var(--text-secondary)])] text-lg">
           Panel de administración solo disponible en desktop.
         </p>
       </div>
@@ -49,15 +47,12 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)]">
-      <header className="sticky top-0 z-40 bg-[var(--bg-secondary)] border-b border-[var(--border)] px-6 py-3 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-primary">Panel de Administración</h1>
-        <button onClick={() => navigate("/")} className="gnome-btn-secondary-round text-sm">
-          Volver
-        </button>
-      </header>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Panel de Administración</h1>
+      </div>
 
-      <nav className="border-b border-[var(--border)] px-6 flex gap-1">
+      <nav className="flex gap-1 border-b border-[var(--border-color)]">
         {(["users", "logs", "reports", "system"] as Tab[]).map((t) => (
           <button
             key={t}
@@ -65,7 +60,7 @@ export default function AdminPage() {
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
               tab === t
                 ? "border-[var(--color-primary)] text-[var(--color-primary)]"
-                : "border-transparent text-tertiary hover:text-secondary"
+                : "border-transparent text-[var(--text-[var(--text-tertiary)])] hover:text-[var(--text-[var(--text-secondary)])]"
             }`}
           >
             {t === "users"
@@ -79,12 +74,10 @@ export default function AdminPage() {
         ))}
       </nav>
 
-      <main className="p-6">
-        {tab === "users" && <UsersTab />}
-        {tab === "logs" && <LogsTab />}
-        {tab === "reports" && <ReportsTab />}
-        {tab === "system" && <SystemTab />}
-      </main>
+      {tab === "users" && <UsersTab />}
+      {tab === "logs" && <LogsTab />}
+      {tab === "reports" && <ReportsTab />}
+      {tab === "system" && <SystemTab />}
     </div>
   );
 }
@@ -153,57 +146,57 @@ function UsersTab() {
             setSearch(e.target.value);
             setPage(1);
           }}
-          className="gnome-input max-w-sm"
+          className="input max-w-sm"
         />
-        <span className="text-xs text-tertiary">{total} usuarios</span>
+        <span className="text-xs text-[var(--text-[var(--text-tertiary)])]">{total} usuarios</span>
       </div>
 
       {isLoading ? (
-        <p className="text-tertiary">Cargando...</p>
+        <p className="text-[var(--text-[var(--text-tertiary)])]">Cargando...</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[var(--border)]">
-                <th className="text-left py-2 px-3 text-tertiary font-medium">ID</th>
-                <th className="text-left py-2 px-3 text-tertiary font-medium">Nombre</th>
-                <th className="text-left py-2 px-3 text-tertiary font-medium">Email</th>
-                <th className="text-left py-2 px-3 text-tertiary font-medium">Estado</th>
-                <th className="text-left py-2 px-3 text-tertiary font-medium">Admin</th>
-                <th className="text-left py-2 px-3 text-tertiary font-medium">Telegram</th>
-                <th className="text-left py-2 px-3 text-tertiary font-medium">MFA</th>
-                <th className="text-left py-2 px-3 text-tertiary font-medium">Creado</th>
-                <th className="text-left py-2 px-3 text-tertiary font-medium">Acciones</th>
+              <tr className="border-b border-[var(--border-color)]">
+                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">ID</th>
+                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">Nombre</th>
+                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">Email</th>
+                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">Estado</th>
+                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">Admin</th>
+                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">Telegram</th>
+                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">MFA</th>
+                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">Creado</th>
+                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {users.map((u) => (
-                <tr key={u.id} className="border-b border-[var(--border)] hover:bg-[var(--bg-hover)]">
+                <tr key={u.id} className="border-b border-[var(--border-color)] hover:bg-[var(--color-base-alt)]">
                   <td className="py-2 px-3">{u.id}</td>
                   <td className="py-2 px-3">{u.full_name || "-"}</td>
                   <td className="py-2 px-3">{u.email}</td>
                   <td className="py-2 px-3">
                     {u.is_blocked ? (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--gnome-red-1)] text-[var(--gnome-red-5)]">
                         Bloqueado
                       </span>
                     ) : u.is_locked ? (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--gnome-orange-1)] text-[var(--gnome-orange-5)]">
                         Lock ({u.lock_ttl}s)
                       </span>
                     ) : u.is_active ? (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--gnome-green-1)] text-[var(--gnome-green-5)]">
                         Activo
                       </span>
                     ) : (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--color-base-alt)] text-[var(--text-[var(--text-tertiary)])]">
                         Inactivo
                       </span>
                     )}
                   </td>
                   <td className="py-2 px-3">
                     {u.is_admin && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--gnome-purple-1)] text-[var(--gnome-purple-5)]">
                         Admin
                       </span>
                     )}
@@ -212,57 +205,57 @@ function UsersTab() {
                     {u.telegram_connected ? (
                       <span className="text-[var(--color-success)]">✓</span>
                     ) : (
-                      <span className="text-tertiary">-</span>
+                      <span className="text-[var(--text-[var(--text-tertiary)])]">-</span>
                     )}
                   </td>
                   <td className="py-2 px-3">
                     {u.mfa_enabled ? (
                       <span className="text-[var(--color-success)]">✓</span>
                     ) : (
-                      <span className="text-tertiary">-</span>
+                      <span className="text-[var(--text-[var(--text-tertiary)])]">-</span>
                     )}
                   </td>
-                  <td className="py-2 px-3 text-xs text-tertiary">
+                  <td className="py-2 px-3 text-xs text-[var(--text-[var(--text-tertiary)])]">
                     {new Date(u.created_at).toLocaleDateString("es-AR")}
                   </td>
                   <td className="py-2 px-3">
                     <div className="flex gap-1 flex-wrap">
                       <button
                         onClick={() => setSelectedUser(u.id)}
-                        className="text-xs px-2 py-1 rounded bg-[var(--bg-tertiary)] hover:bg-[var(--border)]"
+                        className="text-xs px-2 py-1 rounded bg-[var(--color-base-alt)] hover:bg-[var(--border-color)]"
                       >
                         Ver
                       </button>
                       {u.is_blocked ? (
                         <button
                           onClick={() => unblockMut.mutate(u.id)}
-                          className="text-xs px-2 py-1 rounded bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400"
+                          className="text-xs px-2 py-1 rounded bg-[var(--gnome-green-1)] text-[var(--gnome-green-5)] hover:bg-[var(--gnome-green-2)]"
                         >
                           Desbloquear
                         </button>
                       ) : (
                         <button
                           onClick={() => setBlockDialog({ id: u.id, email: u.email })}
-                          className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"
+                          className="text-xs px-2 py-1 rounded bg-[var(--gnome-red-1)] text-[var(--gnome-red-5)] hover:bg-[var(--gnome-red-2)]"
                         >
                           Bloquear
                         </button>
                       )}
                       <button
                         onClick={() => toggleAdminMut.mutate(u.id)}
-                        className="text-xs px-2 py-1 rounded bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400"
+                        className="text-xs px-2 py-1 rounded bg-[var(--gnome-purple-1)] text-[var(--gnome-purple-5)] hover:bg-[var(--gnome-purple-2)]"
                       >
                         {u.is_admin ? "Quitar Admin" : "Hacer Admin"}
                       </button>
                       <button
                         onClick={() => impersonateMut.mutate(u.id)}
-                        className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400"
+                        className="text-xs px-2 py-1 rounded bg-[var(--gnome-blue-1)] text-[var(--gnome-blue-5)] hover:bg-[var(--gnome-blue-2)]"
                       >
                         Impersonar
                       </button>
                       <button
                         onClick={() => setNotifyDialog({ id: u.id, email: u.email })}
-                        className="text-xs px-2 py-1 rounded bg-[var(--bg-tertiary)] hover:bg-[var(--border)]"
+                        className="text-xs px-2 py-1 rounded bg-[var(--color-base-alt)] hover:bg-[var(--border-color)]"
                       >
                         Notificar
                       </button>
@@ -284,7 +277,7 @@ function UsersTab() {
           >
             Anterior
           </button>
-          <span className="text-xs text-tertiary">Página {page}</span>
+          <span className="text-xs text-[var(--text-[var(--text-tertiary)])]">Página {page}</span>
           <button
             onClick={() => setPage(page + 1)}
             disabled={page * 50 >= total}
@@ -308,7 +301,7 @@ function UsersTab() {
                 placeholder="Razón del bloqueo..."
                 value={blockReason}
                 onChange={(e) => setBlockReason(e.target.value)}
-                className="gnome-input w-full"
+                className="input w-full"
               />
             </div>
           }
@@ -338,13 +331,13 @@ function UsersTab() {
                 placeholder="Título..."
                 value={notifyTitle}
                 onChange={(e) => setNotifyTitle(e.target.value)}
-                className="gnome-input w-full"
+                className="input w-full"
               />
               <textarea
                 placeholder="Mensaje..."
                 value={notifyBody}
                 onChange={(e) => setNotifyBody(e.target.value)}
-                className="gnome-input w-full"
+                className="input w-full"
                 rows={3}
               />
             </div>
@@ -383,41 +376,41 @@ function UserDetailModal({ userId, onClose }: { userId: number; onClose: () => v
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={onClose}>
       <div className="card p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-primary">Usuario #{user.id}</h2>
-          <button onClick={onClose} className="text-tertiary hover:text-primary">✕</button>
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Usuario #{user.id}</h2>
+          <button onClick={onClose} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">✕</button>
         </div>
 
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
-            <p className="text-xs text-tertiary">Nombre</p>
+            <p className="text-xs text-[var(--text-tertiary)]">Nombre</p>
             <p className="text-sm">{user.full_name || "-"}</p>
           </div>
           <div>
-            <p className="text-xs text-tertiary">Email</p>
+            <p className="text-xs text-[var(--text-tertiary)]">Email</p>
             <p className="text-sm">{user.email}</p>
           </div>
           <div>
-            <p className="text-xs text-tertiary">Estado</p>
+            <p className="text-xs text-[var(--text-tertiary)]">Estado</p>
             <p className="text-sm">
               {user.is_blocked ? "Bloqueado" : user.is_active ? "Activo" : "Inactivo"}
               {user.blocked_reason && ` (${user.blocked_reason})`}
             </p>
           </div>
           <div>
-            <p className="text-xs text-tertiary">Admin</p>
+            <p className="text-xs text-[var(--text-tertiary)]">Admin</p>
             <p className="text-sm">{user.is_admin ? "Sí" : "No"}</p>
           </div>
           <div>
-            <p className="text-xs text-tertiary">Proveedor</p>
+            <p className="text-xs text-[var(--text-tertiary)]">Proveedor</p>
             <p className="text-sm">{user.provider || "Email"}</p>
           </div>
           <div>
-            <p className="text-xs text-tertiary">Creado</p>
+            <p className="text-xs text-[var(--text-tertiary)]">Creado</p>
             <p className="text-sm">{new Date(user.created_at).toLocaleString("es-AR")}</p>
           </div>
         </div>
 
-        <h3 className="text-sm font-semibold text-primary mb-2">Estadísticas</h3>
+        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Estadísticas</h3>
         <div className="grid grid-cols-5 gap-2 mb-4">
           {[
             { label: "Gastos", value: stats.expense_count },
@@ -427,28 +420,28 @@ function UserDetailModal({ userId, onClose }: { userId: number; onClose: () => v
             { label: "Reportes", value: stats.report_count },
           ].map((s) => (
             <div key={s.label} className="card p-2 text-center">
-              <p className="text-lg font-bold text-primary">{s.value}</p>
-              <p className="text-xs text-tertiary">{s.label}</p>
+              <p className="text-lg font-bold text-[var(--text-primary)]">{s.value}</p>
+              <p className="text-xs text-[var(--text-tertiary)]">{s.label}</p>
             </div>
           ))}
         </div>
 
-        <h3 className="text-sm font-semibold text-primary mb-2">Seguridad</h3>
+        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Seguridad</h3>
         <div className="mb-4">
           <p className="text-sm">
             Lock Redis: {security.is_locked ? `Sí (${security.lock_ttl}s)` : "No"}
           </p>
         </div>
 
-        <h3 className="text-sm font-semibold text-primary mb-2">Logs recientes</h3>
+        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Logs recientes</h3>
         <div className="space-y-1 max-h-40 overflow-y-auto">
           {recent_audit_logs.map((log: AuditLogEntry) => (
             <div key={log.id} className="flex items-center gap-2 text-xs">
-              <span className="text-tertiary w-32 shrink-0">
+              <span className="text-[var(--text-tertiary)] w-32 shrink-0">
                 {new Date(log.created_at).toLocaleString("es-AR")}
               </span>
-              <span className={ACTION_COLORS[log.action] || "text-secondary"}>{log.action}</span>
-              {log.details && <span className="text-tertiary truncate">{log.details}</span>}
+              <span className={ACTION_COLORS[log.action] || "text-[var(--text-secondary)]"}>{log.action}</span>
+              {log.details && <span className="text-[var(--text-tertiary)] truncate">{log.details}</span>}
             </div>
           ))}
         </div>
@@ -493,9 +486,9 @@ function LogsTab() {
       {/* Login errors summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="card p-4">
-          <h3 className="text-sm font-semibold text-primary mb-2">Top usuarios con intentos fallidos</h3>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Top usuarios con intentos fallidos</h3>
           {errors.by_user.length === 0 ? (
-            <p className="text-xs text-tertiary">Sin intentos fallidos</p>
+            <p className="text-xs text-[var(--text-tertiary)]">Sin intentos fallidos</p>
           ) : (
             <div className="space-y-1">
               {errors.by_user.slice(0, 10).map((u) => (
@@ -509,9 +502,9 @@ function LogsTab() {
         </div>
 
         <div className="card p-4">
-          <h3 className="text-sm font-semibold text-primary mb-2">Top IPs con intentos fallidos</h3>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Top IPs con intentos fallidos</h3>
           {errors.by_ip.length === 0 ? (
-            <p className="text-xs text-tertiary">Sin intentos fallidos</p>
+            <p className="text-xs text-[var(--text-tertiary)]">Sin intentos fallidos</p>
           ) : (
             <div className="space-y-1">
               {errors.by_ip.slice(0, 10).map((ip, i) => (
@@ -525,15 +518,15 @@ function LogsTab() {
         </div>
 
         <div className="card p-4">
-          <h3 className="text-sm font-semibold text-primary mb-2">Cuentas bloqueadas (admin)</h3>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Cuentas bloqueadas (admin)</h3>
           {errors.blocked_accounts.length === 0 ? (
-            <p className="text-xs text-tertiary">Sin cuentas bloqueadas</p>
+            <p className="text-xs text-[var(--text-tertiary)]">Sin cuentas bloqueadas</p>
           ) : (
             <div className="space-y-1">
               {errors.blocked_accounts.map((u) => (
                 <div key={u.id} className="flex items-center justify-between text-xs">
                   <span>{u.email}</span>
-                  <span className="text-tertiary">{u.blocked_reason || "Sin razón"}</span>
+                  <span className="text-[var(--text-tertiary)]">{u.blocked_reason || "Sin razón"}</span>
                 </div>
               ))}
             </div>
@@ -541,9 +534,9 @@ function LogsTab() {
         </div>
 
         <div className="card p-4">
-          <h3 className="text-sm font-semibold text-primary mb-2">Locks Redis activos</h3>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Locks Redis activos</h3>
           {errors.redis_lockouts.length === 0 ? (
-            <p className="text-xs text-tertiary">Sin locks activos</p>
+            <p className="text-xs text-[var(--text-tertiary)]">Sin locks activos</p>
           ) : (
             <div className="space-y-1">
               {errors.redis_lockouts.map((u) => (
@@ -560,14 +553,14 @@ function LogsTab() {
       {/* Audit logs table */}
       <div className="card p-4">
         <div className="flex items-center gap-3 mb-3">
-          <h3 className="text-sm font-semibold text-primary">Logs de Auditoría</h3>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Logs de Auditoría</h3>
           <select
             value={actionFilter}
             onChange={(e) => {
               setActionFilter(e.target.value);
               setPage(1);
             }}
-            className="gnome-input text-xs"
+            className="input text-xs"
           >
             <option value="">Todas las acciones</option>
             <option value="login_failed">login_failed</option>
@@ -585,28 +578,28 @@ function LogsTab() {
               setUserIdFilter(e.target.value);
               setPage(1);
             }}
-            className="gnome-input text-xs w-24"
+            className="input text-xs w-24"
           />
         </div>
 
         {logsLoading ? (
-          <p className="text-tertiary text-xs">Cargando...</p>
+          <p className="text-[var(--text-tertiary)] text-xs">Cargando...</p>
         ) : (
           <div className="overflow-x-auto max-h-96 overflow-y-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-[var(--border)]">
-                  <th className="text-left py-1.5 px-2 text-tertiary font-medium">Fecha</th>
-                  <th className="text-left py-1.5 px-2 text-tertiary font-medium">Usuario</th>
-                  <th className="text-left py-1.5 px-2 text-tertiary font-medium">Acción</th>
-                  <th className="text-left py-1.5 px-2 text-tertiary font-medium">IP</th>
-                  <th className="text-left py-1.5 px-2 text-tertiary font-medium">Detalles</th>
+                <tr className="border-b border-[var(--border-color)]">
+                  <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Fecha</th>
+                  <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Usuario</th>
+                  <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Acción</th>
+                  <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">IP</th>
+                  <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Detalles</th>
                 </tr>
               </thead>
               <tbody>
                 {logs.map((log) => (
-                  <tr key={log.id} className="border-b border-[var(--border)] hover:bg-[var(--bg-hover)]">
-                    <td className="py-1.5 px-2 text-tertiary whitespace-nowrap">
+                  <tr key={log.id} className="border-b border-[var(--border-color)] hover:bg-[var(--color-base-alt)]">
+                    <td className="py-1.5 px-2 text-[var(--text-tertiary)] whitespace-nowrap">
                       {new Date(log.created_at).toLocaleString("es-AR")}
                     </td>
                     <td className="py-1.5 px-2">{log.user_email || `#${log.user_id}`}</td>
@@ -614,7 +607,7 @@ function LogsTab() {
                       {log.action}
                     </td>
                     <td className="py-1.5 px-2 font-mono">{log.ip_address || "-"}</td>
-                    <td className="py-1.5 px-2 text-tertiary truncate max-w-xs">{log.details || ""}</td>
+                    <td className="py-1.5 px-2 text-[var(--text-tertiary)] truncate max-w-xs">{log.details || ""}</td>
                   </tr>
                 ))}
               </tbody>
@@ -630,7 +623,7 @@ function LogsTab() {
           >
             Anterior
           </button>
-          <span className="text-xs text-tertiary">Página {page}</span>
+          <span className="text-xs text-[var(--text-tertiary)]">Página {page}</span>
           <button
             onClick={() => setPage(page + 1)}
             disabled={logs.length < 100}
@@ -670,22 +663,22 @@ function PlatformLogsSection() {
   const logs: PlatformLog[] = data?.logs ?? [];
 
   const LEVEL_COLORS: Record<string, string> = {
-    WARNING: "text-orange-600 dark:text-orange-400",
-    ERROR: "text-red-600 dark:text-red-400",
-    CRITICAL: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400",
+    WARNING: "text-[var(--gnome-orange-3)]",
+    ERROR: "text-[var(--gnome-red-3)]",
+    CRITICAL: "bg-[var(--gnome-red-1)] text-[var(--gnome-red-5)]",
   };
 
   return (
     <div className="card p-4">
       <div className="flex items-center gap-3 mb-3">
-        <h3 className="text-sm font-semibold text-primary">Logs de Plataforma</h3>
+        <h3 className="text-sm font-semibold text-[var(--text-primary)]">Logs de Plataforma</h3>
         <select
           value={levelFilter}
           onChange={(e) => {
             setLevelFilter(e.target.value);
             setPage(1);
           }}
-          className="gnome-input text-xs"
+          className="input text-xs"
         >
           <option value="">Todos los niveles</option>
           <option value="WARNING">WARNING</option>
@@ -700,7 +693,7 @@ function PlatformLogsSection() {
             setModuleFilter(e.target.value);
             setPage(1);
           }}
-          className="gnome-input text-xs w-32"
+          className="input text-xs w-32"
         />
         <input
           type="text"
@@ -710,33 +703,33 @@ function PlatformLogsSection() {
             setSearchFilter(e.target.value);
             setPage(1);
           }}
-          className="gnome-input text-xs w-48"
+          className="input text-xs w-48"
         />
-        <span className="text-xs text-tertiary">{data?.total ?? 0} logs</span>
+        <span className="text-xs text-[var(--text-tertiary)]">{data?.total ?? 0} logs</span>
       </div>
 
       {isLoading ? (
-        <p className="text-tertiary text-xs">Cargando...</p>
+        <p className="text-[var(--text-tertiary)] text-xs">Cargando...</p>
       ) : (
         <div className="overflow-x-auto max-h-96 overflow-y-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-[var(--border)]">
-                <th className="text-left py-1.5 px-2 text-tertiary font-medium">Fecha</th>
-                <th className="text-left py-1.5 px-2 text-tertiary font-medium">Nivel</th>
-                <th className="text-left py-1.5 px-2 text-tertiary font-medium">Módulo</th>
-                <th className="text-left py-1.5 px-2 text-tertiary font-medium">Mensaje</th>
+              <tr className="border-b border-[var(--border-color)]">
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Fecha</th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Nivel</th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Módulo</th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Mensaje</th>
               </tr>
             </thead>
             <tbody>
               {logs.map((log) => (
                 <tr
                   key={log.id}
-                  className={`border-b border-[var(--border)] hover:bg-[var(--bg-hover)] ${
-                    log.level === "CRITICAL" ? "bg-red-100/50 dark:bg-red-900/20" : ""
+                  className={`border-b border-[var(--border-color)] hover:bg-[var(--color-base-alt)] ${
+                    log.level === "CRITICAL" ? "bg-[var(--gnome-red-1)]/50" : ""
                   }`}
                 >
-                  <td className="py-1.5 px-2 text-tertiary whitespace-nowrap">
+                  <td className="py-1.5 px-2 text-[var(--text-tertiary)] whitespace-nowrap">
                     {new Date(log.created_at).toLocaleString("es-AR")}
                   </td>
                   <td className={`py-1.5 px-2 font-medium ${LEVEL_COLORS[log.level] || ""}`}>
@@ -750,7 +743,7 @@ function PlatformLogsSection() {
               ))}
               {logs.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="py-4 text-center text-tertiary">
+                  <td colSpan={4} className="py-4 text-center text-[var(--text-tertiary)]">
                     Sin logs de plataforma
                   </td>
                 </tr>
@@ -768,7 +761,7 @@ function PlatformLogsSection() {
         >
           Anterior
         </button>
-        <span className="text-xs text-tertiary">Página {page}</span>
+        <span className="text-xs text-[var(--text-tertiary)]">Página {page}</span>
         <button
           onClick={() => setPage(page + 1)}
           disabled={logs.length < 100}
@@ -814,18 +807,18 @@ function ReportsTab() {
           placeholder="User ID"
           value={userFilter}
           onChange={(e) => setUserFilter(e.target.value)}
-          className="gnome-input text-xs w-24"
+          className="input text-xs w-24"
         />
         <input
           type="month"
           value={monthFilter}
           onChange={(e) => setMonthFilter(e.target.value)}
-          className="gnome-input text-xs"
+          className="input text-xs"
         />
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="gnome-input text-xs"
+          className="input text-xs"
         >
           <option value="">Todos</option>
           <option value="PENDING">Pendiente</option>
@@ -835,25 +828,25 @@ function ReportsTab() {
       </div>
 
       {isLoading ? (
-        <p className="text-tertiary text-xs">Cargando...</p>
+        <p className="text-[var(--text-tertiary)] text-xs">Cargando...</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-[var(--border)]">
-                <th className="text-left py-1.5 px-2 text-tertiary font-medium">ID</th>
-                <th className="text-left py-1.5 px-2 text-tertiary font-medium">Usuario</th>
-                <th className="text-left py-1.5 px-2 text-tertiary font-medium">Mes</th>
-                <th className="text-left py-1.5 px-2 text-tertiary font-medium">Estado</th>
-                <th className="text-left py-1.5 px-2 text-tertiary font-medium">Creado</th>
-                <th className="text-left py-1.5 px-2 text-tertiary font-medium">Generado</th>
-                <th className="text-left py-1.5 px-2 text-tertiary font-medium">PNG</th>
-                <th className="text-left py-1.5 px-2 text-tertiary font-medium">Acciones</th>
+              <tr className="border-b border-[var(--border-color)]">
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">ID</th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Usuario</th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Mes</th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Estado</th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Creado</th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Generado</th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">PNG</th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {reports.map((r: any) => (
-                <tr key={r.id} className="border-b border-[var(--border)] hover:bg-[var(--bg-hover)]">
+                <tr key={r.id} className="border-b border-[var(--border-color)] hover:bg-[var(--color-base-alt)]">
                   <td className="py-1.5 px-2">{r.id}</td>
                   <td className="py-1.5 px-2">{r.user_email || `#${r.user_id}`}</td>
                   <td className="py-1.5 px-2">{r.month}</td>
@@ -861,19 +854,19 @@ function ReportsTab() {
                     <span
                       className={`text-xs px-2 py-0.5 rounded-full ${
                         r.status === "READY"
-                          ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                          ? "bg-[var(--gnome-green-1)] text-[var(--gnome-green-5)]"
                           : r.status === "FAILED"
-                            ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                            : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                            ? "bg-[var(--gnome-red-1)] text-[var(--gnome-red-5)]"
+                            : "bg-[var(--gnome-orange-1)] text-[var(--gnome-orange-5)]"
                       }`}
                     >
                       {r.status}
                     </span>
                   </td>
-                  <td className="py-1.5 px-2 text-tertiary">
+                  <td className="py-1.5 px-2 text-[var(--text-tertiary)]">
                     {new Date(r.created_at).toLocaleDateString("es-AR")}
                   </td>
-                  <td className="py-1.5 px-2 text-tertiary">
+                  <td className="py-1.5 px-2 text-[var(--text-tertiary)]">
                     {r.generated_at ? new Date(r.generated_at).toLocaleDateString("es-AR") : "-"}
                   </td>
                   <td className="py-1.5 px-2">{r.has_png ? "✓" : "-"}</td>
@@ -882,7 +875,7 @@ function ReportsTab() {
                       onClick={() => {
                         if (confirm("¿Eliminar este reporte?")) deleteMut.mutate(r.id);
                       }}
-                      className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"
+                      className="text-xs px-2 py-1 rounded bg-[var(--gnome-red-1)] text-[var(--gnome-red-5)] hover:bg-[var(--gnome-red-2)]"
                     >
                       Eliminar
                     </button>
@@ -957,27 +950,27 @@ function SystemTab() {
       {/* Health */}
       <div className="grid grid-cols-3 gap-4">
         <div className="card p-4">
-          <h3 className="text-sm font-semibold text-primary mb-2">Redis</h3>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Redis</h3>
           <div className="flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${health?.redis?.connected ? "bg-green-500" : "bg-red-500"}`} />
             <span className="text-sm">{health?.redis?.connected ? "Conectado" : "Desconectado"}</span>
             {health?.redis?.connected && (
-              <span className="text-xs text-tertiary">{health.redis.latency_ms}ms</span>
+              <span className="text-xs text-[var(--text-tertiary)]">{health.redis.latency_ms}ms</span>
             )}
           </div>
         </div>
         <div className="card p-4">
-          <h3 className="text-sm font-semibold text-primary mb-2">Base de Datos</h3>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Base de Datos</h3>
           <div className="flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${health?.database?.connected ? "bg-green-500" : "bg-red-500"}`} />
             <span className="text-sm">{health?.database?.connected ? "Conectada" : "Desconectada"}</span>
             {health?.database?.connected && (
-              <span className="text-xs text-tertiary">{health.database.users_count} usuarios</span>
+              <span className="text-xs text-[var(--text-tertiary)]">{health.database.users_count} usuarios</span>
             )}
           </div>
         </div>
         <div className="card p-4">
-          <h3 className="text-sm font-semibold text-primary mb-2">Celery</h3>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Celery</h3>
           <div className="flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${health?.celery?.worker_count > 0 ? "bg-green-500" : "bg-red-500"}`} />
             <span className="text-sm">{health?.celery?.worker_count ?? 0} workers</span>
@@ -987,28 +980,28 @@ function SystemTab() {
 
       {/* Tasks */}
       <div className="card p-4">
-        <h3 className="text-sm font-semibold text-primary mb-3">Tareas Programadas</h3>
+        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Tareas Programadas</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-[var(--border)]">
-                <th className="text-left py-1.5 px-2 text-tertiary font-medium">Tarea</th>
-                <th className="text-left py-1.5 px-2 text-tertiary font-medium">Última ejecución</th>
-                <th className="text-left py-1.5 px-2 text-tertiary font-medium w-24">Acciones</th>
+              <tr className="border-b border-[var(--border-color)]">
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Tarea</th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Última ejecución</th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium w-24">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {(tasks?.tasks ?? []).map((t: any) => {
                 const state = taskRunStates[t.name] || "idle";
                 return (
-                  <tr key={t.name} className="border-b border-[var(--border)]">
+                  <tr key={t.name} className="border-b border-[var(--border-color)]">
                     <td className="py-1.5 px-2 font-mono">{t.name}</td>
-                    <td className="py-1.5 px-2 text-tertiary">{t.last_run}</td>
+                    <td className="py-1.5 px-2 text-[var(--text-tertiary)]">{t.last_run}</td>
                     <td className="py-1.5 px-2">
                       {state === "idle" && (
                         <button
                           onClick={() => handleRunTask(t.name)}
-                          className="text-xs px-2 py-1 rounded bg-[var(--bg-tertiary)] hover:bg-[var(--border)] text-[var(--text-primary)]"
+                          className="text-xs px-2 py-1 rounded bg-[var(--color-base-alt)] hover:bg-[var(--border-color)] text-[var(--text-primary)]"
                           title="Ejecutar tarea"
                         >
                           ▶ Ejecutar
@@ -1040,19 +1033,19 @@ function SystemTab() {
 
       {/* Settings */}
       <div className="card p-4">
-        <h3 className="text-sm font-semibold text-primary mb-3">Settings</h3>
+        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Settings</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-[var(--border)]">
-                <th className="text-left py-1.5 px-2 text-tertiary font-medium">Key</th>
-                <th className="text-left py-1.5 px-2 text-tertiary font-medium">Value</th>
-                <th className="text-left py-1.5 px-2 text-tertiary font-medium">Acciones</th>
+              <tr className="border-b border-[var(--border-color)]">
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Key</th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Value</th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {(settingsData?.settings ?? []).map((s: any) => (
-                <tr key={s.key} className="border-b border-[var(--border)]">
+                <tr key={s.key} className="border-b border-[var(--border-color)]">
                   <td className="py-1.5 px-2 font-mono">{s.key}</td>
                   <td className="py-1.5 px-2">
                     {editingSetting?.key === s.key ? (
@@ -1060,10 +1053,10 @@ function SystemTab() {
                         type="text"
                         value={editValue}
                         onChange={(e) => setEditValue(e.target.value)}
-                        className="gnome-input text-xs w-full"
+                        className="input text-xs w-full"
                       />
                     ) : (
-                      <span className="text-tertiary truncate max-w-xs block">{s.value}</span>
+                      <span className="text-[var(--text-tertiary)] truncate max-w-xs block">{s.value}</span>
                     )}
                   </td>
                   <td className="py-1.5 px-2">
@@ -1071,13 +1064,13 @@ function SystemTab() {
                       <div className="flex gap-1">
                         <button
                           onClick={() => updateSettingMut.mutate({ key: s.key, value: editValue })}
-                          className="text-xs px-2 py-1 rounded bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                          className="text-xs px-2 py-1 rounded bg-[var(--gnome-green-1)] text-[var(--gnome-green-5)]"
                         >
                           Guardar
                         </button>
                         <button
                           onClick={() => setEditingSetting(null)}
-                          className="text-xs px-2 py-1 rounded bg-[var(--bg-tertiary)]"
+                          className="text-xs px-2 py-1 rounded bg-[var(--color-base-alt)]"
                         >
                           Cancelar
                         </button>
@@ -1088,7 +1081,7 @@ function SystemTab() {
                           setEditingSetting(s);
                           setEditValue(s.value);
                         }}
-                        className="text-xs px-2 py-1 rounded bg-[var(--bg-tertiary)] hover:bg-[var(--border)]"
+                        className="text-xs px-2 py-1 rounded bg-[var(--color-base-alt)] hover:bg-[var(--border-color)]"
                       >
                         Editar
                       </button>
@@ -1103,7 +1096,7 @@ function SystemTab() {
 
       {/* Cleanup */}
       <div className="card p-4">
-        <h3 className="text-sm font-semibold text-primary mb-3">Mantenimiento</h3>
+        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Mantenimiento</h3>
         <button
           onClick={() => {
             if (confirm("¿Ejecutar limpieza de logs antiguos?")) cleanupMut.mutate();

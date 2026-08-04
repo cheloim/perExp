@@ -11,6 +11,7 @@ from app.database import SessionLocal
 logger = logging.getLogger(__name__)
 from app.celery_app import celery_app
 from app.models import ImportJob, Notification
+from app.services.task_tracker import record_task_run
 
 
 @celery_app.task(name="app.tasks.cleanup_import_jobs.cleanup_expired_import_jobs")
@@ -59,11 +60,13 @@ def cleanup_expired_import_jobs():
 
         db.commit()
         logger.info("[CLEANUP] Eliminados %d import jobs expirados (TTL: 24h)", count)
+        record_task_run("cleanup-expired-import-jobs-daily", success=True)
         return count
 
     except Exception as e:
         db.rollback()
         logger.error("[CLEANUP ERROR] %s", e)
+        record_task_run("cleanup-expired-import-jobs-daily", success=False)
         raise
     finally:
         db.close()

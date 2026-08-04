@@ -83,6 +83,7 @@ async def lifespan(application: FastAPI):
             full_name=os.getenv("SEED_USER_NAME", "Admin"),
             hashed_password=get_password_hash(os.getenv("SEED_USER_PASSWORD", "ChangeMe123!")),
             email_verified=True,
+            is_admin=True,
         )
         db.add(seed_user)
         db.flush()

@@ -7,6 +7,7 @@ from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import CategorySuggestion, Expense, Notification, User
 from app.services.categorization import llm_categorize
+from app.services.task_tracker import record_task_run
 
 logger = logging.getLogger(__name__)
 
@@ -126,8 +127,10 @@ def suggest_uncategorized_categories():
 
         db.commit()
         logger.info(f"Suggest uncategorized: notified {total_users_notified}/{len(users)} users")
+        record_task_run("suggest-uncategorized-categories-daily", success=True)
     except Exception as e:
         logger.error(f"Suggest uncategorized task failed: {e}")
+        record_task_run("suggest-uncategorized-categories-daily", success=False)
         db.rollback()
     finally:
         db.close()

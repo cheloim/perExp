@@ -10,6 +10,7 @@ from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import Expense, Notification, RecurringExpense, User
 from app.services.categorization import _normalize_merchant_key
+from app.services.task_tracker import record_task_run
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,7 @@ def detect_recurring_expenses():
             f"Detect recurring: created={total_created}, updated={total_updated}, "
             f"notified={total_notified} across {len(users)} users"
         )
+        record_task_run("detect-recurring-expenses-daily", success=True)
         return {
             "created": total_created,
             "updated": total_updated,
@@ -52,6 +54,7 @@ def detect_recurring_expenses():
 
     except Exception as e:
         logger.error(f"Detect recurring failed: {e}")
+        record_task_run("detect-recurring-expenses-daily", success=False)
         db.rollback()
         raise
     finally:

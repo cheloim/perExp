@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import Notification, RecurringExpense
+from app.services.task_tracker import record_task_run
 
 logger = logging.getLogger(__name__)
 
@@ -100,10 +101,12 @@ def check_upcoming_recurring():
 
         db.commit()
         logger.info(f"Check upcoming recurring: sent {notified} notifications")
+        record_task_run("check-upcoming-recurring-daily", success=True)
         return {"notified": notified}
 
     except Exception as e:
         logger.error(f"Check upcoming recurring failed: {e}")
+        record_task_run("check-upcoming-recurring-daily", success=False)
         db.rollback()
         raise
     finally:

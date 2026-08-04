@@ -8,6 +8,7 @@ from sqlalchemy import func
 from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import Expense, Notification, User
+from app.services.task_tracker import record_task_run
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +56,10 @@ def daily_uncategorized_check():
 
         db.commit()
         logger.info(f"Daily uncategorized check: notified {notified}/{len(users)} users")
+        record_task_run("daily-uncategorized-expenses", success=True)
     except Exception as e:
         logger.error(f"Daily uncategorized check failed: {e}")
+        record_task_run("daily-uncategorized-expenses", success=False)
         db.rollback()
     finally:
         db.close()

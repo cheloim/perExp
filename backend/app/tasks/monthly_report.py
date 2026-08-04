@@ -788,15 +788,25 @@ def generate_single_report(self, user_id: int, month_str: str):
 def generate_monthly_reports():
     """
     Generate monthly reports for all users.
-    Runs on the 1st of each month at 20:00 UTC-3 (23:00 UTC).
+    Runs on the last day of each month at 23:59 UTC-3.
+    Only executes on the actual last day (checks if tomorrow is the 1st).
     """
+    from datetime import timedelta
+
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+
+    # Only execute on the actual last day of the month
+    if tomorrow.day != 1:
+        print(f"[MONTHLY REPORT] Not last day of month ({today}), skipping")
+        return
+
+    # Generate for the CURRENT month (the month that's ending)
+    month_str = today.strftime("%Y-%m")
+
     db = SessionLocal()
     try:
-        from app.services.date_utils import add_months
-
-        today = date.today()
-        prev_month = add_months(today.replace(day=1), -1)
-        month_str = prev_month.strftime("%Y-%m")
+        from app.services.task_tracker import record_task_run
 
         users = db.query(User).filter(User.is_active == True).all()
         generated_count = 0
@@ -869,8 +879,10 @@ def generate_monthly_reports():
 
         db.commit()
         print(f"[MONTHLY REPORT] Generated {generated_count} reports for {month_str}")
+        record_task_run("generate-monthly-reports", success=True)
     except Exception as e:
         print(f"[MONTHLY REPORT] Error: {e}")
+        record_task_run("generate-monthly-reports", success=False)
         db.rollback()
     finally:
         db.close()

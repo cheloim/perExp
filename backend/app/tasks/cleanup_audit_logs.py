@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import AuditLog, ImpersonationMessage, ImpersonationSession, PlatformLog
+from app.services.task_tracker import record_task_run
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +64,10 @@ def cleanup_old_records():
             logger.info(f"[CLEANUP] Deleted {deleted_platform} platform logs older than 45 days")
 
         db.commit()
+        record_task_run("cleanup-audit-logs-daily", success=True)
     except Exception as e:
         logger.error(f"[CLEANUP] Error: {e}")
+        record_task_run("cleanup-audit-logs-daily", success=False)
         db.rollback()
     finally:
         db.close()

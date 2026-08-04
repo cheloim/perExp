@@ -565,12 +565,15 @@ def system_tasks(admin: User = Depends(get_current_admin), db: Session = Depends
 
     result = []
     for task_name in tasks:
-        setting = db.query(Setting).filter(Setting.key == f"task_last_run:{task_name}").first()
+        run_setting = db.query(Setting).filter(Setting.key == f"task_last_run:{task_name}").first()
+        status_setting = (
+            db.query(Setting).filter(Setting.key == f"task_last_status:{task_name}").first()
+        )
         result.append(
             {
                 "name": task_name,
-                "last_run": setting.value if setting else "Never",
-                "last_status": "unknown",
+                "last_run": run_setting.value if run_setting else "Never",
+                "last_status": status_setting.value if status_setting else "unknown",
             }
         )
 

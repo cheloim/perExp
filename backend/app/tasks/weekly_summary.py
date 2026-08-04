@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import Category, Expense, ScheduledExpense, Setting, User
+from app.services.task_tracker import record_task_run
 
 logger = logging.getLogger(__name__)
 
@@ -317,8 +318,10 @@ def send_weekly_reports():
             else:
                 db.add(Setting(key="weekly_report_last_sent", value=week_key))
             db.commit()
+        record_task_run("send-weekly-reports", success=True)
     except Exception as e:
         logger.error(f"[WEEKLY REPORT] Error: {e}")
+        record_task_run("send-weekly-reports", success=False)
         db.rollback()
     finally:
         db.close()
