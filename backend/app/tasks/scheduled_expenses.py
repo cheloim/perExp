@@ -1,9 +1,12 @@
+import logging
 from datetime import date, datetime
 
 from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import Expense, ScheduledExpense
 from app.services.task_tracker import record_task_run
+
+logger = logging.getLogger(__name__)
 
 
 @celery_app.task(name="app.tasks.scheduled_expenses.execute_due_installments")
@@ -48,13 +51,13 @@ def execute_due_installments():
             executed_count += 1
 
         db.commit()
-        print(f"[SCHEDULED] Ejecutadas {executed_count} cuotas programadas")
+        logger.info(f"[SCHEDULED] Ejecutadas {executed_count} cuotas programadas")
         record_task_run("execute-due-installments-daily", success=True)
         return executed_count
 
     except Exception as e:
         db.rollback()
-        print(f"[SCHEDULED ERROR] {e}")
+        logger.error(f"[SCHEDULED ERROR] {e}")
         record_task_run("execute-due-installments-daily", success=False)
         raise
     finally:

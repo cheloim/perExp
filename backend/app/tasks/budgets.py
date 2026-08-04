@@ -1,11 +1,14 @@
 """Budget alerts Celery task - checks budget thresholds and sends notifications."""
 
+import logging
 from calendar import monthrange
 from datetime import date
 
 from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import Budget, BudgetGroup, Category, Expense, Notification, User
+
+logger = logging.getLogger(__name__)
 
 
 def _get_spending_for_category(
@@ -93,7 +96,7 @@ def _send_telegram_alert(chat_id: str, category_name: str, pct: float, spent: fl
             f"{'⚠️ Presupuesto excedido! Revisá tus gastos.' if pct >= 1.0 else '⚠️ Te estás acercando al límite. Revisá tus gastos en esta categoría.'}",
         )
     except Exception as e:
-        print(f"[BUDGET ALERT] Failed to send Telegram alert: {e}")
+        logger.warning(f"[BUDGET ALERT] Failed to send Telegram alert: {e}")
 
 
 def _send_group_telegram_alert(
@@ -118,7 +121,7 @@ def _send_group_telegram_alert(
             f"{'⚠️ Macrogrupo excedido! Revisá tus gastos.' if pct >= 1.0 else f'⚠️ Te estás acercando al límite del macrogrupo {display_name}.'}",
         )
     except Exception as e:
-        print(f"[BUDGET ALERT] Failed to send Telegram alert: {e}")
+        logger.warning(f"[BUDGET ALERT] Failed to send Telegram alert: {e}")
 
 
 @celery_app.task(name="app.tasks.budgets.check_budget_alerts")
@@ -261,10 +264,10 @@ def check_budget_alerts():
                     )
 
         db.commit()
-        print(f"[BUDGET ALERTS] Sent {alerts_sent} alerts for {month_key}")
+        logger.info(f"[BUDGET ALERTS] Sent {alerts_sent} alerts for {month_key}")
 
     except Exception as e:
-        print(f"[BUDGET ALERTS] Error: {e}")
+        logger.error(f"[BUDGET ALERTS] Error: {e}")
         db.rollback()
     finally:
         db.close()

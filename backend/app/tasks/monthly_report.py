@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from calendar import monthrange
 from collections import defaultdict
@@ -8,6 +9,8 @@ from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import Category, Expense, MonthlyReport, Notification, User
 from app.routers.groups import get_group_user_ids
+
+logger = logging.getLogger(__name__)
 
 MONTHS_ES = {
     1: "Enero",
@@ -470,19 +473,19 @@ Usa flags para tendencias preocupantes a monitorear."""
 
             response = asyncio.run(_call_llm())
             raw_text = response.text.strip()
-            print(f"[MONTHLY REPORT] LLM raw response ({len(raw_text)} chars)")
+            logger.debug(f"[MONTHLY REPORT] LLM raw response ({len(raw_text)} chars)")
             # Print last 500 chars to see what's after the JSON
-            print(f"[MONTHLY REPORT] Last 500 chars: {raw_text[-500:]}")
-            # Also print first 200 chars
-            print(f"[MONTHLY REPORT] First 200 chars: {raw_text[:200]}")
+            logger.debug(f"[MONTHLY REPORT] Last 500 chars: {raw_text[-500:]}")
+            # Also logger.debug first 200 chars
+            logger.debug(f"[MONTHLY REPORT] First 200 chars: {raw_text[:200]}")
 
             analysis = None
             # Strategy 1: Direct parse
             try:
                 analysis = json.loads(raw_text)
-                print("[MONTHLY REPORT] Strategy 1 (direct) succeeded")
+                logger.debug("[MONTHLY REPORT] Strategy 1 (direct) succeeded")
             except json.JSONDecodeError as e:
-                print(f"[MONTHLY REPORT] Strategy 1 failed: {e}")
+                logger.debug(f"[MONTHLY REPORT] Strategy 1 failed: {e}")
 
             # Strategy 2: Extract from markdown code blocks
             if analysis is None:
@@ -491,10 +494,10 @@ Usa flags para tendencias preocupantes a monitorear."""
                         try:
                             extracted = raw_text.split(marker)[1].split("```")[0].strip()
                             analysis = json.loads(extracted)
-                            print("[MONTHLY REPORT] Strategy 2 (markdown) succeeded")
+                            logger.debug("[MONTHLY REPORT] Strategy 2 (markdown) succeeded")
                             break
                         except (json.JSONDecodeError, IndexError) as e:
-                            print(f"[MONTHLY REPORT] Strategy 2 failed: {e}")
+                            logger.debug(f"[MONTHLY REPORT] Strategy 2 failed: {e}")
 
             # Strategy 3: Find first { ... } block
             if analysis is None:
@@ -503,13 +506,13 @@ Usa flags para tendencias preocupantes a monitorear."""
                     end = raw_text.rfind("}") + 1
                     if start >= 0 and end > start:
                         snippet = raw_text[start:end]
-                        print(
+                        logger.debug(
                             f"[MONTHLY REPORT] Strategy 3 snippet ({len(snippet)} chars): {snippet[:100]}..."
                         )
                         analysis = json.loads(snippet)
-                        print("[MONTHLY REPORT] Strategy 3 (find braces) succeeded")
+                        logger.debug("[MONTHLY REPORT] Strategy 3 (find braces) succeeded")
                 except json.JSONDecodeError as e:
-                    print(f"[MONTHLY REPORT] Strategy 3 failed: {e}")
+                    logger.debug(f"[MONTHLY REPORT] Strategy 3 failed: {e}")
 
             # Strategy 4: Clean and retry
             if analysis is None:
@@ -526,9 +529,9 @@ Usa flags para tendencias preocupantes a monitorear."""
                     if last_brace > 0:
                         cleaned = cleaned[: last_brace + 1]
                     analysis = json.loads(cleaned)
-                    print("[MONTHLY REPORT] Strategy 4 (clean) succeeded")
+                    logger.debug("[MONTHLY REPORT] Strategy 4 (clean) succeeded")
                 except json.JSONDecodeError as e:
-                    print(f"[MONTHLY REPORT] Strategy 4 failed: {e}")
+                    logger.debug(f"[MONTHLY REPORT] Strategy 4 failed: {e}")
 
             # Strategy 5: Fix common JSON issues (missing commas, trailing commas)
             if analysis is None:
@@ -557,9 +560,9 @@ Usa flags para tendencias preocupantes a monitorear."""
                     cleaned = re.sub(r",\s*}", "}", cleaned)
                     cleaned = re.sub(r",\s*]", "]", cleaned)
                     analysis = json.loads(cleaned)
-                    print("[MONTHLY REPORT] Strategy 5 (fix JSON) succeeded")
+                    logger.debug("[MONTHLY REPORT] Strategy 5 (fix JSON) succeeded")
                 except json.JSONDecodeError as e:
-                    print(f"[MONTHLY REPORT] All JSON strategies failed: {e}")
+                    logger.debug(f"[MONTHLY REPORT] All JSON strategies failed: {e}")
                     analysis = None
 
             # Strategy 6: Try to find and fix missing commas using error position
@@ -587,9 +590,9 @@ Usa flags para tendencias preocupantes a monitorear."""
                             else:
                                 break
                     analysis = json.loads(cleaned)
-                    print("[MONTHLY REPORT] Strategy 6 (positional fix) succeeded")
+                    logger.debug("[MONTHLY REPORT] Strategy 6 (positional fix) succeeded")
                 except (json.JSONDecodeError, Exception) as e:
-                    print(f"[MONTHLY REPORT] Strategy 6 failed: {e}")
+                    logger.debug(f"[MONTHLY REPORT] Strategy 6 failed: {e}")
                     analysis = None
 
             # Strategy 7: Aggressively clean trailing garbage after last closing brace
@@ -619,16 +622,16 @@ Usa flags para tendencias preocupantes a monitorear."""
                     if not cleaned.endswith("}"):
                         cleaned += "}"
                     analysis = json.loads(cleaned)
-                    print("[MONTHLY REPORT] Strategy 7 (aggressive clean) succeeded")
+                    logger.debug("[MONTHLY REPORT] Strategy 7 (aggressive clean) succeeded")
                 except (json.JSONDecodeError, Exception) as e:
-                    print(f"[MONTHLY REPORT] Strategy 7 failed: {e}")
+                    logger.debug(f"[MONTHLY REPORT] Strategy 7 failed: {e}")
                     analysis = None
         except Exception as e:
-            print(f"[MONTHLY REPORT] LLM analysis failed: {e}")
+            logger.warning(f"[MONTHLY REPORT] LLM analysis failed: {e}")
             analysis = None
 
     if analysis is None:
-        print(f"[MONTHLY REPORT] LLM analysis unavailable for user, generating report without it")
+        logger.info("[MONTHLY REPORT] LLM analysis unavailable for user, generating report without it")
         analysis = {
             "summary": "Análisis LLM no disponible.",
             "tip": "",
@@ -698,7 +701,7 @@ def generate_single_report(self, user_id: int, month_str: str):
             .first()
         )
         if not report:
-            print(f"[MONTHLY REPORT] No pending report found for user {user_id}, month {month_str}")
+            logger.warning(f"[MONTHLY REPORT] No pending report found for user {user_id}, month {month_str}")
             return
 
         # Generate report data
@@ -740,10 +743,10 @@ def generate_single_report(self, user_id: int, month_str: str):
         )
         db.add(notification)
         db.commit()
-        print(f"[MONTHLY REPORT] Generated report for user {user_id}, month {month_str}")
+        logger.info(f"[MONTHLY REPORT] Generated report for user {user_id}, month {month_str}")
 
     except Exception as e:
-        print(f"[MONTHLY REPORT] Error generating report for user {user_id}: {e}")
+        logger.error(f"[MONTHLY REPORT] Error generating report for user {user_id}: {e}")
         import traceback
 
         traceback.print_exc()
@@ -852,7 +855,7 @@ def generate_monthly_reports():
                 db.add(notification)
 
             except Exception as e:
-                print(f"[MONTHLY REPORT] Error generating for user {user.id}: {e}")
+                logger.error(f"[MONTHLY REPORT] Error generating for user {user.id}: {e}")
 
                 # Mark as failed
                 try:
@@ -875,10 +878,10 @@ def generate_monthly_reports():
                 continue
 
         db.commit()
-        print(f"[MONTHLY REPORT] Generated {generated_count} reports for {month_str}")
+        logger.info(f"[MONTHLY REPORT] Generated {generated_count} reports for {month_str}")
         record_task_run("generate-monthly-reports", success=True)
     except Exception as e:
-        print(f"[MONTHLY REPORT] Error: {e}")
+        logger.error(f"[MONTHLY REPORT] Error: {e}")
         record_task_run("generate-monthly-reports", success=False)
         db.rollback()
     finally:
