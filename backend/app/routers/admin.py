@@ -705,7 +705,10 @@ def get_platform_logs(
 ):
     query = db.query(PlatformLog)
     if level:
-        query = query.filter(PlatformLog.level == level.upper())
+        # Support comma-separated levels: "WARNING,ERROR"
+        levels = [l.strip().upper() for l in level.split(",") if l.strip()]
+        if levels:
+            query = query.filter(PlatformLog.level.in_(levels))
     if module:
         query = query.filter(PlatformLog.module.ilike(f"%{module}%"))
     if search:

@@ -644,16 +644,23 @@ function LogsTab() {
 // ── Platform Logs Section ──────────────────────────────────
 
 function PlatformLogsSection() {
-  const [levelFilter, setLevelFilter] = useState("");
+  const [levelFilter, setLevelFilter] = useState<string[]>(["INFO", "WARNING", "ERROR", "CRITICAL"]);
   const [moduleFilter, setModuleFilter] = useState("");
   const [searchFilter, setSearchFilter] = useState("");
   const [page, setPage] = useState(1);
+
+  const toggleLevel = (level: string) => {
+    setLevelFilter((prev) =>
+      prev.includes(level) ? prev.filter((l) => l !== level) : [...prev, level]
+    );
+    setPage(1);
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-platform-logs", levelFilter, moduleFilter, searchFilter, page],
     queryFn: () =>
       getPlatformLogs({
-        level: levelFilter || undefined,
+        level: levelFilter.length > 0 ? levelFilter.join(",") : undefined,
         module: moduleFilter || undefined,
         search: searchFilter || undefined,
         page,
@@ -663,29 +670,55 @@ function PlatformLogsSection() {
 
   const logs: PlatformLog[] = data?.logs ?? [];
 
-  const LEVEL_COLORS: Record<string, string> = {
-    WARNING: "text-[var(--gnome-orange-3)]",
+  const LEVEL_COLORS: Record<string, { active: string; inactive: string }> = {
+    INFO: {
+      active: "bg-[var(--gnome-blue-1)] text-[var(--gnome-blue-5)] border-[var(--gnome-blue-3)]",
+      inactive: "bg-transparent text-[var(--text-tertiary)] border-[var(--border-color)]",
+    },
+    WARNING: {
+      active: "bg-[var(--gnome-orange-1)] text-[var(--gnome-orange-5)] border-[var(--gnome-orange-3)]",
+      inactive: "bg-transparent text-[var(--text-tertiary)] border-[var(--border-color)]",
+    },
+    ERROR: {
+      active: "bg-[var(--gnome-red-1)] text-[var(--gnome-red-5)] border-[var(--gnome-red-3)]",
+      inactive: "bg-transparent text-[var(--text-tertiary)] border-[var(--border-color)]",
+    },
+    CRITICAL: {
+      active: "bg-[var(--gnome-red-3)] text-white border-[var(--gnome-red-5)]",
+      inactive: "bg-transparent text-[var(--text-tertiary)] border-[var(--border-color)]",
+    },
+  };
+
+  const ROW_COLORS: Record<string, string> = {
+    INFO: "",
+    WARNING: "",
     ERROR: "text-[var(--gnome-red-3)]",
-    CRITICAL: "bg-[var(--gnome-red-1)] text-[var(--gnome-red-5)]",
+    CRITICAL: "bg-[var(--gnome-red-1)]/30",
   };
 
   return (
     <div className="card p-4">
-      <div className="flex items-center gap-3 mb-3">
+      <div className="flex items-center gap-3 mb-3 flex-wrap">
         <h3 className="text-sm font-semibold text-[var(--text-primary)]">Logs de Plataforma</h3>
-        <select
-          value={levelFilter}
-          onChange={(e) => {
-            setLevelFilter(e.target.value);
-            setPage(1);
-          }}
-          className="input text-xs"
-        >
-          <option value="">Todos los niveles</option>
-          <option value="WARNING">WARNING</option>
-          <option value="ERROR">ERROR</option>
-          <option value="CRITICAL">CRITICAL</option>
-        </select>
+
+        <div className="flex gap-1">
+          {(["INFO", "WARNING", "ERROR", "CRITICAL"] as const).map((level) => {
+            const isActive = levelFilter.includes(level);
+            const colors = LEVEL_COLORS[level];
+            return (
+              <button
+                key={level}
+                onClick={() => toggleLevel(level)}
+                className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${
+                  isActive ? colors.active : colors.inactive
+                }`}
+              >
+                {level}
+              </button>
+            );
+          })}
+        </div>
+
         <input
           type="text"
           placeholder="Módulo..."
@@ -726,15 +759,20 @@ function PlatformLogsSection() {
               {logs.map((log) => (
                 <tr
                   key={log.id}
-                  className={`border-b border-[var(--border-color)] hover:bg-[var(--color-base-alt)] ${
-                    log.level === "CRITICAL" ? "bg-[var(--gnome-red-1)]/50" : ""
-                  }`}
+                  className={`border-b border-[var(--border-color)] hover:bg-[var(--color-base-alt)] ${ROW_COLORS[log.level] || ""}`}
                 >
                   <td className="py-1.5 px-2 text-[var(--text-tertiary)] whitespace-nowrap">
                     {new Date(log.created_at).toLocaleString("es-AR")}
                   </td>
-                  <td className={`py-1.5 px-2 font-medium ${LEVEL_COLORS[log.level] || ""}`}>
-                    {log.level}
+                  <td className="py-1.5 px-2 font-medium">
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                      log.level === "CRITICAL" ? "bg-[var(--gnome-red-3)] text-white" :
+                      log.level === "ERROR" ? "text-[var(--gnome-red-3)]" :
+                      log.level === "WARNING" ? "text-[var(--gnome-orange-3)]" :
+                      "text-[var(--gnome-blue-3)]"
+                    }`}>
+                      {log.level}
+                    </span>
                   </td>
                   <td className="py-1.5 px-2 font-mono">{log.module}</td>
                   <td className="py-1.5 px-2 max-w-lg truncate" title={log.message}>

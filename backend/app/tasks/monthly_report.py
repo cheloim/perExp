@@ -631,7 +631,9 @@ Usa flags para tendencias preocupantes a monitorear."""
             analysis = None
 
     if analysis is None:
-        logger.info("[MONTHLY REPORT] LLM analysis unavailable for user, generating report without it")
+        logger.info(
+            "[MONTHLY REPORT] LLM analysis unavailable for user, generating report without it"
+        )
         analysis = {
             "summary": "Análisis LLM no disponible.",
             "tip": "",
@@ -701,7 +703,9 @@ def generate_single_report(self, user_id: int, month_str: str):
             .first()
         )
         if not report:
-            logger.warning(f"[MONTHLY REPORT] No pending report found for user {user_id}, month {month_str}")
+            logger.warning(
+                f"[MONTHLY REPORT] No pending report found for user {user_id}, month {month_str}"
+            )
             return
 
         # Generate report data
