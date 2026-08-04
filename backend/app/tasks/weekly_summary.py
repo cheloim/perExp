@@ -2,13 +2,16 @@
 
 import logging
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import Category, Expense, ScheduledExpense, Setting, User
 
 logger = logging.getLogger(__name__)
+
+BUE = ZoneInfo("America/Argentina/Buenos_Aires")
 
 MONTHS_ES = {
     1: "Enero",
@@ -28,7 +31,7 @@ MONTHS_ES = {
 
 def _get_week_range():
     """Get the date range for the past week (Monday to Sunday)."""
-    today = date.today()
+    today = datetime.now(BUE).date()
     start = today - timedelta(days=today.weekday() + 7)
     end = start + timedelta(days=6)
     return start, end
@@ -36,7 +39,7 @@ def _get_week_range():
 
 def _get_next_week_range():
     """Get the date range for the upcoming week (Monday to Sunday)."""
-    today = date.today()
+    today = datetime.now(BUE).date()
     days_until_next_monday = (7 - today.weekday()) % 7
     if days_until_next_monday == 0:
         days_until_next_monday = 7
@@ -272,7 +275,6 @@ def send_weekly_reports():
                 total = report_data.get("total_expenses", 0)
                 accumulated = report_data.get("monthly_accumulated", 0)
                 count = report_data.get("transaction_count", 0)
-                MONTHS_ES.get(date.today().month, "")
                 llm = report_data.get("llm_analysis", {})
 
                 caption = (

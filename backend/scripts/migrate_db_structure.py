@@ -611,6 +611,7 @@ def main():
     step9_scheduled_expense_search_columns(engine)
     step10_hmac_migration(engine)
     step11_recurring_source_column(engine)
+    step12_admin_panel(engine)
 
     print("\n" + "=" * 60)
     print("Migration complete!")
@@ -667,6 +668,102 @@ def step11_recurring_source_column(engine):
                 )
             )
             print("  Added users.auto_detected_banner_dismissed_at TIMESTAMP NULL.")
+
+
+def step12_admin_panel(engine):
+    """Add admin fields to users, create impersonation tables, generate admin slug."""
+    import secrets
+
+    with engine.begin() as conn:
+        dialect = engine.dialect.name
+        if dialect != "postgresql":
+            print("  Skipping — only supported on PostgreSQL.")
+            return
+
+        print("[Step 12/12] Adding admin panel support...")
+
+        # 1. Add admin columns to users
+        for col, col_type in [
+            ("is_admin", "BOOLEAN DEFAULT FALSE"),
+            ("is_blocked", "BOOLEAN DEFAULT FALSE"),
+            ("blocked_at", "TIMESTAMP NULL"),
+            ("blocked_reason", "TEXT NULL"),
+        ]:
+            exists = conn.execute(
+                text("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'users' AND column_name = :col
+                )
+            """),
+                {"col": col},
+            ).scalar()
+
+            if exists:
+                print(f"  users.{col} already exists. Skipping.")
+            else:
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {col_type}"))
+                print(f"  Added users.{col} {col_type}.")
+
+        # 2. Set is_admin=True for admin@nikofin.com
+        seed_email = os.getenv("SEED_USER_EMAIL", "admin@nikofin.com")
+        result = conn.execute(
+            text("UPDATE users SET is_admin = TRUE WHERE email = :email AND is_admin = FALSE"),
+            {"email": seed_email},
+        )
+        if result.rowcount > 0:
+            print(f"  Set is_admin=True for {seed_email}.")
+        else:
+            print(f"  {seed_email} already is admin or not found.")
+
+        # 3. Create impersonation_sessions table
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS impersonation_sessions (
+                id SERIAL PRIMARY KEY,
+                admin_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                target_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                status VARCHAR(20) DEFAULT 'pending',
+                token VARCHAR(512),
+                expires_at TIMESTAMP,
+                ended_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """))
+        conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS ix_impersonation_sessions_admin_id
+            ON impersonation_sessions (admin_id)
+        """))
+        print("  Created impersonation_sessions table.")
+
+        # 4. Create impersonation_messages table
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS impersonation_messages (
+                id SERIAL PRIMARY KEY,
+                session_id INTEGER NOT NULL REFERENCES impersonation_sessions(id) ON DELETE CASCADE,
+                sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                message TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """))
+        conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS ix_impersonation_messages_session_id
+            ON impersonation_messages (session_id)
+        """))
+        print("  Created impersonation_messages table.")
+
+        # 5. Generate admin_panel_slug if not exists
+        existing = conn.execute(
+            text("SELECT value FROM settings WHERE key = 'admin_panel_slug'")
+        ).scalar()
+        if existing:
+            print(f"  admin_panel_slug already exists: {existing}")
+        else:
+            slug = secrets.token_urlsafe(24)[:32]
+            conn.execute(
+                text("INSERT INTO settings (key, value) VALUES ('admin_panel_slug', :slug)"),
+                {"slug": slug},
+            )
+            print(f"  Generated admin_panel_slug: {slug}")
 
 
 if __name__ == "__main__":

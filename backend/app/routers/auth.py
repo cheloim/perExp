@@ -109,6 +109,13 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
             headers={"Retry-After": str(retry_after)},
         )
 
+    # Check admin block
+    if user.is_blocked:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cuenta bloqueada por un administrador",
+        )
+
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuario inactivo")
 

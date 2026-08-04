@@ -93,6 +93,8 @@ export interface User {
   mfa_enabled?: boolean;
   email_verified?: boolean;
   onboarding_completed?: boolean;
+  is_admin?: boolean;
+  is_blocked?: boolean;
 }
 
 export interface Category {
@@ -517,4 +519,120 @@ export interface UploadProgress {
   abortController?: AbortController; // Para cancelar upload
   progress?: number; // 0-100 for uploading
   startedAt?: number; // timestamp
+}
+
+// ── Admin types ──────────────────────────────────────────────
+
+export interface AdminUser {
+  id: number;
+  full_name: string;
+  email: string;
+  is_active: boolean;
+  is_admin: boolean;
+  is_blocked: boolean;
+  blocked_at: string | null;
+  blocked_reason: string | null;
+  created_at: string;
+  telegram_connected: boolean;
+  mfa_enabled: boolean;
+  email_verified: boolean;
+  expense_count: number;
+  card_count: number;
+  account_count: number;
+  recurring_count: number;
+  is_locked: boolean;
+  lock_ttl: number;
+}
+
+export interface AdminUserDetail {
+  user: {
+    id: number;
+    full_name: string;
+    email: string;
+    is_active: boolean;
+    is_admin: boolean;
+    is_blocked: boolean;
+    blocked_at: string | null;
+    blocked_reason: string | null;
+    created_at: string;
+    telegram_connected: boolean;
+    mfa_enabled: boolean;
+    email_verified: boolean;
+    provider: string | null;
+    onboarding_completed: boolean;
+  };
+  stats: {
+    expense_count: number;
+    card_count: number;
+    account_count: number;
+    recurring_count: number;
+    report_count: number;
+  };
+  security: {
+    is_locked: boolean;
+    lock_ttl: number;
+  };
+  recent_audit_logs: AuditLogEntry[];
+}
+
+export interface AuditLogEntry {
+  id: number;
+  user_id: number | null;
+  user_email: string | null;
+  action: string;
+  ip_address: string | null;
+  user_agent: string | null;
+  details: string | null;
+  created_at: string;
+}
+
+export interface ImpersonationSession {
+  id: number;
+  admin_id: number;
+  admin_name: string;
+  target_user_id: number;
+  target_user_name: string;
+  status: "pending" | "active" | "ended" | "rejected" | "expired";
+  token: string | null;
+  expires_at: string | null;
+  ended_at: string | null;
+  created_at: string;
+}
+
+export interface ImpersonationMessage {
+  id: number;
+  session_id: number;
+  sender_id: number;
+  sender_name: string;
+  message: string;
+  created_at: string;
+}
+
+export interface SystemHealth {
+  redis: { connected: boolean; latency_ms: number };
+  database: { connected: boolean; users_count: number };
+  celery: { workers: string[]; worker_count: number };
+}
+
+export interface TaskStatus {
+  name: string;
+  last_run: string;
+  last_status: string;
+}
+
+export interface AdminSetting {
+  key: string;
+  value: string;
+}
+
+export interface LoginErrorsResponse {
+  by_user: { user_id: number; email: string; count: number }[];
+  by_ip: { ip_address: string; count: number }[];
+  blocked_accounts: {
+    id: number;
+    email: string;
+    blocked_at: string | null;
+    blocked_reason: string | null;
+  }[];
+  redis_lockouts: { user_id: number; email: string; ttl_seconds: number }[];
 }

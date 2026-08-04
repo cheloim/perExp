@@ -121,3 +121,95 @@ def send_report_failure_email(user_id: int, month_str: str, error: str) -> bool:
     if result:
         logger.info(f"Report failure email sent for user {user_id}, month {month_str}")
     return result
+
+
+def send_impersonation_transcript(
+    admin_email: str,
+    target_email: str,
+    session_start: str,
+    session_end: str,
+    actions: list[dict],
+    chat: list[dict],
+) -> bool:
+    actions_html = ""
+    for a in actions:
+        actions_html += f"""
+        <tr>
+          <td style="padding:6px;border:1px solid #e5e7eb;font-size:12px;">{a.get("created_at", "")}</td>
+          <td style="padding:6px;border:1px solid #e5e7eb;font-size:12px;">{a.get("action", "")}</td>
+          <td style="padding:6px;border:1px solid #e5e7eb;font-size:12px;">{a.get("ip_address", "")}</td>
+          <td style="padding:6px;border:1px solid #e5e7eb;font-size:12px;">{a.get("details", "") or ""}</td>
+        </tr>"""
+
+    chat_html = ""
+    for c in chat:
+        chat_html += f"""
+        <tr>
+          <td style="padding:6px;border:1px solid #e5e7eb;font-size:12px;">{c.get("created_at", "")}</td>
+          <td style="padding:6px;border:1px solid #e5e7eb;font-size:12px;font-weight:600;">{c.get("sender", "")}</td>
+          <td style="padding:6px;border:1px solid #e5e7eb;font-size:12px;">{c.get("message", "")}</td>
+        </tr>"""
+
+    html = f"""
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:600px;margin:0 auto;padding:32px;">
+      <h1 style="font-size:20px;font-weight:600;color:#1a1a1a;margin-bottom:8px;">Resumen de sesión de soporte</h1>
+      <p style="color:#666;font-size:14px;margin-bottom:24px;">
+        Se finalizó una sesión de acceso administrativo.
+      </p>
+      <div style="background:#f8f9fa;border-radius:8px;padding:16px;margin-bottom:24px;">
+        <p style="margin:4px 0;font-size:13px;color:#333;"><strong>Admin:</strong> {admin_email}</p>
+        <p style="margin:4px 0;font-size:13px;color:#333;"><strong>Usuario:</strong> {
+        target_email
+    }</p>
+        <p style="margin:4px 0;font-size:13px;color:#333;"><strong>Inicio:</strong> {
+        session_start
+    }</p>
+        <p style="margin:4px 0;font-size:13px;color:#333;"><strong>Fin:</strong> {session_end}</p>
+      </div>
+
+      <h2 style="font-size:16px;font-weight:600;color:#1a1a1a;margin-bottom:8px;">Acciones realizadas</h2>
+      {
+        "<p style='color:#999;font-size:13px;'>Sin acciones registradas.</p>"
+        if not actions
+        else f'''
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+        <thead>
+          <tr style="background:#f1f5f9;">
+            <th style="padding:6px;border:1px solid #e5e7eb;text-align:left;font-size:11px;">Fecha</th>
+            <th style="padding:6px;border:1px solid #e5e7eb;text-align:left;font-size:11px;">Acción</th>
+            <th style="padding:6px;border:1px solid #e5e7eb;text-align:left;font-size:11px;">IP</th>
+            <th style="padding:6px;border:1px solid #e5e7eb;text-align:left;font-size:11px;">Detalles</th>
+          </tr>
+        </thead>
+        <tbody>{actions_html}</tbody>
+      </table>'''
+    }
+
+      <h2 style="font-size:16px;font-weight:600;color:#1a1a1a;margin-bottom:8px;">Chat</h2>
+      {
+        "<p style='color:#999;font-size:13px;'>Sin mensajes.</p>"
+        if not chat
+        else f'''
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:#f1f5f9;">
+            <th style="padding:6px;border:1px solid #e5e7eb;text-align:left;font-size:11px;">Hora</th>
+            <th style="padding:6px;border:1px solid #e5e7eb;text-align:left;font-size:11px;">Remitente</th>
+            <th style="padding:6px;border:1px solid #e5e7eb;text-align:left;font-size:11px;">Mensaje</th>
+          </tr>
+        </thead>
+        <tbody>{chat_html}</tbody>
+      </table>'''
+    }
+
+      <p style="color:#999;font-size:11px;margin-top:32px;">
+        Este email se envió automáticamente al finalizar la sesión de soporte.
+      </p>
+    </div>
+    """
+
+    subject = f"[Oikonomia] Resumen sesión de soporte — {target_email}"
+    sent = _send(subject, html, admin_email)
+    if target_email and target_email != admin_email:
+        _send(subject, html, target_email)
+    return sent

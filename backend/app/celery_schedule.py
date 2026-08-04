@@ -52,4 +52,8 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.check_upcoming_recurring.check_upcoming_recurring",
         "schedule": _cron_from_env("SCHEDULE_CHECK_RECURRING", 8, 0),
     },
+    "cleanup-audit-logs-daily": {
+        "task": "app.tasks.cleanup_audit_logs.cleanup_old_records",
+        "schedule": _cron_from_env("SCHEDULE_CLEANUP_AUDIT", 4, 0),
+    },
 }

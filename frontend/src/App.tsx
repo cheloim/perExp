@@ -11,9 +11,12 @@ import { UploadProgressProvider } from "./context/UploadProgressContext";
 import { NotificationsProvider, useNotifications } from "./context/NotificationsContext";
 import { FamilyGroupProvider } from "./context/FamilyGroupContext";
 import { sidebarIcons } from "./components/SidebarIcons";
-import { getStoredToken } from "./api/client";
+import { getStoredToken, getMe, getAdminSlug } from "./api/client";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useUndoToast } from "./hooks/useUndoToast";
+import ImpersonationBanner from "./components/ImpersonationBanner";
+import ReAuthModal from "./components/ReAuthModal";
+import { useQuery } from "@tanstack/react-query";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const AccountsPage = lazy(() => import("./pages/AccountsPage"));
@@ -42,6 +45,7 @@ const ChangesPage = lazy(() => import("./pages/ChangesPage"));
 const NovedadesPage = lazy(() => import("./pages/NovedadesPage"));
 const OnboardingWalkthrough = lazy(() => import("./components/OnboardingWalkthrough"));
 const WhatsNewModal = lazy(() => import("./components/WhatsNewModal"));
+const AdminPage = lazy(() => import("./pages/AdminPage"));
 
 const TABS = [
   {
@@ -250,7 +254,46 @@ function MainLayout() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [showMoreNav, setShowMoreNav] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [showReAuth, setShowReAuth] = useState(false);
   const { ToastContainer } = useUndoToast();
+
+  // Get current user for admin check
+  const { data: currentUser } = useQuery({
+    queryKey: ["me"],
+    queryFn: getMe,
+    staleTime: 60000,
+  });
+
+  // Get admin slug
+  const { data: slugData } = useQuery({
+    queryKey: ["admin-slug"],
+    queryFn: getAdminSlug,
+    enabled: !!currentUser?.is_admin,
+    staleTime: 300000,
+  });
+
+  // Impersonation state
+  const [impersonationSession, setImpersonationSession] = useState<{
+    sessionId: number;
+    targetUserName: string;
+    expiresAt: string;
+  } | null>(null);
+
+  // Check for active impersonation on mount
+  useEffect(() => {
+    const sessionId = sessionStorage.getItem("impersonation_session_id");
+    if (sessionId) {
+      // We have an active impersonation - the banner will show
+      // The session details will be fetched by the banner component
+    }
+  }, []);
+
+  // Listen for admin reauth events
+  useEffect(() => {
+    const handler = () => setShowReAuth(true);
+    window.addEventListener("admin-reauth-required", handler);
+    return () => window.removeEventListener("admin-reauth-required", handler);
+  }, []);
 
   // Check if we should show What's New modal (only on /)
   // Shows every time on main page unless user opted out entirely
@@ -435,6 +478,44 @@ function MainLayout() {
 
             {/* Bottom actions */}
             <div className="px-2 py-3 border-t border-[var(--border-color)] space-y-0.5">
+              {/* Admin button - only visible for admin users */}
+              {currentUser?.is_admin && slugData?.slug && (
+                <NavLink
+                  to={`/x/${slugData.slug}`}
+                  title="Admin"
+                  className={({ isActive }) => `
+                    group/nav relative flex items-center gap-3 px-2.5 py-2 rounded-md text-sm font-medium transition-all duration-150
+                    ${
+                      isActive
+                        ? "bg-[var(--color-base-alt)] text-[var(--color-sidebar-text-active)]"
+                        : "text-[var(--color-sidebar-icon)] hover:bg-[var(--color-base-alt)] hover:text-[var(--text-primary)]"
+                    }
+                  `}
+                >
+                  {({ isActive }) => (
+                    <>
+                      <span
+                        className={`absolute left-0 top-1/2 -translate-y-1/2 h-6 w-0.5 rounded-full bg-sidebar-indicator transition-opacity duration-150 ${
+                          isActive ? "opacity-100" : "opacity-0"
+                        } group-hover/nav:opacity-30`}
+                      />
+                      <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
+                        <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                          <path
+                            fillRule="evenodd"
+                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </span>
+                      <span className="whitespace-nowrap overflow-hidden w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300">
+                        Admin
+                      </span>
+                    </>
+                  )}
+                </NavLink>
+              )}
+
               {/* Bell */}
               <div className="relative">
                 <button
@@ -628,6 +709,14 @@ function MainLayout() {
                           </RequireAuth>
                         }
                       />
+                      <Route
+                        path="/x/:slug"
+                        element={
+                          <RequireAuth>
+                            <AdminPage />
+                          </RequireAuth>
+                        }
+                      />
                       <Route path="/guide" element={<GuidePage />} />
                       <Route path="/guide/budgeting" element={<GuideBudgetingPage />} />
                       <Route path="/guide/smart-import" element={<GuideSmartImportPage />} />
@@ -759,6 +848,27 @@ function MainLayout() {
 
           <UserPanel open={userPanelOpen} onClose={() => setUserPanelOpen(false)} />
           {notifOpen && <NotificationsPanel onClose={() => setNotifOpen(false)} />}
+
+          {/* Impersonation Banner */}
+          {impersonationSession && (
+            <ImpersonationBanner
+              sessionId={impersonationSession.sessionId}
+              targetUserName={impersonationSession.targetUserName}
+              expiresAt={impersonationSession.expiresAt}
+              onEnd={() => setImpersonationSession(null)}
+            />
+          )}
+
+          {/* ReAuth Modal */}
+          {showReAuth && (
+            <ReAuthModal
+              onAuthenticated={() => setShowReAuth(false)}
+              onCancel={() => {
+                setShowReAuth(false);
+                window.location.href = "/";
+              }}
+            />
+          )}
         </div>
       </FamilyGroupProvider>
       {/* Onboarding - rendered at root to avoid overflow clipping */}

@@ -131,8 +131,6 @@ def delete_all_read(current_user: User = Depends(get_current_user), db: Session 
 def accept_invitation(
     notif_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
-    from app.routers.groups import _get_user_group
-
     notif = (
         db.query(Notification)
         .filter(Notification.id == notif_id, Notification.user_id == current_user.id)
@@ -140,33 +138,73 @@ def accept_invitation(
     )
     if not notif:
         raise HTTPException(404, "Notificación no encontrada")
-    if notif.type != "group_invitation":
+
+    if notif.type == "group_invitation":
+        from app.routers.groups import _get_user_group
+
+        data = json.loads(notif.data or "{}")
+        member_id = data.get("member_id")
+        if not member_id:
+            raise HTTPException(400, "Datos de invitación inválidos")
+
+        member = (
+            db.query(GroupMember)
+            .filter(GroupMember.id == member_id, GroupMember.user_id == current_user.id)
+            .first()
+        )
+        if not member:
+            raise HTTPException(404, "Invitación no encontrada")
+        if member.status != "pending":
+            raise HTTPException(400, "La invitación ya fue procesada")
+
+        # Check user hasn't joined another group since invitation
+        existing = _get_user_group(current_user.id, db)
+        if existing and existing.group_id != member.group_id:
+            raise HTTPException(400, "Ya perteneces a otro grupo familiar")
+
+        member.status = "accepted"
+        notif.read = True
+        db.commit()
+        return {"ok": True}
+
+    elif notif.type == "impersonation_request":
+        from app.models import ImpersonationSession
+
+        data = json.loads(notif.data or "{}")
+        session_id = data.get("session_id")
+        if not session_id:
+            raise HTTPException(400, "Datos de solicitud inválidos")
+
+        session = db.get(ImpersonationSession, session_id)
+        if not session:
+            raise HTTPException(404, "Sesión no encontrada")
+        if session.status != "pending":
+            raise HTTPException(400, "La solicitud ya fue procesada")
+
+        # Activate session
+        from datetime import UTC, timedelta
+
+        from app.services.auth import create_access_token
+
+        session.status = "active"
+        session.token = create_access_token(current_user.id, expires_minutes=30)
+        session.expires_at = datetime.now(UTC) + timedelta(minutes=30)
+        notif.read = True
+
+        # Notify admin that impersonation was accepted
+        admin_notif = Notification(
+            user_id=session.admin_id,
+            type="impersonation_accepted",
+            title="Acceso aceptado",
+            body=f"{current_user.full_name or current_user.email} aceptó la solicitud de acceso.",
+            data=json.dumps({"session_id": session_id, "token": session.token}),
+        )
+        db.add(admin_notif)
+        db.commit()
+        return {"ok": True, "token": session.token, "session_id": session_id}
+
+    else:
         raise HTTPException(400, "Tipo de notificación inválido")
-
-    data = json.loads(notif.data or "{}")
-    member_id = data.get("member_id")
-    if not member_id:
-        raise HTTPException(400, "Datos de invitación inválidos")
-
-    member = (
-        db.query(GroupMember)
-        .filter(GroupMember.id == member_id, GroupMember.user_id == current_user.id)
-        .first()
-    )
-    if not member:
-        raise HTTPException(404, "Invitación no encontrada")
-    if member.status != "pending":
-        raise HTTPException(400, "La invitación ya fue procesada")
-
-    # Check user hasn't joined another group since invitation
-    existing = _get_user_group(current_user.id, db)
-    if existing and existing.group_id != member.group_id:
-        raise HTTPException(400, "Ya perteneces a otro grupo familiar")
-
-    member.status = "accepted"
-    notif.read = True
-    db.commit()
-    return {"ok": True}
 
 
 @router.post("/{notif_id}/reject", status_code=200)
@@ -180,23 +218,50 @@ def reject_invitation(
     )
     if not notif:
         raise HTTPException(404, "Notificación no encontrada")
-    if notif.type != "group_invitation":
+
+    if notif.type == "group_invitation":
+        data = json.loads(notif.data or "{}")
+        member_id = data.get("member_id")
+        if member_id:
+            member = (
+                db.query(GroupMember)
+                .filter(GroupMember.id == member_id, GroupMember.user_id == current_user.id)
+                .first()
+            )
+            if member and member.status == "pending":
+                db.delete(member)
+
+        notif.read = True
+        db.commit()
+        return {"ok": True}
+
+    elif notif.type == "impersonation_request":
+        from app.models import ImpersonationSession
+
+        data = json.loads(notif.data or "{}")
+        session_id = data.get("session_id")
+        if session_id:
+            session = db.get(ImpersonationSession, session_id)
+            if session and session.status == "pending":
+                session.status = "rejected"
+                session.ended_at = datetime.utcnow()
+
+                # Notify admin
+                admin_notif = Notification(
+                    user_id=session.admin_id,
+                    type="impersonation_rejected",
+                    title="Acceso rechazado",
+                    body=f"{current_user.full_name or current_user.email} rechazó la solicitud de acceso.",
+                    data=json.dumps({"session_id": session_id}),
+                )
+                db.add(admin_notif)
+
+        notif.read = True
+        db.commit()
+        return {"ok": True}
+
+    else:
         raise HTTPException(400, "Tipo de notificación inválido")
-
-    data = json.loads(notif.data or "{}")
-    member_id = data.get("member_id")
-    if member_id:
-        member = (
-            db.query(GroupMember)
-            .filter(GroupMember.id == member_id, GroupMember.user_id == current_user.id)
-            .first()
-        )
-        if member and member.status == "pending":
-            db.delete(member)
-
-    notif.read = True
-    db.commit()
-    return {"ok": True}
 
 
 @router.delete("/{notification_id}")

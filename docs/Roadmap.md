@@ -32,6 +32,7 @@
 | 26 | Field-level encryption | ✅ Done | High | #141, #149 | - | Encrypt sensitive user data (PII, financial) at rest using Fernet (AES-128-CBC). Protects against database breaches. Includes HMAC for duplicate detection, Account.name encryption, dry-run migration, verification scripts, CI/CD integration with automatic rollback. Search columns removed, replaced with application-level filtering |
 | 27 | Email validation | ✅ Done | Low | #134 | - | Validate email format and domain existence. Block fake domains (test.com, mailinator.com, etc.). DNS MX record validation. Frontend + backend validation |
 | 28 | Merchant preference learning | ✅ Done | Medium | #137 | - | Track user category preferences per merchant. Prioritize user preferences over LLM suggestions. Include user history in LLM prompt |
+| 29 | Admin panel | ✅ Done | High | #151 | - | Full admin panel at /x/{slug} (random UUID, SEO protected). User management, audit logs, monthly reports, system health. Impersonation with chat widget + transcript email. Block/unblock users, toggle admin, bulk notify. Cleanup tasks (90d logs, 45d messages). Re-auth modal on JWT expiry. Weekly reports timezone fix |
 
 ## Backlog Details
 

@@ -11,7 +11,7 @@ load_dotenv(os.path.join(BACKEND_DIR, ".env"))
 
 logging.basicConfig(level=logging.INFO)
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 import app.models  # noqa: F401 — runs migrations on import
@@ -19,6 +19,7 @@ from app.database import Base, SessionLocal, engine
 from app.models import Category, User
 from app.routers import (
     accounts,
+    admin,
     analysis,
     auth,
     budgets,
@@ -126,8 +127,17 @@ app.add_middleware(
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Authorization", "Content-Type", "X-ImpersonationToken"],
 )
+
+
+@app.middleware("http")
+async def admin_seo_headers(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/x/"):
+        response.headers["X-Robots-Tag"] = "noindex"
+        response.headers["Cache-Control"] = "no-store"
+    return response
 
 app.include_router(auth.router)
 app.include_router(mfa.router)
@@ -146,3 +156,4 @@ app.include_router(scheduled_expenses.router)
 app.include_router(budgets.router)
 app.include_router(suggestions.router)
 app.include_router(recurring.router)
+app.include_router(admin.router)

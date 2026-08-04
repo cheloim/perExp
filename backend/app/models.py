@@ -49,6 +49,11 @@ class User(Base):
     onboarding_completed = Column(Boolean, default=False)
     # Auto-detect recurring banner
     auto_detected_banner_dismissed_at = Column(DateTime, nullable=True)
+    # Admin
+    is_admin = Column(Boolean, default=False)
+    is_blocked = Column(Boolean, default=False)
+    blocked_at = Column(DateTime, nullable=True)
+    blocked_reason = Column(Text, nullable=True)
 
 
 class Group(Base):
@@ -447,3 +452,39 @@ class RecurringExpense(Base):
     category = relationship("Category")
     card = relationship("Card")
     account = relationship("Account")
+
+
+class ImpersonationSession(Base):
+    __tablename__ = "impersonation_sessions"
+    __table_args__ = (Index("ix_impersonation_sessions_admin_id", "admin_id"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    admin_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    target_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    status = Column(String(20), default="pending")  # pending | active | ended | rejected | expired
+    token = Column(String(512), nullable=True)
+    expires_at = Column(DateTime, nullable=True)
+    ended_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    admin = relationship("User", foreign_keys=[admin_id])
+    target_user = relationship("User", foreign_keys=[target_user_id])
+    messages = relationship(
+        "ImpersonationMessage", back_populates="session", cascade="all, delete-orphan"
+    )
+
+
+class ImpersonationMessage(Base):
+    __tablename__ = "impersonation_messages"
+    __table_args__ = (Index("ix_impersonation_messages_session_id", "session_id"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(
+        Integer, ForeignKey("impersonation_sessions.id", ondelete="CASCADE"), nullable=False
+    )
+    sender_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    message = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    session = relationship("ImpersonationSession", back_populates="messages")
+    sender = relationship("User", foreign_keys=[sender_id])

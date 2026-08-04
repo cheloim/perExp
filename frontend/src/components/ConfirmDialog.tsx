@@ -1,9 +1,10 @@
+import { ReactNode } from "react";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 
 interface ConfirmDialogProps {
   isOpen: boolean;
   title: string;
-  message: string;
+  message: string | ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   onConfirm: () => void;

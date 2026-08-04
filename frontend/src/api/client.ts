@@ -47,6 +47,9 @@ const api = axios.create({ baseURL: "/api" });
 api.interceptors.request.use((config) => {
   const token = getStoredToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  // Impersonation token for admin sessions
+  const impToken = sessionStorage.getItem("impersonation_token");
+  if (impToken) config.headers["X-ImpersonationToken"] = impToken;
   return config;
 });
 
@@ -54,6 +57,12 @@ api.interceptors.response.use(
   (r) => r,
   (error) => {
     if (error.response?.status === 401) {
+      // Don't redirect if on admin page — let ReAuthModal handle it
+      const isAdminPage = window.location.pathname.startsWith("/x/");
+      if (isAdminPage) {
+        window.dispatchEvent(new CustomEvent("admin-reauth-required"));
+        return Promise.reject(error);
+      }
       clearToken();
       const detail = error.response?.data?.detail;
       const msg =
@@ -911,3 +920,81 @@ export async function confirmImportJob(
 export async function deleteImportJob(jobId: number): Promise<void> {
   await api.delete(`/import-jobs/${jobId}`);
 }
+
+// ── Admin API ──────────────────────────────────────────────
+
+export const getAdminSlug = () =>
+  api.get<{ slug: string }>("/admin/slug").then((r) => r.data);
+
+export const getAdminUsers = (params?: {
+  search?: string;
+  page?: number;
+  per_page?: number;
+}) => api.get("/admin/users", { params }).then((r) => r.data);
+
+export const getAdminUser = (id: number) =>
+  api.get(`/admin/users/${id}`).then((r) => r.data);
+
+export const blockUser = (id: number, reason: string) =>
+  api.put(`/admin/users/${id}/block`, { reason }).then((r) => r.data);
+
+export const unblockUser = (id: number) =>
+  api.put(`/admin/users/${id}/unblock`).then((r) => r.data);
+
+export const toggleAdmin = (id: number) =>
+  api.put(`/admin/users/${id}/admin`).then((r) => r.data);
+
+export const getAuditLogs = (params?: {
+  user_id?: number;
+  action?: string;
+  page?: number;
+  per_page?: number;
+}) => api.get("/admin/audit-logs", { params }).then((r) => r.data);
+
+export const getLoginErrors = (params?: { days?: number }) =>
+  api.get("/admin/login-errors", { params }).then((r) => r.data);
+
+export const getAdminReports = (params?: {
+  user_id?: number;
+  month?: string;
+  status?: string;
+}) => api.get("/admin/reports", { params }).then((r) => r.data);
+
+export const deleteAdminReport = (id: number) =>
+  api.delete(`/admin/reports/${id}`).then((r) => r.data);
+
+export const deleteAdminReportByMonth = (userId: number, month: string) =>
+  api.delete(`/admin/reports/user/${userId}/month/${month}`).then((r) => r.data);
+
+export const getSystemHealth = () =>
+  api.get("/admin/system/health").then((r) => r.data);
+
+export const getTaskStatus = () =>
+  api.get("/admin/system/tasks").then((r) => r.data);
+
+export const getAdminSettings = () =>
+  api.get("/admin/system/settings").then((r) => r.data);
+
+export const updateAdminSetting = (key: string, value: string) =>
+  api.put("/admin/system/settings", { key, value }).then((r) => r.data);
+
+export const requestImpersonation = (userId: number) =>
+  api.post(`/admin/impersonate/request/${userId}`).then((r) => r.data);
+
+export const getImpersonationMessages = (sessionId: number) =>
+  api.get(`/admin/impersonate/${sessionId}/messages`).then((r) => r.data);
+
+export const sendImpersonationMessage = (sessionId: number, message: string) =>
+  api.post(`/admin/impersonate/${sessionId}/messages`, { message }).then((r) => r.data);
+
+export const endImpersonation = (sessionId: number) =>
+  api.post(`/admin/impersonate/end/${sessionId}`).then((r) => r.data);
+
+export const bulkNotify = (userIds: number[], title: string, body: string) =>
+  api.post("/admin/bulk/notify", { user_ids: userIds, title, body }).then((r) => r.data);
+
+export const cleanupAuditLogs = () =>
+  api.post("/admin/cleanup/audit-logs").then((r) => r.data);
+
+export const sendNotificationToUser = (userId: number, title: string, body: string) =>
+  api.post(`/admin/users/${userId}/send-notification`, { title, body }).then((r) => r.data);

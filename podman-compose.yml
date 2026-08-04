@@ -151,6 +151,7 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@nikofin.com}
       SMTP_FROM: ${SMTP_FROM:-NikoFin}
       SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-noreply@resend.dev}
+      TZ: America/Argentina/Buenos_Aires
     volumes:
       - ./backend/app:/app/app:z
       - ./backend/main.py:/app/main.py:z
