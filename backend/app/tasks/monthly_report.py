@@ -787,22 +787,14 @@ def generate_single_report(self, user_id: int, month_str: str):
 @celery_app.task(name="app.tasks.monthly_report.generate_monthly_reports")
 def generate_monthly_reports():
     """
-    Generate monthly reports for all users.
-    Runs on the last day of each month at 23:59 UTC-3.
-    Only executes on the actual last day (checks if tomorrow is the 1st).
+    Generate monthly reports for all users for LAST month.
+    Runs on the 1st of each month at 03:00 UTC.
     """
-    from datetime import timedelta
+    from app.services.date_utils import add_months
 
     today = date.today()
-    tomorrow = today + timedelta(days=1)
-
-    # Only execute on the actual last day of the month
-    if tomorrow.day != 1:
-        print(f"[MONTHLY REPORT] Not last day of month ({today}), skipping")
-        return
-
-    # Generate for the CURRENT month (the month that's ending)
-    month_str = today.strftime("%Y-%m")
+    prev_month = add_months(today.replace(day=1), -1)
+    month_str = prev_month.strftime("%Y-%m")
 
     db = SessionLocal()
     try:

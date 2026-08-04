@@ -500,6 +500,88 @@ def delete_report_by_user_month(
     return {"ok": True}
 
 
+class GenerateReportRequest(BaseModel):
+    user_id: int
+    month: str  # YYYY-MM format
+
+
+@router.post("/reports/generate")
+def generate_report(
+    body: GenerateReportRequest,
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Generate a monthly report for a specific user and month."""
+    from app.tasks.monthly_report import generate_single_report
+
+    user = db.get(User, body.user_id)
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    # Check if report already exists
+    existing = (
+        db.query(MonthlyReport)
+        .filter(MonthlyReport.user_id == body.user_id, MonthlyReport.month == body.month)
+        .first()
+    )
+    if existing:
+        if existing.status == "READY":
+            raise HTTPException(400, "Report already exists and is ready")
+        # If failed or pending, delete and regenerate
+        db.delete(existing)
+        db.commit()
+
+    # Create pending report
+    report = MonthlyReport(
+        user_id=body.user_id,
+        month=body.month,
+        status="PENDING",
+    )
+    db.add(report)
+    db.commit()
+    db.refresh(report)
+
+    # Enqueue generation task
+    generate_single_report.delay(report.id)
+
+    return {"ok": True, "report_id": report.id, "status": "PENDING"}
+
+
+@router.post("/reports/generate-all")
+def generate_all_reports(
+    month: str,
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Generate monthly reports for ALL active users for a given month."""
+    from app.tasks.monthly_report import generate_single_report
+
+    users = db.query(User).filter(User.is_active == True).all()  # noqa: E712
+    created = 0
+
+    for user in users:
+        existing = (
+            db.query(MonthlyReport)
+            .filter(MonthlyReport.user_id == user.id, MonthlyReport.month == month)
+            .first()
+        )
+        if existing:
+            continue
+
+        report = MonthlyReport(
+            user_id=user.id,
+            month=month,
+            status="PENDING",
+        )
+        db.add(report)
+        db.flush()
+        generate_single_report.delay(report.id)
+        created += 1
+
+    db.commit()
+    return {"ok": True, "created": created, "month": month}
+
+
 # ──────────────────────────────────────────────
 # System
 # ──────────────────────────────────────────────

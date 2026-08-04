@@ -10,6 +10,7 @@ import {
   getLoginErrors,
   getAdminReports,
   deleteAdminReport,
+  generateAllReports,
   getSystemHealth,
   getTaskStatus,
   getAdminSettings,
@@ -781,6 +782,8 @@ function ReportsTab() {
   const [userFilter, setUserFilter] = useState("");
   const [monthFilter, setMonthFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [generateMonth, setGenerateMonth] = useState("");
+  const [generating, setGenerating] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-reports", userFilter, monthFilter, statusFilter],
@@ -796,6 +799,20 @@ function ReportsTab() {
     mutationFn: (id: number) => deleteAdminReport(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-reports"] }),
   });
+
+  const handleGenerateAll = async () => {
+    if (!generateMonth) return;
+    setGenerating(true);
+    try {
+      const result = await generateAllReports(generateMonth);
+      alert(`Reportes encolados: ${result.created} para ${generateMonth}`);
+      queryClient.invalidateQueries({ queryKey: ["admin-reports"] });
+    } catch (e: any) {
+      alert(`Error: ${e.response?.data?.detail || e.message}`);
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const reports = data?.reports ?? [];
 
@@ -825,6 +842,23 @@ function ReportsTab() {
           <option value="READY">Listo</option>
           <option value="FAILED">Error</option>
         </select>
+
+        <div className="ml-auto flex items-center gap-2">
+          <input
+            type="month"
+            value={generateMonth}
+            onChange={(e) => setGenerateMonth(e.target.value)}
+            className="input text-xs"
+            placeholder="Mes a generar"
+          />
+          <button
+            onClick={handleGenerateAll}
+            disabled={!generateMonth || generating}
+            className="gnome-btn-primary-round text-xs"
+          >
+            {generating ? "Generando..." : "Generar para todos"}
+          </button>
+        </div>
       </div>
 
       {isLoading ? (

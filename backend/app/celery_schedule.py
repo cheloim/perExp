@@ -38,7 +38,7 @@ celery_app.conf.beat_schedule = {
     },
     "generate-monthly-reports": {
         "task": "app.tasks.monthly_report.generate_monthly_reports",
-        "schedule": _cron_from_env("SCHEDULE_MONTHLY_REPORTS", 23, 59, day_of_month="28-31"),
+        "schedule": _cron_from_env("SCHEDULE_MONTHLY_REPORTS", 3, 0, day_of_month="1"),
     },
     "suggest-uncategorized-categories-daily": {
         "task": "app.tasks.suggest_uncategorized.suggest_uncategorized_categories",

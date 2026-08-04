@@ -966,6 +966,12 @@ export const deleteAdminReport = (id: number) =>
 export const deleteAdminReportByMonth = (userId: number, month: string) =>
   api.delete(`/admin/reports/user/${userId}/month/${month}`).then((r) => r.data);
 
+export const generateAdminReport = (userId: number, month: string) =>
+  api.post("/admin/reports/generate", { user_id: userId, month }).then((r) => r.data);
+
+export const generateAllReports = (month: string) =>
+  api.post(`/admin/reports/generate-all?month=${month}`).then((r) => r.data);
+
 export const getSystemHealth = () =>
   api.get("/admin/system/health").then((r) => r.data);
 
