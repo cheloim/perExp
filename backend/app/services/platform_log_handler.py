@@ -9,7 +9,7 @@ class PlatformLogHandler(logging.Handler):
     """Buffers WARNING+ log records and flushes to platform_logs table every 5 seconds."""
 
     def __init__(self, flush_interval: float = 5.0):
-        super().__init__(level=logging.WARNING)
+        super().__init__(level=logging.INFO)
         self._buffer: list[dict] = []
         self._lock = threading.Lock()
         self._flush_interval = flush_interval
@@ -18,7 +18,7 @@ class PlatformLogHandler(logging.Handler):
         self._flush_thread.start()
 
     def emit(self, record: logging.LogRecord):
-        if record.levelno < logging.WARNING:
+        if record.levelno < logging.INFO:
             return
         try:
             details = None
