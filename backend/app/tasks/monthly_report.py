@@ -628,9 +628,14 @@ Usa flags para tendencias preocupantes a monitorear."""
             analysis = None
 
     if analysis is None:
-        raise ValueError(
-            "No se pudo generar el analisis LLM. Verifique la configuracion de la API key."
-        )
+        print(f"[MONTHLY REPORT] LLM analysis unavailable for user, generating report without it")
+        analysis = {
+            "summary": "Análisis LLM no disponible.",
+            "tip": "",
+            "top_category_comment": "",
+            "savings_comment": "",
+            "trend_comment": "",
+        }
 
     return {
         "month": month_str,

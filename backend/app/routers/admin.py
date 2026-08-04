@@ -542,7 +542,7 @@ def generate_report(
     db.refresh(report)
 
     # Enqueue generation task
-    generate_single_report.delay(report.id)
+    generate_single_report.delay(body.user_id, body.month)
 
     return {"ok": True, "report_id": report.id, "status": "PENDING"}
 
@@ -575,7 +575,7 @@ def generate_all_reports(
         )
         db.add(report)
         db.flush()
-        generate_single_report.delay(report.id)
+        generate_single_report.delay(user.id, month)
         created += 1
 
     db.commit()
