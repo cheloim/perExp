@@ -132,6 +132,8 @@ class UserResponse(BaseModel):
     mfa_enabled: bool = False
     email_verified: bool = False
     onboarding_completed: bool = False
+    is_admin: bool = False
+    is_blocked: bool = False
     model_config = {"from_attributes": True}
 
 
