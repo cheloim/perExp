@@ -1015,3 +1015,12 @@ export const getPlatformLogs = (params?: {
 
 export const runTask = (taskName: string) =>
   api.post(`/admin/system/tasks/${taskName}/run`).then((r) => r.data);
+
+export const unlockUser = (id: number) =>
+  api.post(`/admin/users/${id}/unlock`).then((r) => r.data);
+
+export const getFeatureFlags = () =>
+  api.get("/admin/feature-flags").then((r) => r.data);
+
+export const setFeatureFlag = (key: string, value: string) =>
+  api.put(`/admin/feature-flags/${key}`, { value }).then((r) => r.data);

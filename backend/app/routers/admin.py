@@ -243,6 +243,22 @@ def toggle_admin(
     return {"ok": True, "is_admin": u.is_admin}
 
 
+@router.post("/users/{user_id}/unlock")
+def unlock_user(
+    user_id: int,
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Clear Redis lockout for a user."""
+    u = db.get(User, user_id)
+    if not u:
+        raise HTTPException(404, "User not found")
+    from app.services.rate_limit import reset_failed_logins
+
+    reset_failed_logins(user_id)
+    return {"ok": True, "message": f"Lockout cleared for {u.email}"}
+
+
 # ──────────────────────────────────────────────
 # Notifications (send to user)
 # ──────────────────────────────────────────────
@@ -323,7 +339,10 @@ def get_audit_logs(
     if user_id:
         query = query.filter(AuditLog.user_id == user_id)
     if action:
-        query = query.filter(AuditLog.action == action)
+        # Support comma-separated actions: "login_failed,login_success"
+        actions = [a.strip() for a in action.split(",") if a.strip()]
+        if actions:
+            query = query.filter(AuditLog.action.in_(actions))
 
     total = query.count()
     logs = (
@@ -686,6 +705,68 @@ def update_setting(
         db.add(Setting(key=body.key, value=body.value))
     db.commit()
     return {"ok": True}
+
+
+# ──────────────────────────────────────────────
+# Feature Flags
+# ──────────────────────────────────────────────
+
+FEATURE_FLAGS = [
+    {
+        "key": "ai_suggestions_enabled",
+        "label": "Sugerencias IA",
+        "description": "Sugerencias automáticas de categorías con IA",
+    },
+    {
+        "key": "weekly_summary_enabled",
+        "label": "Resumen semanal",
+        "description": "Reporte semanal vía Telegram",
+    },
+]
+
+
+@router.get("/feature-flags")
+def get_feature_flags(
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    result = []
+    for flag in FEATURE_FLAGS:
+        global_setting = db.query(Setting).filter(Setting.key == f"flag:{flag['key']}").first()
+        result.append(
+            {
+                "key": flag["key"],
+                "label": flag["label"],
+                "description": flag["description"],
+                "global_override": global_setting.value if global_setting else "",
+            }
+        )
+    return {"flags": result}
+
+
+class FeatureFlagUpdate(BaseModel):
+    value: str  # "on", "off", or "" (empty = respect per-user)
+
+
+@router.put("/feature-flags/{flag_key}")
+def update_feature_flag(
+    flag_key: str,
+    body: FeatureFlagUpdate,
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    valid_keys = [f["key"] for f in FEATURE_FLAGS]
+    if flag_key not in valid_keys:
+        raise HTTPException(404, f"Unknown flag: {flag_key}")
+
+    setting_key = f"flag:{flag_key}"
+    setting = db.query(Setting).filter(Setting.key == setting_key).first()
+    if setting:
+        setting.value = body.value
+    else:
+        db.add(Setting(key=setting_key, value=body.value))
+    db.commit()
+    return {"ok": True, "key": flag_key, "value": body.value}
 
 
 # ──────────────────────────────────────────────

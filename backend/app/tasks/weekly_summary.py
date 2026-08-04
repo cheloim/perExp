@@ -256,12 +256,21 @@ def send_weekly_reports():
 
         sent_count = 0
         for user in users:
-            # Check if weekly summary is enabled (default: True)
-            setting = (
-                db.query(Setting).filter(Setting.key == f"{user.id}:weekly_summary_enabled").first()
+            # Check if weekly summary is enabled (global override first, then per-user)
+            global_override = (
+                db.query(Setting).filter(Setting.key == "flag:weekly_summary_enabled").first()
             )
-            if setting and setting.value.lower() in ("false", "0", "no"):
+            if global_override and global_override.value == "off":
                 continue
+            if not global_override or not global_override.value:
+                # No global override, check per-user setting
+                setting = (
+                    db.query(Setting)
+                    .filter(Setting.key == f"{user.id}:weekly_summary_enabled")
+                    .first()
+                )
+                if setting and setting.value.lower() in ("false", "0", "no"):
+                    continue
 
             try:
                 # Build report data

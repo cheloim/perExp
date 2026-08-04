@@ -5,6 +5,7 @@ import {
   getAdminUser,
   blockUser,
   unblockUser,
+  unlockUser,
   toggleAdmin,
   getAuditLogs,
   getLoginErrors,
@@ -20,19 +21,13 @@ import {
   sendNotificationToUser,
   getPlatformLogs,
   runTask,
+  getFeatureFlags,
+  setFeatureFlag,
 } from "../api/client";
 import type { AdminUser, AuditLogEntry, LoginErrorsResponse, PlatformLog } from "../types";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 
 type Tab = "users" | "logs" | "reports" | "system";
-
-const ACTION_COLORS: Record<string, string> = {
-  login_failed: "text-[var(--color-danger)]",
-  login_success: "text-[var(--color-success)]",
-  mfa_failed: "text-[var(--color-danger)]",
-  register: "text-[var(--color-info)]",
-  account_deleted: "text-[var(--color-danger)]",
-};
 
 export default function AdminPage() {
   const [tab, setTab] = useState<Tab>("users");
@@ -133,6 +128,11 @@ function UsersTab() {
     },
   });
 
+  const unlockMut = useMutation({
+    mutationFn: (id: number) => unlockUser(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-users"] }),
+  });
+
   const users: AdminUser[] = data?.users ?? [];
   const total = data?.total ?? 0;
 
@@ -182,9 +182,18 @@ function UsersTab() {
                         Bloqueado
                       </span>
                     ) : u.is_locked ? (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--gnome-orange-1)] text-[var(--gnome-orange-5)]">
-                        Lock ({u.lock_ttl}s)
-                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--gnome-orange-1)] text-[var(--gnome-orange-5)]">
+                          Lock ({u.lock_ttl}s)
+                        </span>
+                        <button
+                          onClick={() => unlockMut.mutate(u.id)}
+                          className="text-xs px-1.5 py-0.5 rounded bg-[var(--gnome-green-1)] text-[var(--gnome-green-5)] hover:bg-[var(--gnome-green-2)]"
+                          title="Desbloquear usuario"
+                        >
+                          ✓
+                        </button>
+                      </div>
                     ) : u.is_active ? (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--gnome-green-1)] text-[var(--gnome-green-5)]">
                         Activo
@@ -441,7 +450,19 @@ function UserDetailModal({ userId, onClose }: { userId: number; onClose: () => v
               <span className="text-[var(--text-tertiary)] w-32 shrink-0">
                 {new Date(log.created_at).toLocaleString("es-AR")}
               </span>
-              <span className={ACTION_COLORS[log.action] || "text-[var(--text-secondary)]"}>{log.action}</span>
+              <span
+                className={
+                  ["login_failed", "mfa_failed", "account_deleted"].includes(log.action)
+                    ? "text-[var(--gnome-red-3)]"
+                    : ["login_success", "password_changed"].includes(log.action)
+                      ? "text-[var(--gnome-green-3)]"
+                      : log.action === "register"
+                        ? "text-[var(--gnome-blue-3)]"
+                        : "text-[var(--text-secondary)]"
+                }
+              >
+                {log.action}
+              </span>
               {log.details && <span className="text-[var(--text-tertiary)] truncate">{log.details}</span>}
             </div>
           ))}
@@ -454,15 +475,22 @@ function UserDetailModal({ userId, onClose }: { userId: number; onClose: () => v
 // ── Logs & Security Tab ────────────────────────────────────
 
 function LogsTab() {
-  const [actionFilter, setActionFilter] = useState("");
+  const [actionFilter, setActionFilter] = useState<string[]>([]);
   const [userIdFilter, setUserIdFilter] = useState("");
   const [page, setPage] = useState(1);
+
+  const toggleAction = (action: string) => {
+    setActionFilter((prev) =>
+      prev.includes(action) ? prev.filter((a) => a !== action) : [...prev, action]
+    );
+    setPage(1);
+  };
 
   const { data: logsData, isLoading: logsLoading } = useQuery({
     queryKey: ["admin-logs", actionFilter, userIdFilter, page],
     queryFn: () =>
       getAuditLogs({
-        action: actionFilter || undefined,
+        action: actionFilter.length > 0 ? actionFilter.join(",") : undefined,
         user_id: userIdFilter ? Number(userIdFilter) : undefined,
         page,
         per_page: 100,
@@ -553,24 +581,43 @@ function LogsTab() {
 
       {/* Audit logs table */}
       <div className="card p-4">
-        <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center gap-3 mb-3 flex-wrap">
           <h3 className="text-sm font-semibold text-[var(--text-primary)]">Logs de Auditoría</h3>
-          <select
-            value={actionFilter}
-            onChange={(e) => {
-              setActionFilter(e.target.value);
-              setPage(1);
-            }}
-            className="input text-xs"
-          >
-            <option value="">Todas las acciones</option>
-            <option value="login_failed">login_failed</option>
-            <option value="login_success">login_success</option>
-            <option value="register">register</option>
-            <option value="mfa_failed">mfa_failed</option>
-            <option value="password_changed">password_changed</option>
-            <option value="account_deleted">account_deleted</option>
-          </select>
+
+          <div className="flex gap-1">
+            {[
+              { key: "login_failed", label: "login_failed", color: "red" },
+              { key: "login_success", label: "login_success", color: "green" },
+              { key: "register", label: "register", color: "blue" },
+              { key: "mfa_failed", label: "mfa_failed", color: "red" },
+              { key: "password_changed", label: "password_changed", color: "green" },
+              { key: "account_deleted", label: "account_deleted", color: "red" },
+            ].map(({ key, label, color }) => {
+              const isActive = actionFilter.length === 0 || actionFilter.includes(key);
+              const colorClasses =
+                color === "red"
+                  ? isActive
+                    ? "bg-[var(--gnome-red-1)] text-[var(--gnome-red-5)] border-[var(--gnome-red-3)]"
+                    : "bg-transparent text-[var(--text-tertiary)] border-[var(--border-color)]"
+                  : color === "green"
+                    ? isActive
+                      ? "bg-[var(--gnome-green-1)] text-[var(--gnome-green-5)] border-[var(--gnome-green-3)]"
+                      : "bg-transparent text-[var(--text-tertiary)] border-[var(--border-color)]"
+                    : isActive
+                      ? "bg-[var(--gnome-blue-1)] text-[var(--gnome-blue-5)] border-[var(--gnome-blue-3)]"
+                      : "bg-transparent text-[var(--text-tertiary)] border-[var(--border-color)]";
+              return (
+                <button
+                  key={key}
+                  onClick={() => toggleAction(key)}
+                  className={`text-xs px-2 py-1 rounded-full border font-medium transition-colors ${colorClasses}`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
           <input
             type="number"
             placeholder="User ID"
@@ -598,19 +645,31 @@ function LogsTab() {
                 </tr>
               </thead>
               <tbody>
-                {logs.map((log) => (
-                  <tr key={log.id} className="border-b border-[var(--border-color)] hover:bg-[var(--color-base-alt)]">
-                    <td className="py-1.5 px-2 text-[var(--text-tertiary)] whitespace-nowrap">
-                      {new Date(log.created_at).toLocaleString("es-AR")}
-                    </td>
-                    <td className="py-1.5 px-2">{log.user_email || `#${log.user_id}`}</td>
-                    <td className={`py-1.5 px-2 font-medium ${ACTION_COLORS[log.action] || ""}`}>
-                      {log.action}
-                    </td>
-                    <td className="py-1.5 px-2 font-mono">{log.ip_address || "-"}</td>
-                    <td className="py-1.5 px-2 text-[var(--text-tertiary)] truncate max-w-xs">{log.details || ""}</td>
-                  </tr>
-                ))}
+                {logs.map((log) => {
+                  const isFailed = ["login_failed", "mfa_failed", "account_deleted"].includes(log.action);
+                  const isSuccess = ["login_success", "password_changed"].includes(log.action);
+                  const isRegister = log.action === "register";
+                  return (
+                    <tr key={log.id} className="border-b border-[var(--border-color)] hover:bg-[var(--color-base-alt)]">
+                      <td className="py-1.5 px-2 text-[var(--text-tertiary)] whitespace-nowrap">
+                        {new Date(log.created_at).toLocaleString("es-AR")}
+                      </td>
+                      <td className="py-1.5 px-2">{log.user_email || `#${log.user_id}`}</td>
+                      <td className="py-1.5 px-2 font-medium">
+                        <span className={`text-xs px-1.5 py-0.5 rounded ${
+                          isFailed ? "bg-[var(--gnome-red-1)] text-[var(--gnome-red-5)]" :
+                          isSuccess ? "bg-[var(--gnome-green-1)] text-[var(--gnome-green-5)]" :
+                          isRegister ? "bg-[var(--gnome-blue-1)] text-[var(--gnome-blue-5)]" :
+                          "text-[var(--text-secondary)]"
+                        }`}>
+                          {log.action}
+                        </span>
+                      </td>
+                      <td className="py-1.5 px-2 font-mono">{log.ip_address || "-"}</td>
+                      <td className="py-1.5 px-2 text-[var(--text-tertiary)] truncate max-w-xs">{log.details || ""}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1166,6 +1225,9 @@ function SystemTab() {
         </div>
       </div>
 
+      {/* Feature Flags */}
+      <FeatureFlagsSection />
+
       {/* Cleanup */}
       <div className="card p-4">
         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Mantenimiento</h3>
@@ -1177,6 +1239,78 @@ function SystemTab() {
         >
           Limpiar Audit Logs (90d) y Mensajes (45d)
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Feature Flags Section ──────────────────────────────────
+
+function FeatureFlagsSection() {
+  const queryClient = useQueryClient();
+
+  const { data: flagsData } = useQuery({
+    queryKey: ["admin-feature-flags"],
+    queryFn: getFeatureFlags,
+  });
+
+  const updateFlagMut = useMutation({
+    mutationFn: ({ key, value }: { key: string; value: string }) => setFeatureFlag(key, value),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-feature-flags"] }),
+  });
+
+  const flags = flagsData?.flags ?? [];
+
+  return (
+    <div className="card p-4">
+      <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Feature Flags</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-[var(--border-color)]">
+              <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Flag</th>
+              <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Descripción</th>
+              <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Override global</th>
+            </tr>
+          </thead>
+          <tbody>
+            {flags.map((f: any) => (
+              <tr key={f.key} className="border-b border-[var(--border-color)]">
+                <td className="py-2 px-2 font-mono">{f.label}</td>
+                <td className="py-2 px-2 text-[var(--text-tertiary)]">{f.description}</td>
+                <td className="py-2 px-2">
+                  <div className="flex gap-1">
+                    {[
+                      { value: "", label: "Por defecto", desc: "Respeta configuración por usuario" },
+                      { value: "on", label: "ON", desc: "Forzar habilitado para todos" },
+                      { value: "off", label: "OFF", desc: "Forzar deshabilitado para todos" },
+                    ].map((opt) => {
+                      const isActive = f.global_override === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          onClick={() => updateFlagMut.mutate({ key: f.key, value: opt.value })}
+                          title={opt.desc}
+                          className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${
+                            isActive
+                              ? opt.value === "on"
+                                ? "bg-[var(--gnome-green-1)] text-[var(--gnome-green-5)] border-[var(--gnome-green-3)]"
+                                : opt.value === "off"
+                                  ? "bg-[var(--gnome-red-1)] text-[var(--gnome-red-5)] border-[var(--gnome-red-3)]"
+                                  : "bg-[var(--gnome-blue-1)] text-[var(--gnome-blue-5)] border-[var(--gnome-blue-3)]"
+                              : "bg-transparent text-[var(--text-tertiary)] border-[var(--border-color)]"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
