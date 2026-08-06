@@ -18,7 +18,7 @@ BUE = ZoneInfo("America/Argentina/Buenos_Aires")
 
 LOOKBACK_DAYS = 90
 MIN_OCCURRENCES = 2
-AMOUNT_TOLERANCE = 0.10  # 10%
+AMOUNT_TOLERANCE = 0.05  # 5%
 
 
 @celery_app.task(name="app.tasks.detect_recurring.detect_recurring_expenses")
@@ -71,6 +71,7 @@ def _detect_for_user(user_id: int, db) -> tuple[int, int]:
             Expense.user_id == user_id,
             Expense.date >= cutoff,
             Expense.is_income == False,  # noqa: E712
+            Expense.installment_group_id.is_(None),  # Exclude installment purchases
         )
         .all()
     )

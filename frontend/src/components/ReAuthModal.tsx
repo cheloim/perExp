@@ -49,9 +49,7 @@ export default function ReAuthModal({ onAuthenticated, onCancel }: ReAuthModalPr
           Tu sesión expiró. Ingresá tu contraseña para continuar en el panel de administración.
         </p>
 
-        {error && (
-          <p className="text-sm text-[var(--color-danger)] mb-3">{error}</p>
-        )}
+        {error && <p className="text-sm text-[var(--color-danger)] mb-3">{error}</p>}
 
         <input
           type="password"

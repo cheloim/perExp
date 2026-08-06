@@ -55,7 +55,9 @@ export default function ImpersonationRequestModal({
   return (
     <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center">
       <div className="card p-6 max-w-md w-full mx-4">
-        <h2 className="text-lg font-semibold text-primary mb-2">Solicitud de acceso administrativo</h2>
+        <h2 className="text-lg font-semibold text-primary mb-2">
+          Solicitud de acceso administrativo
+        </h2>
         <p className="text-sm text-secondary mb-4">
           <strong>{adminName}</strong> solicita acceso a tu cuenta para soporte técnico.
         </p>

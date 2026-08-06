@@ -16,6 +16,7 @@ import {
   getInstallmentsMonthlyLoad,
   getTopMerchants,
   getUncategorizedCount,
+  getMe,
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
 import { formatCurrency, toUpperCase, formatDateDMYSlash, MONTHS_ES_SHORT } from "../utils/format";
@@ -205,6 +206,13 @@ export default function Dashboard() {
   });
   const uncategorizedCount = uncategorizedQuery.data?.count ?? 0;
 
+  // Get current user for MFA banner
+  const { data: currentUser } = useQuery({
+    queryKey: ["me"],
+    queryFn: getMe,
+    staleTime: 60_000,
+  });
+
   // Calculate savings by currency
   const savingsArs = useMemo(
     () =>
@@ -374,6 +382,26 @@ export default function Dashboard() {
             </p>
           </div>
           <span className="ml-auto text-xs opacity-50">→</span>
+        </button>
+      )}
+
+      {/* MFA recommendation banner */}
+      {currentUser && !currentUser.mfa_enabled && currentUser.provider !== "google" && (
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent("open-user-panel"))}
+          className="w-full flex items-center gap-3 p-4 rounded-lg bg-[var(--gnome-red-1)] border border-[var(--gnome-red-3)] hover:bg-[var(--gnome-red-2)] transition-colors cursor-pointer text-left"
+        >
+          <span className="text-2xl">🔒</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-[var(--gnome-red-5)]">
+              Activá la autenticación de dos factores (MFA)
+            </p>
+            <p className="text-xs text-[var(--gnome-red-4)] mt-1">
+              Tu cuenta no tiene MFA activado. Hacé clic aquí para configurarlo y proteger tu
+              cuenta.
+            </p>
+          </div>
+          <span className="text-[var(--gnome-red-4)]">→</span>
         </button>
       )}
 
