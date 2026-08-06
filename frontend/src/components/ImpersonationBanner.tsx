@@ -128,7 +128,10 @@ export default function ImpersonationBanner({
 
       {/* Chat Widget */}
       {chatOpen && (
-        <div className="fixed bottom-4 right-4 z-[101] w-[350px] bg-[var(--bg-secondary)] rounded-lg shadow-xl border border-[var(--border)] flex flex-col" style={{ height: "400px" }}>
+        <div
+          className="fixed bottom-4 right-4 z-[101] w-[350px] bg-[var(--bg-secondary)] rounded-lg shadow-xl border border-[var(--border)] flex flex-col"
+          style={{ height: "400px" }}
+        >
           <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border)]">
             <span className="text-sm font-medium text-primary">Chat · {targetUserName}</span>
             <button onClick={() => setChatOpen(false)} className="text-tertiary hover:text-primary">

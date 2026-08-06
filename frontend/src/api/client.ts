@@ -923,17 +923,12 @@ export async function deleteImportJob(jobId: number): Promise<void> {
 
 // ── Admin API ──────────────────────────────────────────────
 
-export const getAdminSlug = () =>
-  api.get<{ slug: string }>("/admin/slug").then((r) => r.data);
+export const getAdminSlug = () => api.get<{ slug: string }>("/admin/slug").then((r) => r.data);
 
-export const getAdminUsers = (params?: {
-  search?: string;
-  page?: number;
-  per_page?: number;
-}) => api.get("/admin/users", { params }).then((r) => r.data);
+export const getAdminUsers = (params?: { search?: string; page?: number; per_page?: number }) =>
+  api.get("/admin/users", { params }).then((r) => r.data);
 
-export const getAdminUser = (id: number) =>
-  api.get(`/admin/users/${id}`).then((r) => r.data);
+export const getAdminUser = (id: number) => api.get(`/admin/users/${id}`).then((r) => r.data);
 
 export const blockUser = (id: number, reason: string) =>
   api.put(`/admin/users/${id}/block`, { reason }).then((r) => r.data);
@@ -941,8 +936,7 @@ export const blockUser = (id: number, reason: string) =>
 export const unblockUser = (id: number) =>
   api.put(`/admin/users/${id}/unblock`).then((r) => r.data);
 
-export const toggleAdmin = (id: number) =>
-  api.put(`/admin/users/${id}/admin`).then((r) => r.data);
+export const toggleAdmin = (id: number) => api.put(`/admin/users/${id}/admin`).then((r) => r.data);
 
 export const getAuditLogs = (params?: {
   user_id?: number;
@@ -954,11 +948,8 @@ export const getAuditLogs = (params?: {
 export const getLoginErrors = (params?: { days?: number }) =>
   api.get("/admin/login-errors", { params }).then((r) => r.data);
 
-export const getAdminReports = (params?: {
-  user_id?: number;
-  month?: string;
-  status?: string;
-}) => api.get("/admin/reports", { params }).then((r) => r.data);
+export const getAdminReports = (params?: { user_id?: number; month?: string; status?: string }) =>
+  api.get("/admin/reports", { params }).then((r) => r.data);
 
 export const deleteAdminReport = (id: number) =>
   api.delete(`/admin/reports/${id}`).then((r) => r.data);
@@ -972,14 +963,11 @@ export const generateAdminReport = (userId: number, month: string) =>
 export const generateAllReports = (month: string) =>
   api.post(`/admin/reports/generate-all?month=${month}`).then((r) => r.data);
 
-export const getSystemHealth = () =>
-  api.get("/admin/system/health").then((r) => r.data);
+export const getSystemHealth = () => api.get("/admin/system/health").then((r) => r.data);
 
-export const getTaskStatus = () =>
-  api.get("/admin/system/tasks").then((r) => r.data);
+export const getTaskStatus = () => api.get("/admin/system/tasks").then((r) => r.data);
 
-export const getAdminSettings = () =>
-  api.get("/admin/system/settings").then((r) => r.data);
+export const getAdminSettings = () => api.get("/admin/system/settings").then((r) => r.data);
 
 export const updateAdminSetting = (key: string, value: string) =>
   api.put("/admin/system/settings", { key, value }).then((r) => r.data);
@@ -999,8 +987,7 @@ export const endImpersonation = (sessionId: number) =>
 export const bulkNotify = (userIds: number[], title: string, body: string) =>
   api.post("/admin/bulk/notify", { user_ids: userIds, title, body }).then((r) => r.data);
 
-export const cleanupAuditLogs = () =>
-  api.post("/admin/cleanup/audit-logs").then((r) => r.data);
+export const cleanupAuditLogs = () => api.post("/admin/cleanup/audit-logs").then((r) => r.data);
 
 export const sendNotificationToUser = (userId: number, title: string, body: string) =>
   api.post(`/admin/users/${userId}/send-notification`, { title, body }).then((r) => r.data);
@@ -1016,11 +1003,9 @@ export const getPlatformLogs = (params?: {
 export const runTask = (taskName: string) =>
   api.post(`/admin/system/tasks/${taskName}/run`).then((r) => r.data);
 
-export const unlockUser = (id: number) =>
-  api.post(`/admin/users/${id}/unlock`).then((r) => r.data);
+export const unlockUser = (id: number) => api.post(`/admin/users/${id}/unlock`).then((r) => r.data);
 
-export const getFeatureFlags = () =>
-  api.get("/admin/feature-flags").then((r) => r.data);
+export const getFeatureFlags = () => api.get("/admin/feature-flags").then((r) => r.data);
 
 export const setFeatureFlag = (key: string, value: string) =>
   api.put(`/admin/feature-flags/${key}`, { value }).then((r) => r.data);

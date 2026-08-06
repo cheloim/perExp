@@ -45,7 +45,9 @@ export default function AdminPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Panel de Administración</h1>
+        <h1 className="text-2xl font-semibold text-[var(--text-primary)]">
+          Panel de Administración
+        </h1>
       </div>
 
       <nav className="flex gap-1 border-b border-[var(--border-color)]">
@@ -159,21 +161,44 @@ function UsersTab() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border-color)]">
-                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">ID</th>
-                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">Nombre</th>
-                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">Email</th>
-                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">Estado</th>
-                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">Admin</th>
-                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">Telegram</th>
-                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">MFA</th>
-                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">Proveedor</th>
-                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">Creado</th>
-                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">Acciones</th>
+                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">
+                  ID
+                </th>
+                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">
+                  Nombre
+                </th>
+                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">
+                  Email
+                </th>
+                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">
+                  Estado
+                </th>
+                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">
+                  Admin
+                </th>
+                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">
+                  Telegram
+                </th>
+                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">
+                  MFA
+                </th>
+                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">
+                  Proveedor
+                </th>
+                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">
+                  Creado
+                </th>
+                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">
+                  Acciones
+                </th>
               </tr>
             </thead>
             <tbody>
               {users.map((u) => (
-                <tr key={u.id} className="border-b border-[var(--border-color)] hover:bg-[var(--color-base-alt)]">
+                <tr
+                  key={u.id}
+                  className="border-b border-[var(--border-color)] hover:bg-[var(--color-base-alt)]"
+                >
                   <td className="py-2 px-3">{u.id}</td>
                   <td className="py-2 px-3">{u.full_name || "-"}</td>
                   <td className="py-2 px-3">{u.email}</td>
@@ -232,7 +257,9 @@ function UsersTab() {
                         Google
                       </span>
                     ) : (
-                      <span className="text-xs text-[var(--text-[var(--text-tertiary)])]">Email</span>
+                      <span className="text-xs text-[var(--text-[var(--text-tertiary)])]">
+                        Email
+                      </span>
                     )}
                   </td>
                   <td className="py-2 px-3 text-xs text-[var(--text-[var(--text-tertiary)])]">
@@ -376,7 +403,9 @@ function UsersTab() {
       )}
 
       {/* User detail modal */}
-      {selectedUser && <UserDetailModal userId={selectedUser} onClose={() => setSelectedUser(null)} />}
+      {selectedUser && (
+        <UserDetailModal userId={selectedUser} onClose={() => setSelectedUser(null)} />
+      )}
     </div>
   );
 }
@@ -387,17 +416,33 @@ function UserDetailModal({ userId, onClose }: { userId: number; onClose: () => v
     queryFn: () => getAdminUser(userId),
   });
 
-  if (isLoading) return <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="card p-6">Cargando...</div></div>;
+  if (isLoading)
+    return (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+        <div className="card p-6">Cargando...</div>
+      </div>
+    );
   if (!data) return null;
 
   const { user, stats, security, recent_audit_logs } = data;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={onClose}>
-      <div className="card p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+      onClick={onClose}
+    >
+      <div
+        className="card p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">Usuario #{user.id}</h2>
-          <button onClick={onClose} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">✕</button>
+          <button
+            onClick={onClose}
+            className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+          >
+            ✕
+          </button>
         </div>
 
         <div className="grid grid-cols-2 gap-4 mb-4">
@@ -473,7 +518,9 @@ function UserDetailModal({ userId, onClose }: { userId: number; onClose: () => v
               >
                 {log.action}
               </span>
-              {log.details && <span className="text-[var(--text-tertiary)] truncate">{log.details}</span>}
+              {log.details && (
+                <span className="text-[var(--text-tertiary)] truncate">{log.details}</span>
+              )}
             </div>
           ))}
         </div>
@@ -491,7 +538,7 @@ function LogsTab() {
 
   const toggleAction = (action: string) => {
     setActionFilter((prev) =>
-      prev.includes(action) ? prev.filter((a) => a !== action) : [...prev, action]
+      prev.includes(action) ? prev.filter((a) => a !== action) : [...prev, action],
     );
     setPage(1);
   };
@@ -525,7 +572,9 @@ function LogsTab() {
       {/* Login errors summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="card p-4">
-          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Top usuarios con intentos fallidos</h3>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">
+            Top usuarios con intentos fallidos
+          </h3>
           {errors.by_user.length === 0 ? (
             <p className="text-xs text-[var(--text-tertiary)]">Sin intentos fallidos</p>
           ) : (
@@ -541,7 +590,9 @@ function LogsTab() {
         </div>
 
         <div className="card p-4">
-          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Top IPs con intentos fallidos</h3>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">
+            Top IPs con intentos fallidos
+          </h3>
           {errors.by_ip.length === 0 ? (
             <p className="text-xs text-[var(--text-tertiary)]">Sin intentos fallidos</p>
           ) : (
@@ -557,7 +608,9 @@ function LogsTab() {
         </div>
 
         <div className="card p-4">
-          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Cuentas bloqueadas (admin)</h3>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">
+            Cuentas bloqueadas (admin)
+          </h3>
           {errors.blocked_accounts.length === 0 ? (
             <p className="text-xs text-[var(--text-tertiary)]">Sin cuentas bloqueadas</p>
           ) : (
@@ -565,7 +618,9 @@ function LogsTab() {
               {errors.blocked_accounts.map((u) => (
                 <div key={u.id} className="flex items-center justify-between text-xs">
                   <span>{u.email}</span>
-                  <span className="text-[var(--text-tertiary)]">{u.blocked_reason || "Sin razón"}</span>
+                  <span className="text-[var(--text-tertiary)]">
+                    {u.blocked_reason || "Sin razón"}
+                  </span>
                 </div>
               ))}
             </div>
@@ -573,7 +628,9 @@ function LogsTab() {
         </div>
 
         <div className="card p-4">
-          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Locks Redis activos</h3>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">
+            Locks Redis activos
+          </h3>
           {errors.redis_lockouts.length === 0 ? (
             <p className="text-xs text-[var(--text-tertiary)]">Sin locks activos</p>
           ) : (
@@ -647,36 +704,58 @@ function LogsTab() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-[var(--border-color)]">
-                  <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Fecha</th>
-                  <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Usuario</th>
-                  <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Acción</th>
-                  <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">IP</th>
-                  <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Detalles</th>
+                  <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                    Fecha
+                  </th>
+                  <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                    Usuario
+                  </th>
+                  <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                    Acción
+                  </th>
+                  <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                    IP
+                  </th>
+                  <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                    Detalles
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {logs.map((log) => {
-                  const isFailed = ["login_failed", "mfa_failed", "account_deleted"].includes(log.action);
+                  const isFailed = ["login_failed", "mfa_failed", "account_deleted"].includes(
+                    log.action,
+                  );
                   const isSuccess = ["login_success", "password_changed"].includes(log.action);
                   const isRegister = log.action === "register";
                   return (
-                    <tr key={log.id} className="border-b border-[var(--border-color)] hover:bg-[var(--color-base-alt)]">
+                    <tr
+                      key={log.id}
+                      className="border-b border-[var(--border-color)] hover:bg-[var(--color-base-alt)]"
+                    >
                       <td className="py-1.5 px-2 text-[var(--text-tertiary)] whitespace-nowrap">
                         {new Date(log.created_at).toLocaleString("es-AR")}
                       </td>
                       <td className="py-1.5 px-2">{log.user_email || `#${log.user_id}`}</td>
                       <td className="py-1.5 px-2 font-medium">
-                        <span className={`text-xs px-1.5 py-0.5 rounded ${
-                          isFailed ? "bg-[var(--gnome-red-1)] text-[var(--gnome-red-5)]" :
-                          isSuccess ? "bg-[var(--gnome-green-1)] text-[var(--gnome-green-5)]" :
-                          isRegister ? "bg-[var(--gnome-blue-1)] text-[var(--gnome-blue-5)]" :
-                          "text-[var(--text-secondary)]"
-                        }`}>
+                        <span
+                          className={`text-xs px-1.5 py-0.5 rounded ${
+                            isFailed
+                              ? "bg-[var(--gnome-red-1)] text-[var(--gnome-red-5)]"
+                              : isSuccess
+                                ? "bg-[var(--gnome-green-1)] text-[var(--gnome-green-5)]"
+                                : isRegister
+                                  ? "bg-[var(--gnome-blue-1)] text-[var(--gnome-blue-5)]"
+                                  : "text-[var(--text-secondary)]"
+                          }`}
+                        >
                           {log.action}
                         </span>
                       </td>
                       <td className="py-1.5 px-2 font-mono">{log.ip_address || "-"}</td>
-                      <td className="py-1.5 px-2 text-[var(--text-tertiary)] truncate max-w-xs">{log.details || ""}</td>
+                      <td className="py-1.5 px-2 text-[var(--text-tertiary)] truncate max-w-xs">
+                        {log.details || ""}
+                      </td>
                     </tr>
                   );
                 })}
@@ -713,14 +792,19 @@ function LogsTab() {
 // ── Platform Logs Section ──────────────────────────────────
 
 function PlatformLogsSection() {
-  const [levelFilter, setLevelFilter] = useState<string[]>(["INFO", "WARNING", "ERROR", "CRITICAL"]);
+  const [levelFilter, setLevelFilter] = useState<string[]>([
+    "INFO",
+    "WARNING",
+    "ERROR",
+    "CRITICAL",
+  ]);
   const [moduleFilter, setModuleFilter] = useState("");
   const [searchFilter, setSearchFilter] = useState("");
   const [page, setPage] = useState(1);
 
   const toggleLevel = (level: string) => {
     setLevelFilter((prev) =>
-      prev.includes(level) ? prev.filter((l) => l !== level) : [...prev, level]
+      prev.includes(level) ? prev.filter((l) => l !== level) : [...prev, level],
     );
     setPage(1);
   };
@@ -745,7 +829,8 @@ function PlatformLogsSection() {
       inactive: "bg-transparent text-[var(--text-tertiary)] border-[var(--border-color)]",
     },
     WARNING: {
-      active: "bg-[var(--gnome-orange-1)] text-[var(--gnome-orange-5)] border-[var(--gnome-orange-3)]",
+      active:
+        "bg-[var(--gnome-orange-1)] text-[var(--gnome-orange-5)] border-[var(--gnome-orange-3)]",
       inactive: "bg-transparent text-[var(--text-tertiary)] border-[var(--border-color)]",
     },
     ERROR: {
@@ -818,28 +903,43 @@ function PlatformLogsSection() {
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-[var(--border-color)]">
-                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Fecha</th>
-                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Nivel</th>
-                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Módulo</th>
-                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Mensaje</th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                  Fecha
+                </th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                  Nivel
+                </th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                  Módulo
+                </th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                  Mensaje
+                </th>
               </tr>
             </thead>
             <tbody>
               {logs.map((log) => (
                 <tr
                   key={log.id}
-                  className={`border-b border-[var(--border-color)] hover:bg-[var(--color-base-alt)] ${ROW_COLORS[log.level] || ""}`}
+                  className={`border-b border-[var(--border-color)] hover:bg-[var(--color-base-alt)] ${
+                    ROW_COLORS[log.level] || ""
+                  }`}
                 >
                   <td className="py-1.5 px-2 text-[var(--text-tertiary)] whitespace-nowrap">
                     {new Date(log.created_at).toLocaleString("es-AR")}
                   </td>
                   <td className="py-1.5 px-2 font-medium">
-                    <span className={`text-xs px-1.5 py-0.5 rounded ${
-                      log.level === "CRITICAL" ? "bg-[var(--gnome-red-3)] text-white" :
-                      log.level === "ERROR" ? "text-[var(--gnome-red-3)]" :
-                      log.level === "WARNING" ? "text-[var(--gnome-orange-3)]" :
-                      "text-[var(--gnome-blue-3)]"
-                    }`}>
+                    <span
+                      className={`text-xs px-1.5 py-0.5 rounded ${
+                        log.level === "CRITICAL"
+                          ? "bg-[var(--gnome-red-3)] text-white"
+                          : log.level === "ERROR"
+                            ? "text-[var(--gnome-red-3)]"
+                            : log.level === "WARNING"
+                              ? "text-[var(--gnome-orange-3)]"
+                              : "text-[var(--gnome-blue-3)]"
+                      }`}
+                    >
                       {log.level}
                     </span>
                   </td>
@@ -975,19 +1075,38 @@ function ReportsTab() {
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-[var(--border-color)]">
-                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">ID</th>
-                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Usuario</th>
-                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Mes</th>
-                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Estado</th>
-                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Creado</th>
-                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Generado</th>
-                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">PNG</th>
-                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Acciones</th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                  ID
+                </th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                  Usuario
+                </th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                  Mes
+                </th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                  Estado
+                </th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                  Creado
+                </th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                  Generado
+                </th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                  PNG
+                </th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                  Acciones
+                </th>
               </tr>
             </thead>
             <tbody>
               {reports.map((r: any) => (
-                <tr key={r.id} className="border-b border-[var(--border-color)] hover:bg-[var(--color-base-alt)]">
+                <tr
+                  key={r.id}
+                  className="border-b border-[var(--border-color)] hover:bg-[var(--color-base-alt)]"
+                >
                   <td className="py-1.5 px-2">{r.id}</td>
                   <td className="py-1.5 px-2">{r.user_email || `#${r.user_id}`}</td>
                   <td className="py-1.5 px-2">{r.month}</td>
@@ -1037,7 +1156,9 @@ function SystemTab() {
   const queryClient = useQueryClient();
   const [editingSetting, setEditingSetting] = useState<{ key: string; value: string } | null>(null);
   const [editValue, setEditValue] = useState("");
-  const [taskRunStates, setTaskRunStates] = useState<Record<string, "idle" | "running" | "done" | "error">>({});
+  const [taskRunStates, setTaskRunStates] = useState<
+    Record<string, "idle" | "running" | "done" | "error">
+  >({});
 
   const { data: health } = useQuery({
     queryKey: ["admin-health"],
@@ -1066,7 +1187,9 @@ function SystemTab() {
   const cleanupMut = useMutation({
     mutationFn: cleanupAuditLogs,
     onSuccess: (data: any) => {
-      alert(`Limpieza completada: ${data.audit_logs_deleted} logs, ${data.messages_deleted} mensajes eliminados.`);
+      alert(
+        `Limpieza completada: ${data.audit_logs_deleted} logs, ${data.messages_deleted} mensajes eliminados.`,
+      );
     },
   });
 
@@ -1093,27 +1216,47 @@ function SystemTab() {
         <div className="card p-4">
           <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Redis</h3>
           <div className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${health?.redis?.connected ? "bg-green-500" : "bg-red-500"}`} />
-            <span className="text-sm">{health?.redis?.connected ? "Conectado" : "Desconectado"}</span>
+            <span
+              className={`w-2 h-2 rounded-full ${
+                health?.redis?.connected ? "bg-green-500" : "bg-red-500"
+              }`}
+            />
+            <span className="text-sm">
+              {health?.redis?.connected ? "Conectado" : "Desconectado"}
+            </span>
             {health?.redis?.connected && (
-              <span className="text-xs text-[var(--text-tertiary)]">{health.redis.latency_ms}ms</span>
+              <span className="text-xs text-[var(--text-tertiary)]">
+                {health.redis.latency_ms}ms
+              </span>
             )}
           </div>
         </div>
         <div className="card p-4">
           <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Base de Datos</h3>
           <div className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${health?.database?.connected ? "bg-green-500" : "bg-red-500"}`} />
-            <span className="text-sm">{health?.database?.connected ? "Conectada" : "Desconectada"}</span>
+            <span
+              className={`w-2 h-2 rounded-full ${
+                health?.database?.connected ? "bg-green-500" : "bg-red-500"
+              }`}
+            />
+            <span className="text-sm">
+              {health?.database?.connected ? "Conectada" : "Desconectada"}
+            </span>
             {health?.database?.connected && (
-              <span className="text-xs text-[var(--text-tertiary)]">{health.database.users_count} usuarios</span>
+              <span className="text-xs text-[var(--text-tertiary)]">
+                {health.database.users_count} usuarios
+              </span>
             )}
           </div>
         </div>
         <div className="card p-4">
           <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Celery</h3>
           <div className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${health?.celery?.worker_count > 0 ? "bg-green-500" : "bg-red-500"}`} />
+            <span
+              className={`w-2 h-2 rounded-full ${
+                health?.celery?.worker_count > 0 ? "bg-green-500" : "bg-red-500"
+              }`}
+            />
             <span className="text-sm">{health?.celery?.worker_count ?? 0} workers</span>
           </div>
         </div>
@@ -1121,14 +1264,22 @@ function SystemTab() {
 
       {/* Tasks */}
       <div className="card p-4">
-        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Tareas Programadas</h3>
+        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">
+          Tareas Programadas
+        </h3>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-[var(--border-color)]">
-                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Tarea</th>
-                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Última ejecución</th>
-                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium w-24">Acciones</th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                  Tarea
+                </th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                  Última ejecución
+                </th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium w-24">
+                  Acciones
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -1179,9 +1330,15 @@ function SystemTab() {
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-[var(--border-color)]">
-                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Key</th>
-                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Value</th>
-                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Acciones</th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                  Key
+                </th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                  Value
+                </th>
+                <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                  Acciones
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -1197,7 +1354,9 @@ function SystemTab() {
                         className="input text-xs w-full"
                       />
                     ) : (
-                      <span className="text-[var(--text-tertiary)] truncate max-w-xs block">{s.value}</span>
+                      <span className="text-[var(--text-tertiary)] truncate max-w-xs block">
+                        {s.value}
+                      </span>
                     )}
                   </td>
                   <td className="py-1.5 px-2">
@@ -1278,9 +1437,15 @@ function FeatureFlagsSection() {
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-[var(--border-color)]">
-              <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Flag</th>
-              <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Descripción</th>
-              <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">Override global</th>
+              <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                Flag
+              </th>
+              <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                Descripción
+              </th>
+              <th className="text-left py-1.5 px-2 text-[var(--text-tertiary)] font-medium">
+                Override global
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -1291,7 +1456,11 @@ function FeatureFlagsSection() {
                 <td className="py-2 px-2">
                   <div className="flex gap-1">
                     {[
-                      { value: "", label: "Por defecto", desc: "Respeta configuración por usuario" },
+                      {
+                        value: "",
+                        label: "Por defecto",
+                        desc: "Respeta configuración por usuario",
+                      },
                       { value: "on", label: "ON", desc: "Forzar habilitado para todos" },
                       { value: "off", label: "OFF", desc: "Forzar deshabilitado para todos" },
                     ].map((opt) => {

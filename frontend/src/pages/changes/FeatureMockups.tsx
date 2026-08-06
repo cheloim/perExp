@@ -267,7 +267,9 @@ export function TrendChartMockup() {
           {[40, 55, 45, 70, 60, 80].map((h, i) => (
             <div
               key={i}
-              className={`flex-1 rounded-t ${i === 5 ? "bg-green-500" : i === 4 ? "bg-yellow-500" : "bg-blue-500"}`}
+              className={`flex-1 rounded-t ${
+                i === 5 ? "bg-green-500" : i === 4 ? "bg-yellow-500" : "bg-blue-500"
+              }`}
               style={{ height: `${h}%` }}
             />
           ))}

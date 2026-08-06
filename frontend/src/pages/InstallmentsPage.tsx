@@ -39,7 +39,7 @@ export default function InstallmentsPage() {
   const [editAmount, setEditAmount] = useState("");
   const [editDate, setEditDate] = useState("");
   const [listFilter, setListFilter] = useState<"all" | "cuotas" | "recurrentes">(
-    searchParams.get("filter") === "recurring" ? "recurrentes" : "all"
+    searchParams.get("filter") === "recurring" ? "recurrentes" : "all",
   );
   const [deleteRecurringId, setDeleteRecurringId] = useState<number | null>(null);
 

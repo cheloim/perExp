@@ -397,7 +397,8 @@ export default function Dashboard() {
               Activá la autenticación de dos factores (MFA)
             </p>
             <p className="text-xs text-[var(--gnome-red-4)] mt-1">
-              Tu cuenta no tiene MFA activado. Hacé clic aquí para configurarlo y proteger tu cuenta.
+              Tu cuenta no tiene MFA activado. Hacé clic aquí para configurarlo y proteger tu
+              cuenta.
             </p>
           </div>
           <span className="text-[var(--gnome-red-4)]">→</span>
