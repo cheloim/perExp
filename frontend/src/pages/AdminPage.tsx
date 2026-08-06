@@ -166,6 +166,7 @@ function UsersTab() {
                 <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">Admin</th>
                 <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">Telegram</th>
                 <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">MFA</th>
+                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">Proveedor</th>
                 <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">Creado</th>
                 <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">Acciones</th>
               </tr>
@@ -223,6 +224,15 @@ function UsersTab() {
                       <span className="text-[var(--color-success)]">✓</span>
                     ) : (
                       <span className="text-[var(--text-[var(--text-tertiary)])]">-</span>
+                    )}
+                  </td>
+                  <td className="py-2 px-3">
+                    {u.provider === "google" ? (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--gnome-blue-1)] text-[var(--gnome-blue-5)]">
+                        Google
+                      </span>
+                    ) : (
+                      <span className="text-xs text-[var(--text-[var(--text-tertiary)])]">Email</span>
                     )}
                   </td>
                   <td className="py-2 px-3 text-xs text-[var(--text-[var(--text-tertiary)])]">

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { Bar, XAxis, Tooltip, ResponsiveContainer, Cell, ComposedChart, Line } from "recharts";
 import {
   getInstallmentsDashboard,
@@ -13,6 +14,7 @@ import {
 } from "../api/client";
 import { formatCurrency, formatDateDMY, MONTHS_ES_SHORT } from "../utils/format";
 import AutoDetectedBanner from "../components/AutoDetectedBanner";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 
 type PaymentItem = {
   id: string | number;
@@ -29,13 +31,17 @@ type PaymentItem = {
 
 export default function InstallmentsPage() {
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   const [showCompleted, setShowCompleted] = useState(false);
   const [showPaused, setShowPaused] = useState(false);
   const [selectedItem, setSelectedItem] = useState<PaymentItem | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editAmount, setEditAmount] = useState("");
   const [editDate, setEditDate] = useState("");
-  const [listFilter, setListFilter] = useState<"all" | "cuotas" | "recurrentes">("all");
+  const [listFilter, setListFilter] = useState<"all" | "cuotas" | "recurrentes">(
+    searchParams.get("filter") === "recurring" ? "recurrentes" : "all"
+  );
+  const [deleteRecurringId, setDeleteRecurringId] = useState<number | null>(null);
 
   // Close modal on Escape key
   useEffect(() => {
@@ -175,9 +181,15 @@ export default function InstallmentsPage() {
   };
 
   const handleDeleteRecurring = async (id: number) => {
-    if (confirm("¿Eliminar esta suscripción permanentemente?")) {
-      await deleteRecurringExpense(id);
+    setDeleteRecurringId(id);
+  };
+
+  const confirmDeleteRecurring = async () => {
+    if (deleteRecurringId) {
+      await deleteRecurringExpense(deleteRecurringId);
       queryClient.invalidateQueries({ queryKey: ["recurring"] });
+      setDeleteRecurringId(null);
+      closeModal();
     }
   };
 
@@ -602,7 +614,6 @@ export default function InstallmentsPage() {
                       <button
                         onClick={() => {
                           handleDeleteRecurring(selectedItem.recurring_id!);
-                          closeModal();
                         }}
                         className="text-xs text-[var(--gnome-red-3)] hover:underline"
                       >
@@ -640,6 +651,17 @@ export default function InstallmentsPage() {
           </div>
         </div>
       )}
+
+      {/* Confirm delete recurring */}
+      <ConfirmDialog
+        isOpen={deleteRecurringId !== null}
+        title="Eliminar gasto recurrente"
+        message="¿Eliminar esta suscripción permanentemente? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={confirmDeleteRecurring}
+        onCancel={() => setDeleteRecurringId(null)}
+        variant="danger"
+      />
     </div>
   );
 }

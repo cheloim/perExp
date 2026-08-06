@@ -536,6 +536,7 @@ export interface AdminUser {
   telegram_connected: boolean;
   mfa_enabled: boolean;
   email_verified: boolean;
+  provider: string | null;
   expense_count: number;
   card_count: number;
   account_count: number;

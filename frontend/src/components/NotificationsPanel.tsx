@@ -127,7 +127,7 @@ export default function NotificationsPanel({ onClose }: Props) {
       onClose();
     } else if (n.type === "auto_recurring_detected") {
       handleMarkRead(n.id);
-      navigate("/installments");
+      navigate("/installments?filter=recurring");
       onClose();
     }
   };
@@ -355,10 +355,12 @@ export default function NotificationsPanel({ onClose }: Props) {
             const isUncategorizedNotif =
               n.type === "uncategorized_expense" || n.type === "uncategorized_expenses";
             const isCategorySuggestion = n.type === "category_suggestions";
+            const isRecurringDetected = n.type === "auto_recurring_detected";
             const isClickable =
               isImportNotif ||
               isUncategorizedNotif ||
               isCategorySuggestion ||
+              isRecurringDetected ||
               n.type === "monthly_report_ready" ||
               n.type === "monthly_report_queued";
             const isFailed = n.type === "import_failed";
@@ -381,7 +383,7 @@ export default function NotificationsPanel({ onClose }: Props) {
                     : ""
                 } ${isUncategorizedNotif ? "border-l-4 border-l-amber-500" : ""} ${
                   isCategorySuggestion ? "border-l-4 border-l-purple-500" : ""
-                } ${
+                } ${isRecurringDetected ? "border-l-4 border-l-indigo-500" : ""} ${
                   n.type === "monthly_report_ready" || n.type === "monthly_report_queued"
                     ? "border-l-4 border-l-blue-500"
                     : ""
@@ -545,6 +547,12 @@ export default function NotificationsPanel({ onClose }: Props) {
                 {isUncategorizedNotif && (
                   <p className="text-[var(--color-primary)] text-xs font-medium">
                     Ver gastos sin categoría →
+                  </p>
+                )}
+
+                {isRecurringDetected && (
+                  <p className="text-[var(--color-primary)] text-xs font-medium">
+                    Ver programados →
                   </p>
                 )}
 

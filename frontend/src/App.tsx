@@ -334,6 +334,13 @@ function MainLayout() {
     return () => document.removeEventListener("keydown", handleEscape);
   }, [aiDrawerOpen, userPanelOpen, notifOpen]);
 
+  // Listen for open-user-panel event from Dashboard MFA banner
+  useEffect(() => {
+    const handleOpenUserPanel = () => setUserPanelOpen(true);
+    window.addEventListener("open-user-panel", handleOpenUserPanel);
+    return () => window.removeEventListener("open-user-panel", handleOpenUserPanel);
+  }, []);
+
   // Global viewport tracking for Firefox bottom bar and mobile keyboard
   useEffect(() => {
     const vv = window.visualViewport;

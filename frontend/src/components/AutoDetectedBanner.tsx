@@ -9,6 +9,7 @@ import {
 } from "../api/client";
 import type { RecurringExpense } from "../api/client";
 import { formatCurrency } from "../utils/format";
+import { ConfirmDialog } from "./ConfirmDialog";
 
 export default function AutoDetectedBanner() {
   const queryClient = useQueryClient();
@@ -17,6 +18,7 @@ export default function AutoDetectedBanner() {
   const [editAmount, setEditAmount] = useState("");
   const [editDate, setEditDate] = useState("");
   const [editFrequency, setEditFrequency] = useState("");
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const { data: autoDetected = [] } = useQuery({
     queryKey: ["recurring", "auto-detected"],
@@ -224,11 +226,7 @@ export default function AutoDetectedBanner() {
                           Confirmar
                         </button>
                         <button
-                          onClick={() => {
-                            if (confirm("Eliminar este gasto recurrente?")) {
-                              deleteMut.mutate(r.id);
-                            }
-                          }}
+                          onClick={() => setDeleteId(r.id)}
                           className="text-xs px-3 py-1.5 text-[var(--color-error)] hover:bg-[var(--color-error)]/10 rounded-lg transition"
                         >
                           Eliminar
@@ -258,6 +256,21 @@ export default function AutoDetectedBanner() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteId !== null}
+        title="Eliminar gasto recurrente"
+        message="¿Eliminar este gasto recurrente? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={() => {
+          if (deleteId) {
+            deleteMut.mutate(deleteId);
+            setDeleteId(null);
+          }
+        }}
+        onCancel={() => setDeleteId(null)}
+        variant="danger"
+      />
     </>
   );
 }

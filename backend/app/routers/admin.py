@@ -76,6 +76,7 @@ class UserListItem(BaseModel):
     telegram_connected: bool
     mfa_enabled: bool
     email_verified: bool
+    provider: str | None
     expense_count: int
     card_count: int
     account_count: int
@@ -117,6 +118,7 @@ def list_users(
                 telegram_connected=bool(u.telegram_chat_hash),
                 mfa_enabled=u.mfa_enabled,
                 email_verified=u.email_verified,
+                provider=u.provider,
                 expense_count=db.query(Expense).filter(Expense.user_id == u.id).count(),
                 card_count=db.query(Card).filter(Card.user_id == u.id).count(),
                 account_count=db.query(Account).filter(Account.user_id == u.id).count(),
