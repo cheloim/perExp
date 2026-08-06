@@ -103,6 +103,30 @@ def generate_weekly_report_image(report_data: dict) -> bytes:
             k: _strip_emojis(v) if isinstance(v, str) else v for k, v in llm_analysis.items()
         }
 
+    # Budget data (warnings only)
+    budgets = report_data.get("budgets", [])
+    budget_items = []
+    for b in budgets[:5]:
+        budget_items.append({
+            "category_name": b.get("category_name", "")[:20],
+            "budget_amount": _fmt(b.get("budget_amount", 0)),
+            "spent": _fmt(b.get("spent", 0)),
+            "percentage": b.get("percentage", 0),
+            "status": b.get("status", "warning"),
+        })
+
+    # Budget events
+    budget_events = report_data.get("budget_events", [])
+    event_items = []
+    for ev in budget_events[:3]:
+        event_items.append({
+            "name": ev.get("name", "")[:25],
+            "total_amount": _fmt(ev.get("total_amount", 0)),
+            "spent": _fmt(ev.get("spent", 0)),
+            "remaining": _fmt(ev.get("remaining", 0)),
+            "end_date": ev.get("end_date", ""),
+        })
+
     context = {
         "week_start": week_start,
         "week_end": week_end,
@@ -117,6 +141,8 @@ def generate_weekly_report_image(report_data: dict) -> bytes:
         "upcoming_total": _fmt(upcoming_total),
         "top_expenses": top_formatted,
         "llm_analysis": llm_analysis,
+        "budgets": budget_items,
+        "budget_events": event_items,
     }
 
     # Render Jinja2 template

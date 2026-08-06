@@ -642,6 +642,82 @@ Usa flags para tendencias preocupantes a monitorear."""
             "trend_comment": "",
         }
 
+    # Budget data
+    from app.models import Budget, BudgetEvent, BudgetGroup
+    from app.services.budget_helpers import (
+        get_avg_monthly_spending,
+        get_spending_for_category,
+        get_spending_for_event,
+        get_spending_for_group,
+    )
+
+    uid_list = get_group_user_ids(user_id, db)
+    year_int = int(month_str[:4])
+    month_int = int(month_str[5:7])
+
+    budgets = db.query(Budget).filter(Budget.user_id == user_id, Budget.is_active == True).all()
+    budget_items = []
+    total_budget = 0.0
+    total_spent = 0.0
+    for b in budgets:
+        spent = get_spending_for_category(b.category_id, year_int, month_int, uid_list, db)
+        pct = round((spent / b.amount * 100) if b.amount > 0 else 0, 1)
+        avg = get_avg_monthly_spending(b.category_id, uid_list, db)
+        cat = db.query(Category).filter(Category.id == b.category_id).first()
+        status = "exceeded" if pct >= 100 else "warning" if pct >= 80 else "ok"
+        budget_items.append({
+            "category_name": cat.name if cat else "Sin categoría",
+            "budget_amount": b.amount,
+            "spent": spent,
+            "percentage": pct,
+            "status": status,
+            "avg_monthly": avg,
+        })
+        total_budget += b.amount
+        total_spent += spent
+
+    budget_summary = {
+        "total_budget": total_budget,
+        "total_spent": total_spent,
+        "total_percentage": round((total_spent / total_budget * 100) if total_budget > 0 else 0, 1),
+    }
+
+    # Budget groups (50/30/20)
+    budget_groups = db.query(BudgetGroup).filter(
+        BudgetGroup.user_id == user_id, BudgetGroup.is_active == True
+    ).all()
+    budget_group_items = []
+    for bg in budget_groups:
+        group_spent = get_spending_for_group(bg.name, year_int, month_int, uid_list, db)
+        budget_group_items.append({
+            "name": bg.display_name,
+            "percentage": bg.percentage,
+            "amount": bg.amount,
+            "spent": group_spent,
+        })
+
+    # Budget events
+    month_start = date(year_int, month_int, 1)
+    month_end = date(year_int, month_int, 28)  # approximate
+    events = db.query(BudgetEvent).filter(
+        BudgetEvent.user_id == user_id,
+        BudgetEvent.is_active == True,
+        BudgetEvent.start_date <= month_end,
+        BudgetEvent.end_date >= month_start,
+    ).all()
+    budget_event_items = []
+    for ev in events:
+        ev_cats = json.loads(ev.categories or "[]")
+        ev_spent = get_spending_for_event(ev_cats, ev.start_date, ev.end_date, uid_list, db)
+        budget_event_items.append({
+            "name": ev.name,
+            "total_amount": ev.total_amount,
+            "spent": ev_spent,
+            "remaining": ev.total_amount - ev_spent,
+            "start_date": ev.start_date.strftime("%d/%m"),
+            "end_date": ev.end_date.strftime("%d/%m"),
+        })
+
     return {
         "month": month_str,
         "total_expenses": total_expenses,
@@ -671,6 +747,10 @@ Usa flags para tendencias preocupantes a monitorear."""
         "recurring_expenses": recurring_list,
         "weekend_data": weekend_data,
         "analysis": analysis,
+        "budgets": budget_items,
+        "budget_summary": budget_summary,
+        "budget_groups": budget_group_items,
+        "budget_events": budget_event_items,
     }
 
 

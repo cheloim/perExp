@@ -227,6 +227,37 @@ def _build_account_comparison_data(accounts: list[dict], cards: list[dict]) -> d
     return {"labels": labels, "current": current, "previous": previous}
 
 
+def _build_budget_groups_chart(groups: list[dict]) -> dict:
+    """Build Chart.js horizontal bar data for 50/30/20 budget groups."""
+    if not groups:
+        return None
+
+    labels = []
+    targets = []
+    spent = []
+    colors = []
+
+    color_map = {
+        "Necesidades": "#3584e4",
+        "Gustos": "#9141ac",
+        "Ahorro": "#33d17a",
+    }
+
+    for g in groups:
+        name = g.get("name", "")
+        labels.append(name)
+        targets.append(g.get("amount", 0))
+        spent.append(g.get("spent", 0))
+        colors.append(color_map.get(name, "#5e5c64"))
+
+    return {
+        "labels": labels,
+        "targets": targets,
+        "spent": spent,
+        "colors": colors,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Main image generator
 # ---------------------------------------------------------------------------
@@ -357,6 +388,14 @@ def generate_report_image(report_data: dict, user_name: str) -> bytes:
         "future_installments_count": report_data.get("future_installments_count", 0),
         "future_installments_total": _fmt(report_data.get("future_installments_total", 0)),
         "analysis": analysis,
+        # Budget data
+        "budgets": _fmt_list(report_data.get("budgets", []), "budget_amount"),
+        "budget_summary": report_data.get("budget_summary", {}),
+        "budget_groups": _fmt_list(report_data.get("budget_groups", []), "amount"),
+        "budget_events": _fmt_list(report_data.get("budget_events", []), "total_amount"),
+        "budget_groups_data": json.dumps(_build_budget_groups_chart(report_data.get("budget_groups", [])))
+        if report_data.get("budget_groups")
+        else "null",
     }
 
     # Render Jinja2 template

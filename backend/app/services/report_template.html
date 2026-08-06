@@ -643,6 +643,73 @@
     </div>
   </div>
 
+  <!-- Budget Section -->
+  {% if budgets %}
+  <div class="table-section" style="margin-bottom: 20px;">
+    <div class="chart-title">Presupuestos</div>
+    {% if budget_summary %}
+    <div style="display: flex; gap: 24px; margin-bottom: 16px; font-size: 13px;">
+      <div><strong>Presupuesto total:</strong> ${{ budget_summary.total_budget | default(0) | round(2) }}</div>
+      <div><strong>Gastado:</strong> ${{ budget_summary.total_spent | default(0) | round(2) }}</div>
+      <div><strong>Avance:</strong> {{ budget_summary.total_percentage | default(0) }}%</div>
+    </div>
+    {% endif %}
+    <table>
+      <thead>
+        <tr>
+          <th>Categoría</th>
+          <th>Presupuesto</th>
+          <th>Gastado</th>
+          <th>%</th>
+          <th>Promedio 3m</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in budgets %}
+        <tr class="{% if b.percentage_raw is defined %}{% if b.percentage_raw >= 100 %}row-exceeded{% elif b.percentage_raw >= 80 %}row-warning{% endif %}{% endif %}">
+          <td>{{ b.category_name }}</td>
+          <td>{{ b.budget_amount }}</td>
+          <td>{{ b.spent }}</td>
+          <td style="font-weight: 700; color: {% if b.percentage_raw >= 100 %}#ed333b{% elif b.percentage_raw >= 80 %}#ff7800{% else %}#33d17a{% endif %};">{{ b.percentage }}%</td>
+          <td>{{ b.avg_monthly }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- Budget Groups Chart (50/30/20) -->
+  {% if budget_groups and budget_groups_data != "null" %}
+  <div class="chart-card" style="margin-bottom: 20px;">
+    <div class="chart-title">Distribución 50/30/20</div>
+    <div class="chart-container">
+      <canvas id="budgetGroupsChart" height="180"></canvas>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Budget Events -->
+  {% if budget_events %}
+  <div class="table-section" style="margin-bottom: 20px;">
+    <div class="chart-title">Eventos de Presupuesto</div>
+    {% for ev in budget_events %}
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f8f9fa; border-radius: 8px; margin-bottom: 8px; font-size: 13px;">
+      <div>
+        <strong>{{ ev.name }}</strong>
+        <span style="color: #5e5c64; margin-left: 8px;">{{ ev.start_date }} - {{ ev.end_date }}</span>
+      </div>
+      <div>
+        <span>{{ ev.spent }} / {{ ev.total_amount }}</span>
+        <span style="margin-left: 12px; font-weight: 700; color: {% if ev.remaining_raw <= 0 %}#ed333b{% elif ev.remaining_raw < ev.total_amount_raw * 0.2 %}#ff7800{% else %}#33d17a{% endif %};">
+          ${{ ev.remaining }} restante
+        </span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <!-- AI Analysis -->
   {% if analysis %}
   <div class="analysis-section">
@@ -993,6 +1060,74 @@ function renderCharts() {
               font: { size: 10, family: 'Inter' },
               color: '#5e5c64',
               maxRotation: 45
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // Budget Groups Chart (50/30/20 horizontal bar)
+  const bgEl = document.getElementById('budgetGroupsChart');
+  if (bgEl && {{ budget_groups_data | safe }}) {
+    const bg = {{ budget_groups_data | safe }};
+    new Chart(bgEl, {
+      type: 'bar',
+      data: {
+        labels: bg.labels,
+        datasets: [
+          {
+            label: 'Presupuesto',
+            data: bg.targets,
+            backgroundColor: bg.colors.map(c => c + '33'),
+            borderColor: bg.colors,
+            borderWidth: 2,
+            borderRadius: 6,
+            barPercentage: 0.6
+          },
+          {
+            label: 'Gastado',
+            data: bg.spent,
+            backgroundColor: bg.colors,
+            borderColor: bg.colors,
+            borderWidth: 0,
+            borderRadius: 6,
+            barPercentage: 0.6
+          }
+        ]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              boxWidth: 12,
+              boxHeight: 12,
+              borderRadius: 3,
+              useBorderRadius: true,
+              font: { size: 11, family: 'Inter' },
+              padding: 16
+            }
+          }
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            grid: { color: 'rgba(0,0,6,0.04)' },
+            ticks: {
+              font: { size: 11, family: 'Inter' },
+              color: '#77767b',
+              callback: v => '$' + v.toLocaleString()
+            }
+          },
+          y: {
+            grid: { display: false },
+            ticks: {
+              font: { size: 12, family: 'Inter', weight: '600' },
+              color: '#1c1b1f'
             }
           }
         }
