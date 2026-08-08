@@ -13,17 +13,19 @@
 | 7 | Weekly Telegram report | ✅ Done | Medium | #76 | PNG image report sent via Telegram bot. Includes weekly spent, accumulated monthly |
 | 8 | Income module | ⏳ Backlog | High | - | Track income, dashboard comparison vs last months |
 | 9 | Ticket scan | ⏳ Backlog | Medium | - | OCR receipt analysis, compare same items last month |
-| 10 | Expense budgets | ⏳ Backlog | Medium | - | Set spending limits per category |
+| 10 | Expense budgets | ✅ Done | Medium | - | Per-category budgets with 50/30/20 groups, events, auto-suggestion |
 | 11 | Make index.html interactive | ✅ Done | Medium | #73 | Click KPI cards to filter expenses, uncategorized warnings |
 | 12 | Billing period tracking | ❌ Not Done | Medium | #63 | Cancelled: Monthly filtering is sufficient |
 | 13 | Missing categories notification | ✅ Done | Medium | #73 | Real-time notifications for uncategorized expenses |
-| 14 | FCI, Plazos Fijos y Cauciones | ⏳ Backlog | Medium | - | Support for Fondos Comunes, Plazos Fijos, and Cauciones |
-| 15 | Recurring expenses tracking | ⏳ Backlog | Medium | - | Mark expenses as recurring, auto-suggest duplicates, manage subscriptions |
+| 14 | FCI, Plazos Fijos y Cauciones | 🔶 Partial | Medium | - | Broker sync imports FCI/Cauciones; missing: plazo fijo tracking, maturity alerts, specialized views |
+| 15 | Recurring expenses tracking | ✅ Done | Medium | - | Auto-detect subscriptions, pause/resume, upcoming charge alerts, Telegram commands |
 | 16 | Savings goals | ⏳ Backlog | Low | - | Create, track, and visualize savings targets with progress indicators |
-| 17 | Bill reminders | ⏳ Backlog | Low | - | Upcoming bill notifications via Telegram and dashboard alerts |
-| 18 | Income tracking (Phase 2) | ⏳ Backlog | High | - | Track salary, investments, other income sources with dashboard integration |
+| 17 | Bill reminders | 🔶 Partial | Low | - | Upcoming recurring alerts exist; missing: snooze, calendar view, mark-as-paid, dashboard card |
+| 18 | Income tracking (Phase 2) | 🔶 Partial | High | - | is_income field + dashboard breakdown exist; missing: income types, recurring income, dedicated UI |
 | 19 | Receipt OCR scanning (Phase 2) | ⏳ Backlog | Medium | - | Upload receipt photos, extract items and amounts with historical price tracking |
-| 20 | Data export & tax reports (Phase 2) | ⏳ Backlog | Medium | - | Export transactions in tax-friendly formats for Argentina tax filing |
+| 20 | Data export & tax reports (Phase 2) | 🔶 Partial | Medium | - | CSV export + monthly PNG reports exist; missing: Excel/PDF, AFIP tax categories |
+| 21 | Telegram bot improvements | ✅ Done | Medium | - | Debit card detection, installment parsing, account matching, cancel buttons |
+| 22 | WhatsApp Bot | ⏳ Backlog | High | - | WhatsApp Business API integration for expense logging (same features as Telegram bot) |
 
 ## Platform Focus
 
@@ -211,3 +213,21 @@ Generate a monthly summary report with:
 - Integration with existing investment portfolio
 - Separate tracking from stocks/ETFs
 - Maturity date alerts and reminders
+
+### WhatsApp Bot
+- **Effort**: High | **Freemium**: Premium feature
+- WhatsApp Business API integration via Meta Cloud API or Twilio
+- Same core features as Telegram bot:
+  - Natural language expense parsing (LLM-powered)
+  - Bank notification detection and parsing
+  - Installment handling (auto-detect from notifications)
+  - Account and card matching
+  - Category auto-categorization
+- Authentication flow: link WhatsApp number to Oikonomia account
+- Proactive messaging: weekly reports, budget alerts, recurring reminders
+- Media support: receipt photo upload → OCR → expense creation
+- Group chat support: log expenses from family WhatsApp group
+- **Implementation options**:
+  - Meta Cloud API (official, requires Business verification)
+  - Twilio WhatsApp API (easier setup, per-message cost)
+- **Challenges**: Message template approval, 24h session window, phone number verification

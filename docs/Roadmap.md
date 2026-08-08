@@ -17,7 +17,8 @@
 | 11 | Make index.html interactive | ✅ Done | Medium | #73 | - | Click KPI cards to filter expenses, uncategorized warnings |
 | 12 | Billing period tracking | ❌ Not Done | Medium | #63 | - | Cancelled: Monthly filtering is sufficient. Billing view adds complexity without enough value for expense analysis and saving plans |
 | 13 | Missing categories notification | ✅ Done | Medium | #73 | - | Real-time notifications for uncategorized expenses on save + login |
-| 14 | FCI, Plazos Fijos y Cauciones | ⏳ Backlog | Medium | - | - | Support for Fondos Comunes de Inversión, Plazos Fijos, and Cauciones in investments module |
+| 14 | FCI, Plazos Fijos y Cauciones | 🔶 Partial | Medium | - | - | Broker sync imports FCI/Cauciones from IOL/PPI; missing: plazo fijo tracking, maturity alerts, specialized views |
+| 14b | Telegram bot improvements | ✅ Done | Medium | - | - | Debit card detection from bank notifications, installment parsing (Cuota 3 de 12), account name matching, cancel buttons, improved /ayuda help |
 | 15 | Enable MFA for user accounts | ✅ Done | Medium | #94 | - | Multi-factor authentication (TOTP) for enhanced account security. QR code setup in UserPanel, MFA login step, enable/disable flow |
 | 16 | Integración caja de ahorro ↔ tarjeta débito | ✅ Done | Medium | #96 | - | Vincular cuentas de caja de ahorro con tarjetas débito. Bidireccional (desde tarjeta o desde cuenta). Solo caja_ahorro ↔ débito. Gastos con tarjeta vinculada se reflejan automáticamente en la cuenta |
 | 17 | Auto-categorización de gastos con IA | ✅ Done | Medium | #99 | - | Usar LLM para sugerir automáticamente la categoría correcta al cargar un gasto, basándose en la descripción, monto y historial del usuario |
@@ -27,12 +28,13 @@
 | 21 | Recurring expenses tracking | ✅ Done | Medium | #135, #145 | - | Auto-detect subscriptions, unified Programados page with installments + recurring, pause/edit/delete, Telegram commands (/suscripciones, /pausar, /cancelar) |
 | 22 | Savings goals | ⏳ Backlog | Low | - | #8 | Create, track, and visualize savings targets with progress indicators |
 | 23 | Auto-detect recurring expenses | ✅ Done | Medium | #150 | #21 | Celery task to analyze expense history and detect recurring patterns (2+ occurrences, 10% tolerance). Auto-create RecurringExpense entries with notification + banner + review modal in /programados |
-| 24 | Bill reminder notifications | ⏳ Backlog | Medium | - | #23 | Daily Celery task to check upcoming charges. Send Telegram alerts and in-app notifications. Auto-advance next_charge_date |
+| 24 | Bill reminder notifications | 🔶 Partial | Medium | - | #23 | Upcoming recurring alerts exist (3 days before, daily Celery task); missing: snooze, mark-as-paid, Telegram-specific reminders |
 | 25 | Upcoming bills dashboard card | ⏳ Backlog | Low | - | #24 | Dashboard widget showing next 5 upcoming bills with merchant, amount, date, and days remaining |
 | 26 | Field-level encryption | ✅ Done | High | #141, #149 | - | Encrypt sensitive user data (PII, financial) at rest using Fernet (AES-128-CBC). Protects against database breaches. Includes HMAC for duplicate detection, Account.name encryption, dry-run migration, verification scripts, CI/CD integration with automatic rollback. Search columns removed, replaced with application-level filtering |
 | 27 | Email validation | ✅ Done | Low | #134 | - | Validate email format and domain existence. Block fake domains (test.com, mailinator.com, etc.). DNS MX record validation. Frontend + backend validation |
 | 28 | Merchant preference learning | ✅ Done | Medium | #137 | - | Track user category preferences per merchant. Prioritize user preferences over LLM suggestions. Include user history in LLM prompt |
 | 29 | Admin panel | ✅ Done | High | #151 | - | Full admin panel at /x/{slug} (random UUID, SEO protected). User management, audit logs, monthly reports, system health. Impersonation with chat widget + transcript email. Block/unblock users, toggle admin, bulk notify. Cleanup tasks (90d logs, 45d messages). Re-auth modal on JWT expiry. Weekly reports timezone fix |
+| 30 | WhatsApp Bot | ⏳ Backlog | High | - | - | WhatsApp Business API integration for expense logging. Same features as Telegram bot: natural language parsing, bank notification detection, installment handling, account matching. Meta Cloud API or Twilio integration |
 
 ## Backlog Details
 
@@ -197,3 +199,32 @@ Generate a monthly summary report with:
 - Encryption verification script (verify all fields decrypt)
 - CI/CD integration with automatic database rollback if verification fails
 - 27 unit tests passing
+
+### Telegram Bot Improvements ✅
+- Debit card detection from bank notifications (débito automático, débito en cuenta, extracción cajero)
+- Installment parsing from bank notifications ("Cuota 3 de 12" → auto-populate, skip question)
+- card_last4 regex extraction from notification text + Pass 0 matching by last 4 digits
+- Account name matching from natural language ("transferencia galicia", "mercado pago", "efectivo")
+- Account fallback for debit notifications when no card matches
+- Cancel button (❌) on all conversation flows (payment, bank, card, account selection)
+- Improved /start flow: bot capabilities shown before auth, commands shown after connect
+- Enhanced /ayuda with full command list
+- Recurring expense auto-linking on expense save
+
+### WhatsApp Bot
+- **Effort**: High | **Freemium**: Premium feature
+- WhatsApp Business API integration via Meta Cloud API or Twilio
+- Same core features as Telegram bot:
+  - Natural language expense parsing (LLM-powered)
+  - Bank notification detection and parsing
+  - Installment handling (auto-detect from notifications)
+  - Account and card matching
+  - Category auto-categorization
+- Authentication flow: link WhatsApp number to Oikonomia account
+- Proactive messaging: weekly reports, budget alerts, recurring reminders
+- Media support: receipt photo upload → OCR → expense creation
+- Group chat support: log expenses from family WhatsApp group
+- **Implementation options**:
+  - Meta Cloud API (official, requires Business verification)
+  - Twilio WhatsApp API (easier setup, per-message cost)
+- **Challenges**: Message template approval, 24h session window, phone number verification
