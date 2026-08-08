@@ -307,6 +307,11 @@ def _save_expense(
         db.commit()
         db.refresh(expense)
 
+        # Link to recurring expense if matches
+        from app.services.recurring_linker import link_to_recurring
+
+        link_to_recurring(expense.id, expense.description, user_id, db)
+
         # Resolve up to 3 levels: cat → parent → grandparent
         expense._cat_levels = []
         if expense.category_id:
@@ -813,7 +818,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         user = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
         if user:
             await update.message.reply_text(
-                f"¡Hola de nuevo, <b>{user.full_name}</b>! 🎉 ¿Qué gastaste hoy?",
+                f"¡Hola <b>{user.full_name}</b>! 👋 ¿Qué gastaste hoy?\n\n"
+                "💡 Mandame un gasto o usá /ayuda para ver los comandos disponibles.",
                 parse_mode="HTML",
             )
             return ConversationHandler.END
@@ -822,7 +828,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     await update.message.reply_text(
         "👋 ¡Hola! Soy *NikoFin*, tu asistente de finanzas personales.\n\n"
-        "Para conectarte con tu cuenta, ingresá tu clave de 12 caracteres.\n"
+        "¿Qué puedo hacer?\n"
+        "• Registrá gastos con lenguaje natural\n"
+        "• Te muestro resúmenes semanales y mensuales\n"
+        "• Te aviso de suscripciones y vencimientos\n"
+        "• Categorizo automáticamente con IA\n\n"
+        "Para empezar, ingresá tu clave de 12 caracteres.\n"
         "La encontrás en la app → Configuración → Telegram Bot.",
         parse_mode="HTML",
     )
@@ -846,14 +857,18 @@ async def handle_auth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         db.commit()
         db.refresh(user)
         await update.message.reply_text(
-            f"🎉 ¡Listo, <b>{user.full_name}</b>! Ya podés mandarme tus gastos.\n\n"
-            "Escribime como le contarías a un amigo:\n\n"
+            f"🎉 ¡Listo, <b>{user.full_name}</b>! Tu cuenta está conectada.\n\n"
+            "Mandame un gasto como le dirías a un amigo:\n"
             '• _"gasté 1500 en farmacity"_\n'
             '• _"uber 3200 ayer"_\n'
-            '• _"almuerzo con Pedro 8500 pesos"_\n'
             '• _"Netflix USD 5"_\n\n'
-            "Yo me encargo del resto 📊\n"
-            "Te voy a mostrar el gasto parseado y te voy a pedir que confirmes el medio de pago.",
+            "📌 <b>Comandos disponibles:</b>\n"
+            "/gastos — Ver gastos del mes\n"
+            "/presupuesto — Ver presupuestos\n"
+            "/suscripciones — Ver suscripciones\n"
+            "/inversiones — Ver inversiones\n"
+            "/cuotas — Ver cuotas pendientes\n"
+            "/ayuda — Ver todos los comandos",
             parse_mode="HTML",
         )
         return ConversationHandler.END
@@ -872,7 +887,16 @@ _HELP_TEXT = (
     "🔔 <b>O reenviame notificaciones de tu banco:</b>\n"
     '• <i>"Compra aprobada Visa ****4521 $15.200 Supermercado"</i>\n'
     '• <i>"Débito Mastercard ****1234 $8.500 Netflix"</i>\n\n'
-    "Si detecto los datos de tu tarjeta, te muestro todo junto para confirmar."
+    "Si detecto los datos de tu tarjeta, te muestro todo junto para confirmar.\n\n"
+    "📌 <b>Comandos disponibles:</b>\n"
+    "/start — Iniciar o reconectar\n"
+    "/gastos — Ver gastos del mes\n"
+    "/presupuesto — Ver presupuestos\n"
+    "/suscripciones — Ver suscripciones\n"
+    "/inversiones — Ver inversiones\n"
+    "/cuotas — Ver cuotas pendientes\n"
+    "/cancelar — Cancelar operación actual\n"
+    "/ayuda — Mostrar esta ayuda"
 )
 
 _UNRECOGNIZED_MESSAGES = [
@@ -906,7 +930,8 @@ async def _handle_bank_notification(
                         "💵 Efectivo/Transferencia", callback_data="pay:efectivo_transferencia"
                     ),
                     InlineKeyboardButton("💳 Tarjeta", callback_data="pay:tarjeta"),
-                ]
+                ],
+                [InlineKeyboardButton("❌ Cancelar", callback_data="cancel")],
             ]
             desc = _escape_html(fallback_parsed.get("description", ""))
             amount_str = _format_amount(
@@ -1168,7 +1193,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 "💵 Efectivo/Transferencia", callback_data="pay:efectivo_transferencia"
             ),
             InlineKeyboardButton("💳 Tarjeta", callback_data="pay:tarjeta"),
-        ]
+        ],
+        [InlineKeyboardButton("❌ Cancelar", callback_data="cancel")],
     ]
     await update.message.reply_text(
         f"<b>{desc}</b> — {amount_str} ({date_str})\n\n¿Cómo pagaste?",
@@ -1220,6 +1246,7 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         keyboard.append(
             [InlineKeyboardButton("➕ Crear nueva cuenta", callback_data="account:new")]
         )
+        keyboard.append([InlineKeyboardButton("❌ Cancelar", callback_data="cancel")])
 
         await query.edit_message_text(
             "💰 ¿Desde qué cuenta?",
@@ -1246,6 +1273,7 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     banks = sorted(card_options.keys())
     keyboard = [[InlineKeyboardButton(b, callback_data=f"bank:{b}")] for b in banks]
+    keyboard.append([InlineKeyboardButton("❌ Cancelar", callback_data="cancel")])
     await query.edit_message_text("💳 ¿Qué banco?", reply_markup=InlineKeyboardMarkup(keyboard))
     return WAITING_CARD_BANK
 
@@ -1272,6 +1300,7 @@ async def handle_card_bank(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return WAITING_CARD_MANUAL
 
     keyboard = [[InlineKeyboardButton(card, callback_data=f"card:{card}")] for card in cards]
+    keyboard.append([InlineKeyboardButton("❌ Cancelar", callback_data="cancel")])
     await query.edit_message_text("💳 ¿Qué tarjeta?", reply_markup=InlineKeyboardMarkup(keyboard))
     return WAITING_CARD_TYPE
 
@@ -2118,6 +2147,14 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
+async def cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle cancel button press via callback query."""
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text("Cancelado. Cuando quieras, mandame otro gasto.")
+    return ConversationHandler.END
+
+
 def start_bot(token: str) -> None:
     """Run the bot synchronously in its own event loop (called from a daemon thread)."""
     logging.getLogger("telegram").setLevel(logging.INFO)
@@ -2177,7 +2214,10 @@ async def _run_bot(token: str) -> None:
                 CallbackQueryHandler(handle_event_confirm, pattern=r"^event_link:")
             ],
         },
-        fallbacks=[MessageHandler(filters.COMMAND, cancel)],
+        fallbacks=[
+            MessageHandler(filters.COMMAND, cancel),
+            CallbackQueryHandler(cancel_callback, pattern=r"^cancel$"),
+        ],
         per_message=False,
     )
 
