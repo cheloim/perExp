@@ -115,7 +115,8 @@ def _extract_card_info(raw_input: str, card_type: str) -> dict:
 
 BANK_NOTIFICATION_PATTERNS = [
     r"compra\s+(aprobada|confirmada|registrada)",
-    r"d[eé]bito\s+(aprobado|confirmado|registrado)",
+    r"d[eé]bito\s+(aprobado|confirmado|registrado|autom[aá]tico)",
+    r"d[eé]bito\s+en\s+cuenta",
     r"consumo\s+(aprobado|confirmado|registrado)",
     r"tarjeta\s+(terminada|\*{4}|\d{4})",
     r"visa\s+terminada",
@@ -123,6 +124,7 @@ BANK_NOTIFICATION_PATTERNS = [
     r"naranja\s+terminada",
     r"cr[eé]dito\s+(aprobado|confirmado|registrado)",
     r"transferencia\s+(saliente|enviada|realizada)",
+    r"extracci[oó]n\s+(cajero|autom[aá]tico)",
 ]
 
 
@@ -160,6 +162,42 @@ def _extract_card_from_text(text: str) -> tuple[str | None, str | None]:
     return card_name, bank
 
 
+ACCOUNT_TYPE_KEYWORDS = {
+    "efectivo": ["efectivo", "cash"],
+    "mercadopago": ["mercadopago", "mercado pago", "mp", "merpago"],
+    "cuenta_corriente": ["cuenta corriente", "c/c"],
+    "caja_ahorro": ["caja de ahorro", "caja ahorro", "c/a"],
+}
+
+
+def _match_account_from_text(text: str, user_id: int, db) -> "Account | None":
+    """Try to match an account from natural language text."""
+    lower = text.lower()
+
+    # Try to match by account type keywords
+    for acct_type, keywords in ACCOUNT_TYPE_KEYWORDS.items():
+        for kw in keywords:
+            if kw in lower:
+                account = (
+                    db.query(Account)
+                    .filter(
+                        Account.user_id == user_id,
+                        Account.type == acct_type,
+                    )
+                    .first()
+                )
+                if account:
+                    return account
+
+    # Try to match by account name (exact substring match)
+    accounts = db.query(Account).filter(Account.user_id == user_id).all()
+    for account in accounts:
+        if account.name and account.name.lower() in lower:
+            return account
+
+    return None
+
+
 def _parse_bank_notification(text: str) -> dict | None:
     """Parse a bank notification using LLM to extract structured data."""
     from app.prompts import BANK_NOTIFICATION_PARSE_PROMPT
@@ -191,6 +229,17 @@ def _parse_bank_notification(text: str) -> dict | None:
                     "[BANK_PARSE] Stripped prefix: '%s' -> '%s'", original, result["description"]
                 )
 
+        # Extract card_last4 from notification text if LLM didn't provide it
+        if result and not result.get("card_last4"):
+            last4_match = re.search(
+                r"(?:terminada?\s+en|\*{4}|\*{2})\s*(\d{4})", text, re.IGNORECASE
+            )
+            if not last4_match:
+                last4_match = re.search(r"\*{4}(\d{4})", text)
+            if last4_match:
+                result["card_last4"] = last4_match.group(1)
+                logger.info("[BANK_PARSE] Extracted card_last4 from text: %s", result["card_last4"])
+
         return result
     except Exception as e:
         logger.error("Bank notification parse error: %s", e)
@@ -206,6 +255,12 @@ def _match_card_from_notification(
         return None
 
     target_type = card_type or "credito"
+
+    # Pass 0: match by last 4 digits (most precise)
+    if card_last4:
+        for card in cards:
+            if card.card_name and card.card_name[-4:] == card_last4:
+                return card
 
     # Pass 1: match by card_name (Visa/Mastercard) + bank + type
     for card in cards:
@@ -306,6 +361,11 @@ def _save_expense(
         db.add(expense)
         db.commit()
         db.refresh(expense)
+
+        # Link to recurring expense if matches
+        from app.services.recurring_linker import link_to_recurring
+
+        link_to_recurring(expense.id, expense.description, user_id, db)
 
         # Resolve up to 3 levels: cat → parent → grandparent
         expense._cat_levels = []
@@ -813,7 +873,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         user = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
         if user:
             await update.message.reply_text(
-                f"¡Hola de nuevo, <b>{user.full_name}</b>! 🎉 ¿Qué gastaste hoy?",
+                f"¡Hola <b>{user.full_name}</b>! 👋 ¿Qué gastaste hoy?\n\n"
+                "💡 Mandame un gasto o usá /ayuda para ver los comandos disponibles.",
                 parse_mode="HTML",
             )
             return ConversationHandler.END
@@ -822,7 +883,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     await update.message.reply_text(
         "👋 ¡Hola! Soy *NikoFin*, tu asistente de finanzas personales.\n\n"
-        "Para conectarte con tu cuenta, ingresá tu clave de 12 caracteres.\n"
+        "¿Qué puedo hacer?\n"
+        "• Registrá gastos con lenguaje natural\n"
+        "• Te muestro resúmenes semanales y mensuales\n"
+        "• Te aviso de suscripciones y vencimientos\n"
+        "• Categorizo automáticamente con IA\n\n"
+        "Para empezar, ingresá tu clave de 12 caracteres.\n"
         "La encontrás en la app → Configuración → Telegram Bot.",
         parse_mode="HTML",
     )
@@ -846,14 +912,18 @@ async def handle_auth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         db.commit()
         db.refresh(user)
         await update.message.reply_text(
-            f"🎉 ¡Listo, <b>{user.full_name}</b>! Ya podés mandarme tus gastos.\n\n"
-            "Escribime como le contarías a un amigo:\n\n"
+            f"🎉 ¡Listo, <b>{user.full_name}</b>! Tu cuenta está conectada.\n\n"
+            "Mandame un gasto como le dirías a un amigo:\n"
             '• _"gasté 1500 en farmacity"_\n'
             '• _"uber 3200 ayer"_\n'
-            '• _"almuerzo con Pedro 8500 pesos"_\n'
             '• _"Netflix USD 5"_\n\n'
-            "Yo me encargo del resto 📊\n"
-            "Te voy a mostrar el gasto parseado y te voy a pedir que confirmes el medio de pago.",
+            "📌 <b>Comandos disponibles:</b>\n"
+            "/gastos — Ver gastos del mes\n"
+            "/presupuesto — Ver presupuestos\n"
+            "/suscripciones — Ver suscripciones\n"
+            "/inversiones — Ver inversiones\n"
+            "/cuotas — Ver cuotas pendientes\n"
+            "/ayuda — Ver todos los comandos",
             parse_mode="HTML",
         )
         return ConversationHandler.END
@@ -872,7 +942,16 @@ _HELP_TEXT = (
     "🔔 <b>O reenviame notificaciones de tu banco:</b>\n"
     '• <i>"Compra aprobada Visa ****4521 $15.200 Supermercado"</i>\n'
     '• <i>"Débito Mastercard ****1234 $8.500 Netflix"</i>\n\n'
-    "Si detecto los datos de tu tarjeta, te muestro todo junto para confirmar."
+    "Si detecto los datos de tu tarjeta, te muestro todo junto para confirmar.\n\n"
+    "📌 <b>Comandos disponibles:</b>\n"
+    "/start — Iniciar o reconectar\n"
+    "/gastos — Ver gastos del mes\n"
+    "/presupuesto — Ver presupuestos\n"
+    "/suscripciones — Ver suscripciones\n"
+    "/inversiones — Ver inversiones\n"
+    "/cuotas — Ver cuotas pendientes\n"
+    "/cancelar — Cancelar operación actual\n"
+    "/ayuda — Mostrar esta ayuda"
 )
 
 _UNRECOGNIZED_MESSAGES = [
@@ -906,7 +985,8 @@ async def _handle_bank_notification(
                         "💵 Efectivo/Transferencia", callback_data="pay:efectivo_transferencia"
                     ),
                     InlineKeyboardButton("💳 Tarjeta", callback_data="pay:tarjeta"),
-                ]
+                ],
+                [InlineKeyboardButton("❌ Cancelar", callback_data="cancel")],
             ]
             desc = _escape_html(fallback_parsed.get("description", ""))
             amount_str = _format_amount(
@@ -934,6 +1014,51 @@ async def _handle_bank_notification(
         )
 
         if not card:
+            # For debit notifications, try matching an account as fallback
+            if parsed.get("card_type") == "debito" and parsed.get("bank"):
+                account = _match_account_from_text(parsed["bank"], user_id, db)
+                if account:
+                    context.user_data["parsed"] = parsed
+                    context.user_data["account_id"] = account.id
+                    context.user_data["payment_label"] = account.name
+                    context.user_data["payment_method"] = "efectivo_transferencia"
+
+                    predicted_category_id, cats = _instant_categorize(parsed, user_id, db)
+                    context.user_data["predicted_category_id"] = predicted_category_id
+                    context.user_data["cat_debug"] = ""
+
+                    cat_levels = _build_cat_levels(predicted_category_id, db)
+                    cat_tree = ""
+                    if cat_levels:
+                        indents = ["", "  └ ", "      └ "]
+                        for i, name in enumerate(cat_levels):
+                            indent = indents[i] if i < len(indents) else indents[-1]
+                            cat_tree += f"{indent}{_cat_emoji(name)} {name}\n"
+
+                    desc = _escape_html(parsed.get("description", ""))
+                    amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
+                    date_str = _format_date_es(
+                        parsed.get("date", datetime.now(BUE).date().strftime("%Y-%m-%d"))
+                    )
+                    confirm_keyboard = [
+                        [
+                            InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
+                            InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
+                        ]
+                    ]
+                    await update.message.reply_text(
+                        f"🔔 <b>Notificación de débito detectada</b>\n\n"
+                        f"🛒 <b>{desc}</b>\n"
+                        f"💰 {amount_str}\n"
+                        f"📅 {date_str}\n"
+                        f"🏦 {account.name}\n"
+                        f"{cat_tree}"
+                        f"\n¿Lo guardamos?",
+                        parse_mode="HTML",
+                        reply_markup=InlineKeyboardMarkup(confirm_keyboard),
+                    )
+                    return WAITING_CONFIRM
+
             # Card not found — show notification info and fall back to normal flow
             desc = _escape_html(parsed.get("description", ""))
             amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
@@ -979,8 +1104,21 @@ async def _handle_bank_notification(
         context.user_data["predicted_category_id"] = predicted_category_id
         context.user_data["cat_debug"] = ""
 
-        # Check if we should ask about installments
-        if _should_ask_installments(
+        # Check if LLM already detected installments from the notification
+        parsed_installment_total = parsed.get("installment_total")
+        parsed_installment_number = parsed.get("installment_number")
+        installment_info = ""
+
+        if parsed_installment_total and parsed_installment_total >= 2:
+            # LLM detected installments — auto-populate, skip question
+            context.user_data["installment_total"] = parsed_installment_total
+            context.user_data["installment_group_id"] = str(uuid.uuid4())
+            installment_amount = round(parsed["amount"] / parsed_installment_total, 2)
+            installment_info = (
+                f"📋 Cuota {parsed_installment_number or 1} de {parsed_installment_total}\n"
+                f"💰 Cuota: {_format_amount(installment_amount, parsed.get('currency', 'ARS'))}\n"
+            )
+        elif _should_ask_installments(
             predicted_category_id, db, parsed.get("amount", 0), card.card_type
         ):
             installment_keyboard = [
@@ -1021,6 +1159,7 @@ async def _handle_bank_notification(
             f"💰 {amount_str}\n"
             f"📅 {date_str}\n"
             f"💳 {payment_label}\n"
+            f"{installment_info}"
             f"{cat_tree}"
             f"\n¿Lo guardamos?",
             parse_mode="HTML",
@@ -1158,6 +1297,45 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         finally:
             db.close()
 
+    # Try account matching (e.g., "transferencia galicia", "efectivo", "mercado pago")
+    db = SessionLocal()
+    try:
+        user_id = context.user_data["user_id"]
+        matched_account = _match_account_from_text(text, user_id, db)
+        if matched_account:
+            context.user_data["account_id"] = matched_account.id
+            context.user_data["payment_label"] = matched_account.name
+            context.user_data["payment_method"] = "efectivo_transferencia"
+
+            predicted_category_id, cats = _instant_categorize(parsed, user_id, db)
+            context.user_data["predicted_category_id"] = predicted_category_id
+            context.user_data["cat_debug"] = ""
+
+            confirm_keyboard = [
+                [
+                    InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
+                    InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
+                ]
+            ]
+            acct_desc = _escape_html(parsed.get("description", ""))
+            acct_amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
+            acct_date_str = _format_date_es(
+                parsed.get("date", datetime.now(BUE).date().strftime("%Y-%m-%d"))
+            )
+
+            await update.message.reply_text(
+                f"🛒 <b>{acct_desc}</b>\n"
+                f"💰 {acct_amount_str}\n"
+                f"📅 {acct_date_str}\n"
+                f"🏦 {matched_account.name}\n"
+                f"\n¿Lo guardamos?",
+                parse_mode="HTML",
+                reply_markup=InlineKeyboardMarkup(confirm_keyboard),
+            )
+            return WAITING_CONFIRM
+    finally:
+        db.close()
+
     desc = _escape_html(parsed.get("description", ""))
     amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
     date_str = parsed.get("date", datetime.now(BUE).date().strftime("%Y-%m-%d"))
@@ -1168,7 +1346,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 "💵 Efectivo/Transferencia", callback_data="pay:efectivo_transferencia"
             ),
             InlineKeyboardButton("💳 Tarjeta", callback_data="pay:tarjeta"),
-        ]
+        ],
+        [InlineKeyboardButton("❌ Cancelar", callback_data="cancel")],
     ]
     await update.message.reply_text(
         f"<b>{desc}</b> — {amount_str} ({date_str})\n\n¿Cómo pagaste?",
@@ -1220,6 +1399,7 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         keyboard.append(
             [InlineKeyboardButton("➕ Crear nueva cuenta", callback_data="account:new")]
         )
+        keyboard.append([InlineKeyboardButton("❌ Cancelar", callback_data="cancel")])
 
         await query.edit_message_text(
             "💰 ¿Desde qué cuenta?",
@@ -1246,6 +1426,7 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     banks = sorted(card_options.keys())
     keyboard = [[InlineKeyboardButton(b, callback_data=f"bank:{b}")] for b in banks]
+    keyboard.append([InlineKeyboardButton("❌ Cancelar", callback_data="cancel")])
     await query.edit_message_text("💳 ¿Qué banco?", reply_markup=InlineKeyboardMarkup(keyboard))
     return WAITING_CARD_BANK
 
@@ -1272,6 +1453,7 @@ async def handle_card_bank(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return WAITING_CARD_MANUAL
 
     keyboard = [[InlineKeyboardButton(card, callback_data=f"card:{card}")] for card in cards]
+    keyboard.append([InlineKeyboardButton("❌ Cancelar", callback_data="cancel")])
     await query.edit_message_text("💳 ¿Qué tarjeta?", reply_markup=InlineKeyboardMarkup(keyboard))
     return WAITING_CARD_TYPE
 
@@ -2118,6 +2300,14 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
+async def cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle cancel button press via callback query."""
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text("Cancelado. Cuando quieras, mandame otro gasto.")
+    return ConversationHandler.END
+
+
 def start_bot(token: str) -> None:
     """Run the bot synchronously in its own event loop (called from a daemon thread)."""
     logging.getLogger("telegram").setLevel(logging.INFO)
@@ -2177,7 +2367,10 @@ async def _run_bot(token: str) -> None:
                 CallbackQueryHandler(handle_event_confirm, pattern=r"^event_link:")
             ],
         },
-        fallbacks=[MessageHandler(filters.COMMAND, cancel)],
+        fallbacks=[
+            MessageHandler(filters.COMMAND, cancel),
+            CallbackQueryHandler(cancel_callback, pattern=r"^cancel$"),
+        ],
         per_message=False,
     )
 
