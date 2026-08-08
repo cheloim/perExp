@@ -236,6 +236,108 @@
     color: var(--gnome-blue-3);
   }
 
+  /* Budget Section */
+  .budget-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .budget-item {
+    display: grid;
+    grid-template-columns: 120px 1fr 60px;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+  }
+
+  .budget-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .budget-bar-bg {
+    height: 14px;
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 7px;
+    overflow: hidden;
+  }
+
+  .budget-bar-fill {
+    height: 100%;
+    border-radius: 7px;
+    transition: width 0.3s ease;
+  }
+
+  .budget-bar-fill.warning {
+    background: var(--gnome-orange-3);
+  }
+
+  .budget-bar-fill.exceeded {
+    background: var(--gnome-red-2);
+  }
+
+  .budget-pct {
+    font-weight: 700;
+    text-align: right;
+  }
+
+  .budget-pct.warning {
+    color: var(--gnome-orange-3);
+  }
+
+  .budget-pct.exceeded {
+    color: var(--gnome-red-2);
+  }
+
+  .budget-detail {
+    font-size: 10px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  /* Budget Events */
+  .event-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .event-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--surface-window);
+    border-radius: 8px;
+    font-size: 12px;
+  }
+
+  .event-name {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .event-progress {
+    color: var(--text-secondary);
+  }
+
+  .event-remaining {
+    font-weight: 700;
+    color: var(--gnome-green-3);
+  }
+
+  .event-remaining.low {
+    color: var(--gnome-orange-3);
+  }
+
+  .event-remaining.depleted {
+    color: var(--gnome-red-2);
+  }
+
   /* Expenses Table */
   .expenses-table {
     width: 100%;
@@ -339,9 +441,9 @@
       <div class="kpi-sub">{{ month_name }} {{ year }}</div>
     </div>
     <div class="kpi-card orange">
-      <div class="kpi-label">Cuotas Próximas</div>
-      <div class="kpi-value">{{ upcoming_count }}</div>
-      <div class="kpi-sub">{{ upcoming_total }}</div>
+      <div class="kpi-label">Próximos Pagos</div>
+      <div class="kpi-value">{{ upcoming_combined_count }}</div>
+      <div class="kpi-sub">{{ upcoming_combined_total }}</div>
     </div>
   </div>
 
@@ -384,6 +486,27 @@
   </div>
   {% endif %}
 
+  <!-- Upcoming Recurring Expenses -->
+  {% if upcoming_recurring %}
+  <div class="section">
+    <div class="section-title">
+      <span class="section-icon" style="background: var(--gnome-purple-3);">R</span>
+      Suscripciones Próximas — 7 Días
+    </div>
+    <div class="upcoming-list">
+      {% for rec in upcoming_recurring %}
+      <div class="upcoming-item">
+        <div class="upcoming-date">
+          {% if rec.days_until == 0 %}Hoy{% elif rec.days_until == 1 %}Mañana{% else %}{{ rec.next_date }}{% endif %}
+        </div>
+        <div class="upcoming-desc">{{ rec.description }}</div>
+        <div class="upcoming-amount">{{ rec.amount }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Top 10 Expenses -->
   <div class="section">
     <div class="section-title">
@@ -411,6 +534,49 @@
       </tbody>
     </table>
   </div>
+
+  <!-- Budget Warnings -->
+  {% if budgets %}
+  <div class="section">
+    <div class="section-title">
+      <span class="section-icon" style="background: var(--gnome-orange-3);">!</span>
+      Presupuestos
+    </div>
+    <div class="budget-list">
+      {% for b in budgets %}
+      <div class="budget-item">
+        <span class="budget-name">{{ b.category_name }}</span>
+        <div class="budget-bar-bg">
+          <div class="budget-bar-fill {{ b.status }}" style="width: {{ [b.percentage, 100] | min }}%"></div>
+        </div>
+        <span class="budget-pct {{ b.status }}">{{ b.percentage }}%</span>
+      </div>
+      <div class="budget-detail">{{ b.spent }} / {{ b.budget_amount }}</div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Budget Events -->
+  {% if budget_events %}
+  <div class="section">
+    <div class="section-title">
+      <span class="section-icon" style="background: var(--gnome-purple-3);">E</span>
+      Eventos de Presupuesto
+    </div>
+    <div class="event-list">
+      {% for ev in budget_events %}
+      <div class="event-item">
+        <span class="event-name">{{ ev.name }}</span>
+        <span class="event-progress">{{ ev.spent }} / {{ ev.total_amount }}</span>
+        <span class="event-remaining {% if ev.remaining <= 0 %}depleted{% elif ev.remaining < ev.total_amount * 0.2 %}low{% endif %}">
+          {{ ev.remaining }} restante
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
 
   <!-- LLM Analysis -->
   {% if llm_analysis %}

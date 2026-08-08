@@ -147,6 +147,11 @@ def execute_scheduled_expense(
     db.add(expense)
     db.flush()
 
+    # Link to recurring expense if matches
+    from app.services.recurring_linker import link_to_recurring
+
+    link_to_recurring(expense.id, scheduled.description, scheduled.user_id, db)
+
     # Actualizar scheduled
     scheduled.status = "EXECUTED"
     scheduled.executed_expense_id = expense.id

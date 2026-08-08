@@ -642,6 +642,148 @@ Usa flags para tendencias preocupantes a monitorear."""
             "trend_comment": "",
         }
 
+    # Budget data
+    from app.models import Budget, BudgetEvent, BudgetGroup
+    from app.services.budget_helpers import (
+        get_avg_monthly_spending,
+        get_spending_for_category,
+        get_spending_for_event,
+        get_spending_for_group,
+    )
+
+    uid_list = get_group_user_ids(user_id, db)
+    year_int = int(month_str[:4])
+    month_int = int(month_str[5:7])
+
+    budgets = db.query(Budget).filter(Budget.user_id == user_id, Budget.is_active == True).all()
+    budget_items = []
+    total_budget = 0.0
+    total_spent = 0.0
+    for b in budgets:
+        spent = get_spending_for_category(b.category_id, year_int, month_int, uid_list, db)
+        pct = round((spent / b.amount * 100) if b.amount > 0 else 0, 1)
+        avg = get_avg_monthly_spending(b.category_id, uid_list, db)
+        cat = db.query(Category).filter(Category.id == b.category_id).first()
+        status = "exceeded" if pct >= 100 else "warning" if pct >= 80 else "ok"
+        budget_items.append(
+            {
+                "category_name": cat.name if cat else "Sin categoría",
+                "budget_amount": b.amount,
+                "spent": spent,
+                "percentage": pct,
+                "status": status,
+                "avg_monthly": avg,
+            }
+        )
+        total_budget += b.amount
+        total_spent += spent
+
+    budget_summary = {
+        "total_budget": total_budget,
+        "total_spent": total_spent,
+        "total_percentage": round((total_spent / total_budget * 100) if total_budget > 0 else 0, 1),
+    }
+
+    # Budget groups (50/30/20)
+    budget_groups = (
+        db.query(BudgetGroup)
+        .filter(BudgetGroup.user_id == user_id, BudgetGroup.is_active == True)
+        .all()
+    )
+    budget_group_items = []
+    for bg in budget_groups:
+        group_spent = get_spending_for_group(bg.name, year_int, month_int, uid_list, db)
+        budget_group_items.append(
+            {
+                "name": bg.display_name,
+                "percentage": bg.percentage,
+                "amount": bg.amount,
+                "spent": group_spent,
+            }
+        )
+
+    # Budget events
+    month_start = date(year_int, month_int, 1)
+    month_end = date(year_int, month_int, 28)  # approximate
+    events = (
+        db.query(BudgetEvent)
+        .filter(
+            BudgetEvent.user_id == user_id,
+            BudgetEvent.is_active == True,
+            BudgetEvent.start_date <= month_end,
+            BudgetEvent.end_date >= month_start,
+        )
+        .all()
+    )
+    budget_event_items = []
+    for ev in events:
+        ev_cats = json.loads(ev.categories or "[]")
+        ev_spent = get_spending_for_event(ev_cats, ev.start_date, ev.end_date, uid_list, db)
+        budget_event_items.append(
+            {
+                "name": ev.name,
+                "total_amount": ev.total_amount,
+                "spent": ev_spent,
+                "remaining": ev.total_amount - ev_spent,
+                "start_date": ev.start_date.strftime("%d/%m"),
+                "end_date": ev.end_date.strftime("%d/%m"),
+            }
+        )
+
+    # Subscription analysis - using recurring_expense_id field
+    from app.models import ScheduledExpense
+
+    # 1. Executed scheduled expenses last month (installments)
+    executed_last_month = (
+        db.query(ScheduledExpense)
+        .filter(
+            ScheduledExpense.user_id.in_(uid_list),
+            ScheduledExpense.status == "EXECUTED",
+            ScheduledExpense.executed_at >= target_start,
+            ScheduledExpense.executed_at <= target_end,
+        )
+        .order_by(ScheduledExpense.executed_at)
+        .all()
+    )
+
+    executed_installments = []
+    executed_installments_total = 0.0
+    for s in executed_last_month:
+        installment_info = (
+            f"{s.installment_number}/{s.installment_total}"
+            if s.installment_number and s.installment_total
+            else "-"
+        )
+        executed_installments.append(
+            {
+                "date": s.executed_at.strftime("%d/%m") if s.executed_at else "",
+                "description": (s.description or "")[:35],
+                "amount": abs(s.amount),
+                "installment_info": installment_info,
+            }
+        )
+        executed_installments_total += abs(s.amount)
+
+    # 2. Recurring expenses that occurred this month (linked via recurring_expense_id)
+    recurring_expenses_this_month = [
+        e for e in expenses if e.recurring_expense_id is not None and not e.is_income
+    ]
+
+    # Build summary grouped by description
+    recurring_summary = {}
+    for e in recurring_expenses_this_month:
+        key = (e.description or "").strip()
+        if key not in recurring_summary:
+            recurring_summary[key] = {"description": key, "amount": 0.0}
+        recurring_summary[key]["amount"] += abs(e.amount)
+
+    recurring_list = sorted(
+        recurring_summary.values(),
+        key=lambda x: x["amount"],
+        reverse=True,
+    )
+    recurring_total = sum(r["amount"] for r in recurring_list)
+
     return {
         "month": month_str,
         "total_expenses": total_expenses,
@@ -669,8 +811,14 @@ Usa flags para tendencias preocupantes a monitorear."""
         "investments": investment_list,
         "velocity_data": velocity_data,
         "recurring_expenses": recurring_list,
+        "recurring_expense_count": len(recurring_list),
+        "recurring_expense_total": recurring_total,
         "weekend_data": weekend_data,
         "analysis": analysis,
+        "budgets": budget_items,
+        "budget_summary": budget_summary,
+        "budget_groups": budget_group_items,
+        "budget_events": budget_event_items,
     }
 
 

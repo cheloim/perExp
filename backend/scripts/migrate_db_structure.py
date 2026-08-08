@@ -613,6 +613,7 @@ def main():
     step11_recurring_source_column(engine)
     step12_admin_panel(engine)
     step13_platform_logs(engine)
+    step14_recurring_expense_link(engine)
 
     print("\n" + "=" * 60)
     print("Migration complete!")
@@ -796,6 +797,50 @@ def step13_platform_logs(engine):
             ON platform_logs (created_at)
         """))
         print("  Created platform_logs table with indexes.")
+
+
+def step14_recurring_expense_link(engine):
+    """Add recurring_expense_id FK to expenses table."""
+    with engine.begin() as conn:
+        dialect = engine.dialect.name
+        if dialect != "postgresql":
+            print("  Skipping — only supported on PostgreSQL.")
+            return
+
+        print("[Step 14/14] Adding recurring_expense_id to expenses...")
+
+        # 1. Check if column already exists
+        exists = conn.execute(
+            text("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'expenses' AND column_name = 'recurring_expense_id'
+            )
+        """)
+        ).scalar()
+
+        if exists:
+            print("  expenses.recurring_expense_id already exists. Skipping.")
+        else:
+            # 2. Add the column
+            conn.execute(
+                text("ALTER TABLE expenses ADD COLUMN recurring_expense_id INTEGER")
+            )
+
+            # 3. Add FK constraint (RESTRICT - can't delete linked RecurringExpense)
+            conn.execute(text("""
+                ALTER TABLE expenses
+                ADD CONSTRAINT fk_expenses_recurring_expense_id
+                FOREIGN KEY (recurring_expense_id) REFERENCES recurring_expenses(id)
+                ON DELETE RESTRICT
+            """))
+
+            # 4. Add index for query performance
+            conn.execute(text(
+                "CREATE INDEX ix_expenses_recurring_expense_id ON expenses (recurring_expense_id)"
+            ))
+
+            print("  Added recurring_expense_id INTEGER with FK (RESTRICT) and index.")
 
 
 if __name__ == "__main__":

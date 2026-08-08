@@ -381,6 +381,11 @@ def create_expense(
     db.commit()
     db.refresh(db_exp)
 
+    # Link to recurring expense if matches
+    from app.services.recurring_linker import link_to_recurring
+
+    link_to_recurring(db_exp.id, db_exp.description, current_user.id, db)
+
     # Notify if expense has no category
     if db_exp.category_id is None:
         import json
