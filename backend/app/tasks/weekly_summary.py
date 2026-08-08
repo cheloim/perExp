@@ -226,7 +226,105 @@ def _build_weekly_report_data(user_id: int, start: date, end: date, db) -> dict:
         "top_expenses": top_expenses_data,
     }
 
-    # 6. Generate LLM analysis
+    # 6. Budget data (warnings only - >=80% usage)
+    from app.models import Budget, BudgetEvent
+    from app.services.budget_helpers import (
+        get_group_user_ids,
+        get_spending_for_category,
+        get_spending_for_event,
+    )
+
+    uid_list = get_group_user_ids(user_id, db)
+    today_bue = datetime.now(BUE).date()
+    budgets = db.query(Budget).filter(Budget.user_id == user_id, Budget.is_active == True).all()
+
+    budget_items = []
+    for b in budgets:
+        spent = get_spending_for_category(
+            b.category_id, today_bue.year, today_bue.month, uid_list, db
+        )
+        pct = round((spent / b.amount * 100) if b.amount > 0 else 0, 1)
+        if pct >= 80:  # Only show warnings/exceeded
+            cat = db.query(Category).filter(Category.id == b.category_id).first()
+            status = "exceeded" if pct >= 100 else "warning"
+            budget_items.append(
+                {
+                    "category_name": cat.name if cat else "Sin categoría",
+                    "budget_amount": b.amount,
+                    "spent": spent,
+                    "percentage": pct,
+                    "status": status,
+                }
+            )
+
+    report_data["budgets"] = sorted(budget_items, key=lambda x: x["percentage"], reverse=True)
+
+    # 7. Active budget events
+    events = (
+        db.query(BudgetEvent)
+        .filter(
+            BudgetEvent.user_id == user_id,
+            BudgetEvent.is_active == True,
+            BudgetEvent.end_date >= today_bue,
+        )
+        .all()
+    )
+
+    event_items = []
+    for ev in events:
+        import json as _json
+
+        cats = _json.loads(ev.categories or "[]")
+        ev_spent = get_spending_for_event(cats, ev.start_date, ev.end_date, uid_list, db)
+        event_items.append(
+            {
+                "name": ev.name,
+                "total_amount": ev.total_amount,
+                "spent": ev_spent,
+                "remaining": ev.total_amount - ev_spent,
+                "end_date": ev.end_date.strftime("%d/%m"),
+            }
+        )
+
+    report_data["budget_events"] = event_items
+
+    # 8. Upcoming recurring expenses (next 7 days)
+    from app.models import RecurringExpense
+
+    upcoming_recurring = (
+        db.query(RecurringExpense)
+        .filter(
+            RecurringExpense.user_id == user_id,
+            RecurringExpense.is_active == True,  # noqa: E712
+            RecurringExpense.next_charge_date.isnot(None),
+            RecurringExpense.next_charge_date >= today_bue,
+            RecurringExpense.next_charge_date <= today_bue + timedelta(days=7),
+        )
+        .order_by(RecurringExpense.next_charge_date)
+        .all()
+    )
+
+    recurring_items = []
+    for rec in upcoming_recurring:
+        days_until = (rec.next_charge_date - today_bue).days
+        recurring_items.append(
+            {
+                "description": rec.description[:30],
+                "amount": rec.amount,
+                "next_date": rec.next_charge_date.strftime("%d/%m"),
+                "days_until": days_until,
+            }
+        )
+
+    report_data["upcoming_recurring"] = recurring_items
+
+    # Combined upcoming count for KPI (installments + recurring)
+    report_data["upcoming_combined_count"] = len(upcoming_expenses) + len(recurring_items)
+    report_data["upcoming_combined_total"] = sum(
+        e.get("amount", 0) for e in upcoming_expenses
+    ) + sum(r.get("amount", 0) for r in recurring_items)
+
+    # 9. Generate LLM analysis
     llm_analysis = _generate_weekly_llm_analysis(report_data)
     if llm_analysis:
         report_data["llm_analysis"] = llm_analysis

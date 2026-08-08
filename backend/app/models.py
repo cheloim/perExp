@@ -246,10 +246,14 @@ class Expense(Base):
     budget_event_id = Column(
         Integer, ForeignKey("budget_events.id", ondelete="SET NULL"), nullable=True
     )
+    recurring_expense_id = Column(
+        Integer, ForeignKey("recurring_expenses.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
     is_income = Column(Boolean, default=False, nullable=False)
     category = relationship("Category", back_populates="expenses")
     account_rel = relationship("Account")
     card_rel = relationship("Card")
+    recurring_expense = relationship("RecurringExpense")
 
 
 class CategorySuggestion(Base):

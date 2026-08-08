@@ -421,6 +421,13 @@ async def confirm_import_job(
                     card_id=card_id,
                 )
                 db.add(expense)
+                db.flush()
+
+                # Link to recurring expense if matches
+                from app.services.recurring_linker import link_to_recurring
+
+                link_to_recurring(expense.id, expense.description, user.id, db)
+
                 imported_count += 1
             except Exception as e:
                 raise HTTPException(
