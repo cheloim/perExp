@@ -10,7 +10,7 @@ import logging
 import os
 
 from fastapi import APIRouter, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ async def verify_webhook(
 
     if hub_mode == "subscribe" and hub_verify_token == VERIFY_TOKEN:
         logger.info("[WA_WEBHOOK] Verification successful")
-        return JSONResponse(content=hub_challenge)
+        return PlainTextResponse(content=hub_challenge)
 
     logger.warning("[WA_WEBHOOK] Verification failed: invalid token")
     return JSONResponse(content={"error": "Forbidden"}, status_code=403)
