@@ -38,9 +38,10 @@ from app.routers import (
     investments,
     mfa,
     notifications,
+    recurring,
     scheduled_expenses,
     suggestions,
-    recurring,
+    whatsapp_webhook,
 )
 from app.scheduler import price_refresh_loop
 from app.seed import _apply_base_hierarchy
@@ -62,14 +63,17 @@ async def lifespan(application: FastAPI):
 
     # Verify SECRET_KEY can encrypt/decrypt (fail fast)
     from app.services.encryption import verify_key_works
+
     if not verify_key_works():
         logger.error("SECRET_KEY cannot encrypt/decrypt! Check that the key hasn't changed.")
         raise RuntimeError("SECRET_KEY is invalid - cannot encrypt/decrypt data. Aborting.")
 
     # Run encryption migration for existing plaintext data (only if needed)
     from app.services.encryption import needs_migration
+
     if needs_migration():
         from scripts.migrate_encrypt_fields import migrate_plaintext_data
+
         migrate_plaintext_data()
 
     db = SessionLocal()
@@ -88,8 +92,11 @@ async def lifespan(application: FastAPI):
         db.add(seed_user)
         db.flush()
         from sqlalchemy import text as _t
+
         for _tbl in ("expenses", "investments", "analysis_history", "card_closings"):
-            db.execute(_t(f"UPDATE {_tbl} SET user_id = :uid WHERE user_id IS NULL"), {"uid": seed_user.id})
+            db.execute(
+                _t(f"UPDATE {_tbl} SET user_id = :uid WHERE user_id IS NULL"), {"uid": seed_user.id}
+            )
 
     db.commit()
 
@@ -108,7 +115,10 @@ async def lifespan(application: FastAPI):
     telegram_token = os.getenv("TELEGRAM_BOT_TOKEN")
     if telegram_token:
         from app.telegram_bot import start_bot
-        threading.Thread(target=start_bot, args=(telegram_token,), daemon=True, name="telegram-bot").start()
+
+        threading.Thread(
+            target=start_bot, args=(telegram_token,), daemon=True, name="telegram-bot"
+        ).start()
         logging.getLogger(__name__).info("Telegram bot thread started")
     else:
         logging.getLogger(__name__).warning("TELEGRAM_BOT_TOKEN not set — bot disabled")
@@ -128,7 +138,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         origin.strip()
-        for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:8082").split(",")
+        for origin in os.getenv(
+            "CORS_ORIGINS", "http://localhost:5173,http://localhost:8082"
+        ).split(",")
         if origin.strip()
     ],
     allow_credentials=True,
@@ -144,6 +156,7 @@ async def admin_seo_headers(request: Request, call_next):
         response.headers["X-Robots-Tag"] = "noindex"
         response.headers["Cache-Control"] = "no-store"
     return response
+
 
 app.include_router(auth.router)
 app.include_router(mfa.router)
@@ -163,3 +176,4 @@ app.include_router(budgets.router)
 app.include_router(suggestions.router)
 app.include_router(recurring.router)
 app.include_router(admin.router)
+app.include_router(whatsapp_webhook.router)
