@@ -133,20 +133,23 @@ async def send_list_message(
 
 
 async def mark_as_read(message_id: str) -> None:
-    """Mark a message as read."""
-    async with httpx.AsyncClient() as client:
-        await client.post(
-            WHATSAPP_API_URL,
-            headers={
-                "Authorization": f"Bearer {WHATSAPP_TOKEN}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "messaging_product": "whatsapp",
-                "status": "read",
-                "message_id": message_id,
-            },
-        )
+    """Mark a message as read (best-effort, non-critical)."""
+    try:
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                WHATSAPP_API_URL,
+                headers={
+                    "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "messaging_product": "whatsapp",
+                    "status": "read",
+                    "message_id": message_id,
+                },
+            )
+    except Exception as e:
+        logger.warning("[WA] mark_as_read failed (non-critical): %s", e)
 
 
 # ---------------------------------------------------------------------------
@@ -263,7 +266,11 @@ async def handle_whatsapp_message(
         msg_type: Message type ("text", "interactive", "image", etc.)
         msg_data: Full message object from webhook payload
     """
-    await mark_as_read(message_id)
+    # Non-critical: mark as read (best-effort)
+    try:
+        await mark_as_read(message_id)
+    except Exception:
+        pass
 
     # Find user by phone hash
     phone_hash = compute_hmac(phone)
