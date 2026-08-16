@@ -837,8 +837,8 @@ def get_cash_balances(
                 balances["ppi"]["usd"] = usd_total
         except (_JDE, ValueError):
             balances["ppi"]["error"] = "API de PPI no disponible (intenta de nuevo más tarde)"
-        except Exception as e:
-            balances["ppi"]["error"] = str(e)
+        except Exception:
+            balances["ppi"]["error"] = "Error al obtener saldos de PPI (intenta de nuevo más tarde)"
 
     return balances
 

@@ -28,6 +28,11 @@ import type {
   CardsMapping,
 } from "../types";
 
+// Token storage: Using localStorage for persistence across sessions.
+// This is intentional for SPA architecture. Security relies on:
+// 1. HTTPS in production
+// 2. Short-lived JWT tokens (7 days)
+// 3. No XSS vulnerabilities in the application
 const TOKEN_KEY = "auth_token";
 
 let inMemoryAuthToken: string | null = null;

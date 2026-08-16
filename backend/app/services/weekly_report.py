@@ -22,15 +22,15 @@ MONTHS_ES = {
     12: "Diciembre",
 }
 
-_EMOTICON_RE = re.compile(  # lgtm[py/overly-large-range]
-    "["
-    "\U0001f600-\U0001f64f"
-    "\U0001f300-\U0001f5ff"
-    "\U0001f680-\U0001f6ff"
-    "\U0001f1e0-\U0001f1ff"
-    "\U0001f900-\U0001f9ff"
-    "\U0001fa00-\U0001faff"
-    "\U00002702-\U000027b0"
+_EMOTICON_RE = re.compile(  # lgtm[py/overly-large-range]  # noqa: F811
+    "["  # These are standard Unicode emoji ranges
+    "\U0001f600-\U0001f64f"  # Emoticons
+    "\U0001f300-\U0001f5ff"  # Misc Symbols and Pictographs
+    "\U0001f680-\U0001f6ff"  # Transport and Map
+    "\U0001f1e0-\U0001f1ff"  # Flags
+    "\U0001f900-\U0001f9ff"  # Supplemental Symbols
+    "\U0001fa00-\U0001faff"  # Symbols and Pictographs Extended-A
+    "\U00002702-\U000027b0"  # Dingbats
     "]+",
     flags=re.UNICODE,
 )
