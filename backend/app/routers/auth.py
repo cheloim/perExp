@@ -157,7 +157,8 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
 @router.post("/login/mfa", response_model=Token)
 def login_mfa(body: MFALoginRequest, request: Request, db: Session = Depends(get_db)):
     # Validate the partial token
-    from jose import JWTError, jwt
+    import jwt
+    from jwt import PyJWTError as JWTError
 
     from app.services.auth import ALGORITHM, SECRET_KEY
 
@@ -498,7 +499,8 @@ def force_change_password(
     db: Session = Depends(get_db),
 ):
     """Force password change using a short-lived token (no current password required)."""
-    from jose import JWTError, jwt
+    import jwt
+    from jwt import PyJWTError as JWTError
 
     from app.services.auth import ALGORITHM, SECRET_KEY
 
