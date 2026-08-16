@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import json
 from datetime import datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -20,7 +21,7 @@ class NotificationResponse(BaseModel):
     type: str
     title: str
     body: str
-    data: dict
+    data: Any
     read: bool
     created_at: str
 
