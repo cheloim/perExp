@@ -2,10 +2,12 @@ import asyncio
 import contextlib
 import json
 from datetime import datetime
+from typing import Any
 
+import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from jose import JWTError, jwt
+from jwt import PyJWTError as JWTError
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -20,7 +22,7 @@ class NotificationResponse(BaseModel):
     type: str
     title: str
     body: str
-    data: dict
+    data: Any
     read: bool
     created_at: str
 

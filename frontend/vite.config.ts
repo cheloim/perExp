@@ -8,7 +8,8 @@ export default defineConfig({
     format: 'es',
   },
   build: {
-    rollupOptions: {
+    cssMinify: 'esbuild',
+    rolldownOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),
         'notifications.worker': path.resolve(__dirname, 'src/workers/notifications.worker.ts'),
