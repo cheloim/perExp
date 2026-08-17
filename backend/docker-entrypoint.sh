@@ -31,6 +31,9 @@ load_secret "GOOGLE_CLIENT_ID" "creditcard_backend_google_client_id" "creditcard
 load_secret "GOOGLE_CLIENT_SECRET" "creditcard_backend_google_client_secret" "creditcard_backend_dev_google_client_secret"
 load_secret "SECRET_KEY" "creditcard_backend_secret_key" "creditcard_backend_dev_secret_key"
 load_secret "EMAIL_API_KEY" "creditcard_backend_email_api_key" "creditcard_backend_dev_email_api_key"
+load_secret "WHATSAPP_TOKEN" "creditcard_backend_whatsapp_token" "creditcard_backend_dev_whatsapp_token"
+load_secret "WHATSAPP_PHONE_ID" "creditcard_backend_whatsapp_phone_id" "creditcard_backend_dev_whatsapp_phone_id"
+load_secret "WHATSAPP_VERIFY_TOKEN" "creditcard_backend_whatsapp_verify_token" "creditcard_backend_dev_whatsapp_verify_token"
 
 # Create database indices if needed (idempotent - safe to run multiple times)
 echo "Checking database indices..."

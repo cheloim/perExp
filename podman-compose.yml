@@ -50,6 +50,9 @@ services:
       - creditcard_backend_dev_google_client_secret
       - creditcard_backend_dev_secret_key
       - creditcard_backend_dev_email_api_key
+      - creditcard_backend_dev_whatsapp_token
+      - creditcard_backend_dev_whatsapp_phone_id
+      - creditcard_backend_dev_whatsapp_verify_token
     environment:
       PYTHONPATH: /app
       DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD_DEV}@db:5432/expenses
@@ -110,6 +113,9 @@ services:
       - creditcard_backend_dev_google_client_secret
       - creditcard_backend_dev_secret_key
       - creditcard_backend_dev_email_api_key
+      - creditcard_backend_dev_whatsapp_token
+      - creditcard_backend_dev_whatsapp_phone_id
+      - creditcard_backend_dev_whatsapp_verify_token
     environment:
       PYTHONPATH: /app
       DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD_DEV}@db:5432/expenses
@@ -143,6 +149,9 @@ services:
       - creditcard_backend_dev_google_client_secret
       - creditcard_backend_dev_secret_key
       - creditcard_backend_dev_email_api_key
+      - creditcard_backend_dev_whatsapp_token
+      - creditcard_backend_dev_whatsapp_phone_id
+      - creditcard_backend_dev_whatsapp_verify_token
     environment:
       PYTHONPATH: /app
       DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD_DEV}@db:5432/expenses
@@ -189,6 +198,15 @@ secrets:
   creditcard_backend_dev_email_api_key:
     external: true
     env: EMAIL_API_KEY_DEV
+  creditcard_backend_dev_whatsapp_token:
+    external: true
+    env: WHATSAPP_TOKEN_DEV
+  creditcard_backend_dev_whatsapp_phone_id:
+    external: true
+    env: WHATSAPP_PHONE_ID_DEV
+  creditcard_backend_dev_whatsapp_verify_token:
+    external: true
+    env: WHATSAPP_VERIFY_TOKEN_DEV
   creditcard_frontend_dev_google_client_id:
     external: true
     env: GOOGLE_CLIENT_ID_DEV

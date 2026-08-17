@@ -54,6 +54,10 @@ class User(Base):
     is_blocked = Column(Boolean, default=False)
     blocked_at = Column(DateTime, nullable=True)
     blocked_reason = Column(Text, nullable=True)
+    # WhatsApp
+    whatsapp_phone = Column(EncryptedType, nullable=True)
+    whatsapp_phone_hash = Column(String(64), nullable=True, unique=True, index=True)
+    whatsapp_key = Column(String(12), nullable=True, unique=True, index=True)
 
 
 class Group(Base):

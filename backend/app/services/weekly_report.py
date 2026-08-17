@@ -1,9 +1,9 @@
 """Weekly report generation for Telegram using Playwright + Chart.js."""
 
 import os
-import re
 from datetime import date
 
+import emoji
 from jinja2 import Environment, FileSystemLoader
 from playwright.sync_api import sync_playwright
 
@@ -22,22 +22,9 @@ MONTHS_ES = {
     12: "Diciembre",
 }
 
-_EMOTICON_RE = re.compile(  # lgtm[py/overly-large-range]
-    "["
-    "\U0001f600-\U0001f64f"
-    "\U0001f300-\U0001f5ff"
-    "\U0001f680-\U0001f6ff"
-    "\U0001f1e0-\U0001f1ff"
-    "\U0001f900-\U0001f9ff"
-    "\U0001fa00-\U0001faff"
-    "\U00002702-\U000027b0"
-    "]+",
-    flags=re.UNICODE,
-)
-
 
 def _strip_emojis(text: str) -> str:
-    return _EMOTICON_RE.sub("", text).strip()
+    return emoji.replace_emoji(text, "").strip()
 
 
 def _fmt(amount: float) -> str:

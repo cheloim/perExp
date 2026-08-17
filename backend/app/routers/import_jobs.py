@@ -196,7 +196,6 @@ async def confirm_import_job(
         logger.info("[IMPORT CONFIRM] Sample row keys: %s", list(sample.keys()))
 
     cards_mapping = body.cards_mapping or {}
-    logger.info("[IMPORT CONFIRM] Received cards_mapping: %s", cards_mapping)
     logger.info("[IMPORT CONFIRM] cards_mapping length: %d", len(cards_mapping))
 
     def get_card_key(bank: str, card: str, holder: str) -> str:
@@ -459,13 +458,12 @@ async def confirm_import_job(
 
     try:
         db.commit()
-    except Exception as e:
+    except Exception:
         db.rollback()
         import traceback
 
-        logger.error("[ERROR] Failed to commit import: %s", e)
-        logger.error(traceback.format_exc())
-        raise HTTPException(500, f"Database error: {str(e)}")
+        logger.error("[ERROR] Failed to commit import:\n%s", traceback.format_exc())
+        raise HTTPException(500, "Error al importar los datos. Intentá de nuevo.")
 
     logger.info(
         "[IMPORT CONFIRM] Success: imported=%d, scheduled=%d, skipped=%d",
