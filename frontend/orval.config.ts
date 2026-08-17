@@ -6,7 +6,7 @@ export default defineConfig({
       target: "../specs/openapi.yaml",
     },
     output: {
-      target: "./src/api/client.ts",
+      target: "./src/api/client-generated.ts",
       schemas: "./src/types/generated",
       client: "react-query",
       httpClient: "axios",

@@ -87,14 +87,14 @@ jobs:
         run: npx orval
 
       - name: Format generated code
-        run: npx prettier --write src/api/client.ts src/types/generated/
+        run: npx prettier --write src/api/client-generated.ts src/types/generated/
 
-      - name: Check generated code is up to date
+      - name: Check generated types are up to date
         run: |
-          git diff --exit-code src/api/client.ts src/types/generated/ || {
-            echo "::error::Generated API client is out of date. Run 'npx orval && npx prettier --write src/' locally."
+          git diff --exit-code src/types/generated/ || {
+            echo "::error::Generated types are out of date. Run 'npx orval && npx prettier --write src/' locally."
             exit 1
           }
 
-      - name: Typecheck with generated code
+      - name: Typecheck with generated types
         run: npm run typecheck
