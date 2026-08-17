@@ -1,0 +1,281 @@
+metadata:
+  name: categories
+  title: "Hierarchical Categories"
+  version: "1.0.0"
+  status: implemented
+  created: "2026-08-16"
+  updated: "2026-08-16"
+  owner: backend
+  tags: [categories, taxonomy, hierarchy, auto-categorization]
+
+description: |
+  Hierarchical category system for organizing expenses. Categories support up to
+  3 levels of depth (parent → child → grandchild). Global categories (user_id null)
+  provide defaults, while user-specific categories allow customization. Keywords
+  enable automatic expense categorization. Categories are referenced by expenses
+  and budgets.
+
+requirements:
+  functional:
+    - id: CAT-F01
+      description: "Create category with name, color, keywords, optional parent_id"
+      priority: must
+    - id: CAT-F02
+      description: "List categories for current user (includes user-specific only)"
+      priority: must
+    - id: CAT-F03
+      description: "Update category fields"
+      priority: must
+    - id: CAT-F04
+      description: "Delete category (expenses get category_id SET NULL)"
+      priority: must
+    - id: CAT-F05
+      description: "Apply base hierarchy seed data for user"
+      priority: should
+    - id: CAT-F06
+      description: "Hierarchical structure with parent/children relationships"
+      priority: must
+    - id: CAT-F07
+      description: "Keywords field for auto-categorization (comma-separated)"
+      priority: must
+    - id: CAT-F08
+      description: "LLM-based category suggestion for uncategorized expenses"
+      priority: could
+    - id: CAT-F09
+      description: "budget_group classification (necesidades/gustos/ahorro)"
+      priority: should
+
+  non-functional:
+    - id: CAT-NF01
+      description: "Category list returns within 100ms"
+      priority: should
+    - id: CAT-NF02
+      description: "Unique constraint on (name, user_id) prevents duplicates"
+      priority: must
+
+pre-evaluation:
+  auth: "JWT token required (Depends(get_current_user))"
+  database: "PostgreSQL via SQLAlchemy session (Depends(get_db))"
+
+users:
+  - role: authenticated_user
+    actions: [create, read, update, delete, seed, suggest]
+    scope: own_categories only
+
+entities:
+  - name: Category
+    table: categories
+    fields:
+      - name: id
+        type: Integer
+        constraints: [PK, auto-increment]
+      - name: name
+        type: String
+        constraints: [indexed]
+      - name: color
+        type: String
+        constraints: [default "#6366f1"]
+        notes: "Hex color for charts and UI"
+      - name: keywords
+        type: Text
+        constraints: [default ""]
+        notes: "Comma-separated match keywords for auto-categorization"
+      - name: parent_id
+        type: Integer
+        constraints: [FK -> categories.id, nullable]
+        notes: "Self-referential for hierarchy"
+      - name: user_id
+        type: Integer
+        constraints: [FK -> users.id, nullable]
+        notes: "NULL = system default category"
+      - name: budget_group
+        type: String(20)
+        constraints: [default "necesidades"]
+        values: [necesidades, gustos, ahorro]
+    constraints:
+      - type: unique
+        columns: [name, user_id]
+        name: uq_category_name_user
+    indexes:
+      - columns: [user_id]
+      - columns: [parent_id]
+    relationships:
+      - { name: expenses, target: Expense, back_populates: category }
+      - { name: budgets, target: Budget, back_populates: category }
+      - { name: children, target: Category, back_populates: parent }
+      - { name: parent, target: Category, back_populates: children, remote_side: "Category.id" }
+
+    schemas:
+      CategoryCreate:
+        fields:
+          - { name: name, type: str, required: true }
+          - { name: color, type: str, default: "#6366f1" }
+          - { name: keywords, type: str, default: "" }
+          - { name: parent_id, type: "int | null", default: null }
+          - { name: budget_group, type: str, default: "necesidades" }
+      CategoryResponse:
+        fields:
+          - { name: id, type: int }
+          - { name: name, type: str }
+          - { name: color, type: str }
+          - { name: keywords, type: str }
+          - { name: parent_id, type: "int | null" }
+          - { name: user_id, type: "int | null" }
+          - { name: budget_group, type: str }
+          - { name: children, type: "list[CategoryResponse]", computed: true }
+
+endpoints:
+  - method: GET
+    path: /categories
+    response_model: "list[CategoryResponse]"
+    status_code: 200
+    description: "List categories for current user"
+    logic:
+      - "Query categories filtered by user_id == current_user.id"
+      - "Return flat list (frontend builds hierarchy from parent_id)"
+
+  - method: POST
+    path: /categories
+    response_model: CategoryResponse
+    status_code: 201
+    description: "Create a new category"
+    validation:
+      - "name must be unique for current user"
+    logic:
+      - "Check for duplicate (name, user_id)"
+      - "Create Category, commit, return"
+
+  - method: PUT
+    path: "/categories/{cat_id}"
+    response_model: CategoryResponse
+    status_code: 200
+    description: "Update an existing category"
+    validation:
+      - "Category must belong to current_user.id"
+      - "name must be unique for current user (excluding self)"
+    logic:
+      - "Check for duplicate name"
+      - "Update fields, commit, return"
+
+  - method: DELETE
+    path: "/categories/{cat_id}"
+    status_code: 200
+    description: "Delete a category"
+    logic:
+      - "Category must belong to current_user.id"
+      - "Delete category (expenses get SET NULL)"
+
+  - method: POST
+    path: /categories/apply-base-hierarchy
+    description: "Seed base category hierarchy for current user"
+    logic:
+      - "Import BASE_HIERARCHY from app.seed"
+      - "Create parent categories and children with keywords/colors"
+
+  - method: POST
+    path: /categories/seed-defaults
+    description: "Seed default categories"
+
+  - method: POST
+    path: /categories/suggest
+    description: "Get LLM-based category suggestion for an expense"
+    request: "{ description: str, amount: float }"
+    response: "CategorySuggestResponse | None"
+
+business_rules:
+  - id: BR-CAT-01
+    description: "Categories are scoped to user_id. No group sharing."
+  - id: BR-CAT-02
+    description: "Unique constraint on (name, user_id) prevents duplicate names per user"
+  - id: BR-CAT-03
+    description: "Hierarchy supports up to 3 levels: parent → child → grandchild via parent_id self-reference"
+  - id: BR-CAT-04
+    description: "Keywords are comma-separated, used for auto-categorization of expense descriptions"
+  - id: BR-CAT-05
+    description: "budget_group classifies category into 50/30/20 rule: necesidades (50%), gustos (30%), ahorro (20%)"
+  - id: BR-CAT-06
+    description: "Deleting a category does not delete expenses; expenses get category_id set to NULL"
+  - id: BR-CAT-07
+    description: "Base hierarchy seed includes: Alimentación, Transporte, Entretenimiento, Salud, Servicios, Ropa, Educación, Hogar, Mascotas, Regalos, Otros"
+
+seed_data:
+  description: "BASE_HIERARCHY defines default categories with parent/children, colors, and keywords"
+  categories:
+    - name: "Alimentación"
+      color: "#ef4444"
+      children: [Supermercado, Restaurantes, Delivery, Almacén/Kiosco]
+    - name: "Transporte"
+      color: "#f97316"
+      children: [Combustible, Transporte Público, Taxi/Remis, Peaje & Estacionamiento]
+    - name: "Entretenimiento"
+      color: "#8b5cf6"
+      children: [Streaming, Juegos, Cine & Salidas]
+    - name: "Salud"
+      color: "#10b981"
+      children: [Farmacia, Médicos, Prepaga, Laboratorio]
+    - name: "Servicios"
+      color: "#3b82f6"
+      children: [Internet/Teléfono, Electricidad/Gas/Agua, Impuestos, Seguros]
+    - name: "Ropa"
+      color: "#ec4899"
+      children: [Indumentaria, Calzado, Accesorios]
+    - name: "Educación"
+      color: "#14b8a6"
+      children: [Cursos, Libros, Matrícula]
+    - name: "Hogar"
+      color: "#84cc16"
+      children: [Alquiler, Expensas, Mantenimiento, Muebles/Decoración]
+    - name: "Mascotas"
+      color: "#a855f7"
+      children: [Veterinaria, Alimento, Accesorios]
+    - name: "Regalos"
+      color: "#f59e0b"
+      children: [Regalos, Donaciones]
+    - name: "Otros"
+      color: "#6b7280"
+      children: [Varios]
+
+integrations:
+  - system: expenses
+    type: referenced_by
+    description: "Expense.category_id -> Category.id"
+  - system: budgets
+    type: referenced_by
+    description: "Budget.category_id -> Category.id"
+  - system: import
+    type: used_by
+    description: "Import uses keywords for auto-categorization of parsed expenses"
+
+migrations:
+  - description: "Initial categories table"
+  - description: "Add budget_group column"
+  - description: "Add unique constraint (name, user_id)"
+
+tests:
+  - name: "Create category with parent"
+    type: integration
+    description: "POST /categories with parent_id creates child category"
+    expected: "Category created with correct parent_id"
+  - name: "Duplicate name rejected"
+    type: integration
+    description: "POST /categories with existing name returns 400"
+    expected: "Error message about duplicate name"
+  - name: "Seed base hierarchy"
+    type: integration
+    description: "POST /categories/apply-base-hierarchy creates full hierarchy"
+    expected: "All parent categories and children created with correct keywords/colors"
+  - name: "Delete category preserves expenses"
+    type: integration
+    description: "DELETE /categories/{id} where category has expenses"
+    expected: "Category deleted, expenses retain null category_id"
+
+documentation:
+  - file: "specs/architecture/data-model.md"
+    section: "Category"
+  - file: "backend/app/seed.py"
+    section: "BASE_HIERARCHY"
+
+changelog:
+  - date: "2026-08-16"
+    version: "1.0.0"
+    changes: ["Initial feature spec created"]

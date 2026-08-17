@@ -1,0 +1,284 @@
+feature: card-closings
+domain: Card Management
+version: "1.0"
+status: implemented
+owner: full-stack
+created: 2026-08-16
+updated: 2026-08-16
+
+# === WHAT ===
+description: |
+  Card billing period management allowing users to define closing and due dates
+  for each credit card. Enables accurate billing cycle calculations, statement
+  period filtering, and payment due date tracking essential for Argentine
+  credit card usage patterns.
+
+# === REQUIREMENTS ===
+requirements:
+  functional:
+    - id: FR-1
+      requirement: CRUD operations for card closing configurations
+      priority: must
+    - id: FR-2
+      requirement: closing_day and due_day constrained to 1-28
+      priority: must
+    - id: FR-3
+      requirement: One closing configuration per card
+      priority: must
+    - id: FR-4
+      requirement: Calculate current billing period based on closing_day
+      priority: must
+    - id: FR-5
+      requirement: Link closing config to Card entity via card_id
+      priority: should
+  non_functional:
+    - id: NFR-1
+      requirement: Closing date calculations must be timezone-aware (Argentina)
+      priority: must
+
+# === PRE-EVALUATION ===
+pre_evaluation:
+  dependencies:
+    - Card entity must exist
+    - Date calculation utilities
+  data_requirements:
+    - CardClosing table exists
+    - Card table: no schema changes
+  api_changes:
+    - GET /card-closings - list closings
+    - POST /card-closings - create closing
+    - PUT /card-closings/{id} - update closing
+    - DELETE /card-closings/{id} - delete closing
+  ui_changes:
+    - CardClosingForm component
+    - Closing list in card detail view
+  migration_needed: false
+  rebuild_required:
+    backend: true
+    frontend: true
+  risks:
+    - Months with fewer than 28 days need special handling
+    - Timezone edge cases near midnight
+  open_questions:
+    - Should due_day be relative to closing_day or absolute?
+
+# === WHO ===
+users:
+  - role: authenticated_user
+    can: [list, create, update, delete]
+  - role: family_member
+    can: [list]
+
+# === DATA ===
+entities:
+  - name: CardClosing
+    description: Billing period configuration for a credit card
+    fields:
+      - name: id
+        type: integer
+        required: true
+        description: Primary key
+        constraints: [primary_key]
+      - name: card
+        type: string
+        required: false
+        default: ""
+        description: Card display name (legacy)
+      - name: card_last_digits
+        type: string
+        required: false
+        default: ""
+        description: Last 4 digits of card
+      - name: card_type
+        type: string
+        required: false
+        default: ""
+        description: Card type (credito/debito)
+      - name: bank
+        type: string
+        required: false
+        default: ""
+        description: Issuing bank
+      - name: card_id
+        type: integer
+        required: false
+        description: Linked card
+        constraints: [foreign_key: cards.id]
+      - name: closing_date
+        type: date
+        required: true
+        description: Current period closing date
+      - name: next_closing_date
+        type: date
+        required: false
+        description: Next closing date
+      - name: due_date
+        type: date
+        required: false
+        description: Payment due date
+      - name: last_imported_at
+        type: datetime
+        required: false
+        description: Last import timestamp
+      - name: user_id
+        type: integer
+        required: true
+        description: Owner
+        constraints: [foreign_key: users.id]
+    relationships:
+      - type: many-to-one
+        target: Card
+        via: card_id
+        ondelete: SET NULL
+      - type: many-to-one
+        target: User
+        via: user_id
+        ondelete: CASCADE
+
+# === API ===
+endpoints:
+  - method: GET
+    path: /card-closings
+    summary: List card closing configurations
+    auth: required
+    response:
+      type: array
+      items: CardClosingResponse
+    errors:
+      - status: 401
+        condition: Missing or invalid token
+
+  - method: POST
+    path: /card-closings
+    summary: Create card closing configuration
+    auth: required
+    request: CardClosingCreate
+    response: CardClosingResponse
+    status: 201
+    validation:
+      - closing_day must be between 1 and 28
+      - due_day must be between 1 and 28
+      - card_id must reference existing card (if provided)
+    errors:
+      - status: 409
+        condition: Closing already exists for this card
+
+  - method: PUT
+    path: /card-closings/{id}
+    summary: Update card closing configuration
+    auth: required
+    request: CardClosingUpdate
+    response: CardClosingResponse
+    validation:
+      - Must belong to authenticated user
+    errors:
+      - status: 404
+        condition: Card closing not found
+
+  - method: DELETE
+    path: /card-closings/{id}
+    summary: Delete card closing configuration
+    auth: required
+    response: null
+    status: 204
+    errors:
+      - status: 404
+        condition: Card closing not found
+
+# === BUSINESS RULES ===
+business_rules:
+  - id: BR-1
+    rule: closing_day must be between 1 and 28 (inclusive)
+    enforced_in: model + router
+    rationale: Ensures valid day in all months (Feb has 28 days min)
+  - id: BR-2
+    rule: due_day must be between 1 and 28 (inclusive)
+    enforced_in: model + router
+    rationale: Same as closing_day constraint
+  - id: BR-3
+    rule: Only one CardClosing per card_id
+    enforced_in: model
+    rationale: Each card has exactly one billing cycle configuration
+  - id: BR-4
+    rule: closing_date is calculated as the next occurrence of closing_day from today
+    enforced_in: service
+    rationale: Always shows upcoming closing, not past
+  - id: BR-5
+    rule: If card_id is NULL, closing uses legacy card/card_last_digits fields
+    enforced_in: service
+    rationale: Backward compatibility with pre-linking data
+
+# === UI ===
+frontend:
+  pages:
+    - name: CardClosingConfig
+      route: /cards/{id}/closing
+      components: [CardClosingForm, ClosingCalendar]
+  interactions:
+    - action: User sets closing_day=15, due_day=5
+      result: System calculates next closing_date and due_date
+    - action: User views card detail
+      result: Shows current billing period and days until closing
+
+# === INTEGRATIONS ===
+integrations:
+  - system: expense_filtering
+    how: Expenses can be filtered by billing period using closing_date
+  - system: import
+    how: CardClosing.last_imported_at tracks import progress per card
+
+# === MIGRATIONS ===
+migrations: []
+
+# === TESTS ===
+tests:
+  - id: T-1
+    scenario: Create card closing with valid days
+    type: unit
+    given: User has a card with id=1
+    when: POST /card-closings with closing_day=15, due_day=5, card_id=1
+    then: CardClosing created with calculated closing_date and due_date
+    priority: high
+  - id: T-2
+    scenario: Reject closing_day outside 1-28 range
+    type: unit
+    given: Authenticated user
+    when: POST /card-closings with closing_day=31
+    then: 400 error with validation message
+    priority: high
+  - id: T-3
+    scenario: One closing per card constraint
+    type: integration
+    given: CardClosing exists for card_id=1
+    when: POST /card-closings with card_id=1
+    then: 409 conflict error
+    priority: high
+  - id: T-4
+    scenario: Update existing closing day
+    type: unit
+    given: CardClosing with closing_day=10
+    when: PUT /card-closings/{id} with closing_day=20
+    then: Closing updated, next closing_date recalculated
+    priority: medium
+  - id: T-5
+    scenario: Delete card closing
+    type: unit
+    given: CardClosing exists
+    when: DELETE /card-closings/{id}
+    then: CardClosing removed, 204 response
+    priority: medium
+
+# === DOCUMENTATION DELIVERABLES ===
+documentation:
+  - file: docs/card-closings.md
+    action: create
+    description: Document billing period calculations, day constraints, API usage
+  - file: docs/Roadmap.md
+    action: update
+    description: Mark card closings as Done
+
+# === SPEC HISTORY ===
+changelog:
+  - date: 2026-08-16
+    version: "1.0"
+    change: Initial spec created

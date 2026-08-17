@@ -1,0 +1,183 @@
+# Feature: SSE Notifications
+# Status: Implemented
+# Date: 2026-08-16
+
+metadata:
+  name: "SSE Notifications"
+  id: "notifications"
+  version: "1.0.0"
+  status: "implemented"
+  created: "2026-08-16"
+  updated: "2026-08-16"
+  owner: "Oikonomia Team"
+  tags: ["notifications", "sse", "real-time", "events"]
+
+description: >
+  Provides real-time notifications to users via Server-Sent Events (SSE).
+  Notifications are delivered instantly when events occur (e.g., expense
+  created, scheduled expense executed). A SharedWorker manages the SSE
+  connection across browser tabs to avoid duplicate connections. Users
+  can mark notifications as read.
+
+requirements:
+  - "User must be authenticated to receive notifications"
+  - "Browser must support SSE (EventSource API)"
+  - "SharedWorker support for cross-tab deduplication"
+  - "Notifications are persisted for history"
+
+pre_evaluation:
+  questions:
+    - question: "Why SSE over WebSockets?"
+      answer: "SSE is simpler, HTTP-native, and sufficient for unidirectional server-to-client push"
+    - question: "How is cross-tab handled?"
+      answer: "A SharedWorker maintains a single SSE connection and broadcasts to all tabs via postMessage"
+    - question: "Are notifications persisted?"
+      answer: "Yes, stored in notifications table for history; SSE delivers in real-time"
+
+users:
+  - role: "authenticated_user"
+    description: "Any logged-in user receives notifications for their events"
+    permissions:
+      - "receive_notifications"
+      - "view_notifications"
+      - "mark_notification_read"
+
+entities:
+  - name: "Notification"
+    table: "notifications"
+    description: "A notification event delivered to the user"
+    fields:
+      - name: "id"
+        type: "integer"
+        primary_key: true
+        auto_increment: true
+      - name: "message"
+        type: "text"
+        required: true
+        description: "Notification message text"
+      - name: "type"
+        type: "string"
+        required: true
+        description: "Notification type: expense_created, scheduled_executed, system"
+      - name: "read"
+        type: "boolean"
+        default: false
+        description: "Whether the user has read this notification"
+      - name: "user_id"
+        type: "integer"
+        foreign_key: "users.id"
+        required: true
+      - name: "created_at"
+        type: "datetime"
+        default: "now()"
+    indexes:
+      - columns: ["user_id"]
+      - columns: ["user_id", "read"]
+
+endpoints:
+  - method: "GET"
+    path: "/notifications"
+    description: "SSE stream of real-time notifications"
+    auth: "required"
+    response:
+      status: 200
+      content_type: "text/event-stream"
+      body: |
+        event: notification
+        data: {"id": 1, "message": "...", "type": "...", "read": false, "created_at": "..."}
+    notes: "Connection stays open; server pushes events as they occur"
+
+  - method: "PUT"
+    path: "/notifications/{id}/read"
+    description: "Mark a notification as read"
+    auth: "required"
+    path_params:
+      - name: "id"
+        type: "integer"
+        required: true
+    response:
+      status: 200
+      body:
+        notification: "Updated Notification object"
+    errors:
+      - status: 404
+        description: "Notification not found"
+
+business_rules:
+  - name: "Real-time Delivery"
+    description: "Notifications are pushed to the client via SSE as soon as they are generated"
+  - name: "SharedWorker Deduplication"
+    description: "A SharedWorker maintains one SSE connection per browser; all tabs share the same connection"
+  - name: "Auto-dismiss on Read"
+    description: "Once marked as read, the notification is visually dismissed from the UI panel"
+  - name: "Persistence"
+    description: "All notifications are stored in the database regardless of delivery status"
+  - name: "User Scoping"
+    description: "Notifications are strictly scoped to the authenticated user"
+
+frontend:
+  components:
+    - name: "NotificationsPanel"
+      path: "frontend/src/components/NotificationsPanel.tsx"
+      description: "Dropdown/side panel showing unread notifications with read/dismiss actions"
+    - name: "NotificationsWorker"
+      path: "frontend/src/workers/notifications.worker.ts"
+      description: "SharedWorker that manages SSE connection and broadcasts to tabs"
+    - name: "NotificationBell"
+      path: "frontend/src/components/NotificationBell.tsx"
+      description: "Bell icon with unread count badge in the header"
+
+integrations: []
+
+migrations: []
+
+tests:
+  - name: "SSE connection established"
+    type: "integration"
+    description: "Authenticated user can open an SSE connection"
+    steps:
+      - "Authenticate as user"
+      - "GET /notifications with Accept: text/event-stream"
+      - "Assert 200 with correct content-type"
+    expected: "SSE stream is established"
+
+  - name: "Notification delivered on event"
+    type: "integration"
+    description: "Creating an expense triggers a notification"
+    steps:
+      - "Open SSE connection"
+      - "Create an expense via POST /expenses"
+      - "Assert notification event received on SSE stream"
+    expected: "Notification pushed to client"
+
+  - name: "Mark notification as read"
+    type: "integration"
+    description: "User can mark a notification as read"
+    steps:
+      - "Receive a notification"
+      - "PUT /notifications/{id}/read"
+      - "Assert notification.read == true"
+    expected: "Notification marked as read"
+
+  - name: "Notifications scoped to user"
+    type: "integration"
+    description: "User only receives their own notifications"
+    steps:
+      - "User A and User B both connect to SSE"
+      - "User A creates an expense"
+      - "Assert only User A receives notification"
+    expected: "No cross-user notification leakage"
+
+documentation:
+  - type: "api"
+    description: "SSE notification endpoints documented in OpenAPI spec"
+  - type: "architecture"
+    description: "SharedWorker SSE deduplication pattern documented"
+
+changelog:
+  - version: "1.0.0"
+    date: "2026-08-16"
+    changes:
+      - "Initial SSE notification implementation"
+      - "SharedWorker for cross-tab connection management"
+      - "Notifications panel UI"

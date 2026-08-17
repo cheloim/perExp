@@ -105,7 +105,11 @@ def _apply_filters(
     return q
 
 
-@router.get("/summary")
+@router.get(
+    "/summary",
+    summary="Get expense summary",
+    description="Retrieve aggregated expense data including totals by category, period, card, currency, and recent expenses.",
+)
 def get_summary(
     month: str | None = None,
     group_by: str = "month",
@@ -419,7 +423,11 @@ def get_summary(
     }
 
 
-@router.get("/monthly-report")
+@router.get(
+    "/monthly-report",
+    summary="Get monthly financial report",
+    description="Generate a monthly analysis report with income vs expenses, savings rate, top categories, MoM comparison, and LLM-powered insights.",
+)
 async def get_monthly_report(
     month: str | None = None,
     db: Session = Depends(get_db),
@@ -750,7 +758,11 @@ def _build_report_html(data: dict, user_name: str) -> str:
 </html>"""
 
 
-@router.get("/monthly-report/download")
+@router.get(
+    "/monthly-report/download",
+    summary="Download monthly report as HTML",
+    description="Download a printable HTML version of the monthly financial report for the specified month.",
+)
 def download_monthly_report(
     month: str | None = None,
     db: Session = Depends(get_db),
@@ -778,7 +790,11 @@ def download_monthly_report(
     return HTMLResponse(content=html)
 
 
-@router.get("/monthly-reports")
+@router.get(
+    "/monthly-reports",
+    summary="List monthly reports",
+    description="List all generated monthly reports for the current user with their status and generation date.",
+)
 def list_monthly_reports(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -808,7 +824,11 @@ def list_monthly_reports(
     return {"reports": result}
 
 
-@router.post("/monthly-reports/generate")
+@router.post(
+    "/monthly-reports/generate",
+    summary="Generate a monthly report",
+    description="Trigger on-demand generation of a monthly report via a background Celery task.",
+)
 def generate_monthly_report(
     month: str,
     db: Session = Depends(get_db),
@@ -883,7 +903,11 @@ def generate_monthly_report(
     return {"month": month_str, "status": "queued"}
 
 
-@router.get("/monthly-reports/{month}/download")
+@router.get(
+    "/monthly-reports/{month}/download",
+    summary="Download monthly report as image",
+    description="Download a previously generated monthly report as a PNG image (or PDF for legacy reports).",
+)
 def download_report_image(
     month: str,
     db: Session = Depends(get_db),
@@ -921,7 +945,11 @@ def download_report_image(
     )
 
 
-@router.get("/account-expenses")
+@router.get(
+    "/account-expenses",
+    summary="Get account-based expenses",
+    description="Retrieve expenses excluding credit card transactions, showing only debit, bank transfer, and cash spending.",
+)
 def get_account_expenses(
     month: str | None = None,
     db: Session = Depends(get_db),
@@ -981,7 +1009,11 @@ def get_account_expenses(
     return result
 
 
-@router.get("/installments")
+@router.get(
+    "/installments",
+    summary="Get installments overview",
+    description="Retrieve all installment groups showing paid and remaining installments with next payment dates.",
+)
 def get_installments_dashboard(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -1111,7 +1143,11 @@ def get_installments_dashboard(
     )
 
 
-@router.get("/installments/monthly-load")
+@router.get(
+    "/installments/monthly-load",
+    summary="Get installments monthly load",
+    description="Show a 7-month window of installment payment load (3 past, current, 3 future) including projected amounts.",
+)
 def get_installments_monthly_load(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -1230,7 +1266,11 @@ def get_installments_monthly_load(
     return sorted(monthly.values(), key=lambda x: x["month"])
 
 
-@router.get("/scheduled-summary")
+@router.get(
+    "/scheduled-summary",
+    summary="Get scheduled expenses summary",
+    description="Retrieve pending scheduled installments and manual scheduled expenses for the next 3 months.",
+)
 def get_scheduled_summary(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -1330,7 +1370,11 @@ def get_scheduled_summary(
     return result
 
 
-@router.get("/credit-card-pasivos")
+@router.get(
+    "/credit-card-pasivos",
+    summary="Get credit card liabilities",
+    description="Calculate total pending credit card liabilities from scheduled expenses and future installment projections.",
+)
 def get_credit_card_pasivos(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -1461,7 +1505,11 @@ def get_credit_card_pasivos(
     }
 
 
-@router.get("/top-merchants")
+@router.get(
+    "/top-merchants",
+    summary="Get top merchants",
+    description="Retrieve the top merchants by total spending, with optional month, person, and bank filters.",
+)
 def get_top_merchants(
     month: str | None = None,
     person: str | None = None,
@@ -1531,7 +1579,11 @@ def get_top_merchants(
     return result[:limit]
 
 
-@router.get("/card-summary")
+@router.get(
+    "/card-summary",
+    summary="Get card spending summary",
+    description="Retrieve spending summary per card and account for the last 12 months, including monthly breakdowns.",
+)
 def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     uid_list = get_group_user_ids(current_user.id, db)
 
@@ -1660,7 +1712,11 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
     return sorted(result, key=lambda x: x["total_amount"], reverse=True)
 
 
-@router.get("/card-category-breakdown")
+@router.get(
+    "/card-category-breakdown",
+    summary="Get card-category breakdown",
+    description="Retrieve a matrix of spending by card and category, useful for stacked bar charts.",
+)
 def get_card_category_breakdown(
     month: str | None = None,
     bank: str | None = None,
@@ -1729,7 +1785,11 @@ def get_card_category_breakdown(
     return {"rows": rows, "categories": categories}
 
 
-@router.get("/category-trend")
+@router.get(
+    "/category-trend",
+    summary="Get category spending trend",
+    description="Retrieve monthly spending trend per category over a configurable number of months.",
+)
 def get_category_trend(
     months: int = 4,
     anchor_month: str | None = None,
@@ -1798,7 +1858,11 @@ def get_category_trend(
     return {"rows": rows, "categories": categories}
 
 
-@router.get("/ai-trends")
+@router.get(
+    "/ai-trends",
+    summary="Get AI spending trends analysis",
+    description="Retrieve an LLM-powered analysis of spending trends with projections and actionable insights.",
+)
 async def get_ai_trends(
     month: str | None = None,
     db: Session = Depends(get_db),

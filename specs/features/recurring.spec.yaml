@@ -1,0 +1,316 @@
+feature: recurring-expenses
+domain: Expense Management
+version: "1.0"
+status: implemented
+owner: full-stack
+created: 2026-08-16
+updated: 2026-08-16
+
+# === WHAT ===
+description: |
+  Auto-detection of recurring expenses by analyzing transaction patterns.
+  A Celery task scans user expenses to identify merchants with consistent
+  amounts and frequencies, creating RecurringExpense records that users
+  can accept or dismiss. Helps users track subscriptions and regular payments.
+
+# === REQUIREMENTS ===
+requirements:
+  functional:
+    - id: FR-1
+      requirement: Auto-detect recurring expenses by matching merchant_key and amount across transactions
+      priority: must
+    - id: FR-2
+      requirement: Run detection task daily via Celery beat schedule
+      priority: must
+    - id: FR-3
+      requirement: Allow users to accept or dismiss auto-detected recurring expenses
+      priority: must
+    - id: FR-4
+      requirement: Support monthly, weekly, and yearly frequency detection
+      priority: should
+    - id: FR-5
+      requirement: Track last_seen_at to identify inactive recurring expenses
+      priority: should
+  non_functional:
+    - id: NFR-1
+      requirement: Detection task must complete within 5 minutes for active users
+      priority: must
+    - id: NFR-2
+      requirement: Merchant matching must use normalized keys (lowercase, trimmed)
+      priority: must
+
+# === PRE-EVALUATION ===
+pre_evaluation:
+  dependencies:
+    - Celery worker and beat scheduler configured
+    - Expense table with sufficient history (min 2 months)
+    - Category table for optional categorization
+  data_requirements:
+    - RecurringExpense table exists (see entities)
+    - Expense table: no schema changes needed
+  api_changes:
+    - GET /recurring - list recurring expenses
+    - POST /recurring/{id}/accept - accept detection
+    - POST /recurring/{id}/dismiss - dismiss detection
+  ui_changes:
+    - RecurringExpenses component in dashboard
+    - Accept/dismiss buttons on detected items
+  migration_needed: false
+  rebuild_required:
+    backend: true
+    frontend: true
+  risks:
+    - False positives from one-time purchases at same merchant
+    - Amount variations (tips, fees) causing missed detections
+  open_questions:
+    - Threshold for minimum transactions before detection (currently 3)
+
+# === WHO ===
+users:
+  - role: authenticated_user
+    can: [list, accept, dismiss]
+  - role: family_member
+    can: [list]
+
+# === DATA ===
+entities:
+  - name: RecurringExpense
+    description: Auto-detected or manually created recurring expense pattern
+    fields:
+      - name: id
+        type: integer
+        required: true
+        description: Primary key
+        constraints: [primary_key]
+      - name: user_id
+        type: integer
+        required: true
+        description: Owner
+        constraints: [foreign_key: users.id]
+      - name: merchant_key
+        type: string
+        required: true
+        description: Normalized merchant identifier
+        constraints: [indexed]
+      - name: description
+        type: string
+        required: true
+        description: Display description
+      - name: amount
+        type: float
+        required: true
+        description: Expected transaction amount
+      - name: currency
+        type: string
+        required: false
+        default: ARS
+        description: Currency code
+      - name: category_id
+        type: integer
+        required: false
+        description: Associated category
+        constraints: [foreign_key: categories.id]
+      - name: card_id
+        type: integer
+        required: false
+        description: Associated card
+        constraints: [foreign_key: cards.id]
+      - name: account_id
+        type: integer
+        required: false
+        description: Associated account
+        constraints: [foreign_key: accounts.id]
+      - name: frequency
+        type: string
+        required: false
+        default: monthly
+        description: Detection frequency (monthly/weekly/yearly)
+      - name: next_charge_date
+        type: date
+        required: false
+        description: Predicted next charge date
+      - name: alert_days_before
+        type: integer
+        required: false
+        default: 3
+        description: Days before charge to alert
+      - name: is_active
+        type: boolean
+        required: false
+        default: true
+        description: Whether tracking is active
+      - name: source
+        type: string
+        required: false
+        default: auto
+        description: Detection source (auto/manual)
+      - name: last_seen_at
+        type: datetime
+        required: false
+        description: Last time this pattern was matched
+      - name: created_at
+        type: datetime
+        required: false
+        description: Creation timestamp
+      - name: updated_at
+        type: datetime
+        required: false
+        description: Last update timestamp
+    relationships:
+      - type: many-to-one
+        target: User
+        via: user_id
+        ondelete: CASCADE
+      - type: many-to-one
+        target: Category
+        via: category_id
+        ondelete: SET NULL
+      - type: many-to-one
+        target: Card
+        via: card_id
+        ondelete: SET NULL
+
+# === API ===
+endpoints:
+  - method: GET
+    path: /recurring
+    summary: List user's recurring expenses (auto-detected and manual)
+    auth: required
+    query_params:
+      - name: active
+        type: boolean
+        description: Filter by active status
+      - name: source
+        type: string
+        description: Filter by source (auto/manual)
+    response:
+      type: array
+      items: RecurringExpenseResponse
+    errors:
+      - status: 401
+        condition: Missing or invalid token
+
+  - method: POST
+    path: /recurring/{id}/accept
+    summary: Accept an auto-detected recurring expense
+    auth: required
+    response: RecurringExpenseResponse
+    validation:
+      - Recurring expense must exist and belong to user
+      - Must be source=auto
+    errors:
+      - status: 404
+        condition: Recurring expense not found
+      - status: 409
+        condition: Already accepted
+
+  - method: POST
+    path: /recurring/{id}/dismiss
+    summary: Dismiss an auto-detected recurring expense
+    auth: required
+    response: RecurringExpenseResponse
+    validation:
+      - Recurring expense must exist and belong to user
+    errors:
+      - status: 404
+        condition: Recurring expense not found
+
+# === BUSINESS RULES ===
+business_rules:
+  - id: BR-1
+    rule: Detection requires minimum 3 matching transactions with same merchant_key and amount within ±10%
+    enforced_in: service (celery task)
+    rationale: Reduces false positives from one-time purchases
+  - id: BR-2
+    rule: Frequency is inferred from average days between transactions (7-10d=weekly, 28-35d=monthly, 350-380d=yearly)
+    enforced_in: service
+    rationale: Automatic categorization without user input
+  - id: BR-3
+    rule: Recurring expenses with last_seen_at older than 2 frequency periods are marked inactive
+    enforced_in: service
+    rationale: Handles cancelled subscriptions gracefully
+  - id: BR-4
+    rule: Users can manually create recurring expenses with source=manual
+    enforced_in: router
+    rationale: Allow tracking expenses before auto-detection kicks in
+  - id: BR-5
+    rule: Dismissed recurring expenses are soft-deleted (is_active=false) and excluded from future detection
+    enforced_in: service
+    rationale: Respects user preference while preserving data
+
+# === UI ===
+frontend:
+  pages:
+    - name: RecurringExpenses
+      route: /dashboard/recurring
+      components: [RecurringList, RecurringCard, AcceptDismissButtons]
+  interactions:
+    - action: User clicks Accept on detected expense
+      result: Recurring expense marked as accepted, appears in active list
+    - action: User clicks Dismiss
+      result: Recurring expense removed from detection, soft-deleted
+    - action: User navigates to recurring expenses
+      result: Shows auto-detected pending items first, then active recurring
+
+# === INTEGRATIONS ===
+integrations:
+  - system: celery_task
+    how: detect_recurring_expenses task runs daily, scans expenses grouped by merchant_key
+  - system: budgets
+    how: Recurring expenses can be factored into budget planning
+
+# === MIGRATIONS ===
+migrations: []
+
+# === TESTS ===
+tests:
+  - id: T-1
+    scenario: Auto-detect recurring expense from 3+ matching transactions
+    type: integration
+    given: User has 4 transactions from "Netflix" for $1500 within 4 months
+    when: Celery detection task runs
+    then: RecurringExpense created with source=auto, frequency=monthly
+    priority: high
+  - id: T-2
+    scenario: Accept auto-detected recurring expense
+    type: unit
+    given: Auto-detected RecurringExpense exists
+    when: User POSTs to /recurring/{id}/accept
+    then: Recurring expense accepted, remains active
+    priority: high
+  - id: T-3
+    scenario: Dismiss auto-detected recurring expense
+    type: unit
+    given: Auto-detected RecurringExpense exists
+    when: User POSTs to /recurring/{id}/dismiss
+    then: Recurring expense marked inactive
+    priority: high
+  - id: T-4
+    scenario: Detection ignores dismissed merchants
+    type: integration
+    given: User dismissed "Spotify" recurring detection
+    when: New Spotify transactions appear and task runs
+    then: No new RecurringExpense created for Spotify
+    priority: medium
+  - id: T-5
+    scenario: Mark stale recurring expenses inactive
+    type: integration
+    given: RecurringExpense with last_seen_at > 2 months ago
+    when: Detection task runs
+    then: Recurring expense marked is_active=false
+    priority: medium
+
+# === DOCUMENTATION DELIVERABLES ===
+documentation:
+  - file: docs/recurring-expenses.md
+    action: create
+    description: Document auto-detection algorithm, frequency thresholds, API usage
+  - file: docs/Roadmap.md
+    action: update
+    description: Mark recurring expenses as Done
+
+# === SPEC HISTORY ===
+changelog:
+  - date: 2026-08-16
+    version: "1.0"
+    change: Initial spec created

@@ -10,7 +10,12 @@ from app.services.auth import get_current_user
 router = APIRouter(prefix="/card-closings", tags=["card-closings"])
 
 
-@router.get("", response_model=list[CardClosingResponse])
+@router.get(
+    "",
+    response_model=list[CardClosingResponse],
+    summary="List card closings",
+    description="Returns all card closing dates for the current user, ordered by most recent first.",
+)
 def get_card_closings(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -22,7 +27,12 @@ def get_card_closings(
     )
 
 
-@router.post("", response_model=CardClosingResponse)
+@router.post(
+    "",
+    response_model=CardClosingResponse,
+    summary="Create a card closing",
+    description="Records a new card closing date with optional next closing and due dates for the current user.",
+)
 def create_card_closing(
     card: str,
     bank: str,

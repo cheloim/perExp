@@ -1,0 +1,355 @@
+feature: income-tracking
+domain: Financial Management
+version: "1.0"
+status: planned
+owner: full-stack
+created: 2026-08-16
+updated: 2026-08-16
+
+# === WHAT ===
+description: |
+  Income tracking feature allowing users to record and categorize income sources
+  including salary, bonuses, investments, and other earnings. Enables savings rate
+  calculation, income vs expense comparison on dashboards, and supports Argentine
+  dual-currency tracking (ARS and USD).
+
+# === REQUIREMENTS ===
+requirements:
+  functional:
+    - id: FR-1
+      requirement: CRUD operations for income records
+      priority: must
+    - id: FR-2
+      requirement: Income types: salary, bonus, investment, other
+      priority: must
+    - id: FR-3
+      requirement: Income summary endpoint with totals by period
+      priority: must
+    - id: FR-4
+      requirement: Income breakdown by type
+      priority: should
+    - id: FR-5
+      requirement: Track income in ARS and USD separately
+      priority: must
+    - id: FR-6
+      requirement: Savings rate calculation (income - expenses) / income
+      priority: should
+    - id: FR-7
+      requirement: Mark income as recurring (monthly salary)
+      priority: could
+  non_functional:
+    - id: NFR-1
+      requirement: Income amounts stored with currency, no auto-conversion
+      priority: must
+    - id: NFR-2
+      requirement: Dashboard must show income vs expense comparison chart
+      priority: should
+
+# === PRE-EVALUATION ===
+pre_evaluation:
+  dependencies:
+    - Expense feature fully implemented (for comparison)
+    - Dashboard components exist
+    - Currency handling (ARS/USD) in place
+  data_requirements:
+    - New Income table (see entities)
+    - No changes to existing tables
+  api_changes:
+    - GET /income - list income records
+    - POST /income - create income
+    - PUT /income/{id} - update income
+    - DELETE /income/{id} - delete income
+    - GET /income/summary - aggregated totals
+    - GET /income/by-type - breakdown by income type
+  ui_changes:
+    - IncomePage with CRUD form
+    - IncomeSummaryCard component
+    - Dashboard chart: income vs expenses
+    - Savings rate indicator
+  migration_needed: true
+  rebuild_required:
+    backend: true
+    frontend: true
+  risks:
+    - Dual currency (ARS/USD) complicates summary calculations
+    - Exchange rate handling: fixed rate vs market rate?
+    - Recurring income detection may overlap with recurring expenses
+  open_questions:
+    - Should income integrate with budget groups (50/30/20 rule)?
+    - How to handle USD income in ARS-focused dashboards?
+    - Support for investment income auto-sync from broker APIs?
+
+# === WHO ===
+users:
+  - role: authenticated_user
+    can: [list, create, update, delete]
+  - role: family_member
+    can: [list]
+
+# === DATA ===
+entities:
+  - name: Income
+    description: User income record
+    fields:
+      - name: id
+        type: integer
+        required: true
+        description: Primary key
+        constraints: [primary_key]
+      - name: description
+        type: string
+        required: true
+        description: Income description (e.g., "Salario Agosto")
+      - name: amount
+        type: float
+        required: true
+        description: Income amount
+      - name: date
+        type: date
+        required: true
+        description: Date received
+        constraints: [indexed]
+      - name: type
+        type: string
+        required: true
+        description: Income type (salary/bonus/investment/other)
+        constraints: [indexed]
+      - name: source
+        type: string
+        required: false
+        default: ""
+        description: Income source (employer name, platform, etc.)
+      - name: currency
+        type: string
+        required: false
+        default: ARS
+        description: Currency code (ARS/USD)
+      - name: is_recurring
+        type: boolean
+        required: false
+        default: false
+        description: Whether this is a recurring income
+      - name: user_id
+        type: integer
+        required: true
+        description: Owner
+        constraints: [foreign_key: users.id]
+      - name: created_at
+        type: datetime
+        required: false
+        description: Creation timestamp
+    relationships:
+      - type: many-to-one
+        target: User
+        via: user_id
+        ondelete: CASCADE
+
+# === API ===
+endpoints:
+  - method: GET
+    path: /income
+    summary: List income records
+    auth: required
+    query_params:
+      - name: type
+        type: string
+        description: Filter by income type
+      - name: currency
+        type: string
+        description: Filter by currency (ARS/USD)
+      - name: since
+        type: date
+        description: Filter from date
+      - name: until
+        type: date
+        description: Filter to date
+    response:
+      type: array
+      items: IncomeResponse
+    errors:
+      - status: 401
+        condition: Missing or invalid token
+
+  - method: POST
+    path: /income
+    summary: Create income record
+    auth: required
+    request: IncomeCreate
+    response: IncomeResponse
+    status: 201
+    validation:
+      - amount must be positive
+      - type must be one of: salary, bonus, investment, other
+      - date is required
+    errors:
+      - status: 400
+        condition: Invalid income type or negative amount
+
+  - method: PUT
+    path: /income/{id}
+    summary: Update income record
+    auth: required
+    request: IncomeUpdate
+    response: IncomeResponse
+    errors:
+      - status: 404
+        condition: Income not found
+
+  - method: DELETE
+    path: /income/{id}
+    summary: Delete income record
+    auth: required
+    response: null
+    status: 204
+    errors:
+      - status: 404
+        condition: Income not found
+
+  - method: GET
+    path: /income/summary
+    summary: Get income summary for period
+    auth: required
+    query_params:
+      - name: period
+        type: string
+        description: Period (month/quarter/year)
+      - name: currency
+        type: string
+        description: Filter by currency
+    response: IncomeSummary
+    errors:
+      - status: 401
+        condition: Missing or invalid token
+
+  - method: GET
+    path: /income/by-type
+    summary: Get income breakdown by type
+    auth: required
+    query_params:
+      - name: since
+        type: date
+        description: Filter from date
+      - name: until
+        type: date
+        description: Filter to date
+    response:
+      type: array
+      items: IncomeByType
+    errors:
+      - status: 401
+        condition: Missing or invalid token
+
+# === BUSINESS RULES ===
+business_rules:
+  - id: BR-1
+    rule: Income types are restricted to: salary, bonus, investment, other
+    enforced_in: model
+    rationale: Standardized categorization for reporting
+  - id: BR-2
+    rule: Income amounts must be positive
+    enforced_in: router
+    rationale: Negative income is not valid (refunds go through expenses)
+  - id: BR-3
+    rule: ARS and USD tracked separately, no automatic conversion
+    enforced_in: model + service
+    rationale: Argentine peso volatility makes auto-conversion unreliable
+  - id: BR-4
+    rule: Savings rate = (total_income - total_expenses) / total_income per period
+    enforced_in: service
+    rationale: Key financial health metric
+  - id: BR-5
+    rule: Income summary aggregates by currency, period, and optionally type
+    enforced_in: service
+    rationale: Flexible reporting for different use cases
+  - id: BR-6
+    rule: Recurring income flagged for budget planning integration
+    enforced_in: model
+    rationale: Enables 50/30/20 rule and budget group calculations
+
+# === UI ===
+frontend:
+  pages:
+    - name: IncomePage
+      route: /income
+      components: [IncomeList, IncomeForm, IncomeSummaryCard]
+    - name: IncomeDashboard
+      route: /dashboard/income
+      components: [IncomeVsExpenseChart, SavingsRateGauge, IncomeByTypePie]
+  interactions:
+    - action: User adds income with type=salary, amount=500000, currency=ARS
+      result: Income record created, dashboard updated
+    - action: User views income summary
+      result: Shows totals by period, by type, with savings rate
+    - action: User views dashboard
+      result: Income vs expense comparison chart visible
+
+# === INTEGRATIONS ===
+integrations:
+  - system: expenses
+    how: Income totals compared with expense totals for savings rate
+  - system: budgets
+    how: Income used to calculate budget group allocations (50/30/20)
+  - system: dashboard
+    how: Income data displayed in dashboard charts and KPIs
+  - system: recurring_expenses
+    how: Recurring income can be auto-detected similar to recurring expenses
+
+# === MIGRATIONS ===
+migrations:
+  - script: create_income_table.py
+    description: Creates Income table with all fields and indexes
+    idempotent: true
+    tables_affected: [incomes]
+
+# === TESTS ===
+tests:
+  - id: T-1
+    scenario: Create income record
+    type: unit
+    given: Authenticated user
+    when: POST /income with type=salary, amount=500000, currency=ARS
+    then: Income created with 201 status
+    priority: high
+  - id: T-2
+    scenario: Get income summary by period
+    type: integration
+    given: User has 3 income records in August
+    when: GET /income/summary?period=month
+    then: Returns total for August grouped by currency
+    priority: high
+  - id: T-3
+    scenario: Income vs expense comparison
+    type: integration
+    given: User has income=500000 and expenses=300000 in August
+    when: Dashboard loads
+    then: Shows savings rate=40%, comparison chart
+    priority: medium
+  - id: T-4
+    scenario: Reject negative income amount
+    type: unit
+    given: Authenticated user
+    when: POST /income with amount=-1000
+    then: 400 error with validation message
+    priority: high
+  - id: T-5
+    scenario: Filter income by currency
+    type: unit
+    given: User has ARS and USD income records
+    when: GET /income?currency=USD
+    then: Returns only USD income records
+    priority: medium
+
+# === DOCUMENTATION DELIVERABLES ===
+documentation:
+  - file: docs/income.md
+    action: create
+    description: Document income types, currency handling, savings rate formula
+  - file: docs/Roadmap.md
+    action: update
+    description: Mark income tracking as planned
+
+# === SPEC HISTORY ===
+changelog:
+  - date: 2026-08-16
+    version: "1.0"
+    change: Initial spec created

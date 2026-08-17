@@ -63,3 +63,35 @@ jobs:
       - name: MyPy
         run: mypy app/
         continue-on-error: true
+
+  specs:
+    name: Spec Validation & Codegen
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22.16.0"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: Generate API client from OpenAPI spec
+        run: npx orval
+
+      - name: Check generated code is up to date
+        run: |
+          git diff --exit-code src/api/client.ts src/types/generated/ || {
+            echo "::error::Generated API client is out of date. Run 'npx orval' locally and commit."
+            exit 1
+          }
+
+      - name: Typecheck with generated code
+        run: npm run typecheck

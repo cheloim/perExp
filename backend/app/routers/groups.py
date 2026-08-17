@@ -65,7 +65,12 @@ def get_group_user_ids(user_id: int, db: Session) -> list[int]:
     return [m.user_id for m in members]
 
 
-@router.get("/me", response_model=FamilyGroupResponse | None)
+@router.get(
+    "/me",
+    response_model=FamilyGroupResponse | None,
+    summary="Get current user's family group",
+    description="Retrieve the family group the current user belongs to, including all members and their statuses.",
+)
 def get_my_group(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     membership = _get_user_group(current_user.id, db)
     if not membership:
@@ -96,7 +101,12 @@ def get_my_group(current_user: User = Depends(get_current_user), db: Session = D
     return FamilyGroupResponse(id=group.id, name=group.name, members=members)
 
 
-@router.post("/invite", status_code=201)
+@router.post(
+    "/invite",
+    status_code=201,
+    summary="Invite a user to family group",
+    description="Send a family group invitation to a user by their invite code. Creates the group if it doesn't exist.",
+)
 def invite_user(
     body: InviteRequest,
     current_user: User = Depends(get_current_user),
@@ -178,7 +188,12 @@ def invite_user(
     return {"message": "Invitación enviada"}
 
 
-@router.delete("/leave", status_code=200)
+@router.delete(
+    "/leave",
+    status_code=200,
+    summary="Leave family group",
+    description="Remove the current user from their family group. Deletes the group if no members remain.",
+)
 def leave_group(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     membership = _get_user_group(current_user.id, db)
     if not membership:
@@ -207,7 +222,11 @@ def leave_group(current_user: User = Depends(get_current_user), db: Session = De
     return {"message": "Saliste del grupo"}
 
 
-@router.get("/my-invite-code")
+@router.get(
+    "/my-invite-code",
+    summary="Get user invite code",
+    description="Retrieve or generate the current user's unique invite code for family group invitations.",
+)
 def get_my_invite_code(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -218,7 +237,11 @@ def get_my_invite_code(
     return {"invite_code": current_user.invite_code}
 
 
-@router.post("/generate-invite-code")
+@router.post(
+    "/generate-invite-code",
+    summary="Regenerate invite code",
+    description="Generate a new random invite code for the current user, replacing the previous one.",
+)
 def generate_invite_code(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),

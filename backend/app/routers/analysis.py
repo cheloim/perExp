@@ -19,7 +19,11 @@ from app.services.auth import get_current_user
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
 
-@router.post("/stream")
+@router.post(
+    "/stream",
+    summary="Stream expense analysis",
+    description="SSE streaming endpoint that analyzes expenses using an LLM and returns insights with optional user question.",
+)
 async def stream_analysis(
     req: AnalysisRequest,
     db: Session = Depends(get_db),
@@ -155,7 +159,11 @@ TOP 10 GASTOS MÁS ALTOS:
     )
 
 
-@router.post("/summarize")
+@router.post(
+    "/summarize",
+    summary="Summarize chat conversation",
+    description="SSE streaming endpoint that generates a concise summary of a chat conversation for session resume.",
+)
 async def summarize_chat(
     body: dict,
     current_user: User = Depends(get_current_user),
@@ -216,7 +224,12 @@ async def summarize_chat(
     )
 
 
-@router.get("/history", response_model=list[AnalysisHistoryResponse])
+@router.get(
+    "/history",
+    response_model=list[AnalysisHistoryResponse],
+    summary="List analysis history",
+    description="Retrieve the last 50 analysis history entries for the current user.",
+)
 def get_analysis_history(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -229,7 +242,11 @@ def get_analysis_history(
     )
 
 
-@router.delete("/history/{hist_id}")
+@router.delete(
+    "/history/{hist_id}",
+    summary="Delete an analysis entry",
+    description="Delete a specific analysis history entry by ID.",
+)
 def delete_analysis_history(
     hist_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):

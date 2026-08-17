@@ -1,0 +1,184 @@
+# Feature: AI Spending Analysis
+# Status: Implemented
+# Date: 2026-08-16
+
+metadata:
+  name: "AI Spending Analysis"
+  id: "analysis"
+  version: "1.0.0"
+  status: "implemented"
+  created: "2026-08-16"
+  updated: "2026-08-16"
+  owner: "Oikonomia Team"
+  tags: ["analysis", "ai", "llm", "insights"]
+
+description: >
+  Enables users to ask natural language questions about their spending
+  patterns. Queries are sent to Gemini Flash which generates insights
+  based on the user's expense data. All queries and responses are stored
+  in AnalysisHistory for future reference.
+
+requirements:
+  - "User must be authenticated"
+  - "User must have expenses in the system"
+  - "Gemini Flash API key must be configured"
+  - "Analysis history is stored per-user"
+
+pre_evaluation:
+  questions:
+    - question: "Which LLM provider is used?"
+      answer: "Gemini Flash via Google AI API"
+    - question: "Is conversation context maintained between queries?"
+      answer: "No, each analysis is stateless; history is for reference only"
+    - question: "What data is sent to the LLM?"
+      answer: "A summary of user expenses (amounts, categories, dates) — no PII beyond first name"
+
+users:
+  - role: "authenticated_user"
+    description: "Any logged-in user can run spending analyses"
+    permissions:
+      - "create_analysis"
+      - "view_own_analysis_history"
+
+entities:
+  - name: "AnalysisHistory"
+    table: "analysis_history"
+    description: "Stores each analysis query and its LLM-generated response"
+    fields:
+      - name: "id"
+        type: "integer"
+        primary_key: true
+        auto_increment: true
+      - name: "query"
+        type: "text"
+        required: true
+        description: "The user's natural language question"
+      - name: "response"
+        type: "text"
+        required: true
+        description: "The LLM-generated analysis"
+      - name: "user_id"
+        type: "integer"
+        foreign_key: "users.id"
+        required: true
+      - name: "created_at"
+        type: "datetime"
+        default: "now()"
+    indexes:
+      - columns: ["user_id"]
+
+endpoints:
+  - method: "POST"
+    path: "/analysis"
+    description: "Submit a natural language query for spending analysis"
+    auth: "required"
+    request_body:
+      query:
+        type: "string"
+        required: true
+        description: "Natural language question about spending"
+    response:
+      status: 200
+      body:
+        response: "string"
+        analysis_id: "integer"
+    errors:
+      - status: 401
+        description: "Unauthorized"
+      - status: 500
+        description: "LLM service unavailable"
+
+  - method: "GET"
+    path: "/analysis/history"
+    description: "Retrieve past analysis queries and responses"
+    auth: "required"
+    query_params:
+      - name: "limit"
+        type: "integer"
+        required: false
+        default: 20
+    response:
+      status: 200
+      body:
+        history: "array of AnalysisHistory objects"
+
+business_rules:
+  - name: "Stateless Queries"
+    description: "Each analysis query is independent; no conversation context is carried over"
+  - name: "History Storage"
+    description: "Every query and response is persisted in analysis_history for the user"
+  - name: "Data Scoping"
+    description: "Only the authenticated user's expenses are included in the LLM prompt"
+  - name: "PII Minimization"
+    description: "Only first_name and expense data are sent to the LLM; no emails or IDs"
+
+frontend:
+  components:
+    - name: "AnalysisPage"
+      path: "frontend/src/pages/Analysis.tsx"
+      description: "Chat-like interface for submitting queries and viewing responses"
+    - name: "AnalysisHistory"
+      path: "frontend/src/components/AnalysisHistory.tsx"
+      description: "Sidebar or list showing past analysis queries"
+
+integrations:
+  - name: "Gemini Flash"
+    type: "llm"
+    description: "Google Gemini Flash model for natural language spending analysis"
+    config:
+      api_key_env: "GEMINI_API_KEY"
+      model: "gemini-flash"
+
+migrations: []
+
+tests:
+  - name: "Analysis returns response for valid query"
+    type: "integration"
+    description: "Submitting a query returns an LLM-generated response"
+    steps:
+      - "Authenticate as user with expenses"
+      - "POST /analysis with query 'How much did I spend on food last month?'"
+      - "Assert 200 response with non-empty response string"
+    expected: "Response contains spending analysis"
+
+  - name: "Analysis history stores queries"
+    type: "integration"
+    description: "Each analysis is saved to history"
+    steps:
+      - "Run 3 analysis queries"
+      - "GET /analysis/history"
+      - "Assert 3 entries returned in descending order"
+    expected: "History matches number of queries"
+
+  - name: "Analysis scoped to user"
+    type: "integration"
+    description: "User only sees their own analysis history"
+    steps:
+      - "User A runs 2 analyses, User B runs 1 analysis"
+      - "Authenticate as User B"
+      - "GET /analysis/history"
+      - "Assert only 1 entry returned"
+    expected: "History is user-scoped"
+
+  - name: "Analysis with no expenses returns insight"
+    type: "integration"
+    description: "LLM handles empty expense data gracefully"
+    steps:
+      - "Authenticate as user with zero expenses"
+      - "POST /analysis with query 'Show my spending summary'"
+      - "Assert 200 response with appropriate message"
+    expected: "Response indicates no expenses found"
+
+documentation:
+  - type: "api"
+    description: "Analysis endpoints documented in OpenAPI spec"
+  - type: "integration"
+    description: "Gemini Flash setup instructions in project docs"
+
+changelog:
+  - version: "1.0.0"
+    date: "2026-08-16"
+    changes:
+      - "Initial implementation of AI analysis feature"
+      - "POST /analysis and GET /analysis/history endpoints"
+      - "Gemini Flash integration"

@@ -35,7 +35,12 @@ class AccountResponse(BaseModel):
         from_attributes = True
 
 
-@router.get("", response_model=list[AccountResponse])
+@router.get(
+    "",
+    response_model=list[AccountResponse],
+    summary="List user accounts",
+    description="Returns all accounts belonging to the current user, including any linked debit card information.",
+)
 def list_accounts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -56,7 +61,13 @@ def list_accounts(
     return result
 
 
-@router.post("", response_model=AccountResponse, status_code=201)
+@router.post(
+    "",
+    response_model=AccountResponse,
+    status_code=201,
+    summary="Create a new account",
+    description="Creates a new financial account (e.g. cash, savings, digital wallet) for the current user.",
+)
 def create_account(
     account: AccountCreate,
     db: Session = Depends(get_db),
@@ -102,7 +113,12 @@ def create_account(
     return db_account
 
 
-@router.put("/{account_id}", response_model=AccountResponse)
+@router.put(
+    "/{account_id}",
+    response_model=AccountResponse,
+    summary="Update an account",
+    description="Updates the name or type of an existing account owned by the current user.",
+)
 def update_account(
     account_id: int,
     account: AccountUpdate,
@@ -135,7 +151,12 @@ def update_account(
     return db_account
 
 
-@router.delete("/{account_id}", status_code=204)
+@router.delete(
+    "/{account_id}",
+    status_code=204,
+    summary="Delete an account",
+    description="Deletes an account owned by the current user. Fails if the account has associated expenses.",
+)
 def delete_account(
     account_id: int,
     db: Session = Depends(get_db),

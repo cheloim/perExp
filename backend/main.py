@@ -132,7 +132,42 @@ async def lifespan(application: FastAPI):
         pass
 
 
-app = FastAPI(title="Credit Card Analyzer API", lifespan=lifespan)
+app = FastAPI(
+    title="Oikonomia API",
+    version="1.0.0",
+    description=(
+        "Personal/family finance management API. "
+        "Features: expense tracking, card/account management, hierarchical categories, "
+        "AI-powered import (PDF/CSV/XLSX), investment portfolio, budgets, "
+        "Telegram/WhatsApp bots, family groups, and more."
+    ),
+    servers=[
+        {"url": "http://localhost:8001", "description": "Development"},
+        {"url": "https://platform.oikonomia.ar", "description": "Production"},
+    ],
+    openapi_tags=[
+        {"name": "auth", "description": "Authentication, registration, OAuth, password reset"},
+        {"name": "mfa", "description": "Multi-factor authentication (TOTP)"},
+        {"name": "accounts", "description": "Cash and bank account CRUD"},
+        {"name": "cards", "description": "Credit and debit card CRUD"},
+        {"name": "categories", "description": "Hierarchical expense category management"},
+        {"name": "card-closings", "description": "Card billing period closing/due dates"},
+        {"name": "expenses", "description": "Expense CRUD, bulk operations, filtering"},
+        {"name": "investments", "description": "Investment portfolio tracking (IOL/PPI)"},
+        {"name": "import-jobs", "description": "PDF/CSV/XLSX bank statement import pipeline"},
+        {"name": "dashboard", "description": "Dashboard summaries, charts, and reports"},
+        {"name": "analysis", "description": "AI-powered spending analysis"},
+        {"name": "groups", "description": "Family group management and invite system"},
+        {"name": "notifications", "description": "SSE real-time notification streaming"},
+        {"name": "scheduled-expenses", "description": "Recurring and scheduled expense management"},
+        {"name": "budgets", "description": "Budget management with 50/30/20 groups"},
+        {"name": "suggestions", "description": "AI category auto-suggestions"},
+        {"name": "recurring", "description": "Auto-detected recurring expense patterns"},
+        {"name": "admin", "description": "Admin panel: user management, audit logs, impersonation"},
+        {"name": "whatsapp", "description": "WhatsApp webhook for expense logging"},
+    ],
+    lifespan=lifespan,
+)
 
 app.add_middleware(
     CORSMiddleware,

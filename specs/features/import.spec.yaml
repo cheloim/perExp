@@ -1,0 +1,285 @@
+metadata:
+  name: import
+  title: "Smart Import"
+  version: "1.0.0"
+  status: implemented
+  created: "2026-08-16"
+  updated: "2026-08-16"
+  owner: backend
+  tags: [import, pdf, csv, xlsx, parsing, bulk]
+
+description: |
+  Smart file import system supporting PDF bank statements, CSV, and Excel files.
+  Pipeline: upload → parse → preview → confirm → create expenses. PDFs are parsed
+  by LLM (Gemini), CSV/XLSX by deterministic pandas parser. Includes card mapping
+  for expense assignment, duplicate detection, and background processing with TTL.
+
+requirements:
+  functional:
+    - id: IMP-F01
+      description: "Upload file (PDF, CSV, XLS, XLSX) and create import job"
+      priority: must
+    - id: IMP-F02
+      description: "Background processing: parse file and generate preview"
+      priority: must
+    - id: IMP-F03
+      description: "Preview with parsed rows for user review"
+      priority: must
+    - id: IMP-F04
+      description: "Update preview data (bulk editing before confirm)"
+      priority: should
+    - id: IMP-F05
+      description: "Confirm import: create expenses from preview rows"
+      priority: must
+    - id: IMP-F06
+      description: "Card mapping: assign cards to rows via CardsMappingEntry"
+      priority: must
+    - id: IMP-F07
+      description: "Duplicate detection: skip rows matching existing expenses"
+      priority: must
+    - id: IMP-F08
+      description: "Auto-categorization of imported expenses by keywords"
+      priority: must
+    - id: IMP-F09
+      description: "Job TTL: 24 hours, auto-expire old jobs"
+      priority: must
+    - id: IMP-F10
+      description: "File size limit: 10MB"
+      priority: must
+    - id: IMP-F11
+      description: "List and get import jobs"
+      priority: must
+    - id: IMP-F12
+      description: "Delete import job"
+      priority: should
+
+  non-functional:
+    - id: IMP-NF01
+    description: "PDF parsing via Gemini LLM for flexible bank statement formats"
+    priority: must
+    - id: IMP-NF02
+    description: "CSV/XLSX parsing via deterministic pandas parser"
+    priority: must
+    - id: IMP-NF03
+    description: "Background processing via FastAPI BackgroundTasks"
+    priority: must
+    - id: IMP-NF04
+    description: "Jobs scoped to user, no cross-user access"
+    priority: must
+
+pre-evaluation:
+  auth: "JWT token required (Depends(get_current_user))"
+  database: "PostgreSQL via SQLAlchemy session (Depends(get_db))"
+  file_storage: "File content stored as LargeBinary in ImportJob.file_content"
+
+users:
+  - role: authenticated_user
+    actions: [upload, list, get, preview_update, confirm, delete]
+    scope: own_jobs only
+
+entities:
+  - name: ImportJob
+    table: import_jobs
+    fields:
+      - name: id
+        type: Integer
+        constraints: [PK, auto-increment]
+      - name: user_id
+        type: Integer
+        constraints: [FK -> users.id, NOT NULL, indexed]
+      - name: filename
+        type: String
+        constraints: [NOT NULL]
+      - name: status
+        type: String
+        constraints: [default "PROCESSING"]
+        values: [PROCESSING, READY_PREVIEW, COMPLETED, FAILED]
+      - name: file_content
+        type: LargeBinary
+        notes: "Raw file bytes"
+      - name: preview_data
+        type: Text
+        notes: "JSON preview for user confirmation"
+      - name: error_message
+        type: Text
+        constraints: [nullable]
+      - name: created_at
+        type: DateTime
+        constraints: [default utcnow]
+      - name: completed_at
+        type: DateTime
+        constraints: [nullable]
+    indexes:
+      - columns: [user_id]
+
+    schemas:
+      ImportJobResponse:
+        fields:
+          - { name: id, type: int }
+          - { name: filename, type: str }
+          - { name: status, type: str }
+          - { name: created_at, type: datetime }
+          - { name: completed_at, type: "datetime | null" }
+          - { name: error_message, type: "str | null" }
+          - { name: preview_data, type: "dict | null" }
+      RowsConfirmBody:
+        fields:
+          - { name: rows, type: "list[dict]", required: true, notes: "Rows to import" }
+          - { name: cards_mapping, type: "dict | null", default: null, notes: "Card assignment mapping" }
+      CardsMappingEntry:
+        description: "Maps bank/card/holder triple to existing or new card"
+        fields:
+          - { name: bank, type: str }
+          - { name: card, type: str }
+          - { name: holder, type: str }
+          - { name: card_type, type: str, default: "credito" }
+          - { name: existing_card_id, type: "int | null", notes: "Link to existing card" }
+          - { name: create_new, type: bool, notes: "Create new card from this entry" }
+
+endpoints:
+  - method: POST
+    path: /import-jobs
+    response_model: ImportJobResponse
+    status_code: 201
+    description: "Upload file and create import job"
+    request: "multipart/form-data with file"
+    validation:
+      - "File size <= 10MB"
+      - "File extension: .pdf, .csv, .xls, .xlsx"
+    logic:
+      - "Read file content"
+      - "Validate size and type"
+      - "Create ImportJob with status=PROCESSING"
+      - "Start background task: sync_process_import_job(job.id)"
+      - "Return job immediately"
+
+  - method: GET
+    path: /import-jobs
+    response_model: "list[ImportJobResponse]"
+    status_code: 200
+    description: "List import jobs for current user"
+    query_params:
+      - { name: status, type: "str | null" }
+      - { name: limit, type: int, default: 50 }
+    logic:
+      - "Query jobs filtered by user_id"
+      - "Optional status filter"
+      - "Order by created_at desc"
+
+  - method: GET
+    path: "/import-jobs/{job_id}"
+    response_model: ImportJobResponse
+    status_code: 200
+    description: "Get specific import job"
+    validation:
+      - "Job must belong to current user"
+      - "Job must not be expired (24h TTL)"
+    logic:
+      - "Check TTL, delete if expired (410)"
+      - "Parse preview_data JSON"
+      - "Return job"
+
+  - method: PUT
+    path: "/import-jobs/{job_id}/preview"
+    status_code: 200
+    description: "Update preview data (bulk editing)"
+    validation:
+      - "Job must be in READY_PREVIEW status"
+      - "Job must not be expired"
+    logic:
+      - "Update preview_data with new JSON body"
+
+  - method: POST
+    path: "/import-jobs/{job_id}/confirm"
+    status_code: 200
+    description: "Confirm import and create expenses"
+    request: RowsConfirmBody
+    validation:
+      - "Job must be in READY_PREVIEW status"
+      - "Job must not be expired"
+    logic:
+      - "Load user's existing cards"
+      - "Process cards_mapping: find or create cards"
+      - "For each row: check duplicate, create Expense"
+      - "Auto-categorize by keyword matching"
+      - "Handle installments (installment_group_id)"
+      - "Update job status to COMPLETED"
+      - "Return created expense count"
+
+  - method: DELETE
+    path: "/import-jobs/{job_id}"
+    status_code: 204
+    description: "Delete import job"
+
+business_rules:
+  - id: BR-IMP-01
+    description: "Jobs scoped to user_id. Only own jobs accessible."
+  - id: BR-IMP-02
+    description: "TTL: jobs older than 24 hours are auto-deleted on access (410 Gone)"
+  - id: BR-IMP-03
+    description: "File size limit: 10MB. Larger files rejected with 400."
+  - id: BR-IMP-04
+    description: "Supported formats: PDF (via Gemini LLM), CSV/XLSX (via pandas)"
+  - id: BR-IMP-05
+    description: "Card mapping: cards_mapping dict maps 'bank|card|holder' key to CardsMappingEntry"
+  - id: BR-IMP-06
+    description: "Card creation: if existing_card_id null and create_new true, create Card from entry data"
+  - id: BR-IMP-07
+    description: "Duplicate detection: compare normalized description + amount + date against existing expenses"
+  - id: BR-IMP-08
+    description: "Auto-categorization: match expense description against category keywords"
+  - id: BR-IMP-09
+    description: "Installment detection: parse 'X/Y' patterns, create installment_group_id"
+  - id: BR-IMP-10
+    description: "Status flow: PROCESSING → READY_PREVIEW → COMPLETED (or FAILED at any point)"
+
+integrations:
+  - system: expenses
+    type: creates
+    description: "Confirm endpoint creates Expense records"
+  - system: cards
+    type: creates
+    description: "Card mapping can create new Card records"
+  - system: categories
+    type: uses
+    description: "Auto-categorization uses Category.keywords for matching"
+  - system: gemini_llm
+    type: uses
+    description: "PDF parsing via Gemini API for flexible bank statement formats"
+
+migrations:
+  - description: "Initial import_jobs table"
+  - description: "Add file_content LargeBinary column"
+
+tests:
+  - name: "Upload CSV and get preview"
+    type: integration
+    description: "POST /import-jobs with CSV file, poll until READY_PREVIEW"
+    expected: "Job created, status transitions to READY_PREVIEW with parsed rows"
+  - name: "Confirm import creates expenses"
+    type: integration
+    description: "POST /import-jobs/{id}/confirm with preview rows"
+    expected: "Expenses created, job status = COMPLETED"
+  - name: "Expired job returns 410"
+    type: integration
+    description: "GET /import-jobs/{id} for job older than 24h"
+    expected: "410 Gone, job deleted"
+  - name: "Card mapping creates new card"
+    type: integration
+    description: "POST /import-jobs/{id}/confirm with cards_mapping creating new card"
+    expected: "New Card created, expenses linked to it"
+  - name: "Duplicate rows skipped"
+    type: integration
+    description: "POST /import-jobs/{id}/confirm with rows matching existing expenses"
+    expected: "Duplicate rows skipped, only new expenses created"
+
+documentation:
+  - file: "specs/architecture/data-model.md"
+    section: "ImportJob"
+  - file: "backend/app/tasks/import_processor.py"
+    section: "sync_process_import_job"
+
+changelog:
+  - date: "2026-08-16"
+    version: "1.0.0"
+    changes: ["Initial feature spec created"]

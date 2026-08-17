@@ -12,12 +12,22 @@ from app.services.categorization import llm_categorize
 router = APIRouter(prefix="/categories", tags=["categories"])
 
 
-@router.get("", response_model=list[CategoryResponse])
+@router.get(
+    "",
+    response_model=list[CategoryResponse],
+    summary="List user categories",
+    description="Returns all categories belonging to the current user.",
+)
 def get_categories(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return db.query(Category).filter(Category.user_id == current_user.id).all()
 
 
-@router.post("", response_model=CategoryResponse)
+@router.post(
+    "",
+    response_model=CategoryResponse,
+    summary="Create a category",
+    description="Creates a new expense category for the current user. Duplicate names are rejected.",
+)
 def create_category(
     cat: CategoryCreate,
     db: Session = Depends(get_db),
@@ -36,7 +46,12 @@ def create_category(
     return db_cat
 
 
-@router.put("/{cat_id}", response_model=CategoryResponse)
+@router.put(
+    "/{cat_id}",
+    response_model=CategoryResponse,
+    summary="Update a category",
+    description="Updates an existing category's name or other fields. Rejects duplicate names.",
+)
 def update_category(
     cat_id: int,
     cat: CategoryCreate,
@@ -67,7 +82,11 @@ def update_category(
     return db_cat
 
 
-@router.delete("/{cat_id}")
+@router.delete(
+    "/{cat_id}",
+    summary="Delete a category",
+    description="Deletes a category owned by the current user. Fails if it has subcategories. Associated expenses have their category set to null.",
+)
 def delete_category(
     cat_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -95,14 +114,22 @@ def delete_category(
     return {"ok": True}
 
 
-@router.post("/apply-base-hierarchy")
+@router.post(
+    "/apply-base-hierarchy",
+    summary="Apply base category hierarchy",
+    description="Re-applies the default base category hierarchy for the current user.",
+)
 def apply_base_hierarchy(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     return _apply_base_hierarchy_for_user(db, current_user.id)
 
 
-@router.post("/seed-defaults")
+@router.post(
+    "/seed-defaults",
+    summary="Seed default categories",
+    description="Seeds the default category hierarchy for the current user (same as apply-base-hierarchy).",
+)
 def seed_default_categories(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -116,7 +143,12 @@ class CategorySuggestResponse(BaseModel):
     confidence: float
 
 
-@router.post("/suggest", response_model=CategorySuggestResponse | None)
+@router.post(
+    "/suggest",
+    response_model=CategorySuggestResponse | None,
+    summary="Suggest a category",
+    description="Uses the LLM categorization service to suggest a category for the given description and amount.",
+)
 def suggest_category(
     body: CategorySuggestRequest,
     db: Session = Depends(get_db),

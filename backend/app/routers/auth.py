@@ -72,7 +72,12 @@ def _log_audit(
     db.commit()
 
 
-@router.post("/login", response_model=Token)
+@router.post(
+    "/login",
+    response_model=Token,
+    summary="Login with email and password",
+    description="Authenticates a user by email and password. Returns an MFA partial token if MFA is enabled, a force-change token if password change is required, or a full access token on success.",
+)
 def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
     # Rate limit check
     client_ip = _get_client_ip(request)
@@ -154,7 +159,12 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
     return Token(access_token=create_access_token(user.id), token_type="bearer")
 
 
-@router.post("/login/mfa", response_model=Token)
+@router.post(
+    "/login/mfa",
+    response_model=Token,
+    summary="Complete MFA login",
+    description="Verifies a TOTP code using a partial MFA token and returns a full access token.",
+)
 def login_mfa(body: MFALoginRequest, request: Request, db: Session = Depends(get_db)):
     # Validate the partial token
     import jwt
@@ -197,7 +207,13 @@ def login_mfa(body: MFALoginRequest, request: Request, db: Session = Depends(get
     return Token(access_token=create_access_token(user.id), token_type="bearer")
 
 
-@router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register",
+    response_model=Token,
+    status_code=status.HTTP_201_CREATED,
+    summary="Register a new user",
+    description="Creates a new user account, applies the base category hierarchy, and sends a verification email.",
+)
 def register(body: UserCreate, request: Request, db: Session = Depends(get_db)):
     # Rate limit check
     client_ip = _get_client_ip(request)
@@ -243,7 +259,12 @@ def register(body: UserCreate, request: Request, db: Session = Depends(get_db)):
     return Token(access_token=create_access_token(user.id), token_type="bearer")
 
 
-@router.post("/verify-email", status_code=status.HTTP_200_OK)
+@router.post(
+    "/verify-email",
+    status_code=status.HTTP_200_OK,
+    summary="Verify email address",
+    description="Validates an email verification token and marks the user's email as verified.",
+)
 def verify_email(body: EmailVerificationRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email_verification_token == body.token).first()
     if not user:
@@ -257,7 +278,12 @@ def verify_email(body: EmailVerificationRequest, db: Session = Depends(get_db)):
     return {"detail": "Email verificado correctamente"}
 
 
-@router.post("/resend-verification", status_code=status.HTTP_200_OK)
+@router.post(
+    "/resend-verification",
+    status_code=status.HTTP_200_OK,
+    summary="Resend verification email",
+    description="Sends a new email verification link if the user's email has not yet been verified.",
+)
 def resend_verification(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == body.email.lower().strip()).first()
     if not user or user.email_verified:
@@ -274,7 +300,12 @@ def resend_verification(body: ForgotPasswordRequest, db: Session = Depends(get_d
     return {"detail": "Si el email existe y no fue verificado, recibirás un enlace"}
 
 
-@router.post("/oauth", response_model=Token)
+@router.post(
+    "/oauth",
+    response_model=Token,
+    summary="Login or register via OAuth",
+    description="Authenticates or creates a user using a Google ID token. Links existing accounts when emails match.",
+)
 async def oauth_login(body: OAuthRequest, request: Request, db: Session = Depends(get_db)):
     if body.provider != "google":
         raise HTTPException(status_code=400, detail="Proveedor no soportado")
@@ -335,7 +366,12 @@ async def oauth_login(body: OAuthRequest, request: Request, db: Session = Depend
     return Token(access_token=create_access_token(user.id), token_type="bearer")
 
 
-@router.post("/oauth/callback", response_model=Token)
+@router.post(
+    "/oauth/callback",
+    response_model=Token,
+    summary="Handle OAuth authorization code callback",
+    description="Exchanges a Google authorization code for user data, then authenticates or creates the user account.",
+)
 async def oauth_callback(
     body: OAuthRequest,
     request: Request,
@@ -403,12 +439,22 @@ async def oauth_callback(
     return Token(access_token=create_access_token(user.id), token_type="bearer")
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get(
+    "/me",
+    response_model=UserResponse,
+    summary="Get current user profile",
+    description="Returns the authenticated user's profile information.",
+)
 def me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-@router.put("/me/onboarding", response_model=UserResponse)
+@router.put(
+    "/me/onboarding",
+    response_model=UserResponse,
+    summary="Mark onboarding as completed",
+    description="Sets the current user's onboarding flag to true so the onboarding flow is not shown again.",
+)
 def mark_onboarding_completed(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -419,7 +465,12 @@ def mark_onboarding_completed(
     return current_user
 
 
-@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/me",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete current user account",
+    description="Permanently deletes the authenticated user and all associated data after verifying their password.",
+)
 def delete_my_account(
     body: DeleteAccountRequest,
     request: Request,
@@ -475,7 +526,12 @@ def delete_my_account(
     logger.info(f"Account deleted: user_id={user_id}")
 
 
-@router.put("/password", status_code=status.HTTP_204_NO_CONTENT)
+@router.put(
+    "/password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Change user password",
+    description="Changes the authenticated user's password after verifying the current password.",
+)
 def change_password(
     body: ChangePasswordRequest,
     request: Request,
@@ -492,7 +548,12 @@ def change_password(
     _log_audit(db, current_user.id, "password_changed", request)
 
 
-@router.post("/force-change-password", response_model=Token)
+@router.post(
+    "/force-change-password",
+    response_model=Token,
+    summary="Force password change with token",
+    description="Changes the password using a short-lived token issued when a forced password change is required. No current password needed.",
+)
 def force_change_password(
     body: ForceChangePasswordRequest,
     request: Request,
@@ -543,7 +604,12 @@ def _generate_telegram_key() -> str:
     return "".join(secrets.choice(alphabet) for _ in range(12))
 
 
-@router.get("/me/telegram-key", response_model=TelegramKeyResponse)
+@router.get(
+    "/me/telegram-key",
+    response_model=TelegramKeyResponse,
+    summary="Get Telegram linking key",
+    description="Returns the current user's Telegram linking key, generating one if it does not exist.",
+)
 def get_telegram_key(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -555,7 +621,12 @@ def get_telegram_key(
     return TelegramKeyResponse(telegram_key=current_user.telegram_key)
 
 
-@router.post("/me/telegram-key/regenerate", response_model=TelegramKeyResponse)
+@router.post(
+    "/me/telegram-key/regenerate",
+    response_model=TelegramKeyResponse,
+    summary="Regenerate Telegram linking key",
+    description="Generates a new Telegram linking key and disconnects any existing Telegram session.",
+)
 def regenerate_telegram_key(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -574,14 +645,24 @@ def regenerate_telegram_key(
     return TelegramKeyResponse(telegram_key=current_user.telegram_key)
 
 
-@router.get("/me/telegram-status", response_model=TelegramStatusResponse)
+@router.get(
+    "/me/telegram-status",
+    response_model=TelegramStatusResponse,
+    summary="Check Telegram connection status",
+    description="Returns whether the current user has an active Telegram bot connection.",
+)
 def get_telegram_status(
     current_user: User = Depends(get_current_user),
 ):
     return TelegramStatusResponse(connected=bool(current_user.telegram_chat_id))
 
 
-@router.post("/refresh", response_model=Token)
+@router.post(
+    "/refresh",
+    response_model=Token,
+    summary="Refresh access token",
+    description="Issues a new access token for the currently authenticated user.",
+)
 def refresh_token(current_user: User = Depends(get_current_user)):
     return Token(access_token=create_access_token(current_user.id), token_type="bearer")
 
@@ -589,7 +670,12 @@ def refresh_token(current_user: User = Depends(get_current_user)):
 RESET_TOKEN_EXPIRY_MINUTES = 15
 
 
-@router.post("/forgot-password", status_code=status.HTTP_200_OK)
+@router.post(
+    "/forgot-password",
+    status_code=status.HTTP_200_OK,
+    summary="Request password reset",
+    description="Sends a password reset link to the user's email if the account exists. Always returns success to prevent email enumeration.",
+)
 def forgot_password(body: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)):
     # Rate limit check
     client_ip = _get_client_ip(request)
@@ -617,7 +703,12 @@ def forgot_password(body: ForgotPasswordRequest, request: Request, db: Session =
     return {"detail": "Si el email existe, recibirás un enlace para restablecer tu contraseña"}
 
 
-@router.post("/reset-password", status_code=status.HTTP_200_OK)
+@router.post(
+    "/reset-password",
+    status_code=status.HTTP_200_OK,
+    summary="Reset password with token",
+    description="Resets the user's password using a valid reset token received via email.",
+)
 def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.reset_token == body.token).first()
     if not user:

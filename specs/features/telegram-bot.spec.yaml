@@ -1,0 +1,194 @@
+feature: telegram-bot
+domain: Messaging Integration
+version: "1.0"
+status: implemented
+owner: full-stack
+created: 2026-08-16
+updated: 2026-08-16
+
+# === WHAT ===
+description: |
+  Telegram bot integration for quick expense logging, reporting, and financial
+  assistance. Uses a ConversationHandler state machine for guided expense entry.
+  Integrates with Gemini Flash for natural language parsing and bank notification
+  detection. Generates visual PNG reports using Playwright.
+
+# === REQUIREMENTS ===
+requirements:
+  functional:
+    - id: FR-1
+      requirement: Parse natural language expense descriptions using Gemini Flash
+      priority: must
+    - id: FR-2
+      requirement: Detect and parse bank notification messages for automatic expense creation
+      priority: must
+    - id: FR-3
+      requirement: Support installment (cuota) tracking with number and total
+      priority: must
+    - id: FR-4
+      requirement: Generate weekly and monthly PNG report images
+      priority: should
+    - id: FR-5
+      requirement: Guided expense entry via ConversationHandler state machine
+      priority: must
+    - id: FR-6
+      requirement: Link Telegram accounts via telegram_key verification
+      priority: must
+  non_functional:
+    - id: NFR-1
+      requirement: Bot must respond within 3 seconds for text commands
+      priority: must
+    - id: NFR-2
+      requirement: Report generation must complete within 30 seconds
+      priority: should
+    - id: NFR-3
+      requirement: Bot runs as daemon thread within backend container
+      priority: must
+
+# === PRE-EVALUATION ===
+pre_evaluation:
+  dependencies:
+    - python-telegram-bot library
+    - Gemini Flash API access
+    - Playwright installed in container for report rendering
+    - User.telegram_key and telegram_chat_id fields
+  data_requirements:
+    - No new tables (uses existing User, Expense, Card, Account, Category)
+  api_changes:
+    - No REST API changes (bot uses Telegram API directly)
+  ui_changes:
+    - Account linking UI shows telegram_key for user to send to bot
+  migration_needed: false
+  rebuild_required:
+    backend: true
+    frontend: false
+  risks:
+    - Telegram API rate limits during high usage
+    - Gemini API latency affecting response times
+    - Bank notification format changes breaking parsers
+  open_questions:
+    - Support for multiple languages beyond Spanish?
+
+# === WHO ===
+users:
+  - role: telegram_user
+    can: [create_expense, view_reports, manage_categories]
+  - role: linked_user
+    can: [create_expense, view_reports, manage_categories, view_scheduled]
+
+# === DATA ===
+entities: []
+
+# === API ===
+endpoints: []
+
+# === BUSINESS RULES ===
+business_rules:
+  - id: BR-1
+    rule: Users must link account by sending /start + telegram_key to bot
+    enforced_in: telegram_bot (start_handler)
+    rationale: Ensures bot actions are tied to authenticated users
+  - id: BR-2
+    rule: ConversationHandler states: WAITING_PAYMENT → WAITING_CARD_BANK → WAITING_CARD_TYPE → WAITING_CONFIRM
+    enforced_in: telegram_bot (conversation_handler)
+    rationale: Guided flow prevents incomplete expense entries
+  - id: BR-3
+    rule: Bank notification detection uses regex patterns for major Argentine banks
+    enforced_in: telegram_bot (bank_parser)
+    rationale: Automates expense entry from bank SMS/email notifications forwarded to bot
+  - id: BR-4
+    rule: Installment detection parses "3/12" or "cuota 3 de 12" patterns
+    enforced_in: telegram_bot (parser)
+    rationale: Argentine credit cards commonly use installment payments
+  - id: BR-5
+    rule: Reports generated as PNG images using Playwright headless browser
+    enforced_in: telegram_bot (report_generator)
+    rationale: Visual reports are more engaging than text summaries
+  - id: BR-6
+    rule: Bot commands: /start (link), /gasto (new expense), /reporte (report), /programados (scheduled), /categorias (categories)
+    enforced_in: telegram_bot (command_handlers)
+    rationale: Consistent command interface for all bot functions
+
+# === UI ===
+frontend:
+  pages: []
+  interactions:
+    - action: User sends /start <telegram_key>
+      result: Bot links account and confirms
+    - action: User sends /gasto
+      result: Bot starts guided expense entry flow
+    - action: User sends natural language "1500 en supermercado"
+      result: Bot parses with Gemini, creates expense
+    - action: User forwards bank notification
+      result: Bot detects bank, extracts amount/merchant, creates expense
+    - action: User sends /reporte
+      result: Bot generates and sends PNG monthly report
+
+# === INTEGRATIONS ===
+integrations:
+  - system: gemini_flash
+    how: Natural language expense parsing, amount/merchant extraction
+  - system: playwright
+    how: Headless browser renders HTML report templates to PNG
+  - system: expense_crud
+    how: Bot creates expenses via same service layer as REST API
+  - system: card_management
+    how: Bot presents card selection during expense flow
+  - system: category_system
+    how: Bot assigns categories based on merchant keywords
+
+# === MIGRATIONS ===
+migrations: []
+
+# === TESTS ===
+tests:
+  - id: T-1
+    scenario: Link Telegram account with valid key
+    type: integration
+    given: User has telegram_key="ABC123"
+    when: User sends "/start ABC123" to bot
+    then: Bot confirms linking, telegram_chat_id saved
+    priority: high
+  - id: T-2
+    scenario: Parse natural language expense
+    type: integration
+    given: Linked user sends "gaste 5000 en farmacia"
+    when: Bot processes message via Gemini
+    then: Expense created with amount=5000, description="farmacia"
+    priority: high
+  - id: T-3
+    scenario: Detect bank notification
+    type: integration
+    given: User forwards Banco Galicia notification
+    when: Bot matches bank pattern
+    then: Expense created with extracted amount, merchant, card info
+    priority: high
+  - id: T-4
+    scenario: Generate monthly report
+    type: integration
+    given: User with expenses in current month
+    when: User sends /reporte
+    then: PNG report generated and sent to chat
+    priority: medium
+  - id: T-5
+    scenario: Guided expense entry with card selection
+    type: integration
+    given: User sends /gasto
+    when: Bot walks through payment → bank → card → confirm flow
+    then: Expense created with selected card
+    priority: high
+
+# === DOCUMENTATION DELIVERABLES ===
+documentation:
+  - file: docs/telegram-bot.md
+    action: create
+    description: Document bot commands, linking process, bank notification formats
+  - file: docs/Roadmap.md
+    action: update
+    description: Mark telegram bot as Done
+
+# === SPEC HISTORY ===
+changelog:
+  - date: 2026-08-16
+    version: "1.0"
+    change: Initial spec created

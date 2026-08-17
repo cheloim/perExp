@@ -19,7 +19,11 @@ router = APIRouter(prefix="/webhook", tags=["whatsapp"])
 VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "oikonomia-whatsapp-dev")
 
 
-@router.get("/whatsapp")
+@router.get(
+    "/whatsapp",
+    summary="Verify WhatsApp webhook",
+    description="Handle Meta's webhook verification challenge by validating the token and echoing the challenge.",
+)
 async def verify_webhook(
     hub_mode: str = Query(alias="hub.mode"),
     hub_verify_token: str = Query(alias="hub.verify_token"),
@@ -42,7 +46,11 @@ async def verify_webhook(
     return JSONResponse(content={"error": "Forbidden"}, status_code=403)
 
 
-@router.post("/whatsapp")
+@router.post(
+    "/whatsapp",
+    summary="Receive WhatsApp messages",
+    description="Accept incoming WhatsApp message payloads from Meta and process them asynchronously.",
+)
 async def receive_webhook(request: Request):
     """Handle incoming WhatsApp messages.
 

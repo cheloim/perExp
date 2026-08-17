@@ -54,7 +54,12 @@ def _track_merchant_preference(user_id: int, description: str, category_id: int,
         db.add(pref)
 
 
-@router.get("", response_model=list[ExpenseResponse])
+@router.get(
+    "",
+    response_model=list[ExpenseResponse],
+    summary="List expenses",
+    description="Returns expenses for the user's family group with filters for date range, category, bank, person, card type, installment status, and account.",
+)
 def get_expenses(
     date_from: date | None = None,
     date_to: date | None = None,
@@ -138,7 +143,11 @@ def get_expenses(
     return q.order_by(desc(Expense.date)).offset(skip).limit(limit).all()
 
 
-@router.get("/uncategorized-count")
+@router.get(
+    "/uncategorized-count",
+    summary="Count uncategorized expenses",
+    description="Returns the number of uncategorized expenses for the user's group and creates a notification if any exist.",
+)
 def get_uncategorized_count(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -184,7 +193,11 @@ def get_uncategorized_count(
     return {"count": count}
 
 
-@router.get("/distinct-values")
+@router.get(
+    "/distinct-values",
+    summary="Get distinct filter values",
+    description="Returns sorted lists of unique banks, persons, and card names from the user's group cards for filter dropdowns.",
+)
 def get_distinct_values(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -203,7 +216,11 @@ def get_distinct_values(
     }
 
 
-@router.get("/card-options")
+@router.get(
+    "/card-options",
+    summary="Get card selection options",
+    description="Returns card options grouped by person and bank, with holder names deduplicated via fuzzy matching.",
+)
 def get_card_options(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     uid_list = get_group_user_ids(current_user.id, db)
     cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
@@ -265,7 +282,11 @@ def get_card_options(db: Session = Depends(get_db), current_user: User = Depends
     return {"persons": sorted(by_person), "by_person": by_person}
 
 
-@router.get("/check-duplicate")
+@router.get(
+    "/check-duplicate",
+    summary="Check for duplicate expense",
+    description="Checks whether an expense with the same date, amount, description (or transaction ID) already exists.",
+)
 def check_duplicate(
     exp_date: date = Query(..., alias="date"),
     amount: float = Query(...),
@@ -295,7 +316,12 @@ def check_duplicate(
     return {"duplicate": False}
 
 
-@router.post("", response_model=ExpenseResponse)
+@router.post(
+    "",
+    response_model=ExpenseResponse,
+    summary="Create an expense",
+    description="Creates a new expense with auto-categorization, duplicate detection, and validation for income and account requirements.",
+)
 def create_expense(
     expense: ExpenseCreate,
     db: Session = Depends(get_db),
@@ -404,7 +430,12 @@ def create_expense(
     return db_exp
 
 
-@router.put("/{exp_id}", response_model=ExpenseResponse)
+@router.put(
+    "/{exp_id}",
+    response_model=ExpenseResponse,
+    summary="Update an expense",
+    description="Updates an existing expense's fields. Tracks merchant category preferences when the category is manually changed.",
+)
 def update_expense(
     exp_id: int,
     expense: ExpenseUpdate,
@@ -452,7 +483,11 @@ def update_expense(
     return db_exp
 
 
-@router.post("/bulk-delete")
+@router.post(
+    "/bulk-delete",
+    summary="Bulk delete expenses",
+    description="Deletes multiple expenses by ID in a single request. Only deletes expenses owned by the current user.",
+)
 def bulk_delete_expenses(
     payload: dict,
     db: Session = Depends(get_db),
@@ -470,7 +505,11 @@ def bulk_delete_expenses(
     return {"deleted": deleted}
 
 
-@router.delete("/all")
+@router.delete(
+    "/all",
+    summary="Delete all user expenses",
+    description="Deletes all expenses for the current user. Requires a confirmation payload with 'DELETE_ALL'.",
+)
 def delete_all_expenses(
     payload: dict,
     db: Session = Depends(get_db),
@@ -484,7 +523,11 @@ def delete_all_expenses(
     return {"deleted": count}
 
 
-@router.delete("/{exp_id}")
+@router.delete(
+    "/{exp_id}",
+    summary="Delete an expense",
+    description="Deletes a single expense owned by the current user.",
+)
 def delete_expense(
     exp_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -498,7 +541,11 @@ def delete_expense(
     return {"ok": True}
 
 
-@router.post("/recategorize")
+@router.post(
+    "/recategorize",
+    summary="Recategorize expenses",
+    description="Re-runs auto-categorization on all or only uncategorized expenses using the LLM categorization service.",
+)
 def recategorize_expenses(
     payload: dict = None,
     db: Session = Depends(get_db),
@@ -522,7 +569,11 @@ def recategorize_expenses(
     return {"updated": updated, "total": len(expenses)}
 
 
-@router.patch("/bulk-update")
+@router.patch(
+    "/bulk-update",
+    summary="Bulk update expense fields",
+    description="Updates category, card, or account for multiple expenses at once by their IDs.",
+)
 def bulk_update_expenses(
     payload: dict,
     db: Session = Depends(get_db),
@@ -549,7 +600,11 @@ def bulk_update_expenses(
     return {"updated": updated}
 
 
-@router.post("/bulk-category")
+@router.post(
+    "/bulk-category",
+    summary="Bulk update category",
+    description="Assigns or clears the category for multiple expenses in a single request.",
+)
 def bulk_update_category(
     payload: dict,
     db: Session = Depends(get_db),
@@ -582,7 +637,11 @@ def bulk_update_category(
     return {"updated": updated}
 
 
-@router.post("/detect-installments")
+@router.post(
+    "/detect-installments",
+    summary="Detect installments",
+    description="Scans expenses for installment patterns and groups missing installment references.",
+)
 def detect_installments(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -600,7 +659,12 @@ class ExpenseStatsResponse(BaseModel):
     last_used: str | None
 
 
-@router.get("/stats", response_model=ExpenseStatsResponse)
+@router.get(
+    "/stats",
+    response_model=ExpenseStatsResponse,
+    summary="Get expense statistics",
+    description="Returns total, count, average, and last-used date for expenses, optionally filtered by month, card, bank, or account.",
+)
 def get_expense_stats(
     month: str | None = None,
     card: str | None = None,
@@ -686,7 +750,12 @@ class CategoryBreakdownItem(BaseModel):
     count: int
 
 
-@router.get("/by-category", response_model=list[CategoryBreakdownItem])
+@router.get(
+    "/by-category",
+    response_model=list[CategoryBreakdownItem],
+    summary="Expenses breakdown by category",
+    description="Returns expense totals grouped by category, optionally filtered by month, card, or account.",
+)
 def get_expenses_by_category(
     month: str | None = None,
     card: str | None = None,
@@ -755,7 +824,12 @@ def _first_name(full_name: str) -> str:
     return full_name.strip().split()[0] if full_name.strip() else ""
 
 
-@router.get("/by-person", response_model=list[PersonBreakdownItem])
+@router.get(
+    "/by-person",
+    response_model=list[PersonBreakdownItem],
+    summary="Expenses breakdown by person",
+    description="Returns expense totals grouped by card holder (first name), optionally filtered by month.",
+)
 def get_expenses_by_person(
     month: str | None = None,
     db: Session = Depends(get_db),
@@ -803,7 +877,12 @@ class TrendItem(BaseModel):
     count: int
 
 
-@router.get("/trend", response_model=list[TrendItem])
+@router.get(
+    "/trend",
+    response_model=list[TrendItem],
+    summary="Get expense trend",
+    description="Returns monthly expense totals and counts for the last N months to visualize spending trends.",
+)
 def get_expenses_trend(
     months: int = 6,
     db: Session = Depends(get_db),
