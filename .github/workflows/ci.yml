@@ -84,10 +84,13 @@ jobs:
       - name: Generate API client from OpenAPI spec
         run: npx orval
 
+      - name: Format generated code
+        run: npx prettier --write src/api/client.ts src/types/generated/
+
       - name: Check generated code is up to date
         run: |
           git diff --exit-code src/api/client.ts src/types/generated/ || {
-            echo "::error::Generated API client is out of date. Run 'npx orval' locally and commit."
+            echo "::error::Generated API client is out of date. Run 'npx orval && npx prettier --write src/' locally."
             exit 1
           }
 
