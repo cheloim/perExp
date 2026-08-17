@@ -4,6 +4,7 @@ Uses Meta Cloud API (https://developers.facebook.com/docs/whatsapp/cloud-api).
 Shares business logic with telegram_bot.py for parsing, categorization, and persistence.
 """
 
+import contextlib
 import logging
 import os
 import uuid
@@ -267,10 +268,8 @@ async def handle_whatsapp_message(
         msg_data: Full message object from webhook payload
     """
     # Non-critical: mark as read (best-effort)
-    try:
+    with contextlib.suppress(Exception):
         await mark_as_read(message_id)
-    except Exception:
-        pass
 
     # Find user by phone hash
     phone_hash = compute_hmac(phone)
@@ -336,7 +335,6 @@ async def _handle_text_message(
 ) -> None:
     """Handle a text message based on current session state."""
     state = session.get("state")
-    data = session.get("data", {})
     user_id = user.id
 
     # Authentication flow
