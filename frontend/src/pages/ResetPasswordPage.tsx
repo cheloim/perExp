@@ -77,7 +77,7 @@ export default function ResetPasswordPage() {
 
     setLoading(true);
     try {
-      await resetPassword({ token, new_password: password });
+      await resetPassword(token, password);
       setSuccess(true);
     } catch (err: any) {
       const detail = err?.response?.data?.detail;
