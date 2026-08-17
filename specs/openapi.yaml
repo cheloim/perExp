@@ -1,0 +1,3173 @@
+openapi: 3.0.3
+info:
+  title: Oikonomia API
+  version: 1.0.0
+  description: |
+    **Oikonomia** (Credit Card Analyzer) — Personal finance management platform for Argentine users.
+
+    ## Architecture
+    - **Backend**: FastAPI (Python) with PostgreSQL, Redis, and Celery
+    - **Frontend**: Vite + React SPA
+    - **Integrations**: Telegram Bot, WhatsApp Bot, Gemini Flash (AI), Yahoo Finance, IOL/PPI brokers
+
+    ## Key Features
+    - Expense & income tracking with encrypted fields (AES-256)
+    - Credit/debit card management with billing cycle tracking
+    - Hierarchical category system with auto-categorization
+    - Budget management with 50/30/20 rule support
+    - Investment portfolio tracking with auto price refresh
+    - AI-powered spending analysis (Gemini Flash)
+    - Smart CSV/PDF bank statement import
+    - Family group sharing
+    - Real-time SSE notifications
+    - Scheduled/recurring expense automation
+    - Telegram & WhatsApp bot integrations
+    - Admin panel with impersonation and audit logging
+
+    ## Security
+    - JWT authentication (access + refresh tokens)
+    - TOTP-based MFA
+    - Field-level AES-256 encryption
+    - HMAC for searchable encrypted fields
+    - Rate limiting on sensitive endpoints
+  contact:
+    name: Oikonomia Team
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:8001
+    description: Local development
+  - url: https://platform.oikonomia.ar
+    description: Production
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: auth
+    description: Authentication, registration, OAuth, password management
+  - name: mfa
+    description: Multi-factor authentication (TOTP)
+  - name: accounts
+    description: Bank accounts and digital wallets CRUD
+  - name: cards
+    description: Credit and debit card management
+  - name: categories
+    description: Hierarchical expense categories
+  - name: card-closings
+    description: Card billing period configurations
+  - name: expenses
+    description: Expense and income tracking, analytics
+  - name: investments
+    description: Investment portfolio management
+  - name: import-jobs
+    description: CSV/PDF bank statement import pipeline
+  - name: dashboard
+    description: Aggregated spending summaries and KPIs
+  - name: analysis
+    description: AI-powered spending analysis (Gemini Flash)
+  - name: groups
+    description: Family group management
+  - name: notifications
+    description: Real-time SSE notifications
+  - name: scheduled-expenses
+    description: Recurring scheduled expense automation
+  - name: budgets
+    description: Budget limits, groups, and events
+  - name: suggestions
+    description: AI category suggestions
+  - name: recurring
+    description: Auto-detected recurring expense patterns
+  - name: admin
+    description: Admin panel, user management, audit logs
+  - name: whatsapp
+    description: WhatsApp Business API webhook
+
+paths:
+  # ─────────────────────────────────────────────────────────────
+  # AUTH
+  # ─────────────────────────────────────────────────────────────
+  /auth/register:
+    post:
+      tags: [auth]
+      summary: Register new user
+      operationId: register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+        '400':
+          description: Duplicate email or validation error
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Login with email and password
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+        '401':
+          description: Invalid credentials
+        '429':
+          description: Rate limited
+
+  /auth/login/mfa:
+    post:
+      tags: [auth, mfa]
+      summary: Complete MFA login with TOTP code
+      operationId: loginMfa
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, code]
+              properties:
+                token:
+                  type: string
+                code:
+                  type: string
+      responses:
+        '200':
+          description: MFA verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+
+  /auth/oauth:
+    post:
+      tags: [auth]
+      summary: Login/register via OAuth provider
+      operationId: oauthLogin
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider, token]
+              properties:
+                provider:
+                  type: string
+                  enum: [google, apple]
+                token:
+                  type: string
+      responses:
+        '200':
+          description: OAuth login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: Refresh access token
+      operationId: refreshToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+
+  /auth/forgot-password:
+    post:
+      tags: [auth]
+      summary: Request password reset email
+      operationId: forgotPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Reset email sent
+
+  /auth/reset-password:
+    post:
+      tags: [auth]
+      summary: Reset password with token
+      operationId: resetPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token:
+                  type: string
+                password:
+                  type: string
+                  minLength: 8
+      responses:
+        '200':
+          description: Password reset successful
+        '400':
+          description: Invalid or expired token
+
+  /auth/password:
+    put:
+      tags: [auth]
+      summary: Change password (authenticated)
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, new_password]
+              properties:
+                current_password:
+                  type: string
+                new_password:
+                  type: string
+                  minLength: 8
+      responses:
+        '204':
+          description: Password changed
+
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: Get current user profile
+      operationId: getProfile
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+    delete:
+      tags: [auth]
+      summary: Delete current user account
+      operationId: deleteAccount
+      responses:
+        '204':
+          description: Account deleted
+
+  /auth/me/onboarding:
+    put:
+      tags: [auth]
+      summary: Mark onboarding as completed
+      operationId: completeOnboarding
+      responses:
+        '200':
+          description: Onboarding completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+
+  /auth/verify-email:
+    post:
+      tags: [auth]
+      summary: Verify email with token
+      operationId: verifyEmail
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+      responses:
+        '200':
+          description: Email verified
+
+  /auth/resend-verification:
+    post:
+      tags: [auth]
+      summary: Resend verification email
+      operationId: resendVerification
+      responses:
+        '200':
+          description: Verification email sent
+
+  /auth/me/telegram-key:
+    get:
+      tags: [auth]
+      summary: Get Telegram linking key
+      operationId: getTelegramKey
+      responses:
+        '200':
+          description: Telegram key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramKeyResponse'
+
+  /auth/me/telegram-key/regenerate:
+    post:
+      tags: [auth]
+      summary: Regenerate Telegram linking key
+      operationId: regenerateTelegramKey
+      responses:
+        '200':
+          description: New Telegram key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramKeyResponse'
+
+  /auth/me/telegram-status:
+    get:
+      tags: [auth]
+      summary: Check Telegram linking status
+      operationId: getTelegramStatus
+      responses:
+        '200':
+          description: Telegram status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramStatusResponse'
+
+  # ─────────────────────────────────────────────────────────────
+  # MFA
+  # ─────────────────────────────────────────────────────────────
+  /mfa/setup:
+    post:
+      tags: [mfa]
+      summary: Generate TOTP secret and QR code
+      operationId: mfaSetup
+      responses:
+        '200':
+          description: MFA setup data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  secret:
+                    type: string
+                  qr_uri:
+                    type: string
+
+  /mfa/enable:
+    post:
+      tags: [mfa]
+      summary: Enable MFA with TOTP verification
+      operationId: mfaEnable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+      responses:
+        '200':
+          description: MFA enabled
+
+  /mfa/disable:
+    post:
+      tags: [mfa]
+      summary: Disable MFA
+      operationId: mfaDisable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+      responses:
+        '200':
+          description: MFA disabled
+
+  # ─────────────────────────────────────────────────────────────
+  # ACCOUNTS
+  # ─────────────────────────────────────────────────────────────
+  /accounts:
+    get:
+      tags: [accounts]
+      summary: List accounts for user and group members
+      operationId: listAccounts
+      responses:
+        '200':
+          description: Account list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AccountResponse'
+    post:
+      tags: [accounts]
+      summary: Create a new account
+      operationId: createAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountCreate'
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+
+  /accounts/{account_id}:
+    parameters:
+      - name: account_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [accounts]
+      summary: Update an account
+      operationId: updateAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountUpdate'
+      responses:
+        '200':
+          description: Account updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+    delete:
+      tags: [accounts]
+      summary: Delete an account
+      operationId: deleteAccount1
+      responses:
+        '204':
+          description: Account deleted
+
+  # ─────────────────────────────────────────────────────────────
+  # CARDS
+  # ─────────────────────────────────────────────────────────────
+  /cards:
+    get:
+      tags: [cards]
+      summary: List cards for user and group members
+      operationId: listCards
+      responses:
+        '200':
+          description: Card list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CardResponse'
+    post:
+      tags: [cards]
+      summary: Create a new card
+      operationId: createCard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CardCreate'
+      responses:
+        '201':
+          description: Card created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardResponse'
+        '409':
+          description: Duplicate card detected
+
+  /cards/sync-holders:
+    post:
+      tags: [cards]
+      summary: Auto-assign holder from user full_name
+      operationId: syncCardHolders
+      responses:
+        '200':
+          description: Holders synced
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  updated:
+                    type: integer
+                  total_cards:
+                    type: integer
+
+  /cards/{card_id}:
+    parameters:
+      - name: card_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [cards]
+      summary: Update a card
+      operationId: updateCard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CardUpdate'
+      responses:
+        '200':
+          description: Card updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardResponse'
+    delete:
+      tags: [cards]
+      summary: Delete a card
+      operationId: deleteCard
+      responses:
+        '204':
+          description: Card deleted
+        '400':
+          description: Card has associated expenses
+
+  # ─────────────────────────────────────────────────────────────
+  # CATEGORIES
+  # ─────────────────────────────────────────────────────────────
+  /categories:
+    get:
+      tags: [categories]
+      summary: List categories for current user
+      operationId: listCategories
+      responses:
+        '200':
+          description: Category list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryResponse'
+    post:
+      tags: [categories]
+      summary: Create a new category
+      operationId: createCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryCreate'
+      responses:
+        '201':
+          description: Category created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+
+  /categories/apply-base-hierarchy:
+    post:
+      tags: [categories]
+      summary: Seed base category hierarchy
+      operationId: applyBaseHierarchy
+      responses:
+        '200':
+          description: Hierarchy seeded
+
+  /categories/seed-defaults:
+    post:
+      tags: [categories]
+      summary: Seed default categories
+      operationId: seedDefaults
+      responses:
+        '200':
+          description: Defaults seeded
+
+  /categories/suggest:
+    post:
+      tags: [categories]
+      summary: Get LLM-based category suggestion
+      operationId: suggestCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [description, amount]
+              properties:
+                description:
+                  type: string
+                amount:
+                  type: number
+      responses:
+        '200':
+          description: Suggestion result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategorySuggestResponse'
+
+  /categories/{cat_id}:
+    parameters:
+      - name: cat_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [categories]
+      summary: Update a category
+      operationId: updateCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryCreate'
+      responses:
+        '200':
+          description: Category updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+    delete:
+      tags: [categories]
+      summary: Delete a category
+      operationId: deleteCategory
+      responses:
+        '200':
+          description: Category deleted
+
+  # ─────────────────────────────────────────────────────────────
+  # CARD CLOSINGS
+  # ─────────────────────────────────────────────────────────────
+  /card-closings:
+    get:
+      tags: [card-closings]
+      summary: List card closing configurations
+      operationId: listCardClosings
+      responses:
+        '200':
+          description: Card closing list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CardClosingResponse'
+    post:
+      tags: [card-closings]
+      summary: Create card closing configuration
+      operationId: createCardClosing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CardClosingCreate'
+      responses:
+        '201':
+          description: Card closing created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardClosingResponse'
+        '409':
+          description: Closing already exists for this card
+
+  /card-closings/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [card-closings]
+      summary: Update card closing configuration
+      operationId: updateCardClosing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CardClosingUpdate'
+      responses:
+        '200':
+          description: Card closing updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardClosingResponse'
+    delete:
+      tags: [card-closings]
+      summary: Delete card closing configuration
+      operationId: deleteCardClosing
+      responses:
+        '204':
+          description: Card closing deleted
+
+  # ─────────────────────────────────────────────────────────────
+  # EXPENSES
+  # ─────────────────────────────────────────────────────────────
+  /expenses:
+    get:
+      tags: [expenses]
+      summary: List expenses with filtering and pagination
+      operationId: listExpenses
+      parameters:
+        - name: date_from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: month
+          in: query
+          schema:
+            type: string
+          description: 'YYYY-MM format'
+        - name: category_id
+          in: query
+          schema:
+            type: integer
+        - name: category_ids
+          in: query
+          schema:
+            type: string
+          description: Comma-separated IDs
+        - name: uncategorized
+          in: query
+          schema:
+            type: boolean
+        - name: bank
+          in: query
+          schema:
+            type: string
+        - name: person
+          in: query
+          schema:
+            type: string
+        - name: card
+          in: query
+          schema:
+            type: string
+        - name: card_type
+          in: query
+          schema:
+            type: string
+        - name: installment
+          in: query
+          schema:
+            type: boolean
+        - name: account_id
+          in: query
+          schema:
+            type: integer
+        - name: skip
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 200
+      responses:
+        '200':
+          description: Expense list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExpenseResponse'
+    post:
+      tags: [expenses]
+      summary: Create a new expense
+      operationId: createExpense
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpenseCreate'
+      responses:
+        '201':
+          description: Expense created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseResponse'
+
+  /expenses/uncategorized-count:
+    get:
+      tags: [expenses]
+      summary: Count expenses without category
+      operationId: uncategorizedCount
+      responses:
+        '200':
+          description: Count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+
+  /expenses/distinct-values:
+    get:
+      tags: [expenses]
+      summary: Get distinct values for filtering UI
+      operationId: distinctValues
+      responses:
+        '200':
+          description: Distinct values
+
+  /expenses/card-options:
+    get:
+      tags: [expenses]
+      summary: Get card options for expense form
+      operationId: cardOptions
+      responses:
+        '200':
+          description: Card options
+
+  /expenses/check-duplicate:
+    get:
+      tags: [expenses]
+      summary: Check if expense already exists
+      operationId: checkDuplicate
+      responses:
+        '200':
+          description: Duplicate check result
+
+  /expenses/bulk-delete:
+    post:
+      tags: [expenses]
+      summary: Delete multiple expenses by ID list
+      operationId: bulkDeleteExpenses
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: Bulk delete result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: integer
+
+  /expenses/bulk-category:
+    post:
+      tags: [expenses]
+      summary: Assign category to multiple expenses
+      operationId: bulkCategoryExpenses
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids, category_id]
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: integer
+                category_id:
+                  type: integer
+      responses:
+        '200':
+          description: Bulk category result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  updated:
+                    type: integer
+
+  /expenses/recategorize:
+    post:
+      tags: [expenses]
+      summary: Re-run auto-categorization on uncategorized expenses
+      operationId: recategorizeExpenses
+      responses:
+        '200':
+          description: Recategorization complete
+
+  /expenses/detect-installments:
+    post:
+      tags: [expenses]
+      summary: Detect installment patterns
+      operationId: detectInstallments
+      responses:
+        '200':
+          description: Detection complete
+
+  /expenses/stats:
+    get:
+      tags: [expenses]
+      summary: Expense statistics summary
+      operationId: expenseStats
+      responses:
+        '200':
+          description: Stats
+
+  /expenses/by-category:
+    get:
+      tags: [expenses]
+      summary: Breakdown by category
+      operationId: expensesByCategory
+      responses:
+        '200':
+          description: Category breakdown
+
+  /expenses/by-person:
+    get:
+      tags: [expenses]
+      summary: Breakdown by card holder
+      operationId: expensesByPerson
+      responses:
+        '200':
+          description: Person breakdown
+
+  /expenses/trend:
+    get:
+      tags: [expenses]
+      summary: Monthly spending trend
+      operationId: expenseTrend
+      responses:
+        '200':
+          description: Trend data
+
+  /expenses/{exp_id}:
+    parameters:
+      - name: exp_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [expenses]
+      summary: Update an expense
+      operationId: updateExpense
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpenseUpdate'
+      responses:
+        '200':
+          description: Expense updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseResponse'
+    delete:
+      tags: [expenses]
+      summary: Delete an expense
+      operationId: deleteExpense
+      responses:
+        '204':
+          description: Expense deleted
+
+  # ─────────────────────────────────────────────────────────────
+  # INVESTMENTS
+  # ─────────────────────────────────────────────────────────────
+  /investments:
+    get:
+      tags: [investments]
+      summary: List all investments
+      operationId: listInvestments
+      responses:
+        '200':
+          description: Portfolio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentListResponse'
+    post:
+      tags: [investments]
+      summary: Add a new investment
+      operationId: createInvestment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvestmentCreate'
+      responses:
+        '201':
+          description: Investment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentResponse'
+
+  /investments/refresh:
+    get:
+      tags: [investments]
+      summary: Trigger manual price refresh
+      operationId: refreshPrices
+      responses:
+        '200':
+          description: Refresh result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  updated:
+                    type: integer
+                  errors:
+                    type: integer
+
+  /investments/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [investments]
+      summary: Update an investment
+      operationId: updateInvestment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvestmentUpdate'
+      responses:
+        '200':
+          description: Investment updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentResponse'
+    delete:
+      tags: [investments]
+      summary: Delete an investment
+      operationId: deleteInvestment
+      responses:
+        '204':
+          description: Investment deleted
+
+  # ─────────────────────────────────────────────────────────────
+  # IMPORT JOBS
+  # ─────────────────────────────────────────────────────────────
+  /import-jobs:
+    get:
+      tags: [import-jobs]
+      summary: List import jobs
+      operationId: listImportJobs
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PROCESSING, READY_PREVIEW, COMPLETED, FAILED]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Import job list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ImportJobResponse'
+    post:
+      tags: [import-jobs]
+      summary: Upload file and create import job
+      operationId: createImportJob
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Import job created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJobResponse'
+
+  /import-jobs/{job_id}:
+    parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [import-jobs]
+      summary: Get import job details
+      operationId: getImportJob
+      responses:
+        '200':
+          description: Import job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJobResponse'
+        '410':
+          description: Job expired
+    delete:
+      tags: [import-jobs]
+      summary: Delete import job
+      operationId: deleteImportJob
+      responses:
+        '204':
+          description: Import job deleted
+
+  /import-jobs/{job_id}/preview:
+    put:
+      tags: [import-jobs]
+      summary: Update preview data
+      operationId: updateImportPreview
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Preview updated
+
+  /import-jobs/{job_id}/confirm:
+    post:
+      tags: [import-jobs]
+      summary: Confirm import and create expenses
+      operationId: confirmImportJob
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportConfirmRequest'
+      responses:
+        '200':
+          description: Import completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  created:
+                    type: integer
+                  skipped:
+                    type: integer
+
+  # ─────────────────────────────────────────────────────────────
+  # DASHBOARD
+  # ─────────────────────────────────────────────────────────────
+  /dashboard:
+    get:
+      tags: [dashboard]
+      summary: KPI summary
+      operationId: dashboardSummary
+      parameters:
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Dashboard KPIs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummary'
+
+  /dashboard/by-category:
+    get:
+      tags: [dashboard]
+      summary: Spending grouped by category
+      operationId: dashboardByCategory
+      parameters:
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Category breakdown
+
+  /dashboard/by-period:
+    get:
+      tags: [dashboard]
+      summary: Spending grouped by time period
+      operationId: dashboardByPeriod
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [week, month]
+            default: month
+      responses:
+        '200':
+          description: Period breakdown
+
+  /dashboard/recent:
+    get:
+      tags: [dashboard]
+      summary: Recent expenses
+      operationId: dashboardRecent
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Recent expenses
+
+  # ─────────────────────────────────────────────────────────────
+  # ANALYSIS
+  # ─────────────────────────────────────────────────────────────
+  /analysis:
+    post:
+      tags: [analysis]
+      summary: Submit spending analysis query
+      operationId: createAnalysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+      responses:
+        '200':
+          description: Analysis result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:
+                    type: string
+                  analysis_id:
+                    type: integer
+
+  /analysis/history:
+    get:
+      tags: [analysis]
+      summary: Retrieve past analysis queries
+      operationId: analysisHistory
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Analysis history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  history:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AnalysisHistoryEntry'
+
+  # ─────────────────────────────────────────────────────────────
+  # GROUPS
+  # ─────────────────────────────────────────────────────────────
+  /groups:
+    get:
+      tags: [groups]
+      summary: Get current user's group and members
+      operationId: getGroup
+      responses:
+        '200':
+          description: Group with members
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupResponse'
+        '404':
+          description: User does not belong to any group
+    post:
+      tags: [groups]
+      summary: Create a new family group
+      operationId: createGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+      responses:
+        '201':
+          description: Group created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupResponse'
+
+  /groups/join:
+    post:
+      tags: [groups]
+      summary: Join group via invite code
+      operationId: joinGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [invite_code]
+              properties:
+                invite_code:
+                  type: string
+      responses:
+        '200':
+          description: Joined group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupResponse'
+        '400':
+          description: Already in a group
+        '404':
+          description: Invalid invite code
+
+  /groups/members/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    delete:
+      tags: [groups]
+      summary: Remove a member from the group (owner only)
+      operationId: removeGroupMember
+      responses:
+        '204':
+          description: Member removed
+        '403':
+          description: Only owner can remove members
+
+  /groups/sync-holders:
+    post:
+      tags: [groups]
+      summary: Sync card holders from group members
+      operationId: syncGroupHolders
+      responses:
+        '200':
+          description: Holders synced
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  synced:
+                    type: integer
+
+  # ─────────────────────────────────────────────────────────────
+  # NOTIFICATIONS
+  # ─────────────────────────────────────────────────────────────
+  /notifications:
+    get:
+      tags: [notifications]
+      summary: SSE stream of real-time notifications
+      operationId: notificationsStream
+      responses:
+        '200':
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /notifications/{id}/read:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [notifications]
+      summary: Mark notification as read
+      operationId: markNotificationRead
+      responses:
+        '200':
+          description: Notification marked as read
+        '404':
+          description: Notification not found
+
+  # ─────────────────────────────────────────────────────────────
+  # SCHEDULED EXPENSES
+  # ─────────────────────────────────────────────────────────────
+  /scheduled-expenses:
+    get:
+      tags: [scheduled-expenses]
+      summary: List scheduled expenses
+      operationId: listScheduledExpenses
+      responses:
+        '200':
+          description: Scheduled expense list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScheduledExpenseResponse'
+    post:
+      tags: [scheduled-expenses]
+      summary: Create a scheduled expense
+      operationId: createScheduledExpense
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduledExpenseCreate'
+      responses:
+        '201':
+          description: Scheduled expense created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduledExpenseResponse'
+
+  /scheduled-expenses/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [scheduled-expenses]
+      summary: Update a scheduled expense
+      operationId: updateScheduledExpense
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduledExpenseUpdate'
+      responses:
+        '200':
+          description: Scheduled expense updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduledExpenseResponse'
+    delete:
+      tags: [scheduled-expenses]
+      summary: Delete a scheduled expense
+      operationId: deleteScheduledExpense
+      responses:
+        '204':
+          description: Scheduled expense deleted
+
+  /scheduled-expenses/{id}/execute:
+    post:
+      tags: [scheduled-expenses]
+      summary: Manually execute a scheduled expense
+      operationId: executeScheduledExpense
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '201':
+          description: Expense created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  expense:
+                    $ref: '#/components/schemas/ExpenseResponse'
+
+  # ─────────────────────────────────────────────────────────────
+  # BUDGETS
+  # ─────────────────────────────────────────────────────────────
+  /budgets:
+    get:
+      tags: [budgets]
+      summary: List budgets for current user
+      operationId: listBudgets
+      responses:
+        '200':
+          description: Budget list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BudgetResponse'
+    post:
+      tags: [budgets]
+      summary: Create a budget for a category
+      operationId: createBudget
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BudgetCreate'
+      responses:
+        '201':
+          description: Budget created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetResponse'
+
+  /budgets/summary:
+    get:
+      tags: [budgets]
+      summary: Budget summary with spending vs budget comparison
+      operationId: budgetSummary
+      responses:
+        '200':
+          description: Budget summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetSummaryResponse'
+
+  /budgets/suggest:
+    get:
+      tags: [budgets]
+      summary: Suggest budget amounts based on historical spending
+      operationId: suggestBudgets
+      responses:
+        '200':
+          description: Suggested amounts
+
+  /budgets/config:
+    get:
+      tags: [budgets]
+      summary: Get budget configuration
+      operationId: getBudgetConfig
+      responses:
+        '200':
+          description: Budget config
+
+  /budgets/{budget_id}:
+    parameters:
+      - name: budget_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [budgets]
+      summary: Update budget
+      operationId: updateBudget
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BudgetCreate'
+      responses:
+        '200':
+          description: Budget updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetResponse'
+    delete:
+      tags: [budgets]
+      summary: Delete budget
+      operationId: deleteBudget
+      responses:
+        '200':
+          description: Budget deleted
+
+  /budgets/groups:
+    get:
+      tags: [budgets]
+      summary: List budget groups (50/30/20)
+      operationId: listBudgetGroups
+      responses:
+        '200':
+          description: Budget group list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BudgetGroupResponse'
+    post:
+      tags: [budgets]
+      summary: Create a budget group
+      operationId: createBudgetGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BudgetGroupCreate'
+      responses:
+        '200':
+          description: Budget group created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetGroupResponse'
+
+  /budgets/groups/init:
+    post:
+      tags: [budgets]
+      summary: Initialize default budget groups (50/30/20)
+      operationId: initBudgetGroups
+      responses:
+        '200':
+          description: Groups initialized
+
+  /budgets/groups/{group_id}:
+    parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [budgets]
+      summary: Update budget group
+      operationId: updateBudgetGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BudgetGroupCreate'
+      responses:
+        '200':
+          description: Budget group updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetGroupResponse'
+
+  /budgets/events:
+    get:
+      tags: [budgets]
+      summary: List budget events
+      operationId: listBudgetEvents
+      responses:
+        '200':
+          description: Budget event list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BudgetEventResponse'
+    post:
+      tags: [budgets]
+      summary: Create a budget event
+      operationId: createBudgetEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BudgetEventCreate'
+      responses:
+        '200':
+          description: Budget event created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetEventResponse'
+
+  /budgets/events/{event_id}:
+    parameters:
+      - name: event_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [budgets]
+      summary: Update budget event
+      operationId: updateBudgetEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BudgetEventCreate'
+      responses:
+        '200':
+          description: Budget event updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetEventResponse'
+    delete:
+      tags: [budgets]
+      summary: Delete budget event
+      operationId: deleteBudgetEvent
+      responses:
+        '200':
+          description: Budget event deleted
+
+  /budgets/events/{event_id}/link-expenses:
+    post:
+      tags: [budgets]
+      summary: Link matching expenses to budget event
+      operationId: linkBudgetEventExpenses
+      parameters:
+        - name: event_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Expenses linked
+
+  /budgets/events/{event_id}/expenses:
+    get:
+      tags: [budgets]
+      summary: List expenses linked to budget event
+      operationId: listBudgetEventExpenses
+      parameters:
+        - name: event_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Linked expenses
+
+  /budgets/category-group/{category_id}:
+    put:
+      tags: [budgets]
+      summary: Set budget group for a category
+      operationId: setCategoryBudgetGroup
+      parameters:
+        - name: category_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                budget_group:
+                  type: string
+                  enum: [necesidades, gustos, ahorro]
+      responses:
+        '200':
+          description: Category group set
+
+  /budgets/auto-assign-groups:
+    post:
+      tags: [budgets]
+      summary: Auto-assign categories to budget groups
+      operationId: autoAssignBudgetGroups
+      responses:
+        '200':
+          description: Groups assigned
+
+  # ─────────────────────────────────────────────────────────────
+  # SUGGESTIONS
+  # ─────────────────────────────────────────────────────────────
+  /suggestions:
+    get:
+      tags: [suggestions]
+      summary: List category suggestions
+      operationId: listSuggestions
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, accepted, rejected, all]
+            default: pending
+      responses:
+        '200':
+          description: Suggestion list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  suggestions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CategorySuggestion'
+
+  /suggestions/{id}/accept:
+    post:
+      tags: [suggestions]
+      summary: Accept a category suggestion
+      operationId: acceptSuggestion
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Suggestion accepted
+
+  /suggestions/{id}/reject:
+    post:
+      tags: [suggestions]
+      summary: Reject a category suggestion
+      operationId: rejectSuggestion
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Suggestion rejected
+
+  # ─────────────────────────────────────────────────────────────
+  # RECURRING
+  # ─────────────────────────────────────────────────────────────
+  /recurring:
+    get:
+      tags: [recurring]
+      summary: List recurring expenses (auto-detected and manual)
+      operationId: listRecurring
+      parameters:
+        - name: active
+          in: query
+          schema:
+            type: boolean
+        - name: source
+          in: query
+          schema:
+            type: string
+            enum: [auto, manual]
+      responses:
+        '200':
+          description: Recurring expense list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RecurringExpenseResponse'
+
+  /recurring/{id}/accept:
+    post:
+      tags: [recurring]
+      summary: Accept auto-detected recurring expense
+      operationId: acceptRecurring
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Recurring expense accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecurringExpenseResponse'
+        '409':
+          description: Already accepted
+
+  /recurring/{id}/dismiss:
+    post:
+      tags: [recurring]
+      summary: Dismiss auto-detected recurring expense
+      operationId: dismissRecurring
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Recurring expense dismissed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecurringExpenseResponse'
+
+  # ─────────────────────────────────────────────────────────────
+  # ADMIN
+  # ─────────────────────────────────────────────────────────────
+  /x/admin/users:
+    get:
+      tags: [admin]
+      summary: List all users (admin only)
+      operationId: adminListUsers
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, blocked]
+      responses:
+        '200':
+          description: User list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserAdminResponse'
+        '403':
+          description: Not an admin
+
+  /x/admin/audit-logs:
+    get:
+      tags: [admin]
+      summary: View audit logs (admin only)
+      operationId: adminAuditLogs
+      parameters:
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: user_id
+          in: query
+          schema:
+            type: integer
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: until
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Audit log list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditLogResponse'
+        '403':
+          description: Not an admin
+
+  /x/admin/impersonate:
+    post:
+      tags: [admin]
+      summary: Start impersonation session
+      operationId: adminImpersonate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_user_id]
+              properties:
+                target_user_id:
+                  type: integer
+      responses:
+        '201':
+          description: Impersonation session started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImpersonationSessionResponse'
+        '409':
+          description: Active session already exists
+
+  # ─────────────────────────────────────────────────────────────
+  # WHATSAPP
+  # ─────────────────────────────────────────────────────────────
+  /webhooks/whatsapp:
+    post:
+      tags: [whatsapp]
+      summary: WhatsApp Business API incoming webhook
+      operationId: whatsappWebhook
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Invalid webhook signature
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # ─── AUTH ─────────────────────────────────────────────────
+    RegisterRequest:
+      type: object
+      required: [email, password, full_name]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        full_name:
+          type: string
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    Token:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          default: bearer
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        full_name:
+          type: string
+        email:
+          type: string
+        is_active:
+          type: boolean
+        email_verified:
+          type: boolean
+        onboarding_completed:
+          type: boolean
+        mfa_enabled:
+          type: boolean
+        avatar_url:
+          type: string
+          nullable: true
+        provider:
+          type: string
+          nullable: true
+        is_admin:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    TelegramKeyResponse:
+      type: object
+      properties:
+        telegram_key:
+          type: string
+
+    TelegramStatusResponse:
+      type: object
+      properties:
+        linked:
+          type: boolean
+        chat_id:
+          type: string
+          nullable: true
+
+    # ─── ACCOUNTS ─────────────────────────────────────────────
+    AccountCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [efectivo, cuenta_corriente, caja_ahorro, mercadopago, otro]
+          default: efectivo
+
+    AccountUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [efectivo, cuenta_corriente, caja_ahorro, mercadopago, otro]
+
+    AccountResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+        user_id:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    # ─── CARDS ────────────────────────────────────────────────
+    CardCreate:
+      type: object
+      required: [card_name]
+      properties:
+        card_name:
+          type: string
+        bank:
+          type: string
+          default: ''
+        holder:
+          type: string
+          default: ''
+        card_type:
+          type: string
+          enum: [credito, debito]
+          default: credito
+        linked_account_id:
+          type: integer
+          nullable: true
+
+    CardUpdate:
+      type: object
+      properties:
+        card_name:
+          type: string
+        bank:
+          type: string
+        holder:
+          type: string
+        card_type:
+          type: string
+          enum: [credito, debito]
+        linked_account_id:
+          type: integer
+          nullable: true
+
+    CardResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        card_name:
+          type: string
+        bank:
+          type: string
+        holder:
+          type: string
+        card_type:
+          type: string
+        linked_account_id:
+          type: integer
+          nullable: true
+        linked_account_name:
+          type: string
+          nullable: true
+        user_id:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    # ─── CATEGORIES ───────────────────────────────────────────
+    CategoryCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        color:
+          type: string
+          default: '#6366f1'
+        keywords:
+          type: string
+          default: ''
+        parent_id:
+          type: integer
+          nullable: true
+        budget_group:
+          type: string
+          enum: [necesidades, gustos, ahorro]
+          default: necesidades
+
+    CategoryResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        color:
+          type: string
+        keywords:
+          type: string
+        parent_id:
+          type: integer
+          nullable: true
+        user_id:
+          type: integer
+          nullable: true
+        budget_group:
+          type: string
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryResponse'
+
+    CategorySuggestResponse:
+      type: object
+      nullable: true
+      properties:
+        category_id:
+          type: integer
+        category_name:
+          type: string
+        confidence:
+          type: number
+
+    # ─── CARD CLOSINGS ────────────────────────────────────────
+    CardClosingCreate:
+      type: object
+      required: [closing_date]
+      properties:
+        card:
+          type: string
+          default: ''
+        card_last_digits:
+          type: string
+          default: ''
+        card_type:
+          type: string
+          default: ''
+        bank:
+          type: string
+          default: ''
+        card_id:
+          type: integer
+          nullable: true
+        closing_date:
+          type: string
+          format: date
+        next_closing_date:
+          type: string
+          format: date
+          nullable: true
+        due_date:
+          type: string
+          format: date
+          nullable: true
+
+    CardClosingUpdate:
+      type: object
+      properties:
+        card:
+          type: string
+        card_last_digits:
+          type: string
+        card_type:
+          type: string
+        bank:
+          type: string
+        card_id:
+          type: integer
+          nullable: true
+        closing_date:
+          type: string
+          format: date
+        next_closing_date:
+          type: string
+          format: date
+        due_date:
+          type: string
+          format: date
+
+    CardClosingResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        card:
+          type: string
+        card_last_digits:
+          type: string
+        card_type:
+          type: string
+        bank:
+          type: string
+        card_id:
+          type: integer
+          nullable: true
+        closing_date:
+          type: string
+          format: date
+        next_closing_date:
+          type: string
+          format: date
+          nullable: true
+        due_date:
+          type: string
+          format: date
+          nullable: true
+        last_imported_at:
+          type: string
+          format: date-time
+          nullable: true
+        user_id:
+          type: integer
+
+    # ─── EXPENSES ─────────────────────────────────────────────
+    ExpenseCreate:
+      type: object
+      required: [description, amount, date]
+      properties:
+        description:
+          type: string
+        amount:
+          type: number
+        date:
+          type: string
+          format: date
+        notes:
+          type: string
+          default: ''
+        is_income:
+          type: boolean
+          default: false
+        card_id:
+          type: integer
+          nullable: true
+        account_id:
+          type: integer
+          nullable: true
+        category_id:
+          type: integer
+          nullable: true
+        currency:
+          type: string
+          enum: [ARS, USD]
+          default: ARS
+        installment_number:
+          type: integer
+          nullable: true
+        installment_total:
+          type: integer
+          nullable: true
+        installment_group_id:
+          type: string
+          nullable: true
+        transaction_id:
+          type: string
+          nullable: true
+
+    ExpenseUpdate:
+      type: object
+      properties:
+        description:
+          type: string
+        amount:
+          type: number
+        date:
+          type: string
+          format: date
+        notes:
+          type: string
+        is_income:
+          type: boolean
+        card_id:
+          type: integer
+          nullable: true
+        account_id:
+          type: integer
+          nullable: true
+        category_id:
+          type: integer
+          nullable: true
+        currency:
+          type: string
+
+    ExpenseResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+          format: date
+        description:
+          type: string
+        amount:
+          type: number
+        notes:
+          type: string
+        is_income:
+          type: boolean
+        card_id:
+          type: integer
+          nullable: true
+        account_id:
+          type: integer
+          nullable: true
+        category_id:
+          type: integer
+          nullable: true
+        user_id:
+          type: integer
+        currency:
+          type: string
+        installment_number:
+          type: integer
+          nullable: true
+        installment_total:
+          type: integer
+          nullable: true
+        installment_group_id:
+          type: string
+          nullable: true
+        transaction_id:
+          type: string
+          nullable: true
+        budget_event_id:
+          type: integer
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        category_name:
+          type: string
+          nullable: true
+        category_color:
+          type: string
+          nullable: true
+        card:
+          type: string
+          nullable: true
+        bank:
+          type: string
+          nullable: true
+        person:
+          type: string
+          nullable: true
+        account_name:
+          type: string
+          nullable: true
+
+    # ─── INVESTMENTS ──────────────────────────────────────────
+    InvestmentCreate:
+      type: object
+      required: [symbol, shares, purchase_price]
+      properties:
+        symbol:
+          type: string
+        name:
+          type: string
+        shares:
+          type: number
+        purchase_price:
+          type: number
+        type:
+          type: string
+          enum: [stock, bond, cedear, fci]
+        broker:
+          type: string
+          enum: [iol, ppi]
+
+    InvestmentUpdate:
+      type: object
+      properties:
+        shares:
+          type: number
+        purchase_price:
+          type: number
+        name:
+          type: string
+
+    InvestmentResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        symbol:
+          type: string
+        name:
+          type: string
+          nullable: true
+        shares:
+          type: number
+        purchase_price:
+          type: number
+        current_price:
+          type: number
+          nullable: true
+        type:
+          type: string
+          nullable: true
+        broker:
+          type: string
+          nullable: true
+        user_id:
+          type: integer
+        last_updated:
+          type: string
+          format: date-time
+          nullable: true
+
+    InvestmentListResponse:
+      type: object
+      properties:
+        investments:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvestmentResponse'
+        total_value:
+          type: number
+        total_gain_loss:
+          type: number
+
+    # ─── IMPORT JOBS ──────────────────────────────────────────
+    ImportJobResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        filename:
+          type: string
+        status:
+          type: string
+          enum: [PROCESSING, READY_PREVIEW, COMPLETED, FAILED]
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        error_message:
+          type: string
+          nullable: true
+        preview_data:
+          type: object
+          nullable: true
+
+    ImportConfirmRequest:
+      type: object
+      required: [rows]
+      properties:
+        rows:
+          type: array
+          items:
+            type: object
+        cards_mapping:
+          type: object
+          nullable: true
+
+    CardsMappingEntry:
+      type: object
+      properties:
+        bank:
+          type: string
+        card:
+          type: string
+        holder:
+          type: string
+        card_type:
+          type: string
+          default: credito
+        existing_card_id:
+          type: integer
+          nullable: true
+        create_new:
+          type: boolean
+
+    # ─── DASHBOARD ────────────────────────────────────────────
+    DashboardSummary:
+      type: object
+      properties:
+        total_spent:
+          type: number
+        budget_remaining:
+          type: number
+        top_categories:
+          type: array
+          items:
+            type: object
+        expense_count:
+          type: integer
+
+    # ─── ANALYSIS ─────────────────────────────────────────────
+    AnalysisHistoryEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        query:
+          type: string
+        response:
+          type: string
+        user_id:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    # ─── GROUPS ───────────────────────────────────────────────
+    GroupResponse:
+      type: object
+      properties:
+        group:
+          $ref: '#/components/schemas/Group'
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroupMember'
+        invite_code:
+          type: string
+
+    Group:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        invite_code:
+          type: string
+        owner_id:
+          type: integer
+
+    GroupMember:
+      type: object
+      properties:
+        id:
+          type: integer
+        group_id:
+          type: integer
+        user_id:
+          type: integer
+        role:
+          type: string
+          enum: [owner, member]
+
+    # ─── NOTIFICATIONS ────────────────────────────────────────
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        message:
+          type: string
+        type:
+          type: string
+        read:
+          type: boolean
+        user_id:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    # ─── SCHEDULED EXPENSES ───────────────────────────────────
+    ScheduledExpenseCreate:
+      type: object
+      required: [description, amount, frequency, next_date]
+      properties:
+        description:
+          type: string
+        amount:
+          type: number
+        frequency:
+          type: string
+          enum: [weekly, biweekly, monthly, yearly]
+        next_date:
+          type: string
+          format: date
+        category_id:
+          type: integer
+          nullable: true
+        card_id:
+          type: integer
+          nullable: true
+        account_id:
+          type: integer
+          nullable: true
+
+    ScheduledExpenseUpdate:
+      type: object
+      properties:
+        description:
+          type: string
+        amount:
+          type: number
+        frequency:
+          type: string
+          enum: [weekly, biweekly, monthly, yearly]
+        next_date:
+          type: string
+          format: date
+        active:
+          type: boolean
+        category_id:
+          type: integer
+          nullable: true
+        card_id:
+          type: integer
+          nullable: true
+        account_id:
+          type: integer
+          nullable: true
+
+    ScheduledExpenseResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        description:
+          type: string
+        amount:
+          type: number
+        frequency:
+          type: string
+        next_date:
+          type: string
+          format: date
+        category_id:
+          type: integer
+          nullable: true
+        card_id:
+          type: integer
+          nullable: true
+        account_id:
+          type: integer
+          nullable: true
+        user_id:
+          type: integer
+        active:
+          type: boolean
+
+    # ─── BUDGETS ──────────────────────────────────────────────
+    BudgetCreate:
+      type: object
+      required: [category_id, amount]
+      properties:
+        category_id:
+          type: integer
+        amount:
+          type: number
+        alert_threshold:
+          type: number
+          default: 0.80
+        rollover:
+          type: boolean
+          default: false
+
+    BudgetResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        category_id:
+          type: integer
+        amount:
+          type: number
+        alert_threshold:
+          type: number
+        rollover:
+          type: boolean
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        category_name:
+          type: string
+          nullable: true
+        category_color:
+          type: string
+          nullable: true
+        spent:
+          type: number
+
+    BudgetSummaryResponse:
+      type: object
+      properties:
+        total_budgeted:
+          type: number
+        total_spent:
+          type: number
+        categories:
+          type: array
+          items:
+            type: object
+
+    BudgetGroupCreate:
+      type: object
+      required: [name, display_name, percentage]
+      properties:
+        name:
+          type: string
+          enum: [necesidades, gustos, ahorro]
+        display_name:
+          type: string
+        percentage:
+          type: number
+
+    BudgetGroupResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        name:
+          type: string
+        display_name:
+          type: string
+        percentage:
+          type: number
+        amount:
+          type: number
+        spent:
+          type: number
+        is_active:
+          type: boolean
+
+    BudgetEventCreate:
+      type: object
+      required: [name, start_date, end_date, total_amount]
+      properties:
+        name:
+          type: string
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        total_amount:
+          type: number
+        categories:
+          type: string
+          default: '[]'
+
+    BudgetEventResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        name:
+          type: string
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        total_amount:
+          type: number
+        spent:
+          type: number
+        categories:
+          type: string
+        is_active:
+          type: boolean
+
+    # ─── SUGGESTIONS ──────────────────────────────────────────
+    CategorySuggestion:
+      type: object
+      properties:
+        id:
+          type: integer
+        description:
+          type: string
+        suggested_category_id:
+          type: integer
+        user_id:
+          type: integer
+        accepted:
+          type: boolean
+          nullable: true
+
+    # ─── RECURRING ────────────────────────────────────────────
+    RecurringExpenseResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        merchant_key:
+          type: string
+        description:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        category_id:
+          type: integer
+          nullable: true
+        card_id:
+          type: integer
+          nullable: true
+        account_id:
+          type: integer
+          nullable: true
+        frequency:
+          type: string
+        next_charge_date:
+          type: string
+          format: date
+          nullable: true
+        alert_days_before:
+          type: integer
+        is_active:
+          type: boolean
+        source:
+          type: string
+        last_seen_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    # ─── ADMIN ────────────────────────────────────────────────
+    UserAdminResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        full_name:
+          type: string
+        is_active:
+          type: boolean
+        is_admin:
+          type: boolean
+        is_blocked:
+          type: boolean
+        email_verified:
+          type: boolean
+        provider:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    AuditLogResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+          nullable: true
+        action:
+          type: string
+        ip_address:
+          type: string
+          nullable: true
+        user_agent:
+          type: string
+          nullable: true
+        details:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    ImpersonationSessionResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        admin_id:
+          type: integer
+        target_user_id:
+          type: integer
+        status:
+          type: string
+        token:
+          type: string
+        expires_at:
+          type: string
+          format: date-time

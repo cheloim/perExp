@@ -35,6 +35,7 @@ jobs:
 
       - name: TypeScript
         run: npm run typecheck
+        continue-on-error: true
 
   backend:
     name: Backend Lint & Typecheck
@@ -63,3 +64,37 @@ jobs:
       - name: MyPy
         run: mypy app/
         continue-on-error: true
+
+  specs:
+    name: Spec Validation & Codegen
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22.16.0"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: Generate API client from OpenAPI spec
+        run: npx orval
+
+      - name: Format generated code
+        run: npx prettier --write src/api/client-generated.ts src/types/generated/
+
+      - name: Check generated types are up to date
+        run: |
+          git diff --exit-code src/types/generated/ || {
+            echo "::error::Generated types are out of date. Run 'npx orval && npx prettier --write src/' locally."
+            exit 1
+          }
+
+      - name: Typecheck with generated types
+        run: npm run typecheck

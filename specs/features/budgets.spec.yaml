@@ -1,0 +1,428 @@
+metadata:
+  name: budgets
+  title: "Budget Management"
+  version: "1.0.0"
+  status: implemented
+  created: "2026-08-16"
+  updated: "2026-08-16"
+  owner: backend
+  tags: [budgets, finance, planning, 50-30-20]
+
+description: |
+  Monthly budget management with 50/30/20 rule support. Budgets are set per
+  category per month. BudgetGroups (Necesidades/Gustos/Ahorro) track spending
+  against income allocation. BudgetEvents handle special spending periods
+  (vacations, holidays). Includes auto-suggestion and expense linking.
+
+requirements:
+  functional:
+    - id: BUD-F01
+      description: "Create/edit/delete monthly budget per category"
+      priority: must
+    - id: BUD-F02
+      description: "List budgets for current user"
+      priority: must
+    - id: BUD-F03
+      description: "Budget summary with spending vs budget comparison"
+      priority: must
+    - id: BUD-F04
+      description: "BudgetGroups: Necesidades (50%), Gustos (30%), Ahorro (20%)"
+      priority: must
+    - id: BUD-F05
+      description: "BudgetGroups auto-initialization via POST /budgets/groups/init"
+      priority: must
+    - id: BUD-F06
+      description: "BudgetEvents for special spending periods with category linking"
+      priority: should
+    - id: BUD-F07
+      description: "Auto-assign categories to budget groups by keywords"
+      priority: should
+    - id: BUD-F08
+      description: "Budget suggestion based on historical spending"
+      priority: could
+    - id: BUD-F09
+      description: "Link expenses to budget events"
+      priority: should
+    - id: BUD-F10
+      description: "Alert threshold per budget (default 80%)"
+      priority: should
+    - id: BUD-F11
+      description: "Rollover option for unused budget"
+      priority: could
+
+  non-functional:
+    - id: BUD-NF01
+    description: "Budget summary calculated within 500ms"
+    priority: should
+    - id: BUD-NF02
+    description: "Unique constraint (user_id, category_id) for budgets"
+    priority: must
+
+pre-evaluation:
+  auth: "JWT token required (Depends(get_current_user))"
+  database: "PostgreSQL via SQLAlchemy session (Depends(get_db))"
+
+users:
+  - role: authenticated_user
+    actions: [create, read, update, delete, summary, suggest, manage_groups, manage_events, auto_assign, link_expenses]
+    scope: own_budgets only
+
+entities:
+  - name: Budget
+    table: budgets
+    fields:
+      - name: id
+        type: Integer
+        constraints: [PK, auto-increment]
+      - name: user_id
+        type: Integer
+        constraints: [FK -> users.id, NOT NULL]
+      - name: category_id
+        type: Integer
+        constraints: [FK -> categories.id, NOT NULL]
+      - name: amount
+        type: Float
+        constraints: [NOT NULL]
+        notes: "Monthly budget limit"
+      - name: alert_threshold
+        type: Float
+        constraints: [default 0.80]
+        notes: "Alert at 80% by default"
+      - name: rollover
+        type: Boolean
+        constraints: [default False]
+        notes: "Unused budget carries over"
+      - name: is_active
+        type: Boolean
+        constraints: [default True]
+      - name: created_at
+        type: DateTime
+        constraints: [default utcnow]
+      - name: updated_at
+        type: DateTime
+        constraints: [onupdate utcnow]
+    constraints:
+      - type: unique
+        columns: [user_id, category_id]
+        name: uq_budget_user_cat
+    indexes:
+      - columns: [user_id]
+      - columns: [category_id]
+    relationships:
+      - { name: category, target: Category, back_populates: budgets }
+
+  - name: BudgetGroup
+    table: budget_groups
+    fields:
+      - name: id
+        type: Integer
+        constraints: [PK, auto-increment]
+      - name: user_id
+        type: Integer
+        constraints: [FK -> users.id, NOT NULL]
+      - name: name
+        type: String(20)
+        constraints: [NOT NULL]
+        values: [necesidades, gustos, ahorro]
+      - name: display_name
+        type: String(50)
+        constraints: [NOT NULL]
+        notes: "UI label"
+      - name: percentage
+        type: Float
+        constraints: [NOT NULL]
+        notes: "% of income"
+      - name: amount
+        type: Float
+        constraints: [default 0]
+        notes: "Calculated amount"
+      - name: spent
+        type: Float
+        constraints: [default 0]
+        notes: "Current spending"
+      - name: is_active
+        type: Boolean
+        constraints: [default True]
+      - name: created_at
+        type: DateTime
+        constraints: [default utcnow]
+      - name: updated_at
+        type: DateTime
+        constraints: [onupdate utcnow]
+    constraints:
+      - type: unique
+        columns: [user_id, name]
+        name: uq_budget_group_user_name
+    indexes:
+      - columns: [user_id]
+
+  - name: BudgetEvent
+    table: budget_events
+    fields:
+      - name: id
+        type: Integer
+        constraints: [PK, auto-increment]
+      - name: user_id
+        type: Integer
+        constraints: [FK -> users.id, NOT NULL]
+      - name: name
+        type: String(100)
+        constraints: [NOT NULL]
+        notes: "Event name (e.g., 'Vacaciones')"
+      - name: start_date
+        type: Date
+        constraints: [NOT NULL]
+      - name: end_date
+        type: Date
+        constraints: [NOT NULL]
+      - name: total_amount
+        type: Float
+        constraints: [NOT NULL]
+      - name: spent
+        type: Float
+        constraints: [default 0]
+      - name: categories
+        type: Text
+        constraints: [default "[]"]
+        notes: "JSON array of category IDs"
+      - name: is_active
+        type: Boolean
+        constraints: [default True]
+      - name: created_at
+        type: DateTime
+        constraints: [default utcnow]
+      - name: updated_at
+        type: DateTime
+        constraints: [onupdate utcnow]
+    indexes:
+      - columns: [user_id]
+
+    schemas:
+      BudgetCreate:
+        fields:
+          - { name: category_id, type: int, required: true }
+          - { name: amount, type: float, required: true }
+          - { name: alert_threshold, type: float, default: 0.80 }
+          - { name: rollover, type: bool, default: false }
+      BudgetResponse:
+        fields:
+          - { name: id, type: int }
+          - { name: user_id, type: int }
+          - { name: category_id, type: int }
+          - { name: amount, type: float }
+          - { name: alert_threshold, type: float }
+          - { name: rollover, type: bool }
+          - { name: is_active, type: bool }
+          - { name: created_at, type: datetime }
+          - { name: category_name, type: "str | null", computed: true }
+          - { name: category_color, type: "str | null", computed: true }
+          - { name: spent, type: float, computed: true, notes: "Current month spending" }
+      BudgetGroupCreate:
+        fields:
+          - { name: name, type: str, required: true }
+          - { name: display_name, type: str, required: true }
+          - { name: percentage, type: float, required: true }
+      BudgetGroupResponse:
+        fields:
+          - { name: id, type: int }
+          - { name: user_id, type: int }
+          - { name: name, type: str }
+          - { name: display_name, type: str }
+          - { name: percentage, type: float }
+          - { name: amount, type: float }
+          - { name: spent, type: float }
+          - { name: is_active, type: bool }
+      BudgetEventCreate:
+        fields:
+          - { name: name, type: str, required: true }
+          - { name: start_date, type: date, required: true }
+          - { name: end_date, type: date, required: true }
+          - { name: total_amount, type: float, required: true }
+          - { name: categories, type: str, default: "[]" }
+      BudgetEventResponse:
+        fields:
+          - { name: id, type: int }
+          - { name: user_id, type: int }
+          - { name: name, type: str }
+          - { name: start_date, type: date }
+          - { name: end_date, type: date }
+          - { name: total_amount, type: float }
+          - { name: spent, type: float }
+          - { name: categories, type: str }
+          - { name: is_active, type: bool }
+
+endpoints:
+  - method: GET
+    path: /budgets
+    response_model: "list[BudgetResponse]"
+    status_code: 200
+    description: "List budgets for current user"
+    logic:
+      - "Query budgets filtered by user_id == current_user.id"
+      - "Compute spent amount for current month per budget"
+
+  - method: POST
+    path: /budgets
+    response_model: BudgetResponse
+    status_code: 201
+    description: "Create a budget for a category"
+    validation:
+      - "category_id must exist"
+      - "Unique (user_id, category_id)"
+    logic:
+      - "Create Budget, commit, return"
+
+  - method: PUT
+    path: "/budgets/{budget_id}"
+    response_model: BudgetResponse
+    status_code: 200
+    description: "Update budget amount/threshold/rollover"
+
+  - method: DELETE
+    path: "/budgets/{budget_id}"
+    status_code: 200
+    description: "Delete a budget"
+
+  - method: GET
+    path: /budgets/summary
+    response_model: BudgetSummaryResponse
+    description: "Budget summary with spending vs budget comparison"
+    logic:
+      - "Calculate total budgeted vs total spent"
+      - "Per-category breakdown with percentage used"
+      - "Alert categories exceeding threshold"
+
+  - method: GET
+    path: /budgets/suggest
+    description: "Suggest budget amounts based on historical spending"
+    response: "Suggested amounts per category"
+
+  - method: GET
+    path: /budgets/groups
+    response_model: "list[BudgetGroupResponse]"
+    description: "List budget groups (Necesidades/Gustos/Ahorro)"
+
+  - method: POST
+    path: /budgets/groups
+    response_model: BudgetGroupResponse
+    description: "Create a budget group"
+
+  - method: PUT
+    path: "/budgets/groups/{group_id}"
+    response_model: BudgetGroupResponse
+    description: "Update budget group"
+
+  - method: POST
+    path: /budgets/groups/init
+    description: "Initialize default budget groups (50/30/20)"
+    logic:
+      - "Create Necesidades (50%), Gustos (30%), Ahorro (20%)"
+
+  - method: GET
+    path: /budgets/events
+    response_model: "list[BudgetEventResponse]"
+    description: "List budget events"
+
+  - method: POST
+    path: /budgets/events
+    response_model: BudgetEventResponse
+    description: "Create a budget event"
+
+  - method: PUT
+    path: "/budgets/events/{event_id}"
+    response_model: BudgetEventResponse
+    description: "Update budget event"
+
+  - method: DELETE
+    path: "/budgets/events/{event_id}"
+    description: "Delete budget event"
+
+  - method: PUT
+    path: "/budgets/category-group/{category_id}"
+    description: "Set budget group for a category"
+
+  - method: POST
+    path: /budgets/auto-assign-groups
+    description: "Auto-assign categories to budget groups by keywords"
+
+  - method: GET
+    path: /budgets/config
+    description: "Get budget configuration"
+
+  - method: POST
+    path: "/budgets/events/{event_id}/link-expenses"
+    description: "Link matching expenses to budget event"
+
+  - method: GET
+    path: "/budgets/events/{event_id}/expenses"
+    description: "List expenses linked to budget event"
+
+business_rules:
+  - id: BR-BUD-01
+    description: "Budgets are per user per category, unique constraint enforced"
+  - id: BR-BUD-02
+    description: "BudgetGroups follow 50/30/20 rule: Necesidades (50%), Gustos (30%), Ahorro (20%)"
+  - id: BR-BUD-03
+    description: "BudgetGroup.amount = (user income * percentage) / 100"
+  - id: BR-BUD-04
+    description: "BudgetGroup.spent = sum of expenses in categories assigned to group for current month"
+  - id: BR-BUD-05
+    description: "Alert triggered when spending exceeds alert_threshold (default 80%)"
+  - id: BR-BUD-06
+    description: "BudgetEvents track spending for specific periods with linked categories"
+  - id: BR-BUD-07
+    description: "Auto-assign groups by category keywords: categories with 'supermercado', 'farmacia' → necesidades"
+  - id: BR-BUD-08
+    description: "Budget suggestion based on average monthly spending per category over last 3-6 months"
+
+integrations:
+  - system: categories
+    type: references
+    description: "Budget.category_id -> Category.id"
+  - system: expenses
+    type: references
+    description: "BudgetEvent linked expenses via date range and category filtering"
+  - system: categories
+    type: uses
+    description: "Category.budget_group for 50/30/20 classification"
+
+migrations:
+  - description: "Initial budgets table"
+  - description: "Add budget_groups table"
+  - description: "Add budget_events table"
+  - description: "Add alert_threshold and rollover to budgets"
+
+tests:
+  - name: "Create budget for category"
+    type: integration
+    description: "POST /budgets with category_id and amount"
+    expected: "Budget created with correct amount"
+  - name: "Budget summary with spending"
+    type: integration
+    description: "GET /budgets/summary after creating expenses"
+    expected: "Summary shows correct spent vs budgeted amounts"
+  - name: "Initialize default groups"
+    type: integration
+    description: "POST /budgets/groups/init creates 3 groups"
+    expected: "Necesidades (50%), Gustos (30%), Ahorro (20%) created"
+  - name: "Budget event with linked expenses"
+    type: integration
+    description: "POST /budgets/events/{id}/link-expenses links matching expenses"
+    expected: "Expenses in date range with matching categories linked"
+  - name: "Auto-assign groups by keywords"
+    type: integration
+    description: "POST /budgets/auto-assign-groups assigns categories to groups"
+    expected: "Categories assigned based on budget_group field"
+
+documentation:
+  - file: "specs/architecture/data-model.md"
+    section: "Budget"
+  - file: "specs/architecture/data-model.md"
+    section: "BudgetGroup"
+  - file: "specs/architecture/data-model.md"
+    section: "BudgetEvent"
+
+changelog:
+  - date: "2026-08-16"
+    version: "1.0.0"
+    changes: ["Initial feature spec created"]

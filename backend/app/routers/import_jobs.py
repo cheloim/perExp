@@ -24,7 +24,12 @@ router = APIRouter(prefix="/import-jobs", tags=["import-jobs"])
 IMPORT_JOB_TTL_HOURS = 24
 
 
-@router.post("", response_model=ImportJobResponse)
+@router.post(
+    "",
+    response_model=ImportJobResponse,
+    summary="Create an import job",
+    description="Upload a file (PDF, CSV, Excel) and start background processing. Returns a job ID immediately.",
+)
 async def create_import_job(
     file: UploadFile = File(...),
     background_tasks: BackgroundTasks = BackgroundTasks(),
@@ -71,7 +76,12 @@ async def create_import_job(
     )
 
 
-@router.get("", response_model=list[ImportJobResponse])
+@router.get(
+    "",
+    response_model=list[ImportJobResponse],
+    summary="List import jobs",
+    description="List the current user's import jobs, optionally filtered by status.",
+)
 def list_import_jobs(
     status: str | None = None,
     limit: int = 50,
@@ -101,7 +111,12 @@ def list_import_jobs(
     return result
 
 
-@router.get("/{job_id}", response_model=ImportJobResponse)
+@router.get(
+    "/{job_id}",
+    response_model=ImportJobResponse,
+    summary="Get an import job",
+    description="Retrieve a specific import job by ID. Jobs expire after 24 hours.",
+)
 def get_import_job(
     job_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
@@ -130,7 +145,11 @@ def get_import_job(
     )
 
 
-@router.put("/{job_id}/preview")
+@router.put(
+    "/{job_id}/preview",
+    summary="Update import preview data",
+    description="Update the preview data for an import job, e.g. after bulk editing rows before confirmation.",
+)
 def update_import_preview(
     job_id: int, body: dict, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
@@ -157,7 +176,11 @@ def update_import_preview(
     return {"updated": True}
 
 
-@router.post("/{job_id}/confirm")
+@router.post(
+    "/{job_id}/confirm",
+    summary="Confirm and save import",
+    description="Confirm an import job to save the previewed rows as expenses and scheduled expenses in the database.",
+)
 async def confirm_import_job(
     job_id: int,
     body: RowsConfirmBody,
@@ -475,7 +498,11 @@ async def confirm_import_job(
     return {"imported": imported_count, "skipped": skipped_count, "scheduled": scheduled_count}
 
 
-@router.delete("/{job_id}")
+@router.delete(
+    "/{job_id}",
+    summary="Delete an import job",
+    description="Delete an import job and its associated notification.",
+)
 def delete_import_job(
     job_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):

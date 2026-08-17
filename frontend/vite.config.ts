@@ -1,23 +1,23 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import path from 'path'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import path from "path";
 
 export default defineConfig({
   plugins: [react()],
   worker: {
-    format: 'es',
+    format: "es",
   },
   build: {
-    cssMinify: 'esbuild',
+    cssMinify: "esbuild",
     rolldownOptions: {
       input: {
-        main: path.resolve(__dirname, 'index.html'),
-        'notifications.worker': path.resolve(__dirname, 'src/workers/notifications.worker.ts'),
+        main: path.resolve(__dirname, "index.html"),
+        "notifications.worker": path.resolve(__dirname, "src/workers/notifications.worker.ts"),
       },
       output: {
-        entryFileNames: 'assets/[name].js',
-        chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]',
+        entryFileNames: "assets/[name].js",
+        chunkFileNames: "assets/[name]-[hash].js",
+        assetFileNames: "assets/[name]-[hash].[ext]",
       },
     },
   },
@@ -26,23 +26,23 @@ export default defineConfig({
     port: 5173,
     allowedHosts: ["oikonomia.ar", "www.oikonomia.ar", "platform.oikonomia.ar"],
     proxy: {
-      '/api': {
-        target: 'http://backend_dev:8000',
+      "/api": {
+        target: "http://backend_dev:8000",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
+        rewrite: (path) => path.replace(/^\/api/, ""),
       },
-      '/notifications': {
-        target: 'http://backend_dev:8000',
-        changeOrigin: true,
-      },
-      '/auth': {
-        target: 'http://backend_dev:8000',
+      "/notifications": {
+        target: "http://backend_dev:8000",
         changeOrigin: true,
       },
-      '/budgets': {
-        target: 'http://backend_dev:8000',
+      "/auth": {
+        target: "http://backend_dev:8000",
+        changeOrigin: true,
+      },
+      "/budgets": {
+        target: "http://backend_dev:8000",
         changeOrigin: true,
       },
     },
   },
-})
+});

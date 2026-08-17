@@ -12,7 +12,11 @@ from app.services.date_utils import add_months
 router = APIRouter(prefix="/scheduled-expenses", tags=["scheduled-expenses"])
 
 
-@router.get("")
+@router.get(
+    "",
+    summary="List scheduled expenses",
+    description="Retrieve scheduled expenses filtered by status and optionally by installment group, with future projections.",
+)
 def get_scheduled_expenses(
     status: str = "PENDING",
     installment_group_id: str | None = None,
@@ -110,7 +114,11 @@ def get_scheduled_expenses(
     return scheduled
 
 
-@router.post("/{id}/execute")
+@router.post(
+    "/{id}/execute",
+    summary="Execute a scheduled expense",
+    description="Convert a pending scheduled expense into an actual expense record and mark it as executed.",
+)
 def execute_scheduled_expense(
     id: int,
     db: Session = Depends(get_db),
@@ -163,7 +171,11 @@ def execute_scheduled_expense(
     return {"expense": expense, "scheduled": scheduled}
 
 
-@router.put("/{id}")
+@router.put(
+    "/{id}",
+    summary="Update a scheduled expense",
+    description="Update editable fields (date, amount, description, category) of a pending scheduled expense.",
+)
 def update_scheduled_expense(
     id: int,
     payload: dict,
@@ -193,7 +205,11 @@ def update_scheduled_expense(
     return scheduled
 
 
-@router.delete("/{id}")
+@router.delete(
+    "/{id}",
+    summary="Cancel a scheduled expense",
+    description="Cancel a pending scheduled expense by setting its status to CANCELLED.",
+)
 def cancel_scheduled_expense(
     id: int,
     db: Session = Depends(get_db),

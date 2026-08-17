@@ -1,0 +1,272 @@
+# Feature: Investment Portfolio
+# Status: Implemented
+# Date: 2026-08-16
+
+metadata:
+  name: "Investment Portfolio"
+  id: "investments"
+  version: "1.0.0"
+  status: "implemented"
+  created: "2026-08-16"
+  updated: "2026-08-16"
+  owner: "Oikonomia Team"
+  tags: ["investments", "portfolio", "stocks", "finance"]
+
+description: >
+  Allows users to track their investment portfolio including stocks, bonds,
+  and other instruments. Supports manual entry and broker integration (IOL,
+  PPI). Prices are automatically refreshed every 15 minutes during trading
+  hours via APScheduler using Yahoo Finance as the price source.
+
+requirements:
+  - "User must be authenticated"
+  - "At least one investment must be added to see portfolio data"
+  - "Broker credentials required for automatic sync (IOL/PPI)"
+  - "Yahoo Finance API available for price lookups"
+
+pre_evaluation:
+  questions:
+    - question: "Which brokers are supported?"
+      answer: "IOL (Invertir Online) and PPI (Portfolio Personal de Inversiones)"
+    - question: "How often are prices refreshed?"
+      answer: "Every 15 minutes during trading hours (9:30-17:00 ART), scheduled via APScheduler"
+    - question: "Can users add investments manually?"
+      answer: "Yes, manual entry is supported alongside broker sync"
+
+users:
+  - role: "authenticated_user"
+    description: "Any logged-in user can manage their investment portfolio"
+    permissions:
+      - "create_investment"
+      - "view_investments"
+      - "update_investment"
+      - "delete_investment"
+      - "refresh_prices"
+
+entities:
+  - name: "Investment"
+    table: "investments"
+    description: "Represents a single investment holding in the user's portfolio"
+    fields:
+      - name: "id"
+        type: "integer"
+        primary_key: true
+        auto_increment: true
+      - name: "symbol"
+        type: "string"
+        required: true
+        description: "Ticker symbol (e.g., AAPL, AL30D)"
+      - name: "name"
+        type: "string"
+        required: false
+        description: "Human-readable name of the instrument"
+      - name: "shares"
+        type: "float"
+        required: true
+        description: "Number of shares/units held"
+      - name: "purchase_price"
+        type: "float"
+        required: true
+        description: "Average purchase price per unit"
+      - name: "current_price"
+        type: "float"
+        required: false
+        description: "Last known market price per unit"
+      - name: "type"
+        type: "string"
+        required: false
+        description: "Instrument type: stock, bond, cedear, fci"
+      - name: "broker"
+        type: "string"
+        required: false
+        description: "Broker name: iol, ppi, or null for manual"
+      - name: "user_id"
+        type: "integer"
+        foreign_key: "users.id"
+        required: true
+      - name: "last_updated"
+        type: "datetime"
+        description: "Timestamp of last price refresh"
+    indexes:
+      - columns: ["user_id"]
+      - columns: ["symbol"]
+
+endpoints:
+  - method: "GET"
+    path: "/investments"
+    description: "List all investments for the authenticated user"
+    auth: "required"
+    response:
+      status: 200
+      body:
+        investments: "array of Investment objects"
+        total_value: "float"
+        total_gain_loss: "float"
+
+  - method: "POST"
+    path: "/investments"
+    description: "Add a new investment to the portfolio"
+    auth: "required"
+    request_body:
+      symbol:
+        type: "string"
+        required: true
+      name:
+        type: "string"
+        required: false
+      shares:
+        type: "float"
+        required: true
+      purchase_price:
+        type: "float"
+        required: true
+      type:
+        type: "string"
+        required: false
+      broker:
+        type: "string"
+        required: false
+    response:
+      status: 201
+      body: "Investment object"
+
+  - method: "PUT"
+    path: "/investments/{id}"
+    description: "Update an existing investment"
+    auth: "required"
+    path_params:
+      - name: "id"
+        type: "integer"
+        required: true
+    request_body:
+      shares:
+        type: "float"
+        required: false
+      purchase_price:
+        type: "float"
+        required: false
+      name:
+        type: "string"
+        required: false
+    response:
+      status: 200
+      body: "Updated Investment object"
+    errors:
+      - status: 404
+        description: "Investment not found"
+
+  - method: "DELETE"
+    path: "/investments/{id}"
+    description: "Remove an investment from the portfolio"
+    auth: "required"
+    path_params:
+      - name: "id"
+        type: "integer"
+        required: true
+    response:
+      status: 204
+    errors:
+      - status: 404
+        description: "Investment not found"
+
+  - method: "GET"
+    path: "/investments/refresh"
+    description: "Trigger a manual price refresh for all investments"
+    auth: "required"
+    response:
+      status: 200
+      body:
+        updated: "integer"
+        errors: "integer"
+
+business_rules:
+  - name: "Price Refresh Schedule"
+    description: "Prices are automatically refreshed every 15 minutes during ART trading hours (9:30-17:00) via APScheduler"
+  - name: "Broker Sync"
+    description: "Investments from IOL/PPI can be synced automatically; manual entries are preserved separately"
+  - name: "Yahoo Finance Source"
+    description: "Current prices are fetched from Yahoo Finance; fallback to last known price if unavailable"
+  - name: "Portfolio Calculation"
+    description: "Total value = SUM(shares * current_price); Gain/Loss = total_value - SUM(shares * purchase_price)"
+  - name: "Symbol Validation"
+    description: "Symbol must be a valid ticker; validation occurs on price refresh"
+
+frontend:
+  components:
+    - name: "InvestmentsPage"
+      path: "frontend/src/pages/Investments.tsx"
+      description: "Main portfolio view with holdings table and summary"
+    - name: "InvestmentForm"
+      path: "frontend/src/components/InvestmentForm.tsx"
+      description: "Form for adding/editing investments manually"
+    - name: "PortfolioSummary"
+      path: "frontend/src/components/PortfolioSummary.tsx"
+      description: "KPI cards showing total value, gain/loss, allocation"
+
+integrations:
+  - name: "Yahoo Finance"
+    type: "api"
+    description: "Fetches current market prices for stock/bond symbols"
+  - name: "IOL (Invertir Online)"
+    type: "broker"
+    description: "Argentine broker integration for portfolio sync"
+  - name: "PPI (Portfolio Personal de Inversiones)"
+    type: "broker"
+    description: "Argentine broker integration for portfolio sync"
+  - name: "APScheduler"
+    type: "scheduler"
+    description: "Background job scheduler for periodic price refreshes"
+
+migrations: []
+
+tests:
+  - name: "Create investment manually"
+    type: "integration"
+    description: "User can add an investment with symbol, shares, and purchase price"
+    steps:
+      - "POST /investments with {symbol: 'AAPL', shares: 10, purchase_price: 150.00}"
+      - "Assert 201 response"
+      - "Assert investment appears in GET /investments"
+    expected: "Investment created and listed"
+
+  - name: "Price refresh updates current_price"
+    type: "integration"
+    description: "Refresh endpoint fetches latest prices from Yahoo Finance"
+    steps:
+      - "Create investment with symbol 'AAPL'"
+      - "GET /investments/refresh"
+      - "Assert current_price is populated"
+    expected: "current_price updated with market data"
+
+  - name: "Delete investment removes from portfolio"
+    type: "integration"
+    description: "Deleting an investment removes it from the list"
+    steps:
+      - "Create investment, note its ID"
+      - "DELETE /investments/{id}"
+      - "GET /investments — assert investment not in list"
+    expected: "Investment no longer appears"
+
+  - name: "Portfolio totals are calculated correctly"
+    type: "integration"
+    description: "Total value and gain/loss are computed from holdings"
+    steps:
+      - "Create 2 investments with known shares and prices"
+      - "GET /investments"
+      - "Assert total_value and total_gain_loss match expected calculations"
+    expected: "Totals equal sum of individual holdings"
+
+documentation:
+  - type: "api"
+    description: "Investment endpoints documented in OpenAPI spec"
+  - type: "setup"
+    description: "Broker credential configuration guide"
+
+changelog:
+  - version: "1.0.0"
+    date: "2026-08-16"
+    changes:
+      - "Initial investment portfolio implementation"
+      - "CRUD endpoints for investments"
+      - "Yahoo Finance price refresh via APScheduler"
+      - "IOL and PPI broker integrations"

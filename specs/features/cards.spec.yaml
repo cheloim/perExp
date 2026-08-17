@@ -1,0 +1,259 @@
+metadata:
+  name: cards
+  title: "Card Management"
+  version: "1.0.0"
+  status: implemented
+  created: "2026-08-16"
+  updated: "2026-08-16"
+  owner: backend
+  tags: [cards, payments, banking]
+
+description: |
+  CRUD management for credit and debit cards. Cards are the primary payment method
+  tracked by the system. Each card belongs to a user and is scoped to their family
+  group for shared visibility. Cards support linking to bank accounts (debit only)
+  and are referenced by expenses, telegram bot selections, and import jobs.
+
+requirements:
+  functional:
+    - id: CARDS-F01
+      description: "Create card with card_name, bank, holder, card_type"
+      priority: must
+    - id: CARDS-F02
+      description: "List cards scoped to user's family group"
+      priority: must
+    - id: CARDS-F03
+      description: "Update card fields (partial update with exclude_none)"
+      priority: must
+    - id: CARDS-F04
+      description: "Delete card only if no associated expenses exist"
+      priority: must
+    - id: CARDS-F05
+      description: "Auto-populate holder from user full_name when not provided"
+      priority: must
+    - id: CARDS-F06
+      description: "Detect duplicate card by (card_name, bank, card_type) HMAC"
+      priority: must
+    - id: CARDS-F07
+      description: "Sync holders for existing cards via POST /cards/sync-holders"
+      priority: should
+    - id: CARDS-F08
+      description: "Link debit card to caja_ahorro account (1:1)"
+      priority: could
+    - id: CARDS-F09
+      description: "Encrypt card_name and bank with AES-256, store HMAC for lookups"
+      priority: must
+
+  non-functional:
+    - id: CARDS-NF01
+      description: "Card list endpoint returns within 200ms"
+      priority: should
+    - id: CARDS-NF02
+      description: "Encrypted fields never logged in plaintext"
+      priority: must
+
+pre-evaluation:
+  auth: "JWT token required (Depends(get_current_user))"
+  database: "PostgreSQL via SQLAlchemy session (Depends(get_db))"
+  group_scoping: "Uses get_group_user_ids() for list operations"
+
+users:
+  - role: authenticated_user
+    actions: [create, read, update, delete, sync_holders]
+    scope: own_cards + group_members_cards (read only)
+
+entities:
+  - name: Card
+    table: cards
+    fields:
+      - name: id
+        type: Integer
+        constraints: [PK, auto-increment]
+      - name: card_name
+        type: EncryptedType
+        constraints: [NOT NULL]
+        notes: "Franquicia: Visa, Mastercard, etc."
+      - name: card_name_hmac
+        type: String(64)
+        constraints: [nullable, indexed]
+        notes: "Searchable HMAC of card_name.lower()"
+      - name: bank
+        type: EncryptedType
+        constraints: [default ""]
+        notes: "Issuing bank"
+      - name: bank_hmac
+        type: String(64)
+        constraints: [nullable, indexed]
+      - name: holder
+        type: EncryptedType
+        constraints: [default ""]
+        notes: "First name for family grouping"
+      - name: card_type
+        type: String
+        constraints: [default "credito"]
+        values: [credito, debito]
+      - name: linked_account_id
+        type: Integer
+        constraints: [FK -> accounts.id, nullable]
+        notes: "Only for debit cards linked to caja_ahorro"
+      - name: user_id
+        type: Integer
+        constraints: [FK -> users.id, NOT NULL]
+      - name: created_at
+        type: DateTime
+        constraints: [default utcnow]
+    indexes:
+      - columns: [user_id]
+      - columns: [card_type]
+      - columns: [linked_account_id]
+
+    schemas:
+      CardCreate:
+        fields:
+          - { name: card_name, type: str, required: true }
+          - { name: bank, type: str, default: "" }
+          - { name: holder, type: str, default: "" }
+          - { name: card_type, type: str, default: "credito" }
+          - { name: linked_account_id, type: "int | null", default: null }
+      CardUpdate:
+        fields:
+          - { name: card_name, type: "str | null", default: null }
+          - { name: bank, type: "str | null", default: null }
+          - { name: holder, type: "str | null", default: null }
+          - { name: card_type, type: "str | null", default: null }
+          - { name: linked_account_id, type: "int | null", default: null }
+      CardResponse:
+        fields:
+          - { name: id, type: int }
+          - { name: card_name, type: str }
+          - { name: bank, type: str }
+          - { name: holder, type: str }
+          - { name: card_type, type: str }
+          - { name: linked_account_id, type: "int | null" }
+          - { name: linked_account_name, type: "str | null" }
+          - { name: user_id, type: int }
+          - { name: created_at, type: datetime }
+
+endpoints:
+  - method: GET
+    path: /cards
+    response_model: "list[CardResponse]"
+    status_code: 200
+    description: "List all cards for current user and group members"
+    logic:
+      - "Get group user IDs via get_group_user_ids()"
+      - "Query cards with joinedload(Card.linked_account)"
+      - "Attach linked_account_name to response"
+
+  - method: POST
+    path: /cards
+    response_model: CardResponse
+    status_code: 201
+    description: "Create a new card"
+    validation:
+      - "card_name and bank must be non-empty after strip"
+      - "If linked_account_id provided: account must exist, be caja_ahorro, card_type must be debito, account not already linked"
+      - "Duplicate detection by (card_name_hmac, bank_hmac, card_type) for same user"
+    logic:
+      - "Strip card_name and bank"
+      - "If holder empty, extract first name from current_user.full_name"
+      - "Compute HMACs for card_name and bank"
+      - "Create Card, commit, return"
+
+  - method: PUT
+    path: "/cards/{card_id}"
+    response_model: CardResponse
+    status_code: 200
+    description: "Update an existing card"
+    logic:
+      - "Card must belong to current_user.id"
+      - "model_dump(exclude_none=True) for partial update"
+      - "Recompute HMACs if card_name or bank changed"
+      - "Validate linked_account_id constraints if being updated"
+
+  - method: DELETE
+    path: "/cards/{card_id}"
+    status_code: 204
+    description: "Delete a card"
+    validation:
+      - "Card must belong to current_user.id"
+      - "Card must have no associated expenses (400 error)"
+    logic:
+      - "Check for existing expenses with this card_id"
+      - "Delete card, commit"
+
+  - method: POST
+    path: /cards/sync-holders
+    status_code: 200
+    description: "Auto-assign holder from user's full_name for cards without one"
+    response: "{ updated: int, total_cards: int }"
+    logic:
+      - "Iterate user's cards"
+      - "Skip cards that already have a holder"
+      - "Set holder = get_first_name(current_user.full_name)"
+
+business_rules:
+  - id: BR-CARDS-01
+    description: "Cards are scoped to user_id. List returns own + group members' cards."
+  - id: BR-CARDS-02
+    description: "Holder defaults to first name extracted from user's full_name (supports 'Perez, Juan' and 'Juan Perez' formats)"
+  - id: BR-CARDS-03
+    description: "Deleting a card with associated expenses is rejected (400). Expenses retain card_id FK."
+  - id: BR-CARDS-04
+    description: "Duplicate detection: same (card_name, bank, card_type) for same user returns 409 with existing_id"
+  - id: BR-CARDS-05
+    description: "Account linking: only debit cards can link to caja_ahorro accounts, 1:1 relationship"
+  - id: BR-CARDS-06
+    description: "Update and delete are scoped to current_user.id only (not full group)"
+
+integrations:
+  - system: telegram_bot
+    type: consumer
+    description: "Bot presents card list for payment method selection (WAITING_CARD_TYPE state)"
+  - system: expenses
+    type: referenced_by
+    description: "Expense.card_id FK references Card.id (ondelete SET NULL)"
+  - system: import
+    type: consumer
+    description: "Import jobs use CardsMappingEntry to assign cards to imported expenses"
+  - system: accounts
+    type: references
+    description: "Card.linked_account_id -> Account.id for debit card/account linking"
+
+migrations:
+  - description: "Initial cards table"
+  - description: "Add HMAC columns (card_name_hmac, bank_hmac)"
+  - description: "Add linked_account_id FK"
+
+tests:
+  - name: "Create card with valid data"
+    type: integration
+    description: "POST /cards with card_name, bank returns 201 with id and auto-populated holder"
+    expected: "Card created, holder matches user's first name"
+  - name: "Duplicate card detection"
+    type: integration
+    description: "POST /cards with same (card_name, bank, card_type) returns 409"
+    expected: "Response contains existing_id"
+  - name: "Delete card with expenses blocked"
+    type: integration
+    description: "DELETE /cards/{id} where card has expenses returns 400"
+    expected: "Card not deleted, error message returned"
+  - name: "List cards includes group members"
+    type: integration
+    description: "GET /cards returns cards from all accepted group members"
+    expected: "Multiple users' cards returned"
+  - name: "Sync holders fills empty holders"
+    type: integration
+    description: "POST /cards/sync-holders updates cards without holder"
+    expected: "updated count matches cards that had empty holder"
+
+documentation:
+  - file: "specs/architecture/data-model.md"
+    section: "Card"
+  - file: "specs/architecture/api-design-rules.md"
+    section: "CRUD Path Patterns"
+
+changelog:
+  - date: "2026-08-16"
+    version: "1.0.0"
+    changes: ["Initial feature spec created"]

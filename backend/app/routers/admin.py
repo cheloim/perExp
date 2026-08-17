@@ -53,7 +53,11 @@ def _get_admin_slug(db: Session) -> str:
 # ──────────────────────────────────────────────
 
 
-@router.get("/slug")
+@router.get(
+    "/slug",
+    summary="Get admin panel slug",
+    description="Return the unique slug URL for accessing the admin panel.",
+)
 def get_slug(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     return {"slug": _get_admin_slug(db)}
 
@@ -85,7 +89,11 @@ class UserListItem(BaseModel):
     lock_ttl: int
 
 
-@router.get("/users")
+@router.get(
+    "/users",
+    summary="List all users",
+    description="Return a paginated list of users with stats, optionally filtered by search query.",
+)
 def list_users(
     search: str = "",
     page: int = 1,
@@ -133,7 +141,11 @@ def list_users(
     return {"users": [r.model_dump() for r in result], "total": total, "page": page}
 
 
-@router.get("/users/{user_id}")
+@router.get(
+    "/users/{user_id}",
+    summary="Get user details",
+    description="Return full user details including stats, security info, and recent audit logs.",
+)
 def get_user(
     user_id: int,
     admin: User = Depends(get_current_admin),
@@ -196,7 +208,11 @@ class BlockRequest(BaseModel):
     reason: str = ""
 
 
-@router.put("/users/{user_id}/block")
+@router.put(
+    "/users/{user_id}/block",
+    summary="Block a user",
+    description="Block a user account with an optional reason. Cannot block yourself.",
+)
 def block_user(
     user_id: int,
     body: BlockRequest,
@@ -215,7 +231,11 @@ def block_user(
     return {"ok": True, "message": f"User {u.email} blocked"}
 
 
-@router.put("/users/{user_id}/unblock")
+@router.put(
+    "/users/{user_id}/unblock",
+    summary="Unblock a user",
+    description="Remove the block from a user account, restoring access.",
+)
 def unblock_user(
     user_id: int,
     admin: User = Depends(get_current_admin),
@@ -231,7 +251,11 @@ def unblock_user(
     return {"ok": True, "message": f"User {u.email} unblocked"}
 
 
-@router.put("/users/{user_id}/admin")
+@router.put(
+    "/users/{user_id}/admin",
+    summary="Toggle admin status",
+    description="Toggle the admin flag on or off for a given user.",
+)
 def toggle_admin(
     user_id: int,
     admin: User = Depends(get_current_admin),
@@ -245,7 +269,11 @@ def toggle_admin(
     return {"ok": True, "is_admin": u.is_admin}
 
 
-@router.post("/users/{user_id}/unlock")
+@router.post(
+    "/users/{user_id}/unlock",
+    summary="Unlock a user account",
+    description="Clear the Redis-based rate-limit lockout for a user.",
+)
 def unlock_user(
     user_id: int,
     admin: User = Depends(get_current_admin),
@@ -272,7 +300,11 @@ class SendNotificationRequest(BaseModel):
     type: str = "admin_message"
 
 
-@router.get("/users/{user_id}/notifications")
+@router.get(
+    "/users/{user_id}/notifications",
+    summary="Get user notifications",
+    description="Return the most recent notifications for a specific user.",
+)
 def get_user_notifications(
     user_id: int,
     admin: User = Depends(get_current_admin),
@@ -301,7 +333,11 @@ def get_user_notifications(
     }
 
 
-@router.post("/users/{user_id}/send-notification")
+@router.post(
+    "/users/{user_id}/send-notification",
+    summary="Send notification to user",
+    description="Send an admin notification message to a specific user.",
+)
 def send_notification_to_user(
     user_id: int,
     body: SendNotificationRequest,
@@ -328,7 +364,11 @@ def send_notification_to_user(
 # ──────────────────────────────────────────────
 
 
-@router.get("/audit-logs")
+@router.get(
+    "/audit-logs",
+    summary="Get audit logs",
+    description="Return paginated audit logs, optionally filtered by user ID and action type.",
+)
 def get_audit_logs(
     user_id: int | None = None,
     action: str = "",
@@ -375,7 +415,11 @@ def get_audit_logs(
     }
 
 
-@router.get("/login-errors")
+@router.get(
+    "/login-errors",
+    summary="Get login error statistics",
+    description="Return failed login stats grouped by user and IP, plus blocked accounts and Redis lockouts.",
+)
 def get_login_errors(
     days: int = 30,
     admin: User = Depends(get_current_admin),
@@ -452,7 +496,11 @@ def get_login_errors(
 # ──────────────────────────────────────────────
 
 
-@router.get("/reports")
+@router.get(
+    "/reports",
+    summary="List monthly reports",
+    description="Return monthly reports filtered by user, month, or status.",
+)
 def get_reports(
     user_id: int | None = None,
     month: str = "",
@@ -488,7 +536,11 @@ def get_reports(
     }
 
 
-@router.delete("/reports/{report_id}")
+@router.delete(
+    "/reports/{report_id}",
+    summary="Delete a report",
+    description="Permanently delete a monthly report by its ID.",
+)
 def delete_report(
     report_id: int,
     admin: User = Depends(get_current_admin),
@@ -502,7 +554,11 @@ def delete_report(
     return {"ok": True}
 
 
-@router.delete("/reports/user/{user_id}/month/{month}")
+@router.delete(
+    "/reports/user/{user_id}/month/{month}",
+    summary="Delete report by user and month",
+    description="Delete a specific user's monthly report for a given month.",
+)
 def delete_report_by_user_month(
     user_id: int,
     month: str,
@@ -526,7 +582,11 @@ class GenerateReportRequest(BaseModel):
     month: str  # YYYY-MM format
 
 
-@router.post("/reports/generate")
+@router.post(
+    "/reports/generate",
+    summary="Generate a monthly report",
+    description="Generate a monthly report for a specific user and month, or regenerate if it failed.",
+)
 def generate_report(
     body: GenerateReportRequest,
     admin: User = Depends(get_current_admin),
@@ -568,7 +628,11 @@ def generate_report(
     return {"ok": True, "report_id": report.id, "status": "PENDING"}
 
 
-@router.post("/reports/generate-all")
+@router.post(
+    "/reports/generate-all",
+    summary="Generate reports for all users",
+    description="Enqueue monthly report generation for every active user for a given month.",
+)
 def generate_all_reports(
     month: str,
     admin: User = Depends(get_current_admin),
@@ -608,7 +672,11 @@ def generate_all_reports(
 # ──────────────────────────────────────────────
 
 
-@router.get("/system/health")
+@router.get(
+    "/system/health",
+    summary="System health check",
+    description="Check connectivity and status of Redis, PostgreSQL, and Celery workers.",
+)
 def system_health(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     # Redis
     redis_ok = False
@@ -652,7 +720,11 @@ def system_health(admin: User = Depends(get_current_admin), db: Session = Depend
     }
 
 
-@router.get("/system/tasks")
+@router.get(
+    "/system/tasks",
+    summary="List scheduled tasks",
+    description="Return the last run time and status for each scheduled background task.",
+)
 def system_tasks(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     tasks = [
         "execute-due-installments-daily",
@@ -683,7 +755,11 @@ def system_tasks(admin: User = Depends(get_current_admin), db: Session = Depends
     return {"tasks": result}
 
 
-@router.get("/system/settings")
+@router.get(
+    "/system/settings",
+    summary="Get all settings",
+    description="Return all key-value settings from the database.",
+)
 def get_settings(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     settings = db.query(Setting).order_by(Setting.key).all()
     return {"settings": [{"key": s.key, "value": s.value} for s in settings]}
@@ -694,7 +770,11 @@ class SettingUpdate(BaseModel):
     value: str
 
 
-@router.put("/system/settings")
+@router.put(
+    "/system/settings",
+    summary="Update a setting",
+    description="Create or update a key-value setting in the database.",
+)
 def update_setting(
     body: SettingUpdate,
     admin: User = Depends(get_current_admin),
@@ -727,7 +807,11 @@ FEATURE_FLAGS = [
 ]
 
 
-@router.get("/feature-flags")
+@router.get(
+    "/feature-flags",
+    summary="List feature flags",
+    description="Return all feature flags with their global override values.",
+)
 def get_feature_flags(
     admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
@@ -750,7 +834,11 @@ class FeatureFlagUpdate(BaseModel):
     value: str  # "on", "off", or "" (empty = respect per-user)
 
 
-@router.put("/feature-flags/{flag_key}")
+@router.put(
+    "/feature-flags/{flag_key}",
+    summary="Update a feature flag",
+    description="Set the global override value for a feature flag (on, off, or empty for per-user).",
+)
 def update_feature_flag(
     flag_key: str,
     body: FeatureFlagUpdate,
@@ -776,7 +864,11 @@ def update_feature_flag(
 # ──────────────────────────────────────────────
 
 
-@router.get("/platform-logs")
+@router.get(
+    "/platform-logs",
+    summary="Get platform logs",
+    description="Return paginated platform logs filtered by level, module, or search term.",
+)
 def get_platform_logs(
     level: str = "",
     module: str = "",
@@ -839,7 +931,11 @@ TASK_NAME_MAP = {
 }
 
 
-@router.post("/system/tasks/{task_name}/run")
+@router.post(
+    "/system/tasks/{task_name}/run",
+    summary="Run a scheduled task",
+    description="Manually trigger a scheduled Celery task by its name.",
+)
 def run_task(
     task_name: str,
     admin: User = Depends(get_current_admin),
@@ -869,7 +965,11 @@ class BulkNotifyRequest(BaseModel):
     body: str
 
 
-@router.post("/bulk/notify")
+@router.post(
+    "/bulk/notify",
+    summary="Send bulk notifications",
+    description="Send a notification to multiple users at once (max 500).",
+)
 def bulk_notify(
     body: BulkNotifyRequest,
     admin: User = Depends(get_current_admin),
@@ -903,7 +1003,11 @@ def bulk_notify(
 # ──────────────────────────────────────────────
 
 
-@router.post("/cleanup/audit-logs")
+@router.post(
+    "/cleanup/audit-logs",
+    summary="Cleanup old audit logs",
+    description="Delete audit logs older than 90 days and impersonation messages older than 45 days.",
+)
 def cleanup_audit_logs(
     admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
@@ -923,7 +1027,11 @@ def cleanup_audit_logs(
 # ──────────────────────────────────────────────
 
 
-@router.post("/impersonate/request/{user_id}")
+@router.post(
+    "/impersonate/request/{user_id}",
+    summary="Request impersonation session",
+    description="Request access to a user's account for support. Sends a notification for user approval.",
+)
 def request_impersonation(
     user_id: int,
     admin: User = Depends(get_current_admin),
@@ -979,7 +1087,11 @@ def request_impersonation(
     return {"ok": True, "session_id": session.id}
 
 
-@router.get("/impersonate/{session_id}/messages")
+@router.get(
+    "/impersonate/{session_id}/messages",
+    summary="Get impersonation messages",
+    description="Return all chat messages for an impersonation session.",
+)
 def get_messages(
     session_id: int,
     admin: User = Depends(get_current_admin),
@@ -1018,7 +1130,11 @@ class MessageRequest(BaseModel):
     message: str
 
 
-@router.post("/impersonate/{session_id}/messages")
+@router.post(
+    "/impersonate/{session_id}/messages",
+    summary="Send impersonation message",
+    description="Send a chat message in an active impersonation session and notify the target user.",
+)
 def send_message(
     session_id: int,
     body: MessageRequest,
@@ -1054,7 +1170,11 @@ def send_message(
     return {"ok": True, "message_id": msg.id}
 
 
-@router.post("/impersonate/end/{session_id}")
+@router.post(
+    "/impersonate/end/{session_id}",
+    summary="End impersonation session",
+    description="End an impersonation session, send a transcript email, and notify the target user.",
+)
 def end_impersonation(
     session_id: int,
     admin: User = Depends(get_current_admin),

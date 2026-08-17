@@ -224,7 +224,12 @@ def _build_category_summary(
 # ─── Budget CRUD ──────────────────────────────────────────────────
 
 
-@router.get("", response_model=list[BudgetResponse])
+@router.get(
+    "",
+    response_model=list[BudgetResponse],
+    summary="List all budgets",
+    description="Return all active budgets for the authenticated user with category details.",
+)
 def list_budgets(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -252,7 +257,12 @@ def list_budgets(
     return result
 
 
-@router.post("", response_model=BudgetResponse)
+@router.post(
+    "",
+    response_model=BudgetResponse,
+    summary="Create or update a budget",
+    description="Create a new budget for a category, or reactivate/update an existing one.",
+)
 def create_budget(
     data: BudgetCreate,
     db: Session = Depends(get_db),
@@ -309,7 +319,12 @@ def create_budget(
     )
 
 
-@router.put("/{budget_id}", response_model=BudgetResponse)
+@router.put(
+    "/{budget_id}",
+    response_model=BudgetResponse,
+    summary="Update a budget",
+    description="Update amount, alert threshold, rollover, or active status of an existing budget.",
+)
 def update_budget(
     budget_id: int,
     data: BudgetUpdate,
@@ -348,7 +363,11 @@ def update_budget(
     )
 
 
-@router.delete("/{budget_id}")
+@router.delete(
+    "/{budget_id}",
+    summary="Delete a budget",
+    description="Permanently remove a budget by its ID.",
+)
 def delete_budget(
     budget_id: int,
     db: Session = Depends(get_db),
@@ -369,7 +388,12 @@ def delete_budget(
 # ─── Summary Endpoint ──────────────────────────────────────────────
 
 
-@router.get("/summary", response_model=BudgetSummaryResponse)
+@router.get(
+    "/summary",
+    response_model=BudgetSummaryResponse,
+    summary="Get budget summary",
+    description="Return budget vs actual spending summary for a given month, grouped by category.",
+)
 def budget_summary(
     month: str | None = None,
     db: Session = Depends(get_db),
@@ -503,7 +527,11 @@ def budget_summary(
 # ─── Auto-Suggestion ──────────────────────────────────────────────
 
 
-@router.get("/suggest")
+@router.get(
+    "/suggest",
+    summary="Suggest budgets from spending",
+    description="Analyze the last 3 months of spending and suggest budget amounts per category.",
+)
 def suggest_budgets(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -580,7 +608,12 @@ def suggest_budgets(
 # ─── Budget Groups (50/30/20) ─────────────────────────────────────
 
 
-@router.get("/groups", response_model=list[BudgetGroupResponse])
+@router.get(
+    "/groups",
+    response_model=list[BudgetGroupResponse],
+    summary="List budget groups",
+    description="Return all active budget groups (50/30/20 or 60/40) with committed and spent amounts.",
+)
 def list_budget_groups(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -670,7 +703,12 @@ def list_budget_groups(
     return result
 
 
-@router.post("/groups", response_model=BudgetGroupResponse)
+@router.post(
+    "/groups",
+    response_model=BudgetGroupResponse,
+    summary="Create a budget group",
+    description="Create a new budget group (necesidades, gustos, or ahorro) with a percentage and amount.",
+)
 def create_budget_group(
     data: BudgetGroupCreate,
     db: Session = Depends(get_db),
@@ -698,7 +736,12 @@ def create_budget_group(
     return group
 
 
-@router.put("/groups/{group_id}", response_model=BudgetGroupResponse)
+@router.put(
+    "/groups/{group_id}",
+    response_model=BudgetGroupResponse,
+    summary="Update a budget group",
+    description="Update percentage, amount, or active status of an existing budget group.",
+)
 def update_budget_group(
     group_id: int,
     data: BudgetGroupUpdate,
@@ -786,7 +829,11 @@ def update_budget_group(
     )
 
 
-@router.post("/groups/init")
+@router.post(
+    "/groups/init",
+    summary="Initialize default budget groups",
+    description="Create default budget groups (60/40 or 50/30/20) based on the provided monthly income.",
+)
 def init_default_groups(
     monthly_income: float,
     db: Session = Depends(get_db),
@@ -835,7 +882,12 @@ def init_default_groups(
 # ─── Budget Events ────────────────────────────────────────────────
 
 
-@router.get("/events", response_model=list[BudgetEventResponse])
+@router.get(
+    "/events",
+    response_model=list[BudgetEventResponse],
+    summary="List budget events",
+    description="Return all active budget events (vacations, trips, etc.) for the current user.",
+)
 def list_budget_events(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -864,7 +916,12 @@ def list_budget_events(
     return result
 
 
-@router.post("/events", response_model=BudgetEventResponse)
+@router.post(
+    "/events",
+    response_model=BudgetEventResponse,
+    summary="Create a budget event",
+    description="Create a new budget event with a date range, total amount, and associated categories.",
+)
 def create_budget_event(
     data: BudgetEventCreate,
     db: Session = Depends(get_db),
@@ -901,7 +958,12 @@ def create_budget_event(
     )
 
 
-@router.put("/events/{event_id}", response_model=BudgetEventResponse)
+@router.put(
+    "/events/{event_id}",
+    response_model=BudgetEventResponse,
+    summary="Update a budget event",
+    description="Update name, total amount, or active status of an existing budget event.",
+)
 def update_budget_event(
     event_id: int,
     data: BudgetEventUpdate,
@@ -940,7 +1002,11 @@ def update_budget_event(
     )
 
 
-@router.delete("/events/{event_id}")
+@router.delete(
+    "/events/{event_id}",
+    summary="Delete a budget event",
+    description="Permanently remove a budget event by its ID.",
+)
 def delete_budget_event(
     event_id: int,
     db: Session = Depends(get_db),
@@ -963,7 +1029,11 @@ def delete_budget_event(
 # ─── Category Group Assignment ──────────────────────────────────
 
 
-@router.put("/category-group/{category_id}")
+@router.put(
+    "/category-group/{category_id}",
+    summary="Assign category to budget group",
+    description="Assign a category to a macro group: necesidades, gustos, or ahorro.",
+)
 def update_category_group(
     category_id: int,
     group_name: str,
@@ -1083,7 +1153,11 @@ def auto_assign_budget_group(category_name: str) -> str:
     return "necesidades"  # default
 
 
-@router.post("/auto-assign-groups")
+@router.post(
+    "/auto-assign-groups",
+    summary="Auto-assign categories to groups",
+    description="Automatically assign all user categories to macro groups based on name keywords.",
+)
 def auto_assign_all_categories(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -1103,7 +1177,11 @@ def auto_assign_all_categories(
 # ─── Budget Config ──────────────────────────────────────────────
 
 
-@router.get("/config")
+@router.get(
+    "/config",
+    summary="Get budget configuration",
+    description="Return budget feature flags such as whether the ahorro group is enabled.",
+)
 def get_budget_config():
     """Return budget configuration flags."""
     ahorro_enabled = os.getenv("BUDGET_AHORRO_ENABLED", "false").lower() == "true"
@@ -1113,7 +1191,11 @@ def get_budget_config():
 # ─── Link Expenses to Event ─────────────────────────────────────
 
 
-@router.post("/events/{event_id}/link-expenses")
+@router.post(
+    "/events/{event_id}/link-expenses",
+    summary="Link expenses to event",
+    description="Link a list of expenses to a budget event and update its spent amount.",
+)
 def link_expenses_to_event(
     event_id: int,
     expense_ids: list[int],
@@ -1153,7 +1235,11 @@ def link_expenses_to_event(
     return {"ok": True, "spent": total_spent}
 
 
-@router.get("/events/{event_id}/expenses")
+@router.get(
+    "/events/{event_id}/expenses",
+    summary="Get event expenses",
+    description="Return all expenses in an event's date range, indicating which are linked to it.",
+)
 def get_event_expenses(
     event_id: int,
     db: Session = Depends(get_db),

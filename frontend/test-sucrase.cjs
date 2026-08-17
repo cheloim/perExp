@@ -1,4 +1,4 @@
-const sucrase = require('./node_modules/sucrase');
+const sucrase = require("./node_modules/sucrase");
 
 const tests = [
   "{ a: 'var(--c)' }",
@@ -10,11 +10,11 @@ const tests = [
   "{ base: 'var(--base)', surface: 'var(--surface)' }",
 ];
 
-tests.forEach(t => {
+tests.forEach((t) => {
   try {
-    sucrase.transform(t, { transforms: ['typescript'] });
-    console.log('OK:', t);
-  } catch(e) {
-    console.log('FAIL:', t, '| col:', e.loc?.column);
+    sucrase.transform(t, { transforms: ["typescript"] });
+    console.log("OK:", t);
+  } catch (e) {
+    console.log("FAIL:", t, "| col:", e.loc?.column);
   }
 });

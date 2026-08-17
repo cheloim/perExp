@@ -1,0 +1,321 @@
+feature: admin-panel
+domain: Administration
+version: "1.0"
+status: implemented
+owner: full-stack
+created: 2026-08-16
+updated: 2026-08-16
+
+# === WHAT ===
+description: |
+  Administrative panel for platform management including user oversight,
+  audit logging, and support impersonation. Restricted to users with
+  is_admin=true flag. Provides tools for user support, debugging, and
+  compliance audit trails.
+
+# === REQUIREMENTS ===
+requirements:
+  functional:
+    - id: FR-1
+      requirement: List all users with account status and metadata
+      priority: must
+    - id: FR-2
+      requirement: View audit logs with filtering by action, user, date
+      priority: must
+    - id: FR-3
+      requirement: Impersonate users for support purposes
+      priority: must
+    - id: FR-4
+      requirement: Log all admin actions to AuditLog
+      priority: must
+    - id: FR-5
+      requirement: Block/unblock user accounts
+      priority: should
+  non_functional:
+    - id: NFR-1
+      requirement: Admin endpoints must verify is_admin=true on every request
+      priority: must
+    - id: NFR-2
+      requirement: Impersonation sessions must expire after 1 hour
+      priority: must
+    - id: NFR-3
+      requirement: Audit logs must be immutable (no delete/update)
+      priority: must
+
+# === PRE-EVALUATION ===
+pre_evaluation:
+  dependencies:
+    - User.is_admin field exists
+    - AuditLog table exists
+    - ImpersonationSession/ImpersonationMessage tables exist
+  data_requirements:
+    - No schema changes needed
+  api_changes:
+    - GET /admin/users - list users
+    - GET /admin/audit-logs - list audit logs
+    - POST /admin/impersonate - start impersonation session
+  ui_changes:
+    - AdminPage with user management
+    - AuditLogViewer component
+    - ImpersonationBanner component
+  migration_needed: false
+  rebuild_required:
+    backend: true
+    frontend: true
+  risks:
+    - Impersonation could be abused if admin account compromised
+    - Audit log volume could grow significantly
+  open_questions:
+    - Should impersonation require MFA confirmation?
+
+# === WHO ===
+users:
+  - role: admin
+    can: [list, impersonate, block, view_logs]
+
+# === DATA ===
+entities:
+  - name: AuditLog
+    description: Immutable record of admin and system actions
+    fields:
+      - name: id
+        type: integer
+        required: true
+        description: Primary key
+        constraints: [primary_key]
+      - name: user_id
+        type: integer
+        required: false
+        description: User who performed action
+        constraints: [foreign_key: users.id]
+      - name: action
+        type: string
+        required: true
+        description: Action type (login, create_expense, admin_impersonate, etc.)
+        constraints: [indexed]
+      - name: ip_address
+        type: string
+        required: false
+        description: Client IP (encrypted)
+      - name: user_agent
+        type: string
+        required: false
+        description: Client user agent (encrypted)
+      - name: details
+        type: text
+        required: false
+        description: Additional context (JSON)
+      - name: created_at
+        type: datetime
+        required: false
+        description: Action timestamp
+    relationships:
+      - type: many-to-one
+        target: User
+        via: user_id
+        ondelete: SET NULL
+  - name: ImpersonationSession
+    description: Admin impersonation session for support
+    fields:
+      - name: id
+        type: integer
+        required: true
+        description: Primary key
+        constraints: [primary_key]
+      - name: admin_id
+        type: integer
+        required: true
+        description: Admin user
+        constraints: [foreign_key: users.id]
+      - name: target_user_id
+        type: integer
+        required: true
+        description: User being impersonated
+        constraints: [foreign_key: users.id]
+      - name: status
+        type: string
+        required: false
+        default: active
+        description: Session status (active/expired/terminated)
+      - name: token
+        type: string
+        required: true
+        description: Session token
+        constraints: [unique]
+      - name: expires_at
+        type: datetime
+        required: true
+        description: Session expiry time
+    relationships:
+      - type: many-to-one
+        target: User
+        via: admin_id
+      - type: many-to-one
+        target: User
+        via: target_user_id
+
+# === API ===
+endpoints:
+  - method: GET
+    path: /admin/users
+    summary: List all users (admin only)
+    auth: required (admin)
+    query_params:
+      - name: search
+        type: string
+        description: Search by email or name
+      - name: status
+        type: string
+        description: Filter by status (active/blocked)
+    response:
+      type: array
+      items: UserAdminResponse
+    errors:
+      - status: 401
+        condition: Missing or invalid token
+      - status: 403
+        condition: User is not admin
+
+  - method: GET
+    path: /admin/audit-logs
+    summary: View audit logs (admin only)
+    auth: required (admin)
+    query_params:
+      - name: action
+        type: string
+        description: Filter by action type
+      - name: user_id
+        type: integer
+        description: Filter by user
+      - name: since
+        type: datetime
+        description: Filter from date
+      - name: until
+        type: datetime
+        description: Filter to date
+    response:
+      type: array
+      items: AuditLogResponse
+    errors:
+      - status: 403
+        condition: User is not admin
+
+  - method: POST
+    path: /admin/impersonate
+    summary: Start impersonation session for support
+    auth: required (admin)
+    request:
+      target_user_id: integer
+    response: ImpersonationSessionResponse
+    status: 201
+    validation:
+      - target_user_id must reference existing user
+      - Cannot impersonate other admins
+    errors:
+      - status: 403
+        condition: User is not admin
+      - status: 409
+        condition: Active impersonation session already exists
+
+# === BUSINESS RULES ===
+business_rules:
+  - id: BR-1
+    rule: All admin endpoints require is_admin=true on the authenticated user
+    enforced_in: router (dependency injection)
+    rationale: Prevents unauthorized access to admin functions
+  - id: BR-2
+    rule: Every admin action is logged to AuditLog with action, user_id, ip_address, details
+    enforced_in: router (middleware)
+    rationale: Compliance and debugging audit trail
+  - id: BR-3
+    rule: Impersonation sessions expire after 1 hour (expires_at = now + 1h)
+    enforced_in: service
+    rationale: Limits exposure window if admin forgets to end session
+  - id: BR-4
+    rule: Admins cannot impersonate other admins
+    enforced_in: service
+    rationale: Prevents privilege escalation
+  - id: BR-5
+    rule: Impersonation grants full access to target user's data within session scope
+    enforced_in: service
+    rationale: Admin needs full context for effective support
+
+# === UI ===
+frontend:
+  pages:
+    - name: AdminPage
+      route: /admin
+      components: [UserList, AuditLogViewer, ImpersonationControls]
+    - name: AdminUsers
+      route: /admin/users
+      components: [UserTable, UserSearch, BlockUserButton]
+  interactions:
+    - action: Admin clicks "Impersonate" on user row
+      result: Impersonation session started, UI shows impersonation banner
+    - action: Admin views audit logs
+      result: Filterable table of all admin actions
+    - action: Admin blocks user
+      result: User.is_blocked set to true, logged to audit
+
+# === INTEGRATIONS ===
+integrations:
+  - system: auth
+    how: Impersonation creates temporary session token scoped to target user
+  - system: telegram_bot
+    how: Impersonation allows admin to send messages as user in Telegram
+
+# === MIGRATIONS ===
+migrations: []
+
+# === TESTS ===
+tests:
+  - id: T-1
+    scenario: Admin can list users
+    type: integration
+    given: Admin user authenticated
+    when: GET /admin/users
+    then: Returns user list with 200
+    priority: high
+  - id: T-2
+    scenario: Non-admin blocked from admin endpoints
+    type: integration
+    given: Regular user authenticated
+    when: GET /admin/users
+    then: Returns 403 Forbidden
+    priority: high
+  - id: T-3
+    scenario: Admin impersonation creates session
+    type: unit
+    given: Admin user and target user exist
+    when: POST /admin/impersonate with target_user_id
+    then: ImpersonationSession created with 1h expiry
+    priority: high
+  - id: T-4
+    scenario: Cannot impersonate other admins
+    type: unit
+    given: Two admin users exist
+    when: Admin A tries to impersonate Admin B
+    then: Returns 400 error
+    priority: high
+  - id: T-5
+    scenario: Audit log created for admin action
+    type: integration
+    given: Admin performs any admin action
+    when: Action completes
+    then: AuditLog entry created with action, user_id, timestamp
+    priority: high
+
+# === DOCUMENTATION DELIVERABLES ===
+documentation:
+  - file: docs/admin.md
+    action: create
+    description: Document admin access requirements, impersonation flow, audit log format
+  - file: docs/Roadmap.md
+    action: update
+    description: Mark admin panel as Done
+
+# === SPEC HISTORY ===
+changelog:
+  - date: 2026-08-16
+    version: "1.0"
+    change: Initial spec created

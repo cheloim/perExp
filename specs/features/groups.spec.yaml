@@ -1,0 +1,272 @@
+# Feature: Family Groups
+# Status: Implemented
+# Date: 2026-08-16
+
+metadata:
+  name: "Family Groups"
+  id: "groups"
+  version: "1.0.0"
+  status: "implemented"
+  created: "2026-08-16"
+  updated: "2026-08-16"
+  owner: "Oikonomia Team"
+  tags: ["groups", "family", "sharing", "collaboration"]
+
+description: >
+  Enables users to create and join family groups for shared expense tracking.
+  Group members can see each other's expenses, and card holders are synced
+  across the group. The group owner manages membership. Joining is done via
+  a unique invite code.
+
+requirements:
+  - "User must be authenticated to create or join a group"
+  - "Each user can belong to only one group at a time"
+  - "Invite codes are unique and auto-generated"
+  - "Group owner can remove members"
+
+pre_evaluation:
+  questions:
+    - question: "Can a user belong to multiple groups?"
+      answer: "No, one group per user in v1"
+    - question: "How are invite codes generated?"
+      answer: "Random 8-character alphanumeric string, unique constraint on groups.invite_code"
+    - question: "What data is shared within a group?"
+      answer: "Expenses and card holders are visible to all group members"
+
+users:
+  - role: "group_owner"
+    description: "User who created the group; can manage members and sync holders"
+    permissions:
+      - "create_group"
+      - "view_group"
+      - "remove_members"
+      - "sync_holders"
+  - role: "group_member"
+    description: "User who joined a group via invite code"
+    permissions:
+      - "view_group"
+      - "view_shared_expenses"
+      - "leave_group"
+
+entities:
+  - name: "Group"
+    table: "groups"
+    description: "A family group that shares expense data"
+    fields:
+      - name: "id"
+        type: "integer"
+        primary_key: true
+        auto_increment: true
+      - name: "name"
+        type: "string"
+        required: true
+        description: "Group display name"
+      - name: "invite_code"
+        type: "string"
+        unique: true
+        required: true
+        description: "Unique code for joining the group"
+      - name: "owner_id"
+        type: "integer"
+        foreign_key: "users.id"
+        required: true
+        description: "The user who created and manages the group"
+    indexes:
+      - columns: ["invite_code"]
+      - columns: ["owner_id"]
+
+  - name: "GroupMember"
+    table: "group_members"
+    description: "Association between a user and a group"
+    fields:
+      - name: "id"
+        type: "integer"
+        primary_key: true
+        auto_increment: true
+      - name: "group_id"
+        type: "integer"
+        foreign_key: "groups.id"
+        required: true
+      - name: "user_id"
+        type: "integer"
+        foreign_key: "users.id"
+        required: true
+        unique: true
+      - name: "role"
+        type: "string"
+        enum: ["owner", "member"]
+        default: "member"
+    indexes:
+      - columns: ["group_id"]
+      - columns: ["user_id"]
+
+endpoints:
+  - method: "POST"
+    path: "/groups"
+    description: "Create a new family group"
+    auth: "required"
+    request_body:
+      name:
+        type: "string"
+        required: true
+        description: "Group name"
+    response:
+      status: 201
+      body:
+        group: "Group object"
+        invite_code: "string"
+    errors:
+      - status: 400
+        description: "User already belongs to a group"
+
+  - method: "GET"
+    path: "/groups"
+    description: "Get the current user's group and members"
+    auth: "required"
+    response:
+      status: 200
+      body:
+        group: "Group object"
+        members: "array of GroupMember objects"
+    errors:
+      - status: 404
+        description: "User does not belong to any group"
+
+  - method: "POST"
+    path: "/groups/join"
+    description: "Join an existing group using an invite code"
+    auth: "required"
+    request_body:
+      invite_code:
+        type: "string"
+        required: true
+    response:
+      status: 200
+      body:
+        group: "Group object"
+    errors:
+      - status: 400
+        description: "User already belongs to a group"
+      - status: 404
+        description: "Invalid invite code"
+
+  - method: "DELETE"
+    path: "/groups/members/{id}"
+    description: "Remove a member from the group (owner only)"
+    auth: "required"
+    path_params:
+      - name: "id"
+        type: "integer"
+        required: true
+        description: "GroupMember ID to remove"
+    response:
+      status: 204
+    errors:
+      - status: 403
+        description: "Only the group owner can remove members"
+      - status: 404
+        description: "Member not found"
+
+  - method: "POST"
+    path: "/groups/sync-holders"
+    description: "Sync card holders from group members' cards"
+    auth: "required"
+    response:
+      status: 200
+      body:
+        synced: "integer"
+    errors:
+      - status: 403
+        description: "Only the group owner can sync holders"
+
+business_rules:
+  - name: "Single Group Membership"
+    description: "A user can only belong to one group at a time; creating or joining a new group requires leaving the current one"
+  - name: "Invite Code Uniqueness"
+    description: "Each group has a unique 8-character alphanumeric invite code generated on creation"
+  - name: "Owner Permissions"
+    description: "Only the group owner can remove members and trigger holder sync"
+  - name: "Data Sharing"
+    description: "All expenses and card holders within a group are visible to every member"
+  - name: "Holder Sync"
+    description: "sync-holders updates card holder names based on group members' full_name"
+
+frontend:
+  components:
+    - name: "GroupPage"
+      path: "frontend/src/pages/Group.tsx"
+      description: "Group management page showing members and invite code"
+    - name: "GroupCreateForm"
+      path: "frontend/src/components/GroupCreateForm.tsx"
+      description: "Form to create a new group"
+    - name: "GroupJoinForm"
+      path: "frontend/src/components/GroupJoinForm.tsx"
+      description: "Form to join a group via invite code"
+    - name: "MembersList"
+      path: "frontend/src/components/MembersList.tsx"
+      description: "List of group members with remove action for owner"
+
+integrations: []
+
+migrations: []
+
+tests:
+  - name: "Create group"
+    type: "integration"
+    description: "User can create a new family group"
+    steps:
+      - "POST /groups with {name: 'My Family'}"
+      - "Assert 201 response with group and invite_code"
+      - "Assert creator is added as owner member"
+    expected: "Group created with owner as member"
+
+  - name: "Join group with invite code"
+    type: "integration"
+    description: "User can join an existing group using invite code"
+    steps:
+      - "User A creates a group"
+      - "User B joins with POST /groups/join {invite_code: '...'}"
+      - "GET /groups as User B — assert group membership"
+    expected: "User B is now a member of User A's group"
+
+  - name: "Owner removes member"
+    type: "integration"
+    description: "Group owner can remove a member"
+    steps:
+      - "User A (owner) removes User B"
+      - "DELETE /groups/members/{member_id}"
+      - "GET /groups — assert User B no longer listed"
+    expected: "Member removed from group"
+
+  - name: "Non-owner cannot remove members"
+    type: "integration"
+    description: "Only the owner can remove members"
+    steps:
+      - "Authenticate as User B (member)"
+      - "DELETE /groups/members/{id}"
+      - "Assert 403 Forbidden"
+    expected: "Action denied for non-owner"
+
+  - name: "Cannot join two groups"
+    type: "integration"
+    description: "User already in a group cannot join another"
+    steps:
+      - "User A creates Group 1, User B joins"
+      - "User C creates Group 2"
+      - "User B tries to join Group 2"
+      - "Assert 400 error"
+    expected: "Join rejected — user already in a group"
+
+documentation:
+  - type: "api"
+    description: "Group endpoints documented in OpenAPI spec"
+  - type: "user_guide"
+    description: "How to create and manage family groups"
+
+changelog:
+  - version: "1.0.0"
+    date: "2026-08-16"
+    changes:
+      - "Initial family groups implementation"
+      - "Group CRUD and invite code system"
+      - "Member management and holder sync"

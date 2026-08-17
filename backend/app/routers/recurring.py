@@ -55,7 +55,12 @@ class RecurringCreate(BaseModel):
     alert_days_before: int = 3
 
 
-@router.get("", response_model=list[RecurringResponse])
+@router.get(
+    "",
+    response_model=list[RecurringResponse],
+    summary="List recurring expenses",
+    description="Return recurring expenses filtered by status: active, paused, or all.",
+)
 def list_recurring(
     status: str = "active",
     db: Session = Depends(get_db),
@@ -73,7 +78,12 @@ def list_recurring(
     return q.order_by(RecurringExpense.next_charge_date.asc().nullslast()).all()
 
 
-@router.get("/auto-detected", response_model=list[RecurringResponse])
+@router.get(
+    "/auto-detected",
+    response_model=list[RecurringResponse],
+    summary="List auto-detected recurring expenses",
+    description="Return recurring expenses that were automatically detected from spending patterns.",
+)
 def list_auto_detected(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
@@ -91,7 +101,13 @@ def list_auto_detected(
     )
 
 
-@router.post("", response_model=RecurringResponse, status_code=201)
+@router.post(
+    "",
+    response_model=RecurringResponse,
+    status_code=201,
+    summary="Create a recurring expense",
+    description="Create a new manually-defined recurring expense with frequency and alert settings.",
+)
 def create_recurring(
     data: RecurringCreate,
     db: Session = Depends(get_db),
@@ -118,7 +134,12 @@ def create_recurring(
     return new
 
 
-@router.put("/{recurring_id}", response_model=RecurringResponse)
+@router.put(
+    "/{recurring_id}",
+    response_model=RecurringResponse,
+    summary="Update a recurring expense",
+    description="Update amount, frequency, next charge date, alert settings, or category of a recurring expense.",
+)
 def update_recurring(
     recurring_id: int,
     data: RecurringUpdate,
@@ -146,7 +167,12 @@ def update_recurring(
     return rec
 
 
-@router.post("/{recurring_id}/confirm", response_model=RecurringResponse)
+@router.post(
+    "/{recurring_id}/confirm",
+    response_model=RecurringResponse,
+    summary="Confirm auto-detected recurring expense",
+    description="Confirm an auto-detected recurring expense, changing its source to manual.",
+)
 def confirm_recurring(
     recurring_id: int,
     data: RecurringUpdate | None = None,
@@ -177,7 +203,11 @@ def confirm_recurring(
     return rec
 
 
-@router.post("/{recurring_id}/pause")
+@router.post(
+    "/{recurring_id}/pause",
+    summary="Toggle pause/resume recurring expense",
+    description="Toggle the active state of a recurring expense between paused and active.",
+)
 def pause_recurring(
     recurring_id: int,
     db: Session = Depends(get_db),
@@ -202,7 +232,11 @@ def pause_recurring(
     return {"detail": f"Recurrente {status}", "is_active": rec.is_active}
 
 
-@router.delete("/{recurring_id}")
+@router.delete(
+    "/{recurring_id}",
+    summary="Delete a recurring expense",
+    description="Permanently remove a recurring expense by its ID.",
+)
 def delete_recurring(
     recurring_id: int,
     db: Session = Depends(get_db),
@@ -225,7 +259,11 @@ def delete_recurring(
     return {"detail": "Recurrente eliminado"}
 
 
-@router.put("/dismiss-banner")
+@router.put(
+    "/dismiss-banner",
+    summary="Dismiss auto-detected banner",
+    description="Dismiss the banner prompting the user to review auto-detected recurring expenses.",
+)
 def dismiss_auto_detected_banner(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),

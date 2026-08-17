@@ -1,0 +1,397 @@
+metadata:
+  name: expenses
+  title: "Expense Tracking"
+  version: "1.0.0"
+  status: implemented
+  created: "2026-08-16"
+  updated: "2026-08-16"
+  owner: backend
+  tags: [expenses, transactions, finance, core]
+
+description: |
+  Core expense and income tracking. Expenses are the central entity of the system,
+  linking to cards, accounts, and categories. Supports filtering by date range,
+  category, bank, person, card, and installment status. Includes bulk operations,
+  auto-categorization, installment detection, and analytics endpoints.
+
+requirements:
+  functional:
+    - id: EXP-F01
+      description: "Create expense with description, amount, date, optional card/account/category"
+      priority: must
+    - id: EXP-F02
+      description: "List expenses scoped to user's family group with rich filtering"
+      priority: must
+    - id: EXP-F03
+      description: "Update expense fields (partial update)"
+      priority: must
+    - id: EXP-F04
+      description: "Delete single expense"
+      priority: must
+    - id: EXP-F05
+      description: "Bulk delete multiple expenses by ID list"
+      priority: must
+    - id: EXP-F06
+      description: "Bulk assign category to multiple expenses"
+      priority: must
+    - id: EXP-F07
+      description: "Auto-categorize expense by keyword matching on categories"
+      priority: must
+    - id: EXP-F08
+      description: "Filter by month, date range, category, bank, person, card, installment, account"
+      priority: must
+    - id: EXP-F09
+      description: "Computed fields: category_name, category_color, card, bank, person"
+      priority: must
+    - id: EXP-F10
+      description: "Analytics: stats, by-category, by-person, trend endpoints"
+      priority: should
+    - id: EXP-F11
+      description: "Installment detection and grouping"
+      priority: should
+    - id: EXP-F12
+      description: "Duplicate detection for import"
+      priority: should
+    - id: EXP-F13
+      description: "Merchant preference tracking for auto-categorization"
+      priority: should
+
+  non-functional:
+    - id: EXP-NF01
+      description: "Expense list with filters returns within 300ms for up to 10k records"
+      priority: should
+    - id: EXP-NF02
+      description: "Encrypted fields (description, notes) never logged in plaintext"
+      priority: must
+    - id: EXP-NF03
+      description: "Application-level filtering for encrypted fields (bank, person, card)"
+      priority: must
+
+pre-evaluation:
+  auth: "JWT token required (Depends(get_current_user))"
+  database: "PostgreSQL via SQLAlchemy session (Depends(get_db))"
+  group_scoping: "Uses get_group_user_ids() for read operations"
+  dependencies: "joinedload for card_rel, category, account_rel"
+
+users:
+  - role: authenticated_user
+    actions: [create, read, update, delete, bulk_delete, bulk_category, analytics]
+    scope: own_expenses + group_members_expenses (read only)
+
+entities:
+  - name: Expense
+    table: expenses
+    fields:
+      - name: id
+        type: Integer
+        constraints: [PK, auto-increment]
+      - name: date
+        type: Date
+        constraints: [NOT NULL]
+      - name: description
+        type: EncryptedType
+        constraints: [NOT NULL]
+        notes: "Merchant name or transaction description"
+      - name: description_hmac
+        type: String(64)
+        constraints: [nullable, indexed]
+      - name: amount
+        type: Float
+        constraints: [NOT NULL]
+      - name: category_id
+        type: Integer
+        constraints: [FK -> categories.id, nullable]
+      - name: notes
+        type: EncryptedType
+        constraints: [default ""]
+      - name: transaction_id
+        type: String
+        constraints: [nullable, indexed]
+        notes: "Bank reference ID"
+      - name: currency
+        type: String
+        constraints: [default "ARS"]
+        values: [ARS, USD]
+      - name: installment_number
+        type: Integer
+        constraints: [nullable]
+      - name: installment_total
+        type: Integer
+        constraints: [nullable]
+      - name: installment_group_id
+        type: String
+        constraints: [nullable, indexed]
+        notes: "Groups related installment expenses"
+      - name: user_id
+        type: Integer
+        constraints: [FK -> users.id, NOT NULL]
+      - name: account_id
+        type: Integer
+        constraints: [FK -> accounts.id, nullable]
+      - name: card_id
+        type: Integer
+        constraints: [FK -> cards.id, nullable]
+      - name: budget_event_id
+        type: Integer
+        constraints: [FK -> budget_events.id, nullable]
+      - name: is_income
+        type: Boolean
+        constraints: [NOT NULL, default False]
+    indexes:
+      - columns: [user_id, date]
+      - columns: [user_id, category_id]
+      - columns: [user_id, installment_group_id]
+      - columns: [user_id]
+      - columns: [card_id]
+      - columns: [category_id]
+      - columns: [account_id]
+      - columns: [is_income]
+    relationships:
+      - { name: category, target: Category, back_populates: expenses }
+      - { name: account_rel, target: Account }
+      - { name: card_rel, target: Card }
+
+    schemas:
+      ExpenseCreate:
+        fields:
+          - { name: description, type: str, required: true }
+          - { name: amount, type: float, required: true }
+          - { name: date, type: "date | str", required: true }
+          - { name: notes, type: str, default: "" }
+          - { name: is_income, type: bool, default: false }
+          - { name: card_id, type: "int | null", default: null }
+          - { name: account_id, type: "int | null", default: null }
+          - { name: category_id, type: "int | null", default: null }
+          - { name: currency, type: str, default: "ARS" }
+          - { name: installment_number, type: "int | null", default: null }
+          - { name: installment_total, type: "int | null", default: null }
+          - { name: installment_group_id, type: "str | null", default: null }
+          - { name: transaction_id, type: "str | null", default: null }
+      ExpenseUpdate:
+        description: "All fields optional for partial update"
+        fields:
+          - { name: description, type: "str | null", default: null }
+          - { name: amount, type: "float | null", default: null }
+          - { name: date, type: "date | str | null", default: null }
+          - { name: notes, type: "str | null", default: null }
+          - { name: is_income, type: "bool | null", default: null }
+          - { name: card_id, type: "int | null", default: null }
+          - { name: account_id, type: "int | null", default: null }
+          - { name: category_id, type: "int | null", default: null }
+          - { name: currency, type: "str | null", default: null }
+      ExpenseResponse:
+        fields:
+          - { name: id, type: int }
+          - { name: date, type: date }
+          - { name: description, type: str }
+          - { name: amount, type: float }
+          - { name: notes, type: str }
+          - { name: is_income, type: bool }
+          - { name: card_id, type: "int | null" }
+          - { name: account_id, type: "int | null" }
+          - { name: category_id, type: "int | null" }
+          - { name: user_id, type: int }
+          - { name: currency, type: str }
+          - { name: installment_number, type: "int | null" }
+          - { name: installment_total, type: "int | null" }
+          - { name: installment_group_id, type: "str | null" }
+          - { name: transaction_id, type: "str | null" }
+          - { name: budget_event_id, type: "int | null" }
+          - { name: created_at, type: datetime }
+          - { name: category_name, type: "str | null", computed: true }
+          - { name: category_color, type: "str | null", computed: true }
+          - { name: card, type: "str | null", computed: true, notes: "card_name from Card" }
+          - { name: bank, type: "str | null", computed: true, notes: "bank from Card" }
+          - { name: person, type: "str | null", computed: true, notes: "holder from Card" }
+          - { name: account_name, type: "str | null", computed: true }
+
+endpoints:
+  - method: GET
+    path: /expenses
+    response_model: "list[ExpenseResponse]"
+    status_code: 200
+    description: "List expenses with filtering and pagination"
+    query_params:
+      - { name: date_from, type: "date | null" }
+      - { name: date_to, type: "date | null" }
+      - { name: month, type: "str | null", notes: "YYYY-MM format" }
+      - { name: category_id, type: "int | null" }
+      - { name: category_ids, type: "str | null", notes: "Comma-separated IDs" }
+      - { name: uncategorized, type: "bool", default: false }
+      - { name: bank, type: "str | null" }
+      - { name: person, type: "str | null" }
+      - { name: card, type: "str | null" }
+      - { name: card_type, type: "str | null" }
+      - { name: installment, type: "bool | null" }
+      - { name: account, type: "str | null" }
+      - { name: account_id, type: "int | null" }
+      - { name: skip, type: int, default: 0 }
+      - { name: limit, type: int, default: 200 }
+    logic:
+      - "Get group user IDs"
+      - "joinedload card_rel, category, account_rel"
+      - "Apply date/month filters at DB level"
+      - "Apply category filters at DB level"
+      - "Application-level filtering for bank, person, card (decrypt then filter)"
+      - "Order by date desc, offset/limit"
+
+  - method: GET
+    path: /expenses/uncategorized-count
+    description: "Count expenses without category"
+    response: "{ count: int }"
+
+  - method: GET
+    path: /expenses/distinct-values
+    description: "Get distinct values for filtering UI"
+
+  - method: GET
+    path: /expenses/card-options
+    description: "Get card options for expense form"
+
+  - method: GET
+    path: /expenses/check-duplicate
+    description: "Check if expense already exists (for import)"
+
+  - method: POST
+    path: /expenses
+    response_model: ExpenseResponse
+    status_code: 201
+    description: "Create a new expense"
+    logic:
+      - "Strip description"
+      - "Normalize date string"
+      - "If category_id not provided, auto-categorize via keyword matching"
+      - "Compute description HMAC"
+      - "Track merchant preference if category assigned"
+      - "Create Expense, commit, return with computed fields"
+
+  - method: PUT
+    path: "/expenses/{exp_id}"
+    response_model: ExpenseResponse
+    status_code: 200
+    description: "Update an existing expense"
+    logic:
+      - "Expense must belong to current_user.id"
+      - "model_dump(exclude_none=True)"
+      - "Recompute HMAC if description changed"
+      - "Track merchant preference if category changed"
+
+  - method: DELETE
+    path: "/expenses/{exp_id}"
+    status_code: 204
+    description: "Delete a single expense"
+
+  - method: POST
+    path: /expenses/bulk-delete
+    description: "Delete multiple expenses by ID list"
+    request: "{ ids: list[int] }"
+    response: "{ deleted: int }"
+
+  - method: POST
+    path: /expenses/bulk-category
+    description: "Assign category to multiple expenses"
+    request: "{ ids: list[int], category_id: int }"
+    response: "{ updated: int }"
+
+  - method: POST
+    path: /expenses/recategorize
+    description: "Re-run auto-categorization on uncategorized expenses"
+
+  - method: PATCH
+    path: /expenses/bulk-update
+    description: "Bulk update expense fields"
+
+  - method: POST
+    path: /expenses/detect-installments
+    description: "Detect installment patterns in expenses"
+
+  - method: GET
+    path: /expenses/stats
+    description: "Expense statistics summary"
+
+  - method: GET
+    path: /expenses/by-category
+    description: "Breakdown by category"
+
+  - method: GET
+    path: /expenses/by-person
+    description: "Breakdown by card holder"
+
+  - method: GET
+    path: /expenses/trend
+    description: "Monthly spending trend"
+
+business_rules:
+  - id: BR-EXP-01
+    description: "Expenses are scoped to user's family group for reads, current_user.id for writes"
+  - id: BR-EXP-02
+    description: "Auto-categorization: match expense description against category.keywords (comma-separated)"
+  - id: BR-EXP-03
+    description: "Computed fields (card, bank, person, category_name, category_color) are resolved at response time from joined relationships"
+  - id: BR-EXP-04
+    description: "Merchant preferences tracked: when user assigns category, MerchantPreference upserted with confidence tracking"
+  - id: BR-EXP-05
+    description: "Date normalization: supports multiple date formats via _normalize_date_str()"
+  - id: BR-EXP-06
+    description: "Duplicate detection for import: uses _is_duplicate() with normalized text comparison"
+  - id: BR-EXP-07
+    description: "Installments: grouped by installment_group_id, each has installment_number/total"
+
+integrations:
+  - system: cards
+    type: references
+    description: "Expense.card_id -> Card.id for card/bank/person fields"
+  - system: accounts
+    type: references
+    description: "Expense.account_id -> Account.id"
+  - system: categories
+    type: references
+    description: "Expense.category_id -> Category.id for auto-categorization and display"
+  - system: import
+    type: created_by
+    description: "Import jobs create expenses in bulk via confirm endpoint"
+  - system: telegram_bot
+    type: created_by
+    description: "Bot creates expenses from conversational flow"
+  - system: budgets
+    type: references
+    description: "Expense.budget_event_id -> BudgetEvent.id for event budget tracking"
+
+migrations:
+  - description: "Initial expenses table"
+  - description: "Add installment fields (installment_number, installment_total, installment_group_id)"
+  - description: "Add HMAC columns"
+  - description: "Add budget_event_id FK"
+
+tests:
+  - name: "Create expense with auto-categorization"
+    type: integration
+    description: "POST /expenses with description matching a category keyword"
+    expected: "category_id auto-assigned from matching keyword"
+  - name: "Filter by month"
+    type: integration
+    description: "GET /expenses?month=2026-08 returns only August 2026 expenses"
+    expected: "All returned expenses have date in August 2026"
+  - name: "Filter by bank (encrypted field)"
+    type: integration
+    description: "GET /expenses?bank=Galicia filters via application-level decryption"
+    expected: "Only expenses with card.bank matching 'Galicia' returned"
+  - name: "Bulk delete"
+    type: integration
+    description: "POST /expenses/bulk-delete with ids=[1,2,3]"
+    expected: "3 expenses deleted, response contains deleted count"
+  - name: "Computed fields populated"
+    type: integration
+    description: "GET /expenses returns category_name, card, bank, person from relationships"
+    expected: "Response includes all computed fields from joined Card/Category"
+
+documentation:
+  - file: "specs/architecture/data-model.md"
+    section: "Expense"
+  - file: "specs/architecture/api-design-rules.md"
+    section: "Pagination & Filtering"
+
+changelog:
+  - date: "2026-08-16"
+    version: "1.0.0"
+    changes: ["Initial feature spec created"]
