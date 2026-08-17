@@ -1,12 +1,4 @@
-from app.schemas.common import (
-    BUE,
-    BLOCKED_DOMAINS,
-    SPECIAL_CHARS,
-    AccountSimple,
-    CardSimple,
-    _validate_email_format,
-    _validate_password_strength,
-)
+from app.schemas.analysis import AnalysisHistoryResponse, AnalysisRequest
 from app.schemas.auth import (
     ChangePasswordRequest,
     DeleteAccountRequest,
@@ -22,25 +14,6 @@ from app.schemas.auth import (
     Token,
     UserCreate,
     UserResponse,
-)
-from app.schemas.categories import (
-    CategoryBase,
-    CategoryCreate,
-    CategoryResponse,
-    CategorySuggestRequest,
-)
-from app.schemas.expenses import (
-    ExpenseCreate,
-    ExpenseResponse,
-    ExpenseUpdate,
-)
-from app.schemas.investments import InvestmentCreate
-from app.schemas.analysis import AnalysisHistoryResponse, AnalysisRequest
-from app.schemas.import_jobs import (
-    CardClosingResponse,
-    CardsMappingEntry,
-    ImportJobResponse,
-    RowsConfirmBody,
 )
 from app.schemas.budgets import (
     BudgetCreate,
@@ -58,6 +31,33 @@ from app.schemas.budgets import (
     BudgetUpdate,
 )
 from app.schemas.cards import CardCreate, CardResponse, CardUpdate
+from app.schemas.categories import (
+    CategoryBase,
+    CategoryCreate,
+    CategoryResponse,
+    CategorySuggestRequest,
+)
+from app.schemas.common import (
+    BLOCKED_DOMAINS,
+    BUE,
+    SPECIAL_CHARS,
+    AccountSimple,
+    CardSimple,
+    _validate_email_format,
+    _validate_password_strength,
+)
+from app.schemas.expenses import (
+    ExpenseCreate,
+    ExpenseResponse,
+    ExpenseUpdate,
+)
+from app.schemas.import_jobs import (
+    CardClosingResponse,
+    CardsMappingEntry,
+    ImportJobResponse,
+    RowsConfirmBody,
+)
+from app.schemas.investments import InvestmentCreate
 
 __all__ = [
     # common
