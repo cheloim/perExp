@@ -10354,3 +10354,8 @@ export const useWhatsappWebhook = <TError = ErrorType<void>, TContext = unknown>
 > => {
   return useMutation(getWhatsappWebhookMutationOptions(options), queryClient);
 };
+
+// Re-exports from axios-instance (token management)
+// These are needed by components that haven't been migrated yet
+export { getStoredToken, storeToken, clearToken } from "./axios-instance.ts";
+export { default as api } from "./axios-instance.ts";
