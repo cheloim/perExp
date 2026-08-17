@@ -2,9 +2,9 @@
 
 import json
 import os
-import re
 from datetime import date
 
+import emoji
 from jinja2 import Environment, FileSystemLoader
 from playwright.sync_api import sync_playwright
 
@@ -27,22 +27,9 @@ MONTHS_ES = {
     12: "Diciembre",
 }
 
-_EMOJI_RE = re.compile(  # lgtm[py/overly-large-range]  # noqa: F811
-    "["  # These are standard Unicode emoji ranges
-    "\U0001f600-\U0001f64f"  # Emoticons
-    "\U0001f300-\U0001f5ff"  # Misc Symbols and Pictographs
-    "\U0001f680-\U0001f6ff"  # Transport and Map
-    "\U0001f1e0-\U0001f1ff"  # Flags
-    "\U0001f900-\U0001f9ff"  # Supplemental Symbols
-    "\U0001fa00-\U0001faff"  # Symbols and Pictographs Extended-A
-    "\U00002702-\U000027b0"  # Dingbats
-    "]+",
-    flags=re.UNICODE,
-)
-
 
 def _strip_emojis(text: str) -> str:
-    return _EMOJI_RE.sub("", text).strip()
+    return emoji.replace_emoji(text, "").strip()
 
 
 def _fmt(amount: float) -> str:
