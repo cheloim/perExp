@@ -32,7 +32,7 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { GroupMemberRole } from './groupMemberRole.ts';
+import type { GroupMemberRole } from "./groupMemberRole.ts";
 
 export interface GroupMember {
   id?: number;

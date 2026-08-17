@@ -32,7 +32,7 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { AnalysisHistoryEntry } from './analysisHistoryEntry.ts';
+import type { AnalysisHistoryEntry } from "./analysisHistoryEntry.ts";
 
 export type AnalysisHistory200 = {
   history?: AnalysisHistoryEntry[];

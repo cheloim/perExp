@@ -32,7 +32,7 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { ScheduledExpenseCreateFrequency } from './scheduledExpenseCreateFrequency.ts';
+import type { ScheduledExpenseCreateFrequency } from "./scheduledExpenseCreateFrequency.ts";
 
 export interface ScheduledExpenseCreate {
   description: string;

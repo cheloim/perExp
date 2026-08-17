@@ -33,10 +33,10 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type DashboardByPeriodPeriod = typeof DashboardByPeriodPeriod[keyof typeof DashboardByPeriodPeriod];
-
+export type DashboardByPeriodPeriod =
+  (typeof DashboardByPeriodPeriod)[keyof typeof DashboardByPeriodPeriod];
 
 export const DashboardByPeriodPeriod = {
-  week: 'week',
-  month: 'month',
+  week: "week",
+  month: "month",
 } as const;

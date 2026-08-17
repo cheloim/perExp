@@ -32,7 +32,7 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { BudgetSummaryResponseCategoriesItem } from './budgetSummaryResponseCategoriesItem.ts';
+import type { BudgetSummaryResponseCategoriesItem } from "./budgetSummaryResponseCategoriesItem.ts";
 
 export interface BudgetSummaryResponse {
   total_budgeted?: number;

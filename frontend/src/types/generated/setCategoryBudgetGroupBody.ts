@@ -32,7 +32,7 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { SetCategoryBudgetGroupBodyBudgetGroup } from './setCategoryBudgetGroupBodyBudgetGroup.ts';
+import type { SetCategoryBudgetGroupBodyBudgetGroup } from "./setCategoryBudgetGroupBodyBudgetGroup.ts";
 
 export type SetCategoryBudgetGroupBody = {
   budget_group?: SetCategoryBudgetGroupBodyBudgetGroup;

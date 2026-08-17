@@ -33,10 +33,9 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type AdminListUsersStatus = typeof AdminListUsersStatus[keyof typeof AdminListUsersStatus];
-
+export type AdminListUsersStatus = (typeof AdminListUsersStatus)[keyof typeof AdminListUsersStatus];
 
 export const AdminListUsersStatus = {
-  active: 'active',
-  blocked: 'blocked',
+  active: "active",
+  blocked: "blocked",
 } as const;

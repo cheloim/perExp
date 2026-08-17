@@ -32,7 +32,7 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { OauthLoginBodyProvider } from './oauthLoginBodyProvider.ts';
+import type { OauthLoginBodyProvider } from "./oauthLoginBodyProvider.ts";
 
 export type OauthLoginBody = {
   provider: OauthLoginBodyProvider;

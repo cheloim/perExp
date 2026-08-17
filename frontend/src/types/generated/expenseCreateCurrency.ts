@@ -33,10 +33,10 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type ExpenseCreateCurrency = typeof ExpenseCreateCurrency[keyof typeof ExpenseCreateCurrency];
-
+export type ExpenseCreateCurrency =
+  (typeof ExpenseCreateCurrency)[keyof typeof ExpenseCreateCurrency];
 
 export const ExpenseCreateCurrency = {
-  ARS: 'ARS',
-  USD: 'USD',
+  ARS: "ARS",
+  USD: "USD",
 } as const;

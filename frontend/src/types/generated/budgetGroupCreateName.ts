@@ -33,11 +33,11 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type BudgetGroupCreateName = typeof BudgetGroupCreateName[keyof typeof BudgetGroupCreateName];
-
+export type BudgetGroupCreateName =
+  (typeof BudgetGroupCreateName)[keyof typeof BudgetGroupCreateName];
 
 export const BudgetGroupCreateName = {
-  necesidades: 'necesidades',
-  gustos: 'gustos',
-  ahorro: 'ahorro',
+  necesidades: "necesidades",
+  gustos: "gustos",
+  ahorro: "ahorro",
 } as const;

@@ -32,9 +32,9 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { AdminListUsersStatus } from './adminListUsersStatus.ts';
+import type { AdminListUsersStatus } from "./adminListUsersStatus.ts";
 
 export type AdminListUsersParams = {
-search?: string;
-status?: AdminListUsersStatus;
+  search?: string;
+  status?: AdminListUsersStatus;
 };

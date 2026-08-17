@@ -33,12 +33,12 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type ScheduledExpenseUpdateFrequency = typeof ScheduledExpenseUpdateFrequency[keyof typeof ScheduledExpenseUpdateFrequency];
-
+export type ScheduledExpenseUpdateFrequency =
+  (typeof ScheduledExpenseUpdateFrequency)[keyof typeof ScheduledExpenseUpdateFrequency];
 
 export const ScheduledExpenseUpdateFrequency = {
-  weekly: 'weekly',
-  biweekly: 'biweekly',
-  monthly: 'monthly',
-  yearly: 'yearly',
+  weekly: "weekly",
+  biweekly: "biweekly",
+  monthly: "monthly",
+  yearly: "yearly",
 } as const;

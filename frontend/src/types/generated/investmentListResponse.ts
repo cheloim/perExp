@@ -32,7 +32,7 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { InvestmentResponse } from './investmentResponse.ts';
+import type { InvestmentResponse } from "./investmentResponse.ts";
 
 export interface InvestmentListResponse {
   investments?: InvestmentResponse[];

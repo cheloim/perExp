@@ -33,13 +33,12 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type AccountCreateType = typeof AccountCreateType[keyof typeof AccountCreateType];
-
+export type AccountCreateType = (typeof AccountCreateType)[keyof typeof AccountCreateType];
 
 export const AccountCreateType = {
-  efectivo: 'efectivo',
-  cuenta_corriente: 'cuenta_corriente',
-  caja_ahorro: 'caja_ahorro',
-  mercadopago: 'mercadopago',
-  otro: 'otro',
+  efectivo: "efectivo",
+  cuenta_corriente: "cuenta_corriente",
+  caja_ahorro: "caja_ahorro",
+  mercadopago: "mercadopago",
+  otro: "otro",
 } as const;

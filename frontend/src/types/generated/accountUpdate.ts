@@ -32,7 +32,7 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { AccountUpdateType } from './accountUpdateType.ts';
+import type { AccountUpdateType } from "./accountUpdateType.ts";
 
 export interface AccountUpdate {
   name?: string;

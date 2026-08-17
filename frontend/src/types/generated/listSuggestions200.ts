@@ -32,7 +32,7 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { CategorySuggestion } from './categorySuggestion.ts';
+import type { CategorySuggestion } from "./categorySuggestion.ts";
 
 export type ListSuggestions200 = {
   suggestions?: CategorySuggestion[];

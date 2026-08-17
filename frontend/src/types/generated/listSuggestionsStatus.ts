@@ -33,12 +33,12 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type ListSuggestionsStatus = typeof ListSuggestionsStatus[keyof typeof ListSuggestionsStatus];
-
+export type ListSuggestionsStatus =
+  (typeof ListSuggestionsStatus)[keyof typeof ListSuggestionsStatus];
 
 export const ListSuggestionsStatus = {
-  pending: 'pending',
-  accepted: 'accepted',
-  rejected: 'rejected',
-  all: 'all',
+  pending: "pending",
+  accepted: "accepted",
+  rejected: "rejected",
+  all: "all",
 } as const;

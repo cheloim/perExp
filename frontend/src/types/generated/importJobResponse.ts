@@ -32,8 +32,8 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { ImportJobResponsePreviewData } from './importJobResponsePreviewData.ts';
-import type { ImportJobResponseStatus } from './importJobResponseStatus.ts';
+import type { ImportJobResponsePreviewData } from "./importJobResponsePreviewData.ts";
+import type { ImportJobResponseStatus } from "./importJobResponseStatus.ts";
 
 export interface ImportJobResponse {
   id?: number;

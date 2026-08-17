@@ -32,7 +32,7 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { CategoryCreateBudgetGroup } from './categoryCreateBudgetGroup.ts';
+import type { CategoryCreateBudgetGroup } from "./categoryCreateBudgetGroup.ts";
 
 export interface CategoryCreate {
   name: string;

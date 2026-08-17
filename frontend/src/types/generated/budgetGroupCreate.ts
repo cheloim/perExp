@@ -32,7 +32,7 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { BudgetGroupCreateName } from './budgetGroupCreateName.ts';
+import type { BudgetGroupCreateName } from "./budgetGroupCreateName.ts";
 
 export interface BudgetGroupCreate {
   name: BudgetGroupCreateName;

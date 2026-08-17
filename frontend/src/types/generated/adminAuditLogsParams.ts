@@ -34,8 +34,8 @@
  */
 
 export type AdminAuditLogsParams = {
-action?: string;
-user_id?: number;
-since?: string;
-until?: string;
+  action?: string;
+  user_id?: number;
+  since?: string;
+  until?: string;
 };

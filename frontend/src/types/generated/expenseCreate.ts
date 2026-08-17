@@ -32,7 +32,7 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { ExpenseCreateCurrency } from './expenseCreateCurrency.ts';
+import type { ExpenseCreateCurrency } from "./expenseCreateCurrency.ts";
 
 export interface ExpenseCreate {
   description: string;

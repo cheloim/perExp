@@ -34,5 +34,5 @@
  */
 
 export type DashboardRecentParams = {
-limit?: number;
+  limit?: number;
 };

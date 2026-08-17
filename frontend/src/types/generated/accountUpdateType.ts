@@ -33,13 +33,12 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type AccountUpdateType = typeof AccountUpdateType[keyof typeof AccountUpdateType];
-
+export type AccountUpdateType = (typeof AccountUpdateType)[keyof typeof AccountUpdateType];
 
 export const AccountUpdateType = {
-  efectivo: 'efectivo',
-  cuenta_corriente: 'cuenta_corriente',
-  caja_ahorro: 'caja_ahorro',
-  mercadopago: 'mercadopago',
-  otro: 'otro',
+  efectivo: "efectivo",
+  cuenta_corriente: "cuenta_corriente",
+  caja_ahorro: "caja_ahorro",
+  mercadopago: "mercadopago",
+  otro: "otro",
 } as const;

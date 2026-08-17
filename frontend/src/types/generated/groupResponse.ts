@@ -32,8 +32,8 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { Group } from './group.ts';
-import type { GroupMember } from './groupMember.ts';
+import type { Group } from "./group.ts";
+import type { GroupMember } from "./groupMember.ts";
 
 export interface GroupResponse {
   group?: Group;

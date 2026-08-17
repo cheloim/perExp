@@ -34,5 +34,5 @@
  */
 
 export type AnalysisHistoryParams = {
-limit?: number;
+  limit?: number;
 };

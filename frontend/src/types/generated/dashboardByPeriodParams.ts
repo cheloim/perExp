@@ -32,8 +32,8 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { DashboardByPeriodPeriod } from './dashboardByPeriodPeriod.ts';
+import type { DashboardByPeriodPeriod } from "./dashboardByPeriodPeriod.ts";
 
 export type DashboardByPeriodParams = {
-period?: DashboardByPeriodPeriod;
+  period?: DashboardByPeriodPeriod;
 };

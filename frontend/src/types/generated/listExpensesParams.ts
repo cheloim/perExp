@@ -34,24 +34,24 @@
  */
 
 export type ListExpensesParams = {
-date_from?: string;
-date_to?: string;
-/**
- * YYYY-MM format
- */
-month?: string;
-category_id?: number;
-/**
- * Comma-separated IDs
- */
-category_ids?: string;
-uncategorized?: boolean;
-bank?: string;
-person?: string;
-card?: string;
-card_type?: string;
-installment?: boolean;
-account_id?: number;
-skip?: number;
-limit?: number;
+  date_from?: string;
+  date_to?: string;
+  /**
+   * YYYY-MM format
+   */
+  month?: string;
+  category_id?: number;
+  /**
+   * Comma-separated IDs
+   */
+  category_ids?: string;
+  uncategorized?: boolean;
+  bank?: string;
+  person?: string;
+  card?: string;
+  card_type?: string;
+  installment?: boolean;
+  account_id?: number;
+  skip?: number;
+  limit?: number;
 };

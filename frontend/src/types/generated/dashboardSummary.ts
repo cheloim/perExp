@@ -32,7 +32,7 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { DashboardSummaryTopCategoriesItem } from './dashboardSummaryTopCategoriesItem.ts';
+import type { DashboardSummaryTopCategoriesItem } from "./dashboardSummaryTopCategoriesItem.ts";
 
 export interface DashboardSummary {
   total_spent?: number;

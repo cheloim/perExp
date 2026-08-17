@@ -32,7 +32,7 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { AccountCreateType } from './accountCreateType.ts';
+import type { AccountCreateType } from "./accountCreateType.ts";
 
 export interface AccountCreate {
   name: string;

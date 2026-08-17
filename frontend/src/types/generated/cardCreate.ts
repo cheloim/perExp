@@ -32,7 +32,7 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { CardCreateCardType } from './cardCreateCardType.ts';
+import type { CardCreateCardType } from "./cardCreateCardType.ts";
 
 export interface CardCreate {
   card_name: string;

@@ -32,8 +32,8 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { ListSuggestionsStatus } from './listSuggestionsStatus.ts';
+import type { ListSuggestionsStatus } from "./listSuggestionsStatus.ts";
 
 export type ListSuggestionsParams = {
-status?: ListSuggestionsStatus;
+  status?: ListSuggestionsStatus;
 };

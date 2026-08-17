@@ -32,8 +32,8 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { InvestmentCreateBroker } from './investmentCreateBroker.ts';
-import type { InvestmentCreateType } from './investmentCreateType.ts';
+import type { InvestmentCreateBroker } from "./investmentCreateBroker.ts";
+import type { InvestmentCreateType } from "./investmentCreateType.ts";
 
 export interface InvestmentCreate {
   symbol: string;

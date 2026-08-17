@@ -33,11 +33,11 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type SetCategoryBudgetGroupBodyBudgetGroup = typeof SetCategoryBudgetGroupBodyBudgetGroup[keyof typeof SetCategoryBudgetGroupBodyBudgetGroup];
-
+export type SetCategoryBudgetGroupBodyBudgetGroup =
+  (typeof SetCategoryBudgetGroupBodyBudgetGroup)[keyof typeof SetCategoryBudgetGroupBodyBudgetGroup];
 
 export const SetCategoryBudgetGroupBodyBudgetGroup = {
-  necesidades: 'necesidades',
-  gustos: 'gustos',
-  ahorro: 'ahorro',
+  necesidades: "necesidades",
+  gustos: "gustos",
+  ahorro: "ahorro",
 } as const;

@@ -33,12 +33,11 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type InvestmentCreateType = typeof InvestmentCreateType[keyof typeof InvestmentCreateType];
-
+export type InvestmentCreateType = (typeof InvestmentCreateType)[keyof typeof InvestmentCreateType];
 
 export const InvestmentCreateType = {
-  stock: 'stock',
-  bond: 'bond',
-  cedear: 'cedear',
-  fci: 'fci',
+  stock: "stock",
+  bond: "bond",
+  cedear: "cedear",
+  fci: "fci",
 } as const;

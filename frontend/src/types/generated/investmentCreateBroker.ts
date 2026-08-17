@@ -33,10 +33,10 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type InvestmentCreateBroker = typeof InvestmentCreateBroker[keyof typeof InvestmentCreateBroker];
-
+export type InvestmentCreateBroker =
+  (typeof InvestmentCreateBroker)[keyof typeof InvestmentCreateBroker];
 
 export const InvestmentCreateBroker = {
-  iol: 'iol',
-  ppi: 'ppi',
+  iol: "iol",
+  ppi: "ppi",
 } as const;

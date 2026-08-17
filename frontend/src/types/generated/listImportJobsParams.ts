@@ -32,9 +32,9 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { ListImportJobsStatus } from './listImportJobsStatus.ts';
+import type { ListImportJobsStatus } from "./listImportJobsStatus.ts";
 
 export type ListImportJobsParams = {
-status?: ListImportJobsStatus;
-limit?: number;
+  status?: ListImportJobsStatus;
+  limit?: number;
 };

@@ -8,13 +8,7 @@ interface NotifWorkerMessage {
 
 interface NotifWorkerResponse {
   type:
-    | "initial"
-    | "notification"
-    | "counts_update"
-    | "token_expired"
-    | "error"
-    | "connected"
-    | "ping";
+    "initial" | "notification" | "counts_update" | "token_expired" | "error" | "connected" | "ping";
   notifications?: NotificationPayload[];
   notification?: NotificationPayload;
   unread_count?: number;

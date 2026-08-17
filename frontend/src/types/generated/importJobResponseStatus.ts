@@ -33,12 +33,12 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type ImportJobResponseStatus = typeof ImportJobResponseStatus[keyof typeof ImportJobResponseStatus];
-
+export type ImportJobResponseStatus =
+  (typeof ImportJobResponseStatus)[keyof typeof ImportJobResponseStatus];
 
 export const ImportJobResponseStatus = {
-  PROCESSING: 'PROCESSING',
-  READY_PREVIEW: 'READY_PREVIEW',
-  COMPLETED: 'COMPLETED',
-  FAILED: 'FAILED',
+  PROCESSING: "PROCESSING",
+  READY_PREVIEW: "READY_PREVIEW",
+  COMPLETED: "COMPLETED",
+  FAILED: "FAILED",
 } as const;

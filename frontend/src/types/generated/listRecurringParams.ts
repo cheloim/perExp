@@ -32,9 +32,9 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { ListRecurringSource } from './listRecurringSource.ts';
+import type { ListRecurringSource } from "./listRecurringSource.ts";
 
 export type ListRecurringParams = {
-active?: boolean;
-source?: ListRecurringSource;
+  active?: boolean;
+  source?: ListRecurringSource;
 };

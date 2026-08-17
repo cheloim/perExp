@@ -33,10 +33,10 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type OauthLoginBodyProvider = typeof OauthLoginBodyProvider[keyof typeof OauthLoginBodyProvider];
-
+export type OauthLoginBodyProvider =
+  (typeof OauthLoginBodyProvider)[keyof typeof OauthLoginBodyProvider];
 
 export const OauthLoginBodyProvider = {
-  google: 'google',
-  apple: 'apple',
+  google: "google",
+  apple: "apple",
 } as const;

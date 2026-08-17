@@ -33,10 +33,9 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type ListRecurringSource = typeof ListRecurringSource[keyof typeof ListRecurringSource];
-
+export type ListRecurringSource = (typeof ListRecurringSource)[keyof typeof ListRecurringSource];
 
 export const ListRecurringSource = {
-  auto: 'auto',
-  manual: 'manual',
+  auto: "auto",
+  manual: "manual",
 } as const;

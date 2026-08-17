@@ -32,7 +32,7 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { ExpenseResponse } from './expenseResponse.ts';
+import type { ExpenseResponse } from "./expenseResponse.ts";
 
 export type ExecuteScheduledExpense201 = {
   expense?: ExpenseResponse;

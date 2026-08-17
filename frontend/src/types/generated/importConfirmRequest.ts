@@ -32,8 +32,8 @@
  *
  * OpenAPI spec version: 1.0.0
  */
-import type { ImportConfirmRequestCardsMapping } from './importConfirmRequestCardsMapping.ts';
-import type { ImportConfirmRequestRowsItem } from './importConfirmRequestRowsItem.ts';
+import type { ImportConfirmRequestCardsMapping } from "./importConfirmRequestCardsMapping.ts";
+import type { ImportConfirmRequestRowsItem } from "./importConfirmRequestRowsItem.ts";
 
 export interface ImportConfirmRequest {
   rows: ImportConfirmRequestRowsItem[];
