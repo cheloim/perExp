@@ -1,0 +1,203 @@
+feature: whatsapp-bot
+domain: Messaging Integration
+version: "1.0"
+status: planned
+owner: full-stack
+created: 2026-08-16
+updated: 2026-08-16
+
+# === WHAT ===
+description: |
+  WhatsApp bot integration providing the same core features as the Telegram bot:
+  expense logging, natural language parsing, bank notification detection, and
+  report generation. Uses Meta Cloud API or Twilio for WhatsApp Business messaging.
+  Targets users who prefer WhatsApp over Telegram.
+
+# === REQUIREMENTS ===
+requirements:
+  functional:
+    - id: FR-1
+      requirement: Parse natural language expense descriptions (same as Telegram)
+      priority: must
+    - id: FR-2
+      requirement: Detect bank notification messages forwarded to bot
+      priority: must
+    - id: FR-3
+      requirement: Guided expense entry flow via message prompts
+      priority: must
+    - id: FR-4
+      requirement: Generate and send PNG reports
+      priority: should
+    - id: FR-5
+      requirement: Link WhatsApp account via whatsapp_key verification
+      priority: must
+    - id: FR-6
+      requirement: Handle 24-hour session window for outbound messages
+      priority: must
+  non_functional:
+    - id: NFR-1
+      requirement: Must comply with Meta WhatsApp Business Policy
+      priority: must
+    - id: NFR-2
+      requirement: Message templates must be pre-approved by Meta
+      priority: must
+    - id: NFR-3
+      requirement: Phone numbers must be verified via OTP
+      priority: must
+
+# === PRE-EVALUATION ===
+pre_evaluation:
+  dependencies:
+    - Meta Business account verification
+    - WhatsApp Business API access (Meta Cloud API or Twilio)
+    - Pre-approved message templates for outbound messaging
+    - Phone number verification infrastructure
+  data_requirements:
+    - User.whatsapp_phone (encrypted) field exists
+    - User.whatsapp_phone_hash (indexed) field exists
+    - User.whatsapp_key field exists
+  api_changes:
+    - POST /webhooks/whatsapp - incoming message webhook
+  ui_changes:
+    - WhatsApp linking flow in settings
+    - Phone number input with OTP verification
+  migration_needed: false
+  rebuild_required:
+    backend: true
+    frontend: true
+  risks:
+    - Meta app review process may take weeks
+    - WhatsApp Business API costs per conversation
+    - 24h session window limits proactive messaging
+    - Template message approval delays
+  open_questions:
+    - Meta Cloud API vs Twilio: which provider to use?
+    - Cost model: per-conversation vs per-message?
+    - Support for WhatsApp Business features (catalogs, payments)?
+
+# === WHO ===
+users:
+  - role: whatsapp_user
+    can: [create_expense, view_reports]
+  - role: linked_user
+    can: [create_expense, view_reports, manage_categories, view_scheduled]
+
+# === DATA ===
+entities: []
+
+# === API ===
+endpoints:
+  - method: POST
+    path: /webhooks/whatsapp
+    summary: Receive incoming WhatsApp messages
+    auth: webhook_signature
+    request: WhatsAppWebhookPayload
+    response: 200 OK
+    validation:
+      - Must validate Meta webhook signature
+      - Must parse message format (text, interactive, etc.)
+    errors:
+      - status: 401
+        condition: Invalid webhook signature
+
+# === BUSINESS RULES ===
+business_rules:
+  - id: BR-1
+    rule: Outbound messages only allowed within 24-hour session window from last user message
+    enforced_in: service
+    rationale: Meta WhatsApp Business Policy requirement
+  - id: BR-2
+    rule: Proactive messages (reports, alerts) must use pre-approved message templates
+    enforced_in: service
+    rationale: Meta requires template approval for outbound messaging outside session window
+  - id: BR-3
+    rule: Phone number verified via OTP before linking
+    enforced_in: service
+    rationale: Prevents account hijacking via phone number spoofing
+  - id: BR-4
+    rule: Same Gemini Flash integration for NLP as Telegram bot
+    enforced_in: service
+    rationale: Consistent parsing behavior across platforms
+  - id: BR-5
+    rule: Bank notification detection uses same patterns as Telegram bot
+    enforced_in: service
+    rationale: Reuse existing bank parser logic
+
+# === UI ===
+frontend:
+  pages:
+    - name: WhatsAppLinking
+      route: /settings/whatsapp
+      components: [PhoneInput, OTPVerification, LinkStatus]
+  interactions:
+    - action: User enters phone number
+      result: OTP sent via WhatsApp
+    - action: User enters OTP
+      result: Account linked, whatsapp_key confirmed
+    - action: User sends expense message
+      result: Same flow as Telegram bot
+
+# === INTEGRATIONS ===
+integrations:
+  - system: meta_cloud_api
+    how: WhatsApp Business API for sending/receiving messages
+  - system: gemini_flash
+    how: Natural language parsing (shared with Telegram bot)
+  - system: telegram_bot
+    how: Shared business logic for expense creation, report generation
+
+# === MIGRATIONS ===
+migrations: []
+
+# === TESTS ===
+tests:
+  - id: T-1
+    scenario: Receive and process incoming WhatsApp message
+    type: integration
+    given: Valid Meta webhook payload with text message
+    when: POST /webhooks/whatsapp
+    then: Message parsed, expense created if applicable
+    priority: high
+  - id: T-2
+    scenario: Phone number verification flow
+    type: integration
+    given: User enters phone number
+    when: OTP verification initiated
+    then: OTP sent, user verified on correct entry
+    priority: high
+  - id: T-3
+    scenario: 24-hour session window enforcement
+    type: unit
+    given: Last user message was 25 hours ago
+    when: Bot attempts to send report
+    then: Message queued or sent via template (not direct)
+    priority: high
+  - id: T-4
+    scenario: Parse natural language expense via WhatsApp
+    type: integration
+    given: Linked user sends "gaste 3000 en verduleria"
+    when: Bot processes via Gemini
+    then: Expense created with amount=3000
+    priority: high
+  - id: T-5
+    scenario: Invalid webhook signature rejection
+    type: unit
+    given: Webhook with tampered signature
+    when: POST /webhooks/whatsapp
+    then: 401 Unauthorized response
+    priority: high
+
+# === DOCUMENTATION DELIVERABLES ===
+documentation:
+  - file: docs/whatsapp-bot.md
+    action: create
+    description: Document WhatsApp setup, template approval, session window rules
+  - file: docs/Roadmap.md
+    action: update
+    description: Mark whatsapp bot as planned
+
+# === SPEC HISTORY ===
+changelog:
+  - date: 2026-08-16
+    version: "1.0"
+    change: Initial spec created

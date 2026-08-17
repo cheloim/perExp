@@ -30,7 +30,12 @@ class SuggestionResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-@router.get("", response_model=list[SuggestionResponse])
+@router.get(
+    "",
+    response_model=list[SuggestionResponse],
+    summary="List category suggestions",
+    description="Return all AI-generated category suggestions for the current user, filtered by status.",
+)
 def get_pending_suggestions(
     status: str = "pending",
     db: Session = Depends(get_db),
@@ -74,7 +79,11 @@ def get_pending_suggestions(
     return result
 
 
-@router.post("/{suggestion_id}/approve")
+@router.post(
+    "/{suggestion_id}/approve",
+    summary="Approve a suggestion",
+    description="Apply the suggested category to the expense and track the merchant preference.",
+)
 def approve_suggestion(
     suggestion_id: int,
     db: Session = Depends(get_db),
@@ -133,7 +142,11 @@ def approve_suggestion(
     return {"detail": "Categoría aplicada correctamente"}
 
 
-@router.post("/{suggestion_id}/reject")
+@router.post(
+    "/{suggestion_id}/reject",
+    summary="Reject a suggestion",
+    description="Mark a single category suggestion as rejected without applying it.",
+)
 def reject_suggestion(
     suggestion_id: int,
     db: Session = Depends(get_db),
@@ -160,7 +173,11 @@ def reject_suggestion(
     return {"detail": "Sugerencia descartada"}
 
 
-@router.post("/approve-all")
+@router.post(
+    "/approve-all",
+    summary="Approve all high-confidence suggestions",
+    description="Bulk-approve all pending suggestions with confidence at or above the given threshold.",
+)
 def approve_all_suggestions(
     min_confidence: float = 0.7,
     db: Session = Depends(get_db),
@@ -217,7 +234,11 @@ def approve_all_suggestions(
     return {"detail": f"{count} categorías aplicadas", "count": count}
 
 
-@router.post("/discard-all")
+@router.post(
+    "/discard-all",
+    summary="Discard all pending suggestions",
+    description="Reject all pending category suggestions for the current user.",
+)
 def discard_all_suggestions(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),

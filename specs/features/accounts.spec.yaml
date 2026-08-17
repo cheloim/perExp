@@ -1,0 +1,189 @@
+metadata:
+  name: accounts
+  title: "Account Management"
+  version: "1.0.0"
+  status: implemented
+  created: "2026-08-16"
+  updated: "2026-08-16"
+  owner: backend
+  tags: [accounts, banking, payments]
+
+description: |
+  CRUD management for financial accounts (bank accounts, cash, digital wallets).
+  Accounts represent where money is held or transacted from. They are referenced
+  by expenses and can be linked to debit cards. Account types include cash,
+  checking, savings, and digital wallets like MercadoPago.
+
+requirements:
+  functional:
+    - id: ACCTS-F01
+      description: "Create account with name and type"
+      priority: must
+    - id: ACCTS-F02
+      description: "List accounts scoped to user's family group"
+      priority: must
+    - id: ACCTS-F03
+      description: "Update account name and type"
+      priority: must
+    - id: ACCTS-F04
+      description: "Delete account (expenses retain account_id FK)"
+      priority: must
+    - id: ACCTS-F05
+      description: "Validate account type against allowed enum values"
+      priority: must
+    - id: ACCTS-F06
+      description: "Encrypt account name with AES-256, store HMAC for lookups"
+      priority: must
+
+  non-functional:
+    - id: ACCTS-NF01
+      description: "Account list returns within 200ms"
+      priority: should
+    - id: ACCTS-NF02
+      description: "Encrypted fields never logged in plaintext"
+      priority: must
+
+pre-evaluation:
+  auth: "JWT token required (Depends(get_current_user))"
+  database: "PostgreSQL via SQLAlchemy session (Depends(get_db))"
+  group_scoping: "Uses get_group_user_ids() for list operations"
+
+users:
+  - role: authenticated_user
+    actions: [create, read, update, delete]
+    scope: own_accounts + group_members_accounts (read only)
+
+entities:
+  - name: Account
+    table: accounts
+    fields:
+      - name: id
+        type: Integer
+        constraints: [PK, auto-increment]
+      - name: name
+        type: EncryptedType
+        constraints: [NOT NULL]
+      - name: name_hmac
+        type: String(64)
+        constraints: [nullable, indexed]
+      - name: type
+        type: String
+        constraints: [default "efectivo"]
+        values: [efectivo, cuenta_corriente, caja_ahorro, mercadopago, otro]
+      - name: user_id
+        type: Integer
+        constraints: [FK -> users.id, NOT NULL]
+      - name: created_at
+        type: DateTime
+        constraints: [default utcnow]
+    indexes:
+      - columns: [user_id]
+
+    schemas:
+      AccountCreate:
+        fields:
+          - { name: name, type: str, required: true }
+          - { name: type, type: str, default: "efectivo" }
+      AccountUpdate:
+        fields:
+          - { name: name, type: "str | null", default: null }
+          - { name: type, type: "str | null", default: null }
+      AccountResponse:
+        fields:
+          - { name: id, type: int }
+          - { name: name, type: str }
+          - { name: type, type: str }
+          - { name: user_id, type: int }
+          - { name: created_at, type: datetime }
+
+endpoints:
+  - method: GET
+    path: /accounts
+    response_model: "list[AccountResponse]"
+    status_code: 200
+    description: "List all accounts for current user and group members"
+    logic:
+      - "Get group user IDs via get_group_user_ids()"
+      - "Query accounts filtered by user_id in uid_list"
+
+  - method: POST
+    path: /accounts
+    response_model: AccountResponse
+    status_code: 201
+    description: "Create a new account"
+    validation:
+      - "name must be non-empty after strip"
+      - "type must be one of allowed values"
+    logic:
+      - "Strip name"
+      - "Compute HMAC for name"
+      - "Create Account, commit, return"
+
+  - method: PUT
+    path: "/accounts/{account_id}"
+    response_model: AccountResponse
+    status_code: 200
+    description: "Update an existing account"
+    logic:
+      - "Account must belong to current_user.id"
+      - "model_dump(exclude_none=True) for partial update"
+      - "Recompute HMAC if name changed"
+
+  - method: DELETE
+    path: "/accounts/{account_id}"
+    status_code: 204
+    description: "Delete an account"
+    logic:
+      - "Account must belong to current_user.id"
+      - "Delete account, commit"
+      - "Expenses retain account_id (SET NULL on delete)"
+
+business_rules:
+  - id: BR-ACCTS-01
+    description: "Accounts are scoped to user_id. List returns own + group members' accounts."
+  - id: BR-ACCTS-02
+    description: "Account type must be a valid enum: efectivo, cuenta_corriente, caja_ahorro, mercadopago, otro"
+  - id: BR-ACCTS-03
+    description: "Update and delete are scoped to current_user.id only (not full group)"
+  - id: BR-ACCTS-04
+    description: "Deleting an account does not cascade-delete expenses; expenses get account_id set to NULL"
+
+integrations:
+  - system: expenses
+    type: referenced_by
+    description: "Expense.account_id FK references Account.id (ondelete SET NULL)"
+  - system: cards
+    type: referenced_by
+    description: "Card.linked_account_id references Account.id for debit card linking"
+
+migrations:
+  - description: "Initial accounts table"
+
+tests:
+  - name: "Create account with valid data"
+    type: integration
+    description: "POST /accounts with name and type returns 201"
+    expected: "Account created with correct type"
+  - name: "List accounts includes group members"
+    type: integration
+    description: "GET /accounts returns accounts from all accepted group members"
+    expected: "Multiple users' accounts returned"
+  - name: "Update account name"
+    type: integration
+    description: "PUT /accounts/{id} with new name returns 200"
+    expected: "Name updated, HMAC recomputed"
+  - name: "Delete account preserves expenses"
+    type: integration
+    description: "DELETE /accounts/{id} where account has expenses succeeds"
+    expected: "Account deleted, expenses retain null account_id"
+
+documentation:
+  - file: "specs/architecture/data-model.md"
+    section: "Account"
+  - file: "specs/architecture/api-design-rules.md"
+    section: "CRUD Path Patterns"
+
+changelog:
+  - date: "2026-08-16"
+    version: "1.0.0"
+    changes: ["Initial feature spec created"]

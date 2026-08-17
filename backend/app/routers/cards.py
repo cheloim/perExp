@@ -1,12 +1,10 @@
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Card, User
 from app.routers.groups import get_group_user_ids
+from app.schemas import CardCreate, CardResponse, CardUpdate
 from app.services.auth import get_current_user
 from app.services.encryption import compute_hmac
 
@@ -22,38 +20,12 @@ def get_first_name(full_name: str) -> str:
     return full_name.strip().split()[0] if full_name.strip() else ""
 
 
-class CardCreate(BaseModel):
-    card_name: str
-    bank: str = ""
-    holder: str = ""
-    card_type: str = "credito"  # credito, debito
-    linked_account_id: int | None = None
-
-
-class CardUpdate(BaseModel):
-    card_name: str | None = None
-    bank: str | None = None
-    holder: str | None = None
-    card_type: str | None = None
-    linked_account_id: int | None = None
-
-
-class CardResponse(BaseModel):
-    id: int
-    card_name: str
-    bank: str
-    holder: str
-    card_type: str
-    linked_account_id: int | None = None
-    linked_account_name: str | None = None
-    user_id: int
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-@router.get("", response_model=list[CardResponse])
+@router.get(
+    "",
+    response_model=list[CardResponse],
+    summary="List cards",
+    description="Returns all cards belonging to the current user and their family group, including linked account info.",
+)
 def list_cards(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -76,7 +48,13 @@ def list_cards(
     return result
 
 
-@router.post("", response_model=CardResponse, status_code=201)
+@router.post(
+    "",
+    response_model=CardResponse,
+    status_code=201,
+    summary="Create a new card",
+    description="Creates a credit or debit card for the current user. Debit cards can optionally be linked to a savings account.",
+)
 def create_card(
     card: CardCreate,
     db: Session = Depends(get_db),
@@ -168,7 +146,12 @@ def create_card(
     return db_card
 
 
-@router.put("/{card_id}", response_model=CardResponse)
+@router.put(
+    "/{card_id}",
+    response_model=CardResponse,
+    summary="Update a card",
+    description="Updates the name, bank, holder, type, or linked account of an existing card owned by the current user.",
+)
 def update_card(
     card_id: int,
     card: CardUpdate,
@@ -245,7 +228,12 @@ def update_card(
     return db_card
 
 
-@router.delete("/{card_id}", status_code=204)
+@router.delete(
+    "/{card_id}",
+    status_code=204,
+    summary="Delete a card",
+    description="Deletes a card owned by the current user. Fails if the card has associated expenses.",
+)
 def delete_card(
     card_id: int,
     db: Session = Depends(get_db),
@@ -283,7 +271,11 @@ def delete_card(
     return None
 
 
-@router.post("/sync-holders")
+@router.post(
+    "/sync-holders",
+    summary="Sync card holders",
+    description="Auto-assigns the current user's first name as the holder for any cards that do not have one set.",
+)
 def sync_card_holders(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

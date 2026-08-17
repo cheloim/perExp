@@ -20,12 +20,22 @@ class MFASetupInitResponse(BaseModel):
     qr_code: str
 
 
-@router.get("/status", response_model=MFAStatusResponse)
+@router.get(
+    "/status",
+    response_model=MFAStatusResponse,
+    summary="Get MFA status",
+    description="Returns whether multi-factor authentication is currently enabled for the user.",
+)
 def mfa_status(current_user: User = Depends(get_current_user)):
     return MFAStatusResponse(enabled=bool(current_user.mfa_enabled))
 
 
-@router.post("/setup", response_model=MFASetupInitResponse)
+@router.post(
+    "/setup",
+    response_model=MFASetupInitResponse,
+    summary="Initialize MFA setup",
+    description="Generates a TOTP secret and QR code for the user to scan with an authenticator app. Does not enable MFA until verified.",
+)
 def mfa_setup(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -46,7 +56,12 @@ def mfa_setup(
     return MFASetupInitResponse(secret=setup_data["secret"], qr_code=setup_data["qr_code"])
 
 
-@router.post("/verify", status_code=status.HTTP_200_OK)
+@router.post(
+    "/verify",
+    status_code=status.HTTP_200_OK,
+    summary="Verify and enable MFA",
+    description="Verifies a TOTP code against the user's MFA secret and enables MFA if the code is valid.",
+)
 def mfa_verify(
     body: MFAVerifyRequest,
     current_user: User = Depends(get_current_user),
@@ -71,7 +86,12 @@ def mfa_verify(
     return {"detail": "MFA habilitado correctamente"}
 
 
-@router.post("/disable", status_code=status.HTTP_200_OK)
+@router.post(
+    "/disable",
+    status_code=status.HTTP_200_OK,
+    summary="Disable MFA",
+    description="Verifies a TOTP code and disables multi-factor authentication, clearing the stored secret.",
+)
 def mfa_disable(
     body: MFAVerifyRequest,
     current_user: User = Depends(get_current_user),

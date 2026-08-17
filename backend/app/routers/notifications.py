@@ -69,7 +69,12 @@ def _validate_token(token: str, db: Session) -> User:
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 
-@router.get("", response_model=list[NotificationResponse])
+@router.get(
+    "",
+    response_model=list[NotificationResponse],
+    summary="List all notifications",
+    description="Retrieve all notifications for the current user ordered by creation date descending.",
+)
 def get_notifications(
     current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
@@ -82,7 +87,11 @@ def get_notifications(
     return [_to_response(n) for n in notifs]
 
 
-@router.get("/unread-count")
+@router.get(
+    "/unread-count",
+    summary="Get unread notification count",
+    description="Return the count of unread notifications for the current user.",
+)
 def unread_count(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     count = (
         db.query(Notification)
@@ -92,7 +101,12 @@ def unread_count(current_user: User = Depends(get_current_user), db: Session = D
     return {"count": count}
 
 
-@router.put("/{notif_id}/read", status_code=200)
+@router.put(
+    "/{notif_id}/read",
+    status_code=200,
+    summary="Mark notification as read",
+    description="Mark a single notification as read by its ID.",
+)
 def mark_read(
     notif_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
@@ -108,7 +122,12 @@ def mark_read(
     return {"ok": True}
 
 
-@router.put("/read-all", status_code=200)
+@router.put(
+    "/read-all",
+    status_code=200,
+    summary="Mark all notifications as read",
+    description="Mark all unread notifications for the current user as read.",
+)
 def mark_all_read(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     db.query(Notification).filter(
         Notification.user_id == current_user.id,
@@ -118,7 +137,12 @@ def mark_all_read(current_user: User = Depends(get_current_user), db: Session = 
     return {"ok": True}
 
 
-@router.delete("/read-all", status_code=200)
+@router.delete(
+    "/read-all",
+    status_code=200,
+    summary="Delete all read notifications",
+    description="Permanently delete all notifications that have been marked as read.",
+)
 def delete_all_read(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     db.query(Notification).filter(
         Notification.user_id == current_user.id,
@@ -128,7 +152,12 @@ def delete_all_read(current_user: User = Depends(get_current_user), db: Session 
     return {"ok": True}
 
 
-@router.post("/{notif_id}/accept", status_code=200)
+@router.post(
+    "/{notif_id}/accept",
+    status_code=200,
+    summary="Accept a notification action",
+    description="Accept a group invitation or impersonation request from a notification.",
+)
 def accept_invitation(
     notif_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
@@ -208,7 +237,12 @@ def accept_invitation(
         raise HTTPException(400, "Tipo de notificación inválido")
 
 
-@router.post("/{notif_id}/reject", status_code=200)
+@router.post(
+    "/{notif_id}/reject",
+    status_code=200,
+    summary="Reject a notification action",
+    description="Reject a group invitation or impersonation request from a notification.",
+)
 def reject_invitation(
     notif_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
@@ -265,7 +299,11 @@ def reject_invitation(
         raise HTTPException(400, "Tipo de notificación inválido")
 
 
-@router.delete("/{notification_id}")
+@router.delete(
+    "/{notification_id}",
+    summary="Delete a notification",
+    description="Permanently delete a notification. Only the owner can delete their notifications.",
+)
 def delete_notification(
     notification_id: int,
     db: Session = Depends(get_db),
@@ -293,7 +331,11 @@ def delete_notification(
     return {"deleted": True}
 
 
-@router.get("/stream")
+@router.get(
+    "/stream",
+    summary="Real-time notification stream",
+    description="SSE endpoint that streams new notifications in real-time via long-polling with keepalive pings.",
+)
 async def notifications_stream(request: Request):
     # Accept token from Authorization header or query param (for backward compat)
     auth_header = request.headers.get("Authorization", "")

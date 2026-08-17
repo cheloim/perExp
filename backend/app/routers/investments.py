@@ -115,7 +115,11 @@ def _get_user_creds(db: Session, user_id: int) -> dict:
     return {k: _get_setting(db, k, user_id=user_id) for k in keys}
 
 
-@router.get("/settings")
+@router.get(
+    "/settings",
+    summary="Get user investment settings",
+    description="Retrieve all investment-related settings for the current user or a family group member, including broker credentials configuration status.",
+)
 def get_settings(
     user_id: int | None = None,
     db: Session = Depends(get_db),
@@ -144,7 +148,11 @@ def get_settings(
     return result
 
 
-@router.put("/settings/{key}")
+@router.put(
+    "/settings/{key}",
+    summary="Update a setting",
+    description="Create or update a single investment setting by key for the current user or a family group member.",
+)
 def put_setting(
     key: str,
     payload: dict,
@@ -164,7 +172,11 @@ def put_setting(
     return {"ok": True}
 
 
-@router.delete("/settings/{key}")
+@router.delete(
+    "/settings/{key}",
+    summary="Delete a setting",
+    description="Delete a single investment setting by key for the current user or a family group member.",
+)
 def delete_setting(
     key: str,
     user_id: int | None = None,
@@ -184,7 +196,11 @@ def delete_setting(
     return {"ok": True, "deleted": deleted > 0}
 
 
-@router.delete("/settings/broker/{broker}")
+@router.delete(
+    "/settings/broker/{broker}",
+    summary="Delete all broker settings and investments",
+    description="Remove all settings and investment records for a given broker (iol or ppi) for the current user.",
+)
 def delete_broker_settings(
     broker: str,
     user_id: int | None = None,
@@ -231,7 +247,11 @@ def delete_broker_settings(
 # ─── Investments CRUD ─────────────────────────────────────────────────────────
 
 
-@router.get("/investments")
+@router.get(
+    "/investments",
+    summary="List investments",
+    description="Retrieve all investments for the user's family group, optionally filtered by broker.",
+)
 def get_investments(
     broker: str | None = None,
     db: Session = Depends(get_db),
@@ -250,7 +270,12 @@ def get_investments(
     ]
 
 
-@router.post("/investments", status_code=201)
+@router.post(
+    "/investments",
+    status_code=201,
+    summary="Create or add to an investment",
+    description="Create a new investment or increase quantity of an existing one with the same ticker and broker. Fetches current price from Yahoo Finance.",
+)
 def create_investment(
     data: InvestmentCreate,
     db: Session = Depends(get_db),
@@ -296,7 +321,11 @@ def create_investment(
         return _inv_response(inv)
 
 
-@router.put("/investments/{inv_id}")
+@router.put(
+    "/investments/{inv_id}",
+    summary="Update an investment",
+    description="Update all fields of an existing investment. Refreshes the current price from Yahoo Finance.",
+)
 def update_investment(
     inv_id: int,
     data: InvestmentCreate,
@@ -323,7 +352,11 @@ def update_investment(
     return _inv_response(inv)
 
 
-@router.patch("/investments/{inv_id}/price")
+@router.patch(
+    "/investments/{inv_id}/price",
+    summary="Update investment price",
+    description="Manually update only the current price of an investment.",
+)
 def update_investment_price(
     inv_id: int,
     payload: dict,
@@ -345,7 +378,11 @@ def update_investment_price(
     return _inv_response(inv)
 
 
-@router.delete("/investments/{inv_id}")
+@router.delete(
+    "/investments/{inv_id}",
+    summary="Delete an investment",
+    description="Permanently delete an investment record by ID.",
+)
 def delete_investment(
     inv_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -362,7 +399,11 @@ def delete_investment(
     return {"ok": True}
 
 
-@router.post("/investments/deduplicate")
+@router.post(
+    "/investments/deduplicate",
+    summary="Deduplicate investments",
+    description="Remove duplicate investment entries with the same ticker and broker, keeping the one with the best data.",
+)
 def deduplicate_investments(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -399,7 +440,11 @@ def deduplicate_investments(
 # ─── Broker Sync ─────────────────────────────────────────────────────────────
 
 
-@router.post("/investments/sync/iol")
+@router.post(
+    "/investments/sync/iol",
+    summary="Sync investments from IOL",
+    description="Fetch and synchronize investment portfolio from InvertirOnline (IOL) broker into the local database.",
+)
 def sync_iol(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     import requests as _req
 
@@ -544,7 +589,11 @@ def sync_iol(db: Session = Depends(get_db), current_user: User = Depends(get_cur
     return {"broker": "IOL", "created": created, "updated": updated, "total": len(best)}
 
 
-@router.post("/investments/sync/ppi")
+@router.post(
+    "/investments/sync/ppi",
+    summary="Sync investments from PPI",
+    description="Fetch and synchronize investment portfolio from Portfolio Personal Inversiones (PPI) broker into the local database.",
+)
 def sync_ppi(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     from ppi_client.ppi import PPI
 
@@ -661,7 +710,11 @@ _BCBA_ADR_MAP = {
 _ADR_TICKERS = list(_BCBA_ADR_MAP.values())
 
 
-@router.get("/investments/usd-rate")
+@router.get(
+    "/investments/usd-rate",
+    summary="Get USD/ARS exchange rate",
+    description="Returns the current USD/ARS exchange rate, trying BNA, ADR-implied rate, and BCRA official sources in order.",
+)
 def get_usd_rate(current_user: User = Depends(get_current_user)):
     """Returns USD/ARS rate. Tries BNA (dolarapi.com) first,
     then ADR-implied rate (Yahoo Finance), then BCRA official.
@@ -744,7 +797,11 @@ def get_usd_rate(current_user: User = Depends(get_current_user)):
 # ─── Cash Balances ────────────────────────────────────────────────────────────
 
 
-@router.get("/investments/cash-balances")
+@router.get(
+    "/investments/cash-balances",
+    summary="Get broker cash balances",
+    description="Retrieve uninvested cash balances (ARS and USD) from configured IOL and PPI broker accounts.",
+)
 def get_cash_balances(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -843,7 +900,11 @@ def get_cash_balances(
     return balances
 
 
-@router.post("/investments/refresh-manual-prices")
+@router.post(
+    "/investments/refresh-manual-prices",
+    summary="Refresh manual investment prices",
+    description="Trigger a background refresh of current prices for investments that were entered manually.",
+)
 def refresh_manual_prices_endpoint(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -858,7 +919,11 @@ def refresh_manual_prices_endpoint(
 _MANUAL_CASH_KEY = "manual_cash_balances"
 
 
-@router.get("/investments/manual-cash-balances")
+@router.get(
+    "/investments/manual-cash-balances",
+    summary="Get manual cash balances",
+    description="Retrieve manually entered cash balances per broker stored in settings.",
+)
 def get_manual_cash_balances(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -876,7 +941,11 @@ def get_manual_cash_balances(
         return {}
 
 
-@router.put("/investments/manual-cash-balances/{broker}")
+@router.put(
+    "/investments/manual-cash-balances/{broker}",
+    summary="Update manual cash balance",
+    description="Create or update a manually tracked cash balance (ARS/USD) for a specific broker.",
+)
 def put_manual_cash_balance(
     broker: str,
     body: dict,
@@ -902,7 +971,11 @@ def put_manual_cash_balance(
     return current[broker]
 
 
-@router.delete("/investments/manual-cash-balances/{broker}")
+@router.delete(
+    "/investments/manual-cash-balances/{broker}",
+    summary="Delete manual cash balance",
+    description="Remove the manually tracked cash balance for a specific broker.",
+)
 def delete_manual_cash_balance(
     broker: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -940,7 +1013,11 @@ RESTRICCIONES ESTRICTAS:
 - Respondés en español, de forma clara, concisa y profesional."""
 
 
-@router.post("/investments/chat/stream")
+@router.post(
+    "/investments/chat/stream",
+    summary="Investments chat assistant",
+    description="SSE streaming chat endpoint for the investments assistant. Answers questions about portfolios, markets, and financial analysis.",
+)
 async def investments_chat_stream(
     body: dict,
     current_user: User = Depends(get_current_user),
@@ -1033,7 +1110,11 @@ def _fetch_yahoo_quote(symbol: str, currency: str = "ARS") -> dict | None:
         return None
 
 
-@router.get("/investments/lookup")
+@router.get(
+    "/investments/lookup",
+    summary="Lookup a stock symbol",
+    description="Search Yahoo Finance for a single stock symbol and return its name and current price.",
+)
 def lookup_symbol(
     symbol: str,
     current_user: User = Depends(get_current_user),
@@ -1048,7 +1129,11 @@ def lookup_symbol(
     return result
 
 
-@router.get("/investments/lookup-batch")
+@router.get(
+    "/investments/lookup-batch",
+    summary="Lookup multiple stock symbols",
+    description="Search Yahoo Finance for multiple comma-separated symbols and return their names and prices.",
+)
 def lookup_symbols(
     symbols: str,
     current_user: User = Depends(get_current_user),
@@ -1122,7 +1207,11 @@ def _fetch_yahoo_history(ticker: str, range_str: str, interval: str) -> list[dic
         return []
 
 
-@router.get("/investments/{inv_id}/history")
+@router.get(
+    "/investments/{inv_id}/history",
+    summary="Get investment price history",
+    description="Retrieve historical price data for an investment from Yahoo Finance with configurable range (1d, 7d, 30d).",
+)
 def get_investment_history(
     inv_id: int,
     range: str = "7d",

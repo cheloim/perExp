@@ -1,0 +1,4 @@
+[submodule ".sdd"]
+	path = .sdd
+	url = https://github.com/cheloim/sdd-framework.git
+	branch = main

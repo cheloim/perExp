@@ -1,0 +1,290 @@
+# Feature: Recurring/Scheduled Expenses
+# Status: Implemented
+# Date: 2026-08-16
+
+metadata:
+  name: "Recurring/Scheduled Expenses"
+  id: "scheduled-expenses"
+  version: "1.0.0"
+  status: "implemented"
+  created: "2026-08-16"
+  updated: "2026-08-16"
+  owner: "Oikonomia Team"
+  tags: ["scheduled", "recurring", "automation", "celery"]
+
+description: >
+  Allows users to define recurring expenses that are automatically created
+  on a schedule. Supports weekly, biweekly, monthly, and yearly frequencies.
+  A Celery beat task runs daily at 2:00 AM to evaluate and execute due
+  scheduled expenses, creating actual expense records automatically.
+
+requirements:
+  - "User must be authenticated"
+  - "Celery beat must be running for automatic execution"
+  - "Category, card, and account references must be valid"
+  - "Scheduled expenses can be paused (active=false)"
+
+pre_evaluation:
+  questions:
+    - question: "What frequencies are supported?"
+      answer: "weekly, biweekly (every 2 weeks), monthly, yearly"
+    - question: "When does execution happen?"
+      answer: "Daily at 2:00 AM via Celery beat scheduler"
+    - question: "What happens if execution fails?"
+      answer: "The scheduled expense remains active and will retry the next day"
+    - question: "Can users manually trigger execution?"
+      answer: "Yes, via POST /scheduled-expenses/{id}/execute"
+
+users:
+  - role: "authenticated_user"
+    description: "Any logged-in user can manage their scheduled expenses"
+    permissions:
+      - "create_scheduled_expense"
+      - "view_scheduled_expenses"
+      - "update_scheduled_expense"
+      - "delete_scheduled_expense"
+      - "manual_execute"
+
+entities:
+  - name: "ScheduledExpense"
+    table: "scheduled_expenses"
+    description: "Defines a recurring expense that auto-generates expense records"
+    fields:
+      - name: "id"
+        type: "integer"
+        primary_key: true
+        auto_increment: true
+      - name: "description"
+        type: "string"
+        required: true
+        description: "Description of the recurring expense"
+      - name: "amount"
+        type: "float"
+        required: true
+        description: "Amount for each occurrence"
+      - name: "frequency"
+        type: "string"
+        enum: ["weekly", "biweekly", "monthly", "yearly"]
+        required: true
+        description: "How often the expense recurs"
+      - name: "next_date"
+        type: "date"
+        required: true
+        description: "Date of the next scheduled execution"
+      - name: "category_id"
+        type: "integer"
+        foreign_key: "categories.id"
+        required: false
+        description: "Category for the generated expense"
+      - name: "card_id"
+        type: "integer"
+        foreign_key: "cards.id"
+        required: false
+        description: "Card to associate with the generated expense"
+      - name: "account_id"
+        type: "integer"
+        foreign_key: "accounts.id"
+        required: false
+        description: "Account to associate with the generated expense"
+      - name: "user_id"
+        type: "integer"
+        foreign_key: "users.id"
+        required: true
+      - name: "active"
+        type: "boolean"
+        default: true
+        description: "Whether this scheduled expense is active"
+    indexes:
+      - columns: ["user_id"]
+      - columns: ["next_date"]
+      - columns: ["active"]
+
+endpoints:
+  - method: "GET"
+    path: "/scheduled-expenses"
+    description: "List all scheduled expenses for the authenticated user"
+    auth: "required"
+    response:
+      status: 200
+      body:
+        scheduled_expenses: "array of ScheduledExpense objects"
+
+  - method: "POST"
+    path: "/scheduled-expenses"
+    description: "Create a new scheduled expense"
+    auth: "required"
+    request_body:
+      description:
+        type: "string"
+        required: true
+      amount:
+        type: "float"
+        required: true
+      frequency:
+        type: "string"
+        enum: ["weekly", "biweekly", "monthly", "yearly"]
+        required: true
+      next_date:
+        type: "date"
+        required: true
+      category_id:
+        type: "integer"
+        required: false
+      card_id:
+        type: "integer"
+        required: false
+      account_id:
+        type: "integer"
+        required: false
+    response:
+      status: 201
+      body: "ScheduledExpense object"
+
+  - method: "PUT"
+    path: "/scheduled-expenses/{id}"
+    description: "Update a scheduled expense"
+    auth: "required"
+    path_params:
+      - name: "id"
+        type: "integer"
+        required: true
+    request_body:
+      description:
+        type: "string"
+        required: false
+      amount:
+        type: "float"
+        required: false
+      frequency:
+        type: "string"
+        required: false
+      next_date:
+        type: "date"
+        required: false
+      active:
+        type: "boolean"
+        required: false
+    response:
+      status: 200
+      body: "Updated ScheduledExpense object"
+    errors:
+      - status: 404
+        description: "Scheduled expense not found"
+
+  - method: "DELETE"
+    path: "/scheduled-expenses/{id}"
+    description: "Delete a scheduled expense"
+    auth: "required"
+    path_params:
+      - name: "id"
+        type: "integer"
+        required: true
+    response:
+      status: 204
+    errors:
+      - status: 404
+        description: "Scheduled expense not found"
+
+  - method: "POST"
+    path: "/scheduled-expenses/{id}/execute"
+    description: "Manually trigger execution of a scheduled expense"
+    auth: "required"
+    path_params:
+      - name: "id"
+        type: "integer"
+        required: true
+    response:
+      status: 201
+      body:
+        expense: "The created Expense object"
+    errors:
+      - status: 404
+        description: "Scheduled expense not found"
+
+business_rules:
+  - name: "Daily Evaluation"
+    description: "Celery beat runs daily at 2:00 AM to evaluate all active scheduled expenses"
+  - name: "Execution Condition"
+    description: "A scheduled expense is executed when next_date <= today"
+  - name: "Auto Expense Creation"
+    description: "Execution creates a real Expense record with the scheduled expense's details"
+  - name: "Next Date Calculation"
+    description: "After execution, next_date is advanced: weekly +7d, biweekly +14d, monthly +1mo, yearly +1y"
+  - name: "Pause/Resume"
+    description: "Setting active=false pauses execution; the scheduled expense is skipped by the beat task"
+  - name: "Manual Override"
+    description: "POST /execute allows manual creation of the expense without waiting for the beat cycle"
+
+frontend:
+  components:
+    - name: "ScheduledExpensesPage"
+      path: "frontend/src/pages/ScheduledExpenses.tsx"
+      description: "List of scheduled expenses with create/edit/delete actions"
+    - name: "ScheduledExpenseForm"
+      path: "frontend/src/components/ScheduledExpenseForm.tsx"
+      description: "Form for creating/editing scheduled expenses"
+    - name: "FrequencyBadge"
+      path: "frontend/src/components/FrequencyBadge.tsx"
+      description: "Badge displaying the frequency of a scheduled expense"
+
+integrations:
+  - name: "Celery Beat"
+    type: "scheduler"
+    description: "Daily task scheduler that evaluates and executes due scheduled expenses"
+    config:
+      schedule: "daily at 02:00"
+      task: "execute_scheduled_expenses"
+
+migrations: []
+
+tests:
+  - name: "Create scheduled expense"
+    type: "integration"
+    description: "User can create a recurring expense"
+    steps:
+      - "POST /scheduled-expenses with {description: 'Netflix', amount: 15.99, frequency: 'monthly', next_date: '2026-09-01'}"
+      - "Assert 201 response"
+      - "Assert expense appears in GET /scheduled-expenses"
+    expected: "Scheduled expense created"
+
+  - name: "Manual execution creates expense"
+    type: "integration"
+    description: "Manually executing a scheduled expense creates a real expense"
+    steps:
+      - "Create scheduled expense"
+      - "POST /scheduled-expenses/{id}/execute"
+      - "Assert 201 with created expense"
+      - "GET /expenses — assert new expense exists"
+    expected: "Expense record created from scheduled expense"
+
+  - name: "Inactive scheduled expense skipped"
+    type: "integration"
+    description: "Paused scheduled expenses are not executed by the beat task"
+    steps:
+      - "Create scheduled expense with active=false, next_date in the past"
+      - "Run beat task manually"
+      - "Assert no expense was created"
+    expected: "Inactive scheduled expense is skipped"
+
+  - name: "Next date advances after execution"
+    type: "integration"
+    description: "After execution, next_date is updated to the next occurrence"
+    steps:
+      - "Create monthly scheduled expense with next_date=2026-08-17"
+      - "Execute the expense"
+      - "Assert next_date is now 2026-09-17"
+    expected: "next_date advanced by one month"
+
+documentation:
+  - type: "api"
+    description: "Scheduled expense endpoints documented in OpenAPI spec"
+  - type: "operations"
+    description: "Celery beat configuration and monitoring guide"
+
+changelog:
+  - version: "1.0.0"
+    date: "2026-08-16"
+    changes:
+      - "Initial scheduled expenses implementation"
+      - "CRUD endpoints and manual execution"
+      - "Celery beat daily evaluation task"

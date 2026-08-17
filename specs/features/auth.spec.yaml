@@ -1,0 +1,424 @@
+metadata:
+  name: auth
+  title: "Authentication & Authorization"
+  version: "1.0.0"
+  status: implemented
+  created: "2026-08-16"
+  updated: "2026-08-16"
+  owner: backend
+  tags: [auth, security, jwt, oauth, mfa]
+
+description: |
+  Complete authentication system supporting local credentials, Google/Apple OAuth,
+  email verification, password reset, and MFA (TOTP). JWT tokens for session
+  management with refresh capability. User profile management including onboarding
+  flow and Telegram/WhatsApp linking.
+
+requirements:
+  functional:
+    - id: AUTH-F01
+      description: "Register user with email, password, full_name"
+      priority: must
+    - id: AUTH-F02
+      description: "Login with email/password, return JWT token pair"
+      priority: must
+    - id: AUTH-F03
+      description: "Google OAuth login/registration"
+      priority: must
+    - id: AUTH-F04
+      description: "Apple OAuth login/registration"
+      priority: should
+    - id: AUTH-F05
+      description: "JWT refresh token flow"
+      priority: must
+    - id: AUTH-F06
+      description: "Forgot password: send reset email with 15-min expiry token"
+      priority: must
+    - id: AUTH-F07
+      description: "Reset password with token validation"
+      priority: must
+    - id: AUTH-F08
+      description: "Change password (authenticated)"
+      priority: must
+    - id: AUTH-F09
+      description: "Email verification flow"
+      priority: should
+    - id: AUTH-F10
+      description: "MFA (TOTP) enable/disable and login flow"
+      priority: could
+    - id: AUTH-F11
+      description: "Get/update user profile (/auth/me)"
+      priority: must
+    - id: AUTH-F12
+      description: "Onboarding completion tracking"
+      priority: should
+    - id: AUTH-F13
+      description: "Telegram linking key generation"
+      priority: should
+    - id: AUTH-F14
+      description: "Rate limiting on login attempts"
+      priority: must
+    - id: AUTH-F15
+      description: "Account blocking by admin"
+      priority: should
+
+  non-functional:
+    - id: AUTH-NF01
+    description: "Passwords hashed with bcrypt"
+    priority: must
+    - id: AUTH-NF02
+    description: "Full name encrypted with AES-256"
+    priority: must
+    - id: AUTH-NF03
+    description: "JWT tokens expire: access=15min, refresh=7days"
+    priority: must
+    - id: AUTH-NF04
+    description: "Reset tokens expire after 15 minutes"
+    priority: must
+    - id: AUTH-NF05
+    description: "Rate limit: 5 failed attempts per 15min window per email+IP"
+    priority: must
+    - id: AUTH-NF06
+    description: "MFA secrets encrypted at rest"
+    priority: must
+
+pre-evaluation:
+  auth: "Public endpoints (login, register, forgot-password). Protected endpoints use Depends(get_current_user)."
+  database: "PostgreSQL via SQLAlchemy session"
+  email: "SMTP for verification and password reset emails"
+
+users:
+  - role: unauthenticated
+    actions: [register, login, oauth, forgot_password, reset_password]
+  - role: authenticated_user
+    actions: [get_profile, update_profile, change_password, enable_mfa, link_telegram, delete_account]
+  - role: admin
+    actions: [block_user, unblock_user, force_password_change, impersonate]
+
+entities:
+  - name: User
+    table: users
+    fields:
+      - name: id
+        type: Integer
+        constraints: [PK, auto-increment]
+      - name: full_name
+        type: EncryptedType
+        constraints: [NOT NULL, default ""]
+        notes: "AES-256 encrypted"
+      - name: email
+        type: String
+        constraints: [UNIQUE, NOT NULL]
+        notes: "Login identifier"
+      - name: invite_code
+        type: String(8)
+        constraints: [UNIQUE, nullable, indexed]
+        notes: "For family group invites"
+      - name: hashed_password
+        type: String
+        constraints: [nullable]
+        notes: "NULL for OAuth-only users"
+      - name: is_active
+        type: Boolean
+        constraints: [default True]
+      - name: created_at
+        type: DateTime
+        constraints: [default utcnow]
+      - name: telegram_key
+        type: String(12)
+        constraints: [UNIQUE, nullable, indexed]
+        notes: "Bot linking token"
+      - name: telegram_chat_id
+        type: EncryptedType
+        constraints: [nullable]
+      - name: telegram_chat_hash
+        type: String(64)
+        constraints: [UNIQUE, nullable, indexed]
+        notes: "HMAC for lookup"
+      - name: provider
+        type: String
+        constraints: [nullable]
+        values: [google, apple, local]
+      - name: provider_id
+        type: String
+        constraints: [nullable, indexed]
+      - name: avatar_url
+        type: String
+        constraints: [nullable]
+      - name: reset_token
+        type: String(64)
+        constraints: [UNIQUE, nullable, indexed]
+      - name: reset_token_expires
+        type: DateTime
+        constraints: [nullable]
+      - name: mfa_secret
+        type: EncryptedType
+        constraints: [nullable]
+        notes: "TOTP secret (encrypted)"
+      - name: mfa_enabled
+        type: Boolean
+        constraints: [default False]
+      - name: email_verified
+        type: Boolean
+        constraints: [default False]
+      - name: email_verification_token
+        type: String(64)
+        constraints: [UNIQUE, nullable, indexed]
+      - name: force_password_change
+        type: Boolean
+        constraints: [default False]
+      - name: onboarding_completed
+        type: Boolean
+        constraints: [default False]
+      - name: auto_detected_banner_dismissed_at
+        type: DateTime
+        constraints: [nullable]
+      - name: is_admin
+        type: Boolean
+        constraints: [default False]
+      - name: is_blocked
+        type: Boolean
+        constraints: [default False]
+      - name: blocked_at
+        type: DateTime
+        constraints: [nullable]
+      - name: blocked_reason
+        type: Text
+        constraints: [nullable]
+      - name: whatsapp_phone
+        type: EncryptedType
+        constraints: [nullable]
+      - name: whatsapp_phone_hash
+        type: String(64)
+        constraints: [UNIQUE, nullable, indexed]
+      - name: whatsapp_key
+        type: String(12)
+        constraints: [UNIQUE, nullable, indexed]
+
+    schemas:
+      Token:
+        fields:
+          - { name: access_token, type: str }
+          - { name: refresh_token, type: str }
+          - { name: token_type, type: str, default: "bearer" }
+      UserResponse:
+        fields:
+          - { name: id, type: int }
+          - { name: full_name, type: str }
+          - { name: email, type: str }
+          - { name: is_active, type: bool }
+          - { name: email_verified, type: bool }
+          - { name: onboarding_completed, type: bool }
+          - { name: mfa_enabled, type: bool }
+          - { name: avatar_url, type: "str | null" }
+          - { name: provider, type: "str | null" }
+          - { name: is_admin, type: bool }
+          - { name: created_at, type: datetime }
+
+endpoints:
+  - method: POST
+    path: /auth/register
+    response_model: Token
+    status_code: 201
+    description: "Register new user with email, password, full_name"
+    validation:
+      - "Email must be unique"
+      - "Password minimum length enforced"
+    logic:
+      - "Hash password with bcrypt"
+      - "Encrypt full_name"
+      - "Generate email verification token"
+      - "Create User, commit"
+      - "Return JWT token pair"
+
+  - method: POST
+    path: /auth/login
+    response_model: Token
+    status_code: 200
+    description: "Login with email and password"
+    validation:
+      - "Email must exist"
+      - "Password must match bcrypt hash"
+      - "Rate limiting: 5 attempts per 15min per email+IP"
+      - "Account must not be blocked"
+    logic:
+      - "Check rate limit"
+      - "Verify password against bcrypt hash"
+      - "If mfa_enabled, return partial token requiring MFA step"
+      - "Return JWT token pair"
+
+  - method: POST
+    path: /auth/login/mfa
+    response_model: Token
+    description: "Complete MFA login with TOTP code"
+
+  - method: POST
+    path: /auth/oauth
+    response_model: Token
+    description: "Login/register via Google or Apple OAuth"
+    request: "{ provider: str, token: str }"
+    logic:
+      - "Verify OAuth token with provider"
+      - "Find or create user by provider_id"
+      - "Return JWT token pair"
+
+  - method: POST
+    path: /auth/oauth/callback
+    response_model: Token
+    description: "OAuth callback handler"
+
+  - method: POST
+    path: /auth/refresh
+    response_model: Token
+    description: "Refresh access token using refresh token"
+
+  - method: POST
+    path: /auth/forgot-password
+    status_code: 200
+    description: "Request password reset email"
+    request: "{ email: str }"
+    logic:
+      - "Find user by email"
+      - "Generate reset_token, set expiry to 15min"
+      - "Send email with reset link"
+      - "Always return 200 (no user enumeration)"
+
+  - method: POST
+    path: /auth/reset-password
+    status_code: 200
+    description: "Reset password with token"
+    request: "{ token: str, password: str }"
+    validation:
+      - "Token must exist and not be expired"
+    logic:
+      - "Validate token and expiry"
+      - "Hash new password with bcrypt"
+      - "Clear reset_token and expires"
+      - "Update user password"
+
+  - method: PUT
+    path: /auth/password
+    status_code: 204
+    description: "Change password (authenticated)"
+    request: "{ current_password: str, new_password: str }"
+
+  - method: POST
+    path: /auth/force-change-password
+    response_model: Token
+    description: "Force password change (admin-triggered)"
+
+  - method: GET
+    path: /auth/me
+    response_model: UserResponse
+    description: "Get current user profile"
+
+  - method: PUT
+    path: /auth/me/onboarding
+    response_model: UserResponse
+    description: "Mark onboarding as completed"
+
+  - method: DELETE
+    path: /auth/me
+    status_code: 204
+    description: "Delete current user account"
+
+  - method: POST
+    path: /auth/verify-email
+    status_code: 200
+    description: "Verify email with token"
+
+  - method: POST
+    path: /auth/resend-verification
+    status_code: 200
+    description: "Resend verification email"
+
+  - method: GET
+    path: /auth/me/telegram-key
+    response_model: TelegramKeyResponse
+    description: "Get Telegram linking key"
+
+  - method: POST
+    path: /auth/me/telegram-key/regenerate
+    response_model: TelegramKeyResponse
+    description: "Regenerate Telegram linking key"
+
+  - method: GET
+    path: /auth/me/telegram-status
+    response_model: TelegramStatusResponse
+    description: "Check Telegram linking status"
+
+business_rules:
+  - id: BR-AUTH-01
+    description: "Passwords hashed with bcrypt before storage"
+  - id: BR-AUTH-02
+    description: "JWT token pair: access_token (15min) + refresh_token (7 days)"
+  - id: BR-AUTH-03
+    description: "Google/Apple OAuth: find by provider_id, create if not exists"
+  - id: BR-AUTH-04
+    description: "Password reset tokens expire after 15 minutes"
+  - id: BR-AUTH-05
+    description: "Rate limiting: 5 failed login attempts per 15min per email+IP, returns 429 with Retry-After"
+  - id: BR-AUTH-06
+    description: "Email verification required for new accounts (email_verified flag)"
+  - id: BR-AUTH-07
+    description: "MFA uses TOTP (Time-based One-Time Password), secret encrypted at rest"
+  - id: BR-AUTH-08
+    description: "Blocked accounts (is_blocked=true) cannot authenticate, return 403"
+  - id: BR-AUTH-09
+    description: "OAuth-only users have hashed_password=NULL, cannot use password login"
+  - id: BR-AUTH-10
+    description: "Telegram key (12 chars) links user to bot, regenerated on request"
+
+integrations:
+  - system: telegram_bot
+    type: provides
+    description: "telegram_key and telegram_chat_id for bot authentication"
+  - system: email
+    type: uses
+    description: "SMTP for verification and password reset emails"
+  - system: google_oauth
+    type: uses
+    description: "Google OAuth provider verification"
+  - system: apple_oauth
+    type: uses
+    description: "Apple OAuth provider verification"
+
+migrations:
+  - description: "Initial users table"
+  - description: "Add MFA columns (mfa_secret, mfa_enabled)"
+  - description: "Add email verification columns"
+  - description: "Add force_password_change and onboarding_completed"
+  - description: "Add admin/block columns (is_admin, is_blocked, blocked_at, blocked_reason)"
+  - description: "Add WhatsApp columns (whatsapp_phone, whatsapp_phone_hash, whatsapp_key)"
+
+tests:
+  - name: "Register and login"
+    type: integration
+    description: "POST /auth/register then POST /auth/login with same credentials"
+    expected: "Valid JWT token pair returned"
+  - name: "Duplicate email rejected"
+    type: integration
+    description: "POST /auth/register with existing email returns 400"
+    expected: "Error about duplicate email"
+  - name: "Password reset flow"
+    type: integration
+    description: "POST /auth/forgot-password then POST /auth/reset-password with token"
+    expected: "Password changed, old password no longer works"
+  - name: "Rate limiting on login"
+    type: integration
+    description: "6th failed login attempt within 15min returns 429"
+    expected: "429 with Retry-After header"
+  - name: "Blocked account rejected"
+    type: integration
+    description: "Login with blocked account returns 403"
+    expected: "Error about account being blocked"
+
+documentation:
+  - file: "specs/architecture/data-model.md"
+    section: "User"
+  - file: "specs/architecture/security-model.md"
+
+changelog:
+  - date: "2026-08-16"
+    version: "1.0.0"
+    changes: ["Initial feature spec created"]

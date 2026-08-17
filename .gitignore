@@ -34,3 +34,4 @@ secrets/
 backend/secrets/
 frontend/secrets/
 backend/alembic.ini
+.opencode/

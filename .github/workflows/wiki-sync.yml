@@ -1,10 +1,11 @@
-name: Sync Wiki Roadmap
+name: Sync Wiki
 
 on:
   push:
     branches: [main]
     paths:
-      - "docs/Roadmap.md"
+      - "docs/**"
+      - "specs/features/**"
   workflow_dispatch:
 
 jobs:
@@ -21,9 +22,26 @@ jobs:
           path: wiki
           token: ${{ secrets.WIKI_PAT }}
 
-      - name: Sync Roadmap to wiki
+      - name: Sync all docs to wiki
         run: |
-          cp docs/Roadmap.md wiki/Roadmap.md
+          # Sync all docs/ files
+          for f in docs/*.md; do
+            basename=$(basename "$f")
+            cp "$f" "wiki/$basename"
+          done
+
+          # Sync feature specs as wiki pages
+          mkdir -p wiki/specs
+          for f in specs/features/*.spec.yaml; do
+            basename=$(basename "$f" .spec.yaml)
+            # Convert YAML spec to Markdown for wiki
+            echo "# ${basename} Specification" > "wiki/specs/${basename}.md"
+            echo "" >> "wiki/specs/${basename}.md"
+            echo '```yaml' >> "wiki/specs/${basename}.md"
+            cat "$f" >> "wiki/specs/${basename}.md"
+            echo '```' >> "wiki/specs/${basename}.md"
+          done
+
           cd wiki
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -31,7 +49,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to sync"
           else
-            git commit -m "docs: sync Roadmap from main (${{ github.sha }})"
+            git commit -m "docs: sync docs from main (${{ github.sha }})"
             git push
             echo "Wiki synced successfully"
           fi

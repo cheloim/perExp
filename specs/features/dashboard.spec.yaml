@@ -1,0 +1,196 @@
+# Feature: Dashboard Summaries
+# Status: Implemented
+# Date: 2026-08-16
+
+metadata:
+  name: "Dashboard Summaries"
+  id: "dashboard"
+  version: "1.0.0"
+  status: "implemented"
+  created: "2026-08-16"
+  updated: "2026-08-16"
+  owner: "Oikonomia Team"
+  tags: ["dashboard", "analytics", "summaries"]
+
+description: >
+  Provides aggregated spending summaries and KPIs on the main dashboard.
+  Displays total spending, category breakdowns, period comparisons, and
+  recent transactions. All data is computed dynamically from existing
+  expenses — no dedicated entity is required.
+
+requirements:
+  - "User must be authenticated"
+  - "Expenses must exist in the system to generate summaries"
+  - "Date range filtering must respect user's timezone"
+  - "Data must be scoped to the authenticated user and their group"
+
+pre_evaluation:
+  questions:
+    - question: "Should dashboard support custom date ranges?"
+      answer: "Yes, via query parameters start_date and end_date"
+    - question: "How are categories aggregated?"
+      answer: "By category_id with sum of amounts, sorted descending"
+    - question: "Is caching needed for dashboard endpoints?"
+      answer: "Not in v1, computed on each request"
+
+users:
+  - role: "authenticated_user"
+    description: "Any logged-in user can view their own dashboard data"
+    permissions:
+      - "view_own_expenses"
+      - "view_group_expenses"
+
+entities: []
+
+endpoints:
+  - method: "GET"
+    path: "/dashboard"
+    description: "Returns KPI summary: total spending, budget status, top categories"
+    auth: "required"
+    query_params:
+      - name: "start_date"
+        type: "string"
+        format: "date"
+        required: false
+        description: "Filter expenses from this date"
+      - name: "end_date"
+        type: "string"
+        format: "date"
+        required: false
+        description: "Filter expenses until this date"
+    response:
+      status: 200
+      body:
+        total_spent: "float"
+        budget_remaining: "float"
+        top_categories: "array"
+        expense_count: "int"
+    errors:
+      - status: 401
+        description: "Unauthorized"
+
+  - method: "GET"
+    path: "/dashboard/by-category"
+    description: "Returns spending grouped by category"
+    auth: "required"
+    query_params:
+      - name: "start_date"
+        type: "string"
+        format: "date"
+        required: false
+      - name: "end_date"
+        type: "string"
+        format: "date"
+        required: false
+    response:
+      status: 200
+      body:
+        categories: "array of {category_id, category_name, total, percentage}"
+
+  - method: "GET"
+    path: "/dashboard/by-period"
+    description: "Returns spending grouped by time period (week/month)"
+    auth: "required"
+    query_params:
+      - name: "period"
+        type: "string"
+        enum: ["week", "month"]
+        required: false
+        default: "month"
+    response:
+      status: 200
+      body:
+        periods: "array of {label, total}"
+
+  - method: "GET"
+    path: "/dashboard/recent"
+    description: "Returns the N most recent expenses"
+    auth: "required"
+    query_params:
+      - name: "limit"
+        type: "integer"
+        required: false
+        default: 10
+    response:
+      status: 200
+      body:
+        expenses: "array of Expense objects"
+
+business_rules:
+  - name: "User Scope"
+    description: "All dashboard queries are scoped to the authenticated user and their group members"
+  - name: "Date Range Filtering"
+    description: "When start_date and end_date are provided, only expenses within that range are included"
+  - name: "Category Aggregation"
+    description: "Expenses are grouped by category_id; totals are computed as SUM(amount)"
+  - name: "Empty State"
+    description: "If no expenses exist, return zero values for all KPIs"
+
+frontend:
+  components:
+    - name: "DashboardPage"
+      path: "frontend/src/pages/Dashboard.tsx"
+      description: "Main dashboard page with KPI cards, charts, and recent transactions"
+    - name: "KPICards"
+      path: "frontend/src/components/KPICards.tsx"
+      description: "Displays total spent, budget remaining, expense count"
+    - name: "CategoryChart"
+      path: "frontend/src/components/CategoryChart.tsx"
+      description: "Pie/bar chart showing spending by category"
+    - name: "RecentTransactions"
+      path: "frontend/src/components/RecentTransactions.tsx"
+      description: "Table of last N expenses"
+
+integrations: []
+
+migrations: []
+
+tests:
+  - name: "Dashboard returns zero for new user"
+    type: "integration"
+    description: "A user with no expenses should see all KPIs at zero"
+    steps:
+      - "Authenticate as a new user"
+      - "GET /dashboard"
+      - "Assert total_spent == 0, expense_count == 0"
+    expected: "All KPI values are zero"
+
+  - name: "Dashboard filters by date range"
+    type: "integration"
+    description: "Expenses outside the date range are excluded"
+    steps:
+      - "Create expenses on 2026-08-01 and 2026-08-15"
+      - "GET /dashboard?start_date=2026-08-10&end_date=2026-08-20"
+      - "Assert only the Aug 15 expense is included"
+    expected: "Only expenses within range are aggregated"
+
+  - name: "By-category groups correctly"
+    type: "integration"
+    description: "Expenses are grouped by their category"
+    steps:
+      - "Create 3 expenses: 2 in 'Food', 1 in 'Transport'"
+      - "GET /dashboard/by-category"
+      - "Assert 2 groups returned with correct totals"
+    expected: "Categories match expense distribution"
+
+  - name: "Recent endpoint respects limit"
+    type: "integration"
+    description: "The limit parameter controls how many expenses are returned"
+    steps:
+      - "Create 15 expenses"
+      - "GET /dashboard/recent?limit=5"
+      - "Assert array length is 5"
+    expected: "Returns exactly 5 expenses"
+
+documentation:
+  - type: "api"
+    description: "Dashboard endpoints documented in OpenAPI spec"
+  - type: "user_guide"
+    description: "Dashboard usage guide in project README"
+
+changelog:
+  - version: "1.0.0"
+    date: "2026-08-16"
+    changes:
+      - "Initial implementation of dashboard endpoints"
+      - "KPI summary, by-category, by-period, recent transactions"
