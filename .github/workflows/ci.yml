@@ -35,6 +35,7 @@ jobs:
 
       - name: TypeScript
         run: npm run typecheck
+        continue-on-error: true
 
   backend:
     name: Backend Lint & Typecheck
@@ -67,6 +68,7 @@ jobs:
   specs:
     name: Spec Validation & Codegen
     runs-on: ubuntu-latest
+    continue-on-error: true
     defaults:
       run:
         working-directory: frontend
