@@ -1,40 +1,26 @@
 # Roadmap
 
-## Features
+<!-- AUTO-GENERATED START -->
 
-| # | Feature | Status | Effort | PR | Deps | Description |
-|---|---------|--------|--------|-----|------|-------------|
-| 1 | Click-to-edit cards/accounts | ✅ Done | Low | #37 | - | Card/account rows clickable to enter edit mode |
-| 2 | Expense detail modal | ✅ Done | Low | #38 | - | Row click opens summary with Cerrar/Editar buttons |
-| 3 | Visual notifications | ✅ Done | Low | #41 | - | Icons, colored borders, progress bars, toast, QUEUED status |
-| 4 | Dashboard layout fixes | ✅ Done | Low | #47 | - | Equal height boxes, category limit, transaction scroll |
-| 5 | Installment system fixes | ✅ Done | Medium | #49, #50 | - | Telegram ScheduledExpenses, projection logic, charts |
-| 6 | Monthly analysis resume | ✅ Done | Medium | #76 | - | PNG report (1080px, GNOME HIG + Material Design) with KPIs, charts (categories, trends, polar area), Top 5 expenses, LLM analysis. Auto-generate monthly via Celery Beat |
-| 7 | Weekly Telegram report | ✅ Done | Medium | #76 | - | PNG image report sent via Telegram bot. Includes weekly spent, accumulated monthly, upcoming installments (next week), Top 10 expenses by category, LLM analysis. Scheduled Sundays 20:00 UTC-3. Configurable from UserPanel |
-| 8 | Income module | ⏳ Backlog | High | - | - | Track income, dashboard comparison vs last months |
-| 9 | Ticket scan | ⏳ Backlog | Medium | - | - | OCR receipt analysis, compare same items last month |
-| 10 | Expense budgets | ✅ Done | Medium | #130 | - | Set spending limits per category. 50/30/20 macro groups, daily Celery alerts, in-app + Telegram notifications, Dashboard widget, budget events for vacations |
-| 11 | Make index.html interactive | ✅ Done | Medium | #73 | - | Click KPI cards to filter expenses, uncategorized warnings |
-| 12 | Billing period tracking | ❌ Not Done | Medium | #63 | - | Cancelled: Monthly filtering is sufficient. Billing view adds complexity without enough value for expense analysis and saving plans |
-| 13 | Missing categories notification | ✅ Done | Medium | #73 | - | Real-time notifications for uncategorized expenses on save + login |
-| 14 | FCI, Plazos Fijos y Cauciones | 🔶 Partial | Medium | - | - | Broker sync imports FCI/Cauciones from IOL/PPI; missing: plazo fijo tracking, maturity alerts, specialized views |
-| 14b | Telegram bot improvements | ✅ Done | Medium | - | - | Debit card detection from bank notifications, installment parsing (Cuota 3 de 12), account name matching, cancel buttons, improved /ayuda help |
-| 15 | Enable MFA for user accounts | ✅ Done | Medium | #94 | - | Multi-factor authentication (TOTP) for enhanced account security. QR code setup in UserPanel, MFA login step, enable/disable flow |
-| 16 | Integración caja de ahorro ↔ tarjeta débito | ✅ Done | Medium | #96 | - | Vincular cuentas de caja de ahorro con tarjetas débito. Bidireccional (desde tarjeta o desde cuenta). Solo caja_ahorro ↔ débito. Gastos con tarjeta vinculada se reflejan automáticamente en la cuenta |
-| 17 | Auto-categorización de gastos con IA | ✅ Done | Medium | #99 | - | Usar LLM para sugerir automáticamente la categoría correcta al cargar un gasto, basándose en la descripción, monto y historial del usuario |
-| 18 | Mensaje completo del bot: transacción + tarjeta + banco | ✅ Done | Medium | #128 | - | Cuando el bot recibe una notificación bancaria, envía un único mensaje consolidado con monto, descripción, fecha, tarjeta + banco y categoría. Incluye detección de cuotas para montos altos en crédito |
-| 19 | Google OAuth login | ✅ Done | Medium | #112, #115, #116, #117 | - | Login con Google OAuth con renderButton (FedCM compatible). MFA respeta configuración del usuario. CSP configurado para Google Identity Services |
-| 20 | Gestión automática de cuotas desde Telegram | ✅ Done | Medium | #128 | - | Cuando se registra un gasto con tarjeta de crédito, preguntar automáticamente si fue en cuotas. El monto total se divide por la cantidad de cuotas. Aplica para montos > $10.000 en crédito o categorías especiales (Viajes, Educación, Indumentaria). Flujo completo: división de monto, mensaje de confirmación con desglose, ScheduledExpenses con monto por cuota |
-| 21 | Recurring expenses tracking | ✅ Done | Medium | #135, #145 | - | Auto-detect subscriptions, unified Programados page with installments + recurring, pause/edit/delete, Telegram commands (/suscripciones, /pausar, /cancelar) |
-| 22 | Savings goals | ⏳ Backlog | Low | - | #8 | Create, track, and visualize savings targets with progress indicators |
-| 23 | Auto-detect recurring expenses | ✅ Done | Medium | #150 | #21 | Celery task to analyze expense history and detect recurring patterns (2+ occurrences, 10% tolerance). Auto-create RecurringExpense entries with notification + banner + review modal in /programados |
-| 24 | Bill reminder notifications | 🔶 Partial | Medium | - | #23 | Upcoming recurring alerts exist (3 days before, daily Celery task); missing: snooze, mark-as-paid, Telegram-specific reminders |
-| 25 | Upcoming bills dashboard card | ⏳ Backlog | Low | - | #24 | Dashboard widget showing next 5 upcoming bills with merchant, amount, date, and days remaining |
-| 26 | Field-level encryption | ✅ Done | High | #141, #149 | - | Encrypt sensitive user data (PII, financial) at rest using Fernet (AES-128-CBC). Protects against database breaches. Includes HMAC for duplicate detection, Account.name encryption, dry-run migration, verification scripts, CI/CD integration with automatic rollback. Search columns removed, replaced with application-level filtering |
-| 27 | Email validation | ✅ Done | Low | #134 | - | Validate email format and domain existence. Block fake domains (test.com, mailinator.com, etc.). DNS MX record validation. Frontend + backend validation |
-| 28 | Merchant preference learning | ✅ Done | Medium | #137 | - | Track user category preferences per merchant. Prioritize user preferences over LLM suggestions. Include user history in LLM prompt |
-| 29 | Admin panel | ✅ Done | High | #151 | - | Full admin panel at /x/{slug} (random UUID, SEO protected). User management, audit logs, monthly reports, system health. Impersonation with chat widget + transcript email. Block/unblock users, toggle admin, bulk notify. Cleanup tasks (90d logs, 45d messages). Re-auth modal on JWT expiry. Weekly reports timezone fix |
-| 30 | WhatsApp Bot | ⏳ Backlog | High | - | - | WhatsApp Business API integration for expense logging. Same features as Telegram bot: natural language parsing, bank notification detection, installment handling, account matching. Meta Cloud API or Twilio integration |
+| Feature | Type | Status | Description | PR | Issue |
+|---------|------|--------|-------------|----|----|
+| accounts | full | ✅ Done | CRUD management for financial accounts (bank accounts, cash, digital wallets). | - | - |
+| admin-panel | full | ✅ Done | Administrative panel for platform management including user oversight, | - | - |
+| analysis | full | ✅ Done | Enables users to ask natural language questions about their spending patterns. Q... | - | - |
+| card-closings | full | ✅ Done | Card billing period management allowing users to define closing and due dates | - | - |
+| cards | full | ✅ Done | CRUD management for credit and debit cards. Cards are the primary payment method | - | - |
+| categories | full | ✅ Done | Hierarchical category system for organizing expenses. Categories support up to | - | - |
+| dashboard | full | ✅ Done | Provides aggregated spending summaries and KPIs on the main dashboard. Displays ... | - | - |
+| expenses | full | ✅ Done | Core expense and income tracking. Expenses are the central entity of the system, | - | - |
+| groups | full | ✅ Done | Enables users to create and join family groups for shared expense tracking. Grou... | - | - |
+| investments | full | ✅ Done | Allows users to track their investment portfolio including stocks, bonds, and ot... | - | - |
+| notifications | full | ✅ Done | Provides real-time notifications to users via Server-Sent Events (SSE). Notifica... | - | - |
+| recurring-expenses | full | ✅ Done | Auto-detection of recurring expenses by analyzing transaction patterns. | - | - |
+| scheduled-expenses | full | ✅ Done | Allows users to define recurring expenses that are automatically created on a sc... | - | - |
+| suggestions | full | ✅ Done | Provides AI-powered category suggestions based on expense descriptions. When an ... | - | - |
+| whatsapp-bot | full | ⏳ Backlog | WhatsApp bot integration providing the same core features as the Telegram bot: | - | - |
+
+<!-- AUTO-GENERATED END -->
 
 ## Backlog Details
 

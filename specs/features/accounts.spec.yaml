@@ -1,12 +1,12 @@
-metadata:
-  name: accounts
-  title: "Account Management"
-  version: "1.0.0"
-  status: implemented
-  created: "2026-08-16"
-  updated: "2026-08-16"
-  owner: backend
-  tags: [accounts, banking, payments]
+feature: accounts
+domain: Account Management
+type: full
+version: "1.0.0"
+status: implemented
+owner: backend
+created: 2026-08-16
+updated: 2026-08-16
+github_issue: null
 
 description: |
   CRUD management for financial accounts (bank accounts, cash, digital wallets).

@@ -1,10 +1,12 @@
 feature: telegram-bot
 domain: Messaging Integration
+type: full
 version: "1.0"
 status: implemented
 owner: full-stack
 created: 2026-08-16
 updated: 2026-08-16
+github_issue: null
 
 # === WHAT ===
 description: |

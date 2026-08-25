@@ -1,16 +1,12 @@
-# Feature: Dashboard Summaries
-# Status: Implemented
-# Date: 2026-08-16
-
-metadata:
-  name: "Dashboard Summaries"
-  id: "dashboard"
-  version: "1.0.0"
-  status: "implemented"
-  created: "2026-08-16"
-  updated: "2026-08-16"
-  owner: "Oikonomia Team"
-  tags: ["dashboard", "analytics", "summaries"]
+feature: dashboard
+domain: Dashboard Summaries
+type: full
+version: "1.0.0"
+status: implemented
+owner: full-stack
+created: 2026-08-16
+updated: 2026-08-16
+github_issue: null
 
 description: >
   Provides aggregated spending summaries and KPIs on the main dashboard.

@@ -1,16 +1,12 @@
-# Feature: Recurring/Scheduled Expenses
-# Status: Implemented
-# Date: 2026-08-16
-
-metadata:
-  name: "Recurring/Scheduled Expenses"
-  id: "scheduled-expenses"
-  version: "1.0.0"
-  status: "implemented"
-  created: "2026-08-16"
-  updated: "2026-08-16"
-  owner: "Oikonomia Team"
-  tags: ["scheduled", "recurring", "automation", "celery"]
+feature: scheduled-expenses
+domain: Recurring/Scheduled Expenses
+type: full
+version: "1.0.0"
+status: implemented
+owner: full-stack
+created: 2026-08-16
+updated: 2026-08-16
+github_issue: null
 
 description: >
   Allows users to define recurring expenses that are automatically created

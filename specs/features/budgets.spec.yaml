@@ -1,12 +1,12 @@
-metadata:
-  name: budgets
-  title: "Budget Management"
-  version: "1.0.0"
-  status: implemented
-  created: "2026-08-16"
-  updated: "2026-08-16"
-  owner: backend
-  tags: [budgets, finance, planning, 50-30-20]
+feature: budgets
+domain: Budget Management
+type: full
+version: "1.0.0"
+status: implemented
+owner: backend
+created: 2026-08-16
+updated: 2026-08-16
+github_issue: null
 
 description: |
   Monthly budget management with 50/30/20 rule support. Budgets are set per

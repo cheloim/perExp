@@ -1,5 +1,6 @@
 # Roadmap
 
+<!-- AUTO-GENERATED START -->
 ## Features
 
 | # | Feature | Status | Effort | PR | Description |
@@ -26,6 +27,8 @@
 | 20 | Data export & tax reports (Phase 2) | 🔶 Partial | Medium | - | CSV export + monthly PNG reports exist; missing: Excel/PDF, AFIP tax categories |
 | 21 | Telegram bot improvements | ✅ Done | Medium | - | Debit card detection, installment parsing, account matching, cancel buttons |
 | 22 | WhatsApp Bot | ⏳ Backlog | High | - | WhatsApp Business API integration for expense logging (same features as Telegram bot) |
+
+<!-- AUTO-GENERATED END -->
 
 ## Platform Focus
 

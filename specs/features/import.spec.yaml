@@ -1,12 +1,12 @@
-metadata:
-  name: import
-  title: "Smart Import"
-  version: "1.0.0"
-  status: implemented
-  created: "2026-08-16"
-  updated: "2026-08-16"
-  owner: backend
-  tags: [import, pdf, csv, xlsx, parsing, bulk]
+feature: import
+domain: Smart Import
+type: full
+version: "1.0.0"
+status: implemented
+owner: backend
+created: 2026-08-16
+updated: 2026-08-16
+github_issue: null
 
 description: |
   Smart file import system supporting PDF bank statements, CSV, and Excel files.

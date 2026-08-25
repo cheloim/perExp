@@ -1,12 +1,12 @@
-metadata:
-  name: categories
-  title: "Hierarchical Categories"
-  version: "1.0.0"
-  status: implemented
-  created: "2026-08-16"
-  updated: "2026-08-16"
-  owner: backend
-  tags: [categories, taxonomy, hierarchy, auto-categorization]
+feature: categories
+domain: Hierarchical Categories
+type: full
+version: "1.0.0"
+status: implemented
+owner: backend
+created: 2026-08-16
+updated: 2026-08-16
+github_issue: null
 
 description: |
   Hierarchical category system for organizing expenses. Categories support up to

@@ -1,16 +1,12 @@
-# Feature: Family Groups
-# Status: Implemented
-# Date: 2026-08-16
-
-metadata:
-  name: "Family Groups"
-  id: "groups"
-  version: "1.0.0"
-  status: "implemented"
-  created: "2026-08-16"
-  updated: "2026-08-16"
-  owner: "Oikonomia Team"
-  tags: ["groups", "family", "sharing", "collaboration"]
+feature: groups
+domain: Family Groups
+type: full
+version: "1.0.0"
+status: implemented
+owner: full-stack
+created: 2026-08-16
+updated: 2026-08-16
+github_issue: null
 
 description: >
   Enables users to create and join family groups for shared expense tracking.
