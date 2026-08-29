@@ -1,12 +1,12 @@
-metadata:
-  name: expenses
-  title: "Expense Tracking"
-  version: "1.0.0"
-  status: implemented
-  created: "2026-08-16"
-  updated: "2026-08-16"
-  owner: backend
-  tags: [expenses, transactions, finance, core]
+feature: expenses
+domain: Expense Tracking
+type: full
+version: "1.0.0"
+status: implemented
+owner: backend
+created: 2026-08-16
+updated: 2026-08-16
+github_issue: null
 
 description: |
   Core expense and income tracking. Expenses are the central entity of the system,

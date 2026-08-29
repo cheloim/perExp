@@ -1,16 +1,12 @@
-# Feature: AI Category Suggestions
-# Status: Implemented
-# Date: 2026-08-16
-
-metadata:
-  name: "AI Category Suggestions"
-  id: "suggestions"
-  version: "1.0.0"
-  status: "implemented"
-  created: "2026-08-16"
-  updated: "2026-08-16"
-  owner: "Oikonomia Team"
-  tags: ["suggestions", "ai", "categories", "llm", "automation"]
+feature: suggestions
+domain: AI Category Suggestions
+type: full
+version: "1.0.0"
+status: implemented
+owner: full-stack
+created: 2026-08-16
+updated: 2026-08-16
+github_issue: null
 
 description: >
   Provides AI-powered category suggestions based on expense descriptions.

@@ -98,3 +98,25 @@ jobs:
 
       - name: Typecheck with generated types
         run: npm run typecheck
+
+  roadmap:
+    name: Roadmap Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate Roadmap
+        run: |
+          pip install pyyaml
+          python scripts/generate_roadmap.py
+
+      - name: Check Roadmap is up to date
+        run: |
+          git diff --exit-code docs/Roadmap.md || {
+            echo "::error::docs/Roadmap.md is out of date. Run 'python scripts/generate_roadmap.py' locally."
+            exit 1
+          }

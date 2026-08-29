@@ -1,12 +1,12 @@
-metadata:
-  name: import
-  title: "Smart Import"
-  version: "1.0.0"
-  status: implemented
-  created: "2026-08-16"
-  updated: "2026-08-16"
-  owner: backend
-  tags: [import, pdf, csv, xlsx, parsing, bulk]
+feature: import
+domain: Smart Import
+type: full
+version: "1.0.0"
+status: implemented
+owner: backend
+created: 2026-08-16
+updated: 2026-08-16
+github_issue: null
 
 description: |
   Smart file import system supporting PDF bank statements, CSV, and Excel files.
@@ -55,17 +55,17 @@ requirements:
 
   non-functional:
     - id: IMP-NF01
-    description: "PDF parsing via Gemini LLM for flexible bank statement formats"
-    priority: must
+      description: "PDF parsing via Gemini LLM for flexible bank statement formats"
+      priority: must
     - id: IMP-NF02
-    description: "CSV/XLSX parsing via deterministic pandas parser"
-    priority: must
+      description: "CSV/XLSX parsing via deterministic pandas parser"
+      priority: must
     - id: IMP-NF03
-    description: "Background processing via FastAPI BackgroundTasks"
-    priority: must
+      description: "Background processing via FastAPI BackgroundTasks"
+      priority: must
     - id: IMP-NF04
-    description: "Jobs scoped to user, no cross-user access"
-    priority: must
+      description: "Jobs scoped to user, no cross-user access"
+      priority: must
 
 pre-evaluation:
   auth: "JWT token required (Depends(get_current_user))"

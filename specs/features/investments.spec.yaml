@@ -1,16 +1,12 @@
-# Feature: Investment Portfolio
-# Status: Implemented
-# Date: 2026-08-16
-
-metadata:
-  name: "Investment Portfolio"
-  id: "investments"
-  version: "1.0.0"
-  status: "implemented"
-  created: "2026-08-16"
-  updated: "2026-08-16"
-  owner: "Oikonomia Team"
-  tags: ["investments", "portfolio", "stocks", "finance"]
+feature: investments
+domain: Investment Portfolio
+type: full
+version: "1.0.0"
+status: implemented
+owner: full-stack
+created: 2026-08-16
+updated: 2026-08-16
+github_issue: null
 
 description: >
   Allows users to track their investment portfolio including stocks, bonds,

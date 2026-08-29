@@ -1,12 +1,12 @@
-metadata:
-  name: cards
-  title: "Card Management"
-  version: "1.0.0"
-  status: implemented
-  created: "2026-08-16"
-  updated: "2026-08-16"
-  owner: backend
-  tags: [cards, payments, banking]
+feature: cards
+domain: Card Management
+type: full
+version: "1.0.0"
+status: implemented
+owner: backend
+created: 2026-08-16
+updated: 2026-08-16
+github_issue: null
 
 description: |
   CRUD management for credit and debit cards. Cards are the primary payment method
