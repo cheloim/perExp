@@ -110,7 +110,9 @@ jobs:
           python-version: "3.12"
 
       - name: Generate Roadmap
-        run: python scripts/generate_roadmap.py
+        run: |
+          pip install pyyaml
+          python scripts/generate_roadmap.py
 
       - name: Check Roadmap is up to date
         run: |
