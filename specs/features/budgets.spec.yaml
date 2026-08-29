@@ -52,11 +52,11 @@ requirements:
 
   non-functional:
     - id: BUD-NF01
-    description: "Budget summary calculated within 500ms"
-    priority: should
+      description: "Budget summary calculated within 500ms"
+      priority: should
     - id: BUD-NF02
-    description: "Unique constraint (user_id, category_id) for budgets"
-    priority: must
+      description: "Unique constraint (user_id, category_id) for budgets"
+      priority: must
 
 pre-evaluation:
   auth: "JWT token required (Depends(get_current_user))"
@@ -183,7 +183,7 @@ entities:
         constraints: [default 0]
       - name: categories
         type: Text
-        constraints: [default "[]"]
+        constraints: ['default "[]"']
         notes: "JSON array of category IDs"
       - name: is_active
         type: Boolean

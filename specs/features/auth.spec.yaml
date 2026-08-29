@@ -64,23 +64,23 @@ requirements:
 
   non-functional:
     - id: AUTH-NF01
-    description: "Passwords hashed with bcrypt"
-    priority: must
+      description: "Passwords hashed with bcrypt"
+      priority: must
     - id: AUTH-NF02
-    description: "Full name encrypted with AES-256"
-    priority: must
+      description: "Full name encrypted with AES-256"
+      priority: must
     - id: AUTH-NF03
-    description: "JWT tokens expire: access=15min, refresh=7days"
-    priority: must
+      description: "JWT tokens expire: access=15min, refresh=7days"
+      priority: must
     - id: AUTH-NF04
-    description: "Reset tokens expire after 15 minutes"
-    priority: must
+      description: "Reset tokens expire after 15 minutes"
+      priority: must
     - id: AUTH-NF05
-    description: "Rate limit: 5 failed attempts per 15min window per email+IP"
-    priority: must
+      description: "Rate limit: 5 failed attempts per 15min window per email+IP"
+      priority: must
     - id: AUTH-NF06
-    description: "MFA secrets encrypted at rest"
-    priority: must
+      description: "MFA secrets encrypted at rest"
+      priority: must
 
 pre-evaluation:
   auth: "Public endpoints (login, register, forgot-password). Protected endpoints use Depends(get_current_user)."

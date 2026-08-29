@@ -7,17 +7,22 @@
 | accounts | full | ✅ Done | CRUD management for financial accounts (bank accounts, cash, digital wallets). | - | - |
 | admin-panel | full | ✅ Done | Administrative panel for platform management including user oversight, | - | - |
 | analysis | full | ✅ Done | Enables users to ask natural language questions about their spending patterns. Q... | - | - |
+| auth | full | ✅ Done | Complete authentication system supporting local credentials, Google/Apple OAuth, | - | - |
+| budgets | full | ✅ Done | Monthly budget management with 50/30/20 rule support. Budgets are set per | - | - |
 | card-closings | full | ✅ Done | Card billing period management allowing users to define closing and due dates | - | - |
 | cards | full | ✅ Done | CRUD management for credit and debit cards. Cards are the primary payment method | - | - |
 | categories | full | ✅ Done | Hierarchical category system for organizing expenses. Categories support up to | - | - |
 | dashboard | full | ✅ Done | Provides aggregated spending summaries and KPIs on the main dashboard. Displays ... | - | - |
 | expenses | full | ✅ Done | Core expense and income tracking. Expenses are the central entity of the system, | - | - |
 | groups | full | ✅ Done | Enables users to create and join family groups for shared expense tracking. Grou... | - | - |
+| import | full | ✅ Done | Smart file import system supporting PDF bank statements, CSV, and Excel files. | - | - |
 | investments | full | ✅ Done | Allows users to track their investment portfolio including stocks, bonds, and ot... | - | - |
 | notifications | full | ✅ Done | Provides real-time notifications to users via Server-Sent Events (SSE). Notifica... | - | - |
 | recurring-expenses | full | ✅ Done | Auto-detection of recurring expenses by analyzing transaction patterns. | - | - |
 | scheduled-expenses | full | ✅ Done | Allows users to define recurring expenses that are automatically created on a sc... | - | - |
 | suggestions | full | ✅ Done | Provides AI-powered category suggestions based on expense descriptions. When an ... | - | - |
+| telegram-bot | full | ✅ Done | Telegram bot integration for quick expense logging, reporting, and financial | - | - |
+| income-tracking | full | ⏳ Backlog | Income tracking feature allowing users to record and categorize income sources | - | - |
 | whatsapp-bot | full | ⏳ Backlog | WhatsApp bot integration providing the same core features as the Telegram bot: | - | - |
 
 <!-- AUTO-GENERATED END -->

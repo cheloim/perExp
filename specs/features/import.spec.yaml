@@ -55,17 +55,17 @@ requirements:
 
   non-functional:
     - id: IMP-NF01
-    description: "PDF parsing via Gemini LLM for flexible bank statement formats"
-    priority: must
+      description: "PDF parsing via Gemini LLM for flexible bank statement formats"
+      priority: must
     - id: IMP-NF02
-    description: "CSV/XLSX parsing via deterministic pandas parser"
-    priority: must
+      description: "CSV/XLSX parsing via deterministic pandas parser"
+      priority: must
     - id: IMP-NF03
-    description: "Background processing via FastAPI BackgroundTasks"
-    priority: must
+      description: "Background processing via FastAPI BackgroundTasks"
+      priority: must
     - id: IMP-NF04
-    description: "Jobs scoped to user, no cross-user access"
-    priority: must
+      description: "Jobs scoped to user, no cross-user access"
+      priority: must
 
 pre-evaluation:
   auth: "JWT token required (Depends(get_current_user))"

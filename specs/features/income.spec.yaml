@@ -22,7 +22,7 @@ requirements:
       requirement: CRUD operations for income records
       priority: must
     - id: FR-2
-      requirement: Income types: salary, bonus, investment, other
+      requirement: "Income types: salary, bonus, investment, other"
       priority: must
     - id: FR-3
       requirement: Income summary endpoint with totals by period
@@ -244,7 +244,7 @@ endpoints:
 # === BUSINESS RULES ===
 business_rules:
   - id: BR-1
-    rule: Income types are restricted to: salary, bonus, investment, other
+    rule: "Income types are restricted to: salary, bonus, investment, other"
     enforced_in: model
     rationale: Standardized categorization for reporting
   - id: BR-2

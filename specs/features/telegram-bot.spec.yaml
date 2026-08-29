@@ -91,7 +91,7 @@ business_rules:
     enforced_in: telegram_bot (start_handler)
     rationale: Ensures bot actions are tied to authenticated users
   - id: BR-2
-    rule: ConversationHandler states: WAITING_PAYMENT → WAITING_CARD_BANK → WAITING_CARD_TYPE → WAITING_CONFIRM
+    rule: "ConversationHandler states: WAITING_PAYMENT → WAITING_CARD_BANK → WAITING_CARD_TYPE → WAITING_CONFIRM"
     enforced_in: telegram_bot (conversation_handler)
     rationale: Guided flow prevents incomplete expense entries
   - id: BR-3
@@ -107,7 +107,7 @@ business_rules:
     enforced_in: telegram_bot (report_generator)
     rationale: Visual reports are more engaging than text summaries
   - id: BR-6
-    rule: Bot commands: /start (link), /gasto (new expense), /reporte (report), /programados (scheduled), /categorias (categories)
+    rule: "Bot commands: /start (link), /gasto (new expense), /reporte (report), /programados (scheduled), /categorias (categories)"
     enforced_in: telegram_bot (command_handlers)
     rationale: Consistent command interface for all bot functions
 
