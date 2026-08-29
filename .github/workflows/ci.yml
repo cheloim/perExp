@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: frontend
+        working-directory: src/frontend
     steps:
       - uses: actions/checkout@v5
 
@@ -21,7 +21,7 @@ jobs:
         with:
           node-version: "22.16.0"
           cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: src/frontend/package-lock.json
 
       - run: npm ci
 
@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: backend
+        working-directory: src/backend
     steps:
       - uses: actions/checkout@v5
 
@@ -71,7 +71,7 @@ jobs:
     continue-on-error: true
     defaults:
       run:
-        working-directory: frontend
+        working-directory: src/frontend
     steps:
       - uses: actions/checkout@v5
 
@@ -79,7 +79,7 @@ jobs:
         with:
           node-version: "22.16.0"
           cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: src/frontend/package-lock.json
 
       - run: npm ci
 
@@ -112,11 +112,11 @@ jobs:
       - name: Generate Roadmap
         run: |
           pip install pyyaml
-          python scripts/generate_roadmap.py
+          python config/scripts/generate_roadmap.py
 
       - name: Check Roadmap is up to date
         run: |
           git diff --exit-code docs/Roadmap.md || {
-            echo "::error::docs/Roadmap.md is out of date. Run 'python scripts/generate_roadmap.py' locally."
+            echo "::error::docs/Roadmap.md is out of date. Run 'python config/scripts/generate_roadmap.py' locally."
             exit 1
           }

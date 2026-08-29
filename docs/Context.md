@@ -8,9 +8,9 @@ Read `.sdd/guides/ai-agent-guide.md` for core rules and workflow.
 
 ## Project-Specific Context
 
-- `specs/architecture/` — System overview, data model, tech stack, API rules
-- `specs/features/` — Feature specifications (one per domain)
-- `specs/openapi.yaml` — API contract (auto-generated from FastAPI)
+- `docs/specs/architecture/` — System overview, data model, tech stack, API rules
+- `docs/specs/features/` — Feature specifications (one per domain)
+- `docs/specs/openapi.yaml` — API contract (auto-generated from FastAPI)
 
 ## Conventions
 

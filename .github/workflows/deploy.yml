@@ -6,8 +6,14 @@ on:
     paths-ignore:
       - "*.md"
       - "docs/**"
+      - "docs/specs/**"
+      - "config/scripts/generate_roadmap.py"
+      - ".sdd/**"
+      - ".github/**"
       - "LICENSE"
       - ".gitignore"
+      - "assets/**"
+      - "tests/**"
   workflow_dispatch:
     inputs:
       action:
@@ -43,7 +49,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd backend
+          cd src/backend
           pip install -r requirements.txt
           pip install pytest
 
@@ -51,7 +57,7 @@ jobs:
         env:
           SECRET_KEY: "test-secret-key-for-ci-that-is-at-least-32-chars"
         run: |
-          cd backend
+          cd src/backend
           python -m pytest tests/test_encryption.py -v
 
   build-and-push:
@@ -79,7 +85,7 @@ jobs:
       - name: Build and Push Backend
         uses: docker/build-push-action@v7
         with:
-          context: ./backend
+          context: ./src/backend
           push: true
           tags: |
             ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
@@ -90,7 +96,7 @@ jobs:
       - name: Build and Push Frontend
         uses: docker/build-push-action@v7
         with:
-          context: ./frontend
+          context: ./src/frontend
           push: true
           build-args: |
             VITE_APP_ENV=production

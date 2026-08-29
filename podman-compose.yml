@@ -37,8 +37,8 @@ services:
 
   backend_dev:
     build:
-      context: ./backend
-      dockerfile: Dockerfile.dev
+      context: ./src/backend
+      target: dev
     user: "1000:1000"
     secrets:
       - creditcard_backend_dev_postgres_password
@@ -62,9 +62,9 @@ services:
       SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-noreply@resend.dev}
       TZ: America/Argentina/Buenos_Aires
     volumes:
-      - ./backend/app:/app/app:z
-      - ./backend/main.py:/app/main.py:z
-      - ./backend/scripts:/app/scripts:z
+      - ./src/backend/app:/app/app:z
+      - ./src/backend/main.py:/app/main.py:z
+      - ./src/backend/scripts:/app/scripts:z
     ports:
       - "8001:8000"
     depends_on:
@@ -80,13 +80,13 @@ services:
 
   frontend_dev:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile.dev
+      context: ./src/frontend
+      target: dev
     secrets:
       - creditcard_frontend_dev_google_client_id
     volumes:
-      - ./frontend/src:/app/src:Z
-      - ./frontend/index.html:/app/index.html:Z
+      - ./src/frontend/src:/app/src:Z
+      - ./src/frontend/index.html:/app/index.html:Z
     ports:
       - "8082:5173"
     environment:
@@ -99,8 +99,8 @@ services:
 
   celery_worker_dev:
     build:
-      context: ./backend
-      dockerfile: Dockerfile.dev
+      context: ./src/backend
+      target: dev
     user: "1000:1000"
     command: celery -A app.celery_app worker --loglevel=info --concurrency=2
     secrets:
@@ -125,8 +125,8 @@ services:
       SMTP_FROM: ${SMTP_FROM:-NikoFin}
       SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-noreply@resend.dev}
     volumes:
-      - ./backend/app:/app/app:z
-      - ./backend/main.py:/app/main.py:z
+      - ./src/backend/app:/app/app:z
+      - ./src/backend/main.py:/app/main.py:z
     deploy:
       resources:
         limits:
@@ -135,8 +135,8 @@ services:
 
   celery_beat_dev:
     build:
-      context: ./backend
-      dockerfile: Dockerfile.dev
+      context: ./src/backend
+      target: dev
     user: "1000:1000"
     command: celery -A app.celery_app beat --loglevel=info
     secrets:
@@ -162,8 +162,8 @@ services:
       SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-noreply@resend.dev}
       TZ: America/Argentina/Buenos_Aires
     volumes:
-      - ./backend/app:/app/app:z
-      - ./backend/main.py:/app/main.py:z
+      - ./src/backend/app:/app/app:z
+      - ./src/backend/main.py:/app/main.py:z
     deploy:
       resources:
         limits:
