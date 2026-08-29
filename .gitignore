@@ -30,6 +30,7 @@ Plan.md
 last_check
 
 # Secrets
+config/secrets/
 secrets/
 backend/secrets/
 frontend/secrets/

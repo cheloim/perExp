@@ -107,7 +107,7 @@ def build_table(specs: list[dict]) -> str:
 
 def main() -> None:
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    specs_dir = os.path.join(root, "specs", "features")
+    specs_dir = os.path.join(root, "docs", "specs", "features")
     roadmap_path = os.path.join(root, "docs", "Roadmap.md")
 
     # Collect spec files
@@ -120,7 +120,7 @@ def main() -> None:
         spec_files.extend(glob.glob(pat))
 
     if not spec_files:
-        print("No spec files found in specs/features/")
+        print("No spec files found in docs/specs/features/")
         sys.exit(0)
 
     print(f"Found {len(spec_files)} spec file(s)")

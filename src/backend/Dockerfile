@@ -1,12 +1,12 @@
-FROM python:3.13-slim
+FROM python:3.13-slim AS base
 
 WORKDIR /app
-
 ENV PYTHONPATH=/app
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
-# System deps for Playwright/Chromium
+# Install system dependencies for Playwright/Chromium
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
     libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
     libcups2 libdrm2 libxkbcommon0 libxcomposite1 \
     libxdamage1 libxrandr2 libgbm1 libpango-1.0-0 \
@@ -20,8 +20,16 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN playwright install chromium
 
 COPY docker-entrypoint.sh .
-
 RUN chmod +x docker-entrypoint.sh
 
-ENTRYPOINT ["./docker-entrypoint.sh"]
+# --- Dev: hot reload, no source copy (volume mounts) ---
+FROM base AS dev
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+# --- Prod: source baked in ---
+FROM base AS prod
+COPY app/ ./app/
+COPY scripts/ ./scripts/
+COPY main.py .
+EXPOSE 8000
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
