@@ -3,7 +3,7 @@ import { defineConfig } from "orval";
 export default defineConfig({
   oikonomia: {
     input: {
-      target: "../specs/openapi.yaml",
+      target: "../../docs/specs/openapi.yaml",
     },
     output: {
       target: "./src/api/client-generated.ts",
