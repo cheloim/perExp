@@ -176,8 +176,6 @@ function LoginForm({
       scope: "email profile openid",
       ux_mode: "redirect",
       redirect_uri: `${window.location.origin}/oauth/callback`,
-      access_type: "offline",
-      prompt: "select_account",
     });
   }, []);
 
