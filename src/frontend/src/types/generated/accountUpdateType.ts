@@ -33,7 +33,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type AccountUpdateType = (typeof AccountUpdateType)[keyof typeof AccountUpdateType];
+export type AccountUpdateType = typeof AccountUpdateType[keyof typeof AccountUpdateType];
 
 export const AccountUpdateType = {
   efectivo: "efectivo",

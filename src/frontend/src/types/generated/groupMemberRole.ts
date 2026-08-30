@@ -33,7 +33,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type GroupMemberRole = (typeof GroupMemberRole)[keyof typeof GroupMemberRole];
+export type GroupMemberRole = typeof GroupMemberRole[keyof typeof GroupMemberRole];
 
 export const GroupMemberRole = {
   owner: "owner",

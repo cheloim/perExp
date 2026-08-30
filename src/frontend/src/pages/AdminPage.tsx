@@ -64,10 +64,10 @@ export default function AdminPage() {
             {t === "users"
               ? "Usuarios"
               : t === "logs"
-                ? "Logs & Seguridad"
-                : t === "reports"
-                  ? "Reportes"
-                  : "Sistema"}
+              ? "Logs & Seguridad"
+              : t === "reports"
+              ? "Reportes"
+              : "Sistema"}
           </button>
         ))}
       </nav>
@@ -510,10 +510,10 @@ function UserDetailModal({ userId, onClose }: { userId: number; onClose: () => v
                   ["login_failed", "mfa_failed", "account_deleted"].includes(log.action)
                     ? "text-[var(--gnome-red-3)]"
                     : ["login_success", "password_changed"].includes(log.action)
-                      ? "text-[var(--gnome-green-3)]"
-                      : log.action === "register"
-                        ? "text-[var(--gnome-blue-3)]"
-                        : "text-[var(--text-secondary)]"
+                    ? "text-[var(--gnome-green-3)]"
+                    : log.action === "register"
+                    ? "text-[var(--gnome-blue-3)]"
+                    : "text-[var(--text-secondary)]"
                 }
               >
                 {log.action}
@@ -667,12 +667,12 @@ function LogsTab() {
                     ? "bg-[var(--gnome-red-1)] text-[var(--gnome-red-5)] border-[var(--gnome-red-3)]"
                     : "bg-transparent text-[var(--text-tertiary)] border-[var(--border-color)]"
                   : color === "green"
-                    ? isActive
-                      ? "bg-[var(--gnome-green-1)] text-[var(--gnome-green-5)] border-[var(--gnome-green-3)]"
-                      : "bg-transparent text-[var(--text-tertiary)] border-[var(--border-color)]"
-                    : isActive
-                      ? "bg-[var(--gnome-blue-1)] text-[var(--gnome-blue-5)] border-[var(--gnome-blue-3)]"
-                      : "bg-transparent text-[var(--text-tertiary)] border-[var(--border-color)]";
+                  ? isActive
+                    ? "bg-[var(--gnome-green-1)] text-[var(--gnome-green-5)] border-[var(--gnome-green-3)]"
+                    : "bg-transparent text-[var(--text-tertiary)] border-[var(--border-color)]"
+                  : isActive
+                  ? "bg-[var(--gnome-blue-1)] text-[var(--gnome-blue-5)] border-[var(--gnome-blue-3)]"
+                  : "bg-transparent text-[var(--text-tertiary)] border-[var(--border-color)]";
               return (
                 <button
                   key={key}
@@ -743,10 +743,10 @@ function LogsTab() {
                             isFailed
                               ? "bg-[var(--gnome-red-1)] text-[var(--gnome-red-5)]"
                               : isSuccess
-                                ? "bg-[var(--gnome-green-1)] text-[var(--gnome-green-5)]"
-                                : isRegister
-                                  ? "bg-[var(--gnome-blue-1)] text-[var(--gnome-blue-5)]"
-                                  : "text-[var(--text-secondary)]"
+                              ? "bg-[var(--gnome-green-1)] text-[var(--gnome-green-5)]"
+                              : isRegister
+                              ? "bg-[var(--gnome-blue-1)] text-[var(--gnome-blue-5)]"
+                              : "text-[var(--text-secondary)]"
                           }`}
                         >
                           {log.action}
@@ -934,10 +934,10 @@ function PlatformLogsSection() {
                         log.level === "CRITICAL"
                           ? "bg-[var(--gnome-red-3)] text-white"
                           : log.level === "ERROR"
-                            ? "text-[var(--gnome-red-3)]"
-                            : log.level === "WARNING"
-                              ? "text-[var(--gnome-orange-3)]"
-                              : "text-[var(--gnome-blue-3)]"
+                          ? "text-[var(--gnome-red-3)]"
+                          : log.level === "WARNING"
+                          ? "text-[var(--gnome-orange-3)]"
+                          : "text-[var(--gnome-blue-3)]"
                       }`}
                     >
                       {log.level}
@@ -1116,8 +1116,8 @@ function ReportsTab() {
                         r.status === "READY"
                           ? "bg-[var(--gnome-green-1)] text-[var(--gnome-green-5)]"
                           : r.status === "FAILED"
-                            ? "bg-[var(--gnome-red-1)] text-[var(--gnome-red-5)]"
-                            : "bg-[var(--gnome-orange-1)] text-[var(--gnome-orange-5)]"
+                          ? "bg-[var(--gnome-red-1)] text-[var(--gnome-red-5)]"
+                          : "bg-[var(--gnome-orange-1)] text-[var(--gnome-orange-5)]"
                       }`}
                     >
                       {r.status}
@@ -1475,8 +1475,8 @@ function FeatureFlagsSection() {
                               ? opt.value === "on"
                                 ? "bg-[var(--gnome-green-1)] text-[var(--gnome-green-5)] border-[var(--gnome-green-3)]"
                                 : opt.value === "off"
-                                  ? "bg-[var(--gnome-red-1)] text-[var(--gnome-red-5)] border-[var(--gnome-red-3)]"
-                                  : "bg-[var(--gnome-blue-1)] text-[var(--gnome-blue-5)] border-[var(--gnome-blue-3)]"
+                                ? "bg-[var(--gnome-red-1)] text-[var(--gnome-red-5)] border-[var(--gnome-red-3)]"
+                                : "bg-[var(--gnome-blue-1)] text-[var(--gnome-blue-5)] border-[var(--gnome-blue-3)]"
                               : "bg-transparent text-[var(--text-tertiary)] border-[var(--border-color)]"
                           }`}
                         >

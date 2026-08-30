@@ -771,9 +771,11 @@ function MainLayout() {
                     setShowWhatsNew(false);
                     if (dontRemind) {
                       // Persist to backend (syncs across devices)
-                      dismissWhatsNew(LATEST_VERSION).then(() => {
-                        queryClient.invalidateQueries({ queryKey: ["me"] });
-                      }).catch(() => {});
+                      dismissWhatsNew(LATEST_VERSION)
+                        .then(() => {
+                          queryClient.invalidateQueries({ queryKey: ["me"] });
+                        })
+                        .catch(() => {});
                       // Also set localStorage as fast-path fallback
                       localStorage.setItem("whats_new_dont_remind_version", LATEST_VERSION);
                     }

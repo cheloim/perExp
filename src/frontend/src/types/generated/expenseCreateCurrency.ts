@@ -34,7 +34,7 @@
  */
 
 export type ExpenseCreateCurrency =
-  (typeof ExpenseCreateCurrency)[keyof typeof ExpenseCreateCurrency];
+  typeof ExpenseCreateCurrency[keyof typeof ExpenseCreateCurrency];
 
 export const ExpenseCreateCurrency = {
   ARS: "ARS",

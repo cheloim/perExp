@@ -34,7 +34,7 @@
  */
 
 export type SetCategoryBudgetGroupBodyBudgetGroup =
-  (typeof SetCategoryBudgetGroupBodyBudgetGroup)[keyof typeof SetCategoryBudgetGroupBodyBudgetGroup];
+  typeof SetCategoryBudgetGroupBodyBudgetGroup[keyof typeof SetCategoryBudgetGroupBodyBudgetGroup];
 
 export const SetCategoryBudgetGroupBodyBudgetGroup = {
   necesidades: "necesidades",
