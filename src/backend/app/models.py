@@ -49,6 +49,8 @@ class User(Base):
     onboarding_completed = Column(Boolean, default=False)
     # Auto-detect recurring banner
     auto_detected_banner_dismissed_at = Column(DateTime, nullable=True)
+    # What's New dismissed version
+    whats_new_dismissed_version = Column(String(20), nullable=True)
     # Admin
     is_admin = Column(Boolean, default=False)
     is_blocked = Column(Boolean, default=False)

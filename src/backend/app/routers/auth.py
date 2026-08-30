@@ -667,6 +667,27 @@ def refresh_token(current_user: User = Depends(get_current_user)):
     return Token(access_token=create_access_token(current_user.id), token_type="bearer")
 
 
+class WhatsNewDismissRequest(BaseModel):
+    version: str
+
+
+@router.put(
+    "/me/whats-new-dismiss",
+    response_model=UserResponse,
+    summary="Dismiss What's New popup for a version",
+    description="Records that the user has dismissed the What's New popup for a specific version. This preference syncs across all devices.",
+)
+def dismiss_whats_new(
+    body: WhatsNewDismissRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    current_user.whats_new_dismissed_version = body.version
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
 RESET_TOKEN_EXPIRY_MINUTES = 15
 
 

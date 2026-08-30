@@ -97,6 +97,9 @@ export const getMe = () => api.get<User>("/auth/me").then((r) => r.data);
 export const markOnboardingCompleted = () =>
   api.put<User>("/auth/me/onboarding").then((r) => r.data);
 
+export const dismissWhatsNew = (version: string) =>
+  api.put<User>("/auth/me/whats-new-dismiss", { version }).then((r) => r.data);
+
 export const changePassword = (current_password: string, new_password: string) =>
   api.put("/auth/password", { current_password, new_password });
 

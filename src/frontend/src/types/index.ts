@@ -95,6 +95,7 @@ export interface User {
   onboarding_completed?: boolean;
   is_admin?: boolean;
   is_blocked?: boolean;
+  whats_new_dismissed_version?: string | null;
 }
 
 export interface Category {

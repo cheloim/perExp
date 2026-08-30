@@ -614,6 +614,7 @@ def main():
     step12_admin_panel(engine)
     step13_platform_logs(engine)
     step14_recurring_expense_link(engine)
+    step15_whats_new_dismissed_version(engine)
 
     print("\n" + "=" * 60)
     print("Migration complete!")
@@ -841,6 +842,33 @@ def step14_recurring_expense_link(engine):
             ))
 
             print("  Added recurring_expense_id INTEGER with FK (RESTRICT) and index.")
+
+
+def step15_whats_new_dismissed_version(engine):
+    """Add whats_new_dismissed_version column to users table."""
+    print("\n[Step 15/15] Adding whats_new_dismissed_version to users...")
+
+    with engine.begin() as conn:
+        dialect = engine.dialect.name
+
+        if dialect != "postgresql":
+            print("  Skipping — only supported on PostgreSQL.")
+            return
+
+        exists = conn.execute(text("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'users' AND column_name = 'whats_new_dismissed_version'
+            )
+        """)).scalar()
+
+        if exists:
+            print("  whats_new_dismissed_version already exists. Skipping.")
+        else:
+            conn.execute(
+                text("ALTER TABLE users ADD COLUMN whats_new_dismissed_version VARCHAR(20)")
+            )
+            print("  Added whats_new_dismissed_version VARCHAR(20).")
 
 
 if __name__ == "__main__":
