@@ -33,7 +33,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type ListImportJobsStatus = typeof ListImportJobsStatus[keyof typeof ListImportJobsStatus];
+export type ListImportJobsStatus = (typeof ListImportJobsStatus)[keyof typeof ListImportJobsStatus];
 
 export const ListImportJobsStatus = {
   PROCESSING: "PROCESSING",

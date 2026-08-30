@@ -33,7 +33,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type CardUpdateCardType = typeof CardUpdateCardType[keyof typeof CardUpdateCardType];
+export type CardUpdateCardType = (typeof CardUpdateCardType)[keyof typeof CardUpdateCardType];
 
 export const CardUpdateCardType = {
   credito: "credito",

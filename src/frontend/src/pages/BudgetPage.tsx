@@ -134,12 +134,12 @@ function CategoryBar({
     pct >= 100
       ? "#e01b24"
       : pct >= 90
-      ? "#e01b24"
-      : pct >= 80
-      ? "#e5a50a"
-      : pct >= 60
-      ? "#e5a50a"
-      : "var(--color-success)";
+        ? "#e01b24"
+        : pct >= 80
+          ? "#e5a50a"
+          : pct >= 60
+            ? "#e5a50a"
+            : "var(--color-success)";
 
   // No budget case — use avg monthly as reference
   if (budget === 0) {
@@ -149,12 +149,12 @@ function CategoryBar({
       noBudgetPct >= 100
         ? "#e01b24"
         : noBudgetPct >= 90
-        ? "#e01b24"
-        : noBudgetPct >= 80
-        ? "#e5a50a"
-        : noBudgetPct >= 60
-        ? "#e5a50a"
-        : "var(--color-success)";
+          ? "#e01b24"
+          : noBudgetPct >= 80
+            ? "#e5a50a"
+            : noBudgetPct >= 60
+              ? "#e5a50a"
+              : "var(--color-success)";
 
     return (
       <div
@@ -384,10 +384,10 @@ function EventCard({
     pct >= 100
       ? "var(--color-danger)"
       : pct >= 80
-      ? "#e8a100"
-      : pct >= 60
-      ? "var(--gnome-yellow-4)"
-      : "var(--color-success)";
+        ? "#e8a100"
+        : pct >= 60
+          ? "var(--gnome-yellow-4)"
+          : "var(--color-success)";
 
   return (
     <div
@@ -436,8 +436,8 @@ function EventCard({
               pct >= 100
                 ? "text-[var(--color-danger)]"
                 : pct >= 80
-                ? "text-[#e8a100]"
-                : "text-[var(--color-success)]"
+                  ? "text-[#e8a100]"
+                  : "text-[var(--color-success)]"
             }`}
           >
             {Math.round(pct)}%
@@ -597,7 +597,7 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
   const groupedByParent = new Map<
     string,
     {
-      parent: typeof allCategories[0] | null;
+      parent: (typeof allCategories)[0] | null;
       children: typeof leafCategories;
     }
   >();
@@ -605,7 +605,7 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
     const parentId = String(cat.parent_id ?? "root");
     if (!groupedByParent.has(parentId)) {
       const parent = cat.parent_id
-        ? allCategories.find((c) => c.id === cat.parent_id) ?? null
+        ? (allCategories.find((c) => c.id === cat.parent_id) ?? null)
         : null;
       groupedByParent.set(parentId, { parent, children: [] });
     }
@@ -659,7 +659,7 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
   const filteredGrouped = new Map<
     string,
     {
-      parent: typeof allCategories[0] | null;
+      parent: (typeof allCategories)[0] | null;
       children: typeof leafCategories;
     }
   >();
@@ -667,7 +667,7 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
     const parentId = String(cat.parent_id ?? "root");
     if (!filteredGrouped.has(parentId)) {
       const parent = cat.parent_id
-        ? allCategories.find((c) => c.id === cat.parent_id) ?? null
+        ? (allCategories.find((c) => c.id === cat.parent_id) ?? null)
         : null;
       filteredGrouped.set(parentId, { parent, children: [] });
     }
@@ -1633,8 +1633,8 @@ export default function BudgetPage() {
                       selectedGroup === "necesidades"
                         ? "Necesidades"
                         : selectedGroup === "gustos"
-                        ? "Gustos"
-                        : "Ahorro"
+                          ? "Gustos"
+                          : "Ahorro"
                     }
                     color={groupColors[selectedGroup] || "var(--color-primary)"}
                     groupName={selectedGroup}

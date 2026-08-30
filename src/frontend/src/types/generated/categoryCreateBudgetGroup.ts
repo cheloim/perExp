@@ -34,7 +34,7 @@
  */
 
 export type CategoryCreateBudgetGroup =
-  typeof CategoryCreateBudgetGroup[keyof typeof CategoryCreateBudgetGroup];
+  (typeof CategoryCreateBudgetGroup)[keyof typeof CategoryCreateBudgetGroup];
 
 export const CategoryCreateBudgetGroup = {
   necesidades: "necesidades",

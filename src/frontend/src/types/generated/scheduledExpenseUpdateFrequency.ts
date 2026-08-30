@@ -34,7 +34,7 @@
  */
 
 export type ScheduledExpenseUpdateFrequency =
-  typeof ScheduledExpenseUpdateFrequency[keyof typeof ScheduledExpenseUpdateFrequency];
+  (typeof ScheduledExpenseUpdateFrequency)[keyof typeof ScheduledExpenseUpdateFrequency];
 
 export const ScheduledExpenseUpdateFrequency = {
   weekly: "weekly",

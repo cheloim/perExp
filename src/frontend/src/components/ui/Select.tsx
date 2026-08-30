@@ -284,8 +284,8 @@ export function Select({
                       highlightedIndex === flatIdx
                         ? "bg-[var(--color-base-alt)]"
                         : value === option.value
-                        ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-medium"
-                        : "text-[var(--text-primary)] hover:bg-[var(--color-base-alt)]"
+                          ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-medium"
+                          : "text-[var(--text-primary)] hover:bg-[var(--color-base-alt)]"
                     }`}
                   >
                     {option.label}
@@ -322,8 +322,8 @@ export function Select({
                             highlightedIndex === flatIdx
                               ? "bg-[var(--color-base-alt)]"
                               : value === option.value
-                              ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-medium"
-                              : "text-[var(--text-primary)] hover:bg-[var(--color-base-alt)]"
+                                ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-medium"
+                                : "text-[var(--text-primary)] hover:bg-[var(--color-base-alt)]"
                           }`}
                         >
                           {option.label}

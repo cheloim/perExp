@@ -34,7 +34,7 @@
  */
 
 export type DashboardByPeriodPeriod =
-  typeof DashboardByPeriodPeriod[keyof typeof DashboardByPeriodPeriod];
+  (typeof DashboardByPeriodPeriod)[keyof typeof DashboardByPeriodPeriod];
 
 export const DashboardByPeriodPeriod = {
   week: "week",

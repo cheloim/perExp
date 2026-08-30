@@ -34,7 +34,7 @@
  */
 
 export type InvestmentCreateBroker =
-  typeof InvestmentCreateBroker[keyof typeof InvestmentCreateBroker];
+  (typeof InvestmentCreateBroker)[keyof typeof InvestmentCreateBroker];
 
 export const InvestmentCreateBroker = {
   iol: "iol",
