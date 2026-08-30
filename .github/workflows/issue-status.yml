@@ -1,0 +1,167 @@
+name: Issue Status
+
+on:
+  pull_request:
+    types: [opened, ready_for_review, closed, converted_to_draft, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  projects: write
+
+env:
+  PROJECT_ID: PVT_kwHOAxRXjs4Bh4Pj
+  STATUS_FIELD_ID: PVTSSF_lAHOAxRXjs4Bh4PjzhgyT7k
+  OWNER: cheloim
+
+jobs:
+  update-status:
+    name: Update Issue Status
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.event.action == 'converted_to_draft'
+    steps:
+      - name: Determine target status
+        id: status
+        run: |
+          ACTION="${{ github.event.action }}"
+          MERGED="${{ github.event.pull_request.merged }}"
+          DRAFT="${{ github.event.pull_request.draft }}"
+
+          if [ "$ACTION" = "opened" ] && [ "$DRAFT" = "false" ]; then
+            echo "status_name=In progress" >> "$GITHUB_OUTPUT"
+            echo "status_id=47fc9ee4" >> "$GITHUB_OUTPUT"
+          elif [ "$ACTION" = "opened" ] && [ "$DRAFT" = "true" ]; then
+            echo "status_name=Ready" >> "$GITHUB_OUTPUT"
+            echo "status_id=08afe404" >> "$GITHUB_OUTPUT"
+          elif [ "$ACTION" = "ready_for_review" ]; then
+            echo "status_name=In review" >> "$GITHUB_OUTPUT"
+            echo "status_id=4cc61d42" >> "$GITHUB_OUTPUT"
+          elif [ "$ACTION" = "reopened" ] && [ "$DRAFT" = "false" ]; then
+            echo "status_name=In review" >> "$GITHUB_OUTPUT"
+            echo "status_id=4cc61d42" >> "$GITHUB_OUTPUT"
+          elif [ "$ACTION" = "reopened" ] && [ "$DRAFT" = "true" ]; then
+            echo "status_name=Ready" >> "$GITHUB_OUTPUT"
+            echo "status_id=08afe404" >> "$GITHUB_OUTPUT"
+          elif [ "$ACTION" = "closed" ] && [ "$MERGED" = "true" ]; then
+            echo "status_name=Done" >> "$GITHUB_OUTPUT"
+            echo "status_id=98236657" >> "$GITHUB_OUTPUT"
+          elif [ "$ACTION" = "closed" ] && [ "$MERGED" = "false" ]; then
+            echo "status_name=Ready" >> "$GITHUB_OUTPUT"
+            echo "status_id=08afe404" >> "$GITHUB_OUTPUT"
+          elif [ "$ACTION" = "converted_to_draft" ]; then
+            echo "status_name=Ready" >> "$GITHUB_OUTPUT"
+            echo "status_id=08afe404" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract linked issues
+        if: steps.status.outputs.skip != 'true'
+        id: issues
+        run: |
+          # Extract from PR body (Closes #123, Fixes #456, Resolves #789)
+          BODY='${{ github.event.pull_request.body }}'
+          BODY_ISSUES=$(echo "$BODY" | grep -oiE '(closes|fixes|resolves)\s+#([0-9]+)' | grep -oE '#[0-9]+' | tr -d '#' | sort -u)
+
+          # Get linked issues from GitHub API (Linked Issues feature)
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          REPO="${{ github.repository }}"
+          LINKED_ISSUES=$(gh api graphql -f query="
+            query {
+              repository(owner: \"$OWNER\", name: \"$(echo $REPO | cut -d'/' -f2)\") {
+                pullRequest(number: $PR_NUMBER) {
+                  closingIssuesReferences(first: 50) {
+                    nodes {
+                      number
+                    }
+                  }
+                }
+              }
+            }
+          " --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[].number' 2>/dev/null || echo "")
+
+          # Combine and deduplicate
+          ALL_ISSUES=$(echo -e "$BODY_ISSUES\n$LINKED_ISSUES" | sort -un | grep -v '^$')
+
+          if [ -z "$ALL_ISSUES" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "No linked issues found"
+          else
+            echo "issues<<EOF" >> "$GITHUB_OUTPUT"
+            echo "$ALL_ISSUES" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+            echo "Linked issues: $ALL_ISSUES"
+          fi
+
+      - name: Update issue statuses
+        if: steps.status.outputs.skip != 'true' && steps.issues.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          STATUS_NAME="${{ steps.status.outputs.status_name }}"
+          STATUS_ID="${{ steps.status.outputs.status_id }}"
+          REPO="${{ github.repository }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          UPDATED=0
+
+          while IFS= read -r ISSUE_NUMBER; do
+            [ -z "$ISSUE_NUMBER" ] && continue
+
+            echo "--- Processing issue #${ISSUE_NUMBER} ---"
+
+            # Get project item ID for this issue
+            ITEM_ID=$(gh project item-list 1 --owner "$OWNER" --format json \
+              | jq -r --arg num "$ISSUE_NUMBER" '.items[] | select(.content.number == ($num | tonumber)) | .id' 2>/dev/null)
+
+            if [ -z "$ITEM_ID" ]; then
+              echo "  Issue #${ISSUE_NUMBER} is not in the project — skipping"
+              continue
+            fi
+
+            # Get current status
+            CURRENT_STATUS=$(gh project item-list 1 --owner "$OWNER" --format json \
+              | jq -r --arg num "$ISSUE_NUMBER" '.items[] | select(.content.number == ($num | tonumber)) | .status' 2>/dev/null)
+
+            if [ "$CURRENT_STATUS" = "$STATUS_NAME" ]; then
+              echo "  Issue #${ISSUE_NUMBER} already in '${STATUS_NAME}' — skipping"
+              continue
+            fi
+
+            # Update status
+            gh project item-edit \
+              --project-id "$PROJECT_ID" \
+              --id "$ITEM_ID" \
+              --field-id "$STATUS_FIELD_ID" \
+              --single-select-option-id "$STATUS_ID"
+
+            echo "  Issue #${ISSUE_NUMBER}: ${CURRENT_STATUS:-?} → ${STATUS_NAME}"
+            UPDATED=$((UPDATED + 1))
+
+          done <<< "${{ steps.issues.outputs.issues }}"
+
+          echo "updated=$UPDATED" >> "$GITHUB_OUTPUT"
+
+      - name: Log transitions as PR comment
+        if: steps.status.outputs.skip != 'true' && steps.issues.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          STATUS_NAME="${{ steps.status.outputs.status_name }}"
+          UPDATED="${{ steps.update-status.outputs.updated }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          REPO="${{ github.repository }}"
+
+          if [ "$UPDATED" = "0" ]; then
+            exit 0
+          fi
+
+          # Build issue list for comment
+          ISSUE_LIST=""
+          while IFS= read -r ISSUE_NUMBER; do
+            [ -z "$ISSUE_NUMBER" ] && continue
+            ISSUE_LIST="${ISSUE_LIST}\n- #${ISSUE_NUMBER}"
+          done <<< "${{ steps.issues.outputs.issues }}"
+
+          COMMENT="**Issue Status Update:** ${STATUS_NAME}\n\nUpdated ${UPDATED} linked issue(s):${ISSUE_LIST}"
+
+          gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$(echo -e "$COMMENT")"
