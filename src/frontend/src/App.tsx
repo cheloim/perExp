@@ -16,7 +16,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useUndoToast } from "./hooks/useUndoToast";
 import ImpersonationBanner from "./components/ImpersonationBanner";
 import ReAuthModal from "./components/ReAuthModal";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const AccountsPage = lazy(() => import("./pages/AccountsPage"));
@@ -257,6 +257,7 @@ function MainLayout() {
   const [userPanelOpen, setUserPanelOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [showMoreNav, setShowMoreNav] = useState(false);
+  const queryClient = useQueryClient();
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [showReAuth, setShowReAuth] = useState(false);
   const { ToastContainer } = useUndoToast();
@@ -770,7 +771,11 @@ function MainLayout() {
                     setShowWhatsNew(false);
                     if (dontRemind) {
                       // Persist to backend (syncs across devices)
-                      dismissWhatsNew(LATEST_VERSION).catch(() => {});
+                      dismissWhatsNew(LATEST_VERSION)
+                        .then(() => {
+                          queryClient.invalidateQueries({ queryKey: ["me"] });
+                        })
+                        .catch(() => {});
                       // Also set localStorage as fast-path fallback
                       localStorage.setItem("whats_new_dont_remind_version", LATEST_VERSION);
                     }

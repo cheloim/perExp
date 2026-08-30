@@ -35,6 +35,19 @@
 - [ ] `ruff check app/` passes (backend)
 - [ ] Manual testing completed
 
+## Side Effects (mandatory)
+- [ ] Modified files reviewed for adjacent/related issues
+- [ ] State management: mutations update query cache (not fire-and-forget)
+- [ ] Cross-device sync: server-side state persisted (not just localStorage)
+- [ ] New model columns have migration scripts registered in deploy.yml
+
+## OAuth/SSO (if applicable)
+- [ ] `prompt` parameter configured (select_account, consent, or none)
+- [ ] `access_type` matches use case (offline only if refresh token needed AND used)
+- [ ] TypeScript type definition includes all used parameters
+- [ ] Consent screen behavior tested (first login + repeat login)
+- [ ] Refresh token stored AND used (if applicable)
+
 ## Deployment
 - [ ] Migration script is idempotent (if applicable)
 - [ ] Rebuild required? Backend: yes/no, Frontend: yes/no

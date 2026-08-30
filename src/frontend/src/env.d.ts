@@ -49,6 +49,7 @@ interface GoogleAccountsOauth2 {
     redirect_uri: string;
     state?: string;
     access_type?: "online" | "offline";
+    prompt?: "consent" | "select_account" | "none";
   }): GoogleCodeClient;
 }
 
