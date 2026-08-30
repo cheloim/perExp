@@ -11,7 +11,7 @@ import { UploadProgressProvider } from "./context/UploadProgressContext";
 import { NotificationsProvider, useNotifications } from "./context/NotificationsContext";
 import { FamilyGroupProvider } from "./context/FamilyGroupContext";
 import { sidebarIcons } from "./components/SidebarIcons";
-import { getStoredToken, getMe, getAdminSlug } from "./api/client";
+import { getStoredToken, getMe, getAdminSlug, dismissWhatsNew } from "./api/client";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useUndoToast } from "./hooks/useUndoToast";
 import ImpersonationBanner from "./components/ImpersonationBanner";
@@ -46,6 +46,7 @@ const NovedadesPage = lazy(() => import("./pages/NovedadesPage"));
 const OnboardingWalkthrough = lazy(() => import("./components/OnboardingWalkthrough"));
 const WhatsNewModal = lazy(() => import("./components/WhatsNewModal"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
+import { LATEST_VERSION } from "./data/changes";
 
 const TABS = [
   {
@@ -296,7 +297,7 @@ function MainLayout() {
   }, []);
 
   // Check if we should show What's New modal (only on /)
-  // Shows every time on main page unless user opted out entirely
+  // Shows on main page unless user dismissed this specific version
   useEffect(() => {
     const checkWhatsNew = async () => {
       try {
@@ -304,8 +305,16 @@ function MainLayout() {
         const { SHOW_WHATS_NEW } = await import("./components/WhatsNewModal");
         if (!SHOW_WHATS_NEW) return;
 
-        const dontRemind = localStorage.getItem("whats_new_dont_remind") === "true";
-        if (dontRemind) return;
+        // Fast-path: localStorage fallback (instant, no network)
+        const dontRemindLocal = localStorage.getItem("whats_new_dont_remind_version");
+        if (dontRemindLocal === LATEST_VERSION) return;
+
+        // Backend check: skip if user already dismissed this version
+        if (currentUser?.whats_new_dismissed_version === LATEST_VERSION) {
+          // Sync localStorage so we don't need to check again
+          localStorage.setItem("whats_new_dont_remind_version", LATEST_VERSION);
+          return;
+        }
 
         setTimeout(() => setShowWhatsNew(true), 1500);
       } catch {
@@ -313,7 +322,7 @@ function MainLayout() {
       }
     };
     checkWhatsNew();
-  }, [location.pathname]);
+  }, [location.pathname, currentUser?.whats_new_dismissed_version]);
 
   useEffect(() => {
     const main = document.querySelector("main");
@@ -757,7 +766,10 @@ function MainLayout() {
                   onClose={(dontRemind) => {
                     setShowWhatsNew(false);
                     if (dontRemind) {
-                      localStorage.setItem("whats_new_dont_remind", "true");
+                      // Persist to backend (syncs across devices)
+                      dismissWhatsNew(LATEST_VERSION).catch(() => {});
+                      // Also set localStorage as fast-path fallback
+                      localStorage.setItem("whats_new_dont_remind_version", LATEST_VERSION);
                     }
                   }}
                 />

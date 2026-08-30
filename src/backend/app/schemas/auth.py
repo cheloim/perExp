@@ -45,6 +45,7 @@ class UserResponse(BaseModel):
     onboarding_completed: bool = False
     is_admin: bool = False
     is_blocked: bool = False
+    whats_new_dismissed_version: str | None = None
     model_config = {"from_attributes": True}
 
 
