@@ -120,3 +120,35 @@ jobs:
             echo "::error::docs/Roadmap.md is out of date. Run 'python config/scripts/generate_roadmap.py' locally."
             exit 1
           }
+
+  oauth-config:
+    name: OAuth Configuration Validation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/backend
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Validate OAuth configuration
+        run: python scripts/validate_oauth_config.py
+
+  state-sync:
+    name: State Management Validation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/backend
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Validate state management patterns
+        run: python scripts/validate_state_sync.py
