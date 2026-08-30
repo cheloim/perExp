@@ -395,7 +395,7 @@ async def _handle_text_message(
         return
 
     # Try card matching from text
-    text_card_name, text_bank = _extract_card_from_text(text)
+    text_card_name, text_bank, text_card_type = _extract_card_from_text(text)
     if text_card_name:
         db = SessionLocal()
         try:
@@ -411,8 +411,12 @@ async def _handle_text_message(
                     or card_lower.startswith(text_lower)
                     or text_lower.startswith(card_lower)
                 )
-                if name_match and (
-                    not text_bank or (card.bank and card.bank.lower() == text_bank.lower())
+                # Match card type if extracted (debito/credito)
+                type_match = not text_card_type or card.card_type == text_card_type
+                if (
+                    name_match
+                    and type_match
+                    and (not text_bank or (card.bank and card.bank.lower() == text_bank.lower()))
                 ):
                     matched_card = card
                     break

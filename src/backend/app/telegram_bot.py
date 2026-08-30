@@ -146,11 +146,12 @@ BANK_NAME_PATTERNS = [
 ]
 
 
-def _extract_card_from_text(text: str) -> tuple[str | None, str | None]:
-    """Try to extract card_name and bank from natural language text."""
+def _extract_card_from_text(text: str) -> tuple[str | None, str | None, str | None]:
+    """Try to extract card_name, bank, and card_type from natural language text."""
     lower = text.lower()
     card_name = None
     bank = None
+    card_type = None
     for p in CARD_NAME_PATTERNS:
         m = re.search(p, lower)
         if m:
@@ -161,7 +162,12 @@ def _extract_card_from_text(text: str) -> tuple[str | None, str | None]:
         if m:
             bank = m.group(1).title()
             break
-    return card_name, bank
+    # Extract card type (debito/credito) from the text
+    if re.search(r"\bd[eé]bito\b", lower):
+        card_type = "debito"
+    elif re.search(r"\bcredito|cr[eé]dito\b", lower):
+        card_type = "credito"
+    return card_name, bank, card_type
 
 
 ACCOUNT_TYPE_KEYWORDS = {
@@ -1212,7 +1218,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
     # Clean description: strip card/bank keywords Gemini might have included
-    text_card_name, text_bank = _extract_card_from_text(text)
+    text_card_name, text_bank, text_card_type = _extract_card_from_text(text)
     if text_card_name and parsed.get("description"):
         desc = parsed["description"]
         # Remove card name and bank from description
@@ -1242,8 +1248,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     or card_lower.startswith(text_lower)
                     or text_lower.startswith(card_lower)
                 )
-                if name_match and (
-                    not text_bank or (card.bank and card.bank.lower() == text_bank.lower())
+                # Match card type if extracted (debito/credito)
+                type_match = not text_card_type or card.card_type == text_card_type
+                if (
+                    name_match
+                    and type_match
+                    and (not text_bank or (card.bank and card.bank.lower() == text_bank.lower()))
                 ):
                     matched_card = card
                     break
