@@ -272,7 +272,10 @@ def _match_card_from_notification(
             continue
         # Check if card_name contains a known franchise
         card_lower = card.card_name.lower()
-        if any(card_lower.startswith(f) or f in card_lower for f in ["visa", "mastercard", "naranja", "amex", "cabal"]):
+        if any(
+            card_lower.startswith(f) or f in card_lower
+            for f in ["visa", "mastercard", "naranja", "amex", "cabal"]
+        ):
             return card
 
     # Pass 2: match by bank + type only (ignore card_name)
