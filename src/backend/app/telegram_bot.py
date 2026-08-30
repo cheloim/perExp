@@ -135,6 +135,8 @@ def _is_bank_notification(text: str) -> bool:
 
 
 CARD_NAME_PATTERNS = [
+    r"\b(visa\s+(?:d[eé]bito|credito|cr[eé]dito))\b",
+    r"\b(mastercard\s+(?:d[eé]bito|credito|cr[eé]dito))\b",
     r"\b(visa|mastercard|naranja|amex|cabal|cmr|cordobesa|tarjeta naranja)\b",
 ]
 BANK_NAME_PATTERNS = [
@@ -268,8 +270,9 @@ def _match_card_from_notification(
             continue
         if bank and card.bank and card.bank.lower() != bank.lower():
             continue
-        # Check if card_name is a known franchise
-        if card.card_name.lower() in ["visa", "mastercard", "naranja", "amex", "cabal"]:
+        # Check if card_name contains a known franchise
+        card_lower = card.card_name.lower()
+        if any(card_lower.startswith(f) or f in card_lower for f in ["visa", "mastercard", "naranja", "amex", "cabal"]):
             return card
 
     # Pass 2: match by bank + type only (ignore card_name)
@@ -1227,7 +1230,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             cards = db.query(Card).filter(Card.user_id == user_id).all()
             matched_card = None
             for card in cards:
-                if card.card_name.lower() == text_card_name.lower() and (
+                card_lower = card.card_name.lower()
+                text_lower = text_card_name.lower()
+                # Match if DB card starts with the extracted name or vice versa
+                # e.g. "visa" matches "visa debito", "visa debito" matches "visa"
+                name_match = (
+                    card_lower == text_lower
+                    or card_lower.startswith(text_lower)
+                    or text_lower.startswith(card_lower)
+                )
+                if name_match and (
                     not text_bank or (card.bank and card.bank.lower() == text_bank.lower())
                 ):
                     matched_card = card

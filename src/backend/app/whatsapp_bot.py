@@ -402,7 +402,16 @@ async def _handle_text_message(
             cards = db.query(Card).filter(Card.user_id == user_id).all()
             matched_card = None
             for card in cards:
-                if card.card_name.lower() == text_card_name.lower() and (
+                card_lower = card.card_name.lower()
+                text_lower = text_card_name.lower()
+                # Match if DB card starts with the extracted name or vice versa
+                # e.g. "visa" matches "visa debito", "visa debito" matches "visa"
+                name_match = (
+                    card_lower == text_lower
+                    or card_lower.startswith(text_lower)
+                    or text_lower.startswith(card_lower)
+                )
+                if name_match and (
                     not text_bank or (card.bank and card.bank.lower() == text_bank.lower())
                 ):
                     matched_card = card

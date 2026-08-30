@@ -32,7 +32,7 @@ def detect_recurring_expenses():
         total_notified = 0
 
         for user in users:
-            created, updated = _detect_for_user(user.id, db)
+            created, updated, skipped = _detect_for_user(user.id, db)
             total_created += created
             total_updated += updated
 
@@ -61,7 +61,7 @@ def detect_recurring_expenses():
         db.close()
 
 
-def _detect_for_user(user_id: int, db) -> tuple[int, int]:
+def _detect_for_user(user_id: int, db) -> tuple[int, int, int]:
     """Detect recurring patterns for a single user. Returns (created, updated)."""
     cutoff = datetime.now(BUE).date() - timedelta(days=LOOKBACK_DAYS)
 
@@ -77,7 +77,7 @@ def _detect_for_user(user_id: int, db) -> tuple[int, int]:
     )
 
     if not expenses:
-        return 0, 0
+        return 0, 0, 0
 
     # Group expenses by normalized merchant_key
     merchant_groups: dict[str, list[Expense]] = {}
@@ -89,6 +89,7 @@ def _detect_for_user(user_id: int, db) -> tuple[int, int]:
 
     created = 0
     updated = 0
+    skipped = 0
 
     for merchant_key, group in merchant_groups.items():
         if len(group) < MIN_OCCURRENCES:
@@ -120,18 +121,21 @@ def _detect_for_user(user_id: int, db) -> tuple[int, int]:
         account_counts = Counter(e.account_id for e in group if e.account_id)
         account_id = account_counts.most_common(1)[0][0] if account_counts else None
 
-        # Check if already tracked
+        # Check if already tracked (active or dismissed)
         existing = (
             db.query(RecurringExpense)
             .filter(
                 RecurringExpense.user_id == user_id,
                 RecurringExpense.merchant_key == merchant_key,
-                RecurringExpense.is_active == True,  # noqa: E712
             )
             .first()
         )
 
         if existing:
+            # If dismissed (inactive), skip — don't re-create
+            if not existing.is_active:
+                skipped += 1
+                continue
             existing.amount = round(avg_amount, 2)
             existing.last_seen_at = datetime.now(BUE)
             existing.next_charge_date = next_date
@@ -157,7 +161,7 @@ def _detect_for_user(user_id: int, db) -> tuple[int, int]:
             db.add(new)
             created += 1
 
-    return created, updated
+    return created, updated, skipped
 
 
 def _send_notification(user_id: int, count: int, db):
