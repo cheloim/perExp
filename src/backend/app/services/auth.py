@@ -106,4 +106,6 @@ async def exchange_google_code(code: str, redirect_uri: str) -> dict:
         id_token = data.get("id_token")
         if not id_token:
             raise HTTPException(status_code=400, detail="No se recibió id_token de Google")
-        return await verify_google_token(id_token)
+        google_data = await verify_google_token(id_token)
+        google_data["refresh_token"] = data.get("refresh_token")
+        return google_data

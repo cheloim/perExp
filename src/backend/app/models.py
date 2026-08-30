@@ -60,6 +60,9 @@ class User(Base):
     whatsapp_phone = Column(EncryptedType, nullable=True)
     whatsapp_phone_hash = Column(String(64), nullable=True, unique=True, index=True)
     whatsapp_key = Column(String(12), nullable=True, unique=True, index=True)
+    # Google OAuth refresh token
+    google_refresh_token = Column(EncryptedType, nullable=True)
+    google_refresh_token_hmac = Column(String(64), nullable=True, index=True)
 
 
 class Group(Base):

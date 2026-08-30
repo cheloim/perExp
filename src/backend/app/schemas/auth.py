@@ -50,7 +50,6 @@ class UserResponse(BaseModel):
 
 
 class OAuthRequest(BaseModel):
-    id_token: str | None = None
     code: str | None = None
     provider: str
 

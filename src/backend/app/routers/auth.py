@@ -30,10 +30,10 @@ from app.services.auth import (
     exchange_google_code,
     get_current_user,
     get_password_hash,
-    verify_google_token,
     verify_password,
 )
 from app.services.email import send_password_reset_email, send_verification_email
+from app.services.encryption import compute_hmac
 from app.services.mfa import verify_totp
 from app.services.rate_limit import (
     check_rate_limit,
@@ -301,72 +301,6 @@ def resend_verification(body: ForgotPasswordRequest, db: Session = Depends(get_d
 
 
 @router.post(
-    "/oauth",
-    response_model=Token,
-    summary="Login or register via OAuth",
-    description="Authenticates or creates a user using a Google ID token. Links existing accounts when emails match.",
-)
-async def oauth_login(body: OAuthRequest, request: Request, db: Session = Depends(get_db)):
-    if body.provider != "google":
-        raise HTTPException(status_code=400, detail="Proveedor no soportado")
-    if not body.id_token:
-        raise HTTPException(status_code=400, detail="Falta id_token de Google")
-    google_data = await verify_google_token(body.id_token)
-    email = google_data.get("email", "").lower()
-    provider_id = google_data.get("sub")
-    full_name = google_data.get("name", "")
-    avatar_url = google_data.get("picture")
-
-    if not email:
-        raise HTTPException(status_code=400, detail="No se pudo obtener el email del proveedor")
-
-    user = (
-        db.query(User)
-        .filter(User.provider == body.provider, User.provider_id == provider_id)
-        .first()
-    )
-
-    if not user:
-        existing = db.query(User).filter(User.email == email).first()
-        if existing and existing.provider:
-            raise HTTPException(
-                status_code=409,
-                detail="Este email ya está vinculado a otra cuenta. Iniciá sesión con tu proveedor original.",
-            )
-        if existing and not existing.provider:
-            existing.provider = body.provider
-            existing.provider_id = provider_id
-            existing.avatar_url = avatar_url
-            existing.email_verified = True
-            if not existing.full_name:
-                existing.full_name = full_name
-            db.commit()
-            db.refresh(existing)
-            user = existing
-        else:
-            user = User(
-                email=email,
-                full_name=full_name,
-                provider=body.provider,
-                provider_id=provider_id,
-                avatar_url=avatar_url,
-                email_verified=True,
-            )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-            from app.seed import _apply_base_hierarchy_for_user
-
-            _apply_base_hierarchy_for_user(db, user.id)
-
-    if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuario inactivo")
-
-    _log_audit(db, user.id, "oauth_login", request, details=body.provider)
-    return Token(access_token=create_access_token(user.id), token_type="bearer")
-
-
-@router.post(
     "/oauth/callback",
     response_model=Token,
     summary="Handle OAuth authorization code callback",
@@ -434,6 +368,12 @@ async def oauth_callback(
 
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuario inactivo")
+
+    refresh_token = google_data.get("refresh_token")
+    if refresh_token:
+        user.google_refresh_token = refresh_token
+        user.google_refresh_token_hmac = compute_hmac(refresh_token)
+        db.commit()
 
     _log_audit(db, user.id, "oauth_login", request, details=f"{body.provider}_callback")
     return Token(access_token=create_access_token(user.id), token_type="bearer")
