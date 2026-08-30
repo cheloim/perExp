@@ -6,6 +6,9 @@
 - Closes #<issue-number>
 - Spec: `specs/features/<feature>.spec.yaml`
 
+## Issue Status
+- [ ] Linked issue(s) will be auto-updated by CI (no manual action needed)
+
 ## Type
 - [ ] New feature (full spec)
 - [ ] Enhancement (lite spec)
