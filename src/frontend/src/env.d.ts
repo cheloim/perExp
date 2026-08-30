@@ -48,6 +48,7 @@ interface GoogleAccountsOauth2 {
     ux_mode: "popup" | "redirect";
     redirect_uri: string;
     state?: string;
+    access_type?: "online" | "offline";
   }): GoogleCodeClient;
 }
 

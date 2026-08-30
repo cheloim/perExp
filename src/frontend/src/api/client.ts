@@ -86,9 +86,6 @@ export const login = (email: string, password: string) =>
 export const register = (full_name: string, email: string, password: string) =>
   api.post<AuthToken>("/auth/register", { full_name, email, password }).then((r) => r.data);
 
-export const oauthLogin = (provider: string, idTokenOrCode: string) =>
-  api.post<AuthToken>("/auth/oauth", { provider, id_token: idTokenOrCode }).then((r) => r.data);
-
 export const oauthCallback = (provider: string, code: string) =>
   api.post<AuthToken>("/auth/oauth/callback", { provider, code }).then((r) => r.data);
 

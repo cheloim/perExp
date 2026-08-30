@@ -218,7 +218,10 @@ export default function App() {
   }
 
   // App: platform.oikonomia.ar (or localhost)
-  if (location.pathname === "/login") return <LoginPage />;
+  if (location.pathname === "/login" || location.pathname === "/register") {
+    if (getStoredToken()) return <Navigate to="/" replace />;
+    return <LoginPage />;
+  }
 
   if (location.pathname === "/privacy") {
     return (
