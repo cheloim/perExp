@@ -168,17 +168,19 @@ Extraé del siguiente mensaje de notificación bancaria:
 - "date": fecha en formato "YYYY-MM-DD". Si no se menciona fecha, usá hoy.
 - "currency": "ARS" si es pesos o no se menciona, "USD" si es dólares.
 - "card_type": "credito" si es compra con tarjeta de crédito, "debito" si es débito directo o transferencia.
+- "card_name": nombre completo de la tarjeta si se menciona (ej: "Visa Débito", "Mastercard Crédito", "Visa", "Mastercard"). Si no se menciona, null.
 - "bank": nombre del banco emisor si se menciona, sino null.
 - "card_last4": últimos 4 dígitos de la tarjeta si se mencionan (ej: "****4521" → "4521"), sino null.
 - "installment_number": número de cuota actual si se menciona (ej: 3 si dice "3 de 12" o "cuota 3"), sino null.
 - "installment_total": cantidad total de cuotas si se menciona (ej: 12 si dice "3 de 12" o "6 cuotas"), sino null.
 
 Ejemplos de entrada → salida:
-"Compra aprobada Visa ****4521 $15.200 Supermercado Coto" → {{"amount": 15200.0, "description": "Supermercado Coto", "date": "{today}", "currency": "ARS", "card_type": "credito", "bank": null, "card_last4": "4521", "installment_number": null, "installment_total": null}}
-"Débito en cuenta Galicia por $8.500 Netflix" → {{"amount": 8500.0, "description": "Netflix", "date": "{today}", "currency": "ARS", "card_type": "debito", "bank": "Galicia", "card_last4": null, "installment_number": null, "installment_total": null}}
-"Se debitó $15.000 de tu cuenta Galicia - Pago Tarjeta Visa" → {{"amount": 15000.0, "description": "Pago Tarjeta Visa", "date": "{today}", "currency": "ARS", "card_type": "debito", "bank": "Galicia", "card_last4": null, "installment_number": null, "installment_total": null}}
-"Resumen Visa Galicia - Cuota 3 de 12 de $15.000 Netflix" → {{"amount": 15000.0, "description": "Netflix", "date": "{today}", "currency": "ARS", "card_type": "credito", "bank": "Galicia", "card_last4": null, "installment_number": 3, "installment_total": 12}}
-"Compra 6 cuotas $24.000 Fravega" → {{"amount": 24000.0, "description": "Fravega", "date": "{today}", "currency": "ARS", "card_type": "credito", "bank": null, "card_last4": null, "installment_number": 1, "installment_total": 6}}
-"Compra débito automático Mastercard ****9876 $3.200 Spotify" → {{"amount": 3200.0, "description": "Spotify", "date": "{today}", "currency": "ARS", "card_type": "debito", "bank": null, "card_last4": "9876", "installment_number": null, "installment_total": null}}
+"Compra aprobada Visa ****4521 $15.200 Supermercado Coto" → {{"amount": 15200.0, "description": "Supermercado Coto", "date": "{today}", "currency": "ARS", "card_type": "credito", "card_name": "Visa", "bank": null, "card_last4": "4521", "installment_number": null, "installment_total": null}}
+"Débito en cuenta Galicia por $8.500 Netflix" → {{"amount": 8500.0, "description": "Netflix", "date": "{today}", "currency": "ARS", "card_type": "debito", "card_name": null, "bank": "Galicia", "card_last4": null, "installment_number": null, "installment_total": null}}
+"Se debitó $15.000 de tu cuenta Galicia - Pago Tarjeta Visa" → {{"amount": 15000.0, "description": "Pago Tarjeta Visa", "date": "{today}", "currency": "ARS", "card_type": "debito", "card_name": "Visa", "bank": "Galicia", "card_last4": null, "installment_number": null, "installment_total": null}}
+"Resumen Visa Galicia - Cuota 3 de 12 de $15.000 Netflix" → {{"amount": 15000.0, "description": "Netflix", "date": "{today}", "currency": "ARS", "card_type": "credito", "card_name": "Visa", "bank": "Galicia", "card_last4": null, "installment_number": 3, "installment_total": 12}}
+"Compra 6 cuotas $24.000 Fravega" → {{"amount": 24000.0, "description": "Fravega", "date": "{today}", "currency": "ARS", "card_type": "credito", "card_name": null, "bank": null, "card_last4": null, "installment_number": 1, "installment_total": 6}}
+"Compra débito automático Mastercard ****9876 $3.200 Spotify" → {{"amount": 3200.0, "description": "Spotify", "date": "{today}", "currency": "ARS", "card_type": "debito", "card_name": "Mastercard", "bank": null, "card_last4": "9876", "installment_number": null, "installment_total": null}}
+"Te acercamos el detalle de tu consumo con la Tarjeta Santander Visa Débito terminada en 3001. Monto $8.616,00 Comercio WORK CAFE GARAY Fecha 27/08/2026" → {{"amount": 8616.0, "description": "WORK CAFE GARAY", "date": "2026-08-27", "currency": "ARS", "card_type": "debito", "card_name": "Visa Débito", "bank": "Santander", "card_last4": "3001", "installment_number": null, "installment_total": null}}
 
 Respondé ÚNICAMENTE con un objeto JSON válido, sin markdown, sin texto adicional."""
