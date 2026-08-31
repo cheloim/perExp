@@ -268,6 +268,33 @@ endpoints:
     description: "OAuth callback handler"
 
   - method: POST
+    path: /auth/telegram/webapp
+    response_model: Token
+    description: "Login via Telegram Mini App initData HMAC verification"
+    request: "{ init_data: str }"
+    validation:
+      - "initData HMAC is valid and auth_date is recent"
+      - "User has telegram_chat_hash matching tg user id"
+    logic:
+      - "Verify initData HMAC with bot token"
+      - "Parse user.id from initData"
+      - "Lookup user by compute_hmac(str(tg_id))"
+      - "Return JWT token"
+
+  - method: POST
+    path: /auth/telegram/login-widget
+    response_model: Token
+    description: "Login via Telegram Login Widget callback verification"
+    request: "{ id, first_name, auth_date, hash }"
+    validation:
+      - "Widget hash HMAC is valid and auth_date is recent"
+      - "User has telegram_chat_hash matching tg user id"
+    logic:
+      - "Verify widget hash with SHA256(bot_token)"
+      - "Lookup user by compute_hmac(str(id))"
+      - "Return JWT token"
+
+  - method: POST
     path: /auth/refresh
     response_model: Token
     description: "Refresh access token using refresh token"

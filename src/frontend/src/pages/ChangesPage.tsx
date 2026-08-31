@@ -11,6 +11,9 @@ import {
   SubscriptionsMockup,
   TrendChartMockup,
   EmailValidationMockup,
+  MiniAppPhoneMockup,
+  TelegramSSOFlowMockup,
+  CardDetectionMockup,
 } from "./changes/FeatureMockups";
 
 const FEATURE_MOCKUPS: Record<string, React.FC> = {
@@ -22,6 +25,9 @@ const FEATURE_MOCKUPS: Record<string, React.FC> = {
   "Gestión de Suscripciones": SubscriptionsMockup,
   "Mejoras en el Gráfico de Tendencia": TrendChartMockup,
   "Validación de Email": EmailValidationMockup,
+  "Telegram Mini App": MiniAppPhoneMockup,
+  "Inicio de Sesión con Telegram": TelegramSSOFlowMockup,
+  "Detección de Tarjetas Mejorada": CardDetectionMockup,
 };
 
 export default function ChangesPage() {
@@ -159,9 +165,11 @@ export default function ChangesPage() {
               {current.title}
             </h1>
             <p className="text-[var(--text-secondary)] max-w-2xl">
-              {current.version === "v1.1"
-                ? "Protección de datos con encriptación de nivel bancario, búsqueda inteligente y mejoras de seguridad en todo el sistema."
-                : "La primera versión de Oikonomia con todas las herramientas que necesitás para tus finanzas personales."}
+              {current.version === "v1.3"
+                ? "Telegram Mini App, inicio de sesión con un toque, mejoras en detección de tarjetas y suscripciones más inteligentes."
+                : current.version === "v1.1"
+                  ? "Protección de datos con encriptación de nivel bancario, búsqueda inteligente y mejoras de seguridad en todo el sistema."
+                  : "La primera versión de Oikonomia con todas las herramientas que necesitás para tus finanzas personales."}
             </p>
           </div>
 

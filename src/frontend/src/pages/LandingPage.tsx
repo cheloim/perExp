@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import SymbolicIcon from "../components/SymbolicIcon";
+import { MiniAppPhoneMockup } from "./changes/FeatureMockups";
 import useReveal from "../hooks/useReveal";
 
 const TELEGRAM_DEMOS = [
@@ -221,6 +222,49 @@ export default function LandingPage() {
             >
               <TelegramCarousel />
             </MethodCard>
+          </div>
+        </div>
+      </section>
+
+      {/* Telegram Mini App */}
+      <section className="py-12 md:py-20 px-4 bg-[var(--bg-secondary)]">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
+            <div className="order-2 md:order-1">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-500 text-xs font-medium mb-4">
+                <SymbolicIcon name="telegram" size={14} />
+                Nuevo
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
+                Oikonomia dentro de Telegram
+              </h2>
+              <p className="text-[var(--text-secondary)] mb-6 leading-relaxed">
+                Abrí la app completa desde tu chat de Telegram. Sin cambiar de app, sin perder
+                contexto. Registrá gastos, revisá reportes y gestioná tus finanzas todo en un solo
+                lugar.
+              </p>
+              <ul className="space-y-3">
+                {[
+                  "Inicio de sesión con un solo toque",
+                  "Mismo tema y colores que tu Telegram",
+                  "Toda la funcionalidad de la app web",
+                  "Botones de respuesta rápidos en el chat",
+                ].map((item) => (
+                  <li
+                    key={item}
+                    className="flex items-center gap-2 text-sm text-[var(--text-secondary)]"
+                  >
+                    <span className="w-5 h-5 rounded-full bg-green-500/15 flex items-center justify-center flex-shrink-0">
+                      <span className="text-green-500 text-xs">✓</span>
+                    </span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="order-1 md:order-2">
+              <MiniAppPhoneMockup />
+            </div>
           </div>
         </div>
       </section>
