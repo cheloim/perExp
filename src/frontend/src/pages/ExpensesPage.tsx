@@ -1010,7 +1010,7 @@ export default function ExpensesPage() {
                 </>
               ) : expenses.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-4">
+                  <td colSpan={selectMode ? 6 : 5} className="px-4 py-4">
                     <EmptyState
                       icon="📋"
                       title={
@@ -1034,17 +1034,18 @@ export default function ExpensesPage() {
                 </tr>
               ) : (
                 (() => {
+                  const isDateSort = sort.field === "date";
                   let lastDate = "";
                   return sortedExpenses.map((exp) => {
                     const missing = hasMissingData(exp);
-                    const showDateHeader = exp.date !== lastDate;
+                    const showDateHeader = isDateSort && exp.date !== lastDate;
                     if (showDateHeader) lastDate = exp.date;
                     return (
                       <Fragment key={exp.id}>
                         {showDateHeader && (
                           <tr key={`date-${exp.date}`}>
                             <td
-                              colSpan={5}
+                              colSpan={selectMode ? 6 : 5}
                               className="px-4 py-2 text-xs font-medium text-[var(--text-tertiary)] bg-[var(--color-base-alt)]"
                             >
                               {formatDateDMY(exp.date)}
@@ -1073,18 +1074,22 @@ export default function ExpensesPage() {
                               />
                             </td>
                           )}
-                          <td className="px-4 py-3 text-[var(--text-tertiary)] whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDetailExpense(exp);
-                              }}
-                              className="text-left hover:text-primary transition"
-                            >
-                              {formatDateDMY(exp.date)}
-                            </button>
-                          </td>
+                          {isDateSort ? (
+                            <td className="px-4 py-3" />
+                          ) : (
+                            <td className="px-4 py-3 text-[var(--text-tertiary)] whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDetailExpense(exp);
+                                }}
+                                className="text-left hover:text-primary transition"
+                              >
+                                {formatDateDMY(exp.date)}
+                              </button>
+                            </td>
+                          )}
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               {missing && (
