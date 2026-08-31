@@ -7,7 +7,7 @@ on:
 permissions:
   contents: read
   pull-requests: write
-  projects: write
+  repository-projects: write
 
 env:
   PROJECT_ID: PVT_kwHOAxRXjs4Bh4Pj
