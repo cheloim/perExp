@@ -242,7 +242,7 @@ def delete_recurring(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    """Permanently delete a recurring expense."""
+    """Soft-delete a recurring expense (keeps record to prevent re-detection)."""
     rec = (
         db.query(RecurringExpense)
         .filter(
@@ -254,7 +254,7 @@ def delete_recurring(
     if not rec:
         raise HTTPException(status_code=404, detail="Gasto recurrente no encontrado")
 
-    db.delete(rec)
+    rec.is_active = False
     db.commit()
     return {"detail": "Recurrente eliminado"}
 

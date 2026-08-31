@@ -135,6 +135,8 @@ def _is_bank_notification(text: str) -> bool:
 
 
 CARD_NAME_PATTERNS = [
+    r"\b(visa\s+(?:d[eé]bito|credito|cr[eé]dito))\b",
+    r"\b(mastercard\s+(?:d[eé]bito|credito|cr[eé]dito))\b",
     r"\b(visa|mastercard|naranja|amex|cabal|cmr|cordobesa|tarjeta naranja)\b",
 ]
 BANK_NAME_PATTERNS = [
@@ -144,11 +146,12 @@ BANK_NAME_PATTERNS = [
 ]
 
 
-def _extract_card_from_text(text: str) -> tuple[str | None, str | None]:
-    """Try to extract card_name and bank from natural language text."""
+def _extract_card_from_text(text: str) -> tuple[str | None, str | None, str | None]:
+    """Try to extract card_name, bank, and card_type from natural language text."""
     lower = text.lower()
     card_name = None
     bank = None
+    card_type = None
     for p in CARD_NAME_PATTERNS:
         m = re.search(p, lower)
         if m:
@@ -159,7 +162,12 @@ def _extract_card_from_text(text: str) -> tuple[str | None, str | None]:
         if m:
             bank = m.group(1).title()
             break
-    return card_name, bank
+    # Extract card type (debito/credito) from the text
+    if re.search(r"\bd[eé]bito\b", lower):
+        card_type = "debito"
+    elif re.search(r"\bcredito|cr[eé]dito\b", lower):
+        card_type = "credito"
+    return card_name, bank, card_type
 
 
 ACCOUNT_TYPE_KEYWORDS = {
@@ -268,8 +276,12 @@ def _match_card_from_notification(
             continue
         if bank and card.bank and card.bank.lower() != bank.lower():
             continue
-        # Check if card_name is a known franchise
-        if card.card_name.lower() in ["visa", "mastercard", "naranja", "amex", "cabal"]:
+        # Check if card_name contains a known franchise
+        card_lower = card.card_name.lower()
+        if any(
+            card_lower.startswith(f) or f in card_lower
+            for f in ["visa", "mastercard", "naranja", "amex", "cabal"]
+        ):
             return card
 
     # Pass 2: match by bank + type only (ignore card_name)
@@ -1206,7 +1218,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
     # Clean description: strip card/bank keywords Gemini might have included
-    text_card_name, text_bank = _extract_card_from_text(text)
+    text_card_name, text_bank, text_card_type = _extract_card_from_text(text)
     if text_card_name and parsed.get("description"):
         desc = parsed["description"]
         # Remove card name and bank from description
@@ -1227,8 +1239,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             cards = db.query(Card).filter(Card.user_id == user_id).all()
             matched_card = None
             for card in cards:
-                if card.card_name.lower() == text_card_name.lower() and (
-                    not text_bank or (card.bank and card.bank.lower() == text_bank.lower())
+                card_lower = card.card_name.lower()
+                text_lower = text_card_name.lower()
+                # Match if DB card starts with the extracted name or vice versa
+                # e.g. "visa" matches "visa debito", "visa debito" matches "visa"
+                name_match = (
+                    card_lower == text_lower
+                    or card_lower.startswith(text_lower)
+                    or text_lower.startswith(card_lower)
+                )
+                # Match card type if extracted (debito/credito)
+                type_match = not text_card_type or card.card_type == text_card_type
+                if (
+                    name_match
+                    and type_match
+                    and (not text_bank or (card.bank and card.bank.lower() == text_bank.lower()))
                 ):
                     matched_card = card
                     break

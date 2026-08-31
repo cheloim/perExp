@@ -395,15 +395,28 @@ async def _handle_text_message(
         return
 
     # Try card matching from text
-    text_card_name, text_bank = _extract_card_from_text(text)
+    text_card_name, text_bank, text_card_type = _extract_card_from_text(text)
     if text_card_name:
         db = SessionLocal()
         try:
             cards = db.query(Card).filter(Card.user_id == user_id).all()
             matched_card = None
             for card in cards:
-                if card.card_name.lower() == text_card_name.lower() and (
-                    not text_bank or (card.bank and card.bank.lower() == text_bank.lower())
+                card_lower = card.card_name.lower()
+                text_lower = text_card_name.lower()
+                # Match if DB card starts with the extracted name or vice versa
+                # e.g. "visa" matches "visa debito", "visa debito" matches "visa"
+                name_match = (
+                    card_lower == text_lower
+                    or card_lower.startswith(text_lower)
+                    or text_lower.startswith(card_lower)
+                )
+                # Match card type if extracted (debito/credito)
+                type_match = not text_card_type or card.card_type == text_card_type
+                if (
+                    name_match
+                    and type_match
+                    and (not text_bank or (card.bank and card.bank.lower() == text_bank.lower()))
                 ):
                     matched_card = card
                     break
