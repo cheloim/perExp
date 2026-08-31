@@ -118,11 +118,13 @@ BANK_NOTIFICATION_PATTERNS = [
     r"compra\s+(aprobada|confirmada|registrada)",
     r"d[eé]bito\s+(aprobado|confirmado|registrado|autom[aá]tico)",
     r"d[eé]bito\s+en\s+cuenta",
-    r"consumo\s+(aprobado|confirmado|registrado)",
+    r"consumo\s+(aprobado|confirmado|registrado|con\s+(la\s+)?tarjeta)",
+    r"detalle\s+de\s+tu\s+consumo",
     r"tarjeta\s+(terminada|\*{4}|\d{4})",
     r"visa\s+terminada",
     r"mastercard\s+terminada",
     r"naranja\s+terminada",
+    r"terminad[ao]\s+en\s+\d{4}",
     r"cr[eé]dito\s+(aprobado|confirmado|registrado)",
     r"transferencia\s+(saliente|enviada|realizada)",
     r"extracci[oó]n\s+(cajero|autom[aá]tico)",
@@ -151,6 +153,29 @@ def _strip_accents(s: str) -> str:
     """Strip accents from text for accent-insensitive matching."""
     nfkd = unicodedata.normalize("NFKD", s.lower().strip())
     return "".join(c for c in nfkd if not unicodedata.combining(c))
+
+
+def _match_card_from_text(
+    cards: list,
+    text_card_name: str,
+    text_bank: str | None,
+    text_card_type: str | None,
+) -> "Card | None":
+    """Match a card from user's cards using accent-insensitive substring matching."""
+    text_lower = _strip_accents(text_card_name)
+    for card in cards:
+        card_lower = _strip_accents(card.card_name)
+        name_match = (
+            card_lower == text_lower or text_lower in card_lower or card_lower in text_lower
+        )
+        type_match = not text_card_type or card.card_type == text_card_type
+        if (
+            name_match
+            and type_match
+            and (not text_bank or (card.bank and card.bank.lower() == text_bank.lower()))
+        ):
+            return card
+    return None
 
 
 def _extract_card_from_text(text: str) -> tuple[str | None, str | None, str | None]:
@@ -1279,24 +1304,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         db = SessionLocal()
         try:
             user_id = context.user_data["user_id"]
-            # Try to match a card from the user's cards
             cards = db.query(Card).filter(Card.user_id == user_id).all()
-            matched_card = None
-            for card in cards:
-                card_lower = card.card_name.lower()
-                text_lower = text_card_name.lower()
-                name_match = (
-                    card_lower == text_lower or text_lower in card_lower or card_lower in text_lower
-                )
-                type_match = not text_card_type or card.card_type == text_card_type
-                if (
-                    name_match
-                    and type_match
-                    and (not text_bank or (card.bank and card.bank.lower() == text_bank.lower()))
-                ):
-                    matched_card = card
-                    break
-            if not matched_card and text_bank:
+            matched_card = _match_card_from_text(cards, text_card_name, text_bank, text_card_type)
+            if not matched_card and text_bank and not text_card_name:
                 for card in cards:
                     if card.bank and card.bank.lower() == text_bank.lower():
                         matched_card = card
