@@ -17,6 +17,7 @@ import { useUndoToast } from "./hooks/useUndoToast";
 import ImpersonationBanner from "./components/ImpersonationBanner";
 import ReAuthModal from "./components/ReAuthModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { isTelegramWebApp, initTelegramWebApp, telegramAutoLogin } from "./services/telegramWebApp";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const AccountsPage = lazy(() => import("./pages/AccountsPage"));
@@ -123,6 +124,17 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 export default function App() {
   const location = useLocation();
   const hostname = window.location.hostname;
+  const [telegramReady, setTelegramReady] = useState(!isTelegramWebApp());
+
+  // Telegram Mini App init + auto-login (runs once)
+  useEffect(() => {
+    if (!isTelegramWebApp()) {
+      setTelegramReady(true);
+      return;
+    }
+    initTelegramWebApp();
+    telegramAutoLogin().finally(() => setTelegramReady(true));
+  }, []);
 
   // Institutional site: oikonomia.ar / www.oikonomia.ar
   if (hostname === "oikonomia.ar" || hostname === "www.oikonomia.ar") {
@@ -241,6 +253,7 @@ export default function App() {
     );
   }
 
+  if (!telegramReady) return null;
   if (!getStoredToken()) return <Navigate to="/login" replace />;
 
   return (

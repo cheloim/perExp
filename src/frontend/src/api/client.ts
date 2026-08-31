@@ -89,6 +89,19 @@ export const register = (full_name: string, email: string, password: string) =>
 export const oauthCallback = (provider: string, code: string) =>
   api.post<AuthToken>("/auth/oauth/callback", { provider, code }).then((r) => r.data);
 
+export const telegramWebAppLogin = (initData: string) =>
+  api.post<AuthToken>("/auth/telegram/webapp", { init_data: initData }).then((r) => r.data);
+
+export const telegramWidgetLogin = (data: {
+  id: number;
+  first_name: string;
+  last_name?: string;
+  username?: string;
+  photo_url?: string;
+  auth_date: string;
+  hash: string;
+}) => api.post<AuthToken>("/auth/telegram/login-widget", data).then((r) => r.data);
+
 export const getMe = () => api.get<User>("/auth/me").then((r) => r.data);
 
 export const markOnboardingCompleted = () =>

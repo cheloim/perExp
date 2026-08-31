@@ -17,6 +17,18 @@
   }
 }
 
+/* Telegram Mini App overrides */
+.tg-webapp {
+  --safe-area-top: env(safe-area-inset-top, 0px);
+}
+.tg-webapp body {
+  padding-top: var(--safe-area-top);
+}
+.tg-webapp header,
+.tg-webapp .sticky {
+  top: var(--safe-area-top);
+}
+
 @keyframes progress-indeterminate {
   0% {
     transform: translateX(-100%) scaleX(0.3);
@@ -948,11 +960,28 @@
   animation: slideIn 0.25s ease-out;
 }
 
+/* ─── Pulse-travel animation for SSO flow mockup ────── */
+@keyframes pulse-travel {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+.animate-pulse-travel {
+  animation: pulse-travel 1.5s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-donut-draw,
   .animate-bar-grow,
   .animate-fade-in,
-  .animate-fade-in-up {
+  .animate-fade-in-up,
+  .animate-pulse-travel {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;

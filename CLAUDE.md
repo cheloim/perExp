@@ -28,6 +28,20 @@ cd src/frontend && npm run lint && npx prettier --check src/ && npm run typechec
 cd src/backend && ruff check app/ && ruff format --check app/ && mypy app/
 ```
 
+## Functional Verification
+
+Run after schema/router changes or before creating a PR:
+
+```bash
+./scripts/smoke.sh
+```
+
+Full validation:
+
+```bash
+./scripts/lint.sh && ./scripts/smoke.sh
+```
+
 ## Test Commands
 
 ```bash

@@ -21,6 +21,8 @@ from app.schemas import (
     MFALoginRequest,
     OAuthRequest,
     ResetPasswordRequest,
+    TelegramLoginWidgetRequest,
+    TelegramWebAppRequest,
     Token,
     UserCreate,
     UserResponse,
@@ -31,6 +33,8 @@ from app.services.auth import (
     get_current_user,
     get_password_hash,
     verify_password,
+    verify_telegram_login_widget,
+    verify_telegram_webapp,
 )
 from app.services.email import send_password_reset_email, send_verification_email
 from app.services.encryption import compute_hmac
@@ -376,6 +380,97 @@ async def oauth_callback(
         db.commit()
 
     _log_audit(db, user.id, "oauth_login", request, details=f"{body.provider}_callback")
+    return Token(access_token=create_access_token(user.id), token_type="bearer")
+
+
+@router.post(
+    "/telegram/webapp",
+    response_model=Token,
+    summary="Login via Telegram Mini App initData",
+    description="Validates Telegram WebApp initData HMAC and returns a JWT for a previously linked user.",
+)
+def telegram_webapp_login(
+    body: TelegramWebAppRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    client_ip = _get_client_ip(request)
+    allowed, retry_after = check_rate_limit(client_ip, "login")
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Demasiados intentos. Intentá de nuevo en {retry_after} segundos",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    tg_user = verify_telegram_webapp(body.init_data)
+    if not tg_user:
+        raise HTTPException(status_code=401, detail="Datos de Telegram inválidos o expirados")
+
+    tg_id = tg_user.get("id")
+    if not tg_id:
+        raise HTTPException(status_code=400, detail="Falta ID de usuario de Telegram")
+
+    chat_hash = compute_hmac(str(tg_id))
+    user = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="Tu cuenta de Telegram no está vinculada. Vinculala desde Configuración → Telegram Bot.",
+        )
+
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuario inactivo")
+    if user.is_blocked:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cuenta bloqueada")
+
+    _log_audit(db, user.id, "telegram_webapp_login", request)
+    return Token(access_token=create_access_token(user.id), token_type="bearer")
+
+
+@router.post(
+    "/telegram/login-widget",
+    response_model=Token,
+    summary="Login via Telegram Login Widget",
+    description="Validates Telegram Login Widget callback data and returns a JWT for a previously linked user.",
+)
+def telegram_widget_login(
+    body: TelegramLoginWidgetRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    client_ip = _get_client_ip(request)
+    allowed, retry_after = check_rate_limit(client_ip, "login")
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Demasiados intentos. Intentá de nuevo en {retry_after} segundos",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    widget_data = body.model_dump()
+    tg_user = verify_telegram_login_widget(widget_data)
+    if not tg_user:
+        raise HTTPException(status_code=401, detail="Datos de Telegram inválidos o expirados")
+
+    tg_id = tg_user.get("id")
+    if not tg_id:
+        raise HTTPException(status_code=400, detail="Falta ID de usuario de Telegram")
+
+    chat_hash = compute_hmac(str(tg_id))
+    user = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="Tu cuenta de Telegram no está vinculada. Vinculala desde Configuración → Telegram Bot.",
+        )
+
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuario inactivo")
+    if user.is_blocked:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cuenta bloqueada")
+
+    _log_audit(db, user.id, "telegram_widget_login", request)
     return Token(access_token=create_access_token(user.id), token_type="bearer")
 
 

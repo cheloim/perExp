@@ -15,9 +15,52 @@ export interface ChangeVersion {
   previous?: string;
 }
 
-export const LATEST_VERSION = "v1.2";
+export const LATEST_VERSION = "v1.3";
 
 export const CHANGES: ChangeVersion[] = [
+  {
+    version: "v1.3",
+    date: "31 de Agosto, 2026",
+    title: "Telegram Mini App e Inicio de Sesión con Telegram",
+    previous: "v1.2",
+    features: [
+      {
+        title: "Telegram Mini App",
+        icon: "telegram",
+        color: "#3584e4",
+        description:
+          "Abrí toda la app de Oikonomia desde dentro de Telegram, sin salir del chat. Registrá gastos, revisá reportes y gestioná tus finanzas en una Mini App completa con tu tema y colores.",
+      },
+      {
+        title: "Inicio de Sesión con Telegram",
+        icon: "telegram",
+        color: "#2ec27e",
+        description:
+          "Iniciá sesión con un solo toque usando tu cuenta de Telegram. Disponible tanto en la Mini App como en la web con el Login Widget.",
+      },
+      {
+        title: "Detección de Tarjetas Mejorada",
+        icon: "list",
+        color: "#e5a50a",
+        description:
+          "El bot ahora reconoce mejor las notificaciones de tu banco. Detección accent-insensible, nuevos patrones Santander, y coincidencia fuzzy entre variantes de la misma tarjeta.",
+      },
+      {
+        title: "Suscripciones Más Inteligentes",
+        icon: "sparkles",
+        color: "#8b5cf6",
+        description:
+          "Las suscripciones detectadas automáticamente ya no reaparecen después de ser eliminadas. Coincidencia fuzzy entre variantes de merchant (ej: MAKRO / MAKRO PILAR).",
+      },
+      {
+        title: "Mejoras Visuales",
+        icon: "chart-bar",
+        color: "#3584e4",
+        description:
+          "Fechas agrupadas inteligentes en gastos: al ordenar por fecha, los headers de agrupación muestran la fecha; al ordenar por otro campo, se muestra en cada fila. Modal de detalle simplificado.",
+      },
+    ],
+  },
   {
     version: "v1.2",
     date: "29 de Julio, 2026",

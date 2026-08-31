@@ -3,6 +3,8 @@ import SymbolicIcon from "../../components/SymbolicIcon";
 
 /* ─── Encryption Mockup ─────────────────────────────── */
 
+/* ─── Encryption Mockup ─────────────────────────────── */
+
 export function EncryptionMockup() {
   return (
     <div className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 rounded-2xl p-5 border border-purple-500/20">
@@ -308,6 +310,229 @@ export function EmailValidationMockup() {
         <div className="bg-[var(--bg-primary)] border border-red-500/30 rounded-lg p-3">
           <p className="text-xs text-[var(--text-secondary)] mb-1">Email inválido</p>
           <p className="text-xs text-red-500 font-medium">✗ test@test.com (dominio bloqueado)</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Mini App Phone Mockup ──────────────────────────── */
+
+export function MiniAppPhoneMockup() {
+  return (
+    <div className="flex justify-center">
+      <div className="w-[280px] bg-[#1a1a2e] rounded-[2rem] border-[3px] border-[#333] overflow-hidden shadow-2xl">
+        {/* Status bar */}
+        <div className="flex items-center justify-between px-4 py-1 text-[10px] text-white/50">
+          <span>9:41</span>
+          <span>●●●</span>
+        </div>
+
+        {/* Telegram bot header */}
+        <div className="flex items-center gap-2.5 px-3 py-2 border-b border-white/10">
+          <div className="w-7 h-7 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white text-[10px] font-bold">
+            N
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-white text-xs font-medium truncate">NikoFin</div>
+            <div className="text-[9px] text-green-400">● en línea</div>
+          </div>
+          <span className="text-white/40 text-sm">✕</span>
+        </div>
+
+        {/* Mini App content */}
+        <div className="p-3 space-y-2.5">
+          {/* KPI row */}
+          <div className="grid grid-cols-3 gap-1.5">
+            {[
+              { label: "Este mes", value: "$382K", color: "bg-green-500/15 text-green-400" },
+              { label: "Hoy", value: "$12.5K", color: "bg-blue-500/15 text-blue-400" },
+              { label: "Pendiente", value: "$45K", color: "bg-amber-500/15 text-amber-400" },
+            ].map((kpi) => (
+              <div
+                key={kpi.label}
+                className={`${kpi.color} rounded-lg p-1.5 text-center animate-fade-in-up`}
+              >
+                <div className="text-[8px] opacity-70">{kpi.label}</div>
+                <div className="text-[11px] font-bold">{kpi.value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Mini bar chart */}
+          <div className="bg-white/5 rounded-lg p-2">
+            <div className="flex items-end gap-1 h-12">
+              {[30, 50, 35, 65, 45, 75, 55].map((h, i) => (
+                <div
+                  key={i}
+                  className="flex-1 rounded-t animate-bar-grow"
+                  style={{
+                    height: `${h}%`,
+                    backgroundColor: i === 6 ? "#2ec27e" : "rgba(255,255,255,0.15)",
+                    animationDelay: `${i * 80}ms`,
+                  }}
+                />
+              ))}
+            </div>
+            <div className="flex justify-between mt-1">
+              {["L", "M", "X", "J", "V", "S", "D"].map((d) => (
+                <span key={d} className="text-[7px] text-white/30 flex-1 text-center">
+                  {d}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Recent expenses */}
+          <div className="space-y-1">
+            {[
+              { name: "Work Cafe Garay", cat: "Gastro", amt: "$8.6K", icon: "☕" },
+              { name: "Subte", cat: "Transp", amt: "$1.2K", icon: "🚇" },
+              { name: "Netflix", cat: "Suscr", amt: "$5K", icon: "📺" },
+            ].map((exp, i) => (
+              <div
+                key={exp.name}
+                className="flex items-center gap-2 bg-white/5 rounded-lg px-2 py-1.5 animate-fade-in-up"
+                style={{ animationDelay: `${300 + i * 100}ms` }}
+              >
+                <span className="text-xs">{exp.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[10px] text-white font-medium truncate">{exp.name}</div>
+                  <div className="text-[8px] text-white/40">{exp.cat}</div>
+                </div>
+                <span className="text-[10px] text-green-400 font-medium">{exp.amt}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Bottom safe area */}
+        <div className="h-5" />
+      </div>
+    </div>
+  );
+}
+
+/* ─── Telegram SSO Flow Mockup ──────────────────────── */
+
+export function TelegramSSOFlowMockup() {
+  return (
+    <div className="bg-gradient-to-br from-blue-500/10 to-green-500/10 rounded-2xl p-5 border border-blue-500/20">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+          <SymbolicIcon name="telegram" size={20} />
+        </div>
+        <div>
+          <p className="font-semibold text-sm text-[var(--text-primary)]">SSO con Telegram</p>
+          <p className="text-xs text-[var(--text-secondary)]">Un toque para iniciar sesión</p>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-2">
+        {/* Step 1: Chat */}
+        <div className="flex-1 text-center">
+          <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl p-2.5 mb-2">
+            <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center mx-auto mb-1.5">
+              <SymbolicIcon name="telegram" size={14} />
+            </div>
+            <p className="text-[10px] text-[var(--text-primary)] font-medium">NikoFin Bot</p>
+            <div className="bg-blue-500/10 rounded px-1.5 py-0.5 mt-1.5">
+              <p className="text-[8px] text-[var(--text-secondary)]">📱 Abrir Oikonomia</p>
+            </div>
+          </div>
+          <p className="text-[9px] text-[var(--text-tertiary)]">Chat</p>
+        </div>
+
+        {/* Arrow 1 */}
+        <div className="flex flex-col items-center gap-0.5 animate-pulse-travel">
+          <div className="w-6 h-px bg-blue-400" />
+          <span className="text-[10px] text-blue-400">→</span>
+        </div>
+
+        {/* Step 2: App */}
+        <div className="flex-1 text-center">
+          <div className="bg-[var(--bg-primary)] border border-green-500/30 rounded-xl p-2.5 mb-2">
+            <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-1.5">
+              <SymbolicIcon name="settings" size={14} />
+            </div>
+            <p className="text-[10px] text-green-500 font-medium">Oikonomia</p>
+            <div className="bg-green-500/10 rounded px-1.5 py-0.5 mt-1.5">
+              <p className="text-[8px] text-green-500">✓ Sesión iniciada</p>
+            </div>
+          </div>
+          <p className="text-[9px] text-[var(--text-tertiary)]">App</p>
+        </div>
+
+        {/* Arrow 2 */}
+        <div
+          className="flex flex-col items-center gap-0.5 animate-pulse-travel"
+          style={{ animationDelay: "0.5s" }}
+        >
+          <div className="w-6 h-px bg-green-400" />
+          <span className="text-[10px] text-green-400">→</span>
+        </div>
+
+        {/* Step 3: User */}
+        <div className="flex-1 text-center">
+          <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl p-2.5 mb-2">
+            <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center mx-auto mb-1.5 text-[10px]">
+              👤
+            </div>
+            <p className="text-[10px] text-[var(--text-primary)] font-medium">Marcelo</p>
+            <div className="bg-purple-500/10 rounded px-1.5 py-0.5 mt-1.5">
+              <p className="text-[8px] text-purple-500">Vinculado ✓</p>
+            </div>
+          </div>
+          <p className="text-[9px] text-[var(--text-tertiary)]">Cuenta</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Card Detection Mockup ──────────────────────────── */
+
+export function CardDetectionMockup() {
+  return (
+    <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 rounded-2xl p-5 border border-amber-500/20">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
+          <SymbolicIcon name="list" size={20} />
+        </div>
+        <div>
+          <p className="font-semibold text-sm text-[var(--text-primary)]">Detección Mejorada</p>
+          <p className="text-xs text-[var(--text-secondary)]">Accent-insensitive + fuzzy</p>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {/* Bank notification */}
+        <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg p-2.5">
+          <p className="text-[10px] text-[var(--text-secondary)] mb-1">Notificación bancaria:</p>
+          <p className="text-xs text-[var(--text-primary)] font-mono">
+            "Tarjeta Santander Visa Débito terminada en 3001..."
+          </p>
+        </div>
+
+        {/* Matching process */}
+        <div className="flex items-center gap-2 px-2">
+          <div className="flex-1 h-px bg-[var(--border-color)]" />
+          <span className="text-[9px] text-[var(--text-secondary)] font-mono animate-blink">
+            accent + fuzzy match
+          </span>
+          <div className="flex-1 h-px bg-[var(--border-color)]" />
+        </div>
+
+        {/* Matched card */}
+        <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-2.5 flex items-center gap-2">
+          <span className="text-green-500 text-sm">✓</span>
+          <div>
+            <p className="text-xs text-green-600 dark:text-green-400 font-medium">
+              Santander Visa Debito
+            </p>
+            <p className="text-[9px] text-[var(--text-secondary)]">Débito • Terminada en 3001</p>
+          </div>
+          <span className="ml-auto text-[9px] text-green-500">0.1ms</span>
         </div>
       </div>
     </div>

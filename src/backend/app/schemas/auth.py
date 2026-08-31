@@ -108,6 +108,20 @@ class ForgotPasswordRequest(BaseModel):
         return _validate_email_format(v)
 
 
+class TelegramWebAppRequest(BaseModel):
+    init_data: str
+
+
+class TelegramLoginWidgetRequest(BaseModel):
+    id: int
+    first_name: str
+    last_name: str | None = None
+    username: str | None = None
+    photo_url: str | None = None
+    auth_date: str
+    hash: str
+
+
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str

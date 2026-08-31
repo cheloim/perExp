@@ -12,7 +12,15 @@ BUE = ZoneInfo("America/Argentina/Buenos_Aires")
 
 import telegram
 from google import genai
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    MenuButtonWebApp,
+    ReplyKeyboardMarkup,
+    Update,
+    WebAppInfo,
+)
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -953,10 +961,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         chat_hash = compute_hmac(chat_id)
         user = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
         if user:
+            frontend_url = os.getenv("FRONTEND_URL", "")
+            reply_markup = None
+            if frontend_url:
+                reply_markup = ReplyKeyboardMarkup(
+                    [[KeyboardButton("📱 Abrir Oikonomia", web_app=WebAppInfo(url=frontend_url))]],
+                    resize_keyboard=True,
+                )
             await update.message.reply_text(
                 f"¡Hola <b>{user.full_name}</b>! 👋 ¿Qué gastaste hoy?\n\n"
                 "💡 Mandame un gasto o usá /ayuda para ver los comandos disponibles.",
                 parse_mode="HTML",
+                reply_markup=reply_markup,
             )
             return ConversationHandler.END
     finally:
@@ -992,6 +1008,13 @@ async def handle_auth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         user.telegram_key = None  # Invalidate key after use
         db.commit()
         db.refresh(user)
+        frontend_url = os.getenv("FRONTEND_URL", "")
+        reply_markup = None
+        if frontend_url:
+            reply_markup = ReplyKeyboardMarkup(
+                [[KeyboardButton("📱 Abrir Oikonomia", web_app=WebAppInfo(url=frontend_url))]],
+                resize_keyboard=True,
+            )
         await update.message.reply_text(
             f"🎉 ¡Listo, <b>{user.full_name}</b>! Tu cuenta está conectada.\n\n"
             "Mandame un gasto como le dirías a un amigo:\n"
@@ -1006,6 +1029,7 @@ async def handle_auth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             "/cuotas — Ver cuotas pendientes\n"
             "/ayuda — Ver todos los comandos",
             parse_mode="HTML",
+            reply_markup=reply_markup,
         )
         return ConversationHandler.END
     finally:
@@ -2391,9 +2415,41 @@ def start_bot(token: str) -> None:
     loop.run_until_complete(_run_bot(token))
 
 
+async def _post_init(app: Application) -> None:
+    """Set menu button, bot commands, and other post-init config."""
+    frontend_url = os.getenv("FRONTEND_URL", "")
+    if frontend_url:
+        try:
+            await app.bot.set_chat_menu_button(
+                menu_button=MenuButtonWebApp(
+                    text="Abrir Oikonomia",
+                    web_app=WebAppInfo(url=frontend_url),
+                )
+            )
+            logger.info("Set chat menu button to WebApp: %s", frontend_url)
+        except Exception as e:
+            logger.warning("Failed to set menu button: %s", e)
+
+    commands = [
+        ("start", "Iniciar o reconectar tu cuenta"),
+        ("gastos", "Ver gastos del mes"),
+        ("presupuesto", "Ver presupuestos"),
+        ("suscripciones", "Ver suscripciones recurrentes"),
+        ("inversiones", "Ver inversiones"),
+        ("cuotas", "Ver cuotas pendientes"),
+        ("cancelar", "Cancelar operación actual"),
+        ("ayuda", "Ver ayuda y comandos"),
+    ]
+    try:
+        await app.bot.set_my_commands(commands)
+        logger.info("Bot commands registered")
+    except Exception as e:
+        logger.warning("Failed to set bot commands: %s", e)
+
+
 async def _run_bot(token: str) -> None:
     global _bot_app
-    app = Application.builder().token(token).build()
+    app = Application.builder().token(token).post_init(_post_init).build()
     _bot_app = app
 
     conv_handler = ConversationHandler(

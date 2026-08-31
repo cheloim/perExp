@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   forgotPassword,
@@ -8,6 +8,7 @@ import {
   loginMfa,
   register,
   storeToken,
+  telegramWidgetLogin,
 } from "../api/client";
 import { APP_NAME } from "../config";
 
@@ -163,6 +164,7 @@ function LoginForm({
   onSuccess: () => void;
   authRedirectError?: string;
 }) {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -183,6 +185,59 @@ function LoginForm({
     const client = googleCodeClient();
     if (client) client.requestCode();
   }, [googleCodeClient]);
+
+  // Telegram Login Widget
+  const telegramWidgetRef = useRef<HTMLDivElement>(null);
+
+  const handleTelegramAuth = useCallback(
+    async (tgUser: Record<string, unknown>) => {
+      try {
+        setError("");
+        const data = await telegramWidgetLogin({
+          id: tgUser.id as number,
+          first_name: (tgUser.first_name as string) || "",
+          last_name: (tgUser.last_name as string) || undefined,
+          username: (tgUser.username as string) || undefined,
+          photo_url: (tgUser.photo_url as string) || undefined,
+          auth_date: String(tgUser.auth_date),
+          hash: tgUser.hash as string,
+        });
+        storeToken(data.access_token);
+        navigate("/", { replace: true });
+        window.location.reload();
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Error al autenticar con Telegram";
+        if (msg.includes("no está vinculada")) {
+          setError(
+            "Tu cuenta de Telegram no está vinculada. Vinculala desde Configuración → Telegram Bot.",
+          );
+        } else {
+          setError(msg);
+        }
+      }
+    },
+    [navigate],
+  );
+
+  // Load Telegram Login Widget
+  useEffect(() => {
+    const container = telegramWidgetRef.current;
+    if (!container || container.querySelector("iframe")) return;
+
+    // Expose callback globally for the widget
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).__telegramAuth = handleTelegramAuth;
+
+    const script = document.createElement("script");
+    script.src = "https://telegram.org/js/telegram-widget.js?22";
+    script.setAttribute("data-telegram-login", "NikoFinBot");
+    script.setAttribute("data-size", "large");
+    script.setAttribute("data-userpic", "false");
+    script.setAttribute("data-request-access", "write");
+    script.setAttribute("data-onauth", "window.__telegramAuth(user)");
+    script.async = true;
+    container.appendChild(script);
+  }, [handleTelegramAuth]);
 
   // Load GIS script
   useEffect(() => {
@@ -315,6 +370,17 @@ function LoginForm({
         </svg>
         Continuar con Google
       </button>
+
+      <div className="flex items-center gap-3 my-4">
+        <div className="flex-1 h-px bg-[var(--border-color)]"></div>
+        <span className="text-xs text-[var(--text-tertiary)]">o</span>
+        <div className="flex-1 h-px bg-[var(--border-color)]"></div>
+      </div>
+
+      {/* Telegram Login Widget */}
+      <div className="flex justify-center">
+        <div ref={telegramWidgetRef} />
+      </div>
 
       <p className="text-center text-sm text-[var(--text-tertiary)]">
         ¿No tenés cuenta?{" "}

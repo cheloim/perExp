@@ -1,4 +1,9 @@
+import hashlib
+import hmac
+import json
 import os
+import time
+import urllib.parse
 from datetime import UTC, datetime, timedelta
 
 import bcrypt
@@ -109,3 +114,69 @@ async def exchange_google_code(code: str, redirect_uri: str) -> dict:
         google_data = await verify_google_token(id_token)
         google_data["refresh_token"] = data.get("refresh_token")
         return google_data
+
+
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+
+
+def verify_telegram_webapp(init_data: str, max_age: int = 300) -> dict | None:
+    """Verify Telegram Mini App initData.
+
+    Returns parsed user dict on success, None on failure.
+    https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
+    """
+    if not TELEGRAM_BOT_TOKEN or not init_data:
+        return None
+
+    parsed = dict(urllib.parse.parse_qsl(init_data))
+    received_hash = parsed.pop("hash", None)
+    if not received_hash:
+        return None
+
+    data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(parsed.items()))
+    secret_key = hmac.new(b"WebAppData", TELEGRAM_BOT_TOKEN.encode(), hashlib.sha256).digest()
+    computed_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+
+    if not hmac.compare_digest(computed_hash, received_hash):
+        return None
+
+    auth_date = int(parsed.get("auth_date", "0"))
+    if time.time() - auth_date > max_age:
+        return None
+
+    user_json = parsed.get("user")
+    if not user_json:
+        return None
+
+    try:
+        return json.loads(user_json)
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
+def verify_telegram_login_widget(data: dict, max_age: int = 300) -> dict | None:
+    """Verify Telegram Login Widget callback data.
+
+    Returns user dict on success, None on failure.
+    https://core.telegram.org/widgets/login#checking-authorization
+    """
+    if not TELEGRAM_BOT_TOKEN:
+        return None
+
+    received_hash = data.get("hash")
+    auth_date = data.get("auth_date")
+    if not received_hash or not auth_date:
+        return None
+
+    if time.time() - int(auth_date) > max_age:
+        return None
+
+    check_data = {k: v for k, v in sorted(data.items()) if k != "hash"}
+    data_check_string = "\n".join(f"{k}={v}" for k, v in check_data.items())
+    secret = hashlib.sha256(TELEGRAM_BOT_TOKEN.encode()).digest()
+    computed_hash = hmac.new(secret, data_check_string.encode(), hashlib.sha256).hexdigest()
+
+    if not hmac.compare_digest(computed_hash, received_hash):
+        return None
+
+    return data
