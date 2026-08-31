@@ -58,10 +58,11 @@ jobs:
       - name: Extract linked issues
         if: steps.status.outputs.skip != 'true'
         id: issues
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           # Extract from PR body (Closes #123, Fixes #456, Resolves #789)
-          BODY='${{ github.event.pull_request.body }}'
-          BODY_ISSUES=$(echo "$BODY" | grep -oiE '(closes|fixes|resolves)\s+#([0-9]+)' | grep -oE '#[0-9]+' | tr -d '#' | sort -u)
+          BODY_ISSUES=$(echo "$PR_BODY" | grep -oiE '(closes|fixes|resolves)\s+#([0-9]+)' | grep -oE '#[0-9]+' | tr -d '#' | sort -u)
 
           # Get linked issues from GitHub API (Linked Issues feature)
           PR_NUMBER="${{ github.event.pull_request.number }}"
