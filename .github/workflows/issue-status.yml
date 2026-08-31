@@ -60,9 +60,10 @@ jobs:
         id: issues
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Extract from PR body (Closes #123, Fixes #456, Resolves #789)
-          BODY_ISSUES=$(echo "$PR_BODY" | grep -oiE '(closes|fixes|resolves)\s+#([0-9]+)' | grep -oE '#[0-9]+' | tr -d '#' | sort -u)
+          # Extract from PR body (Closes #123, Fixes #456, Resolves #789, etc.)
+          BODY_ISSUES=$(echo "$PR_BODY" | grep -oiE '\b(close[sd]?|fix(e[sd])?|resolve[sd]?)\s+#([0-9]+)' | grep -oE '#[0-9]+' | tr -d '#' | sort -u || true)
 
           # Get linked issues from GitHub API (Linked Issues feature)
           PR_NUMBER="${{ github.event.pull_request.number }}"
@@ -82,7 +83,7 @@ jobs:
           " --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[].number' 2>/dev/null || echo "")
 
           # Combine and deduplicate
-          ALL_ISSUES=$(echo -e "$BODY_ISSUES\n$LINKED_ISSUES" | sort -un | grep -v '^$')
+          ALL_ISSUES=$(echo -e "$BODY_ISSUES\n$LINKED_ISSUES" | sort -un | grep -v '^$' || true)
 
           if [ -z "$ALL_ISSUES" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
