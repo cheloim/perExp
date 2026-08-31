@@ -33,6 +33,7 @@
 - [ ] `docs/Features.md` updated (if new feature)
 
 ## Testing
+- [ ] Changes were explained before implementation (Human in the Loop)
 - [ ] `npm run typecheck` passes (frontend)
 - [ ] `npm run lint` passes (frontend)
 - [ ] `ruff check app/` passes (backend)

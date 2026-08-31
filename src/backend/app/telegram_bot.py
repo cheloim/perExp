@@ -255,7 +255,12 @@ def _parse_bank_notification(text: str) -> dict | None:
 
 
 def _match_card_from_notification(
-    user_id: int, card_last4: str | None, bank: str | None, card_type: str | None, db
+    user_id: int,
+    card_last4: str | None,
+    bank: str | None,
+    card_type: str | None,
+    card_name: str | None,
+    db,
 ) -> Card | None:
     """Match a bank notification to an existing card in DB."""
     cards = db.query(Card).filter(Card.user_id == user_id).all()
@@ -270,12 +275,25 @@ def _match_card_from_notification(
             if card.card_name and card.card_name[-4:] == card_last4:
                 return card
 
-    # Pass 1: match by card_name (Visa/Mastercard) + bank + type
+    # Pass 1: match by card_name + bank + type
     for card in cards:
         if card.card_type != target_type:
             continue
         if bank and card.bank and card.bank.lower() != bank.lower():
             continue
+        # If notification mentions a card name, match it (case-insensitive, accent-insensitive)
+        if card_name:
+            import unicodedata
+
+            def _strip_accents(s: str) -> str:
+                nfkd = unicodedata.normalize("NFKD", s.lower().strip())
+                return "".join(c for c in nfkd if not unicodedata.combining(c))
+
+            card_lower = _strip_accents(card.card_name)
+            name_lower = _strip_accents(card_name)
+            # Check if DB card contains the notification name or vice versa
+            if name_lower not in card_lower and card_lower not in name_lower:
+                continue
         # Check if card_name contains a known franchise
         card_lower = card.card_name.lower()
         if any(
@@ -1022,6 +1040,7 @@ async def _handle_bank_notification(
             parsed.get("card_last4"),
             parsed.get("bank"),
             parsed.get("card_type"),
+            parsed.get("card_name"),
             db,
         )
 
