@@ -501,6 +501,7 @@ async def _handle_bank_notification(
             parsed.get("card_last4"),
             parsed.get("bank"),
             parsed.get("card_type"),
+            parsed.get("card_name"),
             db,
         )
 
