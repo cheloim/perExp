@@ -31,12 +31,7 @@ export default function ExpenseDetailModal({ expense, onClose, onEdit }: Props) 
   const categoryColor = expense.category_color || "#9a9996";
 
   return (
-    <DetailModal
-      isOpen={true}
-      onClose={onClose}
-      title={toUpperCase(expense.description)}
-      subtitle={formatDateDMY(expense.date)}
-    >
+    <DetailModal isOpen={true} onClose={onClose} title={toUpperCase(expense.description)}>
       <div className="space-y-4">
         {/* Monto */}
         <div className="bg-[var(--color-base-alt)] rounded-lg p-4 text-center">
