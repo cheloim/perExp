@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import re
+import unicodedata
 import uuid
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -146,6 +147,12 @@ BANK_NAME_PATTERNS = [
 ]
 
 
+def _strip_accents(s: str) -> str:
+    """Strip accents from text for accent-insensitive matching."""
+    nfkd = unicodedata.normalize("NFKD", s.lower().strip())
+    return "".join(c for c in nfkd if not unicodedata.combining(c))
+
+
 def _extract_card_from_text(text: str) -> tuple[str | None, str | None, str | None]:
     """Try to extract card_name, bank, and card_type from natural language text."""
     lower = text.lower()
@@ -256,64 +263,83 @@ def _parse_bank_notification(text: str) -> dict | None:
 
 def _match_card_from_notification(
     user_id: int,
-    card_last4: str | None,
     bank: str | None,
     card_type: str | None,
     card_name: str | None,
     db,
 ) -> Card | None:
-    """Match a bank notification to an existing card in DB."""
+    """Match a bank notification to an existing card in DB.
+
+    Matching priority:
+      Pass 1: card_name + bank (ignore card_type) — card_name is the most reliable identifier
+      Pass 2: bank + card_type (fallback when card_name doesn't match)
+      Pass 3: card_type only (last resort — auto-select if single card of that type)
+    """
     cards = db.query(Card).filter(Card.user_id == user_id).all()
     if not cards:
         return None
 
     target_type = card_type or "credito"
 
-    # Pass 0: match by last 4 digits (most precise)
-    if card_last4:
+    # Pass 1: match by card_name + bank (ignore card_type)
+    # card_name is the most reliable identifier — the LLM often gets card_type wrong
+    if card_name:
+        matches = []
         for card in cards:
-            if card.card_name and card.card_name[-4:] == card_last4:
-                return card
-
-    # Pass 1: match by card_name + bank + type
-    for card in cards:
-        if card.card_type != target_type:
-            continue
-        if bank and card.bank and card.bank.lower() != bank.lower():
-            continue
-        # If notification mentions a card name, match it (case-insensitive, accent-insensitive)
-        if card_name:
-            import unicodedata
-
-            def _strip_accents(s: str) -> str:
-                nfkd = unicodedata.normalize("NFKD", s.lower().strip())
-                return "".join(c for c in nfkd if not unicodedata.combining(c))
-
+            if bank and card.bank and card.bank.lower() != bank.lower():
+                continue
             card_lower = _strip_accents(card.card_name)
             name_lower = _strip_accents(card_name)
-            # Check if DB card contains the notification name or vice versa
-            if name_lower not in card_lower and card_lower not in name_lower:
-                continue
-        # Check if card_name contains a known franchise
-        card_lower = card.card_name.lower()
-        if any(
-            card_lower.startswith(f) or f in card_lower
-            for f in ["visa", "mastercard", "naranja", "amex", "cabal"]
-        ):
-            return card
+            if name_lower in card_lower or card_lower in name_lower:
+                matches.append(card)
 
-    # Pass 2: match by bank + type only (ignore card_name)
+        if len(matches) == 1:
+            logger.debug(
+                "[CARD_MATCH] Pass 1 (card_name+bank): matched %s",
+                matches[0].card_name,
+            )
+            return matches[0]
+        elif len(matches) > 1:
+            # Disambiguate by card_type when multiple cards match
+            for card in matches:
+                if card.card_type == target_type:
+                    logger.debug(
+                        "[CARD_MATCH] Pass 1 (card_name+bank+type): matched %s",
+                        card.card_name,
+                    )
+                    return card
+            logger.debug(
+                "[CARD_MATCH] Pass 1 (card_name+bank): multiple matches, returning first: %s",
+                matches[0].card_name,
+            )
+            return matches[0]
+
+    # Pass 2: match by bank + card_type (ignore card_name)
     for card in cards:
         if card.card_type != target_type:
             continue
         if bank and card.bank and card.bank.lower() == bank.lower():
+            logger.debug(
+                "[CARD_MATCH] Pass 2 (bank+type): matched %s",
+                card.card_name,
+            )
             return card
 
-    # Pass 3: match by type only — if only one card of that type, auto-select
+    # Pass 3: match by card_type only — if only one card of that type, auto-select
     type_cards = [c for c in cards if c.card_type == target_type]
     if len(type_cards) == 1:
+        logger.debug(
+            "[CARD_MATCH] Pass 3 (type only): matched %s",
+            type_cards[0].card_name,
+        )
         return type_cards[0]
 
+    logger.debug(
+        "[CARD_MATCH] No match found. card_name=%s, bank=%s, card_type=%s",
+        card_name,
+        bank,
+        card_type,
+    )
     return None
 
 
@@ -1037,7 +1063,6 @@ async def _handle_bank_notification(
         # Match card from notification
         card = _match_card_from_notification(
             user_id,
-            parsed.get("card_last4"),
             parsed.get("bank"),
             parsed.get("card_type"),
             parsed.get("card_name"),
@@ -1260,14 +1285,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             for card in cards:
                 card_lower = card.card_name.lower()
                 text_lower = text_card_name.lower()
-                # Match if DB card starts with the extracted name or vice versa
-                # e.g. "visa" matches "visa debito", "visa debito" matches "visa"
                 name_match = (
-                    card_lower == text_lower
-                    or card_lower.startswith(text_lower)
-                    or text_lower.startswith(card_lower)
+                    card_lower == text_lower or text_lower in card_lower or card_lower in text_lower
                 )
-                # Match card type if extracted (debito/credito)
                 type_match = not text_card_type or card.card_type == text_card_type
                 if (
                     name_match

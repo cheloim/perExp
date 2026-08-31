@@ -404,14 +404,9 @@ async def _handle_text_message(
             for card in cards:
                 card_lower = card.card_name.lower()
                 text_lower = text_card_name.lower()
-                # Match if DB card starts with the extracted name or vice versa
-                # e.g. "visa" matches "visa debito", "visa debito" matches "visa"
                 name_match = (
-                    card_lower == text_lower
-                    or card_lower.startswith(text_lower)
-                    or text_lower.startswith(card_lower)
+                    card_lower == text_lower or text_lower in card_lower or card_lower in text_lower
                 )
-                # Match card type if extracted (debito/credito)
                 type_match = not text_card_type or card.card_type == text_card_type
                 if (
                     name_match
@@ -498,7 +493,6 @@ async def _handle_bank_notification(
     try:
         card = _match_card_from_notification(
             user_id,
-            parsed.get("card_last4"),
             parsed.get("bank"),
             parsed.get("card_type"),
             parsed.get("card_name"),

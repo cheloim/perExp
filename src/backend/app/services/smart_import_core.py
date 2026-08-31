@@ -77,22 +77,33 @@ def _match_card_to_existing(
     detected_bank: str,
     detected_card: str,
     user_cards: list[Card],
+    card_type: str | None = None,
 ) -> Card | None:
     """
     Match detected bank+card to an existing user card.
+    When multiple cards match, prefer the one matching card_type if provided.
     Returns the matched Card or None.
     """
     if not detected_bank or not detected_card:
         return None
 
+    matches = []
     for card in user_cards:
         card_bank = normalize_bank(card.bank or "")
         card_name = (card.card_name or "").lower()
 
         if card_bank == detected_bank and detected_card.lower() in card_name:
-            return card
+            matches.append(card)
 
-    return None
+    if len(matches) == 1:
+        return matches[0]
+    elif len(matches) > 1 and card_type:
+        for card in matches:
+            if card.card_type == card_type:
+                return card
+        return matches[0]
+
+    return matches[0] if matches else None
 
 
 def _parse_full_name(full_name: str) -> tuple[str, str]:
@@ -387,7 +398,7 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
     card_type = closing_info.get("card_type") or "credito"
     for card_header, txns in card_groups.items():
         detected_bank, detected_card = _parse_card_header(card_header)
-        matched_card = _match_card_to_existing(detected_bank, detected_card, user_cards)
+        matched_card = _match_card_to_existing(detected_bank, detected_card, user_cards, card_type)
 
         detected_cards.append(
             {
