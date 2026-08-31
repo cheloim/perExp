@@ -601,7 +601,9 @@ async def run_deterministic_import(content: bytes, filename: str, db, user_id: i
     detected_cards = []
     for card_header, txns in card_groups.items():
         detected_bank, detected_card_type = _parse_card_header(card_header)
-        matched_card = _match_card_to_existing(detected_bank, detected_card_type, user_cards_list)
+        matched_card = _match_card_to_existing(
+            detected_bank, detected_card_type, user_cards_list, None
+        )
 
         detected_cards.append(
             {
