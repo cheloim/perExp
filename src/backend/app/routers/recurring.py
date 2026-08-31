@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import RecurringExpense, User
+from app.models import RecurringExpense
 from app.services.auth import get_current_user
 
 router = APIRouter(prefix="/recurring", tags=["recurring"])
@@ -262,15 +262,23 @@ def delete_recurring(
 @router.put(
     "/dismiss-banner",
     summary="Dismiss auto-detected banner",
-    description="Dismiss the banner prompting the user to review auto-detected recurring expenses.",
+    description="Dismiss the banner and permanently suppress all current auto-detected recurring expenses.",
 )
 def dismiss_auto_detected_banner(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    """Dismiss the auto-detected recurring expenses banner."""
-    user = db.query(User).filter(User.id == current_user.id).first()
-    if user:
-        user.auto_detected_banner_dismissed_at = datetime.utcnow()
-        db.commit()
-    return {"detail": "Banner dismissed"}
+    """Dismiss the auto-detected banner and tombstone all active auto-detected items."""
+    items = (
+        db.query(RecurringExpense)
+        .filter(
+            RecurringExpense.user_id == current_user.id,
+            RecurringExpense.source == "auto",
+            RecurringExpense.is_active == True,  # noqa: E712
+        )
+        .all()
+    )
+    for item in items:
+        item.is_active = False
+    db.commit()
+    return {"detail": f"Dismissed {len(items)} auto-detected item(s)"}
