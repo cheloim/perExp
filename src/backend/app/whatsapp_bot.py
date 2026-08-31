@@ -186,6 +186,7 @@ from app.telegram_bot import (  # noqa: E402
     _is_bank_notification,
     _match_account_from_text,
     _match_card_from_notification,
+    _match_card_from_text,
     _parse_expense,
     _save_expense,
     _should_ask_installments,
@@ -400,22 +401,8 @@ async def _handle_text_message(
         db = SessionLocal()
         try:
             cards = db.query(Card).filter(Card.user_id == user_id).all()
-            matched_card = None
-            for card in cards:
-                card_lower = card.card_name.lower()
-                text_lower = text_card_name.lower()
-                name_match = (
-                    card_lower == text_lower or text_lower in card_lower or card_lower in text_lower
-                )
-                type_match = not text_card_type or card.card_type == text_card_type
-                if (
-                    name_match
-                    and type_match
-                    and (not text_bank or (card.bank and card.bank.lower() == text_bank.lower()))
-                ):
-                    matched_card = card
-                    break
-            if not matched_card and text_bank:
+            matched_card = _match_card_from_text(cards, text_card_name, text_bank, text_card_type)
+            if not matched_card and text_bank and not text_card_name:
                 for card in cards:
                     if card.bank and card.bank.lower() == text_bank.lower():
                         matched_card = card

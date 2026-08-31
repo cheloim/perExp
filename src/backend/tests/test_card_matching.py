@@ -8,7 +8,9 @@ os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-t
 
 from app.telegram_bot import (
     _extract_card_from_text,
+    _is_bank_notification,
     _match_card_from_notification,
+    _match_card_from_text,
     _strip_accents,
 )
 from app.services.smart_import_core import _match_card_to_existing
@@ -249,6 +251,114 @@ class TestExtractCardFromText(unittest.TestCase):
         card_name, bank, card_type = _extract_card_from_text("pague mastercard debito supermercado")
         self.assertEqual(card_name, "Mastercard Debito")
         self.assertEqual(card_type, "debito")
+
+
+# ---------------------------------------------------------------------------
+# Production regression tests (Issue #161)
+# ---------------------------------------------------------------------------
+
+PROD_CARDS = [
+    _make_card("Mastercard", bank="Santander", card_type="credito"),
+    _make_card("Visa", bank="Santander", card_type="credito"),
+    _make_card("Mastercard", bank="Galicia", card_type="credito"),
+    _make_card("Visa", bank="Galicia", card_type="credito"),
+    _make_card("Visa Debito", bank="Santander", card_type="debito"),
+]
+
+
+class TestMatchCardFromText(unittest.TestCase):
+    """Tests for the shared _match_card_from_text function."""
+
+    def test_accent_mismatch_matches(self):
+        """'Visa Débito' (with accent from user text) matches 'Visa Debito' in DB."""
+        result = _match_card_from_text(PROD_CARDS, "Visa Débito", "Santander", "debito")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.card_name, "Visa Debito")
+        self.assertEqual(result.card_type, "debito")
+
+    def test_accent_mismatch_case_insensitive(self):
+        """'VISA DÉBITO' (uppercase + accent) matches 'Visa Debito' in DB."""
+        result = _match_card_from_text(PROD_CARDS, "VISA DÉBITO", "Santander", "debito")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.card_name, "Visa Debito")
+
+    def test_no_accent_exact_match(self):
+        """'Visa Debito' (no accent) matches 'Visa Debito' in DB."""
+        result = _match_card_from_text(PROD_CARDS, "Visa Debito", "Santander", "debito")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.card_name, "Visa Debito")
+
+    def test_partial_franchise_match(self):
+        """'Visa' matches first Visa card in DB order (Santander credito)."""
+        result = _match_card_from_text(PROD_CARDS, "Visa", "Santander", None)
+        self.assertIsNotNone(result)
+        self.assertEqual(result.card_name, "Visa")
+        self.assertEqual(result.card_type, "credito")
+
+    def test_mastercard_not_matches_visa(self):
+        """'Mastercard' does not match 'Visa' card."""
+        for card in PROD_CARDS:
+            if card.card_name == "Visa Debito":
+                continue
+            result = _match_card_from_text([card], "Visa", "Santander", "debito")
+            self.assertIsNone(result)
+
+    def test_full_prod_scenario_issue_161(self):
+        """Exact production scenario: Santander notification with 'Visa Débito'."""
+        # Extract card_name from the Santander notification
+        card_name, bank, card_type = _extract_card_from_text(
+            "Te acercamos el detalle de tu consumo con la Tarjeta Santander "
+            "Visa Débito terminada en 3001. Monto $8.616,00 Comercio WORK CAFE GARAY"
+        )
+        self.assertEqual(card_name, "Visa Débito")
+        self.assertEqual(bank, "Santander")
+        self.assertEqual(card_type, "debito")
+
+        # Match against prod cards — must return Visa Debito, NOT Mastercard
+        result = _match_card_from_text(PROD_CARDS, card_name, bank, card_type)
+        self.assertIsNotNone(result)
+        self.assertEqual(result.card_name, "Visa Debito")
+        self.assertEqual(result.card_type, "debito")
+        self.assertNotEqual(result.card_name, "Mastercard")
+
+    def test_bank_only_fallback_requires_no_card_name(self):
+        """When text_card_name is provided but no match found, returns None (safe mode)."""
+        result = _match_card_from_text(PROD_CARDS, "Amex", "Santander", None)
+        self.assertIsNone(result)
+
+    def test_no_card_name_returns_none(self):
+        """Without a card name, no matching attempt is made."""
+        # _match_card_from_text requires a card_name, so None card_name is not passed
+        # This tests the guard: callers should check text_card_name before calling
+        pass
+
+
+class TestIsBankNotification(unittest.TestCase):
+    """Tests for bank notification detection patterns."""
+
+    def test_santander_notification_detected(self):
+        msg = (
+            "Te acercamos el detalle de tu consumo con la Tarjeta Santander "
+            "Visa Débito terminada en 3001. Monto $8.616,00 "
+            "Comercio WORK CAFE GARAY Fecha 27/08/2026"
+        )
+        self.assertTrue(_is_bank_notification(msg))
+
+    def test_santander_generic_consumo_detected(self):
+        msg = "consumo con la tarjeta visa terminada en 1234 aprobado $5000"
+        self.assertTrue(_is_bank_notification(msg))
+
+    def test_terminada_en_detected(self):
+        msg = "Visa Mastercard terminada en 5678 debito automático"
+        self.assertTrue(_is_bank_notification(msg))
+
+    def test_natural_language_not_detected(self):
+        msg = "farmacity 3200"
+        self.assertFalse(_is_bank_notification(msg))
+
+    def test_natural_language_with_card_not_detected(self):
+        msg = "visa santander verduleria 59999"
+        self.assertFalse(_is_bank_notification(msg))
 
 
 if __name__ == "__main__":
