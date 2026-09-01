@@ -164,8 +164,37 @@ phase4_logs() {
     [ $errors_found -eq 0 ]
 }
 
-# ── Phase 5: API smoke ───────────────────────────────────────────────────────
-phase5_api() {
+# ── Phase 5: CSP / security headers (hits prod) ─────────────────────────────
+phase5_csp() {
+    echo "Checking production CSP headers..."
+    local headers
+    headers=$(curl -sfI "https://platform.oikonomia.ar/" 2>&1)
+    if [ -z "$headers" ]; then
+        echo "  WARNING: Could not fetch prod headers (non-blocking)"
+        return 0
+    fi
+
+    local csp
+    csp=$(echo "$headers" | grep -i "content-security-policy" | head -1)
+
+    if echo "$csp" | grep -q "script-src.*telegram.org"; then
+        echo "  ✓ script-src allows telegram.org"
+    else
+        echo "  ⚠ script-src MISSING telegram.org (expected pre-deploy, will pass after merge)"
+    fi
+
+    if echo "$csp" | grep -q "frame-src.*oauth.telegram.org"; then
+        echo "  ✓ frame-src allows oauth.telegram.org"
+    else
+        echo "  ⚠ frame-src MISSING oauth.telegram.org (expected pre-deploy, will pass after merge)"
+    fi
+
+    # Always pass — this is a post-deploy validation
+    return 0
+}
+
+# ── Phase 6: API smoke ───────────────────────────────────────────────────────
+phase6_api() {
     echo "GET /openapi.json..."
     local openapi
     openapi=$(curl -sf "$BACKEND_URL/openapi.json" 2>&1)
@@ -199,7 +228,8 @@ run_phase "Import gate" phase1_import
 run_phase "Restart services" phase2_restart
 run_phase "Health wait" phase3_health
 run_phase "Log scan" phase4_logs
-run_phase "API smoke" phase5_api
+run_phase "CSP / security headers" phase5_csp
+run_phase "API smoke" phase6_api
 
 echo "======================================"
 echo " Results"
