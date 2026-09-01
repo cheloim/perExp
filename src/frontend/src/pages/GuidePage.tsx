@@ -964,7 +964,7 @@ export default function GuidePage() {
               items={[
                 "Entrá a tu panel de usuario → Configuración → Bot de Telegram",
                 "Copiá tu clave de conexión (12 caracteres)",
-                "Abrí Telegram y buscá @NikoFinBot",
+                "Abrí Telegram y buscá @NikoFin_bot",
                 'Hacé click en "/start" y pegá tu clave',
                 "El bot te confirma que está conectado",
               ]}
