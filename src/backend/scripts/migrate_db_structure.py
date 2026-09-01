@@ -615,6 +615,7 @@ def main():
     step13_platform_logs(engine)
     step14_recurring_expense_link(engine)
     step15_whats_new_dismissed_version(engine)
+    step16_google_oauth_columns(engine)
 
     print("\n" + "=" * 60)
     print("Migration complete!")
@@ -846,7 +847,7 @@ def step14_recurring_expense_link(engine):
 
 def step15_whats_new_dismissed_version(engine):
     """Add whats_new_dismissed_version column to users table."""
-    print("\n[Step 15/15] Adding whats_new_dismissed_version to users...")
+    print("\n[Step 15] Adding whats_new_dismissed_version to users...")
 
     with engine.begin() as conn:
         dialect = engine.dialect.name
@@ -869,6 +870,47 @@ def step15_whats_new_dismissed_version(engine):
                 text("ALTER TABLE users ADD COLUMN whats_new_dismissed_version VARCHAR(20)")
             )
             print("  Added whats_new_dismissed_version VARCHAR(20).")
+
+
+def step16_google_oauth_columns(engine):
+    """Add google_refresh_token and google_refresh_token_hmac to users table."""
+    print("\n[Step 16] Adding Google OAuth columns to users...")
+
+    with engine.begin() as conn:
+        dialect = engine.dialect.name
+
+        if dialect != "postgresql":
+            print("  Skipping — only supported on PostgreSQL.")
+            return
+
+        # google_refresh_token (encrypted, stored as TEXT)
+        exists = conn.execute(text("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'users' AND column_name = 'google_refresh_token'
+            )
+        """)).scalar()
+
+        if exists:
+            print("  google_refresh_token already exists. Skipping.")
+        else:
+            conn.execute(text("ALTER TABLE users ADD COLUMN google_refresh_token TEXT"))
+            print("  Added google_refresh_token TEXT.")
+
+        # google_refresh_token_hmac
+        exists = conn.execute(text("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'users' AND column_name = 'google_refresh_token_hmac'
+            )
+        """)).scalar()
+
+        if exists:
+            print("  google_refresh_token_hmac already exists. Skipping.")
+        else:
+            conn.execute(text("ALTER TABLE users ADD COLUMN google_refresh_token_hmac VARCHAR(64)"))
+            conn.execute(text("CREATE INDEX ix_users_google_refresh_token_hmac ON users (google_refresh_token_hmac)"))
+            print("  Added google_refresh_token_hmac VARCHAR(64) with index.")
 
 
 if __name__ == "__main__":

@@ -2508,6 +2508,7 @@ async def _run_bot(token: str) -> None:
 
     logger.info("Telegram bot started (polling)")
     await app.initialize()
+    await _post_init(app)
     await app.start()
     await app.updater.start_polling(drop_pending_updates=True)
 

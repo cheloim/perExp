@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import { showBackButton, hideBackButton } from "../services/telegramWebApp";
 
 interface DetailModalProps {
   isOpen: boolean;
@@ -11,6 +12,13 @@ interface DetailModalProps {
 
 export function DetailModal({ isOpen, onClose, title, subtitle, children }: DetailModalProps) {
   const trapRef = useFocusTrap(isOpen);
+
+  // Telegram BackButton
+  useEffect(() => {
+    if (!isOpen) return;
+    showBackButton(onClose);
+    return () => hideBackButton();
+  }, [isOpen, onClose]);
 
   useEffect(() => {
     if (!isOpen) return;

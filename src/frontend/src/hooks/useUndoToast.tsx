@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { hapticSuccess } from "../services/telegramWebApp";
 
 interface UndoToast {
   id: number;
@@ -84,6 +85,8 @@ export function useUndoToast() {
           position: "bottom-center",
         },
       ]);
+
+      hapticSuccess();
     },
     [],
   );

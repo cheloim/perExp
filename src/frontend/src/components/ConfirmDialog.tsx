@@ -1,5 +1,12 @@
+import { useEffect } from "react";
 import { ReactNode } from "react";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import {
+  showBackButton,
+  hideBackButton,
+  hapticSuccess,
+  hapticLight,
+} from "../services/telegramWebApp";
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -23,12 +30,30 @@ export function ConfirmDialog({
   variant = "danger",
 }: ConfirmDialogProps) {
   const trapRef = useFocusTrap(isOpen);
+
+  // Telegram BackButton
+  useEffect(() => {
+    if (!isOpen) return;
+    showBackButton(onCancel);
+    return () => hideBackButton();
+  }, [isOpen, onCancel]);
+
   if (!isOpen) return null;
+
+  const handleConfirm = () => {
+    hapticSuccess();
+    onConfirm();
+  };
+
+  const handleCancel = () => {
+    hapticLight();
+    onCancel();
+  };
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-backdrop bg-black/60"
-      onClick={onCancel}
+      onClick={handleCancel}
     >
       <div
         ref={trapRef}
@@ -44,14 +69,14 @@ export function ConfirmDialog({
         </div>
         <div className="flex gap-2 justify-end">
           <button
-            onClick={onCancel}
+            onClick={handleCancel}
             autoFocus
             className="px-4 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
           >
             {cancelLabel}
           </button>
           <button
-            onClick={onConfirm}
+            onClick={handleConfirm}
             className={`px-4 py-2 rounded-md text-sm font-medium transition ${
               variant === "danger"
                 ? "bg-[var(--color-danger)] text-white hover:brightness-110"
