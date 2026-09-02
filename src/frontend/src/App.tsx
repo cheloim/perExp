@@ -11,13 +11,15 @@ import { UploadProgressProvider } from "./context/UploadProgressContext";
 import { NotificationsProvider, useNotifications } from "./context/NotificationsContext";
 import { FamilyGroupProvider } from "./context/FamilyGroupContext";
 import { sidebarIcons } from "./components/SidebarIcons";
-import { getStoredToken, getMe, getAdminSlug, dismissWhatsNew } from "./api/client";
+import { getStoredToken, getMe, getAdminSlug, dismissWhatsNew, createExpense } from "./api/client";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useUndoToast } from "./hooks/useUndoToast";
 import ImpersonationBanner from "./components/ImpersonationBanner";
 import ReAuthModal from "./components/ReAuthModal";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { isTelegramWebApp, initTelegramWebApp, telegramAutoLogin } from "./services/telegramWebApp";
+import { ExpenseModal } from "./components/ExpenseModals";
+import type { ExpenseCreate } from "./types";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const AccountsPage = lazy(() => import("./pages/AccountsPage"));
@@ -273,7 +275,25 @@ function MainLayout() {
   const queryClient = useQueryClient();
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [showReAuth, setShowReAuth] = useState(false);
+  const [newExpenseOpen, setNewExpenseOpen] = useState(false);
   const { ToastContainer } = useUndoToast();
+
+  // Global expense creation
+  const createMut = useMutation({
+    mutationFn: (data: ExpenseCreate) => createExpense(data),
+    onSuccess: () => {
+      setNewExpenseOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+
+  // Global event: open new expense from FAB
+  useEffect(() => {
+    const handler = () => setNewExpenseOpen(true);
+    window.addEventListener("open-new-expense", handler);
+    return () => window.removeEventListener("open-new-expense", handler);
+  }, []);
 
   // Get current user for admin check
   const { data: currentUser } = useQuery({
@@ -880,6 +900,24 @@ function MainLayout() {
               </button>
             )}
 
+            {/* Floating New Expense button (mobile + desktop) */}
+            {!newExpenseOpen && (
+              <button
+                onClick={() => setNewExpenseOpen(true)}
+                className="fixed bottom-[calc(6.5rem+var(--browser-bottom-inset,0px))] md:bottom-6 right-4 md:right-20 z-50 flex items-center justify-center w-11 h-11 bg-primary hover:brightness-110 text-white rounded-full shadow-gnome hover:shadow-gnome-lg scale-100 hover:scale-105 transition-all duration-150"
+                title="Nuevo gasto"
+              >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <path
+                    d="M10 4v12M4 10h12"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            )}
+
             {!isInvestments && (
               <AIAssistant open={aiDrawerOpen} onToggle={() => toggleDrawer(!aiDrawerOpen)} />
             )}
@@ -907,6 +945,17 @@ function MainLayout() {
                 setShowReAuth(false);
                 window.location.href = "/";
               }}
+            />
+          )}
+
+          {/* Global New Expense Modal */}
+          {newExpenseOpen && (
+            <ExpenseModal
+              initial={null}
+              onClose={() => setNewExpenseOpen(false)}
+              onSave={(data) => createMut.mutate(data)}
+              saveError={createMut.error?.message || null}
+              isSaving={createMut.isPending}
             />
           )}
         </div>

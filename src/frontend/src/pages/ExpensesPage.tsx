@@ -1091,11 +1091,11 @@ export default function ExpensesPage() {
                             </td>
                           )}
                           <td className="px-4 py-3 max-w-0 w-full">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
                               {missing && (
                                 <span
                                   title={`Faltan: ${getMissingDataFields(exp).join(", ")}`}
-                                  className="text-[#f6d32d]"
+                                  className="text-[#f6d32d] shrink-0"
                                 >
                                   ⚠️
                                 </span>
@@ -1106,17 +1106,19 @@ export default function ExpensesPage() {
                                   e.stopPropagation();
                                   setDetailExpense(exp);
                                 }}
-                                className="text-left hover:text-primary transition flex flex-col sm:flex-row items-start gap-1 sm:gap-2 w-full"
+                                className="text-left hover:text-primary transition flex flex-col sm:flex-row items-start gap-1 sm:gap-2 min-w-0 flex-1"
                               >
                                 {!isDateSort && (
                                   <span className="sm:hidden text-xs text-[var(--text-tertiary)] shrink-0">
                                     {exp.date.slice(8, 10)}/{exp.date.slice(5, 7)}
                                   </span>
                                 )}
-                                <span className="text-[var(--text-primary)] truncate">
-                                  {toUpperCase(exp.description)}
+                                <span className="flex items-center gap-1 min-w-0 max-w-full">
+                                  <span className="text-[var(--text-primary)] truncate">
+                                    {toUpperCase(exp.description)}
+                                  </span>
                                   {exp.installment_number && exp.installment_total && (
-                                    <span className="text-xs bg-[var(--color-primary)] text-[var(--color-on-primary)] px-1.5 py-0.5 rounded ml-1">
+                                    <span className="text-[10px] bg-[var(--color-primary)] text-[var(--color-on-primary)] px-1 py-0.5 rounded shrink-0">
                                       {exp.installment_number}/{exp.installment_total}
                                     </span>
                                   )}

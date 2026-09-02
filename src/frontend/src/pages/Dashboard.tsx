@@ -33,6 +33,72 @@ const FALLBACK_COLORS = [
   "#06b6d4", // cyan
 ];
 
+const CATEGORY_EMOJI: Record<string, string> = {
+  comida: "🍔",
+  alimentación: "🛒",
+  supermercado: "🛒",
+  mercado: "🛒",
+  transporte: "🚗",
+  uber: "🚗",
+  taxi: "🚗",
+  nafta: "⛽",
+  gasolina: "⛽",
+  salud: "💊",
+  farmacia: "💊",
+  médico: "🏥",
+  hospital: "🏥",
+  servicios: "💡",
+  luz: "💡",
+  gas: "💡",
+  internet: "📶",
+  teléfono: "📱",
+  phone: "📱",
+  ocio: "🎬",
+  entretenimiento: "🎬",
+  streaming: "🎬",
+  netflix: "🎬",
+  spotify: "🎵",
+  música: "🎵",
+  educación: "📚",
+  universidad: "📚",
+  college: "📚",
+  hogar: "🏠",
+  alquiler: "🏠",
+  expensas: "🏠",
+  ropa: "👕",
+  vestimenta: "👕",
+  fitness: "🏋️",
+  gimnasio: "🏋️",
+  deporte: "🏋️",
+  café: "☕",
+  suscripciones: "📦",
+  regalos: "🎁",
+  donaciones: "💝",
+  viajes: "✈️",
+  vuelos: "✈️",
+  hotels: "🏨",
+  hotel: "🏨",
+  restaurantes: "🍽️",
+  restó: "🍽️",
+  delivery: "🛵",
+  rappi: "🛵",
+  pedidosya: "🛵",
+  mascotas: "🐾",
+  perro: "🐾",
+  gato: "🐾",
+  bebés: "👶",
+  baby: "👶",
+};
+
+function getCategoryEmoji(name: string | null): string | null {
+  if (!name) return null;
+  const lower = name.toLowerCase();
+  for (const [keyword, emoji] of Object.entries(CATEGORY_EMOJI)) {
+    if (lower.includes(keyword)) return emoji;
+  }
+  return null;
+}
+
 function CardRow({
   cardName,
   bank,
@@ -268,6 +334,16 @@ export default function Dashboard() {
 
   const maxCatTotal = categories[0]?.total ?? 1;
 
+  // Shared category → color map (consistent between pie chart and list)
+  const categoryColorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    const allCats = [...(dashData?.by_category ?? [])].sort((a, b) => b.total - a.total);
+    allCats.forEach((c, i) => {
+      map.set(c.category_name, c.category_color || FALLBACK_COLORS[i % FALLBACK_COLORS.length]);
+    });
+    return map;
+  }, [dashData?.by_category]);
+
   const handleCategorySelect = (name: string) => {
     setSelectedCategory(selectedCategory === name ? null : name);
   };
@@ -319,7 +395,7 @@ export default function Dashboard() {
     }
     const result = big.map((c) => ({
       name: c.category_name,
-      color: c.category_color || FALLBACK_COLORS[big.indexOf(c) % FALLBACK_COLORS.length],
+      color: c.category_color || categoryColorMap.get(c.category_name) || "#94a3b8",
       total: c.total,
     }));
     if (small.length > 0) {
@@ -330,7 +406,7 @@ export default function Dashboard() {
       });
     }
     return result;
-  }, [dashData?.by_category]);
+  }, [dashData?.by_category, categoryColorMap]);
 
   // KPI calculations
   const totalSpent = dashData?.total_amount ?? 0;
@@ -347,7 +423,7 @@ export default function Dashboard() {
     prevMonthTotal > 0 ? ((totalSpent - prevMonthTotal) / prevMonthTotal) * 100 : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Page header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -412,7 +488,7 @@ export default function Dashboard() {
         } gap-4`}
       >
         <div
-          className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
+          className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
           onClick={() => navigate("/expenses")}
         >
           <p className="text-[10px] text-tertiary uppercase mb-1">Total gastado</p>
@@ -422,7 +498,7 @@ export default function Dashboard() {
           </p>
         </div>
         <div
-          className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
+          className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
           onClick={() => navigate("/expenses?card_type=credito")}
         >
           <p className="text-[10px] text-tertiary uppercase mb-1">Deuda tarjetas</p>
@@ -430,7 +506,7 @@ export default function Dashboard() {
           <p className="text-xs text-tertiary mt-1">{pasivosData?.count ?? 0} cuotas pendientes</p>
         </div>
         <div
-          className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
+          className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
           onClick={() =>
             navigate(`/expenses?installment=1&date_from=${month}-01&date_to=${month}-31`)
           }
@@ -439,7 +515,7 @@ export default function Dashboard() {
           <p className="text-lg font-bold text-primary">{formatCurrency(cuotasComprometidas)}</p>
           <p className="text-xs text-tertiary mt-1">{currentMonthLoad?.count ?? 0} cuotas</p>
         </div>
-        <div className="card p-4">
+        <div className="card p-5">
           <p className="text-[10px] text-tertiary uppercase mb-1">vs Mes anterior</p>
           <p
             className={`text-lg font-bold ${
@@ -455,22 +531,23 @@ export default function Dashboard() {
         </div>
         {(savingsArs > 0 || totalUsd > 0) && (
           <div
-            className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
+            className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
             onClick={() => navigate("/investments")}
           >
             <p className="text-[10px] text-tertiary uppercase mb-1">Inversiones</p>
             <div className="space-y-0.5">
-              <p className="text-sm font-bold text-primary">
-                {savingsArs > 0 ? formatCurrency(savingsArs) : "—"}
+              <p className="text-lg font-bold text-primary">
+                {savingsArs > 0 ? formatCurrency(savingsArs) : totalUsd > 0 ? "—" : "—"}
               </p>
-              <p className="text-sm font-bold text-primary">
-                {totalUsd > 0
-                  ? `USD ${totalUsd.toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}`
-                  : "—"}
-              </p>
+              {totalUsd > 0 && (
+                <p className="text-xs text-secondary">
+                  ≈ USD{" "}
+                  {totalUsd.toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -479,7 +556,7 @@ export default function Dashboard() {
       {/* Gastos por Categoría + Transacciones — side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Gastos por Categoría */}
-        <div className="card p-4 h-[420px] flex flex-col overflow-hidden">
+        <div className="card p-4 h-[440px] flex flex-col overflow-hidden">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-primary">Gastos por Categoría</h2>
@@ -508,7 +585,7 @@ export default function Dashboard() {
               description="Los gastos por categoría aparecerán aquí"
             />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 flex-1">
               {/* Pie chart */}
               <div className="flex items-center justify-center">
                 <ResponsiveContainer width="100%" height={220}>
@@ -559,7 +636,8 @@ export default function Dashboard() {
               <div className="space-y-1.5 p-1">
                 {categories.map((cat, i) => {
                   const pct = (cat.total / maxCatTotal) * 100;
-                  const color = cat.category_color || FALLBACK_COLORS[i % FALLBACK_COLORS.length];
+                  const color =
+                    cat.category_color || categoryColorMap.get(cat.category_name) || "#94a3b8";
                   const isSelected = selectedCategory === cat.category_name;
                   const prevTotal = cat.previous_total ?? 0;
                   const variation = prevTotal > 0 ? ((cat.total - prevTotal) / prevTotal) * 100 : 0;
@@ -587,15 +665,7 @@ export default function Dashboard() {
                         </div>
                         <div className="flex items-center gap-2">
                           {prevTotal > 0 && (
-                            <span
-                              className={`text-[10px] font-medium ${
-                                variation > 0
-                                  ? "text-danger"
-                                  : variation < 0
-                                    ? "text-success"
-                                    : "text-tertiary"
-                              }`}
-                            >
+                            <span className="text-[10px] font-medium text-tertiary">
                               {variation > 0 ? "↑" : variation < 0 ? "↓" : "→"}
                               {Math.abs(variation).toFixed(0)}%
                             </span>
@@ -620,7 +690,7 @@ export default function Dashboard() {
         </div>
 
         {/* Right: Transacciones */}
-        <div className="card h-[420px] flex flex-col">
+        <div className="card h-[440px] flex flex-col">
           <div className="px-4 py-3 border-b border-border-color flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-primary">
@@ -681,11 +751,18 @@ export default function Dashboard() {
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <span
-                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-sm"
                       style={{
-                        backgroundColor: exp.category_color || "#3584e4",
+                        backgroundColor: (exp.category_color || "#3584e4") + "20",
                       }}
-                    />
+                    >
+                      {getCategoryEmoji(exp.category_name) || (
+                        <span
+                          className="w-2.5 h-2.5 rounded-full"
+                          style={{ backgroundColor: exp.category_color || "#3584e4" }}
+                        />
+                      )}
+                    </span>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-primary truncate">
                         {toUpperCase(exp.description)}
