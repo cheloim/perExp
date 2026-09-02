@@ -57,16 +57,10 @@ export default function LandingPage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <a
-                  href="https://platform.oikonomia.ar/register"
+                  href="https://platform.oikonomia.ar/login"
                   className="inline-flex items-center justify-center px-8 py-3.5 rounded-xl bg-[var(--color-primary)] text-white font-semibold hover:brightness-110 transition shadow-lg shadow-[var(--color-primary)]/25"
                 >
                   Comenzá gratis
-                </a>
-                <a
-                  href="https://platform.oikonomia.ar/login"
-                  className="inline-flex items-center justify-center px-8 py-3.5 rounded-xl border-2 border-[var(--border-color)] text-[var(--text-primary)] font-semibold hover:bg-[var(--color-base-alt)] transition"
-                >
-                  Ya tengo cuenta
                 </a>
               </div>
               <div className="flex items-center gap-6 mt-8 text-sm text-[var(--text-secondary)]">
@@ -447,10 +441,10 @@ export default function LandingPage() {
             Uní miles de personas que ya están organizando sus finanzas con Oikonomia.
           </p>
           <a
-            href="https://platform.oikonomia.ar/register"
+            href="https://platform.oikonomia.ar/login"
             className="inline-flex items-center justify-center px-10 py-4 rounded-xl bg-[var(--color-primary)] text-white font-semibold text-lg hover:brightness-110 transition shadow-lg shadow-[var(--color-primary)]/25"
           >
-            Empezá ahora — es gratis
+            Comenzá gratis
           </a>
           <p className="mt-4 text-sm text-[var(--text-secondary)]">
             ¿Tenés dudas?{" "}

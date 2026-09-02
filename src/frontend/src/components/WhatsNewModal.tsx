@@ -18,9 +18,9 @@ function WhatsNewModal({ onClose }: WhatsNewModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="card w-full max-w-lg p-0 overflow-hidden">
+      <div className="card w-full max-w-lg max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-[var(--color-primary)] to-[#62a0ea] p-6 text-white">
+        <div className="bg-gradient-to-r from-[var(--color-primary)] to-[#62a0ea] p-6 text-white shrink-0">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
               <SymbolicIcon name="sparkles" size={20} />
@@ -34,8 +34,8 @@ function WhatsNewModal({ onClose }: WhatsNewModalProps) {
           </div>
         </div>
 
-        {/* Features */}
-        <div className="p-6 space-y-4">
+        {/* Features (scrollable) */}
+        <div className="p-6 space-y-4 overflow-y-auto flex-1">
           {latestVersion.features.map((feature, i) => (
             <div key={i} className="flex items-start gap-3">
               <div
@@ -61,8 +61,8 @@ function WhatsNewModal({ onClose }: WhatsNewModalProps) {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="px-6 pb-6 space-y-3">
+        {/* Footer (always visible) */}
+        <div className="px-6 pb-6 pt-2 space-y-3 shrink-0">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
