@@ -46,7 +46,7 @@ const CATEGORY_EMOJI: Record<string, string> = {
   salud: "💊",
   farmacia: "💊",
   médico: "🏥",
- hospital: "🏥",
+  hospital: "🏥",
   servicios: "💡",
   luz: "💡",
   gas: "💡",
@@ -636,7 +636,8 @@ export default function Dashboard() {
               <div className="space-y-1.5 p-1">
                 {categories.map((cat, i) => {
                   const pct = (cat.total / maxCatTotal) * 100;
-                  const color = cat.category_color || categoryColorMap.get(cat.category_name) || "#94a3b8";
+                  const color =
+                    cat.category_color || categoryColorMap.get(cat.category_name) || "#94a3b8";
                   const isSelected = selectedCategory === cat.category_name;
                   const prevTotal = cat.previous_total ?? 0;
                   const variation = prevTotal > 0 ? ((cat.total - prevTotal) / prevTotal) * 100 : 0;
