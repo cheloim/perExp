@@ -33,6 +33,72 @@ const FALLBACK_COLORS = [
   "#06b6d4", // cyan
 ];
 
+const CATEGORY_EMOJI: Record<string, string> = {
+  comida: "🍔",
+  alimentación: "🛒",
+  supermercado: "🛒",
+  mercado: "🛒",
+  transporte: "🚗",
+  uber: "🚗",
+  taxi: "🚗",
+  nafta: "⛽",
+  gasolina: "⛽",
+  salud: "💊",
+  farmacia: "💊",
+  médico: "🏥",
+ hospital: "🏥",
+  servicios: "💡",
+  luz: "💡",
+  gas: "💡",
+  internet: "📶",
+  teléfono: "📱",
+  phone: "📱",
+  ocio: "🎬",
+  entretenimiento: "🎬",
+  streaming: "🎬",
+  netflix: "🎬",
+  spotify: "🎵",
+  música: "🎵",
+  educación: "📚",
+  universidad: "📚",
+  college: "📚",
+  hogar: "🏠",
+  alquiler: "🏠",
+  expensas: "🏠",
+  ropa: "👕",
+  vestimenta: "👕",
+  fitness: "🏋️",
+  gimnasio: "🏋️",
+  deporte: "🏋️",
+  café: "☕",
+  suscripciones: "📦",
+  regalos: "🎁",
+  donaciones: "💝",
+  viajes: "✈️",
+  vuelos: "✈️",
+  hotels: "🏨",
+  hotel: "🏨",
+  restaurantes: "🍽️",
+  restó: "🍽️",
+  delivery: "🛵",
+  rappi: "🛵",
+  pedidosya: "🛵",
+  mascotas: "🐾",
+  perro: "🐾",
+  gato: "🐾",
+  bebés: "👶",
+  baby: "👶",
+};
+
+function getCategoryEmoji(name: string | null): string | null {
+  if (!name) return null;
+  const lower = name.toLowerCase();
+  for (const [keyword, emoji] of Object.entries(CATEGORY_EMOJI)) {
+    if (lower.includes(keyword)) return emoji;
+  }
+  return null;
+}
+
 function CardRow({
   cardName,
   bank,
@@ -684,11 +750,18 @@ export default function Dashboard() {
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <span
-                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-sm"
                       style={{
-                        backgroundColor: exp.category_color || "#3584e4",
+                        backgroundColor: (exp.category_color || "#3584e4") + "20",
                       }}
-                    />
+                    >
+                      {getCategoryEmoji(exp.category_name) || (
+                        <span
+                          className="w-2.5 h-2.5 rounded-full"
+                          style={{ backgroundColor: exp.category_color || "#3584e4" }}
+                        />
+                      )}
+                    </span>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-primary truncate">
                         {toUpperCase(exp.description)}
