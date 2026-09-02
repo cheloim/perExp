@@ -357,7 +357,7 @@ export default function Dashboard() {
     prevMonthTotal > 0 ? ((totalSpent - prevMonthTotal) / prevMonthTotal) * 100 : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Page header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -422,7 +422,7 @@ export default function Dashboard() {
         } gap-4`}
       >
         <div
-          className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
+          className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
           onClick={() => navigate("/expenses")}
         >
           <p className="text-[10px] text-tertiary uppercase mb-1">Total gastado</p>
@@ -432,7 +432,7 @@ export default function Dashboard() {
           </p>
         </div>
         <div
-          className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
+          className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
           onClick={() => navigate("/expenses?card_type=credito")}
         >
           <p className="text-[10px] text-tertiary uppercase mb-1">Deuda tarjetas</p>
@@ -440,7 +440,7 @@ export default function Dashboard() {
           <p className="text-xs text-tertiary mt-1">{pasivosData?.count ?? 0} cuotas pendientes</p>
         </div>
         <div
-          className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
+          className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
           onClick={() =>
             navigate(`/expenses?installment=1&date_from=${month}-01&date_to=${month}-31`)
           }
@@ -449,7 +449,7 @@ export default function Dashboard() {
           <p className="text-lg font-bold text-primary">{formatCurrency(cuotasComprometidas)}</p>
           <p className="text-xs text-tertiary mt-1">{currentMonthLoad?.count ?? 0} cuotas</p>
         </div>
-        <div className="card p-4">
+        <div className="card p-5">
           <p className="text-[10px] text-tertiary uppercase mb-1">vs Mes anterior</p>
           <p
             className={`text-lg font-bold ${
@@ -465,7 +465,7 @@ export default function Dashboard() {
         </div>
         {(savingsArs > 0 || totalUsd > 0) && (
           <div
-            className="card p-4 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
+            className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
             onClick={() => navigate("/investments")}
           >
             <p className="text-[10px] text-tertiary uppercase mb-1">Inversiones</p>
@@ -490,7 +490,7 @@ export default function Dashboard() {
       {/* Gastos por Categoría + Transacciones — side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Gastos por Categoría */}
-        <div className="card p-4 h-[420px] flex flex-col overflow-hidden">
+        <div className="card p-4 h-[440px] flex flex-col overflow-hidden">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-primary">Gastos por Categoría</h2>
@@ -519,7 +519,7 @@ export default function Dashboard() {
               description="Los gastos por categoría aparecerán aquí"
             />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 flex-1">
               {/* Pie chart */}
               <div className="flex items-center justify-center">
                 <ResponsiveContainer width="100%" height={220}>
@@ -623,7 +623,7 @@ export default function Dashboard() {
         </div>
 
         {/* Right: Transacciones */}
-        <div className="card h-[420px] flex flex-col">
+        <div className="card h-[440px] flex flex-col">
           <div className="px-4 py-3 border-b border-border-color flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-primary">
