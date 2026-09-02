@@ -935,7 +935,7 @@ export default function ExpensesPage() {
                   </th>
                 )}
                 <th
-                  className={thClass("date")}
+                  className={thClass("date") + " hidden sm:table-cell"}
                   onClick={() =>
                     setSort({
                       field: "date",
@@ -979,7 +979,7 @@ export default function ExpensesPage() {
                   Monto <SortIcon field="amount" sort={sort} />
                 </th>
                 {!selectMode && (
-                  <th className="px-4 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase">
+                  <th className="px-4 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase hidden sm:table-cell">
                     Acciones
                   </th>
                 )}
@@ -990,7 +990,7 @@ export default function ExpensesPage() {
                 <>
                   {[...Array(8)].map((_, i) => (
                     <tr key={i} className="border-b border-[var(--border-color)]">
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 hidden sm:table-cell">
                         <div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse w-16" />
                       </td>
                       <td className="px-4 py-3">
@@ -1002,7 +1002,7 @@ export default function ExpensesPage() {
                       <td className="px-4 py-3">
                         <div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse w-16" />
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 hidden sm:table-cell">
                         <div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse w-12" />
                       </td>
                     </tr>
@@ -1075,9 +1075,9 @@ export default function ExpensesPage() {
                             </td>
                           )}
                           {isDateSort ? (
-                            <td className="px-4 py-3" />
+                            <td className="px-4 py-3 hidden sm:table-cell" />
                           ) : (
-                            <td className="px-4 py-3 text-[var(--text-tertiary)] whitespace-nowrap">
+                            <td className="px-4 py-3 hidden sm:table-cell text-[var(--text-tertiary)] whitespace-nowrap">
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -1090,7 +1090,7 @@ export default function ExpensesPage() {
                               </button>
                             </td>
                           )}
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 max-w-0 w-full">
                             <div className="flex items-center gap-2">
                               {missing && (
                                 <span
@@ -1106,19 +1106,24 @@ export default function ExpensesPage() {
                                   e.stopPropagation();
                                   setDetailExpense(exp);
                                 }}
-                                className="text-left hover:text-primary transition"
+                                className="text-left hover:text-primary transition flex flex-col sm:flex-row items-start gap-1 sm:gap-2 w-full"
                               >
-                                <span className="text-[var(--text-primary)]">
-                                  {toUpperCase(exp.description)}
-                                </span>
-                                {exp.installment_number && exp.installment_total && (
-                                  <span className="text-xs bg-[var(--color-primary)] text-[var(--color-on-primary)] px-1.5 py-0.5 rounded ml-1">
-                                    {exp.installment_number}/{exp.installment_total}
+                                {!isDateSort && (
+                                  <span className="sm:hidden text-xs text-[var(--text-tertiary)] shrink-0">
+                                    {exp.date.slice(8, 10)}/{exp.date.slice(5, 7)}
                                   </span>
                                 )}
+                                <span className="text-[var(--text-primary)] truncate">
+                                  {toUpperCase(exp.description)}
+                                  {exp.installment_number && exp.installment_total && (
+                                    <span className="text-xs bg-[var(--color-primary)] text-[var(--color-on-primary)] px-1.5 py-0.5 rounded ml-1">
+                                      {exp.installment_number}/{exp.installment_total}
+                                    </span>
+                                  )}
+                                </span>
                               </button>
                             </div>
-                            <div className="text-xs text-[var(--text-tertiary)] flex gap-1 items-center">
+                            <div className="text-xs text-[var(--text-tertiary)] flex gap-1 items-center hidden sm:flex">
                               {exp.card && <span>{titleCase(exp.card)}</span>}
                               {exp.card && exp.bank && <span>·</span>}
                               {exp.bank && <span>{titleCase(exp.bank)}</span>}
@@ -1137,7 +1142,7 @@ export default function ExpensesPage() {
                             >
                               {exp.category_name ? (
                                 <span
-                                  className="px-2 py-1 rounded text-xs font-medium"
+                                  className="px-2 py-1 rounded text-xs font-medium max-w-[110px] truncate block"
                                   style={{
                                     backgroundColor: (exp.category_color || "#9a9996") + "20",
                                     color: getContrastTextColor(exp.category_color || "#9a9996"),
@@ -1200,13 +1205,13 @@ export default function ExpensesPage() {
                               }}
                               className="text-right hover:text-primary transition"
                             >
-                              <span className="text-[var(--text-primary)]">
+                              <span className="text-[var(--text-primary)] font-semibold whitespace-nowrap">
                                 {formatCurrency(exp.amount, exp.currency)}
                               </span>
                             </button>
                           </td>
                           {!selectMode && (
-                            <td className="px-4 py-3 text-center">
+                            <td className="px-4 py-3 text-center hidden sm:table-cell">
                               <div className="flex items-center justify-end gap-1">
                                 <button
                                   onClick={() => {
