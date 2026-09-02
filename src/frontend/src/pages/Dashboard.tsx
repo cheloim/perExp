@@ -587,15 +587,7 @@ export default function Dashboard() {
                         </div>
                         <div className="flex items-center gap-2">
                           {prevTotal > 0 && (
-                            <span
-                              className={`text-[10px] font-medium ${
-                                variation > 0
-                                  ? "text-danger"
-                                  : variation < 0
-                                    ? "text-success"
-                                    : "text-tertiary"
-                              }`}
-                            >
+                            <span className="text-[10px] font-medium text-tertiary">
                               {variation > 0 ? "↑" : variation < 0 ? "↓" : "→"}
                               {Math.abs(variation).toFixed(0)}%
                             </span>
