@@ -460,17 +460,18 @@ export default function Dashboard() {
           >
             <p className="text-[10px] text-tertiary uppercase mb-1">Inversiones</p>
             <div className="space-y-0.5">
-              <p className="text-sm font-bold text-primary">
-                {savingsArs > 0 ? formatCurrency(savingsArs) : "—"}
+              <p className="text-lg font-bold text-primary">
+                {savingsArs > 0 ? formatCurrency(savingsArs) : totalUsd > 0 ? "—" : "—"}
               </p>
-              <p className="text-sm font-bold text-primary">
-                {totalUsd > 0
-                  ? `USD ${totalUsd.toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}`
-                  : "—"}
-              </p>
+              {totalUsd > 0 && (
+                <p className="text-xs text-secondary">
+                  ≈ USD{" "}
+                  {totalUsd.toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </p>
+              )}
             </div>
           </div>
         )}
