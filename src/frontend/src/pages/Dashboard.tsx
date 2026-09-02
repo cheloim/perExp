@@ -268,6 +268,16 @@ export default function Dashboard() {
 
   const maxCatTotal = categories[0]?.total ?? 1;
 
+  // Shared category → color map (consistent between pie chart and list)
+  const categoryColorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    const allCats = [...(dashData?.by_category ?? [])].sort((a, b) => b.total - a.total);
+    allCats.forEach((c, i) => {
+      map.set(c.category_name, c.category_color || FALLBACK_COLORS[i % FALLBACK_COLORS.length]);
+    });
+    return map;
+  }, [dashData?.by_category]);
+
   const handleCategorySelect = (name: string) => {
     setSelectedCategory(selectedCategory === name ? null : name);
   };
@@ -319,7 +329,7 @@ export default function Dashboard() {
     }
     const result = big.map((c) => ({
       name: c.category_name,
-      color: c.category_color || FALLBACK_COLORS[big.indexOf(c) % FALLBACK_COLORS.length],
+      color: c.category_color || categoryColorMap.get(c.category_name) || "#94a3b8",
       total: c.total,
     }));
     if (small.length > 0) {
@@ -330,7 +340,7 @@ export default function Dashboard() {
       });
     }
     return result;
-  }, [dashData?.by_category]);
+  }, [dashData?.by_category, categoryColorMap]);
 
   // KPI calculations
   const totalSpent = dashData?.total_amount ?? 0;
@@ -560,7 +570,7 @@ export default function Dashboard() {
               <div className="space-y-1.5 p-1">
                 {categories.map((cat, i) => {
                   const pct = (cat.total / maxCatTotal) * 100;
-                  const color = cat.category_color || FALLBACK_COLORS[i % FALLBACK_COLORS.length];
+                  const color = cat.category_color || categoryColorMap.get(cat.category_name) || "#94a3b8";
                   const isSelected = selectedCategory === cat.category_name;
                   const prevTotal = cat.previous_total ?? 0;
                   const variation = prevTotal > 0 ? ((cat.total - prevTotal) / prevTotal) * 100 : 0;
