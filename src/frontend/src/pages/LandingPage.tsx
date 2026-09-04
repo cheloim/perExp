@@ -17,7 +17,7 @@ const TELEGRAM_DEMOS = [
   {
     user: "Compra aprobada Visa ****4521 $3.200 Café Tortoni",
     reply:
-      "✅ ¡Listo! Guardé el gasto.\n\n💰 $3.200\n💳 Galicia Visa\n📅 12 de julio de 2026\n\n☕ Café y snacks\n└ 📂 Café/Bar",
+      "✅ ¡Listo! Guardé el gasto.\n\n💰 $3.200\n📅 12 de julio de 2026\n\n☕ Café y snacks\n└ 📂 Café/Bar",
   },
 ];
 
