@@ -303,8 +303,8 @@ export default function InstallmentsPage() {
                       entry.is_current
                         ? "var(--color-success)"
                         : entry.is_past
-                          ? "var(--gnome-yellow-3)"
-                          : "var(--color-primary)"
+                        ? "var(--gnome-yellow-3)"
+                        : "var(--color-primary)"
                     }
                   />
                 ))}

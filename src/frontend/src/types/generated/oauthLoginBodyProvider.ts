@@ -34,7 +34,7 @@
  */
 
 export type OauthLoginBodyProvider =
-  (typeof OauthLoginBodyProvider)[keyof typeof OauthLoginBodyProvider];
+  typeof OauthLoginBodyProvider[keyof typeof OauthLoginBodyProvider];
 
 export const OauthLoginBodyProvider = {
   google: "google",

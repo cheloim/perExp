@@ -930,10 +930,7 @@ function MainLayout() {
               <div className="md:hidden">
                 {speedDialOpen && (
                   <>
-                    <div
-                      className="fixed inset-0 z-40"
-                      onClick={() => setSpeedDialOpen(false)}
-                    />
+                    <div className="fixed inset-0 z-40" onClick={() => setSpeedDialOpen(false)} />
                     <button
                       onClick={() => {
                         setSpeedDialOpen(false);
@@ -969,7 +966,9 @@ function MainLayout() {
                   </>
                 )}
                 <button
-                  onClick={() => (hasOwnCTA ? toggleDrawer(true) : setSpeedDialOpen(!speedDialOpen))}
+                  onClick={() =>
+                    hasOwnCTA ? toggleDrawer(true) : setSpeedDialOpen(!speedDialOpen)
+                  }
                   className="fixed bottom-[calc(3.5rem+var(--browser-bottom-inset,0px))] right-4 z-50 flex items-center justify-center w-11 h-11 bg-primary hover:brightness-110 text-white rounded-full shadow-gnome hover:shadow-gnome-lg scale-100 hover:scale-105 transition-all duration-150"
                   title={hasOwnCTA ? "Abrir asistente IA" : "Abrir menú"}
                 >
@@ -986,7 +985,9 @@ function MainLayout() {
                       height="20"
                       viewBox="0 0 20 20"
                       fill="none"
-                      className={`transition-transform duration-200 ${speedDialOpen ? "rotate-45" : ""}`}
+                      className={`transition-transform duration-200 ${
+                        speedDialOpen ? "rotate-45" : ""
+                      }`}
                     >
                       <path
                         d="M10 4v12M4 10h12"

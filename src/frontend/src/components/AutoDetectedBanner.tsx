@@ -204,10 +204,10 @@ export default function AutoDetectedBanner() {
                             {r.frequency === "monthly"
                               ? "mes"
                               : r.frequency === "weekly"
-                                ? "sem"
-                                : r.frequency === "quarterly"
-                                  ? "trim"
-                                  : "año"}
+                              ? "sem"
+                              : r.frequency === "quarterly"
+                              ? "trim"
+                              : "año"}
                             {r.next_charge_date &&
                               ` · Próximo: ${new Date(
                                 r.next_charge_date + "T00:00:00",

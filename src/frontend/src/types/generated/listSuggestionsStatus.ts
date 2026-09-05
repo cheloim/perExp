@@ -34,7 +34,7 @@
  */
 
 export type ListSuggestionsStatus =
-  (typeof ListSuggestionsStatus)[keyof typeof ListSuggestionsStatus];
+  typeof ListSuggestionsStatus[keyof typeof ListSuggestionsStatus];
 
 export const ListSuggestionsStatus = {
   pending: "pending",

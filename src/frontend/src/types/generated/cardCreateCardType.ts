@@ -33,7 +33,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type CardCreateCardType = (typeof CardCreateCardType)[keyof typeof CardCreateCardType];
+export type CardCreateCardType = typeof CardCreateCardType[keyof typeof CardCreateCardType];
 
 export const CardCreateCardType = {
   credito: "credito",
