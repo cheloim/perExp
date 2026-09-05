@@ -168,8 +168,8 @@ export default function ChangesPage() {
               {current.version === "v1.3"
                 ? "Telegram Mini App, inicio de sesión con un toque, mejoras en detección de tarjetas y suscripciones más inteligentes."
                 : current.version === "v1.1"
-                ? "Protección de datos con encriptación de nivel bancario, búsqueda inteligente y mejoras de seguridad en todo el sistema."
-                : "La primera versión de Oikonomia con todas las herramientas que necesitás para tus finanzas personales."}
+                  ? "Protección de datos con encriptación de nivel bancario, búsqueda inteligente y mejoras de seguridad en todo el sistema."
+                  : "La primera versión de Oikonomia con todas las herramientas que necesitás para tus finanzas personales."}
             </p>
           </div>
 

@@ -649,8 +649,8 @@ export default function Dashboard() {
                         isSelected
                           ? "bg-primary/10 ring-1 ring-primary"
                           : selectedCategory
-                          ? "opacity-40 hover:opacity-70"
-                          : "hover:bg-base-alt"
+                            ? "opacity-40 hover:opacity-70"
+                            : "hover:bg-base-alt"
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1">
@@ -918,8 +918,8 @@ export default function Dashboard() {
                         entry.is_current
                           ? "var(--color-primary)"
                           : entry.is_past
-                          ? "var(--text-tertiary)"
-                          : "var(--color-primary)"
+                            ? "var(--text-tertiary)"
+                            : "var(--color-primary)"
                       }
                       opacity={entry.is_past ? 0.4 : 1}
                     />

@@ -503,8 +503,8 @@ export default function AccountsPage() {
                               card.card_name.toLowerCase().includes("mp")
                                 ? "📱"
                                 : !card.bank && !card.linked_account_name
-                                ? "💵"
-                                : "💳";
+                                  ? "💵"
+                                  : "💳";
 
                             return (
                               <button
@@ -514,8 +514,8 @@ export default function AccountsPage() {
                                   isActive
                                     ? `${group.activeBorder} bg-[var(--color-base-alt)]`
                                     : isHighlighted
-                                    ? `${group.activeBorder} bg-[var(--color-base-alt)]`
-                                    : `border-transparent ${group.hoverBorder} hover:bg-[var(--color-base-alt)]`
+                                      ? `${group.activeBorder} bg-[var(--color-base-alt)]`
+                                      : `border-transparent ${group.hoverBorder} hover:bg-[var(--color-base-alt)]`
                                 }`}
                               >
                                 <div className="flex items-center justify-between gap-2">

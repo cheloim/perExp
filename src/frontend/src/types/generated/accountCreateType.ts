@@ -33,7 +33,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type AccountCreateType = typeof AccountCreateType[keyof typeof AccountCreateType];
+export type AccountCreateType = (typeof AccountCreateType)[keyof typeof AccountCreateType];
 
 export const AccountCreateType = {
   efectivo: "efectivo",

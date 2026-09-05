@@ -34,7 +34,7 @@
  */
 
 export type ImportJobResponseStatus =
-  typeof ImportJobResponseStatus[keyof typeof ImportJobResponseStatus];
+  (typeof ImportJobResponseStatus)[keyof typeof ImportJobResponseStatus];
 
 export const ImportJobResponseStatus = {
   PROCESSING: "PROCESSING",
