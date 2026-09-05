@@ -180,6 +180,13 @@ export const CHANGES: ChangeVersion[] = [
         description:
           "Reportes automáticos con gráficos de categorías, tendencias y análisis de la IA.",
       },
+      {
+        title: "FABs Consolidados en Mobile",
+        icon: "sparkles",
+        color: "#3584e4",
+        description:
+          "En mobile, ahora hay un solo botón flotante por pantalla. En páginas con su propio botón de crear gasto, el FAB abre directamente el asistente IA. En el resto, un speed-dial despliega ambas acciones.",
+      },
     ],
   },
 ];
