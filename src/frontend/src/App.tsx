@@ -276,7 +276,11 @@ function MainLayout() {
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [showReAuth, setShowReAuth] = useState(false);
   const [newExpenseOpen, setNewExpenseOpen] = useState(false);
+  const [speedDialOpen, setSpeedDialOpen] = useState(false);
   const { ToastContainer } = useUndoToast();
+
+  const PAGES_WITH_CTA = ["/", "/expenses"];
+  const hasOwnCTA = PAGES_WITH_CTA.includes(location.pathname);
 
   // Global expense creation
   const createMut = useMutation({
@@ -294,6 +298,11 @@ function MainLayout() {
     window.addEventListener("open-new-expense", handler);
     return () => window.removeEventListener("open-new-expense", handler);
   }, []);
+
+  // Close speed dial on navigation
+  useEffect(() => {
+    setSpeedDialOpen(false);
+  }, [location.pathname]);
 
   // Get current user for admin check
   const { data: currentUser } = useQuery({
@@ -884,11 +893,11 @@ function MainLayout() {
               )}
             </nav>
 
-            {/* Floating AI Assistant toggle button */}
-            {!aiDrawerOpen && !isInvestments && (
+            {/* ── Desktop FABs: always two separate buttons ── */}
+            {!isInvestments && !aiDrawerOpen && (
               <button
                 onClick={() => toggleDrawer(true)}
-                className="fixed bottom-[calc(3.5rem+var(--browser-bottom-inset,0px))] md:bottom-6 right-4 md:right-6 z-50 flex items-center justify-center w-11 h-11 bg-primary hover:brightness-110 text-white rounded-md shadow-gnome hover:shadow-gnome-lg scale-100 hover:scale-105 transition-all duration-150"
+                className="fixed bottom-6 right-4 md:right-6 z-50 hidden md:flex items-center justify-center w-11 h-11 bg-primary hover:brightness-110 text-white rounded-md shadow-gnome hover:shadow-gnome-lg scale-100 hover:scale-105 transition-all duration-150"
                 title="Abrir asistente IA"
               >
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -899,12 +908,10 @@ function MainLayout() {
                 </svg>
               </button>
             )}
-
-            {/* Floating New Expense button (mobile + desktop) */}
             {!newExpenseOpen && (
               <button
                 onClick={() => setNewExpenseOpen(true)}
-                className="fixed bottom-[calc(6.5rem+var(--browser-bottom-inset,0px))] md:bottom-6 right-4 md:right-20 z-50 flex items-center justify-center w-11 h-11 bg-primary hover:brightness-110 text-white rounded-full shadow-gnome hover:shadow-gnome-lg scale-100 hover:scale-105 transition-all duration-150"
+                className="fixed bottom-6 right-4 md:right-20 z-50 hidden md:flex items-center justify-center w-11 h-11 bg-primary hover:brightness-110 text-white rounded-full shadow-gnome hover:shadow-gnome-lg scale-100 hover:scale-105 transition-all duration-150"
                 title="Nuevo gasto"
               >
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -916,6 +923,81 @@ function MainLayout() {
                   />
                 </svg>
               </button>
+            )}
+
+            {/* ── Mobile FAB: single button, speed-dial on pages without CTA ── */}
+            {!isInvestments && !newExpenseOpen && !aiDrawerOpen && (
+              <div className="md:hidden">
+                {speedDialOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setSpeedDialOpen(false)}
+                    />
+                    <button
+                      onClick={() => {
+                        setSpeedDialOpen(false);
+                        setNewExpenseOpen(true);
+                      }}
+                      className="fixed bottom-[calc(6.5rem+var(--browser-bottom-inset,0px))] right-4 z-50 flex items-center gap-2 bg-primary text-white text-sm font-medium px-3 py-2.5 rounded-lg shadow-gnome hover:shadow-gnome-lg transition-all duration-150 scale-100 hover:scale-105"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                        <path
+                          d="M10 4v12M4 10h12"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      Nuevo gasto
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSpeedDialOpen(false);
+                        toggleDrawer(true);
+                      }}
+                      className="fixed bottom-[calc(4rem+var(--browser-bottom-inset,0px))] right-4 z-50 flex items-center gap-2 bg-primary text-white text-sm font-medium px-3 py-2.5 rounded-lg shadow-gnome hover:shadow-gnome-lg transition-all duration-150 scale-100 hover:scale-105"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                        <path
+                          d="M10 2l2.5 5 5.5.8-4 3.9.95 5.5L10 14.75l-4.95 2.45.95-5.5-4-3.9 5.5-.8L10 2z"
+                          fill="currentColor"
+                        />
+                      </svg>
+                      Asistente IA
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => (hasOwnCTA ? toggleDrawer(true) : setSpeedDialOpen(!speedDialOpen))}
+                  className="fixed bottom-[calc(3.5rem+var(--browser-bottom-inset,0px))] right-4 z-50 flex items-center justify-center w-11 h-11 bg-primary hover:brightness-110 text-white rounded-full shadow-gnome hover:shadow-gnome-lg scale-100 hover:scale-105 transition-all duration-150"
+                  title={hasOwnCTA ? "Abrir asistente IA" : "Abrir menú"}
+                >
+                  {hasOwnCTA ? (
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                      <path
+                        d="M10 2l2.5 5 5.5.8-4 3.9.95 5.5L10 14.75l-4.95 2.45.95-5.5-4-3.9 5.5-.8L10 2z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      className={`transition-transform duration-200 ${speedDialOpen ? "rotate-45" : ""}`}
+                    >
+                      <path
+                        d="M10 4v12M4 10h12"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  )}
+                </button>
+              </div>
             )}
 
             {!isInvestments && (
