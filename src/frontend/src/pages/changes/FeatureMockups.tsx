@@ -321,23 +321,23 @@ export function EmailValidationMockup() {
 export function MiniAppPhoneMockup() {
   return (
     <div className="flex justify-center">
-      <div className="w-[280px] bg-[#1a1a2e] rounded-[2rem] border-[3px] border-[#333] overflow-hidden shadow-2xl">
+      <div className="w-[280px] bg-[var(--color-base)] rounded-[2rem] border-[3px] border-[var(--border-color)] overflow-hidden shadow-2xl">
         {/* Status bar */}
-        <div className="flex items-center justify-between px-4 py-1 text-[10px] text-white/50">
+        <div className="flex items-center justify-between px-4 py-1 text-[10px] text-[var(--text-tertiary)]">
           <span>9:41</span>
           <span>●●●</span>
         </div>
 
         {/* Telegram bot header */}
-        <div className="flex items-center gap-2.5 px-3 py-2 border-b border-white/10">
+        <div className="flex items-center gap-2.5 px-3 py-2 border-b border-[var(--border-color)]">
           <div className="w-7 h-7 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white text-[10px] font-bold">
             N
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-white text-xs font-medium truncate">NikoFin</div>
-            <div className="text-[9px] text-green-400">● en línea</div>
+            <div className="text-[var(--text-primary)] text-xs font-medium truncate">NikoFin</div>
+            <div className="text-[9px] text-[var(--gnome-green-5)]">● en línea</div>
           </div>
-          <span className="text-white/40 text-sm">✕</span>
+          <span className="text-[var(--text-tertiary)] text-sm">✕</span>
         </div>
 
         {/* Mini App content */}
@@ -345,62 +345,88 @@ export function MiniAppPhoneMockup() {
           {/* KPI row */}
           <div className="grid grid-cols-3 gap-1.5">
             {[
-              { label: "Este mes", value: "$382K", color: "bg-green-500/15 text-green-400" },
-              { label: "Hoy", value: "$12.5K", color: "bg-blue-500/15 text-blue-400" },
-              { label: "Pendiente", value: "$45K", color: "bg-amber-500/15 text-amber-400" },
+              {
+                label: "Total",
+                value: "$128K",
+                bg: "var(--color-base-alt)",
+                text: "var(--text-primary)",
+              },
+              {
+                label: "Deuda",
+                value: "$45K",
+                bg: "var(--gnome-red-1)",
+                text: "var(--gnome-red-5)",
+              },
+              {
+                label: "vs Mes",
+                value: "↓12%",
+                bg: "var(--gnome-green-1)",
+                text: "var(--gnome-green-5)",
+              },
             ].map((kpi) => (
               <div
                 key={kpi.label}
-                className={`${kpi.color} rounded-lg p-1.5 text-center animate-fade-in-up`}
+                className="rounded-lg p-1.5 text-center animate-fade-in-up"
+                style={{ backgroundColor: kpi.bg }}
               >
-                <div className="text-[8px] opacity-70">{kpi.label}</div>
-                <div className="text-[11px] font-bold">{kpi.value}</div>
+                <div className="text-[8px]" style={{ color: "var(--text-tertiary)" }}>
+                  {kpi.label}
+                </div>
+                <div className="text-[11px] font-bold" style={{ color: kpi.text }}>
+                  {kpi.value}
+                </div>
               </div>
             ))}
           </div>
 
-          {/* Mini bar chart */}
-          <div className="bg-white/5 rounded-lg p-2">
-            <div className="flex items-end gap-1 h-12">
-              {[30, 50, 35, 65, 45, 75, 55].map((h, i) => (
-                <div
-                  key={i}
-                  className="flex-1 rounded-t animate-bar-grow"
-                  style={{
-                    height: `${h}%`,
-                    backgroundColor: i === 6 ? "#2ec27e" : "rgba(255,255,255,0.15)",
-                    animationDelay: `${i * 80}ms`,
-                  }}
-                />
-              ))}
-            </div>
-            <div className="flex justify-between mt-1">
-              {["L", "M", "X", "J", "V", "S", "D"].map((d) => (
-                <span key={d} className="text-[7px] text-white/30 flex-1 text-center">
-                  {d}
+          {/* Category bars */}
+          <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg p-2 space-y-1.5">
+            {[
+              { name: "Alimentación", pct: 75, color: "var(--gnome-green-5)" },
+              { name: "Transporte", pct: 45, color: "var(--color-primary)" },
+              { name: "Ocio", pct: 25, color: "var(--gnome-yellow-4)" },
+            ].map((cat) => (
+              <div key={cat.name} className="flex items-center gap-2">
+                <span className="text-[8px] text-[var(--text-tertiary)] w-14 truncate">
+                  {cat.name}
                 </span>
-              ))}
-            </div>
+                <div className="flex-1 h-1.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full animate-bar-grow"
+                    style={{ width: `${cat.pct}%`, backgroundColor: cat.color }}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Recent expenses */}
           <div className="space-y-1">
             {[
-              { name: "Work Cafe Garay", cat: "Gastro", amt: "$8.6K", icon: "☕" },
-              { name: "Subte", cat: "Transp", amt: "$1.2K", icon: "🚇" },
-              { name: "Netflix", cat: "Suscr", amt: "$5K", icon: "📺" },
+              { name: "Work Café Garay", amt: "$8.6K", emoji: "☕", cat: "Café" },
+              { name: "Subte", amt: "$1.2K", emoji: "🚇", cat: "Transp." },
+              { name: "Netflix", amt: "$5K", emoji: "📺", cat: "Suscr." },
             ].map((exp, i) => (
               <div
                 key={exp.name}
-                className="flex items-center gap-2 bg-white/5 rounded-lg px-2 py-1.5 animate-fade-in-up"
+                className="flex items-center gap-2 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg px-2 py-1.5 animate-fade-in-up"
                 style={{ animationDelay: `${300 + i * 100}ms` }}
               >
-                <span className="text-xs">{exp.icon}</span>
+                <span
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] flex-shrink-0"
+                  style={{ backgroundColor: "var(--color-base-alt)" }}
+                >
+                  {exp.emoji}
+                </span>
                 <div className="flex-1 min-w-0">
-                  <div className="text-[10px] text-white font-medium truncate">{exp.name}</div>
-                  <div className="text-[8px] text-white/40">{exp.cat}</div>
+                  <div className="text-[10px] text-[var(--text-primary)] font-medium truncate">
+                    {exp.name}
+                  </div>
+                  <div className="text-[8px] text-[var(--text-tertiary)]">{exp.cat}</div>
                 </div>
-                <span className="text-[10px] text-green-400 font-medium">{exp.amt}</span>
+                <span className="text-[10px] text-[var(--text-primary)] font-semibold whitespace-nowrap">
+                  {exp.amt}
+                </span>
               </div>
             ))}
           </div>
