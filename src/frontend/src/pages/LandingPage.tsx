@@ -15,7 +15,7 @@ const TELEGRAM_DEMOS = [
       "✅ ¡Listo! Guardé el gasto.\n\n💰 $12.000 (3 cuotas de $4.000)\n💳 Santander Visa\n📅 12 de julio de 2026\n\n🛒 Supermercado\n└ 📂 Compras del hogar",
   },
   {
-    user: "Compra aprobada Visa ****4521 $3.200 Café Tortoni",
+    user: "Compra aprobada Visa $3.200 Café Tortoni",
     reply:
       "✅ ¡Listo! Guardé el gasto.\n\n💰 $3.200\n📅 12 de julio de 2026\n\n☕ Café y snacks\n└ 📂 Café/Bar",
   },
