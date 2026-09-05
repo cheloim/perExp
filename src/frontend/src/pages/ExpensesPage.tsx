@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect, Fragment } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback, Fragment } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUndoToast } from "../hooks/useUndoToast";
 import {
@@ -152,6 +152,38 @@ export default function ExpensesPage() {
 
   const [expenses, setExpenses] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const reloadExpenses = useCallback(() => {
+    getExpenses({
+      category_id: filterCategory,
+      uncategorized: filterUncategorized || undefined,
+      bank: filterBank,
+      person: filterPerson,
+      card: filterCard,
+      card_type: filterCardType,
+      installment: filterInstallment || undefined,
+      account: filterAccount,
+      date_from: filterDateFrom,
+      date_to: filterDateTo,
+      limit: visibleCount,
+    })
+      .then((data) => {
+        setExpenses(data);
+      })
+      .catch(() => {});
+  }, [
+    filterCategory,
+    filterUncategorized,
+    filterBank,
+    filterPerson,
+    filterCard,
+    filterCardType,
+    filterInstallment,
+    filterAccount,
+    filterDateFrom,
+    filterDateTo,
+    visibleCount,
+  ]);
 
   useEffect(() => {
     console.log(
@@ -539,7 +571,7 @@ export default function ExpensesPage() {
               <button
                 onClick={async () => {
                   await approveAllSuggestions(0.7);
-                  queryClient.invalidateQueries({ queryKey: ["expenses"] });
+                  reloadExpenses();
                   refetchSuggestions();
                 }}
                 className="gnome-btn-secondary-round text-xs"
@@ -1160,7 +1192,7 @@ export default function ExpensesPage() {
                                       e.stopPropagation();
                                       const s = suggestionsByExpenseId.get(exp.id)!;
                                       await approveSuggestion(s.id);
-                                      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+                                      reloadExpenses();
                                       refetchSuggestions();
                                     }}
                                     className={`px-2 py-1 rounded text-xs font-medium transition ${
