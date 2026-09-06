@@ -27,16 +27,12 @@ def _resolve_channel(user_id: int, db: Session) -> str:
         return "none"
 
     # Per-user channel preference
-    user_setting = (
-        db.query(Setting).filter(Setting.key == f"{user_id}:notify_channel").first()
-    )
+    user_setting = db.query(Setting).filter(Setting.key == f"{user_id}:notify_channel").first()
     if user_setting and user_setting.value.lower() in ("inapp", "telegram", "both", "none"):
         return user_setting.value.lower()
 
     # Global channel default
-    global_channel = (
-        db.query(Setting).filter(Setting.key == "flag:notify_channel").first()
-    )
+    global_channel = db.query(Setting).filter(Setting.key == "flag:notify_channel").first()
     if global_channel and global_channel.value.lower() in ("inapp", "telegram", "both", "none"):
         return global_channel.value.lower()
 

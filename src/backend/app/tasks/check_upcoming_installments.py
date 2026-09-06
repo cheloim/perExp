@@ -75,9 +75,9 @@ def check_upcoming_installments():
                     data = json.loads(n.data)
                     if not isinstance(data, dict):
                         continue
-                    if data.get("scheduled_id") == se.id and data.get(
-                        "scheduled_date"
-                    ) == str(se.scheduled_date):
+                    if data.get("scheduled_id") == se.id and data.get("scheduled_date") == str(
+                        se.scheduled_date
+                    ):
                         already_notified = True
                         break
                 except (json.JSONDecodeError, TypeError):
