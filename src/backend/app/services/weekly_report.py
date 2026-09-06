@@ -26,8 +26,22 @@ def _strip_emojis(text: str) -> str:
     return emoji.replace_emoji(text, "").strip()
 
 
-def _fmt(amount: float) -> str:
+def _fmt(amount: float, currency: str = "ARS") -> str:
+    if currency == "USD":
+        return f"USD {amount:,.2f}"
     return f"${amount:,.2f}"
+
+
+def _fmt_total(by_currency: dict[str, float] | None, fallback: float) -> str:
+    """Format totals per currency: '$123 + USD 45.67' or just '$123'."""
+    if not by_currency:
+        return _fmt(fallback)
+    parts = []
+    for cur in ["ARS", "USD"]:
+        amt = by_currency.get(cur, 0)
+        if amt > 0:
+            parts.append(_fmt(amt, cur))
+    return " + ".join(parts) if parts else _fmt(fallback)
 
 
 def generate_weekly_report_image(report_data: dict) -> bytes:
@@ -65,7 +79,7 @@ def generate_weekly_report_image(report_data: dict) -> bytes:
             {
                 "date": exp.get("date", ""),
                 "description": exp.get("description", "")[:30],
-                "amount": _fmt(exp.get("amount", 0)),
+                "amount": _fmt(exp.get("amount", 0), exp.get("currency", "ARS")),
             }
         )
 
@@ -78,7 +92,7 @@ def generate_weekly_report_image(report_data: dict) -> bytes:
                 "date": exp.get("date", ""),
                 "description": exp.get("description", "")[:25],
                 "category": exp.get("category", "")[:12],
-                "amount": _fmt(exp.get("amount", 0)),
+                "amount": _fmt(exp.get("amount", 0), exp.get("currency", "ARS")),
             }
         )
 
@@ -124,7 +138,7 @@ def generate_weekly_report_image(report_data: dict) -> bytes:
         recurring_items.append(
             {
                 "description": rec.get("description", "")[:30],
-                "amount": _fmt(rec.get("amount", 0)),
+                "amount": _fmt(rec.get("amount", 0), rec.get("currency", "ARS")),
                 "next_date": rec.get("next_date", ""),
                 "days_until": rec.get("days_until", 0),
             }
@@ -135,8 +149,11 @@ def generate_weekly_report_image(report_data: dict) -> bytes:
         "week_end": week_end,
         "month_name": month_name,
         "year": year,
-        "total_expenses": _fmt(total_expenses),
-        "monthly_accumulated": _fmt(report_data.get("monthly_accumulated", 0)),
+        "total_expenses": _fmt_total(report_data.get("total_by_currency"), total_expenses),
+        "monthly_accumulated": _fmt_total(
+            report_data.get("monthly_by_currency"),
+            report_data.get("monthly_accumulated", 0),
+        ),
         "transaction_count": report_data.get("transaction_count", 0),
         "categories": categories_with_pct,
         "upcoming_expenses": upcoming_formatted,

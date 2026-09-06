@@ -2,40 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { getDashboard } from "../../api/client";
 import { formatCurrency, toUpperCase } from "../../utils/format";
 
-const CATEGORY_EMOJI: Record<string, string> = {
-  alimentación: "🛒",
-  supermercado: "🛒",
-  transporte: "🚗",
-  uber: "🚗",
-  salud: "💊",
-  farmacia: "💊",
-  servicios: "💡",
-  entretenimiento: "🎬",
-  streaming: "🎬",
-  suscripciones: "📲",
-  educación: "📚",
-  ropa: "👕",
-  hogar: "🏠",
-  tecnología: "💻",
-  deporte: "🏋️",
-  viajes: "✈️",
-  mascotas: "🐾",
-  impuestos: "🧾",
-  banco: "🏦",
-};
-
-function getEmoji(name: string): string {
-  const lower = name.toLowerCase();
-  for (const [key, emoji] of Object.entries(CATEGORY_EMOJI)) {
-    if (lower.includes(key)) return emoji;
-  }
-  return "📂";
-}
+const now = new Date();
+const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
 export default function QuickSummary() {
   const { data: dash, isLoading } = useQuery({
-    queryKey: ["dashboard", "quick-summary"],
-    queryFn: () => getDashboard(),
+    queryKey: ["dashboard", "quick", currentMonth],
+    queryFn: () => getDashboard({ month: currentMonth }),
   });
 
   if (isLoading) {
@@ -46,12 +19,16 @@ export default function QuickSummary() {
     );
   }
 
-  const totalSpent = dash?.total_amount ?? 0;
   const totalExpenses = dash?.total_expenses ?? 0;
 
-  // MoM comparison
+  // Per-currency totals for the KPI
+  const byCurrency = dash?.by_currency ?? [];
+  const arsTotal = byCurrency.find((c) => c.currency === "ARS")?.total ?? 0;
+  const usdTotal = byCurrency.find((c) => c.currency === "USD")?.total ?? 0;
+
+  // MoM comparison (only ARS for consistency with platform)
   const prevTotal = (dash?.by_category ?? []).reduce((s, c) => s + (c.previous_total ?? 0), 0);
-  const momPct = prevTotal > 0 ? ((totalSpent - prevTotal) / prevTotal) * 100 : 0;
+  const momPct = prevTotal > 0 ? ((arsTotal - prevTotal) / prevTotal) * 100 : 0;
   const momLabel =
     Math.abs(momPct) < 1
       ? "≈ igual"
@@ -71,15 +48,8 @@ export default function QuickSummary() {
         ? "var(--gnome-green-1)"
         : "var(--color-base-alt)";
 
-  // Top categories (non-income only, by category_name)
-  const topCats = [...(dash?.by_category ?? [])]
-    .filter((c) => {
-      // Filter out income categories by name heuristic
-      const name = c.category_name.toLowerCase();
-      return !name.includes("ingreso") && !name.includes("salary") && !name.includes("sueldo");
-    })
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 5);
+  // Top categories — total is mixed currency (same as platform web)
+  const topCats = [...(dash?.by_category ?? [])].sort((a, b) => b.total - a.total).slice(0, 5);
   const catMax = topCats[0]?.total ?? 1;
 
   // Recent expenses
@@ -92,11 +62,13 @@ export default function QuickSummary() {
         <div className="rounded-xl p-3 text-center bg-[var(--color-base-alt)]">
           <div className="text-[10px] text-[var(--text-secondary)]">Gasto mes</div>
           <div className="text-lg font-bold text-[var(--text-primary)]">
-            {formatCurrency(totalSpent)}
+            {formatCurrency(arsTotal)}
           </div>
-          <div className="text-[10px] text-[var(--text-tertiary)]">
-            {totalExpenses} transacciones
-          </div>
+          {usdTotal > 0 && (
+            <div className="text-[10px] text-[var(--text-tertiary)]">
+              + {formatCurrency(usdTotal, "USD")}
+            </div>
+          )}
         </div>
         <div className="rounded-xl p-3 text-center" style={{ backgroundColor: momBg }}>
           <div className="text-[10px] text-[var(--text-secondary)]">vs mes anterior</div>
@@ -105,19 +77,8 @@ export default function QuickSummary() {
           </div>
         </div>
         <div className="rounded-xl p-3 text-center bg-[var(--color-primary)]/10">
-          <div className="text-[10px] text-[var(--text-secondary)]">Ingresos</div>
-          <div className="text-lg font-bold text-[var(--color-primary)]">
-            {formatCurrency(
-              (dash?.by_category ?? [])
-                .filter((c) => {
-                  const name = c.category_name.toLowerCase();
-                  return (
-                    name.includes("ingreso") || name.includes("salary") || name.includes("sueldo")
-                  );
-                })
-                .reduce((s, c) => s + c.total, 0),
-            )}
-          </div>
+          <div className="text-[10px] text-[var(--text-secondary)]">Transacciones</div>
+          <div className="text-lg font-bold text-[var(--color-primary)]">{totalExpenses}</div>
         </div>
       </div>
 
@@ -130,14 +91,20 @@ export default function QuickSummary() {
           <div className="space-y-2">
             {topCats.map((cat) => (
               <div key={cat.category_id ?? cat.category_name} className="flex items-center gap-2">
-                <span className="text-sm">{getEmoji(cat.category_name)}</span>
+                <span
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: cat.category_color || "#6b7280" }}
+                />
                 <span className="text-xs text-[var(--text-primary)] font-medium w-16 truncate">
                   {toUpperCase(cat.category_name)}
                 </span>
                 <div className="flex-1 h-1.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-[var(--color-primary)]"
-                    style={{ width: `${(cat.total / catMax) * 100}%` }}
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${(cat.total / catMax) * 100}%`,
+                      backgroundColor: cat.category_color || "var(--color-primary)",
+                    }}
                   />
                 </div>
                 <span className="text-xs text-[var(--text-secondary)] font-semibold whitespace-nowrap">
@@ -160,9 +127,10 @@ export default function QuickSummary() {
               key={exp.id}
               className="flex items-center gap-2 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl px-3 py-2"
             >
-              <span className="w-7 h-7 rounded-full bg-[var(--color-base-alt)] flex items-center justify-center text-xs flex-shrink-0">
-                {getEmoji(exp.category_name ?? "")}
-              </span>
+              <span
+                className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: exp.category_color || "#6b7280" }}
+              />
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-medium text-[var(--text-primary)] truncate">
                   {exp.description}

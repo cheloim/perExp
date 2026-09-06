@@ -2,6 +2,25 @@ import { useQuery } from "@tanstack/react-query";
 import { getScheduledSummary, getRecurringExpenses } from "../../api/client";
 import { formatCurrency, toUpperCase } from "../../utils/format";
 
+interface UpcomingItem {
+  description: string;
+  amount: number;
+  currency: string;
+  date: string;
+  type: string;
+  card?: string;
+}
+
+function splitByCurrency(items: { amount: number; currency?: string }[]) {
+  let ars = 0;
+  let usd = 0;
+  for (const i of items) {
+    if (i.currency === "USD") usd += i.amount;
+    else ars += i.amount;
+  }
+  return { ars, usd };
+}
+
 export default function QuickUpcoming() {
   const { data: scheduled, isLoading: schedLoading } = useQuery({
     queryKey: ["scheduled-summary", "quick"],
@@ -29,42 +48,44 @@ export default function QuickUpcoming() {
     (r) => r.next_charge_date != null && new Date(r.next_charge_date) >= new Date(),
   );
 
-  const totalUpcoming =
-    installments.reduce((s, i) => s + i.amount, 0) +
-    manual.reduce((s, m) => s + m.amount, 0) +
-    recurringActive.reduce((s, r) => s + r.amount, 0);
-
-  const totalCount = installments.length + manual.length + recurringActive.length;
-
-  // Group by month
-  const byMonth: Record<
-    string,
-    { description: string; amount: number; date: string; type: string; card?: string }[]
-  > = {};
-
-  for (const inst of installments) {
-    const month = inst.scheduled_date.slice(0, 7); // YYYY-MM
-    byMonth[month] = byMonth[month] ?? [];
-    byMonth[month].push({
-      description: inst.description,
-      amount: inst.amount,
-      date: inst.scheduled_date,
-      type: `Cuota ${inst.installment_number}/${inst.installment_total}`,
-      card: inst.card,
-    });
-  }
-  for (const m of manual) {
-    const month = m.scheduled_date.slice(0, 7);
-    byMonth[month] = byMonth[month] ?? [];
-    byMonth[month].push({
+  // Build flat list with currency
+  const allItems: UpcomingItem[] = [
+    ...installments.map((i) => ({
+      description: i.description,
+      amount: i.amount,
+      currency: i.currency,
+      date: i.scheduled_date,
+      type: `Cuota ${i.installment_number}/${i.installment_total}`,
+      card: i.card,
+    })),
+    ...manual.map((m) => ({
       description: m.description,
       amount: m.amount,
+      currency: m.currency,
       date: m.scheduled_date,
       type: "Programado",
       card: m.card,
-    });
-  }
+    })),
+    ...recurringActive.map((r) => ({
+      description: r.description,
+      amount: r.amount,
+      currency: r.currency ?? "ARS",
+      date: r.next_charge_date ?? "",
+      type: `Recurrente · ${toUpperCase(r.frequency)}`,
+    })),
+  ];
 
+  const totalCount = allItems.length;
+  const { ars: totalArs, usd: totalUsd } = splitByCurrency(allItems);
+
+  // Group by month
+  const byMonth: Record<string, UpcomingItem[]> = {};
+  for (const item of allItems) {
+    if (!item.date) continue;
+    const month = item.date.slice(0, 7);
+    byMonth[month] = byMonth[month] ?? [];
+    byMonth[month].push(item);
+  }
   const sortedMonths = Object.keys(byMonth).sort();
 
   const MONTH_NAMES = [
@@ -90,8 +111,13 @@ export default function QuickUpcoming() {
         <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl p-3 text-center">
           <div className="text-[10px] text-[var(--text-secondary)]">Total próximo</div>
           <div className="text-lg font-bold text-[var(--text-primary)]">
-            {formatCurrency(totalUpcoming)}
+            {formatCurrency(totalArs)}
           </div>
+          {totalUsd > 0 && (
+            <div className="text-[10px] text-[var(--text-tertiary)]">
+              + {formatCurrency(totalUsd, "USD")}
+            </div>
+          )}
         </div>
         <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl p-3 text-center">
           <div className="text-[10px] text-[var(--text-secondary)]">Pagos</div>
@@ -102,7 +128,7 @@ export default function QuickUpcoming() {
       {/* Installments by month */}
       {sortedMonths.map((month) => {
         const items = byMonth[month];
-        const monthTotal = items.reduce((s, i) => s + i.amount, 0);
+        const { ars: monthArs, usd: monthUsd } = splitByCurrency(items);
         const [y, m] = month.split("-");
         const label = `${MONTH_NAMES[parseInt(m, 10)]} ${y}`;
 
@@ -116,14 +142,19 @@ export default function QuickUpcoming() {
                 {label}
               </span>
               <span className="text-[10px] font-bold text-[var(--text-primary)]">
-                {formatCurrency(monthTotal)}
+                {formatCurrency(monthArs)}
+                {monthUsd > 0 && ` + ${formatCurrency(monthUsd, "USD")}`}
               </span>
             </div>
             <div className="space-y-1.5">
               {items.map((item, i) => (
                 <div key={`${item.date}-${i}`} className="flex items-center gap-2">
                   <span className="w-6 h-6 rounded-full bg-[var(--color-base-alt)] flex items-center justify-center text-[10px] flex-shrink-0">
-                    {item.type.startsWith("Cuota") ? "💳" : "📋"}
+                    {item.type.startsWith("Cuota")
+                      ? "💳"
+                      : item.type.startsWith("Recurrente")
+                        ? "🔄"
+                        : "📋"}
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-medium text-[var(--text-primary)] truncate">
@@ -135,7 +166,7 @@ export default function QuickUpcoming() {
                     </div>
                   </div>
                   <span className="text-xs font-semibold text-[var(--text-primary)] whitespace-nowrap">
-                    {formatCurrency(item.amount)}
+                    {formatCurrency(item.amount, item.currency)}
                   </span>
                 </div>
               ))}
@@ -143,49 +174,6 @@ export default function QuickUpcoming() {
           </div>
         );
       })}
-
-      {/* Recurring */}
-      {recurringActive.length > 0 && (
-        <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl p-3">
-          <div className="text-[10px] font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-2">
-            Suscripciones recurrentes
-          </div>
-          <div className="space-y-1.5">
-            {recurringActive.map((r) => {
-              const chargeDate = r.next_charge_date;
-              const daysUntil = chargeDate
-                ? Math.ceil((new Date(chargeDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-                : null;
-              const when =
-                daysUntil === null
-                  ? ""
-                  : daysUntil === 0
-                    ? "Hoy"
-                    : daysUntil === 1
-                      ? "Mañana"
-                      : `En ${daysUntil}d`;
-              return (
-                <div key={r.id} className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center text-[10px] flex-shrink-0">
-                    🔄
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-[var(--text-primary)] truncate">
-                      {r.description}
-                    </div>
-                    <div className="text-[10px] text-[var(--text-tertiary)]">
-                      {toUpperCase(r.frequency)} · {when}
-                    </div>
-                  </div>
-                  <span className="text-xs font-semibold text-[var(--text-primary)] whitespace-nowrap">
-                    {formatCurrency(r.amount)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* Empty state */}
       {totalCount === 0 && (
