@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --gnome-blue-3: #3584e4;
+    --gnome-green-3: #33d17a;
+    --gnome-orange-3: #ff7800;
+    --gnome-red-2: #ed333b;
+    --surface-window: #ffffff;
+    --surface-card: #f8f9fa;
+    --text-primary: rgba(0, 0, 6, 0.80);
+    --text-secondary: #5e5c64;
+    --border-color: rgba(0, 0, 6, 0.12);
+  }
+  body { font-family: 'Inter', -apple-system, sans-serif; color: var(--text-primary); font-size: 14px; line-height: 1.5; background: var(--surface-window); width: 800px; -webkit-font-smoothing: antialiased; }
+  .report { background: var(--surface-window); padding: 28px; }
+  .header { text-align: center; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border-color); }
+  .header .brand { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 8px; }
+  .header .logo { width: 40px; height: 40px; background: var(--gnome-blue-3); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; font-weight: 700; }
+  .header .title { font-size: 22px; font-weight: 800; color: var(--gnome-blue-3); letter-spacing: -0.3px; }
+  .header .subtitle { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+  .kpi-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; }
+  .kpi-card { background: var(--surface-card); border-radius: 12px; padding: 18px; text-align: center; border-left: 4px solid var(--gnome-blue-3); }
+  .kpi-card.green { border-left-color: var(--gnome-green-3); }
+  .kpi-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-secondary); margin-bottom: 6px; }
+  .kpi-value { font-size: 24px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.5px; line-height: 1; }
+  .kpi-sub { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+  .section { background: var(--surface-card); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .section-title { font-size: 13px; font-weight: 700; color: var(--gnome-blue-3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .section-icon { width: 20px; height: 20px; background: var(--gnome-blue-3); border-radius: 5px; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: 700; }
+  .week-label { font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border-color); }
+  .upcoming-list { display: flex; flex-direction: column; gap: 8px; }
+  .upcoming-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--surface-window); border-radius: 8px; font-size: 12px; }
+  .upcoming-date { font-weight: 700; color: var(--gnome-orange-3); min-width: 70px; }
+  .upcoming-desc { flex: 1; color: var(--text-primary); margin: 0 12px; }
+  .upcoming-amount { font-weight: 700; color: var(--gnome-blue-3); }
+  .upcoming-card { font-size: 10px; color: var(--text-secondary); }
+  .upcoming-badge { font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: rgba(53, 132, 228, 0.1); color: var(--gnome-blue-3); margin-left: 6px; }
+  .footer { text-align: center; font-size: 10px; color: var(--text-secondary); padding-top: 16px; border-top: 1px solid var(--border-color); }
+</style>
+</head>
+<body>
+<div class="report">
+  <div class="header">
+    <div class="brand">
+      <div class="logo">N</div>
+      <div class="title">{{ title }}</div>
+    </div>
+    <div class="subtitle">{{ subtitle }}</div>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-label">Total</div>
+      <div class="kpi-value">{{ total }}</div>
+      <div class="kpi-sub">{{ count }} pagos</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Próximos 30 días</div>
+      <div class="kpi-value">{{ count }}</div>
+      <div class="kpi-sub">pagos pendientes</div>
+    </div>
+  </div>
+
+  {% for week in weeks %}
+  <div class="section">
+    <div class="section-title">
+      <span class="section-icon">S</span>
+      {{ week.label }}
+      <span class="upcoming-badge">{{ week.total }}</span>
+    </div>
+    <div class="upcoming-list">
+      {% for item in week.items %}
+      <div class="upcoming-item">
+        <div class="upcoming-date">{{ item.day }}</div>
+        <div class="upcoming-desc">
+          {{ item.description }}
+          {% if item.is_installment %}
+          <span class="upcoming-badge">{{ item.installment_label }}</span>
+          {% endif %}
+          {% if item.card %}
+          <span class="upcoming-card">· {{ item.card }}</span>
+          {% endif %}
+        </div>
+        <div class="upcoming-amount">{{ item.amount }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+
+  {% if not weeks %}
+  <div class="section">
+    <div class="section-title">
+      <span class="section-icon">—</span>
+      Sin pagos pendientes
+    </div>
+    <p style="font-size: 12px; color: var(--text-secondary);">No hay pagos programados en los próximos 30 días.</p>
+  </div>
+  {% endif %}
+
+  <div class="footer">
+    NikoFin — Finanzas Personales · Generado automáticamente
+  </div>
+</div>
+</body>
+</html>

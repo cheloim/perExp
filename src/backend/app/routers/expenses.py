@@ -442,6 +442,8 @@ def update_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    from app.services.expense_update import ExpenseEditError, update_expense_checked
+
     db_exp = (
         db.query(Expense)
         .options(
@@ -454,6 +456,7 @@ def update_expense(
     )
     if not db_exp:
         raise HTTPException(404, "Gasto no encontrado")
+
     data = expense.model_dump(exclude_none=True)
     if "date" in data:
         raw = str(data["date"]).strip()
@@ -462,23 +465,11 @@ def update_expense(
             data["date"] = date.fromisoformat(normalized)
         else:
             data["date"] = pd.to_datetime(normalized, dayfirst=True).date()
-    for k, v in data.items():
-        setattr(db_exp, k, v)
-    # Update HMAC if description changed
-    if "description" in data:
-        db_exp.description_hmac = compute_hmac(data["description"])
-    db.commit()
-    db.refresh(db_exp)
 
-    # Track merchant preference when user manually changes category
-    if "category_id" in data and data["category_id"] is not None:
-        _track_merchant_preference(
-            user_id=current_user.id,
-            description=db_exp.description,
-            category_id=data["category_id"],
-            db=db,
-        )
-        db.commit()
+    try:
+        db_exp = update_expense_checked(db, current_user.id, db_exp, data, skip_48h_check=True)
+    except ExpenseEditError as e:
+        raise HTTPException(400, str(e))
 
     return db_exp
 

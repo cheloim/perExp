@@ -259,6 +259,7 @@ class Expense(Base):
         Integer, ForeignKey("recurring_expenses.id", ondelete="RESTRICT"), nullable=True, index=True
     )
     is_income = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=True)
     category = relationship("Category", back_populates="expenses")
     account_rel = relationship("Account")
     card_rel = relationship("Card")
