@@ -19,6 +19,7 @@ import ReAuthModal from "./components/ReAuthModal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { isTelegramWebApp, initTelegramWebApp, telegramAutoLogin } from "./services/telegramWebApp";
 import { ExpenseModal } from "./components/ExpenseModals";
+import QuickViewLayout from "./layouts/QuickViewLayout";
 import type { ExpenseCreate } from "./types";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -127,6 +128,7 @@ export default function App() {
   const location = useLocation();
   const hostname = window.location.hostname;
   const [telegramReady, setTelegramReady] = useState(!isTelegramWebApp());
+  const [quickView, setQuickView] = useState(isTelegramWebApp());
 
   // Telegram Mini App init + auto-login (runs once)
   useEffect(() => {
@@ -257,6 +259,10 @@ export default function App() {
 
   if (!telegramReady) return null;
   if (!getStoredToken()) return <Navigate to="/login" replace />;
+
+  if (isTelegramWebApp() && quickView) {
+    return <QuickViewLayout onSwitchToFull={() => setQuickView(false)} />;
+  }
 
   return (
     <NotificationsProvider>
