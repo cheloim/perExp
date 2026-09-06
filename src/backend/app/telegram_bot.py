@@ -2482,23 +2482,27 @@ def _format_period_report(report) -> str:
         lines.append(f"📈 <b>Neto:</b> {_format_amount(report.net, 'ARS')}")
     lines.append(f"📋 <b>Transacciones:</b> {report.count}")
 
-    # Comparison with previous period
-    if report.prev_total > 0:
-        delta_pct = (
-            round((report.total - report.prev_total) / report.prev_total * 100, 1)
-            if report.prev_total
-            else 0
-        )
-        arrow = "⬆️" if delta_pct > 0 else "⬇️" if delta_pct < 0 else "➡️"
-        sign = "+" if delta_pct > 0 else ""
-        lines.append(f"\n{arrow} <b>vs. anterior:</b> {sign}{delta_pct}%")
-
     if report.top_categories:
         lines.append("\n🏆 <b>Top categorías:</b>")
         for c in report.top_categories:
             lines.append(f"  {c.emoji} <b>{c.name}</b>: {_format_amount(c.total, 'ARS')}")
 
-    if not report.top_categories:
+    if report.expenses:
+        if report.expenses[0].date == report.expenses[-1].date:
+            # All same date → week view → "Últimos gastos"
+            header = "📝 <b>Últimos gastos:</b>"
+        else:
+            header = "📝 <b>Gastos:</b>"
+        lines.append(f"\n{header}")
+        for exp in report.expenses:
+            cat = _escape_html(exp.category)
+            lines.append(
+                f"  {exp.emoji} {_format_amount(exp.amount, 'ARS')} · "
+                f"{exp.date} · <i>{_escape_html(exp.description)}</i>\n"
+                f"    {cat}"
+            )
+
+    if not report.top_categories and not report.expenses:
         lines.append("\nNo hay gastos en este período.")
 
     return "\n".join(lines)

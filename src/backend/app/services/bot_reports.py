@@ -83,17 +83,23 @@ class CategorySummary:
 
 
 @dataclass
+class ExpenseItem:
+    description: str
+    amount: float
+    date: str
+    category: str
+    emoji: str
+
+
+@dataclass
 class PeriodSummaryReport:
     label: str
     total: float
     income: float
     net: float
     top_categories: list[CategorySummary]
-    prev_total: float
-    prev_income: float
-    prev_net: float
+    expenses: list[ExpenseItem]
     count: int
-    prev_count: int
 
 
 @dataclass
@@ -146,23 +152,11 @@ def _current_week_range() -> tuple[date, date]:
     return start, end
 
 
-def _prev_week_range() -> tuple[date, date]:
-    start, _ = _current_week_range()
-    return start - timedelta(days=7), start - timedelta(days=1)
-
-
 def _current_month_range() -> tuple[date, date]:
     today = datetime.now(BUE).date()
     start = date(today.year, today.month, 1)
     end = date(today.year, today.month, monthrange(today.year, today.month)[1])
     return start, end
-
-
-def _prev_month_range() -> tuple[date, date]:
-    start, _ = _current_month_range()
-    prev_end = start - timedelta(days=1)
-    prev_start = date(prev_end.year, prev_end.month, 1)
-    return prev_start, prev_end
 
 
 # ── Category emoji (matches telegram_bot.py) ────────────────────────
@@ -312,16 +306,18 @@ def build_period_summary(
     period: Literal["week", "month"],
     db: Session,
 ) -> PeriodSummaryReport:
-    """Build expense+income summary for a period, with previous-period comparison."""
+    """Build expense+income summary for a period.
+
+    Week: totals + last 10 expenses (chronological, most recent first).
+    Month: totals + top 10 expenses (by amount).
+    """
     if period == "week":
         start, end = _current_week_range()
-        prev_start, prev_end = _prev_week_range()
         label_start = start.strftime("%d/%m")
         label_end = end.strftime("%d/%m")
         label = f"Semana {label_start} – {label_end}"
     else:
         start, end = _current_month_range()
-        prev_start, prev_end = _prev_month_range()
         label = start.strftime("%B %Y").capitalize()
 
     expenses = (
@@ -329,23 +325,10 @@ def build_period_summary(
         .filter(Expense.user_id.in_(uid_list), Expense.date >= start, Expense.date <= end)
         .all()
     )
-    prev_expenses = (
-        db.query(Expense)
-        .filter(
-            Expense.user_id.in_(uid_list),
-            Expense.date >= prev_start,
-            Expense.date <= prev_end,
-        )
-        .all()
-    )
 
     total = sum(abs(e.amount) for e in expenses if not e.is_income)
     income = sum(abs(e.amount) for e in expenses if e.is_income)
     count = sum(1 for e in expenses if not e.is_income)
-
-    prev_total = sum(abs(e.amount) for e in prev_expenses if not e.is_income)
-    prev_income = sum(abs(e.amount) for e in prev_expenses if e.is_income)
-    prev_count = sum(1 for e in prev_expenses if not e.is_income)
 
     # Top 5 categories by spending
     by_cat: dict[int, dict] = defaultdict(lambda: {"total": 0.0, "name": ""})
@@ -367,17 +350,36 @@ def build_period_summary(
         for c in top_cats
     ]
 
+    # Expense list: week → last 10 chronological; month → top 10 by amount
+    non_income = [e for e in expenses if not e.is_income]
+    if period == "week":
+        sorted_expenses = sorted(non_income, key=lambda e: (e.date, -abs(e.amount)))[:10]
+    else:
+        sorted_expenses = sorted(non_income, key=lambda e: abs(e.amount), reverse=True)[:10]
+
+    expense_items = [
+        ExpenseItem(
+            description=(e.description or "")[:35],
+            amount=abs(e.amount),
+            date=e.date.strftime("%d/%m"),
+            category=_get_category_name(e.category_id, db),
+            emoji=_cat_emoji(
+                _get_category_name(e.category_id, db).split(" > ")[0]
+                if " > " in _get_category_name(e.category_id, db)
+                else _get_category_name(e.category_id, db)
+            ),
+        )
+        for e in sorted_expenses
+    ]
+
     return PeriodSummaryReport(
         label=label,
         total=round(total, 2),
         income=round(income, 2),
         net=round(total - income, 2),
         top_categories=top_categories,
-        prev_total=round(prev_total, 2),
-        prev_income=round(prev_income, 2),
-        prev_net=round(prev_total - prev_income, 2),
+        expenses=expense_items,
         count=count,
-        prev_count=prev_count,
     )
 
 

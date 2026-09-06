@@ -454,7 +454,7 @@ def test_format_budget_report_with_flagged():
 
 
 def test_format_period_report_with_data():
-    from app.services.bot_reports import CategorySummary, PeriodSummaryReport
+    from app.services.bot_reports import CategorySummary, ExpenseItem, PeriodSummaryReport
 
     report = PeriodSummaryReport(
         label="Semana 01/09 – 07/09",
@@ -464,17 +464,23 @@ def test_format_period_report_with_data():
         top_categories=[
             CategorySummary(name="Supermercado", emoji="🛒", total=30000)
         ],
-        prev_total=40000,
-        prev_income=80000,
-        prev_net=-40000,
+        expenses=[
+            ExpenseItem(
+                description="Supermercado",
+                amount=15000,
+                date="03/09",
+                category="Alimentación",
+                emoji="🍽️",
+            )
+        ],
         count=10,
-        prev_count=8,
     )
     text = _format_period_report(report)
     assert "Semana 01/09" in text
     assert "$50,000" in text
     assert "Supermercado" in text
-    assert "vs. anterior" in text
+    assert "vs. anterior" not in text  # no longer present
+    assert "Gastos:" in text  # expense list header
 
 
 def test_format_scheduled_report_empty():
