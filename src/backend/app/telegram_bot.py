@@ -2406,6 +2406,303 @@ async def cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     return ConversationHandler.END
 
 
+# ─── Inline report handlers ──────────────────────────────────────────
+
+
+def _chunk_message(text: str, max_len: int = 4096) -> list[str]:
+    """Split a long message into chunks that fit Telegram's 4096-char limit."""
+    if len(text) <= max_len:
+        return [text]
+    chunks = []
+    while text:
+        if len(text) <= max_len:
+            chunks.append(text)
+            break
+        # Try to split at the last newline before the limit
+        split_at = text.rfind("\n", 0, max_len)
+        if split_at == -1:
+            split_at = max_len
+        chunks.append(text[:split_at])
+        text = text[split_at:].lstrip("\n")
+    return chunks
+
+
+def _format_budget_report(report) -> str:
+    """Format a BudgetStatusReport as HTML for Telegram."""
+    lines = [
+        f"📊 <b>Presupuesto — {report.month}</b>",
+    ]
+
+    if report.total_budget > 0:
+        status_emoji = _status_emoji_from_pct(report.total_pct)
+        lines.append(
+            f"\n💰 <b>General:</b> {_format_amount(report.total_spent, 'ARS')} / "
+            f"{_format_amount(report.total_budget, 'ARS')} ({report.total_pct}%) {status_emoji}"
+        )
+
+    if report.groups:
+        lines.append("\n📦 <b>Grupos:</b>")
+        for g in report.groups:
+            emoji = _status_emoji_from_pct(g.pct)
+            lines.append(
+                f"  {emoji} <b>{g.display_name}</b>: "
+                f"{_format_amount(g.spent, 'ARS')} / {_format_amount(g.amount, 'ARS')} ({g.pct}%)"
+            )
+
+    if report.flagged:
+        lines.append("\n⚠️ <b>Categorías con alerta:</b>")
+        for f in report.flagged:
+            emoji = "🔴" if f.status == "exceeded" else "🟡"
+            lines.append(
+                f"  {emoji} {f.name}: {_format_amount(f.spent, 'ARS')} / "
+                f"{_format_amount(f.budget, 'ARS')} ({f.pct}%)"
+            )
+
+    if not report.groups and not report.flagged:
+        lines.append("\nNo hay presupuestos activos para este mes.")
+
+    return "\n".join(lines)
+
+
+def _status_emoji_from_pct(pct: float) -> str:
+    if pct >= 100:
+        return "🔴"
+    if pct >= 80:
+        return "🟡"
+    return "🟢"
+
+
+def _format_period_report(report) -> str:
+    """Format a PeriodSummaryReport as HTML for Telegram."""
+    lines = [f"📊 <b>{report.label}</b>"]
+
+    lines.append(f"\n💰 <b>Gastos:</b> {_format_amount(report.total, 'ARS')}")
+    if report.income > 0:
+        lines.append(f"💵 <b>Ingresos:</b> {_format_amount(report.income, 'ARS')}")
+        lines.append(f"📈 <b>Neto:</b> {_format_amount(report.net, 'ARS')}")
+    lines.append(f"📋 <b>Transacciones:</b> {report.count}")
+
+    # Comparison with previous period
+    if report.prev_total > 0:
+        delta_pct = (
+            round((report.total - report.prev_total) / report.prev_total * 100, 1)
+            if report.prev_total
+            else 0
+        )
+        arrow = "⬆️" if delta_pct > 0 else "⬇️" if delta_pct < 0 else "➡️"
+        sign = "+" if delta_pct > 0 else ""
+        lines.append(f"\n{arrow} <b>vs. anterior:</b> {sign}{delta_pct}%")
+
+    if report.top_categories:
+        lines.append("\n🏆 <b>Top categorías:</b>")
+        for c in report.top_categories:
+            lines.append(f"  {c.emoji} <b>{c.name}</b>: {_format_amount(c.total, 'ARS')}")
+
+    if not report.top_categories:
+        lines.append("\nNo hay gastos en este período.")
+
+    return "\n".join(lines)
+
+
+def _format_scheduled_report(report) -> str:
+    """Format an UpcomingScheduledReport as HTML for Telegram."""
+    if report.count == 0:
+        return "📅 <b>Cuotas pendientes</b>\n\nNo hay cuotas pendientes en los próximos 30 días."
+
+    lines = ["📅 <b>Cuotas pendientes</b> — próximos 30 días"]
+
+    for week in report.weeks:
+        lines.append(f"\n<b>{week.label}</b> ({_format_amount(week.total, 'ARS')}):")
+        for item in week.items:
+            badge = f" [{item.installment_label}]" if item.is_installment else ""
+            card = f" · {item.card}" if item.card else ""
+            lines.append(
+                f"  • {item.day} — {_format_amount(item.amount, 'ARS')}{badge}\n"
+                f"    {_escape_html(item.description)}{card}"
+            )
+
+    lines.append(f"\n💰 <b>Total:</b> {_format_amount(report.total, 'ARS')}")
+    lines.append(f"📋 <b>Cantidad:</b> {report.count}")
+
+    return "\n".join(lines)
+
+
+def _format_recurring_report(report) -> str:
+    """Format an UpcomingRecurringReport as HTML for Telegram."""
+    if report.count == 0:
+        return (
+            "🔄 <b>Suscripciones recurrentes</b>\n\nNo hay cobros próximos en los próximos 30 días."
+        )
+
+    lines = ["🔄 <b>Suscripciones recurrentes</b> — próximos 30 días"]
+
+    for item in report.items:
+        if item.days_until == 0:
+            when = "hoy"
+        elif item.days_until == 1:
+            when = "mañana"
+        else:
+            when = f"en {item.days_until} días"
+
+        freq = {"monthly": "Mensual", "weekly": "Semanal", "yearly": "Anual"}.get(
+            item.frequency, item.frequency
+        )
+        lines.append(
+            f"  📌 {_escape_html(item.description)}\n"
+            f"     {_format_amount(item.amount, 'ARS')} · {freq} · {when} ({item.next_date})"
+        )
+
+    lines.append(f"\n💰 <b>Total próximo:</b> {_format_amount(report.total, 'ARS')}")
+
+    return "\n".join(lines)
+
+
+async def cmd_presupuesto(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /presupuesto — show budget status."""
+    chat_id = str(update.effective_chat.id)
+    user = _get_user_by_chat_id(chat_id)
+    if not user:
+        await update.message.reply_text("Primero autenticate con /start.")
+        return
+
+    from app.services.bot_reports import build_budget_status
+
+    db = SessionLocal()
+    try:
+        report = build_budget_status(user.id, db)
+        text = _format_budget_report(report)
+        for chunk in _chunk_message(text):
+            await update.message.reply_text(chunk, parse_mode="HTML")
+    except Exception as e:
+        logger.error(f"[BUDGET REPORT] Error: {e}")
+        await update.message.reply_text("Error al generar el reporte de presupuesto.")
+    finally:
+        db.close()
+
+
+async def cmd_gastos(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /gastos — show period selector for expense summary."""
+    chat_id = str(update.effective_chat.id)
+    user = _get_user_by_chat_id(chat_id)
+    if not user:
+        await update.message.reply_text("Primero autenticate con /start.")
+        return
+
+    context.user_data["user_id"] = user.id
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("📅 Semana", callback_data="report:week"),
+                InlineKeyboardButton("🗓️ Mes", callback_data="report:month"),
+            ]
+        ]
+    )
+    await update.message.reply_text(
+        "📊 <b>¿Qué resumen querés ver?</b>", parse_mode="HTML", reply_markup=keyboard
+    )
+
+
+async def handle_report_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle report period selection callbacks (report:week / report:month)."""
+    query = update.callback_query
+    await query.answer()
+
+    chat_id = str(update.effective_chat.id)
+    user = _get_user_by_chat_id(chat_id)
+    if not user or user.id != context.user_data.get("user_id"):
+        await query.edit_message_text("🔒 Sesión expirada. Usá /start para reconectarte.")
+        return
+
+    data = query.data
+    if not data.startswith("report:"):
+        return
+
+    period = data.split(":", 1)[1]
+    if period not in ("week", "month"):
+        return
+
+    from app.services.bot_reports import build_period_summary, get_group_user_ids
+
+    db = SessionLocal()
+    try:
+        uid_list = get_group_user_ids(user.id, db)
+        report = build_period_summary(user.id, uid_list, period, db)
+        text = _format_period_report(report)
+        for chunk in _chunk_message(text):
+            await query.message.reply_text(chunk, parse_mode="HTML")
+        # Delete the original keyboard message
+        import contextlib
+
+        with contextlib.suppress(Exception):
+            await query.edit_message_text(
+                f"📊 Resumen: {'semanal' if period == 'week' else 'mensual'}"
+            )
+    except Exception as e:
+        logger.error(f"[PERIOD REPORT] Error: {e}")
+        await query.message.reply_text("Error al generar el resumen.")
+    finally:
+        db.close()
+
+
+async def cmd_cuotas(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /cuotas — show upcoming scheduled/installment expenses."""
+    chat_id = str(update.effective_chat.id)
+    user = _get_user_by_chat_id(chat_id)
+    if not user:
+        await update.message.reply_text("Primero autenticate con /start.")
+        return
+
+    from app.services.bot_reports import build_upcoming_scheduled, get_group_user_ids
+
+    db = SessionLocal()
+    try:
+        uid_list = get_group_user_ids(user.id, db)
+        report = build_upcoming_scheduled(uid_list, 30, db)
+        text = _format_scheduled_report(report)
+        for chunk in _chunk_message(text):
+            await update.message.reply_text(chunk, parse_mode="HTML")
+    except Exception as e:
+        logger.error(f"[CUOTAS REPORT] Error: {e}")
+        await update.message.reply_text("Error al generar el reporte de cuotas.")
+    finally:
+        db.close()
+
+
+async def cmd_suscripciones(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /suscripciones — show upcoming recurring expenses."""
+    chat_id = str(update.effective_chat.id)
+    user = _get_user_by_chat_id(chat_id)
+    if not user:
+        await update.message.reply_text("Primero autenticate con /start.")
+        return
+
+    from app.services.bot_reports import build_upcoming_recurring, get_group_user_ids
+
+    db = SessionLocal()
+    try:
+        uid_list = get_group_user_ids(user.id, db)
+        report = build_upcoming_recurring(uid_list, 30, db)
+        text = _format_recurring_report(report)
+        for chunk in _chunk_message(text):
+            await update.message.reply_text(chunk, parse_mode="HTML")
+    except Exception as e:
+        logger.error(f"[SUSCRIPCIONES REPORT] Error: {e}")
+        await update.message.reply_text("Error al generar el reporte de suscripciones.")
+    finally:
+        db.close()
+
+
+async def cmd_ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /ayuda — show help text."""
+    chat_id = str(update.effective_chat.id)
+    user = _get_user_by_chat_id(chat_id)
+    if not user:
+        await update.message.reply_text("Primero autenticate con /start.")
+        return
+
+    await update.message.reply_text(_HELP_TEXT, parse_mode="HTML")
+
+
 def start_bot(token: str) -> None:
     """Run the bot synchronously in its own event loop (called from a daemon thread)."""
     logging.getLogger("telegram").setLevel(logging.INFO)
@@ -2503,6 +2800,14 @@ async def _run_bot(token: str) -> None:
         ],
         per_message=False,
     )
+
+    # Report handlers (registered BEFORE ConversationHandler so they match first)
+    app.add_handler(CommandHandler("presupuesto", cmd_presupuesto))
+    app.add_handler(CommandHandler("gastos", cmd_gastos))
+    app.add_handler(CommandHandler("cuotas", cmd_cuotas))
+    app.add_handler(CommandHandler("suscripciones", cmd_suscripciones))
+    app.add_handler(CommandHandler("ayuda", cmd_ayuda))
+    app.add_handler(CallbackQueryHandler(handle_report_callback, pattern=r"^report:"))
 
     app.add_handler(conv_handler)
 
