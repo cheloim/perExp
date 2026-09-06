@@ -86,6 +86,7 @@ class CategorySummary:
 class ExpenseItem:
     description: str
     amount: float
+    currency: str
     date: str
     category: str
     emoji: str
@@ -97,6 +98,8 @@ class PeriodSummaryReport:
     total: float
     income: float
     net: float
+    total_by_currency: dict[str, float]
+    income_by_currency: dict[str, float]
     top_categories: list[CategorySummary]
     expenses: list[ExpenseItem]
     count: int
@@ -326,11 +329,22 @@ def build_period_summary(
         .all()
     )
 
+    # Totals (mixed — same as platform)
     total = sum(abs(e.amount) for e in expenses if not e.is_income)
     income = sum(abs(e.amount) for e in expenses if e.is_income)
     count = sum(1 for e in expenses if not e.is_income)
 
-    # Top 5 categories by spending
+    # Per-currency totals
+    total_by_currency: dict[str, float] = defaultdict(float)
+    income_by_currency: dict[str, float] = defaultdict(float)
+    for e in expenses:
+        cur = e.currency or "ARS"
+        if e.is_income:
+            income_by_currency[cur] += abs(e.amount)
+        else:
+            total_by_currency[cur] += abs(e.amount)
+
+    # Top 5 categories by spending (mixed currency)
     by_cat: dict[int, dict] = defaultdict(lambda: {"total": 0.0, "name": ""})
     for e in expenses:
         if e.is_income:
@@ -361,6 +375,7 @@ def build_period_summary(
         ExpenseItem(
             description=(e.description or "")[:35],
             amount=abs(e.amount),
+            currency=e.currency or "ARS",
             date=e.date.strftime("%d/%m"),
             category=_get_category_name(e.category_id, db),
             emoji=_cat_emoji(
@@ -377,6 +392,8 @@ def build_period_summary(
         total=round(total, 2),
         income=round(income, 2),
         net=round(total - income, 2),
+        total_by_currency=dict(total_by_currency),
+        income_by_currency=dict(income_by_currency),
         top_categories=top_categories,
         expenses=expense_items,
         count=count,
@@ -519,6 +536,12 @@ def build_weekly_report_data(user_id: int, start: date, end: date, db) -> dict:
     total_expenses = sum(abs(e.amount) for e in expenses if not e.is_income)
     transaction_count = sum(1 for e in expenses if not e.is_income)
 
+    # Per-currency totals for weekly
+    weekly_by_currency: dict[str, float] = defaultdict(float)
+    for e in expenses:
+        if not e.is_income:
+            weekly_by_currency[e.currency or "ARS"] += abs(e.amount)
+
     # 2. Monthly accumulated
     today = date.today()
     month_start = date(today.year, today.month, 1)
@@ -528,6 +551,12 @@ def build_weekly_report_data(user_id: int, start: date, end: date, db) -> dict:
         .all()
     )
     monthly_accumulated = sum(abs(e.amount) for e in monthly_expenses if not e.is_income)
+
+    # Per-currency totals for monthly
+    monthly_by_currency: dict[str, float] = defaultdict(float)
+    for e in monthly_expenses:
+        if not e.is_income:
+            monthly_by_currency[e.currency or "ARS"] += abs(e.amount)
 
     # 3. Category breakdown (top 5)
     by_cat: dict[int, dict] = defaultdict(lambda: {"total": 0.0, "name": ""})
@@ -549,6 +578,7 @@ def build_weekly_report_data(user_id: int, start: date, end: date, db) -> dict:
             "date": e.date.strftime("%d/%m"),
             "description": (e.description or "")[:25],
             "amount": abs(e.amount),
+            "currency": e.currency or "ARS",
             "category": _get_category_name(e.category_id, db)[:12],
         }
         for e in top_expenses
@@ -572,6 +602,7 @@ def build_weekly_report_data(user_id: int, start: date, end: date, db) -> dict:
             "date": exp.scheduled_date.strftime("%d/%m"),
             "description": (exp.description or "")[:30],
             "amount": abs(exp.amount),
+            "currency": exp.currency or "ARS",
             "category": _get_category_name(exp.category_id, db),
         }
         for exp in upcoming
@@ -643,6 +674,7 @@ def build_weekly_report_data(user_id: int, start: date, end: date, db) -> dict:
         {
             "description": rec.description[:30],
             "amount": rec.amount,
+            "currency": rec.currency or "ARS",
             "next_date": rec.next_charge_date.strftime("%d/%m"),
             "days_until": (rec.next_charge_date - today_bue).days,
         }
@@ -653,7 +685,9 @@ def build_weekly_report_data(user_id: int, start: date, end: date, db) -> dict:
         "week_start": start.strftime("%d/%m"),
         "week_end": end.strftime("%d/%m/%Y"),
         "total_expenses": total_expenses,
+        "total_by_currency": dict(weekly_by_currency),
         "monthly_accumulated": monthly_accumulated,
+        "monthly_by_currency": dict(monthly_by_currency),
         "transaction_count": transaction_count,
         "categories": categories,
         "upcoming_expenses": upcoming_expenses,

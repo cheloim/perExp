@@ -461,6 +461,8 @@ def test_format_period_report_with_data():
         total=50000,
         income=100000,
         net=-50000,
+        total_by_currency={"ARS": 40000, "USD": 100},
+        income_by_currency={"ARS": 80000, "USD": 50},
         top_categories=[
             CategorySummary(name="Supermercado", emoji="🛒", total=30000)
         ],
@@ -468,6 +470,7 @@ def test_format_period_report_with_data():
             ExpenseItem(
                 description="Supermercado",
                 amount=15000,
+                currency="ARS",
                 date="03/09",
                 category="Alimentación",
                 emoji="🍽️",
@@ -477,10 +480,10 @@ def test_format_period_report_with_data():
     )
     text = _format_period_report(report)
     assert "Semana 01/09" in text
-    assert "$50,000" in text
+    assert "USD" in text
     assert "Supermercado" in text
-    assert "vs. anterior" not in text  # no longer present
-    assert "Gastos:" in text  # expense list header
+    assert "vs. anterior" not in text
+    assert "Gastos:" in text
 
 
 def test_format_scheduled_report_empty():

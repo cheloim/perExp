@@ -163,17 +163,27 @@ def send_weekly_reports():
 
                 png_bytes = generate_weekly_report_image(report_data)
 
-                # Build caption
-                total = report_data.get("total_expenses", 0)
-                accumulated = report_data.get("monthly_accumulated", 0)
+                # Build caption with per-currency totals
+                total_ars = report_data.get("total_by_currency", {}).get("ARS", 0)
+                total_usd = report_data.get("total_by_currency", {}).get("USD", 0)
+                monthly_ars = report_data.get("monthly_by_currency", {}).get("ARS", 0)
+                monthly_usd = report_data.get("monthly_by_currency", {}).get("USD", 0)
                 count = report_data.get("transaction_count", 0)
                 llm = report_data.get("llm_analysis", {})
+
+                total_str = f"${total_ars:,.0f}"
+                if total_usd > 0:
+                    total_str += f" + USD {total_usd:,.2f}"
+
+                monthly_str = f"${monthly_ars:,.0f}"
+                if monthly_usd > 0:
+                    monthly_str += f" + USD {monthly_usd:,.2f}"
 
                 caption = (
                     f"📊 <b>Resumen Semanal — NikoFin</b>\n"
                     f"📅 Semana del {start.strftime('%d/%m')} al {end.strftime('%d/%m/%Y')}\n\n"
-                    f"💰 <b>Gasto semanal:</b> ${total:,.0f}\n"
-                    f"📈 <b>Acumulado mes:</b> ${accumulated:,.0f}\n"
+                    f"💰 <b>Gasto semanal:</b> {total_str}\n"
+                    f"📈 <b>Acumulado mes:</b> {monthly_str}\n"
                     f"📋 <b>Transacciones:</b> {count}"
                 )
 

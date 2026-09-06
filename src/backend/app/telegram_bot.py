@@ -2486,10 +2486,22 @@ def _format_period_report(report) -> str:
     """Format a PeriodSummaryReport as HTML for Telegram."""
     lines = [f"📊 <b>{report.label}</b>"]
 
-    lines.append(f"\n💰 <b>Gastos:</b> {_format_amount(report.total, 'ARS')}")
+    # Totals — ARS as primary + USD if present
+    ars_total = report.total_by_currency.get("ARS", 0)
+    usd_total = report.total_by_currency.get("USD", 0)
+    gastos_line = f"💰 <b>Gastos:</b> {_format_amount(ars_total, 'ARS')}"
+    if usd_total > 0:
+        gastos_line += f" + {_format_amount(usd_total, 'USD')}"
+    lines.append(f"\n{gastos_line}")
+
     if report.income > 0:
-        lines.append(f"💵 <b>Ingresos:</b> {_format_amount(report.income, 'ARS')}")
-        lines.append(f"📈 <b>Neto:</b> {_format_amount(report.net, 'ARS')}")
+        ars_inc = report.income_by_currency.get("ARS", 0)
+        usd_inc = report.income_by_currency.get("USD", 0)
+        inc_line = f"💵 <b>Ingresos:</b> {_format_amount(ars_inc, 'ARS')}"
+        if usd_inc > 0:
+            inc_line += f" + {_format_amount(usd_inc, 'USD')}"
+        lines.append(inc_line)
+        lines.append(f"📈 <b>Neto:</b> {_format_amount(ars_total - ars_inc, 'ARS')}")
     lines.append(f"📋 <b>Transacciones:</b> {report.count}")
 
     if report.top_categories:
@@ -2499,7 +2511,6 @@ def _format_period_report(report) -> str:
 
     if report.expenses:
         if report.expenses[0].date == report.expenses[-1].date:
-            # All same date → week view → "Últimos gastos"
             header = "📝 <b>Últimos gastos:</b>"
         else:
             header = "📝 <b>Gastos:</b>"
@@ -2507,7 +2518,7 @@ def _format_period_report(report) -> str:
         for exp in report.expenses:
             cat = _escape_html(exp.category)
             lines.append(
-                f"  {exp.emoji} {_format_amount(exp.amount, 'ARS')} · "
+                f"  {exp.emoji} {_format_amount(exp.amount, exp.currency)} · "
                 f"{exp.date} · <i>{_escape_html(exp.description)}</i>\n"
                 f"    {cat}"
             )
@@ -2833,16 +2844,29 @@ async def handle_reportimg_callback(update: Update, context: ContextTypes.DEFAUL
                     "description": e.description,
                     "category": e.category,
                     "emoji": e.emoji,
-                    "amount": _format_amount(e.amount, "ARS"),
+                    "amount": _format_amount(e.amount, e.currency),
                 }
                 for e in report.expenses
             ]
 
+            # KPI totals: ARS primary + USD if present
+            ars_total = report.total_by_currency.get("ARS", 0)
+            usd_total = report.total_by_currency.get("USD", 0)
+            total_label = _format_amount(ars_total, "ARS")
+            if usd_total > 0:
+                total_label += f" + {_format_amount(usd_total, 'USD')}"
+
+            ars_inc = report.income_by_currency.get("ARS", 0)
+            usd_inc = report.income_by_currency.get("USD", 0)
+            inc_label = _format_amount(ars_inc, "ARS") if ars_inc > 0 else "$0"
+            if usd_inc > 0:
+                inc_label += f" + {_format_amount(usd_inc, 'USD')}"
+
             context_data = {
                 "label": report.label,
-                "total": _format_amount(report.total, "ARS"),
-                "income": _format_amount(report.income, "ARS"),
-                "net": _format_amount(report.net, "ARS"),
+                "total": total_label,
+                "income": inc_label,
+                "net": _format_amount(ars_total - ars_inc, "ARS"),
                 "count": report.count,
                 "top_categories": categories_data,
                 "expenses": expenses_data,
