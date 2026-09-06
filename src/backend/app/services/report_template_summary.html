@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --gnome-blue-3: #3584e4;
+    --gnome-green-3: #33d17a;
+    --gnome-orange-3: #ff7800;
+    --gnome-red-2: #ed333b;
+    --surface-window: #ffffff;
+    --surface-card: #f8f9fa;
+    --text-primary: rgba(0, 0, 6, 0.80);
+    --text-secondary: #5e5c64;
+    --border-color: rgba(0, 0, 6, 0.12);
+  }
+  body { font-family: 'Inter', -apple-system, sans-serif; color: var(--text-primary); font-size: 14px; line-height: 1.5; background: var(--surface-window); width: 800px; -webkit-font-smoothing: antialiased; }
+  .report { background: var(--surface-window); padding: 28px; }
+  .header { text-align: center; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border-color); }
+  .header .brand { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 8px; }
+  .header .logo { width: 40px; height: 40px; background: var(--gnome-blue-3); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; font-weight: 700; }
+  .header .title { font-size: 22px; font-weight: 800; color: var(--gnome-blue-3); letter-spacing: -0.3px; }
+  .header .subtitle { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+  .kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+  .kpi-card { background: var(--surface-card); border-radius: 12px; padding: 18px; text-align: center; border-left: 4px solid var(--gnome-blue-3); }
+  .kpi-card.green { border-left-color: var(--gnome-green-3); }
+  .kpi-card.orange { border-left-color: var(--gnome-orange-3); }
+  .kpi-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-secondary); margin-bottom: 6px; }
+  .kpi-value { font-size: 24px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.5px; line-height: 1; }
+  .kpi-sub { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+  .section { background: var(--surface-card); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .section-title { font-size: 13px; font-weight: 700; color: var(--gnome-blue-3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .section-icon { width: 20px; height: 20px; background: var(--gnome-blue-3); border-radius: 5px; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: 700; }
+  .category-list { display: flex; flex-direction: column; gap: 10px; }
+  .category-item { display: grid; grid-template-columns: 140px 80px 1fr 40px; align-items: center; gap: 12px; font-size: 12px; }
+  .category-name { font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .category-amount { font-weight: 700; color: var(--gnome-blue-3); text-align: right; }
+  .category-bar-bg { height: 14px; background: rgba(53, 132, 228, 0.1); border-radius: 7px; overflow: hidden; }
+  .category-bar-fill { height: 100%; background: var(--gnome-blue-3); border-radius: 7px; }
+  .category-pct { font-weight: 600; color: var(--text-secondary); text-align: right; }
+  .expenses-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .expenses-table th { background: var(--surface-window); color: var(--text-secondary); font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border-color); }
+  .expenses-table td { padding: 8px 10px; border-bottom: 1px solid rgba(0, 0, 6, 0.05); color: var(--text-primary); }
+  .expenses-table tr:last-child td { border-bottom: none; }
+  .text-right { text-align: right; }
+  .text-amount { color: var(--gnome-blue-3); font-weight: 700; }
+  .text-category { color: var(--text-secondary); }
+  .footer { text-align: center; font-size: 10px; color: var(--text-secondary); padding-top: 16px; border-top: 1px solid var(--border-color); }
+</style>
+</head>
+<body>
+<div class="report">
+  <div class="header">
+    <div class="brand">
+      <div class="logo">N</div>
+      <div class="title">{{ label }}</div>
+    </div>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-label">Gastos</div>
+      <div class="kpi-value">{{ total }}</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Ingresos</div>
+      <div class="kpi-value">{{ income }}</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">Neto</div>
+      <div class="kpi-value">{{ net }}</div>
+      <div class="kpi-sub">{{ count }} transacciones</div>
+    </div>
+  </div>
+
+  {% if top_categories %}
+  <div class="section">
+    <div class="section-title">
+      <span class="section-icon">C</span>
+      Top Categorías
+    </div>
+    <div class="category-list">
+      {% for cat in top_categories %}
+      <div class="category-item">
+        <div class="category-name">{{ cat.emoji }} {{ cat.name }}</div>
+        <div class="category-amount">{{ cat.total }}</div>
+        <div class="category-bar-bg">
+          <div class="category-bar-fill" style="width: {{ cat.pct }}%;"></div>
+        </div>
+        <div class="category-pct">{{ cat.pct }}%</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if expenses %}
+  <div class="section">
+    <div class="section-title">
+      <span class="section-icon">T</span>
+      {{ expenses_title }}
+    </div>
+    <table class="expenses-table">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Descripción</th>
+          <th>Categoría</th>
+          <th class="text-right">Monto</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for exp in expenses %}
+        <tr>
+          <td>{{ exp.date }}</td>
+          <td>{{ exp.description }}</td>
+          <td class="text-category">{{ exp.emoji }} {{ exp.category }}</td>
+          <td class="text-right text-amount">{{ exp.amount }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <div class="footer">
+    NikoFin — Finanzas Personales · Generado automáticamente
+  </div>
+</div>
+</body>
+</html>

@@ -1,11 +1,10 @@
 """Weekly report generation for Telegram using Playwright + Chart.js."""
 
-import os
 from datetime import date
 
 import emoji
-from jinja2 import Environment, FileSystemLoader
-from playwright.sync_api import sync_playwright
+
+from app.services.report_renderer import render_report_image
 
 MONTHS_ES = {
     1: "Enero",
@@ -153,30 +152,5 @@ def generate_weekly_report_image(report_data: dict) -> bytes:
         "upcoming_combined_total": _fmt(report_data.get("upcoming_combined_total", upcoming_total)),
     }
 
-    # Render Jinja2 template
-    template_dir = os.path.dirname(os.path.abspath(__file__))
-    env = Environment(loader=FileSystemLoader(template_dir))
-    template = env.get_template("report_template_weekly.html")
-    html_content = template.render(**context)
-
-    # Generate PNG image with Playwright
-    with sync_playwright() as p:
-        browser = p.chromium.launch(
-            args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
-        )
-        page = browser.new_page(
-            viewport={"width": 800, "height": 600},
-            device_scale_factor=2,  # Retina quality
-        )
-        page.set_content(html_content, wait_until="networkidle")
-        page.emulate_media(media="screen")
-
-        # Get actual content height and resize viewport
-        content_height = page.evaluate("document.body.scrollHeight")
-        page.set_viewport_size({"width": 800, "height": content_height})
-
-        # Take screenshot of the full page
-        png_bytes = page.screenshot(full_page=True, type="png", timeout=60000)
-        browser.close()
-
-    return png_bytes
+    # Render via shared renderer
+    return render_report_image("report_template_weekly.html", context)

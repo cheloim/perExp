@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --gnome-blue-3: #3584e4;
+    --gnome-green-3: #33d17a;
+    --gnome-orange-3: #ff7800;
+    --gnome-red-2: #ed333b;
+    --surface-window: #ffffff;
+    --surface-card: #f8f9fa;
+    --text-primary: rgba(0, 0, 6, 0.80);
+    --text-secondary: #5e5c64;
+    --border-color: rgba(0, 0, 6, 0.12);
+  }
+  body { font-family: 'Inter', -apple-system, sans-serif; color: var(--text-primary); font-size: 14px; line-height: 1.5; background: var(--surface-window); width: 800px; -webkit-font-smoothing: antialiased; }
+  .report { background: var(--surface-window); padding: 28px; }
+  .header { text-align: center; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border-color); }
+  .header .brand { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 8px; }
+  .header .logo { width: 40px; height: 40px; background: var(--gnome-blue-3); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; font-weight: 700; }
+  .header .title { font-size: 22px; font-weight: 800; color: var(--gnome-blue-3); letter-spacing: -0.3px; }
+  .header .subtitle { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+  .kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+  .kpi-card { background: var(--surface-card); border-radius: 12px; padding: 18px; text-align: center; border-left: 4px solid var(--gnome-blue-3); }
+  .kpi-card.green { border-left-color: var(--gnome-green-3); }
+  .kpi-card.orange { border-left-color: var(--gnome-orange-3); }
+  .kpi-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-secondary); margin-bottom: 6px; }
+  .kpi-value { font-size: 24px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.5px; line-height: 1; }
+  .kpi-sub { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+  .section { background: var(--surface-card); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .section-title { font-size: 13px; font-weight: 700; color: var(--gnome-blue-3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .section-icon { width: 20px; height: 20px; background: var(--gnome-blue-3); border-radius: 5px; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: 700; }
+  .budget-group { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .group-card { background: var(--surface-window); border-radius: 12px; padding: 16px; border-left: 4px solid var(--gnome-blue-3); }
+  .group-card.necesidades { border-left-color: var(--gnome-blue-3); }
+  .group-card.gustos { border-left-color: var(--gnome-orange-3); }
+  .group-card.ahorro { border-left-color: var(--gnome-green-3); }
+  .group-name { font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .group-amount { font-size: 20px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px; }
+  .group-detail { font-size: 11px; color: var(--text-secondary); }
+  .group-bar-bg { height: 10px; background: rgba(0, 0, 0, 0.06); border-radius: 5px; overflow: hidden; margin-top: 10px; }
+  .group-bar-fill { height: 100%; border-radius: 5px; }
+  .group-bar-fill.ok { background: var(--gnome-green-3); }
+  .group-bar-fill.warning { background: var(--gnome-orange-3); }
+  .group-bar-fill.exceeded { background: var(--gnome-red-2); }
+  .budget-list { display: flex; flex-direction: column; gap: 10px; }
+  .budget-item { display: grid; grid-template-columns: 140px 1fr 60px; align-items: center; gap: 12px; font-size: 12px; }
+  .budget-name { font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .budget-bar-bg { height: 14px; background: rgba(0, 0, 0, 0.06); border-radius: 7px; overflow: hidden; }
+  .budget-bar-fill { height: 100%; border-radius: 7px; transition: width 0.3s ease; }
+  .budget-bar-fill.ok { background: var(--gnome-green-3); }
+  .budget-bar-fill.warning { background: var(--gnome-orange-3); }
+  .budget-bar-fill.exceeded { background: var(--gnome-red-2); }
+  .budget-pct { font-weight: 700; text-align: right; }
+  .budget-pct.ok { color: var(--gnome-green-3); }
+  .budget-pct.warning { color: var(--gnome-orange-3); }
+  .budget-pct.exceeded { color: var(--gnome-red-2); }
+  .budget-detail { font-size: 10px; color: var(--text-secondary); margin-top: 2px; }
+  .footer { text-align: center; font-size: 10px; color: var(--text-secondary); padding-top: 16px; border-top: 1px solid var(--border-color); }
+</style>
+</head>
+<body>
+<div class="report">
+  <div class="header">
+    <div class="brand">
+      <div class="logo">N</div>
+      <div class="title">Presupuesto</div>
+    </div>
+    <div class="subtitle">{{ month }}</div>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-label">Presupuesto Total</div>
+      <div class="kpi-value">{{ total_budget }}</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Gastado</div>
+      <div class="kpi-value">{{ total_spent }}</div>
+      <div class="kpi-sub">{{ total_pct }}% utilizado</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">Alertas</div>
+      <div class="kpi-value">{{ flagged | length }}</div>
+      <div class="kpi-sub">categorías en alerta</div>
+    </div>
+  </div>
+
+  {% if groups %}
+  <div class="section">
+    <div class="section-title">
+      <span class="section-icon">G</span>
+      Grupos
+    </div>
+    <div class="budget-group">
+      {% for g in groups %}
+      <div class="group-card {{ g.name }}">
+        <div class="group-name">{{ g.display_name }}</div>
+        <div class="group-amount">{{ g.spent }}</div>
+        <div class="group-detail">de {{ g.amount }} ({{ g.pct }}%)</div>
+        <div class="group-bar-bg">
+          <div class="group-bar-fill {{ g.status }}" style="width: {{ [g.pct, 100] | min }}%"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if flagged %}
+  <div class="section">
+    <div class="section-title">
+      <span class="section-icon" style="background: var(--gnome-orange-3);">!</span>
+      Categorías con Alerta
+    </div>
+    <div class="budget-list">
+      {% for f in flagged %}
+      <div class="budget-item">
+        <span class="budget-name">{{ f.name }}</span>
+        <div class="budget-bar-bg">
+          <div class="budget-bar-fill {{ f.status }}" style="width: {{ [f.pct, 100] | min }}%"></div>
+        </div>
+        <span class="budget-pct {{ f.status }}">{{ f.pct }}%</span>
+      </div>
+      <div class="budget-detail">{{ f.spent }} / {{ f.budget }}</div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="footer">
+    NikoFin — Finanzas Personales · Generado automáticamente
+  </div>
+</div>
+</body>
+</html>
