@@ -68,8 +68,19 @@ export default function QuickUpcoming() {
   const sortedMonths = Object.keys(byMonth).sort();
 
   const MONTH_NAMES = [
-    "", "Ene", "Feb", "Mar", "Abr", "May", "Jun",
-    "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
+    "",
+    "Ene",
+    "Feb",
+    "Mar",
+    "Abr",
+    "May",
+    "Jun",
+    "Jul",
+    "Ago",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dic",
   ];
 
   return (
@@ -96,7 +107,10 @@ export default function QuickUpcoming() {
         const label = `${MONTH_NAMES[parseInt(m, 10)]} ${y}`;
 
         return (
-          <div key={month} className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl p-3">
+          <div
+            key={month}
+            className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl p-3"
+          >
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] font-semibold text-[var(--color-primary)] uppercase tracking-wider">
                 {label}
@@ -140,9 +154,7 @@ export default function QuickUpcoming() {
             {recurringActive.map((r) => {
               const chargeDate = r.next_charge_date;
               const daysUntil = chargeDate
-                ? Math.ceil(
-                    (new Date(chargeDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-                  )
+                ? Math.ceil((new Date(chargeDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
                 : null;
               const when =
                 daysUntil === null

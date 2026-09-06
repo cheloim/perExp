@@ -28,11 +28,7 @@ function TabContent({ tab }: { tab: Tab }) {
   }
 }
 
-export default function QuickViewLayout({
-  onSwitchToFull,
-}: {
-  onSwitchToFull: () => void;
-}) {
+export default function QuickViewLayout({ onSwitchToFull }: { onSwitchToFull: () => void }) {
   const [activeTab, setActiveTab] = useState<Tab>("summary");
   const [newExpenseOpen, setNewExpenseOpen] = useState(false);
   const queryClient = useQueryClient();

@@ -50,10 +50,7 @@ export default function QuickSummary() {
   const totalExpenses = dash?.total_expenses ?? 0;
 
   // MoM comparison
-  const prevTotal = (dash?.by_category ?? []).reduce(
-    (s, c) => s + (c.previous_total ?? 0),
-    0,
-  );
+  const prevTotal = (dash?.by_category ?? []).reduce((s, c) => s + (c.previous_total ?? 0), 0);
   const momPct = prevTotal > 0 ? ((totalSpent - prevTotal) / prevTotal) * 100 : 0;
   const momLabel =
     Math.abs(momPct) < 1
@@ -62,9 +59,17 @@ export default function QuickSummary() {
         ? `↑ ${Math.abs(Math.round(momPct))}%`
         : `↓ ${Math.abs(Math.round(momPct))}%`;
   const momColor =
-    momPct > 0 ? "var(--gnome-red-5)" : momPct < 0 ? "var(--gnome-green-5)" : "var(--text-secondary)";
+    momPct > 0
+      ? "var(--gnome-red-5)"
+      : momPct < 0
+        ? "var(--gnome-green-5)"
+        : "var(--text-secondary)";
   const momBg =
-    momPct > 0 ? "var(--gnome-red-1)" : momPct < 0 ? "var(--gnome-green-1)" : "var(--color-base-alt)";
+    momPct > 0
+      ? "var(--gnome-red-1)"
+      : momPct < 0
+        ? "var(--gnome-green-1)"
+        : "var(--color-base-alt)";
 
   // Top categories (non-income only, by category_name)
   const topCats = [...(dash?.by_category ?? [])]
@@ -93,10 +98,7 @@ export default function QuickSummary() {
             {totalExpenses} transacciones
           </div>
         </div>
-        <div
-          className="rounded-xl p-3 text-center"
-          style={{ backgroundColor: momBg }}
-        >
+        <div className="rounded-xl p-3 text-center" style={{ backgroundColor: momBg }}>
           <div className="text-[10px] text-[var(--text-secondary)]">vs mes anterior</div>
           <div className="text-lg font-bold" style={{ color: momColor }}>
             {momLabel}
@@ -109,7 +111,9 @@ export default function QuickSummary() {
               (dash?.by_category ?? [])
                 .filter((c) => {
                   const name = c.category_name.toLowerCase();
-                  return name.includes("ingreso") || name.includes("salary") || name.includes("sueldo");
+                  return (
+                    name.includes("ingreso") || name.includes("salary") || name.includes("sueldo")
+                  );
                 })
                 .reduce((s, c) => s + c.total, 0),
             )}

@@ -66,16 +66,14 @@ export default function QuickBudget() {
         <div className="space-y-2">
           {groups.map((g) => {
             const pct = g.amount > 0 ? Math.round((g.spent / g.amount) * 100) : 0;
-            const status =
-              pct >= 100 ? "exceeded" : pct >= 80 ? "warning" : "ok";
+            const status = pct >= 100 ? "exceeded" : pct >= 80 ? "warning" : "ok";
             const barColor =
               status === "exceeded"
                 ? "var(--gnome-red-4)"
                 : status === "warning"
                   ? "var(--gnome-orange-4)"
                   : "var(--gnome-green-5)";
-            const emoji =
-              g.name === "necesidades" ? "🏠" : g.name === "gustos" ? "🎉" : "💰";
+            const emoji = g.name === "necesidades" ? "🏠" : g.name === "gustos" ? "🎉" : "💰";
 
             return (
               <div
@@ -89,10 +87,7 @@ export default function QuickBudget() {
                       {g.display_name}
                     </span>
                   </div>
-                  <span
-                    className="text-[10px] font-bold"
-                    style={{ color: barColor }}
-                  >
+                  <span className="text-[10px] font-bold" style={{ color: barColor }}>
                     {pct}%
                   </span>
                 </div>
@@ -123,13 +118,18 @@ export default function QuickBudget() {
           </div>
           <div className="space-y-1.5">
             {flagged.slice(0, 5).map((c) => (
-              <div key={c.category_id ?? c.category_name} className="flex items-center justify-between">
+              <div
+                key={c.category_id ?? c.category_name}
+                className="flex items-center justify-between"
+              >
                 <span className="text-xs text-[var(--text-primary)] font-medium truncate">
                   {c.category_name}
                 </span>
                 <span
                   className={`text-[10px] font-bold ${
-                    c.status === "exceeded" ? "text-[var(--gnome-red-4)]" : "text-[var(--gnome-orange-4)]"
+                    c.status === "exceeded"
+                      ? "text-[var(--gnome-red-4)]"
+                      : "text-[var(--gnome-orange-4)]"
                   }`}
                 >
                   {Math.round(c.percentage * 100)}%
