@@ -3006,6 +3006,16 @@ async def cmd_editar(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
         return WAITING_EDIT_SELECT
 
+    except Exception as e:
+        if "created_at" in str(e):
+            await update.message.reply_text(
+                "⚠️ Falta la migración de base de datos.\n"
+                "Avisá al administrador para ejecutar:\n"
+                "<code>python -m scripts.migrate_add_expense_created_at</code>",
+                parse_mode="HTML",
+            )
+            return ConversationHandler.END
+        raise
     finally:
         db.close()
 
