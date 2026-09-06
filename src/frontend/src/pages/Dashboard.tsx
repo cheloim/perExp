@@ -556,7 +556,7 @@ export default function Dashboard() {
       {/* Gastos por Categoría + Transacciones — side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Gastos por Categoría */}
-        <div className="card p-4 h-[440px] flex flex-col overflow-hidden">
+        <div className="card p-4 h-[520px] sm:h-[440px] flex flex-col overflow-hidden">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-primary">Gastos por Categoría</h2>
@@ -585,7 +585,7 @@ export default function Dashboard() {
               description="Los gastos por categoría aparecerán aquí"
             />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 flex-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 flex-1 min-h-0">
               {/* Pie chart */}
               <div className="flex items-center justify-center">
                 <ResponsiveContainer width="100%" height={220}>
@@ -633,7 +633,7 @@ export default function Dashboard() {
               </div>
 
               {/* Bars */}
-              <div className="space-y-1.5 p-1">
+              <div className="space-y-1.5 p-1 overflow-y-auto min-h-0 pb-3 scrollbar-none">
                 {categories.map((cat, i) => {
                   const pct = (cat.total / maxCatTotal) * 100;
                   const color =
