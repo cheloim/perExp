@@ -1,4 +1,8 @@
-"""Daily Celery task to send in-app notifications for upcoming recurring charges."""
+"""Daily Celery task to send notifications for upcoming recurring charges.
+
+Uses notify_user() which writes in-app Notification + sends Telegram
+based on per-user channel settings.
+"""
 
 import json
 import logging
@@ -17,9 +21,16 @@ BUE = ZoneInfo("America/Argentina/Buenos_Aires")
 
 @celery_app.task(name="app.tasks.check_upcoming_recurring.check_upcoming_recurring")
 def check_upcoming_recurring():
-    """Send in-app notifications for recurring charges due soon."""
+    """Send notifications for recurring charges due soon.
+
+    Uses the notify_user service for channel resolution (in-app + Telegram).
+    Deduplication: skips if an unread notification already exists for this
+    recurring_id + charge_date combination.
+    """
     db = SessionLocal()
     try:
+        from app.services.notify import notify_user
+
         today = datetime.now(BUE).date()
 
         upcoming = (
@@ -40,7 +51,7 @@ def check_upcoming_recurring():
             if days_until < 0 or days_until > rec.alert_days_before:
                 continue
 
-            # Check if we already notified for this charge date
+            # Dedupe: skip if already notified for this charge date
             existing = (
                 db.query(Notification)
                 .filter(
@@ -68,7 +79,7 @@ def check_upcoming_recurring():
             if already_notified:
                 continue
 
-            # Build notification message
+            # Build message
             if days_until == 0:
                 title = f"🔔 {rec.merchant_key} — cobro hoy"
                 body = f"Se cobra ${rec.amount:,.0f} hoy."
@@ -81,22 +92,19 @@ def check_upcoming_recurring():
                     f"Se cobra ${rec.amount:,.0f} el {rec.next_charge_date.strftime('%d/%m/%Y')}."
                 )
 
-            notification = Notification(
-                user_id=rec.user_id,
-                type="upcoming_recurring",
-                title=title,
-                body=body,
-                data=json.dumps(
-                    {
-                        "recurring_id": rec.id,
-                        "charge_date": str(rec.next_charge_date),
-                        "amount": rec.amount,
-                        "merchant": rec.merchant_key,
-                    }
-                ),
-                read=False,
+            notify_user(
+                db,
+                rec.user_id,
+                "upcoming_recurring",
+                title,
+                body,
+                {
+                    "recurring_id": rec.id,
+                    "charge_date": str(rec.next_charge_date),
+                    "amount": rec.amount,
+                    "merchant": rec.merchant_key,
+                },
             )
-            db.add(notification)
             notified += 1
 
         db.commit()

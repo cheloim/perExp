@@ -59,6 +59,13 @@ export const CHANGES: ChangeVersion[] = [
         description:
           "Los reportes del bot, imágenes PNG y Quick View ahora distinguen correctamente entre gastos en ARS y USD. Totales separados y formato por moneda.",
       },
+      {
+        title: "Notificaciones de Cuotas y Suscripciones",
+        icon: "bell",
+        color: "#e5a50a",
+        description:
+          "Avisos por Telegram e in-app antes del vencimiento de tus cuotas y cobros recurrentes, y confirmación cuando una cuota se registra. Canal configurable por usuario.",
+      },
     ],
   },
   {
