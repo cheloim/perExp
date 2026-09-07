@@ -391,7 +391,7 @@ jobs:
                     proxy_buffering off;
                     proxy_cache off;
                     proxy_read_timeout 86400;
-                    chunked transfer_encoding on;
+
                 }
             }
 
@@ -434,7 +434,7 @@ jobs:
                     proxy_buffering off;
                     proxy_cache off;
                     proxy_read_timeout 86400;
-                    chunked transfer_encoding on;
+
                 }
 
                 location = /api/metrics {
