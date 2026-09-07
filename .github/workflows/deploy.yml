@@ -247,39 +247,9 @@ jobs:
           key: ${{ secrets.LINODE_SSH_KEY }}
           port: 43422
           script: |
-            CERTBOT_DIR=/opt/creditcardanalyzer/certbot/conf
-
-            # Fix archive permissions
-            chmod 755 $CERTBOT_DIR/archive 2>/dev/null || true
-            chmod 755 $CERTBOT_DIR/archive/${{ vars.DOMAIN_NAME }} 2>/dev/null || true
-            chmod 644 $CERTBOT_DIR/archive/${{ vars.DOMAIN_NAME }}/*.pem 2>/dev/null || true
-
-            # Fix live directory permissions (nginx needs to traverse symlinks)
-            chmod 755 $CERTBOT_DIR/live 2>/dev/null || true
-
-            # If live domain dir is a symlink, replace with real directory + files
-            LIVE_DIR=$CERTBOT_DIR/live/${{ vars.DOMAIN_NAME }}
-            if [ -L "$LIVE_DIR" ]; then
-              TARGET=$(readlink -f "$LIVE_DIR")
-              echo "Replacing symlink $LIVE_DIR -> $TARGET with real directory"
-              rm "$LIVE_DIR"
-              mkdir -p "$LIVE_DIR"
-              cp "$TARGET"/cert*.pem "$LIVE_DIR/" 2>/dev/null || true
-              cp "$TARGET"/chain*.pem "$LIVE_DIR/" 2>/dev/null || true
-              cp "$TARGET"/fullchain*.pem "$LIVE_DIR/" 2>/dev/null || true
-              cp "$TARGET"/privkey*.pem "$LIVE_DIR/" 2>/dev/null || true
-              # Flatten: rename versioned files to standard names
-              cd "$LIVE_DIR"
-              for f in cert1.pem chain1.pem fullchain1.pem privkey1.pem; do
-                if [ -f "$f" ]; then
-                  mv "$f" "${f/1./.}"
-                fi
-              done
-              chmod 644 cert.pem chain.pem fullchain.pem 2>/dev/null || true
-              chmod 600 privkey.pem 2>/dev/null || true
-              cd -
-            fi
-            chmod 755 "$LIVE_DIR" 2>/dev/null || true
+            chmod 755 /opt/creditcardanalyzer/certbot/conf/archive 2>/dev/null || true
+            chmod 755 /opt/creditcardanalyzer/certbot/conf/archive/${{ vars.DOMAIN_NAME }} 2>/dev/null || true
+            chmod 644 /opt/creditcardanalyzer/certbot/conf/archive/${{ vars.DOMAIN_NAME }}/*.pem 2>/dev/null || true
             echo "Cert permissions fixed"
 
       - name: Setup certbot renewal timer
@@ -421,7 +391,6 @@ jobs:
                     proxy_buffering off;
                     proxy_cache off;
                     proxy_read_timeout 86400;
-
                 }
             }
 
@@ -464,7 +433,6 @@ jobs:
                     proxy_buffering off;
                     proxy_cache off;
                     proxy_read_timeout 86400;
-
                 }
 
                 location = /api/metrics {
