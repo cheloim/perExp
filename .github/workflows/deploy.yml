@@ -338,19 +338,30 @@ jobs:
             # Write nginx.conf
             mkdir -p /opt/creditcardanalyzer/nginx
             cat > /opt/creditcardanalyzer/nginx/nginx.conf << 'NGINXEOF'
+            # HTTP → HTTPS redirect
             server {
                 listen 80 default_server;
                 server_name _;
                 return 301 https://${{ vars.DOMAIN_NAME }}$request_uri;
             }
 
+            # www → apex redirect
+            server {
+                listen 443 ssl;
+                server_name www.${{ vars.DOMAIN_NAME }};
+                ssl_certificate /etc/letsencrypt/live/${{ vars.DOMAIN_NAME }}/fullchain.pem;
+                ssl_certificate_key /etc/letsencrypt/live/${{ vars.DOMAIN_NAME }}/privkey.pem;
+                ssl_protocols TLSv1.2 TLSv1.3;
+                return 301 https://${{ vars.DOMAIN_NAME }}$request_uri;
+            }
+
+            # Landing site: oikonomia.ar
             server {
                 listen 443 ssl default_server;
-                server_name _;
+                server_name $host;
 
                 ssl_certificate /etc/letsencrypt/live/${{ vars.DOMAIN_NAME }}/fullchain.pem;
                 ssl_certificate_key /etc/letsencrypt/live/${{ vars.DOMAIN_NAME }}/privkey.pem;
-
                 ssl_protocols TLSv1.2 TLSv1.3;
                 ssl_ciphers HIGH:!aNULL:!MD5;
                 ssl_prefer_server_ciphers on;
@@ -373,10 +384,132 @@ jobs:
                     proxy_buffering off;
                     proxy_cache off;
                     proxy_read_timeout 86400;
-                    chunked_transfer_encoding on;
+                    chunked transfer_encoding on;
+                }
+            }
+
+            # App: platform.oikonomia.ar
+            server {
+                listen 443 ssl;
+                server_name ${{ vars.PLATFORM_DOMAIN }};
+
+                ssl_certificate /etc/letsencrypt/live/${{ vars.DOMAIN_NAME }}/fullchain.pem;
+                ssl_certificate_key /etc/letsencrypt/live/${{ vars.DOMAIN_NAME }}/privkey.pem;
+                ssl_protocols TLSv1.2 TLSv1.3;
+                ssl_ciphers HIGH:!aNULL:!MD5;
+                ssl_prefer_server_ciphers on;
+                ssl_session_cache shared:SSL:10m;
+                ssl_session_timeout 10m;
+
+                add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+                add_header X-Content-Type-Options nosniff;
+                add_header X-Frame-Options DENY;
+                add_header X-Robots-Tag "noindex, nofollow" always;
+
+                gzip on;
+                gzip_types text/plain text/css application/json application/javascript text/xml;
+
+                location = /robots.txt {
+                    return 200 "User-agent: *\nDisallow: /";
+                    add_header Content-Type text/plain;
+                }
+
+                location = /sitemap.xml {
+                    return 404;
+                }
+
+                location / {
+                    proxy_pass http://frontend:80;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                    proxy_buffering off;
+                    proxy_cache off;
+                    proxy_read_timeout 86400;
+                    chunked transfer_encoding on;
+                }
+
+                location = /api/metrics {
+                    deny all;
+                    return 404;
+                }
+            }
+
+            # Grafana: grafana.oikonomia.ar
+            server {
+                listen 443 ssl;
+                server_name grafana.${{ vars.DOMAIN_NAME }};
+
+                ssl_certificate /etc/letsencrypt/live/${{ vars.DOMAIN_NAME }}/fullchain.pem;
+                ssl_certificate_key /etc/letsencrypt/live/${{ vars.DOMAIN_NAME }}/privkey.pem;
+                ssl_protocols TLSv1.2 TLSv1.3;
+                ssl_ciphers HIGH:!aNULL:!MD5;
+
+                add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+                add_header X-Content-Type-Options nosniff;
+                add_header X-Frame-Options DENY;
+                add_header X-Robots-Tag "noindex, nofollow" always;
+
+                location / {
+                    proxy_pass http://grafana:3000;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
                 }
             }
             NGINXEOF
+
+            # Write prometheus config
+            mkdir -p /opt/creditcardanalyzer/prometheus
+            cat > /opt/creditcardanalyzer/prometheus/prometheus.yml << 'PROMEOF'
+            global:
+              scrape_interval: 15s
+              evaluation_interval: 15s
+
+            scrape_configs:
+              - job_name: "oikonomia-backend"
+                metrics_path: "/metrics"
+                static_configs:
+                  - targets:
+                      - "backend:8000"
+            PROMEOF
+
+            # Write grafana provisioning
+            mkdir -p /opt/creditcardanalyzer/grafana/provisioning/datasources
+            mkdir -p /opt/creditcardanalyzer/grafana/provisioning/dashboards
+            mkdir -p /opt/creditcardanalyzer/grafana/dashboards
+            cat > /opt/creditcardanalyzer/grafana/provisioning/datasources/datasource.yml << 'GFDSEOF'
+            apiVersion: 1
+
+            datasources:
+              - name: Prometheus
+                type: prometheus
+                access: proxy
+                url: http://prometheus:9090
+                isDefault: true
+                editable: false
+            GFDSEOF
+            cat > /opt/creditcardanalyzer/grafana/provisioning/dashboards/dashboard.yml << 'GFDBEOF'
+            apiVersion: 1
+
+            providers:
+              - name: "Oikonomia"
+                orgId: 1
+                folder: ""
+                type: file
+                disableDeletion: false
+                editable: false
+                options:
+                  path: /var/lib/grafana/dashboards
+                  foldersFromFilesStructure: false
+            GFDBEOF
+
+            # Write grafana dashboard JSON
+            cat > /opt/creditcardanalyzer/grafana/dashboards/fastapi.json << 'GFDASHEOF'
+            {"annotations":{"list":[]},"editable":false,"fiscalYearStartMonth":0,"graphTooltip":0,"links":[],"panels":[{"title":"Request Rate (req/s)","type":"timeseries","gridPos":{"h":8,"w":12,"x":0,"y":0},"targets":[{"expr":"sum(rate(http_requests_total[5m]))","legendFormat":"req/s","refId":"A"}],"fieldConfig":{"defaults":{"color":{"mode":"palette-classic"},"unit":"reqps"}}},{"title":"Error Rate (5xx)","type":"timeseries","gridPos":{"h":8,"w":12,"x":12,"y":0},"targets":[{"expr":"sum(rate(http_requests_total{status=~\"5..\"}[5m]))","legendFormat":"5xx/s","refId":"A"},{"expr":"sum(rate(http_requests_total{status=~\"4..\"}[5m]))","legendFormat":"4xx/s","refId":"B"}],"fieldConfig":{"defaults":{"color":{"mode":"palette-classic"},"unit":"reqps"}}},{"title":"Latency p50 / p95 / p99","type":"timeseries","gridPos":{"h":8,"w":12,"x":0,"y":8},"targets":[{"expr":"histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))","legendFormat":"p50","refId":"A"},{"expr":"histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))","legendFormat":"p95","refId":"B"},{"expr":"histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))","legendFormat":"p99","refId":"C"}],"fieldConfig":{"defaults":{"color":{"mode":"palette-classic"},"unit":"s"}}},{"title":"Top Endpoints by Requests","type":"table","gridPos":{"h":8,"w":12,"x":12,"y":8},"targets":[{"expr":"topk(10, sum(rate(http_requests_total[5m])) by (endpoint))","legendFormat":"{{endpoint}}","refId":"A","instant":true}],"fieldConfig":{"defaults":{"unit":"reqps"},"overrides":[{"matcher":{"id":"byName","options":"endpoint"},"properties":[{"id":"unit","value":"string"}]}]}}],"schemaVersion":39,"tags":["oikonomia","fastapi"],"templating":{"list":[]},"time":{"from":"now-6h","to":"now"},"title":"Oikonomia API","uid":"oikonomia-api","version":1}
+            GFDASHEOF
 
             # Write docker-compose.yml
             cat > /opt/creditcardanalyzer/docker-compose.yml << 'EOF'
@@ -546,9 +679,46 @@ jobs:
                       cpus: "0.5"
                 restart: unless-stopped
 
+              prometheus:
+                image: docker.io/prom/prometheus:latest
+                command:
+                  - "--config.file=/etc/prometheus/prometheus.yml"
+                  - "--storage.tsdb.retention.time=15d"
+                volumes:
+                  - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+                  - prometheus_data:/prometheus
+                deploy:
+                  resources:
+                    limits:
+                      memory: 512M
+                      cpus: "1.0"
+                restart: unless-stopped
+
+              grafana:
+                image: docker.io/grafana/grafana:latest
+                environment:
+                  GF_SECURITY_ADMIN_USER: admin
+                  GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+                  GF_AUTH_ANONYMOUS_ENABLED: "false"
+                  GF_SERVER_ROOT_URL: https://grafana.${{ vars.DOMAIN_NAME }}
+                volumes:
+                  - ./grafana/provisioning:/etc/grafana/provisioning:ro
+                  - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+                  - grafana_data:/var/lib/grafana
+                depends_on:
+                  - prometheus
+                deploy:
+                  resources:
+                    limits:
+                      memory: 256M
+                      cpus: "0.5"
+                restart: unless-stopped
+
             volumes:
               postgres_data:
               redis_data:
+              prometheus_data:
+              grafana_data:
             EOF
 
             # Write .env
@@ -567,6 +737,7 @@ jobs:
             echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> /opt/creditcardanalyzer/.env
             echo "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" >> /opt/creditcardanalyzer/.env
             echo "EMAIL_API_KEY=${{ secrets.EMAIL_API_KEY }}" >> /opt/creditcardanalyzer/.env
+            echo "GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}" >> /opt/creditcardanalyzer/.env
 
             chmod 600 /opt/creditcardanalyzer/.env
             echo "Config files written"

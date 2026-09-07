@@ -1,5 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Routes, Route, NavLink, useLocation, Navigate } from "react-router-dom";
+import useSeoMeta from "./hooks/useSeoMeta";
 import AIAssistant from "./components/AIAssistant";
 import InvestmentsAssistant from "./components/InvestmentsAssistant";
 import UserPanel from "./components/UserPanel";
@@ -129,6 +130,8 @@ export default function App() {
   const hostname = window.location.hostname;
   const [telegramReady, setTelegramReady] = useState(!isTelegramWebApp());
   const [quickView, setQuickView] = useState(isTelegramWebApp());
+
+  useSeoMeta();
 
   // Telegram Mini App init + auto-login (runs once)
   useEffect(() => {

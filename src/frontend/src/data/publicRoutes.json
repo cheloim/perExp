@@ -1,0 +1,93 @@
+[
+  {
+    "path": "/",
+    "title": "Oikonomia — Finanzas personales sin tracking",
+    "description": "App de finanzas personales con bot de Telegram, importación inteligente y análisis con IA. Sin tracking, sin analytics, sin cookies.",
+    "priority": 1.0,
+    "changefreq": "weekly"
+  },
+  {
+    "path": "/privacy",
+    "title": "Política de Privacidad — Oikonomia",
+    "description": "Conocé cómo Oikonomia protege tus datos. Sin tracking, sin analytics, sin cookies de terceros.",
+    "priority": 0.5,
+    "changefreq": "monthly"
+  },
+  {
+    "path": "/guide",
+    "title": "Guía de Usuario — Oikonomia",
+    "description": "Aprendé a usar Oikonomia: registro, gastos, reportes, categorías, presupuestos y más.",
+    "priority": 0.8,
+    "changefreq": "monthly"
+  },
+  {
+    "path": "/guide/budgeting",
+    "title": "Presupuestos — Guía — Oikonomia",
+    "description": "Configurá presupuestos por categoría con regla 50/30/20 y recibí alertas.",
+    "priority": 0.7,
+    "changefreq": "monthly"
+  },
+  {
+    "path": "/guide/telegram-bot",
+    "title": "Bot de Telegram — Guía — Oikonomia",
+    "description": "Registrá gastos, pedí reportes y editá transacciones directamente desde Telegram.",
+    "priority": 0.7,
+    "changefreq": "monthly"
+  },
+  {
+    "path": "/guide/smart-import",
+    "title": "Importación Inteligente — Guía — Oikonomia",
+    "description": "Importá archivos CSV de tus bancos con detección automática de columnas y duplicados.",
+    "priority": 0.7,
+    "changefreq": "monthly"
+  },
+  {
+    "path": "/guide/ai-analysis",
+    "title": "Análisis con IA — Guía — Oikonomia",
+    "description": "Dejá que la inteligencia artificial categorice tus gastos y detecte patrones.",
+    "priority": 0.7,
+    "changefreq": "monthly"
+  },
+  {
+    "path": "/guide/family-groups",
+    "title": "Grupos Familiares — Guía — Oikonomia",
+    "description": "Compartí finanzas con tu familia usando grupos con roles y invitaciones.",
+    "priority": 0.7,
+    "changefreq": "monthly"
+  },
+  {
+    "path": "/guide/investments",
+    "title": "Inversiones — Guía — Oikonomia",
+    "description": "Registrá y analizá tus inversiones con reportes y gráficos de evolución.",
+    "priority": 0.7,
+    "changefreq": "monthly"
+  },
+  {
+    "path": "/guide/categories",
+    "title": "Categorías — Guía — Oikonomia",
+    "description": "Organizá tus gastos con categorías personalizadas y subcategorías.",
+    "priority": 0.7,
+    "changefreq": "monthly"
+  },
+  {
+    "path": "/guide/recurring",
+    "title": "Gastos Recurrentes — Guía — Oikonomia",
+    "description": "Detectá y gestioná suscripciones y gastos recurrentes automáticamente.",
+    "priority": 0.7,
+    "changefreq": "monthly"
+  },
+  {
+    "path": "/changes",
+    "title": "Novedades — Oikonomia",
+    "description": "Historial de cambios y mejoras de Oikonomia. Nuevas funciones, correcciones y más.",
+    "priority": 0.6,
+    "changefreq": "weekly"
+  },
+  {
+    "path": "/novedades",
+    "title": "Novedades — Oikonomia",
+    "description": "Historial de cambios y mejoras de Oikonomia. Nuevas funciones, correcciones y más.",
+    "priority": 0.6,
+    "changefreq": "weekly"
+  }
+]
