@@ -1,0 +1,67 @@
+name: Diagnose Server
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check server status
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.LINODE_SERVER_IP }}
+          username: ${{ secrets.LINODE_SSH_USER }}
+          key: ${{ secrets.LINODE_SSH_KEY }}
+          port: 43422
+          script: |
+            cd /opt/creditcardanalyzer
+            set -a
+            source .env
+            set +a
+
+            echo "=== All containers ==="
+            podman ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+            echo ""
+            echo "=== Backend logs (last 100 lines) ==="
+            podman logs creditcardanalyzer_backend_1 --tail 100 2>&1
+
+            echo ""
+            echo "=== Backend healthcheck ==="
+            podman inspect --format='{{.State.Health.Status}}' creditcardanalyzer_backend_1 2>/dev/null || echo "no healthcheck"
+            podman inspect --format='{{range .State.Health.Log}}{{.ExitCode}}: {{.Output}}{{end}}' creditcardanalyzer_backend_1 2>/dev/null || echo "no health log"
+
+            echo ""
+            echo "=== Direct backend curl (localhost:8000/docs) ==="
+            curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/docs 2>/dev/null || echo "unreachable"
+            echo ""
+
+            echo ""
+            echo "=== Nginx curl (localhost:443/api/docs) ==="
+            curl -sk -o /dev/null -w "%{http_code}" https://127.0.0.1/api/docs 2>/dev/null || echo "unreachable"
+            echo ""
+
+            echo ""
+            echo "=== Edge nginx curl (localhost:443) ==="
+            curl -sk -o /dev/null -w "%{http_code}" https://127.0.0.1/ 2>/dev/null || echo "unreachable"
+            echo ""
+
+            echo ""
+            echo "=== Nginx error log ==="
+            podman logs creditcardanalyzer_nginx_1 --tail 30 2>&1
+
+            echo ""
+            echo "=== Frontend nginx log ==="
+            podman logs creditcardanalyzer_frontend_1 --tail 30 2>&1
+
+            echo ""
+            echo "=== Docker compose file ==="
+            cat docker-compose.yml | head -20
+
+            echo ""
+            echo "=== .env IMAGE_TAG ==="
+            grep IMAGE_TAG .env
