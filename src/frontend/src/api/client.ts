@@ -983,6 +983,10 @@ export const generateAllReports = (month: string) =>
 
 export const getSystemHealth = () => api.get("/admin/system/health").then((r) => r.data);
 
+export const getMetricsUsage = () => api.get("/admin/metrics/usage").then((r) => r.data);
+
+export const getMetricsSystem = () => api.get("/admin/metrics/system").then((r) => r.data);
+
 export const getTaskStatus = () => api.get("/admin/system/tasks").then((r) => r.data);
 
 export const getAdminSettings = () => api.get("/admin/system/settings").then((r) => r.data);

@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.database import engine, get_db
 from app.models import (
     Account,
     AuditLog,
@@ -717,6 +717,90 @@ def system_health(admin: User = Depends(get_current_admin), db: Session = Depend
         "redis": {"connected": redis_ok, "latency_ms": redis_latency},
         "database": {"connected": db_ok, "users_count": users_count},
         "celery": {"workers": celery_workers, "worker_count": len(celery_workers)},
+    }
+
+
+# ──────────────────────────────────────────────
+# Metrics (admin-only, no tracking)
+# ──────────────────────────────────────────────
+
+
+@router.get(
+    "/metrics/usage",
+    summary="Usage stats (first-party, server-side)",
+    description="Aggregated request/error metrics from the in-memory ring buffer. No user data.",
+)
+def metrics_usage(admin: User = Depends(get_current_admin)):
+    from app.metrics import get_usage_stats
+
+    return get_usage_stats(window=86400)
+
+
+@router.get(
+    "/metrics/system",
+    summary="System metrics (extended health)",
+    description="Extended health with request rates, latencies, DB pool, and Celery queue depth.",
+)
+def metrics_system(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
+    from app.metrics import get_usage_stats
+    from app.services.rate_limit import _get_redis
+
+    usage = get_usage_stats(window=300)
+
+    # DB pool status
+    db_pool = {"pool_size": 0, "checked_out": 0, "overflow": 0}
+    try:
+        pool = engine.pool
+        db_pool = {
+            "pool_size": pool.size(),
+            "checked_out": pool.checkedout(),
+            "overflow": pool.overflow(),
+        }
+    except Exception:
+        pass
+
+    # Celery queue depth via Redis LLEN
+    queue_depth = 0
+    try:
+        r = _get_redis()
+        queue_depth = r.llen("celery")
+    except Exception:
+        pass
+
+    # Redis status
+    redis_ok = False
+    redis_latency = 0
+    try:
+        r = _get_redis()
+        import time
+
+        start = time.time()
+        r.ping()
+        redis_latency = int((time.time() - start) * 1000)
+        redis_ok = True
+    except Exception:
+        pass
+
+    # Celery workers
+    celery_workers = []
+    try:
+        from app.celery_app import celery_app
+
+        inspector = celery_app.control.inspect(timeout=2.0)
+        active = inspector.active() or {}
+        celery_workers = list(active.keys())
+    except Exception:
+        pass
+
+    return {
+        "usage": usage,
+        "redis": {"connected": redis_ok, "latency_ms": redis_latency},
+        "database": {"connected": True, **db_pool},
+        "celery": {
+            "workers": celery_workers,
+            "worker_count": len(celery_workers),
+            "queue_depth": queue_depth,
+        },
     }
 
 

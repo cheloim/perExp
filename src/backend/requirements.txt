@@ -47,3 +47,6 @@ email-validator>=2.0.0
 
 # Emoji handling
 emoji>=2.0.0
+
+# Metrics (prometheus)
+prometheus-client>=0.21.0
