@@ -10,6 +10,7 @@ BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BACKEND_DIR, ".env"))
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 from app.services.platform_log_handler import PlatformLogHandler
 
@@ -21,6 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import app.models  # noqa: F401 — runs migrations on import
 from app.database import Base, SessionLocal, engine
+from app.metrics import install_metrics
 from app.models import Category, User
 from app.routers import (
     accounts,
@@ -126,10 +128,10 @@ async def lifespan(application: FastAPI):
     yield
 
     task.cancel()
-    try:
+    import contextlib
+
+    with contextlib.suppress(asyncio.CancelledError):
         await task
-    except asyncio.CancelledError:
-        pass
 
 
 app = FastAPI(
@@ -192,6 +194,8 @@ async def admin_seo_headers(request: Request, call_next):
         response.headers["Cache-Control"] = "no-store"
     return response
 
+
+install_metrics(app)
 
 app.include_router(auth.router)
 app.include_router(mfa.router)

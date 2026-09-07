@@ -203,18 +203,24 @@ jobs:
             CERT_FILE="/opt/creditcardanalyzer/certbot/conf/live/${{ vars.DOMAIN_NAME }}/fullchain.pem"
 
             if [ -f "$CERT_FILE" ]; then
-                # Check if cert expires within 14 days
-                EXPIRY=$(openssl x509 -in "$CERT_FILE" -noout -enddate | cut -d= -f2)
-                EXPIRY_EPOCH=$(date -d "$EXPIRY" +%s)
-                NOW_EPOCH=$(date +%s)
-                DAYS_LEFT=$(( (EXPIRY_EPOCH - NOW_EPOCH) / 86400 ))
-
-                if [ "$DAYS_LEFT" -lt 14 ]; then
-                    echo "Certificate expires in $DAYS_LEFT days, forcing renewal..."
+                # Check if cert covers grafana subdomain (new SAN)
+                if ! openssl x509 -in "$CERT_FILE" -noout -text | grep -q "grafana.${{ vars.DOMAIN_NAME }}"; then
+                    echo "Cert does not cover grafana subdomain, forcing re-issue..."
                     rm -f "$CERT_FILE"
                 else
-                    echo "SSL certificate OK ($DAYS_LEFT days remaining), skipping"
-                    exit 0
+                    # Check if cert expires within 14 days
+                    EXPIRY=$(openssl x509 -in "$CERT_FILE" -noout -enddate | cut -d= -f2)
+                    EXPIRY_EPOCH=$(date -d "$EXPIRY" +%s)
+                    NOW_EPOCH=$(date +%s)
+                    DAYS_LEFT=$(( (EXPIRY_EPOCH - NOW_EPOCH) / 86400 ))
+
+                    if [ "$DAYS_LEFT" -lt 14 ]; then
+                        echo "Certificate expires in $DAYS_LEFT days, forcing renewal..."
+                        rm -f "$CERT_FILE"
+                    else
+                        echo "SSL certificate OK ($DAYS_LEFT days remaining), skipping"
+                        exit 0
+                    fi
                 fi
             fi
 
@@ -228,6 +234,7 @@ jobs:
               -d ${{ vars.DOMAIN_NAME }} \
               -d www.${{ vars.DOMAIN_NAME }} \
               -d ${{ vars.PLATFORM_DOMAIN }} \
+              -d grafana.${{ vars.DOMAIN_NAME }} \
               --email mmendoza0989@gmail.com \
               --agree-tos --non-interactive
             echo "SSL certificate obtained"

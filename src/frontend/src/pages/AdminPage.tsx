@@ -1,6 +1,17 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import {
   getAdminUsers,
   getAdminUser,
   blockUser,
@@ -23,11 +34,13 @@ import {
   runTask,
   getFeatureFlags,
   setFeatureFlag,
+  getMetricsUsage,
+  getMetricsSystem,
 } from "../api/client";
 import type { AdminUser, AuditLogEntry, LoginErrorsResponse, PlatformLog } from "../types";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 
-type Tab = "users" | "logs" | "reports" | "system";
+type Tab = "users" | "logs" | "reports" | "system" | "metrics";
 
 export default function AdminPage() {
   const [tab, setTab] = useState<Tab>("users");
@@ -51,7 +64,7 @@ export default function AdminPage() {
       </div>
 
       <nav className="flex gap-1 border-b border-[var(--border-color)]">
-        {(["users", "logs", "reports", "system"] as Tab[]).map((t) => (
+        {(["users", "logs", "reports", "system", "metrics"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -67,7 +80,9 @@ export default function AdminPage() {
                 ? "Logs & Seguridad"
                 : t === "reports"
                   ? "Reportes"
-                  : "Sistema"}
+                  : t === "system"
+                    ? "Sistema"
+                    : "Métricas"}
           </button>
         ))}
       </nav>
@@ -76,6 +91,7 @@ export default function AdminPage() {
       {tab === "logs" && <LogsTab />}
       {tab === "reports" && <ReportsTab />}
       {tab === "system" && <SystemTab />}
+      {tab === "metrics" && <MetricsTab />}
     </div>
   );
 }
@@ -1408,6 +1424,186 @@ function SystemTab() {
         >
           Limpiar Audit Logs (90d) y Mensajes (45d)
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Metrics Tab ──────────────────────────────────────────────
+
+function MetricsTab() {
+  const { data: usage } = useQuery({
+    queryKey: ["admin-metrics-usage"],
+    queryFn: getMetricsUsage,
+    refetchInterval: 15000,
+  });
+
+  const { data: system } = useQuery({
+    queryKey: ["admin-metrics-system"],
+    queryFn: getMetricsSystem,
+    refetchInterval: 15000,
+  });
+
+  const u = usage ?? {};
+  const s = system ?? {};
+
+  return (
+    <div className="space-y-6">
+      {/* Grafana link */}
+      <div className="card p-4 flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+            Panel de Métricas (Grafana)
+          </h3>
+          <p className="text-xs text-[var(--text-tertiary)]">
+            Dashboards detallados con Prometheus + Grafana
+          </p>
+        </div>
+        <a
+          href={`https://grafana.${window.location.hostname.replace("platform.", "")}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs px-3 py-1.5 rounded-lg bg-[var(--color-primary)] text-white hover:opacity-90 transition-opacity"
+        >
+          Grafana ↗
+        </a>
+      </div>
+
+      {/* KPI cards */}
+      <div className="grid grid-cols-4 gap-4">
+        <div className="card p-4">
+          <p className="text-xs text-[var(--text-tertiary)] mb-1">Requests (24h)</p>
+          <p className="text-2xl font-bold text-[var(--text-primary)]">
+            {u.request_count?.toLocaleString() ?? "—"}
+          </p>
+        </div>
+        <div className="card p-4">
+          <p className="text-xs text-[var(--text-tertiary)] mb-1">Error Rate</p>
+          <p className="text-2xl font-bold text-[var(--text-primary)]">
+            {u.error_rate != null ? `${u.error_rate}%` : "—"}
+          </p>
+        </div>
+        <div className="card p-4">
+          <p className="text-xs text-[var(--text-tertiary)] mb-1">p95 Latency</p>
+          <p className="text-2xl font-bold text-[var(--text-primary)]">
+            {u.p95_ms != null ? `${u.p95_ms}ms` : "—"}
+          </p>
+        </div>
+        <div className="card p-4">
+          <p className="text-xs text-[var(--text-tertiary)] mb-1">Throughput</p>
+          <p className="text-2xl font-bold text-[var(--text-primary)]">
+            {u.throughput_rpm != null ? `${u.throughput_rpm}/min` : "—"}
+          </p>
+        </div>
+      </div>
+
+      {/* Charts row */}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Latency distribution */}
+        <div className="card p-4">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">
+            Latencia (últimos 5min)
+          </h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart
+              data={[
+                { name: "p50", value: u.p50_ms ?? 0 },
+                { name: "p95", value: u.p95_ms ?? 0 },
+                { name: "p99", value: u.p99_ms ?? 0 },
+              ]}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+              <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--text-tertiary)" }} />
+              <YAxis tick={{ fontSize: 11, fill: "var(--text-tertiary)" }} unit="ms" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "var(--bg-primary)",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+              />
+              <Bar dataKey="value" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Error rate trend */}
+        <div className="card p-4">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">
+            Requests vs Errores (24h)
+          </h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <AreaChart
+              data={[
+                { name: "Requests", value: u.request_count ?? 0 },
+                { name: "Errores", value: u.error_count ?? 0 },
+              ]}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+              <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--text-tertiary)" }} />
+              <YAxis tick={{ fontSize: 11, fill: "var(--text-tertiary)" }} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "var(--bg-primary)",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+              />
+              <Area
+                type="monotone"
+                dataKey="value"
+                stroke="var(--color-primary)"
+                fill="var(--color-primary)"
+                fillOpacity={0.15}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* System health */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="card p-4">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Redis</h3>
+          <div className="flex items-center gap-2">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                s.redis?.connected ? "bg-green-500" : "bg-red-500"
+              }`}
+            />
+            <span className="text-sm">{s.redis?.connected ? "Conectado" : "Desconectado"}</span>
+            {s.redis?.connected && (
+              <span className="text-xs text-[var(--text-tertiary)]">{s.redis.latency_ms}ms</span>
+            )}
+          </div>
+        </div>
+        <div className="card p-4">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">DB Pool</h3>
+          <div className="text-sm">
+            <span className="text-[var(--text-tertiary)]">
+              {s.database?.checked_out ?? 0}/{s.database?.pool_size ?? 0} checked out
+            </span>
+            {(s.database?.overflow ?? 0) > 0 && (
+              <span className="text-xs text-amber-500 ml-2">+{s.database.overflow} overflow</span>
+            )}
+          </div>
+        </div>
+        <div className="card p-4">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Celery</h3>
+          <div className="flex items-center gap-2">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                s.celery?.worker_count > 0 ? "bg-green-500" : "bg-red-500"
+              }`}
+            />
+            <span className="text-sm">{s.celery?.worker_count ?? 0} workers</span>
+            {(s.celery?.queue_depth ?? 0) > 0 && (
+              <span className="text-xs text-amber-500">{s.celery.queue_depth} en cola</span>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
