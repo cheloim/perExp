@@ -25,42 +25,42 @@ export const CHANGES: ChangeVersion[] = [
     previous: "v1.3",
     features: [
       {
-        title: "Reportes Inline del Bot",
+        title: "🤖 Reportes Inline del Bot",
         icon: "chart-bar",
         color: "#3584e4",
         description:
           "Nuevos comandos /presupuesto, /gastos, /cuotas, /suscripciones y /ayuda. Consultá tu estado financiero directamente en el chat de Telegram.",
       },
       {
-        title: "Edición de Gastos (48h)",
+        title: "✏️ Edición de Gastos (48h)",
         icon: "list",
         color: "#2ec27e",
         description:
           "Comando /editar para modificar gastos de las últimas 48 horas. Elegí el campo, ingresá el nuevo valor y confirmá con diff visual. Registro de auditoría incluido.",
       },
       {
-        title: "Imágenes de Reportes",
+        title: "📸 Imágenes de Reportes",
         icon: "chart-donut",
         color: "#e5a50a",
         description:
-          "Botón 📸 en cada reporte del bot para generar una imagen PNG renderizada con Playwright. Budget status, resumen semanal/mensual y cuotas próximas.",
+          "Botón en cada reporte del bot para generar una imagen PNG renderizada con Playwright. Budget status, resumen semanal/mensual y cuotas próximas.",
       },
       {
-        title: "Quick View Mini App",
+        title: "📱 Quick View Mini App",
         icon: "smartphone",
         color: "#8b5cf6",
         description:
           "La Mini App de Telegram ahora arranca con una vista liviana: KPIs, categorías con color real, gastos recientes, presupuesto y próximos pagos. Botón para cambiar a la plataforma completa.",
       },
       {
-        title: "Soporte Multi-Moneda",
+        title: "💱 Soporte Multi-Moneda",
         icon: "sparkles",
         color: "#2ec27e",
         description:
           "Los reportes del bot, imágenes PNG y Quick View ahora distinguen correctamente entre gastos en ARS y USD. Totales separados y formato por moneda.",
       },
       {
-        title: "Notificaciones de Cuotas y Suscripciones",
+        title: "🔔 Notificaciones de Cuotas y Suscripciones",
         icon: "bell",
         color: "#e5a50a",
         description:

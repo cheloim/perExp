@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1c71d8"/>
+      <stop offset="50%" stop-color="#3584e4"/>
+      <stop offset="100%" stop-color="#1a5fb4"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Decorative circles -->
+  <circle cx="150" cy="100" r="200" fill="rgba(255,255,255,0.04)"/>
+  <circle cx="1050" cy="530" r="250" fill="rgba(255,255,255,0.04)"/>
+
+  <!-- Credit card icon -->
+  <g transform="translate(500, 120)" filter="url(#shadow)">
+    <rect width="200" height="140" rx="16" fill="#fff"/>
+    <rect x="20" y="25" width="50" height="35" rx="6" fill="#3584e4"/>
+    <line x1="20" y1="90" x2="180" y2="90" stroke="#e0e0e0" stroke-width="2"/>
+    <rect x="20" y="105" width="60" height="8" rx="4" fill="#ddd"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="600" y="330" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="72" font-weight="700" fill="#fff">
+    Oikonomia
+  </text>
+
+  <!-- Tagline -->
+  <text x="600" y="385" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="24" fill="rgba(255,255,255,0.85)">
+    Finanzas personales sin tracking
+  </text>
+
+  <!-- Feature pills -->
+  <g transform="translate(250, 430)">
+    <rect width="160" height="36" rx="18" fill="rgba(255,255,255,0.15)"/>
+    <text x="80" y="23" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="13" fill="#fff">🤖 Telegram Bot</text>
+  </g>
+  <g transform="translate(440, 430)">
+    <rect width="170" height="36" rx="18" fill="rgba(255,255,255,0.15)"/>
+    <text x="85" y="23" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="13" fill="#fff">📊 Análisis con IA</text>
+  </g>
+  <g transform="translate(640, 430)">
+    <rect width="160" height="36" rx="18" fill="rgba(255,255,255,0.15)"/>
+    <text x="80" y="23" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="13" fill="#fff">📥 Smart Import</text>
+  </g>
+  <g transform="translate(830, 430)">
+    <rect width="140" height="36" rx="18" fill="rgba(255,255,255,0.15)"/>
+    <text x="70" y="23" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="13" fill="#fff">🔒 Sin tracking</text>
+  </g>
+
+  <!-- URL -->
+  <text x="600" y="540" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="18" fill="rgba(255,255,255,0.6)">
+    oikonomia.ar
+  </text>
+</svg>

@@ -981,7 +981,8 @@
   .animate-bar-grow,
   .animate-fade-in,
   .animate-fade-in-up,
-  .animate-pulse-travel {
+  .animate-pulse-travel,
+  .animate-slide-in {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;

@@ -564,3 +564,421 @@ export function CardDetectionMockup() {
     </div>
   );
 }
+
+/* ─── Bot Report Mockup ────────────────────────────── */
+
+export function BotReportMockup() {
+  return (
+    <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-2xl p-5 border border-blue-500/20">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+          <span className="text-lg">🤖</span>
+        </div>
+        <div>
+          <p className="font-semibold text-sm text-[var(--text-primary)]">
+            Reportes Inline del Bot
+          </p>
+          <p className="text-xs text-[var(--text-secondary)]">Telegram Bot</p>
+        </div>
+      </div>
+
+      <div className="space-y-2.5">
+        {/* User message */}
+        <div className="flex justify-end">
+          <div className="bg-blue-500/20 rounded-2xl rounded-br-md px-3 py-2 max-w-[80%] animate-fade-in-up">
+            <p className="text-xs text-[var(--text-primary)]">/presupuesto</p>
+          </div>
+        </div>
+
+        {/* Bot response */}
+        <div className="flex justify-start">
+          <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl rounded-bl-md px-3 py-2.5 max-w-[85%] animate-fade-in-up delay-200">
+            <div className="flex items-center gap-1.5 mb-2">
+              <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-[8px] font-bold">
+                N
+              </div>
+              <span className="text-[10px] font-medium text-[var(--text-primary)]">NikoFin</span>
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-[10px] text-[var(--text-secondary)]">
+                📊 Presupuesto — Septiembre 2026
+              </p>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-1.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-green-500 rounded-full animate-bar-grow"
+                    style={{ width: "45%" }}
+                  />
+                </div>
+                <span className="text-[9px] text-green-500 font-medium">45%</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-1.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 rounded-full animate-bar-grow delay-100"
+                    style={{ width: "72%" }}
+                  />
+                </div>
+                <span className="text-[9px] text-blue-500 font-medium">72%</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-1.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-amber-500 rounded-full animate-bar-grow delay-200"
+                    style={{ width: "28%" }}
+                  />
+                </div>
+                <span className="text-[9px] text-amber-500 font-medium">28%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Expense Edit Mockup ───────────────────────────── */
+
+export function ExpenseEditMockup() {
+  return (
+    <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 rounded-2xl p-5 border border-green-500/20">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center">
+          <span className="text-lg">✏️</span>
+        </div>
+        <div>
+          <p className="font-semibold text-sm text-[var(--text-primary)]">
+            Edición de Gastos (48h)
+          </p>
+          <p className="text-xs text-[var(--text-secondary)]">Comando /editar</p>
+        </div>
+      </div>
+
+      <div className="space-y-2.5">
+        {/* User edit command */}
+        <div className="flex justify-end">
+          <div className="bg-green-500/20 rounded-2xl rounded-br-md px-3 py-2 max-w-[80%] animate-fade-in-up">
+            <p className="text-xs text-[var(--text-primary)]">/editar</p>
+          </div>
+        </div>
+
+        {/* Bot response with diff */}
+        <div className="flex justify-start">
+          <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl rounded-bl-md px-3 py-2.5 max-w-[85%] animate-fade-in-up delay-200">
+            <p className="text-[10px] text-[var(--text-secondary)] mb-1.5">📝 Editar gasto #142</p>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 bg-[var(--color-base-alt)] rounded px-2 py-1">
+                <span className="text-[9px] text-[var(--text-tertiary)] w-12">Monto</span>
+                <span className="text-[9px] text-red-500 line-through">$5,999</span>
+                <span className="text-[9px] text-green-500 font-medium">→ $4,500</span>
+              </div>
+              <div className="flex items-center gap-2 bg-[var(--color-base-alt)] rounded px-2 py-1">
+                <span className="text-[9px] text-[var(--text-tertiary)] w-12">Categoría</span>
+                <span className="text-[9px] text-red-500 line-through">Almacén</span>
+                <span className="text-[9px] text-green-500 font-medium">→ Supermercado</span>
+              </div>
+            </div>
+            <div className="mt-2 flex gap-1.5">
+              <span className="text-[8px] bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full animate-count-up delay-300">
+                ✓ Confirmado
+              </span>
+              <span className="text-[8px] bg-[var(--color-base-alt)] text-[var(--text-secondary)] px-2 py-0.5 rounded-full">
+                Auditoría registrada
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Report Image Mockup ───────────────────────────── */
+
+export function ReportImageMockup() {
+  return (
+    <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 rounded-2xl p-5 border border-amber-500/20">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
+          <span className="text-lg">📸</span>
+        </div>
+        <div>
+          <p className="font-semibold text-sm text-[var(--text-primary)]">Imágenes de Reportes</p>
+          <p className="text-xs text-[var(--text-secondary)]">PNG renderizado con Playwright</p>
+        </div>
+      </div>
+
+      <div className="space-y-2.5">
+        {/* Generating animation */}
+        <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-5 h-5 rounded bg-amber-500/20 flex items-center justify-center animate-spin">
+              <span className="text-[8px]">⚙️</span>
+            </div>
+            <span className="text-[10px] text-[var(--text-secondary)]">Generando imagen...</span>
+          </div>
+          <div className="h-1.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+            <div
+              className="h-full bg-amber-500 rounded-full animate-bar-grow"
+              style={{ width: "78%" }}
+            />
+          </div>
+        </div>
+
+        {/* Result preview */}
+        <div className="bg-[var(--bg-primary)] border border-amber-500/30 rounded-xl p-2.5 animate-fade-in-up delay-300">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-green-500 text-sm">✓</span>
+            <span className="text-[10px] text-green-500 font-medium">Imagen generada</span>
+            <span className="ml-auto text-[9px] text-[var(--text-secondary)]">2.3s</span>
+          </div>
+          {/* Mini chart preview */}
+          <div className="flex items-end gap-0.5 h-8">
+            {[30, 50, 40, 65, 55, 80, 70].map((h, i) => (
+              <div
+                key={i}
+                className={`flex-1 rounded-t animate-fade-in-up ${i === 6 ? "bg-amber-500" : "bg-amber-500/30"}`}
+                style={{ height: `${h}%`, animationDelay: `${400 + i * 60}ms` }}
+              />
+            ))}
+          </div>
+          <div className="mt-1.5 flex items-center justify-between">
+            <span className="text-[8px] text-[var(--text-secondary)]">
+              Budget Status — Septiembre 2026
+            </span>
+            <span className="text-[8px] text-amber-500">📤 Enviar</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Quick View Loading Mockup ─────────────────────── */
+
+export function QuickViewLoadingMockup() {
+  return (
+    <div className="flex justify-center">
+      <div className="w-[280px] bg-[var(--color-base)] rounded-[2rem] border-[3px] border-[var(--border-color)] overflow-hidden shadow-2xl">
+        {/* Status bar */}
+        <div className="flex items-center justify-between px-4 py-1 text-[10px] text-[var(--text-tertiary)]">
+          <span>9:41</span>
+          <span>●●●</span>
+        </div>
+
+        {/* Telegram bot header */}
+        <div className="flex items-center gap-2.5 px-3 py-2 border-b border-[var(--border-color)]">
+          <div className="w-7 h-7 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white text-[10px] font-bold">
+            N
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[var(--text-primary)] text-xs font-medium truncate">NikoFin</div>
+            <div className="text-[9px] text-[var(--gnome-green-5)]">● en línea</div>
+          </div>
+        </div>
+
+        {/* Loading → reveal animation */}
+        <div className="p-3 space-y-2">
+          {/* Skeleton → content transition */}
+          <div className="grid grid-cols-3 gap-1.5">
+            {[
+              {
+                label: "Total",
+                value: "$128K",
+                bg: "var(--color-base-alt)",
+                text: "var(--text-primary)",
+                delay: "0ms",
+              },
+              {
+                label: "Deuda",
+                value: "$45K",
+                bg: "var(--gnome-red-1)",
+                text: "var(--gnome-red-5)",
+                delay: "100ms",
+              },
+              {
+                label: "vs Mes",
+                value: "↓12%",
+                bg: "var(--gnome-green-1)",
+                text: "var(--gnome-green-5)",
+                delay: "200ms",
+              },
+            ].map((kpi) => (
+              <div
+                key={kpi.label}
+                className="rounded-lg p-1.5 text-center animate-fade-in-up"
+                style={{ backgroundColor: kpi.bg, animationDelay: kpi.delay }}
+              >
+                <div className="text-[8px]" style={{ color: "var(--text-tertiary)" }}>
+                  {kpi.label}
+                </div>
+                <div className="text-[11px] font-bold" style={{ color: kpi.text }}>
+                  {kpi.value}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Loading spinner → categories */}
+          <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg p-2 animate-fade-in-up delay-300">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span className="text-[8px]">📊</span>
+              <span className="text-[8px] text-[var(--text-tertiary)]">Top categorías</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[8px] text-[var(--text-tertiary)] w-14 truncate">
+                Alimentación
+              </span>
+              <div className="flex-1 h-1.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[var(--gnome-green-5)] rounded-full animate-bar-grow delay-400"
+                  style={{ width: "75%" }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Recent expenses with stagger */}
+          {[
+            { name: "Work Café", amt: "$8.6K", emoji: "☕", delay: "400ms" },
+            { name: "Subte", amt: "$1.2K", emoji: "🚇", delay: "500ms" },
+            { name: "Netflix", amt: "$5K", emoji: "📺", delay: "600ms" },
+          ].map((exp) => (
+            <div
+              key={exp.name}
+              className="flex items-center gap-2 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg px-2 py-1.5 animate-fade-in-up"
+              style={{ animationDelay: exp.delay }}
+            >
+              <span className="text-[10px]">{exp.emoji}</span>
+              <span className="text-[9px] text-[var(--text-primary)] flex-1 truncate">
+                {exp.name}
+              </span>
+              <span className="text-[9px] text-[var(--text-primary)] font-semibold">{exp.amt}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="h-5" />
+      </div>
+    </div>
+  );
+}
+
+/* ─── Currency Toggle Mockup ────────────────────────── */
+
+export function CurrencyToggleMockup() {
+  return (
+    <div className="bg-gradient-to-br from-green-500/10 to-teal-500/10 rounded-2xl p-5 border border-green-500/20">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center">
+          <span className="text-lg">💱</span>
+        </div>
+        <div>
+          <p className="font-semibold text-sm text-[var(--text-primary)]">Soporte Multi-Moneda</p>
+          <p className="text-xs text-[var(--text-secondary)]">ARS y USD separados</p>
+        </div>
+      </div>
+
+      <div className="space-y-2.5">
+        {/* Currency toggle */}
+        <div className="flex items-center justify-center gap-2">
+          <span className="text-xs font-medium text-green-500 bg-green-500/10 px-3 py-1 rounded-full animate-fade-in-up">
+            🇦🇷 ARS
+          </span>
+          <span className="text-[10px] text-[var(--text-tertiary)]">|</span>
+          <span className="text-xs text-[var(--text-secondary)] bg-[var(--color-base-alt)] px-3 py-1 rounded-full animate-fade-in-up delay-100">
+            🇺🇸 USD
+          </span>
+        </div>
+
+        {/* Totals */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg p-2.5 text-center animate-fade-in-up delay-200">
+            <p className="text-[9px] text-[var(--text-tertiary)]">Este mes (ARS)</p>
+            <p className="text-sm font-bold text-[var(--text-primary)]">$285,400</p>
+          </div>
+          <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg p-2.5 text-center animate-fade-in-up delay-300">
+            <p className="text-[9px] text-[var(--text-tertiary)]">Este mes (USD)</p>
+            <p className="text-sm font-bold text-[var(--text-primary)]">$312</p>
+          </div>
+        </div>
+
+        {/* Example items */}
+        <div className="space-y-1">
+          {[
+            { name: "Supermercado", amt: "$45,200", flag: "🇦🇷" },
+            { name: "Netflix", amt: "$15.99", flag: "🇺🇸" },
+            { name: "Spotify", amt: "$5.99", flag: "🇺🇸" },
+          ].map((item, i) => (
+            <div
+              key={item.name}
+              className="flex items-center justify-between bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-1.5 animate-fade-in-up"
+              style={{ animationDelay: `${400 + i * 80}ms` }}
+            >
+              <span className="text-[10px] text-[var(--text-primary)]">
+                {item.flag} {item.name}
+              </span>
+              <span className="text-[10px] font-medium text-[var(--text-primary)]">{item.amt}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Notification Slide Mockup ─────────────────────── */
+
+export function NotificationSlideMockup() {
+  return (
+    <div className="bg-gradient-to-br from-amber-500/10 to-yellow-500/10 rounded-2xl p-5 border border-amber-500/20">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
+          <span className="text-lg">🔔</span>
+        </div>
+        <div>
+          <p className="font-semibold text-sm text-[var(--text-primary)]">Cuotas y Suscripciones</p>
+          <p className="text-xs text-[var(--text-secondary)]">Avisos antes del vencimiento</p>
+        </div>
+      </div>
+
+      <div className="space-y-2.5">
+        {/* Notification slide-in 1 */}
+        <div className="bg-[var(--bg-primary)] border border-amber-500/30 rounded-xl px-3 py-2.5 animate-slide-in">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-sm">⏰</span>
+            <span className="text-[10px] font-medium text-amber-500">Vence mañana</span>
+            <span className="ml-auto text-[9px] text-[var(--text-tertiary)]">Hace 2h</span>
+          </div>
+          <p className="text-[10px] text-[var(--text-primary)]">📱 Cuota 3/6 iPhone 15 — $43,333</p>
+          <p className="text-[9px] text-[var(--text-secondary)] mt-0.5">Tarjeta Santander Visa</p>
+        </div>
+
+        {/* Notification slide-in 2 */}
+        <div className="bg-[var(--bg-primary)] border border-green-500/30 rounded-xl px-3 py-2.5 animate-slide-in delay-200">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-sm">✅</span>
+            <span className="text-[10px] font-medium text-green-500">Cuota registrada</span>
+            <span className="ml-auto text-[9px] text-[var(--text-tertiary)]">Hoy 10:30</span>
+          </div>
+          <p className="text-[10px] text-[var(--text-primary)]">📺 Netflix — $5,000</p>
+          <p className="text-[9px] text-[var(--text-secondary)] mt-0.5">
+            Débito automático confirmado
+          </p>
+        </div>
+
+        {/* Notification slide-in 3 */}
+        <div className="bg-[var(--bg-primary)] border border-amber-500/30 rounded-xl px-3 py-2.5 animate-slide-in delay-400">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-sm">🔔</span>
+            <span className="text-[10px] font-medium text-amber-500">Próximo vencimiento</span>
+            <span className="ml-auto text-[9px] text-[var(--text-tertiary)]">En 3 días</span>
+          </div>
+          <p className="text-[10px] text-[var(--text-primary)]">💪 Gym — $8,000</p>
+          <p className="text-[9px] text-[var(--text-secondary)] mt-0.5">Canal: Telegram + in-app</p>
+        </div>
+      </div>
+    </div>
+  );
+}
