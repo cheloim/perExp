@@ -1011,9 +1011,9 @@ jobs:
             set +a
 
             echo "Waiting for services to start..."
-            sleep 10
+            sleep 15
 
-            RETRIES=15
+            RETRIES=20
             SLEEP=5
             DEPLOY_OK=false
 
@@ -1030,6 +1030,20 @@ jobs:
 
             if [ "$DEPLOY_OK" = "false" ]; then
               echo "CRITICAL: Health check failed after $((RETRIES * SLEEP))s"
+              echo ""
+              echo "=== Backend logs (last 80 lines) ==="
+              podman logs creditcardanalyzer_backend_1 --tail 80 2>&1 || echo "Could not get backend logs"
+              echo ""
+              echo "=== Backend healthcheck status ==="
+              podman inspect --format='{{.State.Health.Status}} last={{range .State.Health.Log}}{{.Output}}{{end}}' creditcardanalyzer_backend_1 2>/dev/null || echo "No healthcheck info"
+              echo ""
+              echo "=== Nginx test (direct to frontend:80) ==="
+              curl -s -o /dev/null -w "frontend:80 => %{http_code}" http://localhost: 2>/dev/null || echo "frontend unreachable"
+              echo ""
+              echo "=== All container status ==="
+              podman ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+              echo ""
+
               echo "Rolling back to previous image tag..."
 
               # Find previous tag from git log or use latest
