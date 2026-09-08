@@ -183,6 +183,7 @@ export default function Dashboard() {
       setEditing(undefined);
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["card-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["tag-summary"] });
       queryClient.invalidateQueries({ queryKey: ["expenses-month"] });
     },
   });

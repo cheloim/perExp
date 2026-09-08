@@ -294,7 +294,7 @@ export default function ExpensesPage() {
       account_id?: number | null;
     }) => bulkUpdateFields(ids, updateData),
     onSuccess: () => {
-      invalidate();
+      reloadExpenses();
       clearBulkState();
     },
     onError: (e: Error) => {
@@ -307,7 +307,7 @@ export default function ExpensesPage() {
     mutationFn: ({ ids, tag_id }: { ids: number[]; tag_id: number }) =>
       bulkUpdateTags({ ids, tag_ids: [tag_id], mode: "add" }),
     onSuccess: () => {
-      invalidate();
+      reloadExpenses();
       clearBulkState();
     },
     onError: (e: Error) => {
@@ -349,7 +349,7 @@ export default function ExpensesPage() {
   const createMut = useMutation({
     mutationFn: createExpense,
     onSuccess: () => {
-      invalidate();
+      reloadExpenses();
       setEditing(undefined);
       setSaveError(null);
     },
@@ -360,7 +360,7 @@ export default function ExpensesPage() {
     mutationFn: ({ id, data }: { id: number; data: Partial<ExpenseCreate> }) =>
       updateExpense(id, data),
     onSuccess: () => {
-      invalidate();
+      reloadExpenses();
       setEditing(undefined);
       setSaveError(null);
     },
@@ -369,7 +369,7 @@ export default function ExpensesPage() {
 
   const deleteMut = useMutation({
     mutationFn: deleteExpense,
-    onSuccess: invalidate,
+    onSuccess: reloadExpenses,
   });
 
   const { show: showUndo, ToastContainer } = useUndoToast();
