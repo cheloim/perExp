@@ -1101,7 +1101,10 @@ async def _handle_bank_notification(
                     ),
                     InlineKeyboardButton("💳 Tarjeta", callback_data="pay:tarjeta"),
                 ],
-                [InlineKeyboardButton("❌ Cancelar", callback_data="cancel")],
+                [
+                    InlineKeyboardButton("⏭️ Sin cuenta", callback_data="payment_none"),
+                    InlineKeyboardButton("❌ Cancelar", callback_data="cancel"),
+                ],
             ]
             desc = _escape_html(fallback_parsed.get("description", ""))
             amount_str = _format_amount(
@@ -1196,7 +1199,8 @@ async def _handle_bank_notification(
                                 callback_data="pay:efectivo_transferencia",
                             ),
                             InlineKeyboardButton("💳 Tarjeta", callback_data="pay:tarjeta"),
-                        ]
+                        ],
+                        [InlineKeyboardButton("⏭️ Sin cuenta", callback_data="payment_none")],
                     ]
                 ),
             )
@@ -1461,7 +1465,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             ),
             InlineKeyboardButton("💳 Tarjeta", callback_data="pay:tarjeta"),
         ],
-        [InlineKeyboardButton("❌ Cancelar", callback_data="cancel")],
+        [
+            InlineKeyboardButton("⏭️ Sin cuenta", callback_data="payment_none"),
+            InlineKeyboardButton("❌ Cancelar", callback_data="cancel"),
+        ],
     ]
     await update.message.reply_text(
         f"<b>{desc}</b> — {amount_str} ({date_str})\n\n¿Cómo pagaste?",
@@ -1543,6 +1550,42 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     keyboard.append([InlineKeyboardButton("❌ Cancelar", callback_data="cancel")])
     await query.edit_message_text("💳 ¿Qué banco?", reply_markup=InlineKeyboardMarkup(keyboard))
     return WAITING_CARD_BANK
+
+
+async def handle_payment_none(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+
+    if not await _validate_session(update, context):
+        return ConversationHandler.END
+
+    context.user_data["payment_method"] = "none"
+    context.user_data.pop("card_id", None)
+    context.user_data.pop("account_id", None)
+    context.user_data["payment_label"] = ""
+
+    db = SessionLocal()
+    try:
+        parsed = context.user_data.get("parsed")
+        predicted_category_id, cats = _instant_categorize(parsed, context.user_data["user_id"], db)
+        context.user_data["predicted_category_id"] = predicted_category_id
+        context.user_data["cat_debug"] = ""
+        cat_levels = _build_cat_levels(predicted_category_id, db)
+    finally:
+        db.close()
+
+    confirm_keyboard = [
+        [
+            InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
+            InlineKeyboardButton("❌ Cancelar", callback_data="confirm:no"),
+        ]
+    ]
+    await query.edit_message_text(
+        _confirm_text(context.user_data["parsed"], "", cat_levels),
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(confirm_keyboard),
+    )
+    return WAITING_CONFIRM
 
 
 async def handle_card_bank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -3345,7 +3388,10 @@ async def _run_bot(token: str) -> None:
         ],
         states={
             WAITING_AUTH: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_auth)],
-            WAITING_PAYMENT: [CallbackQueryHandler(handle_payment, pattern=r"^pay:")],
+            WAITING_PAYMENT: [
+                CallbackQueryHandler(handle_payment, pattern=r"^pay:"),
+                CallbackQueryHandler(handle_payment_none, pattern=r"^payment_none$"),
+            ],
             WAITING_ACCOUNT_SELECT: [
                 CallbackQueryHandler(handle_account_select, pattern=r"^account:")
             ],

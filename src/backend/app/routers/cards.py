@@ -253,7 +253,7 @@ def delete_card(
         raise HTTPException(status_code=404, detail="Card not found")
 
     # Check if card has expenses
-    from app.models import Expense
+    from app.models import Expense, Tag
 
     has_expenses = (
         db.query(Expense)
@@ -265,6 +265,10 @@ def delete_card(
     )
     if has_expenses:
         raise HTTPException(status_code=400, detail="Cannot delete card with associated expenses")
+
+    tag_refs = db.query(Tag).filter(Tag.card_id == card_id).count()
+    if tag_refs:
+        raise HTTPException(400, f"No se puede eliminar: {tag_refs} tags referencian esta tarjeta.")
 
     db.delete(db_card)
     db.commit()

@@ -26,6 +26,8 @@ import type {
   ScheduledExpense,
   ImportJob,
   CardsMapping,
+  Tag,
+  TagSummary,
 } from "../types";
 
 // Token storage: Using localStorage for persistence across sessions.
@@ -158,6 +160,24 @@ export const deleteCategory = (id: number) => api.delete(`/categories/${id}`).th
 
 export const suggestCategory = (data: { description: string; amount?: number }) =>
   api.post<CategorySuggestion | null>("/categories/suggest", data).then((r) => r.data);
+
+export const getTags = (): Promise<Tag[]> => api.get("/tags").then((r) => r.data);
+
+export const createTag = (payload: {
+  name: string;
+  color?: string;
+  card_id?: number;
+  account_id?: number;
+}): Promise<Tag> => api.post("/tags", payload).then((r) => r.data);
+
+export const deleteTag = (id: number): Promise<void> =>
+  api.delete(`/tags/${id}`).then((r) => r.data);
+
+export const bulkUpdateTags = (payload: {
+  ids: number[];
+  tag_ids: number[];
+  mode?: string;
+}): Promise<{ updated: number }> => api.post("/expenses/bulk-tags", payload).then((r) => r.data);
 
 // Suggestions (AI auto-categorization)
 export interface SuggestionItem {
@@ -359,6 +379,8 @@ export const getExpenses = (params?: {
   account?: string;
   date_from?: string;
   date_to?: string;
+  tag_id?: number;
+  untagged?: boolean;
   limit?: number;
   offset?: number;
 }) => api.get<Expense[]>("/expenses", { params }).then((r) => r.data);
@@ -635,6 +657,9 @@ export const cancelScheduledExpense = async (id: number) => {
 
 export const getCardSummary = () =>
   api.get<CardSummary[]>("/dashboard/card-summary").then((r) => r.data);
+
+export const getTagSummary = (): Promise<TagSummary[]> =>
+  api.get("/dashboard/tag-summary").then((r) => r.data);
 
 // Analysis history
 export const getAnalysisHistory = () =>

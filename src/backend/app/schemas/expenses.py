@@ -5,7 +5,7 @@ import pandas as pd
 from pydantic import BaseModel, computed_field, field_serializer, field_validator
 
 from app.schemas.categories import CategoryResponse
-from app.schemas.common import AccountSimple, CardSimple
+from app.schemas.common import AccountSimple, CardSimple, TagSimple
 from app.services.date_utils import _normalize_date_str
 
 BUE = __import__("zoneinfo", fromlist=["ZoneInfo"]).ZoneInfo("America/Argentina/Buenos_Aires")
@@ -24,6 +24,7 @@ class ExpenseCreate(BaseModel):
     installment_group_id: str | None = None
     account_id: int | None = None
     card_id: int | None = None
+    tag_ids: list[int] | None = None
     is_income: bool | None = None  # Set by backend based on category
 
     @field_validator("date", mode="before")
@@ -53,6 +54,7 @@ class ExpenseUpdate(BaseModel):
     installment_group_id: str | None = None
     account_id: int | None = None
     card_id: int | None = None
+    tag_ids: list[int] | None = None
     is_income: bool | None = None
 
 
@@ -75,6 +77,7 @@ class ExpenseResponse(BaseModel):
     is_income: bool = False
     account_rel: AccountSimple | None = None
     card_rel: CardSimple | None = None
+    tags: list[TagSimple] = []
     model_config = {"from_attributes": True}
 
     @field_validator("notes", "currency", mode="before")
@@ -96,17 +99,33 @@ class ExpenseResponse(BaseModel):
     def category_color(self) -> str | None:
         return self.category.color if self.category else None
 
+    def _tag_card_fallback(self) -> "CardSimple | None":
+        """Return the first tag's linked card, if any."""
+        for t in self.tags:
+            if hasattr(t, "card_rel") and t.card_rel:
+                return t.card_rel
+        return None
+
     @computed_field  # type: ignore[misc]
     @property
     def card(self) -> str:
-        return self.card_rel.card_name if self.card_rel else ""
+        if self.card_rel:
+            return self.card_rel.card_name
+        fallback = self._tag_card_fallback()
+        return fallback.card_name if fallback else ""
 
     @computed_field  # type: ignore[misc]
     @property
     def bank(self) -> str:
-        return self.card_rel.bank if self.card_rel else ""
+        if self.card_rel:
+            return self.card_rel.bank
+        fallback = self._tag_card_fallback()
+        return fallback.bank if fallback else ""
 
     @computed_field  # type: ignore[misc]
     @property
     def person(self) -> str:
-        return self.card_rel.holder if self.card_rel else ""
+        if self.card_rel:
+            return self.card_rel.holder
+        fallback = self._tag_card_fallback()
+        return fallback.holder if fallback else ""

@@ -5,7 +5,7 @@ import { Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis
 import { APP_NAME } from "../config";
 import {
   getDashboard,
-  getCardSummary,
+  getTagSummary,
   getExpenses,
   getScheduledSummary,
   getInvestments,
@@ -99,7 +99,7 @@ function getCategoryEmoji(name: string | null): string | null {
   return null;
 }
 
-function CardRow({
+export function CardRow({
   cardName,
   bank,
   total,
@@ -198,9 +198,9 @@ export default function Dashboard() {
     placeholderData: (prev) => prev,
   });
 
-  const { data: cardData = [] } = useQuery({
-    queryKey: ["card-summary"],
-    queryFn: getCardSummary,
+  const { data: tagData = [] } = useQuery({
+    queryKey: ["tag-summary"],
+    queryFn: getTagSummary,
     staleTime: 60_000,
   });
 
@@ -795,43 +795,93 @@ export default function Dashboard() {
 
       {/* Tarjetas + Programados — side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Credit cards */}
+        {/* Tag donut */}
         <div className="card p-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-primary">Métodos de Pago</h2>
+            <h2 className="text-sm font-semibold text-primary">Gastos por Tag</h2>
             <button
-              onClick={() => navigate("/accounts")}
+              onClick={() => navigate("/expenses")}
               className="text-xs text-secondary hover:text-primary transition-colors"
             >
               Ver detalle →
             </button>
           </div>
-          {cardData.length === 0 ? (
+          {tagData.length === 0 ? (
             <EmptyState
-              icon="💳"
-              title="Sin tarjetas ni cuentas"
-              description="Creá una tarjeta o cuenta para ver el resumen"
-              action={{
-                label: "Crear cuenta",
-                onClick: () => navigate("/accounts"),
-              }}
+              icon="🏷️"
+              title="Sin tags"
+              description="Asigná tags a tus gastos para ver el resumen"
             />
           ) : (
-            <div className="divide-y divide-border-color">
-              {cardData.map((card, i) => {
-                const monthEntry = card.monthly?.find((m) => m.month === month);
-                return (
-                  <CardRow
-                    key={i}
-                    cardName={card.card_name}
-                    bank={card.bank}
-                    total={monthEntry?.total ?? 0}
-                    cardType={card.card_type}
-                    holder={card.holder}
-                    linkedAccountName={card.linked_account_name}
+            <div className="flex flex-col items-center gap-4">
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={tagData.map((t) => ({
+                      name: t.tag_name,
+                      value: t.total_amount,
+                      color: t.tag_color,
+                      tag_id: t.tag_id,
+                    }))}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={80}
+                    paddingAngle={1}
+                    onClick={(entry) => {
+                      if (entry.tag_id != null) {
+                        navigate(`/expenses?tag_id=${entry.tag_id}`);
+                      } else {
+                        navigate("/expenses?untagged=1");
+                      }
+                    }}
+                    style={{ cursor: "pointer" }}
+                  >
+                    {tagData.map((t, i) => (
+                      <Cell key={i} fill={t.tag_color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "var(--chart-tooltip-bg)",
+                      borderColor: "var(--chart-tooltip-border)",
+                      color: "var(--chart-tooltip-text)",
+                      borderRadius: 10,
+                      fontSize: 12,
+                      padding: "8px 12px",
+                      boxShadow: "var(--shadow-md)",
+                    }}
+                    formatter={(v: number, name: string) => {
+                      const total = tagData.reduce((s, t) => s + t.total_amount, 0);
+                      const pct = total > 0 ? ((v / total) * 100).toFixed(1) : "0";
+                      return [`${formatCurrency(v)} (${pct}%)`, name];
+                    }}
                   />
-                );
-              })}
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {tagData.map((t, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      if (t.tag_id != null) {
+                        navigate(`/expenses?tag_id=${t.tag_id}`);
+                      } else {
+                        navigate("/expenses?untagged=1");
+                      }
+                    }}
+                    className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary transition-colors"
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: t.tag_color }}
+                    />
+                    {t.tag_name}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>

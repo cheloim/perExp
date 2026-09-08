@@ -543,13 +543,19 @@ def delete_my_account(
         CardClosing,
         Category,
         Expense,
+        ExpenseTag,
         ImportJob,
         Investment,
         MonthlyReport,
         Notification,
         ScheduledExpense,
+        Tag,
     )
 
+    db.query(ExpenseTag).filter(
+        ExpenseTag.tag_id.in_(db.query(Tag.id).filter(Tag.user_id == user_id))
+    ).delete(synchronize_session=False)
+    db.query(Tag).filter(Tag.user_id == user_id).delete(synchronize_session=False)
     db.query(Notification).filter(Notification.user_id == user_id).delete()
     db.query(Expense).filter(Expense.user_id == user_id).delete()
     db.query(Category).filter(Category.user_id == user_id).delete()

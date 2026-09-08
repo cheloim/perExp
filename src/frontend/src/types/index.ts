@@ -211,6 +211,15 @@ export interface Card {
   created_at: string;
 }
 
+export interface Tag {
+  id: number;
+  name: string;
+  color: string;
+  card_id?: number | null;
+  account_id?: number | null;
+  expense_count?: number;
+}
+
 export interface Expense {
   id: number;
   date: string;
@@ -234,6 +243,7 @@ export interface Expense {
   card_id?: number | null;
   account_rel?: Account | null;
   card_rel?: Card | null;
+  tags?: Tag[];
 }
 
 export interface ExpenseCreate {
@@ -249,6 +259,7 @@ export interface ExpenseCreate {
   installment_group_id?: string | null;
   account_id?: number | null;
   card_id?: number | null;
+  tag_ids?: number[];
 }
 
 export interface CategorySummary {
@@ -355,6 +366,17 @@ export interface CardSummary {
   currency: string;
   last_used: string | null;
   monthly?: { month: string; total: number }[];
+}
+
+export interface TagSummary {
+  tag_id: number | null;
+  tag_name: string;
+  tag_color: string;
+  total_amount: number;
+  count: number;
+  currency: string;
+  last_used: string | null;
+  monthly: { month: string; total: number }[];
 }
 
 export interface SmartImportRow {
@@ -486,6 +508,17 @@ export interface TopMerchant {
   count: number;
   category_name: string | null;
   category_color: string | null;
+}
+
+export interface TagSummary {
+  tag_id: number | null;
+  tag_name: string;
+  tag_color: string;
+  total_amount: number;
+  count: number;
+  currency: string;
+  last_used: string | null;
+  monthly: { month: string; total: number }[];
 }
 
 export interface AITrendsResponse {

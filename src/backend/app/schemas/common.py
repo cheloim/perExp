@@ -100,3 +100,10 @@ class CardSimple(BaseModel):
     holder: str = ""
     card_type: str
     model_config = {"from_attributes": True}
+
+
+class TagSimple(BaseModel):
+    id: int
+    name: str
+    color: str
+    model_config = {"from_attributes": True}

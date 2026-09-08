@@ -6,6 +6,8 @@ import {
   getCards,
   createCategory,
   suggestCategory,
+  getTags,
+  createTag,
 } from "../api/client";
 import type { Expense, ExpenseCreate, Card } from "../types";
 import { Select } from "./ui/Select";
@@ -25,7 +27,7 @@ export function todayDDMMYYYY() {
 function getLastUsedPayment(): {
   card_id: number | null;
   account_id: number | null;
-  payMethod: "card" | "cash";
+  payMethod: "card" | "cash" | "none";
 } {
   try {
     const data = JSON.parse(localStorage.getItem("expense_last_payment") || "{}");
@@ -53,6 +55,7 @@ export const EMPTY_FORM: ExpenseCreate = {
   installment_group_id: null,
   account_id: null,
   card_id: null,
+  tag_ids: [],
 };
 
 // DatePicker component with calendar
@@ -88,6 +91,10 @@ export function ExpenseModal({
     queryKey: ["accounts"],
     queryFn: getAccounts,
   });
+  const { data: tags = [] } = useQuery({
+    queryKey: ["tags"],
+    queryFn: getTags,
+  });
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -103,7 +110,7 @@ export function ExpenseModal({
   const lastPayment = getLastUsedPayment();
   const isInstallmentsOnly = mode === "installments-only";
 
-  const [payMethod, setPayMethod] = useState<"card" | "cash">(
+  const [payMethod, setPayMethod] = useState<"card" | "cash" | "none">(
     isInstallmentsOnly
       ? "card"
       : initial
@@ -129,6 +136,7 @@ export function ExpenseModal({
         installment_group_id: initial.installment_group_id ?? null,
         account_id: initial.account_id ?? null,
         card_id: initial.card_id ?? null,
+        tag_ids: initial.tags?.map((t) => t.id) ?? [],
       };
     }
     const last = getLastUsedPayment();
@@ -217,9 +225,9 @@ export function ExpenseModal({
   const set = (field: keyof ExpenseCreate, value: unknown) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
-  const switchPayMethod = (method: "card" | "cash") => {
+  const switchPayMethod = (method: "card" | "cash" | "none") => {
     setPayMethod(method);
-    if (method === "cash") {
+    if (method === "cash" || method === "none") {
       setForm((prev) => ({ ...prev, card_id: null, account_id: null }));
     } else {
       setForm((prev) => ({ ...prev, account_id: null }));
@@ -250,6 +258,38 @@ export function ExpenseModal({
     !!initial?.notes || !!(initial?.installment_total && initial.installment_total > 1),
   );
 
+  const [newTagName, setNewTagName] = useState("");
+
+  const selectedTags = tags.filter((t) => form.tag_ids?.includes(t.id));
+  const availableTags = tags.filter((t) => !form.tag_ids?.includes(t.id));
+  const filteredNewTag =
+    newTagName.trim() &&
+    !tags.some((t) => t.name.toLowerCase() === newTagName.trim().toLowerCase());
+
+  const toggleTag = (id: number) => {
+    setForm((prev) => ({
+      ...prev,
+      tag_ids: prev.tag_ids?.includes(id)
+        ? prev.tag_ids.filter((x) => x !== id)
+        : [...(prev.tag_ids ?? []), id],
+    }));
+  };
+
+  const handleCreateInlineTag = async () => {
+    if (!newTagName.trim()) return;
+    try {
+      const created = await createTag({ name: newTagName.trim(), color: "#6366f1" });
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
+      setForm((prev) => ({
+        ...prev,
+        tag_ids: [...(prev.tag_ids ?? []), created.id],
+      }));
+      setNewTagName("");
+    } catch {
+      // Duplicate or error
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-backdrop bg-black/60"
@@ -277,10 +317,10 @@ export function ExpenseModal({
         </div>
 
         {!initial && cards.length === 0 && accounts.length === 0 && (
-          <div className="flex items-start gap-2 bg-warning/10 border border-warning/30 rounded-lg px-3 py-2 text-xs text-warning">
-            <span className="mt-0.5">⚠</span>
+          <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
+            <span className="mt-0.5">ℹ</span>
             <div className="flex-1">
-              <p>No tenés tarjetas ni cuentas creadas. Creá una para registrar gastos.</p>
+              <p>No tenés tarjetas ni cuentas creadas. Podés registrar el gasto sin asignar una.</p>
               <button
                 onClick={() => setShowCardModal(true)}
                 className="mt-1 text-xs font-semibold underline hover:no-underline"
@@ -319,13 +359,24 @@ export function ExpenseModal({
               <button
                 type="button"
                 onClick={() => switchPayMethod("cash")}
-                className={`flex-1 px-3 py-1.5 text-sm font-medium transition ${
+                className={`flex-1 px-3 py-1.5 text-sm font-medium transition border-x border-[var(--border-color)] ${
                   payMethod === "cash"
                     ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
                     : "bg-[var(--color-base-container)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
                 }`}
               >
-                💵 Efectivo / Transferencia
+                💵 Efectivo
+              </button>
+              <button
+                type="button"
+                onClick={() => switchPayMethod("none")}
+                className={`flex-1 px-3 py-1.5 text-sm font-medium transition ${
+                  payMethod === "none"
+                    ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
+                    : "bg-[var(--color-base-container)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
+                }`}
+              >
+                ⏭️ Sin cuenta
               </button>
             </div>
           </div>
@@ -459,10 +510,74 @@ export function ExpenseModal({
           </div>
         </div>
 
+        {/* Tags */}
+        <div>
+          <label className="text-xs font-medium text-[var(--text-secondary)]">Tags</label>
+          {selectedTags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-1.5">
+              {selectedTags.map((tag) => (
+                <span
+                  key={tag.id}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-white"
+                  style={{ backgroundColor: tag.color }}
+                >
+                  {tag.name}
+                  <button
+                    type="button"
+                    onClick={() => toggleTag(tag.id)}
+                    className="ml-0.5 hover:opacity-70"
+                  >
+                    ✕
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-1.5">
+            <input
+              type="text"
+              value={newTagName}
+              onChange={(e) => setNewTagName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (filteredNewTag) handleCreateInlineTag();
+                }
+              }}
+              placeholder="Buscar o crear tag..."
+              className="flex-1 px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+            />
+          </div>
+          {(availableTags.length > 0 || filteredNewTag) && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {availableTags.map((tag) => (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => toggleTag(tag.id)}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
+                >
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                  {tag.name}
+                </button>
+              ))}
+              {filteredNewTag && (
+                <button
+                  type="button"
+                  onClick={handleCreateInlineTag}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border border-dashed border-[var(--color-primary)] text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 transition"
+                >
+                  + Crear "{newTagName.trim()}"
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Banco → Tarjeta */}
         <div
           className={`transition-opacity ${
-            payMethod === "cash" ? "opacity-40 pointer-events-none" : ""
+            payMethod !== "card" ? "opacity-40 pointer-events-none" : ""
           }`}
         >
           <div className="grid grid-cols-2 gap-2">
@@ -473,7 +588,7 @@ export function ExpenseModal({
                 onChange={(v) => handleBankChange(v)}
                 options={availableBanks.map((b) => ({ value: b, label: b }))}
                 placeholder="— Banco —"
-                disabled={payMethod === "cash"}
+                disabled={payMethod !== "card"}
               />
             </div>
             <div>
@@ -489,14 +604,14 @@ export function ExpenseModal({
                   label: c.card_name,
                 }))}
                 placeholder="— Tarjeta —"
-                disabled={payMethod === "cash"}
+                disabled={payMethod !== "card"}
               />
             </div>
           </div>
         </div>
 
         {/* Account selector for cash/transfer */}
-        <div className={`${payMethod === "card" ? "opacity-40 pointer-events-none" : ""}`}>
+        <div className={`${payMethod !== "cash" ? "opacity-40 pointer-events-none" : ""}`}>
           {payMethod === "cash" && accounts.filter((a) => a.type !== "credito").length === 0 && (
             <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700 mb-2">
               <span className="mt-0.5">⚠️</span>
@@ -525,7 +640,7 @@ export function ExpenseModal({
                   label: a.name,
                 }))}
               placeholder="Seleccionar cuenta"
-              disabled={payMethod === "card"}
+              disabled={payMethod !== "cash"}
             />
           </div>
         </div>
@@ -622,7 +737,7 @@ export function ExpenseModal({
                   }),
                 );
               }
-              onSave({ ...form, amount: Math.abs(form.amount) });
+              onSave({ ...form, amount: Math.abs(form.amount), tag_ids: form.tag_ids });
             }}
             disabled={!isValid || isSaving}
             className="flex-1 px-4 py-2 rounded-md bg-[var(--color-primary)] text-white text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"

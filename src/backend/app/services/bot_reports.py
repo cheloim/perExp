@@ -681,6 +681,26 @@ def build_weekly_report_data(user_id: int, start: date, end: date, db) -> dict:
         for rec in upcoming_recurring
     ]
 
+    # 9. Tag breakdown
+    tag_breakdown: dict[str, dict] = {}
+    for e in expenses:
+        if e.is_income:
+            continue
+        for t in e.tags or []:
+            if t.name not in tag_breakdown:
+                tag_breakdown[t.name] = {"name": t.name, "color": t.color, "total": 0.0, "count": 0}
+            tag_breakdown[t.name]["total"] += abs(e.amount)
+            tag_breakdown[t.name]["count"] += 1
+    untagged = sum(abs(e.amount) for e in expenses if not e.tags and not e.is_income)
+    if untagged > 0:
+        tag_breakdown["Sin tag"] = {
+            "name": "Sin tag",
+            "color": "#94a3b8",
+            "total": untagged,
+            "count": sum(1 for e in expenses if not e.tags and not e.is_income),
+        }
+    tag_list = sorted(tag_breakdown.values(), key=lambda x: x["total"], reverse=True)
+
     return {
         "week_start": start.strftime("%d/%m"),
         "week_end": end.strftime("%d/%m/%Y"),
@@ -698,6 +718,7 @@ def build_weekly_report_data(user_id: int, start: date, end: date, db) -> dict:
         "upcoming_combined_count": len(upcoming_expenses) + len(recurring_items),
         "upcoming_combined_total": sum(e.get("amount", 0) for e in upcoming_expenses)
         + sum(r.get("amount", 0) for r in recurring_items),
+        "tag_breakdown": tag_list,
     }
 
 

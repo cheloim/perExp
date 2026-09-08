@@ -1,15 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-import {
   getExpenses,
   getCardSummary,
   createExpense,
@@ -22,21 +13,6 @@ import CardAccountModal from "../components/CardAccountModal";
 import type { Expense, ExpenseCreate } from "../types";
 import { ExpenseModal } from "../components/ExpenseModals";
 import { formatCurrency, toUpperCase, getContrastTextColor, formatDateDMY } from "../utils/format";
-
-const MONTHS_ES = [
-  "Enero",
-  "Febrero",
-  "Marzo",
-  "Abril",
-  "Mayo",
-  "Junio",
-  "Julio",
-  "Agosto",
-  "Septiembre",
-  "Octubre",
-  "Noviembre",
-  "Diciembre",
-];
 
 export default function AccountsPage() {
   const now = new Date();
@@ -127,40 +103,6 @@ export default function AccountsPage() {
     onError: (e: { response?: { data?: { detail?: string } }; message?: string }) =>
       setSaveError(e?.response?.data?.detail || e.message || "Error al guardar"),
   });
-
-  const evolutionChartData = useMemo(() => {
-    const filtered = cardData
-      .filter((card) => !bankFilter || card.bank === bankFilter)
-      .filter((card) => {
-        if (!typeFilter) return true;
-        if (typeFilter === "cuentas") return card.card_type === "debito" && !card.bank;
-        return card.card_type === typeFilter;
-      });
-
-    const [selYear, selMonth] = month.split("-");
-    const selMonthNum = parseInt(selMonth);
-    const monthsRange: string[] = [];
-    for (let i = -5; i <= 0; i++) {
-      const d = new Date(parseInt(selYear), selMonthNum - 1 + i, 1);
-      monthsRange.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
-    }
-
-    const chartData = monthsRange.map((m) => {
-      const entry: Record<string, number | string> = { month: m };
-      let monthTotal = 0;
-      filtered.forEach((card) => {
-        const cardKey = card.holder ? `${card.holder}|${card.card_name}` : card.card_name;
-        const monthData = card.monthly?.find((x: { month: string }) => x.month === m);
-        const value = monthData?.total || 0;
-        entry[cardKey] = value;
-        monthTotal += value;
-      });
-      entry["total"] = monthTotal;
-      return entry;
-    });
-
-    return { filtered, chartData, monthsRange };
-  }, [cardData, bankFilter, month, typeFilter]);
 
   // Filtered data for Resumen (same filters as evolution chart)
   const filteredData = useMemo(() => {
@@ -561,118 +503,6 @@ export default function AccountsPage() {
         )}
 
         <div className="space-y-6">
-          {/* Evolución por Cuenta */}
-          <div className="card p-5">
-            <h2 className="text-base font-semibold text-primary mb-4">Evolución por Cuenta</h2>
-            {(() => {
-              const { filtered: filteredCards, chartData, monthsRange } = evolutionChartData;
-
-              const colors = [
-                "#6366f1",
-                "#10b981",
-                "#f59e0b",
-                "#ef4444",
-                "#8b5cf6",
-                "#06b6d4",
-                "#ec4899",
-                "#84cc16",
-              ];
-
-              return (
-                <div className="bg-base-alt rounded-lg p-4">
-                  <ResponsiveContainer width="100%" height={320}>
-                    <LineChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 40 }}>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke="var(--chart-grid)"
-                        vertical={false}
-                      />
-                      <XAxis
-                        dataKey="month"
-                        tick={{ fontSize: 10, fill: "var(--chart-text)" }}
-                        tickFormatter={(v) => {
-                          const [y, m] = v.split("-");
-                          return `${MONTHS_ES[parseInt(m) - 1].slice(0, 3)} ${y.slice(2)}`;
-                        }}
-                      />
-                      <YAxis
-                        tickFormatter={(v) =>
-                          new Intl.NumberFormat("es-AR", {
-                            notation: "compact",
-                          } as Intl.NumberFormatOptions).format(v)
-                        }
-                        tick={{ fontSize: 11, fill: "var(--chart-text)" }}
-                        width={50}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "var(--chart-tooltip-bg)",
-                          borderColor: "var(--chart-tooltip-border)",
-                          color: "var(--chart-tooltip-text)",
-                        }}
-                        itemStyle={{ color: "var(--chart-tooltip-text)" }}
-                        formatter={(v: number, name: string) => [formatCurrency(v), name]}
-                        labelFormatter={(label) => {
-                          const [y, m] = label.split("-");
-                          const currentData = chartData.find(
-                            (d: Record<string, number | string>) => d.month === label,
-                          );
-                          const currentTotal =
-                            typeof currentData?.total === "number" ? currentData.total : 0;
-                          const currentIdx = monthsRange.indexOf(label);
-                          const prevMonth = currentIdx > 0 ? chartData[currentIdx - 1] : null;
-                          let tooltip = `${MONTHS_ES[parseInt(m) - 1]} ${y}`;
-                          if (prevMonth && typeof prevMonth.total === "number") {
-                            const diff = currentTotal - prevMonth.total;
-                            const pct =
-                              prevMonth.total > 0
-                                ? ((diff / prevMonth.total) * 100).toFixed(2)
-                                : "0.00";
-                            const diffSign = diff >= 0 ? "+" : "";
-                            tooltip += `\nvs mes anterior: ${diffSign}${formatCurrency(
-                              diff,
-                            )} (${diffSign}${pct}%)`;
-                          }
-                          return tooltip;
-                        }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="total"
-                        name="Total"
-                        stroke="var(--chart-text)"
-                        strokeWidth={2}
-                        strokeDasharray="5 5"
-                        dot={{ r: 4, fill: "var(--chart-text)" }}
-                        opacity={0.4}
-                      />
-                      {filteredCards.map((card, idx) => {
-                        const cardKey = card.holder
-                          ? `${card.holder}|${card.card_name}`
-                          : card.card_name;
-                        const displayName = card.holder
-                          ? `${card.holder} — ${card.card_name}`
-                          : card.card_name;
-                        return (
-                          <Line
-                            key={cardKey}
-                            type="monotone"
-                            dataKey={cardKey}
-                            name={displayName}
-                            stroke={colors[idx % colors.length]}
-                            strokeWidth={2}
-                            dot={{ r: 3, fill: colors[idx % colors.length] }}
-                            connectNulls
-                          />
-                        );
-                      })}
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              );
-            })()}
-          </div>
-
           {/* Account Detail Summary */}
           {activeCard && stats && (
             <div className="card p-5 space-y-4">

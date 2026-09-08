@@ -193,6 +193,12 @@ def send_weekly_reports():
                 if llm and llm.get("tip"):
                     caption += f"\n\n💡 {llm['tip']}"
 
+                tag_breakdown = report_data.get("tag_breakdown", [])
+                if tag_breakdown:
+                    top_tags = tag_breakdown[:3]
+                    tag_lines = [f"  {t['name']}: ${t['total']:,.0f}" for t in top_tags]
+                    caption += "\n\n🏷️ <b>Por método de pago:</b>\n" + "\n".join(tag_lines)
+
                 # Truncate caption to Telegram's 1024-char limit
                 caption = caption[:1024]
 

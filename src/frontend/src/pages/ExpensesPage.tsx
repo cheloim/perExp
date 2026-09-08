@@ -6,6 +6,8 @@ import {
   getCategories,
   getCards,
   getAccounts,
+  getTags,
+  bulkUpdateTags,
   getExpenseStats,
   getExpensesByCategory,
   getExpensesByPerson,
@@ -52,12 +54,13 @@ type SortField = "date" | "description" | "category" | "bank" | "person" | "amou
 type SortDir = "asc" | "desc";
 
 function hasMissingData(exp: Expense): boolean {
-  return !exp.category_id;
+  return !exp.category_id || !exp.tags || exp.tags.length === 0;
 }
 
 function getMissingDataFields(exp: Expense): string[] {
   const missing: string[] = [];
   if (!exp.category_id) missing.push("categoría");
+  if (!exp.tags || exp.tags.length === 0) missing.push("tag");
   return missing;
 }
 
@@ -92,6 +95,8 @@ export default function ExpensesPage() {
   const filterAccount = filters.account;
   const filterDateFrom = filters.dateFrom;
   const filterDateTo = filters.dateTo;
+  const filterTagId = filters.tagId;
+  const filterUntagged = filters.untagged;
 
   // Category suggestions from API
   const { data: suggestionsData = [], refetch: refetchSuggestions } = useQuery({
@@ -136,12 +141,14 @@ export default function ExpensesPage() {
     filterAccount,
     filterDateFrom,
     filterDateTo,
+    filterTagId || undefined,
+    filterUntagged || undefined,
   ].filter(Boolean).length;
 
   const [visibleCount, setVisibleCount] = useState(100);
 
   // Reset visible count when filters change
-  const filterKey = `${filterCategory}-${filterUncategorized}-${filterBank}-${filterPerson}-${filterCard}-${filterCardType}-${filterInstallment}-${filterAccount}-${filterDateFrom}-${filterDateTo}`;
+  const filterKey = `${filterCategory}-${filterUncategorized}-${filterBank}-${filterPerson}-${filterCard}-${filterCardType}-${filterInstallment}-${filterAccount}-${filterDateFrom}-${filterDateTo}-${filterTagId}-${filterUntagged}`;
   const prevFilterKey = useRef(filterKey);
   if (filterKey !== prevFilterKey.current) {
     prevFilterKey.current = filterKey;
@@ -165,6 +172,8 @@ export default function ExpensesPage() {
       account: filterAccount,
       date_from: filterDateFrom,
       date_to: filterDateTo,
+      tag_id: filterTagId,
+      untagged: filterUntagged || undefined,
       limit: visibleCount,
     })
       .then((data) => {
@@ -182,6 +191,8 @@ export default function ExpensesPage() {
     filterAccount,
     filterDateFrom,
     filterDateTo,
+    filterTagId,
+    filterUntagged,
     visibleCount,
   ]);
 
@@ -208,6 +219,8 @@ export default function ExpensesPage() {
       account: filterAccount,
       date_from: filterDateFrom,
       date_to: filterDateTo,
+      tag_id: filterTagId,
+      untagged: filterUntagged || undefined,
       limit: visibleCount,
     })
       .then((data) => {
@@ -244,6 +257,11 @@ export default function ExpensesPage() {
   const { data: accounts = [] } = useQuery({
     queryKey: ["accounts"],
     queryFn: getAccounts,
+    staleTime: 300_000,
+  });
+  const { data: tags = [] } = useQuery({
+    queryKey: ["tags"],
+    queryFn: getTags,
     staleTime: 300_000,
   });
 
@@ -295,6 +313,7 @@ export default function ExpensesPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [bulkCategoryId, setBulkCategoryId] = useState<string>("");
   const [bulkPaymentMethod, setBulkPaymentMethod] = useState<string>("");
+  const [bulkTagId, setBulkTagId] = useState<string>("");
   const [deleteConfirm, setDeleteConfirm] = useState<{
     id: number;
     description: string;
@@ -306,6 +325,7 @@ export default function ExpensesPage() {
     setSelectedIds(new Set());
     setBulkCategoryId("");
     setBulkPaymentMethod("");
+    setBulkTagId("");
   };
 
   const toggleSelect = (id: number) => {
@@ -338,6 +358,19 @@ export default function ExpensesPage() {
     },
   });
 
+  const bulkTagMut = useMutation({
+    mutationFn: ({ ids, tag_id }: { ids: number[]; tag_id: number }) =>
+      bulkUpdateTags({ ids, tag_ids: [tag_id], mode: "add" }),
+    onSuccess: () => {
+      invalidate();
+      clearBulkState();
+    },
+    onError: (e: Error) => {
+      console.error("Bulk tag update failed:", e);
+      setSaveError("Error al actualizar tags");
+    },
+  });
+
   const handleBulkApply = () => {
     if (selectedIds.size === 0) return;
     const updateData: {
@@ -352,6 +385,10 @@ export default function ExpensesPage() {
       const [type, id] = bulkPaymentMethod.split(":");
       if (type === "card") updateData.card_id = parseInt(id);
       else if (type === "account") updateData.account_id = parseInt(id);
+    }
+    if (bulkTagId) {
+      bulkTagMut.mutate({ ids: Array.from(selectedIds), tag_id: parseInt(bulkTagId) });
+      return;
     }
     if (Object.keys(updateData).length === 0) return;
     bulkFieldMut.mutate({ ids: Array.from(selectedIds), ...updateData });
@@ -469,7 +506,6 @@ export default function ExpensesPage() {
   }, [expenses, sort.field, sort.dir]);
 
   const exportCSV = async () => {
-    // Fetch all matching records for export
     const allData = await getExpenses({
       category_id: filterCategory,
       uncategorized: filterUncategorized || undefined,
@@ -478,6 +514,8 @@ export default function ExpensesPage() {
       card: filterCard,
       date_from: filterDateFrom,
       date_to: filterDateTo,
+      tag_id: filterTagId,
+      untagged: filterUntagged || undefined,
       limit: 10000,
     });
     const headers = [
@@ -489,6 +527,7 @@ export default function ExpensesPage() {
       "Banco",
       "Tarjeta",
       "Persona",
+      "Tags",
     ];
     const rows = allData.map((e) => [
       e.date,
@@ -499,6 +538,7 @@ export default function ExpensesPage() {
       e.bank || "",
       e.card || "",
       e.person || "",
+      e.tags?.map((t) => t.name).join("; ") || "",
     ]);
     const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
     const blob = new Blob(["\uFEFF" + csv], {
@@ -637,7 +677,7 @@ export default function ExpensesPage() {
         </button>
         {filtersExpanded && (
           <div className="px-4 pb-4 space-y-3 border-t border-[var(--border-color)]">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 pt-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-3">
               {/* Categoría */}
               {(() => {
                 const groups = categoryGroupOptions(categories);
@@ -717,6 +757,42 @@ export default function ExpensesPage() {
                     }}
                     options={cuentaOptions}
                     placeholder="Cuenta"
+                  />
+                );
+              })()}
+
+              {/* Tag */}
+              {(() => {
+                const tagOptions: { value: string; label: string }[] = [
+                  { value: "__untagged__", label: "Sin tag" },
+                ];
+                tags.forEach((t) => {
+                  tagOptions.push({ value: String(t.id), label: t.name });
+                });
+                const currentTag = filterUntagged
+                  ? "__untagged__"
+                  : filterTagId
+                    ? String(filterTagId)
+                    : "";
+                return (
+                  <Select
+                    value={currentTag}
+                    onChange={(v) => {
+                      const next = new URLSearchParams(searchParams);
+                      if (v === "__untagged__") {
+                        next.set("untagged", "1");
+                        next.delete("tag_id");
+                      } else if (v) {
+                        next.set("tag_id", v);
+                        next.delete("untagged");
+                      } else {
+                        next.delete("tag_id");
+                        next.delete("untagged");
+                      }
+                      setSearchParams(next);
+                    }}
+                    options={tagOptions}
+                    placeholder="Tag"
                   />
                 );
               })()}
@@ -1163,6 +1239,22 @@ export default function ExpensesPage() {
                               {exp.bank && <span>{titleCase(exp.bank)}</span>}
                               {(exp.card || exp.bank) && exp.person && <span>·</span>}
                               {exp.person && <span>{titleCase(exp.person)}</span>}
+                              {exp.tags?.map((tag: { id: number; name: string; color: string }) => (
+                                <span
+                                  key={tag.id}
+                                  className="badge"
+                                  style={{
+                                    backgroundColor: tag.color,
+                                    color: getContrastTextColor(tag.color),
+                                    fontSize: "0.65rem",
+                                    padding: "1px 6px",
+                                    borderRadius: "9999px",
+                                    marginLeft: "4px",
+                                  }}
+                                >
+                                  {tag.name}
+                                </span>
+                              ))}
                             </div>
                           </td>
                           <td className="px-4 py-3">
@@ -1363,12 +1455,29 @@ export default function ExpensesPage() {
                   />
                 </div>
               )}
+              {tags.length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                    Asignar tag
+                  </label>
+                  <Select
+                    value={bulkTagId}
+                    onChange={setBulkTagId}
+                    options={tags.map((t) => ({ value: String(t.id), label: t.name }))}
+                    placeholder="Seleccionar..."
+                  />
+                </div>
+              )}
             </div>
 
             <div className="p-4 border-t border-[var(--border-color)] flex gap-2">
               <button
                 onClick={handleBulkApply}
-                disabled={bulkFieldMut.isPending || bulkCategoryId === ""}
+                disabled={
+                  bulkFieldMut.isPending ||
+                  bulkTagMut.isPending ||
+                  (bulkCategoryId === "" && !bulkPaymentMethod && !bulkTagId)
+                }
                 className="flex-1 px-4 py-2 rounded-md bg-[var(--color-primary)] text-[var(--color-on-primary)] text-sm font-medium hover:brightness-110 disabled:opacity-50 transition"
               >
                 {bulkFieldMut.isPending ? "Aplicando…" : "Aplicar cambios"}

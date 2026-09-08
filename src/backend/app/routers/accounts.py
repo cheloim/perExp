@@ -176,13 +176,17 @@ def delete_account(
         raise HTTPException(status_code=404, detail="Account not found")
 
     # Check if account has expenses
-    from app.models import Expense
+    from app.models import Expense, Tag
 
     has_expenses = db.query(Expense).filter(Expense.account_id == account_id).first()
     if has_expenses:
         raise HTTPException(
             status_code=400, detail="Cannot delete account with associated expenses"
         )
+
+    tag_refs = db.query(Tag).filter(Tag.account_id == account_id).count()
+    if tag_refs:
+        raise HTTPException(400, f"No se puede eliminar: {tag_refs} tags referencian esta cuenta.")
 
     db.delete(db_account)
     db.commit()

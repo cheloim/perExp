@@ -43,6 +43,7 @@ from app.routers import (
     recurring,
     scheduled_expenses,
     suggestions,
+    tags,
     whatsapp_webhook,
 )
 from app.scheduler import price_refresh_loop
@@ -214,5 +215,6 @@ app.include_router(scheduled_expenses.router)
 app.include_router(budgets.router)
 app.include_router(suggestions.router)
 app.include_router(recurring.router)
+app.include_router(tags.router)
 app.include_router(admin.router)
 app.include_router(whatsapp_webhook.router)

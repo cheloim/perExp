@@ -264,6 +264,38 @@ class Expense(Base):
     account_rel = relationship("Account")
     card_rel = relationship("Card")
     recurring_expense = relationship("RecurringExpense")
+    tags = relationship("Tag", secondary="expense_tags", back_populates="expenses", lazy="selectin")
+
+
+class Tag(Base):
+    __tablename__ = "tags"
+    __table_args__ = (
+        Index("ix_tags_user_id", "user_id"),
+        Index("ix_tags_card_id", "card_id"),
+        Index("ix_tags_account_id", "account_id"),
+        UniqueConstraint("name_hmac", "user_id", name="uq_tag_name_user"),
+    )
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(EncryptedType, nullable=False)
+    name_hmac = Column(String(64), nullable=False, index=True)
+    color = Column(String(7), default="#6366f1")
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    card_id = Column(Integer, ForeignKey("cards.id", ondelete="SET NULL"), nullable=True)
+    account_id = Column(Integer, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    expenses = relationship(
+        "Expense", secondary="expense_tags", back_populates="tags", lazy="selectin"
+    )
+    card_rel = relationship("Card")
+    account_rel = relationship("Account")
+
+
+class ExpenseTag(Base):
+    __tablename__ = "expense_tags"
+    __table_args__ = (Index("ix_expense_tags_tag_id", "tag_id"),)
+    expense_id = Column(Integer, ForeignKey("expenses.id", ondelete="CASCADE"), primary_key=True)
+    tag_id = Column(Integer, ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True)
 
 
 class CategorySuggestion(Base):
@@ -398,6 +430,7 @@ class ScheduledExpense(Base):
     executed_expense_id = Column(
         Integer, ForeignKey("expenses.id", ondelete="SET NULL"), nullable=True
     )
+    expense_id = Column(Integer, ForeignKey("expenses.id", ondelete="SET NULL"), nullable=True)
     executed_at = Column(DateTime, nullable=True)
 
     # Auditoría
@@ -408,6 +441,7 @@ class ScheduledExpense(Base):
     # Relationships
     category = relationship("Category")
     executed_expense = relationship("Expense", foreign_keys=[executed_expense_id])
+    template_expense = relationship("Expense", foreign_keys=[expense_id])
     card_rel = relationship("Card")
     account_rel = relationship("Account")
 
@@ -453,6 +487,7 @@ class RecurringExpense(Base):
     category_id = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
     card_id = Column(Integer, ForeignKey("cards.id", ondelete="SET NULL"), nullable=True)
     account_id = Column(Integer, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True)
+    tag_id = Column(Integer, ForeignKey("tags.id", ondelete="SET NULL"), nullable=True)
     frequency = Column(String, default="monthly")
     next_charge_date = Column(Date, nullable=True)
     alert_days_before = Column(Integer, default=3)
@@ -466,6 +501,7 @@ class RecurringExpense(Base):
     category = relationship("Category")
     card = relationship("Card")
     account = relationship("Account")
+    tag = relationship("Tag")
 
 
 class ImpersonationSession(Base):

@@ -6,7 +6,7 @@ from datetime import date, datetime
 
 from app.celery_app import celery_app
 from app.database import SessionLocal
-from app.models import Expense, ScheduledExpense
+from app.models import Expense, ExpenseTag, ScheduledExpense
 from app.services.task_tracker import record_task_run
 
 logger = logging.getLogger(__name__)
@@ -58,6 +58,13 @@ def execute_due_installments():
             from app.services.recurring_linker import link_to_recurring
 
             link_to_recurring(expense.id, scheduled.description, scheduled.user_id, db)
+
+            if scheduled.expense_id:
+                template_tags = (
+                    db.query(ExpenseTag).filter(ExpenseTag.expense_id == scheduled.expense_id).all()
+                )
+                for et in template_tags:
+                    db.add(ExpenseTag(expense_id=expense.id, tag_id=et.tag_id))
 
             scheduled.status = "EXECUTED"
             scheduled.executed_expense_id = expense.id

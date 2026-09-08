@@ -450,6 +450,31 @@ async def confirm_import_job(
 
                 link_to_recurring(expense.id, expense.description, user.id, db)
 
+                if expense.card_id:
+                    from app.models import ExpenseTag, Tag
+                    from app.services.encryption import compute_hmac
+
+                    card = db.query(Card).filter(Card.id == expense.card_id).first()
+                    if card:
+                        tag_name = f"Tarjeta {card.bank or ''} {card.card_name}".strip()
+                        name_hmac = compute_hmac(tag_name.strip().lower())
+                        existing_tag = (
+                            db.query(Tag)
+                            .filter(Tag.user_id == user.id, Tag.name_hmac == name_hmac)
+                            .first()
+                        )
+                        if not existing_tag:
+                            existing_tag = Tag(
+                                name=tag_name,
+                                name_hmac=name_hmac,
+                                color="#6366f1",
+                                user_id=user.id,
+                                card_id=card.id,
+                            )
+                            db.add(existing_tag)
+                            db.flush()
+                        db.add(ExpenseTag(expense_id=expense.id, tag_id=existing_tag.id))
+
                 imported_count += 1
             except Exception as e:
                 raise HTTPException(

@@ -70,6 +70,23 @@ export default function ExpenseDetailModal({ expense, onClose, onEdit }: Props) 
           )}
         </dl>
 
+        {expense.tags && expense.tags.length > 0 && (
+          <div>
+            <span className="text-xs text-[var(--text-tertiary)] uppercase">Tags</span>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {expense.tags.map((tag) => (
+                <span
+                  key={tag.id}
+                  className="text-xs px-2 py-0.5 rounded-full text-white"
+                  style={{ backgroundColor: tag.color }}
+                >
+                  {tag.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Notas */}
         <div className="flex items-center justify-between px-1 py-2 border-t border-[var(--border-color)]">
           <span className="text-xs text-[var(--text-tertiary)] uppercase">Notas</span>

@@ -11,6 +11,8 @@ export interface ExpenseFilters {
   account: string | undefined;
   dateFrom: string | undefined;
   dateTo: string | undefined;
+  tagId: number | undefined;
+  untagged: boolean;
 }
 
 export function useExpenseFilters() {
@@ -29,6 +31,8 @@ export function useExpenseFilters() {
     account: searchParams.get("account") || undefined,
     dateFrom: searchParams.get("date_from") || undefined,
     dateTo: searchParams.get("date_to") || undefined,
+    tagId: searchParams.get("tag_id") ? parseInt(searchParams.get("tag_id")!) : undefined,
+    untagged: searchParams.get("untagged") === "1",
   };
 
   const setFilter = (key: string, value: string | undefined) => {
