@@ -86,10 +86,14 @@ def create_tag(
             },
         )
 
+    from app.services.tag_sync import pick_tag_color
+
+    color = tag.color if tag.color != "#6366f1" else pick_tag_color(db, current_user.id)
+
     db_tag = Tag(
         name=tag.name,
         name_hmac=name_hmac,
-        color=tag.color,
+        color=color,
         group_name=group,
         card_id=tag.card_id,
         account_id=tag.account_id,

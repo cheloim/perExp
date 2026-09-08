@@ -458,10 +458,13 @@ async def confirm_import_job(
                             .first()
                         )
                         if not existing_tag:
+                            from app.services.tag_sync import pick_tag_color
+
+                            color = pick_tag_color(db, user.id)
                             existing_tag = Tag(
                                 name=tag_name,
                                 name_hmac=name_hmac,
-                                color="#6366f1",
+                                color=color,
                                 user_id=user.id,
                                 card_id=card.id,
                             )

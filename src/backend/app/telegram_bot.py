@@ -175,10 +175,13 @@ def _find_or_create_tag(db, user_id: int, tag_name: str, card_id=None, account_i
     existing = db.query(Tag).filter(Tag.user_id == user_id, Tag.name_hmac == name_hmac).first()
     if existing:
         return existing
+    from app.services.tag_sync import pick_tag_color
+
+    color = pick_tag_color(db, user_id)
     tag = Tag(
         name=tag_name,
         name_hmac=name_hmac,
-        color="#6366f1",
+        color=color,
         user_id=user_id,
         card_id=card_id,
         account_id=account_id,

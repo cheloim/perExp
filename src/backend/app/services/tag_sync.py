@@ -14,6 +14,47 @@ from sqlalchemy.orm import Session
 from app.models import Category, Expense, ExpenseTag, Tag
 from app.services.encryption import compute_hmac
 
+TAG_PALETTE = [
+    "#3584e4",  # blue
+    "#33d17a",  # green
+    "#f5c211",  # yellow
+    "#ff7800",  # orange
+    "#e01b24",  # red
+    "#9141ac",  # purple
+    "#2190a4",  # teal
+    "#986a44",  # brown
+    "#f66151",  # magenta
+    "#8ff0a4",  # light green
+    "#62a0ea",  # light blue
+    "#c061cb",  # pink
+]
+
+
+def pick_tag_color(db: Session, user_id: int) -> str:
+    """Pick the least-used color from the palette for a user's tags.
+
+    Returns the color with the fewest existing tags. Ties broken by palette order.
+    If user has no tags, returns the first palette color.
+    """
+    rows = (
+        db.query(Tag.color, func.count(Tag.id))
+        .filter(Tag.user_id == user_id, Tag.color.in_(TAG_PALETTE))
+        .group_by(Tag.color)
+        .all()
+    )
+    used = {color: count for color, count in rows}
+
+    best_color = TAG_PALETTE[0]
+    best_count = float("inf")
+    for color in TAG_PALETTE:
+        count = used.get(color, 0)
+        if count < best_count:
+            best_color = color
+            best_count = count
+
+    return best_color
+
+
 VALID_GROUPS = {"categoria", "tarjeta", "cuenta", "otros"}
 SYSTEM_GROUPS = {"categoria", "tarjeta", "cuenta"}
 SINGLE_SELECT_GROUPS = {"tarjeta", "cuenta"}

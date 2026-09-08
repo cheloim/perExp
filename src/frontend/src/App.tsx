@@ -61,13 +61,6 @@ const TABS = [
     tour: "sidebar-home",
   },
   {
-    path: "/clasificacion",
-    label: "Clasificación",
-    icon: "tags",
-    exact: false,
-    tour: "sidebar-clasificacion",
-  },
-  {
     path: "/expenses",
     label: "Gastos",
     icon: "expenses",
@@ -101,10 +94,11 @@ const TABS = [
     exact: false,
   },
   {
-    path: "/categories",
-    label: "Config. Categorías",
-    icon: "settings",
+    path: "/clasificacion",
+    label: "Clasificación",
+    icon: "tags",
     exact: false,
+    tour: "sidebar-clasificacion",
   },
 ];
 
