@@ -522,12 +522,16 @@ def update_expense(
         else:
             data["date"] = pd.to_datetime(normalized, dayfirst=True).date()
 
-    try:
-        db_exp = update_expense_checked(db, current_user.id, db_exp, data, skip_48h_check=True)
-    except ExpenseEditError as e:
-        raise HTTPException(400, str(e))
+    # Apply column changes if any (skip for tag-only updates)
+    if data:
+        try:
+            db_exp = update_expense_checked(
+                db, current_user.id, db_exp, data, skip_48h_check=True
+            )
+        except ExpenseEditError as e:
+            raise HTTPException(400, str(e))
 
-    # Update tags if provided (replace all)
+    # Update tags if provided (replace all) — always allowed, even on installments
     if tag_ids is not None:
         db.query(ExpenseTag).filter(ExpenseTag.expense_id == db_exp.id).delete()
         if tag_ids:
