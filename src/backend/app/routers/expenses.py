@@ -144,8 +144,20 @@ def get_expenses(
             matching_ids = [c.id for c in all_cards if bank.lower() in (c.bank or "").lower()]
             q = q.filter(Expense.card_id.in_(matching_ids))
         if person:
-            matching_ids = [c.id for c in all_cards if person.lower() in (c.holder or "").lower()]
-            q = q.filter(Expense.card_id.in_(matching_ids))
+            matching_card_ids = [
+                c.id for c in all_cards if person.lower() in (c.holder or "").lower()
+            ]
+            if matching_card_ids:
+                tag_expense_ids = (
+                    db.query(ExpenseTag.expense_id)
+                    .join(Tag, Tag.id == ExpenseTag.tag_id)
+                    .filter(Tag.card_id.in_(matching_card_ids))
+                )
+                q = q.filter(
+                    (Expense.card_id.in_(matching_card_ids)) | (Expense.id.in_(tag_expense_ids))
+                )
+            else:
+                q = q.filter(Expense.id == -1)
         if card:
             matching_ids = [c.id for c in all_cards if card.lower() in (c.card_name or "").lower()]
             q = q.filter(Expense.card_id.in_(matching_ids))

@@ -173,6 +173,9 @@ export const createTag = (payload: {
 export const deleteTag = (id: number): Promise<void> =>
   api.delete(`/tags/${id}`).then((r) => r.data);
 
+export const updateTag = (id: number, payload: { name?: string; color?: string }): Promise<Tag> =>
+  api.put(`/tags/${id}`, payload).then((r) => r.data);
+
 export const bulkUpdateTags = (payload: {
   ids: number[];
   tag_ids: number[];

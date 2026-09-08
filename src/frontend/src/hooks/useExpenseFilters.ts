@@ -3,12 +3,7 @@ import { useSearchParams } from "react-router-dom";
 export interface ExpenseFilters {
   categoryId: number | undefined;
   uncategorized: boolean;
-  bank: string | undefined;
   person: string | undefined;
-  card: string | undefined;
-  cardType: string | undefined;
-  installment: boolean;
-  account: string | undefined;
   dateFrom: string | undefined;
   dateTo: string | undefined;
   tagId: number | undefined;
@@ -23,12 +18,7 @@ export function useExpenseFilters() {
       ? parseInt(searchParams.get("category_id")!)
       : undefined,
     uncategorized: searchParams.get("uncategorized") === "1",
-    bank: searchParams.get("bank") || undefined,
     person: searchParams.get("person") || undefined,
-    card: searchParams.get("card") || undefined,
-    cardType: searchParams.get("card_type") || undefined,
-    installment: searchParams.get("installment") === "1",
-    account: searchParams.get("account") || undefined,
     dateFrom: searchParams.get("date_from") || undefined,
     dateTo: searchParams.get("date_to") || undefined,
     tagId: searchParams.get("tag_id") ? parseInt(searchParams.get("tag_id")!) : undefined,

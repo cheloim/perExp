@@ -24,7 +24,7 @@ import QuickViewLayout from "./layouts/QuickViewLayout";
 import type { ExpenseCreate } from "./types";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-const AccountsPage = lazy(() => import("./pages/AccountsPage"));
+const TagsPage = lazy(() => import("./pages/TagsPage"));
 const ExpensesPage = lazy(() => import("./pages/ExpensesPage"));
 const ImportJobPreview = lazy(() => import("./pages/ImportJobPreview"));
 const CategoriesPage = lazy(() => import("./pages/CategoriesPage"));
@@ -62,11 +62,11 @@ const TABS = [
     tour: "sidebar-home",
   },
   {
-    path: "/accounts",
-    label: "Cuentas",
-    icon: "accounts",
+    path: "/tags",
+    label: "Tags",
+    icon: "tags",
     exact: false,
-    tour: "sidebar-accounts",
+    tour: "sidebar-tags",
   },
   {
     path: "/expenses",
@@ -709,10 +709,10 @@ function MainLayout() {
                         }
                       />
                       <Route
-                        path="/accounts"
+                        path="/tags"
                         element={
                           <RequireAuth>
-                            <AccountsPage />
+                            <TagsPage />
                           </RequireAuth>
                         }
                       />

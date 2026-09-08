@@ -26,9 +26,6 @@ import {
 import { useNavigate } from "react-router-dom";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { useTheme } from "../context/ThemeContext";
-import AccountsManager from "./AccountsManager";
-import CardsManager from "./CardsManager";
-import CardAccountModal from "./CardAccountModal";
 
 const MONTHS_ES = [
   "Enero",
@@ -252,7 +249,7 @@ export default function UserPanel({ open, onClose }: Props) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { theme, toggleTheme } = useTheme();
-  const [activeTab, setActiveTab] = useState<"config" | "accounts" | "reports">("config");
+  const [activeTab, setActiveTab] = useState<"config" | "reports">("config");
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -267,7 +264,6 @@ export default function UserPanel({ open, onClose }: Props) {
   const [showRegenInviteConfirm, setShowRegenInviteConfirm] = useState(false);
   const [showRegenTelegramConfirm, setShowRegenTelegramConfirm] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [showCardAccountModal, setShowCardAccountModal] = useState(false);
 
   // MFA state
   const [mfaQrCode, setMfaQrCode] = useState<string | null>(null);
@@ -561,16 +557,6 @@ export default function UserPanel({ open, onClose }: Props) {
               }`}
             >
               Config
-            </button>
-            <button
-              onClick={() => setActiveTab("accounts")}
-              className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
-                activeTab === "accounts"
-                  ? "bg-[var(--color-surface)] shadow-sm text-[var(--text-primary)]"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              }`}
-            >
-              Cuentas
             </button>
             <button
               onClick={() => setActiveTab("reports")}
@@ -1357,21 +1343,6 @@ export default function UserPanel({ open, onClose }: Props) {
             </div>
           )}
 
-          {activeTab === "accounts" && (
-            <div className="space-y-0">
-              <AccountsManager />
-              <CardsManager />
-              <div className="px-4 py-2">
-                <button
-                  onClick={() => setShowCardAccountModal(true)}
-                  className="w-full py-2.5 border-2 border-dashed border-border-color rounded-lg text-sm text-secondary hover:border-primary hover:text-primary transition-colors"
-                >
-                  + Crear tarjeta o cuenta
-                </button>
-              </div>
-            </div>
-          )}
-
           {activeTab === "reports" && <ReportsTab />}
         </div>
 
@@ -1468,8 +1439,6 @@ export default function UserPanel({ open, onClose }: Props) {
         }}
         onCancel={() => setShowDeleteConfirm(false)}
       />
-
-      {showCardAccountModal && <CardAccountModal onClose={() => setShowCardAccountModal(false)} />}
     </>
   );
 }

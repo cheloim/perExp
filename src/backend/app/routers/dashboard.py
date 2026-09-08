@@ -93,10 +93,20 @@ def _apply_filters(
     if (person_val or bank_val) and uid_list and db:
         all_cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
         if person_val:
-            matching_ids = [
+            matching_card_ids = [
                 c.id for c in all_cards if person_val.lower() in (c.holder or "").lower()
             ]
-            q = q.filter(Expense.card_id.in_(matching_ids))
+            if matching_card_ids:
+                tag_expense_ids = (
+                    db.query(ExpenseTag.expense_id)
+                    .join(Tag, Tag.id == ExpenseTag.tag_id)
+                    .filter(Tag.card_id.in_(matching_card_ids))
+                )
+                q = q.filter(
+                    (Expense.card_id.in_(matching_card_ids)) | (Expense.id.in_(tag_expense_ids))
+                )
+            else:
+                q = q.filter(Expense.id == -1)
         if bank_val:
             matching_ids = [c.id for c in all_cards if bank_val.lower() in (c.bank or "").lower()]
             q = q.filter(Expense.card_id.in_(matching_ids))

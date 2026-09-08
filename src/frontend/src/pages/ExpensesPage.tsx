@@ -4,8 +4,6 @@ import { useUndoToast } from "../hooks/useUndoToast";
 import {
   getExpenses,
   getCategories,
-  getCards,
-  getAccounts,
   getTags,
   bulkUpdateTags,
   getExpenseStats,
@@ -87,12 +85,7 @@ export default function ExpensesPage() {
 
   const filterCategory = filters.categoryId;
   const filterUncategorized = filters.uncategorized;
-  const filterBank = filters.bank;
   const filterPerson = filters.person;
-  const filterCard = filters.card;
-  const filterCardType = filters.cardType;
-  const filterInstallment = filters.installment;
-  const filterAccount = filters.account;
   const filterDateFrom = filters.dateFrom;
   const filterDateTo = filters.dateTo;
   const filterTagId = filters.tagId;
@@ -133,12 +126,7 @@ export default function ExpensesPage() {
   const activeFiltersCount = [
     filterCategory,
     filterUncategorized || undefined,
-    filterBank,
     filterPerson,
-    filterCard,
-    filterCardType,
-    filterInstallment || undefined,
-    filterAccount,
     filterDateFrom,
     filterDateTo,
     filterTagId || undefined,
@@ -148,7 +136,7 @@ export default function ExpensesPage() {
   const [visibleCount, setVisibleCount] = useState(100);
 
   // Reset visible count when filters change
-  const filterKey = `${filterCategory}-${filterUncategorized}-${filterBank}-${filterPerson}-${filterCard}-${filterCardType}-${filterInstallment}-${filterAccount}-${filterDateFrom}-${filterDateTo}-${filterTagId}-${filterUntagged}`;
+  const filterKey = `${filterCategory}-${filterUncategorized}-${filterPerson}-${filterDateFrom}-${filterDateTo}-${filterTagId}-${filterUntagged}`;
   const prevFilterKey = useRef(filterKey);
   if (filterKey !== prevFilterKey.current) {
     prevFilterKey.current = filterKey;
@@ -164,12 +152,7 @@ export default function ExpensesPage() {
     getExpenses({
       category_id: filterCategory,
       uncategorized: filterUncategorized || undefined,
-      bank: filterBank,
       person: filterPerson,
-      card: filterCard,
-      card_type: filterCardType,
-      installment: filterInstallment || undefined,
-      account: filterAccount,
       date_from: filterDateFrom,
       date_to: filterDateTo,
       tag_id: filterTagId,
@@ -183,12 +166,7 @@ export default function ExpensesPage() {
   }, [
     filterCategory,
     filterUncategorized,
-    filterBank,
     filterPerson,
-    filterCard,
-    filterCardType,
-    filterInstallment,
-    filterAccount,
     filterDateFrom,
     filterDateTo,
     filterTagId,
@@ -211,12 +189,7 @@ export default function ExpensesPage() {
     getExpenses({
       category_id: filterCategory,
       uncategorized: filterUncategorized || undefined,
-      bank: filterBank,
       person: filterPerson,
-      card: filterCard,
-      card_type: filterCardType,
-      installment: filterInstallment || undefined,
-      account: filterAccount,
       date_from: filterDateFrom,
       date_to: filterDateTo,
       tag_id: filterTagId,
@@ -248,43 +221,17 @@ export default function ExpensesPage() {
     queryFn: getCategories,
   });
 
-  // Prefetch cards and accounts so modal opens instantly
-  const { data: cards = [] } = useQuery({
-    queryKey: ["cards"],
-    queryFn: getCards,
-    staleTime: 300_000,
-  });
-  const { data: accounts = [] } = useQuery({
-    queryKey: ["accounts"],
-    queryFn: getAccounts,
-    staleTime: 300_000,
-  });
   const { data: tags = [] } = useQuery({
     queryKey: ["tags"],
     queryFn: getTags,
     staleTime: 300_000,
   });
 
-  // Combined card/account list for bulk selection
-  const cardAccountOptions = useMemo(() => {
-    const opts: { value: string; label: string }[] = [];
-    cards.forEach((c) => {
-      opts.push({ value: `card:${c.id}`, label: `${c.bank} - ${c.card_name}` });
-    });
-    accounts.forEach((a) => {
-      opts.push({ value: `account:${a.id}`, label: a.name });
-    });
-    return opts;
-  }, [cards, accounts]);
-
-  // Analytics queries
   const { data: expenseStats } = useQuery({
-    queryKey: ["expense-stats", month, filterCategory, filterCard, filterAccount],
+    queryKey: ["expense-stats", month],
     queryFn: () =>
       getExpenseStats({
         month: month || undefined,
-        card: filterCard || undefined,
-        account: filterAccount || undefined,
       }),
   });
 
@@ -312,7 +259,6 @@ export default function ExpensesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [bulkCategoryId, setBulkCategoryId] = useState<string>("");
-  const [bulkPaymentMethod, setBulkPaymentMethod] = useState<string>("");
   const [bulkTagId, setBulkTagId] = useState<string>("");
   const [deleteConfirm, setDeleteConfirm] = useState<{
     id: number;
@@ -324,7 +270,6 @@ export default function ExpensesPage() {
     setDrawerOpen(false);
     setSelectedIds(new Set());
     setBulkCategoryId("");
-    setBulkPaymentMethod("");
     setBulkTagId("");
   };
 
@@ -375,16 +320,9 @@ export default function ExpensesPage() {
     if (selectedIds.size === 0) return;
     const updateData: {
       category_id?: number | null;
-      card_id?: number | null;
-      account_id?: number | null;
     } = {};
     if (bulkCategoryId !== "") {
       updateData.category_id = bulkCategoryId === "__none__" ? null : parseInt(bulkCategoryId);
-    }
-    if (bulkPaymentMethod) {
-      const [type, id] = bulkPaymentMethod.split(":");
-      if (type === "card") updateData.card_id = parseInt(id);
-      else if (type === "account") updateData.account_id = parseInt(id);
     }
     if (bulkTagId) {
       bulkTagMut.mutate({ ids: Array.from(selectedIds), tag_id: parseInt(bulkTagId) });
@@ -509,34 +447,20 @@ export default function ExpensesPage() {
     const allData = await getExpenses({
       category_id: filterCategory,
       uncategorized: filterUncategorized || undefined,
-      bank: filterBank,
       person: filterPerson,
-      card: filterCard,
       date_from: filterDateFrom,
       date_to: filterDateTo,
       tag_id: filterTagId,
       untagged: filterUntagged || undefined,
       limit: 10000,
     });
-    const headers = [
-      "Fecha",
-      "Descripción",
-      "Monto",
-      "Moneda",
-      "Categoría",
-      "Banco",
-      "Tarjeta",
-      "Persona",
-      "Tags",
-    ];
+    const headers = ["Fecha", "Descripción", "Monto", "Moneda", "Categoría", "Persona", "Tags"];
     const rows = allData.map((e) => [
       e.date,
       `"${e.description.replace(/"/g, '""')}"`,
       e.amount,
       e.currency || "ARS",
       e.category_name || "",
-      e.bank || "",
-      e.card || "",
       e.person || "",
       e.tags?.map((t) => t.name).join("; ") || "",
     ]);
@@ -677,7 +601,7 @@ export default function ExpensesPage() {
         </button>
         {filtersExpanded && (
           <div className="px-4 pb-4 space-y-3 border-t border-[var(--border-color)]">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 pt-3">
               {/* Categoría */}
               {(() => {
                 const groups = categoryGroupOptions(categories);
@@ -694,69 +618,6 @@ export default function ExpensesPage() {
                     options={[{ value: "__none__", label: "Sin categoría" }]}
                     groups={groups}
                     placeholder="Categoría"
-                  />
-                );
-              })()}
-
-              {/* Cuenta (Banco + Tarjeta unificados) */}
-              {(() => {
-                const cuentaOptions: { value: string; label: string }[] = [];
-                // Cards from API: "Bank - Card"
-                cards.forEach((c) => {
-                  cuentaOptions.push({
-                    value: `card:${c.id}`,
-                    label: `${c.bank} - ${c.card_name}`,
-                  });
-                });
-                // Accounts from API: just name
-                accounts.forEach((a) => {
-                  cuentaOptions.push({
-                    value: `account:${a.id}`,
-                    label: a.name,
-                  });
-                });
-                // Reconstruct current value from URL params by looking up matching card/account
-                const matchedCard = filterCard
-                  ? cards.find((c) => c.card_name === filterCard)
-                  : null;
-                const matchedAccount = filterAccount
-                  ? accounts.find((a) => a.name === filterAccount)
-                  : null;
-                const currentCuenta = matchedCard
-                  ? `card:${matchedCard.id}`
-                  : matchedAccount
-                    ? `account:${matchedAccount.id}`
-                    : "";
-                return (
-                  <Select
-                    value={currentCuenta}
-                    onChange={(v) => {
-                      if (v.startsWith("card:")) {
-                        const cardId = v.replace("card:", "");
-                        const found = cards.find((c) => String(c.id) === cardId);
-                        // Combined update to avoid stale searchParams
-                        const next = new URLSearchParams(searchParams);
-                        if (found?.card_name) next.set("card", found.card_name);
-                        else next.delete("card");
-                        next.delete("account");
-                        setSearchParams(next);
-                      } else if (v.startsWith("account:")) {
-                        const accountId = v.replace("account:", "");
-                        const found = accounts.find((a) => String(a.id) === accountId);
-                        const next = new URLSearchParams(searchParams);
-                        if (found?.name) next.set("account", found.name);
-                        else next.delete("account");
-                        next.delete("card");
-                        setSearchParams(next);
-                      } else {
-                        const next = new URLSearchParams(searchParams);
-                        next.delete("card");
-                        next.delete("account");
-                        setSearchParams(next);
-                      }
-                    }}
-                    options={cuentaOptions}
-                    placeholder="Cuenta"
                   />
                 );
               })()}
@@ -1442,19 +1303,6 @@ export default function ExpensesPage() {
                   placeholder="Seleccionar..."
                 />
               </div>
-              {cardAccountOptions.length > 0 && (
-                <div>
-                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
-                    Asignar tarjeta / cuenta
-                  </label>
-                  <Select
-                    value={bulkPaymentMethod}
-                    onChange={setBulkPaymentMethod}
-                    options={cardAccountOptions}
-                    placeholder="Seleccionar..."
-                  />
-                </div>
-              )}
               {tags.length > 0 && (
                 <div>
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
@@ -1476,7 +1324,7 @@ export default function ExpensesPage() {
                 disabled={
                   bulkFieldMut.isPending ||
                   bulkTagMut.isPending ||
-                  (bulkCategoryId === "" && !bulkPaymentMethod && !bulkTagId)
+                  (bulkCategoryId === "" && !bulkTagId)
                 }
                 className="flex-1 px-4 py-2 rounded-md bg-[var(--color-primary)] text-[var(--color-on-primary)] text-sm font-medium hover:brightness-110 disabled:opacity-50 transition"
               >

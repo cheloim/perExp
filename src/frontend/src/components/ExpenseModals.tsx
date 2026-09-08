@@ -1,17 +1,8 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  getCategories,
-  getAccounts,
-  getCards,
-  createCategory,
-  suggestCategory,
-  getTags,
-  createTag,
-} from "../api/client";
-import type { Expense, ExpenseCreate, Card } from "../types";
+import { getCategories, createCategory, suggestCategory, getTags, createTag } from "../api/client";
+import type { Expense, ExpenseCreate } from "../types";
 import { Select } from "./ui/Select";
-import CardAccountModal from "./CardAccountModal";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 
 // Helper function to get today's date in DD-MM-YYYY format
@@ -21,24 +12,6 @@ export function todayDDMMYYYY() {
   const m = String(now.getMonth() + 1).padStart(2, "0");
   const y = now.getFullYear();
   return `${d}-${m}-${y}`;
-}
-
-// Cache last used payment info for quick repeat
-function getLastUsedPayment(): {
-  card_id: number | null;
-  account_id: number | null;
-  payMethod: "card" | "cash" | "none";
-} {
-  try {
-    const data = JSON.parse(localStorage.getItem("expense_last_payment") || "{}");
-    return {
-      card_id: data.card_id || null,
-      account_id: data.account_id || null,
-      payMethod: data.payMethod || "card",
-    };
-  } catch {
-    return { card_id: null, account_id: null, payMethod: "card" };
-  }
 }
 
 // Empty form template
@@ -83,14 +56,6 @@ export function ExpenseModal({
     queryKey: ["categories"],
     queryFn: getCategories,
   });
-  const { data: cards = [] } = useQuery({
-    queryKey: ["cards"],
-    queryFn: getCards,
-  });
-  const { data: accounts = [] } = useQuery({
-    queryKey: ["accounts"],
-    queryFn: getAccounts,
-  });
   const { data: tags = [] } = useQuery({
     queryKey: ["tags"],
     queryFn: getTags,
@@ -106,20 +71,7 @@ export function ExpenseModal({
 
   const [aiSuggested, setAiSuggested] = useState(false);
 
-  const isCash = (cardId: number | null | undefined) => !cardId;
-  const lastPayment = getLastUsedPayment();
   const isInstallmentsOnly = mode === "installments-only";
-
-  const [payMethod, setPayMethod] = useState<"card" | "cash" | "none">(
-    isInstallmentsOnly
-      ? "card"
-      : initial
-        ? isCash(initial.card_id)
-          ? "cash"
-          : "card"
-        : lastPayment.payMethod,
-  );
-  const [showCardModal, setShowCardModal] = useState(false);
 
   const [form, setForm] = useState<ExpenseCreate>(() => {
     if (initial) {
@@ -139,8 +91,7 @@ export function ExpenseModal({
         tag_ids: initial.tags?.map((t) => t.id) ?? [],
       };
     }
-    const last = getLastUsedPayment();
-    return { ...EMPTY_FORM, ...last };
+    return { ...EMPTY_FORM };
   });
 
   const [cuotasEnabled, setCuotasEnabled] = useState(
@@ -225,33 +176,6 @@ export function ExpenseModal({
   const set = (field: keyof ExpenseCreate, value: unknown) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
-  const switchPayMethod = (method: "card" | "cash" | "none") => {
-    setPayMethod(method);
-    if (method === "cash" || method === "none") {
-      setForm((prev) => ({ ...prev, card_id: null, account_id: null }));
-    } else {
-      setForm((prev) => ({ ...prev, account_id: null }));
-    }
-  };
-
-  // Cascading selectors: bank → card
-  const availableBanks = [...new Set(cards.map((c) => c.bank).filter(Boolean))].sort();
-
-  const selectedCard = cards.find((c) => c.id === form.card_id);
-  const selectedBank = selectedCard?.bank ?? "";
-  const availableCards = cards.filter((c) => !selectedBank || c.bank === selectedBank);
-
-  const handleBankChange = (_b: string) => {
-    setForm((prev) => ({ ...prev, card_id: null }));
-  };
-
-  const handleCardSelect = (c: Card) => {
-    setForm((prev) => ({
-      ...prev,
-      card_id: c.id,
-    }));
-  };
-
   const trapRef = useFocusTrap(true);
 
   const [showAdvanced, setShowAdvanced] = useState(
@@ -316,69 +240,10 @@ export function ExpenseModal({
           </button>
         </div>
 
-        {!initial && cards.length === 0 && accounts.length === 0 && (
-          <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
-            <span className="mt-0.5">ℹ</span>
-            <div className="flex-1">
-              <p>No tenés tarjetas ni cuentas creadas. Podés registrar el gasto sin asignar una.</p>
-              <button
-                onClick={() => setShowCardModal(true)}
-                className="mt-1 text-xs font-semibold underline hover:no-underline"
-              >
-                Crear tarjeta o cuenta
-              </button>
-            </div>
-          </div>
-        )}
-
         {saveError && (
           <div className="flex items-start gap-2 bg-danger/10 border border-danger/30 rounded-lg px-3 py-2 text-xs text-danger">
             <span className="mt-0.5">✕</span>
             <span>{saveError}</span>
-          </div>
-        )}
-
-        {/* Payment method toggle */}
-        {!isInstallmentsOnly && (
-          <div>
-            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-              Medio de pago
-            </label>
-            <div className="flex rounded-md border border-[var(--border-color)] overflow-hidden">
-              <button
-                type="button"
-                onClick={() => switchPayMethod("card")}
-                className={`flex-1 px-3 py-1.5 text-sm font-medium transition ${
-                  payMethod === "card"
-                    ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
-                    : "bg-[var(--color-base-container)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
-                }`}
-              >
-                💳 Tarjeta
-              </button>
-              <button
-                type="button"
-                onClick={() => switchPayMethod("cash")}
-                className={`flex-1 px-3 py-1.5 text-sm font-medium transition border-x border-[var(--border-color)] ${
-                  payMethod === "cash"
-                    ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
-                    : "bg-[var(--color-base-container)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
-                }`}
-              >
-                💵 Efectivo
-              </button>
-              <button
-                type="button"
-                onClick={() => switchPayMethod("none")}
-                className={`flex-1 px-3 py-1.5 text-sm font-medium transition ${
-                  payMethod === "none"
-                    ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
-                    : "bg-[var(--color-base-container)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
-                }`}
-              >
-                ⏭️ Sin cuenta
-              </button>
-            </div>
           </div>
         )}
 
@@ -574,77 +439,6 @@ export function ExpenseModal({
           )}
         </div>
 
-        {/* Banco → Tarjeta */}
-        <div
-          className={`transition-opacity ${
-            payMethod !== "card" ? "opacity-40 pointer-events-none" : ""
-          }`}
-        >
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
-              <Select
-                value={selectedBank}
-                onChange={(v) => handleBankChange(v)}
-                options={availableBanks.map((b) => ({ value: b, label: b }))}
-                placeholder="— Banco —"
-                disabled={payMethod !== "card"}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-[var(--text-secondary)]">Tarjeta</label>
-              <Select
-                value={String(form.card_id || "")}
-                onChange={(v) => {
-                  const selected = availableCards.find((c) => String(c.id) === v);
-                  if (selected) handleCardSelect(selected);
-                }}
-                options={availableCards.map((c) => ({
-                  value: String(c.id),
-                  label: c.card_name,
-                }))}
-                placeholder="— Tarjeta —"
-                disabled={payMethod !== "card"}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Account selector for cash/transfer */}
-        <div className={`${payMethod !== "cash" ? "opacity-40 pointer-events-none" : ""}`}>
-          {payMethod === "cash" && accounts.filter((a) => a.type !== "credito").length === 0 && (
-            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700 mb-2">
-              <span className="mt-0.5">⚠️</span>
-              <div className="flex-1">
-                <p>No tenés cuentas creadas para efectivo/transferencia.</p>
-                <button
-                  onClick={() => setShowCardModal(true)}
-                  className="mt-1 text-xs font-semibold underline hover:text-amber-800"
-                >
-                  Crear cuenta
-                </button>
-              </div>
-            </div>
-          )}
-          <div>
-            <label className="text-xs font-medium text-[var(--text-secondary)]">
-              Cuenta de origen
-            </label>
-            <Select
-              value={String(form.account_id || "")}
-              onChange={(v) => set("account_id", v ? Number(v) : null)}
-              options={accounts
-                .filter((a) => a.type !== "credito")
-                .map((a) => ({
-                  value: String(a.id),
-                  label: a.name,
-                }))}
-              placeholder="Seleccionar cuenta"
-              disabled={payMethod !== "cash"}
-            />
-          </div>
-        </div>
-
         {/* Advanced toggle */}
         <button
           type="button"
@@ -658,52 +452,50 @@ export function ExpenseModal({
         {/* Advanced section: Cuotas + Notas */}
         {showAdvanced && (
           <div className="space-y-2.5 pt-1 border-t border-[var(--border-color)]">
-            {payMethod === "card" && (
-              <div className="border border-[var(--border-color)] rounded-md p-2.5 space-y-2">
-                {!isInstallmentsOnly && (
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
+            <div className="border border-[var(--border-color)] rounded-md p-2.5 space-y-2">
+              {!isInstallmentsOnly && (
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={cuotasEnabled}
+                    onChange={(e) => toggleCuotas(e.target.checked)}
+                    className="accent-[var(--color-primary)]"
+                  />
+                  <span className="text-sm font-medium text-[var(--text-secondary)]">
+                    Compra en cuotas
+                  </span>
+                </label>
+              )}
+              {(cuotasEnabled || isInstallmentsOnly) && (
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <label className="text-xs font-medium text-[var(--text-secondary)]">
+                      Cuota N°
+                    </label>
                     <input
-                      type="checkbox"
-                      checked={cuotasEnabled}
-                      onChange={(e) => toggleCuotas(e.target.checked)}
-                      className="accent-[var(--color-primary)]"
+                      type="number"
+                      min={1}
+                      value={form.installment_number ?? 1}
+                      onChange={(e) => set("installment_number", parseInt(e.target.value) || 1)}
+                      className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition text-center"
                     />
-                    <span className="text-sm font-medium text-[var(--text-secondary)]">
-                      Compra en cuotas
-                    </span>
-                  </label>
-                )}
-                {(cuotasEnabled || isInstallmentsOnly) && (
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <label className="text-xs font-medium text-[var(--text-secondary)]">
-                        Cuota N°
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={form.installment_number ?? 1}
-                        onChange={(e) => set("installment_number", parseInt(e.target.value) || 1)}
-                        className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition text-center"
-                      />
-                    </div>
-                    <span className="text-[var(--text-tertiary)] mt-4">de</span>
-                    <div className="flex-1">
-                      <label className="text-xs font-medium text-[var(--text-secondary)]">
-                        Total cuotas
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={form.installment_total ?? 1}
-                        onChange={(e) => set("installment_total", parseInt(e.target.value) || 1)}
-                        className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition text-center"
-                      />
-                    </div>
                   </div>
-                )}
-              </div>
-            )}
+                  <span className="text-[var(--text-tertiary)] mt-4">de</span>
+                  <div className="flex-1">
+                    <label className="text-xs font-medium text-[var(--text-secondary)]">
+                      Total cuotas
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={form.installment_total ?? 1}
+                      onChange={(e) => set("installment_total", parseInt(e.target.value) || 1)}
+                      className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition text-center"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div>
               <label className="text-xs font-medium text-[var(--text-secondary)]">Notas</label>
@@ -727,16 +519,6 @@ export function ExpenseModal({
           </button>
           <button
             onClick={() => {
-              if (!initial) {
-                localStorage.setItem(
-                  "expense_last_payment",
-                  JSON.stringify({
-                    card_id: form.card_id,
-                    account_id: form.account_id,
-                    payMethod,
-                  }),
-                );
-              }
               onSave({ ...form, amount: Math.abs(form.amount), tag_ids: form.tag_ids });
             }}
             disabled={!isValid || isSaving}
@@ -746,7 +528,6 @@ export function ExpenseModal({
           </button>
         </div>
       </div>
-      {showCardModal && <CardAccountModal onClose={() => setShowCardModal(false)} />}
     </div>
   );
 }
