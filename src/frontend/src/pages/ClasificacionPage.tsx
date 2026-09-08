@@ -338,7 +338,8 @@ export default function ClasificacionPage() {
   const tagsByGroup = useMemo(() => {
     const groups: Record<string, Tag[]> = { cuenta: [], otros: [] };
     for (const tag of tags) {
-      const key = tag.group_name === "cuenta" || tag.group_name === "tarjeta" ? "cuenta" : "otros";
+      if (tag.group_name === "categoria") continue;
+      const key = tag.group_name === "cuenta" ? "cuenta" : "otros";
       groups[key].push(tag);
     }
     return groups;
