@@ -149,7 +149,7 @@ export default function ExpensesPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   const reloadExpenses = useCallback(() => {
-    getExpenses({
+    return getExpenses({
       category_id: filterCategory,
       uncategorized: filterUncategorized || undefined,
       person: filterPerson,
@@ -293,8 +293,8 @@ export default function ExpensesPage() {
       card_id?: number | null;
       account_id?: number | null;
     }) => bulkUpdateFields(ids, updateData),
-    onSuccess: () => {
-      reloadExpenses();
+    onSuccess: async () => {
+      await reloadExpenses();
       clearBulkState();
     },
     onError: (e: Error) => {
@@ -306,8 +306,8 @@ export default function ExpensesPage() {
   const bulkTagMut = useMutation({
     mutationFn: ({ ids, tag_id }: { ids: number[]; tag_id: number }) =>
       bulkUpdateTags({ ids, tag_ids: [tag_id], mode: "add" }),
-    onSuccess: () => {
-      reloadExpenses();
+    onSuccess: async () => {
+      await reloadExpenses();
       clearBulkState();
     },
     onError: (e: Error) => {
@@ -348,8 +348,8 @@ export default function ExpensesPage() {
 
   const createMut = useMutation({
     mutationFn: createExpense,
-    onSuccess: () => {
-      reloadExpenses();
+    onSuccess: async () => {
+      await reloadExpenses();
       setEditing(undefined);
       setSaveError(null);
     },
@@ -359,8 +359,8 @@ export default function ExpensesPage() {
   const updateMut = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<ExpenseCreate> }) =>
       updateExpense(id, data),
-    onSuccess: () => {
-      reloadExpenses();
+    onSuccess: async () => {
+      await reloadExpenses();
       setEditing(undefined);
       setSaveError(null);
     },
@@ -369,7 +369,9 @@ export default function ExpensesPage() {
 
   const deleteMut = useMutation({
     mutationFn: deleteExpense,
-    onSuccess: reloadExpenses,
+    onSuccess: async () => {
+      await reloadExpenses();
+    },
   });
 
   const { show: showUndo, ToastContainer } = useUndoToast();
