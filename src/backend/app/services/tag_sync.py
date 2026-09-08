@@ -102,9 +102,11 @@ def sync_category_tag(db: Session, expense: Expense, category_id: int | None):
 
     Removes existing A-tag, assigns new one if category_id is set.
     """
-    db.query(ExpenseTag).filter(ExpenseTag.expense_id == expense.id).join(
-        Tag, Tag.id == ExpenseTag.tag_id
-    ).filter(Tag.group_name == "categoria").delete(synchronize_session=False)
+    cat_tag_ids = db.query(Tag.id).filter(Tag.group_name == "categoria")
+    db.query(ExpenseTag).filter(
+        ExpenseTag.expense_id == expense.id,
+        ExpenseTag.tag_id.in_(cat_tag_ids),
+    ).delete(synchronize_session=False)
 
     if category_id is not None:
         category = db.query(Category).filter(Category.id == category_id).first()
@@ -190,9 +192,11 @@ def assign_tags_validated(
 
 def remove_tags_by_group(db: Session, expense_id: int, group_name: str):
     """Remove all tags of a specific group from an expense."""
-    db.query(ExpenseTag).filter(ExpenseTag.expense_id == expense_id).join(
-        Tag, Tag.id == ExpenseTag.tag_id
-    ).filter(Tag.group_name == group_name).delete(synchronize_session=False)
+    group_tag_ids = db.query(Tag.id).filter(Tag.group_name == group_name)
+    db.query(ExpenseTag).filter(
+        ExpenseTag.expense_id == expense_id,
+        ExpenseTag.tag_id.in_(group_tag_ids),
+    ).delete(synchronize_session=False)
     db.flush()
 
 
