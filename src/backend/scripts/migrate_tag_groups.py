@@ -60,6 +60,16 @@ def migrate_schema(db):
     print("Adding partial unique indexes for name collision safety...")
     db.execute(text(
         "DO $$ BEGIN "
+        "  IF EXISTS ("
+        "    SELECT 1 FROM information_schema.table_constraints "
+        "    WHERE constraint_name='uq_tag_name_user' AND table_name='tags'"
+        "  ) THEN "
+        "    ALTER TABLE tags DROP CONSTRAINT uq_tag_name_user; "
+        "  END IF; "
+        "END $$;"
+    ))
+    db.execute(text(
+        "DO $$ BEGIN "
         "  IF NOT EXISTS ("
         "    SELECT 1 FROM pg_indexes WHERE indexname='uq_tag_name_user_non_categoria'"
         "  ) THEN "
@@ -162,8 +172,13 @@ def create_category_mirrors(db, dry_run=False):
     categories = db.query(Category).all()
     created = 0
     skipped = 0
+    skipped_null_user = 0
 
     for cat in categories:
+        if cat.user_id is None:
+            skipped_null_user += 1
+            continue
+
         existing = (
             db.query(Tag)
             .filter(
@@ -191,7 +206,7 @@ def create_category_mirrors(db, dry_run=False):
 
     if not dry_run:
         db.commit()
-    print(f"  Created {created} mirror tags, skipped {skipped} existing.")
+    print(f"  Created {created} mirror tags, skipped {skipped} existing, {skipped_null_user} null-user.")
 
 
 def assign_mirror_tags_to_expenses(db, dry_run=False, batch_size=500):
