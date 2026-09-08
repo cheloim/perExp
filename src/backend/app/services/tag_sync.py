@@ -55,9 +55,9 @@ def pick_tag_color(db: Session, user_id: int) -> str:
     return best_color
 
 
-VALID_GROUPS = {"categoria", "tarjeta", "cuenta", "otros"}
-SYSTEM_GROUPS = {"categoria", "tarjeta", "cuenta"}
-SINGLE_SELECT_GROUPS = {"tarjeta", "cuenta"}
+VALID_GROUPS = {"categoria", "cuenta", "otros"}
+SYSTEM_GROUPS = {"categoria", "cuenta"}
+SINGLE_SELECT_GROUPS = {"cuenta"}
 
 
 def get_or_create_mirror_tag(db: Session, category: Category) -> Tag:
@@ -131,7 +131,7 @@ def assign_tags_validated(
 ) -> list[Tag]:
     """Validate and assign tags to an expense with group enforcement.
 
-    - Groups tarjeta/cuenta: single-select (replaces existing in that group)
+    - Group cuenta: single-select (replaces existing in that group)
     - Group categoria: blocked (assigned only via sync_category_tag)
     - Group otros: multi-select
     - Ownership: tag must belong to uid_list (group-wide)

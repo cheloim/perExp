@@ -114,13 +114,13 @@ function CategoryForm({
           </div>
         </div>
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-border-color">
-          <button onClick={onClose} className="gnome-btn-secondary">
+          <button onClick={onClose} className="gnome-btn-secondary-round text-sm">
             Cancelar
           </button>
           <button
             onClick={() => onSave(form)}
             disabled={!form.name || isSaving}
-            className="gnome-btn-primary"
+            className="gnome-btn-primary-round text-sm"
           >
             {isSaving ? "Guardando..." : "Guardar"}
           </button>
@@ -153,6 +153,13 @@ function TagSection({
 }) {
   const [linkingId, setLinkingId] = useState<number | null>(null);
 
+  const resolveLinkType = (tag: Tag): "card" | "account" | null => {
+    if (linkType !== null) return linkType;
+    if (tag.card_id !== null && tag.card_id !== undefined) return "card";
+    if (tag.account_id !== null && tag.account_id !== undefined) return "account";
+    return "card";
+  };
+
   return (
     <section className="card">
       <div className="px-5 py-4 border-b border-border-color">
@@ -165,15 +172,14 @@ function TagSection({
       ) : (
         <div className="divide-y divide-border-color/40">
           {tags.map((tag) => {
+            const tagLinkType = resolveLinkType(tag);
             const linked =
-              linkType === "card"
+              tagLinkType === "card"
                 ? tag.card_id
                   ? cards.find((c) => c.id === tag.card_id)
                   : null
-                : linkType === "account"
-                  ? tag.account_id
-                    ? accounts.find((a) => a.id === tag.account_id)
-                    : null
+                : tag.account_id
+                  ? accounts.find((a) => a.id === tag.account_id)
                   : null;
             const count = countMap[tag.id] ?? 0;
             return (
@@ -185,27 +191,26 @@ function TagSection({
                   type="color"
                   value={tag.color}
                   onChange={(e) => onColorChange(tag, e.target.value)}
-                  className="w-3.5 h-3.5 rounded-full cursor-pointer border-0 p-0 bg-transparent flex-shrink-0"
+                  className="w-7 h-7 rounded-full cursor-pointer border-0 p-0 bg-transparent flex-shrink-0"
                   style={{ backgroundColor: tag.color }}
                 />
                 <span className="text-sm text-primary flex-1 min-w-0 truncate">{tag.name}</span>
-                {linkType &&
-                  (linked ? (
-                    <span className="text-xs text-secondary flex-shrink-0">
-                      {linkType === "card"
-                        ? `Vinculada: ${(linked as { card_name: string }).card_name}`
-                        : `Vinculada: ${(linked as { name: string }).name}`}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-tertiary italic flex-shrink-0">Sin vínculo</span>
-                  ))}
-                {linkType === null && count > 0 && (
+                {linked ? (
+                  <span className="text-xs text-secondary flex-shrink-0">
+                    {tagLinkType === "card"
+                      ? `💳 ${(linked as { card_name: string }).card_name}`
+                      : `🏦 ${(linked as { name: string }).name}`}
+                  </span>
+                ) : (
+                  <span className="text-xs text-tertiary italic flex-shrink-0">Sin vínculo</span>
+                )}
+                {count > 0 && (
                   <span className="text-xs text-tertiary flex-shrink-0">
                     {count} gasto{count !== 1 ? "s" : ""}
                   </span>
                 )}
                 <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity relative">
-                  {linkType && !linked && (
+                  {!linked && (
                     <>
                       <button
                         onClick={() => setLinkingId(linkingId === tag.id ? null : tag.id)}
@@ -215,7 +220,7 @@ function TagSection({
                       </button>
                       {linkingId === tag.id && (
                         <div className="absolute right-0 top-full mt-1 z-20 bg-surface border border-border-color rounded-lg shadow-lg p-2 min-w-[180px]">
-                          {(linkType === "card" ? cards : accounts).map((item) => (
+                          {(tagLinkType === "card" ? cards : accounts).map((item) => (
                             <button
                               key={item.id}
                               onClick={() => {
@@ -224,12 +229,12 @@ function TagSection({
                               }}
                               className="block w-full text-left text-sm px-3 py-1.5 rounded hover:bg-[var(--color-base-alt)] text-primary"
                             >
-                              {linkType === "card"
+                              {tagLinkType === "card"
                                 ? `${(item as { card_name: string }).card_name}${(item as { bank: string }).bank ? ` · ${(item as { bank: string }).bank}` : ""}`
                                 : (item as { name: string }).name}
                             </button>
                           ))}
-                          {(linkType === "card" ? cards : accounts).length === 0 && (
+                          {(tagLinkType === "card" ? cards : accounts).length === 0 && (
                             <p className="text-xs text-tertiary px-3 py-1.5">
                               No hay opciones disponibles
                             </p>
@@ -331,10 +336,9 @@ export default function ClasificacionPage() {
   }, [parentCats, childCats, categories]);
 
   const tagsByGroup = useMemo(() => {
-    const groups: Record<string, Tag[]> = { tarjeta: [], cuenta: [], otros: [] };
+    const groups: Record<string, Tag[]> = { cuenta: [], otros: [] };
     for (const tag of tags) {
-      const key =
-        tag.group_name === "tarjeta" ? "tarjeta" : tag.group_name === "cuenta" ? "cuenta" : "otros";
+      const key = tag.group_name === "cuenta" || tag.group_name === "tarjeta" ? "cuenta" : "otros";
       groups[key].push(tag);
     }
     return groups;
@@ -546,7 +550,7 @@ export default function ClasificacionPage() {
                     type="color"
                     value={cat.color}
                     onChange={(e) => saveCatColor(cat, e.target.value)}
-                    className="w-3.5 h-3.5 rounded-full cursor-pointer border-0 p-0 bg-transparent flex-shrink-0"
+                    className="w-7 h-7 rounded-full cursor-pointer border-0 p-0 bg-transparent flex-shrink-0"
                     style={{ backgroundColor: cat.color }}
                   />
                   {inlineEditId === cat.id ? (
@@ -635,26 +639,21 @@ export default function ClasificacionPage() {
       ) : (
         <>
           <TagSection
-            title="Tarjetas"
-            tags={tagsByGroup.tarjeta}
-            countMap={tagCountMap}
-            cards={cards}
-            accounts={accounts}
-            linkType="card"
-            onColorChange={(t, c) => updateTagMut.mutate({ id: t.id, data: { color: c } })}
-            onDelete={setDeleteTagTarget}
-            onLink={(t, id) => updateTagMut.mutate({ id: t.id, data: { card_id: id } })}
-          />
-          <TagSection
-            title="Cuentas"
+            title="🏦 Cuentas"
             tags={tagsByGroup.cuenta}
             countMap={tagCountMap}
             cards={cards}
             accounts={accounts}
-            linkType="account"
+            linkType={null}
             onColorChange={(t, c) => updateTagMut.mutate({ id: t.id, data: { color: c } })}
             onDelete={setDeleteTagTarget}
-            onLink={(t, id) => updateTagMut.mutate({ id: t.id, data: { account_id: id } })}
+            onLink={(t, id) => {
+              if (t.card_id !== null && t.card_id !== undefined) {
+                updateTagMut.mutate({ id: t.id, data: { card_id: id } });
+              } else {
+                updateTagMut.mutate({ id: t.id, data: { account_id: id } });
+              }
+            }}
           />
 
           <section className="card">
@@ -680,7 +679,7 @@ export default function ClasificacionPage() {
                         onChange={(e) =>
                           updateTagMut.mutate({ id: tag.id, data: { color: e.target.value } })
                         }
-                        className="w-3.5 h-3.5 rounded-full cursor-pointer border-0 p-0 bg-transparent flex-shrink-0"
+                        className="w-7 h-7 rounded-full cursor-pointer border-0 p-0 bg-transparent flex-shrink-0"
                         style={{ backgroundColor: tag.color }}
                       />
                       <span className="text-sm text-primary flex-1 min-w-0 truncate">
@@ -730,7 +729,7 @@ export default function ClasificacionPage() {
                 type="color"
                 value={newTagColor}
                 onChange={(e) => setNewTagColor(e.target.value)}
-                className="w-8 h-8 rounded-full cursor-pointer border-0 p-0 bg-transparent"
+                className="w-7 h-7 rounded-full cursor-pointer border-0 p-0 bg-transparent"
               />
               <button
                 onClick={handleCreateTag}

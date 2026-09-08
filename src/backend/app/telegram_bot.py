@@ -178,10 +178,12 @@ def _find_or_create_tag(db, user_id: int, tag_name: str, card_id=None, account_i
     from app.services.tag_sync import pick_tag_color
 
     color = pick_tag_color(db, user_id)
+    group = "cuenta" if (card_id or account_id) else "otros"
     tag = Tag(
         name=tag_name,
         name_hmac=name_hmac,
         color=color,
+        group_name=group,
         user_id=user_id,
         card_id=card_id,
         account_id=account_id,

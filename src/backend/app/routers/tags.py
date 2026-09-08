@@ -11,7 +11,7 @@ from app.services.encryption import compute_hmac
 
 router = APIRouter(prefix="/tags", tags=["tags"])
 
-VALID_GROUPS = {"tarjeta", "cuenta", "otros"}
+VALID_GROUPS = {"cuenta", "otros"}
 BLOCKED_GROUPS = {"categoria"}
 
 
@@ -154,8 +154,8 @@ def update_tag(
         db_tag.group_name = tag.group_name if tag.group_name in VALID_GROUPS else "otros"
     if tag.card_id is not None:
         db_tag.card_id = tag.card_id
-        if db_tag.group_name not in ("tarjeta", "otros"):
-            db_tag.group_name = "tarjeta"
+        if db_tag.group_name not in ("cuenta", "otros"):
+            db_tag.group_name = "cuenta"
     if tag.account_id is not None:
         db_tag.account_id = tag.account_id
         if db_tag.group_name not in ("cuenta", "otros"):

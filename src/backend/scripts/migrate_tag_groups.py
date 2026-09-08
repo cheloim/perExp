@@ -101,14 +101,12 @@ def classify_existing(db, dry_run=False):
     for t in tags:
         new_group = "otros"
         if t.card_id is not None:
-            new_group = "tarjeta"
+            new_group = "cuenta"
         elif t.account_id is not None:
             new_group = "cuenta"
         else:
             name_lower = (t.name or "").lower() if not hasattr(t.name, "decrypt") else str(t.name).lower()
-            if name_lower.startswith("tarjeta "):
-                new_group = "tarjeta"
-            elif name_lower.startswith("cuenta "):
+            if name_lower.startswith("tarjeta ") or name_lower.startswith("cuenta "):
                 new_group = "cuenta"
         if new_group != "otros":
             t.group_name = new_group

@@ -196,7 +196,7 @@ export function ExpenseModal({
     const tag = visibleTags.find((t) => t.id === id);
     if (!tag) return;
 
-    const isExclusive = tag.group_name === "tarjeta" || tag.group_name === "cuenta";
+    const isExclusive = tag.group_name === "cuenta" || tag.group_name === "tarjeta";
 
     setForm((prev) => {
       const current = prev.tag_ids ?? [];
@@ -232,10 +232,9 @@ export function ExpenseModal({
   };
 
   const groupedAvailable = useMemo(() => {
-    const groups: Record<string, Tag[]> = { tarjeta: [], cuenta: [], otros: [] };
+    const groups: Record<string, Tag[]> = { cuenta: [], otros: [] };
     for (const tag of availableTags) {
-      const key =
-        tag.group_name === "tarjeta" ? "tarjeta" : tag.group_name === "cuenta" ? "cuenta" : "otros";
+      const key = tag.group_name === "cuenta" || tag.group_name === "tarjeta" ? "cuenta" : "otros";
       groups[key].push(tag);
     }
     return groups;
@@ -442,11 +441,10 @@ export function ExpenseModal({
           </div>
           {(availableTags.length > 0 || filteredNewTag) && (
             <div className="mt-1.5 space-y-1.5">
-              {(["tarjeta", "cuenta", "otros"] as const).map((group) => {
+              {(["cuenta", "otros"] as const).map((group) => {
                 const groupTags = groupedAvailable[group];
                 if (groupTags.length === 0) return null;
                 const labels: Record<string, string> = {
-                  tarjeta: "\uD83D\uDCB3 Tarjetas",
                   cuenta: "\uD83C\uDFE6 Cuentas",
                   otros: "Otros",
                 };
