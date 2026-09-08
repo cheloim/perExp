@@ -647,8 +647,12 @@ export const cancelScheduledExpense = async (id: number) => {
   return data;
 };
 
-export const getTagSummary = (): Promise<TagSummary[]> =>
-  api.get("/dashboard/tag-summary").then((r) => r.data);
+export async function getTagSummary(groups?: string): Promise<TagSummary[]> {
+  const { data } = await api.get("/dashboard/tag-summary", {
+    params: groups ? { groups } : undefined,
+  });
+  return data;
+}
 
 // Analysis history
 export const getAnalysisHistory = () =>

@@ -200,8 +200,8 @@ export default function Dashboard() {
   });
 
   const { data: tagData = [] } = useQuery({
-    queryKey: ["tag-summary"],
-    queryFn: getTagSummary,
+    queryKey: ["tag-summary", "cuenta"],
+    queryFn: () => getTagSummary("cuenta"),
     staleTime: 60_000,
   });
 
@@ -799,7 +799,7 @@ export default function Dashboard() {
         {/* Tag donut */}
         <div className="card p-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-primary">Gastos por Tag</h2>
+            <h2 className="text-sm font-semibold text-primary">Gastos por Cuenta</h2>
             <button
               onClick={() => navigate("/expenses")}
               className="text-xs text-secondary hover:text-primary transition-colors"

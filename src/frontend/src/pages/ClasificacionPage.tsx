@@ -273,6 +273,8 @@ export default function ClasificacionPage() {
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(TAG_PALETTE[0]);
   const [deleteTagTarget, setDeleteTagTarget] = useState<Tag | null>(null);
+  const [newCuentaName, setNewCuentaName] = useState("");
+  const [newCuentaColor, setNewCuentaColor] = useState(TAG_PALETTE[0]);
 
   useEffect(() => {
     if (successMsg) {
@@ -471,6 +473,16 @@ export default function ClasificacionPage() {
     createTagMut.mutate({ name: newTagName.trim(), color: newTagColor, group_name: "otros" });
   };
 
+  const handleCreateCuenta = () => {
+    if (!newCuentaName.trim()) return;
+    createTagMut.mutate({
+      name: newCuentaName.trim(),
+      color: newCuentaColor,
+      group_name: "cuenta",
+    });
+    setNewCuentaName("");
+  };
+
   return (
     <div className="space-y-6">
       {successMsg && (
@@ -656,6 +668,37 @@ export default function ClasificacionPage() {
               }
             }}
           />
+          <div className="card p-4">
+            <div className="flex items-end gap-3 flex-wrap">
+              <div className="flex-1 min-w-[140px]">
+                <label className="block text-xs font-medium text-tertiary mb-1">Nombre</label>
+                <input
+                  type="text"
+                  value={newCuentaName}
+                  onChange={(e) => setNewCuentaName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleCreateCuenta()}
+                  placeholder="Ej: Visa Galicia, Efectivo..."
+                  className="input text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-tertiary mb-1">Color</label>
+                <input
+                  type="color"
+                  value={newCuentaColor}
+                  onChange={(e) => setNewCuentaColor(e.target.value)}
+                  className="w-7 h-7 rounded-full cursor-pointer border-0 p-0 bg-transparent"
+                />
+              </div>
+              <button
+                onClick={handleCreateCuenta}
+                disabled={!newCuentaName.trim() || createTagMut.isPending}
+                className="gnome-btn-primary-round text-sm"
+              >
+                + Nueva cuenta
+              </button>
+            </div>
+          </div>
 
           <section className="card">
             <div className="px-5 py-4 border-b border-border-color">

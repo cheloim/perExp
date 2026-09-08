@@ -1758,13 +1758,28 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
 @router.get(
     "/tag-summary",
     summary="Get tag spending summary",
-    description="Retrieve spending summary per tag for the last 12 months, including monthly breakdowns.",
+    description="Retrieve spending summary per tag for the last 12 months, including monthly breakdowns. Optional groups filter.",
 )
-def get_tag_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_tag_summary(
+    groups: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     uid_list = get_group_user_ids(current_user.id, db)
 
-    tags = db.query(Tag).filter(Tag.user_id.in_(uid_list)).all()
+    allowed_groups = None
+    if groups:
+        allowed_groups = {g.strip() for g in groups.split(",") if g.strip()}
+
+    all_tags = db.query(Tag).filter(Tag.user_id.in_(uid_list)).all()
+    if allowed_groups:
+        tags = [
+            t for t in all_tags if t.group_name in allowed_groups and t.group_name != "categoria"
+        ]
+    else:
+        tags = [t for t in all_tags if t.group_name != "categoria"]
     tags_by_id = {t.id: t for t in tags}
+    allowed_tag_ids = set(tags_by_id.keys())
 
     cutoff = date.today() - timedelta(days=365)
     exps = (
@@ -1784,18 +1799,19 @@ def get_tag_summary(db: Session = Depends(get_db), current_user: User = Depends(
     for e in exps:
         month_key = e.date.strftime("%Y-%m") if e.date else "1970-01"
 
-        non_categoria = [t for t in (e.tags or []) if t.group_name != "categoria"]
-        if non_categoria:
-            first_tag = min(non_categoria, key=lambda t: t.id)
+        matching = [t for t in (e.tags or []) if t.id in allowed_tag_ids]
+        if matching:
+            first_tag = min(matching, key=lambda t: t.id)
             key = f"tag:{first_tag.id}"
         else:
             key = "tag:null"
 
         if key not in by_tag:
             if key == "tag:null":
+                label = "Sin cuenta" if allowed_groups and "cuenta" in allowed_groups else "Sin tag"
                 by_tag[key] = {
                     "tag_id": None,
-                    "tag_name": "Sin cuenta",
+                    "tag_name": label,
                     "tag_color": "#94a3b8",
                     "group_name": None,
                     "total_amount": 0.0,

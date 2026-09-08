@@ -60,8 +60,14 @@ SYSTEM_GROUPS = {"categoria", "cuenta"}
 SINGLE_SELECT_GROUPS = {"cuenta"}
 
 
-def get_or_create_mirror_tag(db: Session, category: Category) -> Tag:
-    """Get or create the mirror Tag (group A) for a Category."""
+def get_or_create_mirror_tag(db: Session, category: Category) -> Tag | None:
+    """Get or create the mirror Tag (group A) for a Category.
+
+    Returns None for global categories (user_id is NULL) — mirrors require an owner.
+    """
+    if category.user_id is None:
+        return None
+
     existing = (
         db.query(Tag)
         .filter(
@@ -112,6 +118,8 @@ def sync_category_tag(db: Session, expense: Expense, category_id: int | None):
         category = db.query(Category).filter(Category.id == category_id).first()
         if category:
             mirror = get_or_create_mirror_tag(db, category)
+            if mirror is None:
+                return
             existing = (
                 db.query(ExpenseTag)
                 .filter(
