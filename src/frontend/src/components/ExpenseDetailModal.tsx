@@ -70,19 +70,21 @@ export default function ExpenseDetailModal({ expense, onClose, onEdit }: Props) 
           )}
         </dl>
 
-        {expense.tags && expense.tags.length > 0 && (
+        {expense.tags && expense.tags.filter((t) => t.group_name !== "categoria").length > 0 && (
           <div>
             <span className="text-xs text-[var(--text-tertiary)] uppercase">Tags</span>
             <div className="flex flex-wrap gap-1 mt-1">
-              {expense.tags.map((tag) => (
-                <span
-                  key={tag.id}
-                  className="text-xs px-2 py-0.5 rounded-full text-white"
-                  style={{ backgroundColor: tag.color }}
-                >
-                  {tag.name}
-                </span>
-              ))}
+              {expense.tags
+                .filter((t) => t.group_name !== "categoria")
+                .map((tag) => (
+                  <span
+                    key={tag.id}
+                    className="text-xs px-2 py-0.5 rounded-full text-white"
+                    style={{ backgroundColor: tag.color }}
+                  >
+                    {tag.name}
+                  </span>
+                ))}
             </div>
           </div>
         )}

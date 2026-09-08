@@ -236,10 +236,14 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
 
     for e in expenses:
         for t in e.tags or []:
+            if t.group_name == "categoria":
+                continue
             tag_totals[t.id] = tag_totals.get(t.id, 0) + abs(e.amount)
             tag_counts[t.id] = tag_counts.get(t.id, 0) + 1
     for e in prev_expenses:
         for t in e.tags or []:
+            if t.group_name == "categoria":
+                continue
             tag_prev_totals[t.id] = tag_prev_totals.get(t.id, 0) + abs(e.amount)
 
     tags_summary = []
@@ -248,15 +252,28 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
             tags_summary.append(
                 {
                     "name": t.name,
+                    "group": t.group_name,
                     "color": t.color,
                     "total": round(tag_totals.get(t.id, 0), 2),
                     "previous": round(tag_prev_totals.get(t.id, 0), 2),
                     "count": tag_counts.get(t.id, 0),
                 }
             )
-    untagged_total = sum(abs(e.amount) for e in expenses if not e.tags and not e.is_income)
-    untagged_prev = sum(abs(e.amount) for e in prev_expenses if not e.tags and not e.is_income)
-    untagged_count = sum(1 for e in expenses if not e.tags and not e.is_income)
+    untagged_total = sum(
+        abs(e.amount)
+        for e in expenses
+        if not [t for t in (e.tags or []) if t.group_name != "categoria"] and not e.is_income
+    )
+    untagged_prev = sum(
+        abs(e.amount)
+        for e in prev_expenses
+        if not [t for t in (e.tags or []) if t.group_name != "categoria"] and not e.is_income
+    )
+    untagged_count = sum(
+        1
+        for e in expenses
+        if not [t for t in (e.tags or []) if t.group_name != "categoria"] and not e.is_income
+    )
     if untagged_total > 0:
         tags_summary.append(
             {
@@ -446,6 +463,9 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
             for fi in future_installments[:5]:
                 future_lines.append(f"  - {fi['date']}: {fi['description']} ${fi['amount']:,.2f}")
 
+            tarjeta_summary = [t for t in tags_summary if t.get("group") == "tarjeta"]
+            cuenta_summary = [t for t in tags_summary if t.get("group") == "cuenta"]
+
             llm_context = f"""RESUMEN MENSUAL - {MONTHS_ES[m]} {y}
 
 RESUMEN:
@@ -471,8 +491,14 @@ CUENTAS:
 TARJETAS:
 {chr(10).join(card_lines) or "  Sin datos"}
 
-TAGS/METODOS DE PAGO:
-{chr(10).join([f"  {t['name']}: ${t['total']:,.0f} ({t['count']} gastos)" for t in tags_summary[:10]]) or "  Sin datos"}
+TARJETAS:
+{chr(10).join([f"  {t['name']}: ${t['total']:,.0f} ({t['count']} gastos)" for t in tarjeta_summary[:10]]) or "  Sin datos"}
+
+CUENTAS:
+{chr(10).join([f"  {t['name']}: ${t['total']:,.0f} ({t['count']} gastos)" for t in cuenta_summary[:10]]) or "  Sin datos"}
+
+OTROS TAGS:
+{chr(10).join([f"  {t['name']}: ${t['total']:,.0f} ({t['count']} gastos)" for t in [t for t in tags_summary if t.get("group") not in ("tarjeta", "cuenta")][:10]]) or "  Sin datos"}
 
 CUOTAS FUTURAS ({len(future_installments)} cuotas, ${sum(fi["amount"] for fi in future_installments):,.2f} total):
 {chr(10).join(future_lines) or "  Sin cuotas futuras"}
@@ -845,6 +871,8 @@ Usa flags para tendencias preocupantes a monitorear."""
         "accounts_summary": accounts_summary,
         "cards_summary": cards_summary,
         "tags_summary": tags_summary,
+        "tarjeta_summary": [t for t in tags_summary if t.get("group") == "tarjeta"],
+        "cuenta_summary": [t for t in tags_summary if t.get("group") == "cuenta"],
         "future_installments": future_installments,
         "future_installments_count": len(future_installments),
         "future_installments_total": round(sum(fi["amount"] for fi in future_installments), 2),

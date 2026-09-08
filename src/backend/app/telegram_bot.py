@@ -477,6 +477,10 @@ def _save_expense(
         db.commit()
         db.refresh(expense)
 
+        from app.services.tag_sync import sync_category_tag
+
+        sync_category_tag(db, expense, expense.category_id)
+
         if tag_ids:
             for tid in tag_ids:
                 db.add(ExpenseTag(expense_id=expense.id, tag_id=tid))
@@ -3226,6 +3230,10 @@ async def handle_edit_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         try:
             updated = update_expense_checked(db, user_id, db_exp, changes)
+            if "category_id" in changes:
+                from app.services.tag_sync import sync_category_tag
+
+                sync_category_tag(db, updated, updated.category_id)
             await query.edit_message_text(
                 f"✅ <b>Gasto actualizado.</b>\n\n"
                 f"💰 {_format_amount(updated.amount, updated.currency)}\n"

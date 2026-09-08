@@ -106,4 +106,5 @@ class TagSimple(BaseModel):
     id: int
     name: str
     color: str
+    group_name: str = "otros"
     model_config = {"from_attributes": True}

@@ -54,7 +54,10 @@ def execute_due_installments():
             db.add(expense)
             db.flush()
 
-            # Link to recurring expense if matches
+            from app.services.tag_sync import sync_category_tag
+
+            sync_category_tag(db, expense, expense.category_id)
+
             from app.services.recurring_linker import link_to_recurring
 
             link_to_recurring(expense.id, scheduled.description, scheduled.user_id, db)

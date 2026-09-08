@@ -24,10 +24,9 @@ import QuickViewLayout from "./layouts/QuickViewLayout";
 import type { ExpenseCreate } from "./types";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-const TagsPage = lazy(() => import("./pages/TagsPage"));
+const ClasificacionPage = lazy(() => import("./pages/ClasificacionPage"));
 const ExpensesPage = lazy(() => import("./pages/ExpensesPage"));
 const ImportJobPreview = lazy(() => import("./pages/ImportJobPreview"));
-const CategoriesPage = lazy(() => import("./pages/CategoriesPage"));
 const CategoryDashboard = lazy(() => import("./pages/CategoryDashboard"));
 const BudgetPage = lazy(() => import("./pages/BudgetPage"));
 const InstallmentsPage = lazy(() => import("./pages/InstallmentsPage"));
@@ -62,11 +61,11 @@ const TABS = [
     tour: "sidebar-home",
   },
   {
-    path: "/tags",
-    label: "Tags",
+    path: "/clasificacion",
+    label: "Clasificación",
     icon: "tags",
     exact: false,
-    tour: "sidebar-tags",
+    tour: "sidebar-clasificacion",
   },
   {
     path: "/expenses",
@@ -465,7 +464,7 @@ function MainLayout() {
 
             {/* Nav links — GNOME style */}
             <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5 scrollbar-none">
-              {TABS.filter((tab) => tab.path !== "/categories").map((tab) => (
+              {TABS.map((tab) => (
                 <NavLink
                   key={tab.path}
                   to={tab.path}
@@ -504,47 +503,6 @@ function MainLayout() {
                   )}
                 </NavLink>
               ))}
-              <div className="border-t border-[var(--border-color)] mx-2 my-1" />
-              {(() => {
-                const settingsTab = TABS.find((t) => t.path === "/categories");
-                if (!settingsTab) return null;
-                return (
-                  <NavLink
-                    key={settingsTab.path}
-                    to={settingsTab.path}
-                    end={settingsTab.exact}
-                    title={settingsTab.label}
-                    className={({ isActive }) => `
-                  group/nav relative flex items-center gap-3 px-2.5 py-2 rounded-md text-sm font-medium transition-all duration-150
-                  ${
-                    isActive
-                      ? "bg-[var(--color-base-alt)] text-[var(--color-sidebar-text-active)]"
-                      : "text-[var(--color-sidebar-icon)] hover:bg-[var(--color-base-alt)] hover:text-[var(--text-primary)]"
-                  }
-                `}
-                  >
-                    {({ isActive }) => (
-                      <>
-                        <span
-                          className={`absolute left-0 top-1/2 -translate-y-1/2 h-6 w-0.5 rounded-full bg-sidebar-indicator transition-opacity duration-150 ${
-                            isActive ? "opacity-100" : "opacity-0"
-                          } group-hover/nav:opacity-30`}
-                        />
-                        <span
-                          className={`w-5 h-5 flex-shrink-0 flex items-center justify-center ${
-                            isActive ? "text-[var(--color-sidebar-icon-active)]" : ""
-                          }`}
-                        >
-                          {sidebarIcons[settingsTab.icon as keyof typeof sidebarIcons]}
-                        </span>
-                        <span className="whitespace-nowrap overflow-hidden w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300">
-                          {settingsTab.label}
-                        </span>
-                      </>
-                    )}
-                  </NavLink>
-                );
-              })()}
             </nav>
 
             {/* Bottom actions */}
@@ -709,12 +667,21 @@ function MainLayout() {
                         }
                       />
                       <Route
-                        path="/tags"
+                        path="/clasificacion"
                         element={
                           <RequireAuth>
-                            <TagsPage />
+                            <ClasificacionPage />
                           </RequireAuth>
                         }
+                      />
+                      <Route path="/tags" element={<Navigate to="/clasificacion" replace />} />
+                      <Route
+                        path="/categories"
+                        element={<Navigate to="/clasificacion" replace />}
+                      />
+                      <Route
+                        path="/categories/:id"
+                        element={<Navigate to="/clasificacion" replace />}
                       />
                       <Route
                         path="/expenses"
@@ -761,22 +728,6 @@ function MainLayout() {
                         element={
                           <RequireAuth>
                             <ImportJobPreview />
-                          </RequireAuth>
-                        }
-                      />
-                      <Route
-                        path="/categories"
-                        element={
-                          <RequireAuth>
-                            <CategoriesPage />
-                          </RequireAuth>
-                        }
-                      />
-                      <Route
-                        path="/categories/:id"
-                        element={
-                          <RequireAuth>
-                            <CategoriesPage />
                           </RequireAuth>
                         }
                       />

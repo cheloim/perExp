@@ -264,7 +264,7 @@ class Expense(Base):
     account_rel = relationship("Account")
     card_rel = relationship("Card")
     recurring_expense = relationship("RecurringExpense")
-    tags = relationship("Tag", secondary="expense_tags", back_populates="expenses", lazy="selectin")
+    tags = relationship("Tag", secondary="expense_tags", back_populates="expenses")
 
 
 class Tag(Base):
@@ -273,22 +273,24 @@ class Tag(Base):
         Index("ix_tags_user_id", "user_id"),
         Index("ix_tags_card_id", "card_id"),
         Index("ix_tags_account_id", "account_id"),
-        UniqueConstraint("name_hmac", "user_id", name="uq_tag_name_user"),
+        Index("ix_tags_category_id", "category_id"),
+        Index("ix_tags_group_name", "group_name"),
     )
     id = Column(Integer, primary_key=True, index=True)
     name = Column(EncryptedType, nullable=False)
     name_hmac = Column(String(64), nullable=False, index=True)
     color = Column(String(7), default="#6366f1")
+    group_name = Column(String(20), nullable=False, default="otros")
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     card_id = Column(Integer, ForeignKey("cards.id", ondelete="SET NULL"), nullable=True)
     account_id = Column(Integer, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True)
+    category_id = Column(Integer, ForeignKey("categories.id", ondelete="CASCADE"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    expenses = relationship(
-        "Expense", secondary="expense_tags", back_populates="tags", lazy="selectin"
-    )
+    expenses = relationship("Expense", secondary="expense_tags", back_populates="tags")
     card_rel = relationship("Card")
     account_rel = relationship("Account")
+    category_rel = relationship("Category")
 
 
 class ExpenseTag(Base):

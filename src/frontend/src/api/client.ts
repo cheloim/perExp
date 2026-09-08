@@ -15,7 +15,6 @@ import type {
   ExpenseCreate,
   DashboardSummary,
   InstallmentGroup,
-  CardSummary,
   SmartImportRow,
   AnalysisHistory,
   AITrendsResponse,
@@ -168,13 +167,22 @@ export const createTag = (payload: {
   color?: string;
   card_id?: number;
   account_id?: number;
+  group_name?: string;
 }): Promise<Tag> => api.post("/tags", payload).then((r) => r.data);
 
 export const deleteTag = (id: number): Promise<void> =>
   api.delete(`/tags/${id}`).then((r) => r.data);
 
-export const updateTag = (id: number, payload: { name?: string; color?: string }): Promise<Tag> =>
-  api.put(`/tags/${id}`, payload).then((r) => r.data);
+export const updateTag = (
+  id: number,
+  payload: {
+    name?: string;
+    color?: string;
+    group_name?: string;
+    card_id?: number | null;
+    account_id?: number | null;
+  },
+): Promise<Tag> => api.put(`/tags/${id}`, payload).then((r) => r.data);
 
 export const bulkUpdateTags = (payload: {
   ids: number[];
@@ -616,25 +624,6 @@ export const getCreditCardPasivos = () =>
     }>("/dashboard/credit-card-pasivos")
     .then((r) => r.data);
 
-export const getAccountExpenses = (month?: string) =>
-  api
-    .get<
-      {
-        id: number;
-        date: string;
-        description: string;
-        amount: number;
-        currency: string;
-        category_id: number | null;
-        category_name: string | null;
-        category_color: string | null;
-        card: string;
-        bank: string;
-        person: string;
-      }[]
-    >("/dashboard/account-expenses", { params: month ? { month } : undefined })
-    .then((r) => r.data);
-
 export const getScheduledExpenses = async (params?: {
   status?: string;
   installment_group_id?: string;
@@ -657,9 +646,6 @@ export const cancelScheduledExpense = async (id: number) => {
   const { data } = await api.delete(`/scheduled-expenses/${id}`);
   return data;
 };
-
-export const getCardSummary = () =>
-  api.get<CardSummary[]>("/dashboard/card-summary").then((r) => r.data);
 
 export const getTagSummary = (): Promise<TagSummary[]> =>
   api.get("/dashboard/tag-summary").then((r) => r.data);
@@ -685,14 +671,6 @@ export const getCategoryTrend = (months = 4, anchorMonth?: string, person?: stri
     }>("/dashboard/category-trend", {
       params: { months, anchor_month: anchorMonth, person },
     })
-    .then((r) => r.data);
-
-export const getCardCategoryBreakdown = (params?: { month?: string; bank?: string }) =>
-  api
-    .get<{
-      rows: Record<string, number | string>[];
-      categories: { name: string; color: string }[];
-    }>("/dashboard/card-category-breakdown", { params })
     .then((r) => r.data);
 
 export const bulkUpdateCategory = (ids: number[], category_id: number | null) =>

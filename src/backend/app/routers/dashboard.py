@@ -793,7 +793,7 @@ def download_monthly_report(
 ):
     """Download the monthly report as a printable HTML file."""
     # Get or generate report data
-    from app.tasks.monthly_report import generate_user_report
+    from app.tasks.monthly_report import _generate_report_data
 
     if month:
         try:
@@ -804,7 +804,7 @@ def download_monthly_report(
     else:
         month_str = date.today().replace(day=1).strftime("%Y-%m")
 
-    report_data = generate_user_report(current_user.id, month_str)
+    report_data = _generate_report_data(current_user.id, month_str, db)
 
     # Build HTML
     user_name = current_user.full_name or current_user.email
@@ -1784,8 +1784,9 @@ def get_tag_summary(db: Session = Depends(get_db), current_user: User = Depends(
     for e in exps:
         month_key = e.date.strftime("%Y-%m") if e.date else "1970-01"
 
-        if e.tags:
-            first_tag = min(e.tags, key=lambda t: t.id)
+        non_categoria = [t for t in (e.tags or []) if t.group_name != "categoria"]
+        if non_categoria:
+            first_tag = min(non_categoria, key=lambda t: t.id)
             key = f"tag:{first_tag.id}"
         else:
             key = "tag:null"
@@ -1796,6 +1797,7 @@ def get_tag_summary(db: Session = Depends(get_db), current_user: User = Depends(
                     "tag_id": None,
                     "tag_name": "Sin cuenta",
                     "tag_color": "#94a3b8",
+                    "group_name": None,
                     "total_amount": 0.0,
                     "count": 0,
                     "currency": "ARS",
@@ -1808,6 +1810,7 @@ def get_tag_summary(db: Session = Depends(get_db), current_user: User = Depends(
                     "tag_id": t.id,
                     "tag_name": t.name,
                     "tag_color": t.color or "#6366f1",
+                    "group_name": t.group_name,
                     "total_amount": 0.0,
                     "count": 0,
                     "currency": e.currency or "ARS",
@@ -1827,6 +1830,7 @@ def get_tag_summary(db: Session = Depends(get_db), current_user: User = Depends(
             "tag_id": None,
             "tag_name": "Sin cuenta",
             "tag_color": "#94a3b8",
+            "group_name": None,
             "total_amount": 0.0,
             "count": 0,
             "currency": "ARS",
@@ -1845,6 +1849,7 @@ def get_tag_summary(db: Session = Depends(get_db), current_user: User = Depends(
                 "tag_id": g["tag_id"],
                 "tag_name": g["tag_name"],
                 "tag_color": g["tag_color"],
+                "group_name": g.get("group_name"),
                 "total_amount": g["total_amount"],
                 "count": g["count"],
                 "currency": g["currency"],

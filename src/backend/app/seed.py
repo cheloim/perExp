@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.models import Category
+from app.services.tag_sync import get_or_create_mirror_tag
 
 BASE_HIERARCHY = [
     {
@@ -287,4 +288,10 @@ def _apply_base_hierarchy_for_user(db: Session, user_id: int) -> dict:
                 created += 1
 
     db.commit()
+
+    all_cats = db.query(Category).filter(Category.user_id == user_id).all()
+    for cat in all_cats:
+        get_or_create_mirror_tag(db, cat)
+    db.commit()
+
     return {"created": created, "message": f"Se crearon {created} categorías por defecto"}

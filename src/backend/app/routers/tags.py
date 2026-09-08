@@ -4,11 +4,15 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import ExpenseTag, Tag, User
+from app.routers.groups import get_group_user_ids
 from app.schemas.tags import TagCreate, TagResponse, TagUpdate
 from app.services.auth import get_current_user
 from app.services.encryption import compute_hmac
 
 router = APIRouter(prefix="/tags", tags=["tags"])
+
+VALID_GROUPS = {"tarjeta", "cuenta", "otros"}
+BLOCKED_GROUPS = {"categoria"}
 
 
 def _tag_with_count(tag: Tag, count: int) -> dict:
@@ -16,8 +20,10 @@ def _tag_with_count(tag: Tag, count: int) -> dict:
         "id": tag.id,
         "name": tag.name,
         "color": tag.color,
+        "group_name": tag.group_name,
         "card_id": tag.card_id,
         "account_id": tag.account_id,
+        "category_id": tag.category_id,
         "expense_count": count,
     }
 
@@ -26,10 +32,11 @@ def _tag_with_count(tag: Tag, count: int) -> dict:
     "",
     response_model=list[TagResponse],
     summary="List user tags",
-    description="Returns all tags belonging to the current user with expense counts.",
+    description="Returns all tags for the user's family group with expense counts.",
 )
 def get_tags(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    tags = db.query(Tag).filter(Tag.user_id == current_user.id).order_by(Tag.name).all()
+    uid_list = get_group_user_ids(current_user.id, db)
+    tags = db.query(Tag).filter(Tag.user_id.in_(uid_list)).order_by(Tag.group_name, Tag.name).all()
     tag_ids = [t.id for t in tags]
     counts: dict[int, int] = {}
     if tag_ids:
@@ -47,16 +54,27 @@ def get_tags(db: Session = Depends(get_db), current_user: User = Depends(get_cur
     "",
     response_model=TagResponse,
     summary="Create a tag",
-    description="Creates a new tag for the current user. Duplicate names (case-insensitive) are rejected with 409.",
+    description="Creates a new tag. Group 'categoria' is system-managed and cannot be created manually.",
 )
 def create_tag(
     tag: TagCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if tag.group_name in BLOCKED_GROUPS:
+        raise HTTPException(400, "El grupo 'categoria' es gestionado por el sistema.")
+
+    group = tag.group_name if tag.group_name in VALID_GROUPS else "otros"
+
     name_hmac = compute_hmac(tag.name.strip().lower())
     existing = (
-        db.query(Tag).filter(Tag.user_id == current_user.id, Tag.name_hmac == name_hmac).first()
+        db.query(Tag)
+        .filter(
+            Tag.user_id == current_user.id,
+            Tag.name_hmac == name_hmac,
+            Tag.group_name != "categoria",
+        )
+        .first()
     )
     if existing:
         raise HTTPException(
@@ -67,10 +85,12 @@ def create_tag(
                 "existing_id": existing.id,
             },
         )
+
     db_tag = Tag(
         name=tag.name,
         name_hmac=name_hmac,
         color=tag.color,
+        group_name=group,
         card_id=tag.card_id,
         account_id=tag.account_id,
         user_id=current_user.id,
@@ -85,7 +105,7 @@ def create_tag(
     "/{tag_id}",
     response_model=TagResponse,
     summary="Update a tag",
-    description="Updates an existing tag's name, color, or linked card/account.",
+    description="Updates a tag's name, color, group, or linked card/account. Cannot change to 'categoria' group.",
 )
 def update_tag(
     tag_id: int,
@@ -96,6 +116,9 @@ def update_tag(
     db_tag = db.query(Tag).filter(Tag.id == tag_id, Tag.user_id == current_user.id).first()
     if not db_tag:
         raise HTTPException(404, "Tag no encontrado")
+    if db_tag.group_name == "categoria":
+        raise HTTPException(400, "Los tags de categoría no se pueden editar directamente.")
+
     if tag.name is not None:
         new_hmac = compute_hmac(tag.name.strip().lower())
         dup = (
@@ -104,6 +127,7 @@ def update_tag(
                 Tag.user_id == current_user.id,
                 Tag.name_hmac == new_hmac,
                 Tag.id != tag_id,
+                Tag.group_name != "categoria",
             )
             .first()
         )
@@ -120,10 +144,19 @@ def update_tag(
         db_tag.name_hmac = new_hmac
     if tag.color is not None:
         db_tag.color = tag.color
+    if tag.group_name is not None:
+        if tag.group_name in BLOCKED_GROUPS:
+            raise HTTPException(400, "No se puede mover a grupo 'categoria'.")
+        db_tag.group_name = tag.group_name if tag.group_name in VALID_GROUPS else "otros"
     if tag.card_id is not None:
         db_tag.card_id = tag.card_id
+        if db_tag.group_name not in ("tarjeta", "otros"):
+            db_tag.group_name = "tarjeta"
     if tag.account_id is not None:
         db_tag.account_id = tag.account_id
+        if db_tag.group_name not in ("cuenta", "otros"):
+            db_tag.group_name = "cuenta"
+
     db.commit()
     db.refresh(db_tag)
     count = (
@@ -135,7 +168,7 @@ def update_tag(
 @router.delete(
     "/{tag_id}",
     summary="Delete a tag",
-    description="Deletes a tag and removes all expense-tag associations. Does not delete the linked card/account.",
+    description="Deletes a tag and removes all expense-tag associations.",
 )
 def delete_tag(
     tag_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
@@ -143,6 +176,10 @@ def delete_tag(
     db_tag = db.query(Tag).filter(Tag.id == tag_id, Tag.user_id == current_user.id).first()
     if not db_tag:
         raise HTTPException(404, "Tag no encontrado")
+    if db_tag.group_name == "categoria":
+        raise HTTPException(
+            400, "Los tags de categoría se eliminan desde la gestión de categorías."
+        )
     db.query(ExpenseTag).filter(ExpenseTag.tag_id == tag_id).delete()
     db.delete(db_tag)
     db.commit()

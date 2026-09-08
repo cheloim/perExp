@@ -217,6 +217,8 @@ export interface Tag {
   color: string;
   card_id?: number | null;
   account_id?: number | null;
+  category_id?: number | null;
+  group_name?: string;
   expense_count?: number;
 }
 
@@ -372,6 +374,7 @@ export interface TagSummary {
   tag_id: number | null;
   tag_name: string;
   tag_color: string;
+  group_name?: string;
   total_amount: number;
   count: number;
   currency: string;
@@ -514,6 +517,7 @@ export interface TagSummary {
   tag_id: number | null;
   tag_name: string;
   tag_color: string;
+  group_name?: string;
   total_amount: number;
   count: number;
   currency: string;

@@ -18,20 +18,19 @@ from app.services.categorization import _normalize_merchant_key, _resolve_catego
 from app.services.date_utils import _normalize_date_str, add_months
 from app.services.encryption import compute_hmac
 from app.services.import_utils import _is_duplicate, _normalize_text
+from app.services.tag_sync import assign_tags_validated, sync_category_tag
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
 
-def _assign_tags(expense_id: int, tag_ids: list[int], user_id: int, db: Session):
-    """Validate tag ownership and create expense_tags M2M rows. Returns validated Tag objects."""
-    tags = db.query(Tag).filter(Tag.id.in_(tag_ids), Tag.user_id == user_id).all()
-    found_ids = {t.id for t in tags}
-    missing = set(tag_ids) - found_ids
-    if missing:
-        raise HTTPException(404, f"Tags no encontrados: {missing}")
-    for tag in tags:
-        db.add(ExpenseTag(expense_id=expense_id, tag_id=tag.id))
-    return tags
+def _assign_tags(
+    expense_id: int,
+    tag_ids: list[int],
+    user_id: int,
+    db: Session,
+    uid_list: list[int] | None = None,
+):
+    return assign_tags_validated(db, expense_id, tag_ids, user_id, uid_list)
 
 
 def _derive_account_from_tags(tags: list[Tag]) -> tuple[int | None, int | None]:
@@ -182,7 +181,12 @@ def get_expenses(
             ExpenseTag.tag_id == tag_id
         )
     elif untagged:
-        tagged_ids = db.query(ExpenseTag.expense_id).subquery()
+        tagged_ids = (
+            db.query(ExpenseTag.expense_id)
+            .join(Tag, Tag.id == ExpenseTag.tag_id)
+            .filter(Tag.group_name != "categoria")
+            .subquery()
+        )
         q = q.filter(~Expense.id.in_(db.query(tagged_ids.c.expense_id)))
     # Only exclude future installments when NOT filtering by specific category
     # (category-specific views like side panel need to show all expenses)
@@ -452,9 +456,11 @@ def create_expense(
     db.commit()
     db.refresh(db_exp)
 
-    # Assign tags (M2M)
+    sync_category_tag(db, db_exp, db_exp.category_id)
+
     if tag_ids:
-        _assign_tags(db_exp.id, tag_ids, current_user.id, db)
+        uid_list = get_group_user_ids(current_user.id, db)
+        _assign_tags(db_exp.id, tag_ids, current_user.id, db, uid_list)
         db.commit()
 
     # Link to recurring expense if matches
@@ -525,17 +531,17 @@ def update_expense(
     # Apply column changes if any (skip for tag-only updates)
     if data:
         try:
-            db_exp = update_expense_checked(
-                db, current_user.id, db_exp, data, skip_48h_check=True
-            )
+            db_exp = update_expense_checked(db, current_user.id, db_exp, data, skip_48h_check=True)
         except ExpenseEditError as e:
             raise HTTPException(400, str(e))
 
-    # Update tags if provided (replace all) — always allowed, even on installments
+    sync_category_tag(db, db_exp, db_exp.category_id)
+
     if tag_ids is not None:
         db.query(ExpenseTag).filter(ExpenseTag.expense_id == db_exp.id).delete()
         if tag_ids:
-            _assign_tags(db_exp.id, tag_ids, current_user.id, db)
+            uid_list = get_group_user_ids(current_user.id, db)
+            _assign_tags(db_exp.id, tag_ids, current_user.id, db, uid_list)
         db.commit()
         db.refresh(db_exp)
 
@@ -623,6 +629,7 @@ def recategorize_expenses(
         new_cat = _resolve_category(db, exp.amount, exp.description, cats)
         if new_cat != exp.category_id:
             exp.category_id = new_cat
+            sync_category_tag(db, exp, new_cat)
             updated += 1
     db.commit()
     return {"updated": updated, "total": len(expenses)}
@@ -657,6 +664,14 @@ def bulk_update_expenses(
         .update(update_data, synchronize_session=False)
     )
     db.commit()
+
+    if "category_id" in update_data:
+        affected = (
+            db.query(Expense).filter(Expense.id.in_(ids), Expense.user_id == current_user.id).all()
+        )
+        for e in affected:
+            sync_category_tag(db, e, e.category_id)
+
     return {"updated": updated}
 
 
@@ -694,6 +709,13 @@ def bulk_update_category(
         .update({"category_id": category_id}, synchronize_session=False)
     )
     db.commit()
+
+    affected = (
+        db.query(Expense).filter(Expense.id.in_(ids), Expense.user_id == current_user.id).all()
+    )
+    for e in affected:
+        sync_category_tag(db, e, e.category_id)
+
     return {"updated": updated}
 
 
@@ -709,19 +731,12 @@ def bulk_update_tags(
 ):
     ids: list = payload.get("ids", [])
     tag_ids: list[int] = payload.get("tag_ids", [])
-    mode: str = payload.get("mode", "replace")  # add | remove | replace
+    mode: str = payload.get("mode", "replace")
     if not ids:
         return {"updated": 0}
 
-    # Validate tag ownership
-    if tag_ids:
-        tags = db.query(Tag).filter(Tag.id.in_(tag_ids), Tag.user_id == current_user.id).all()
-        found_ids = {t.id for t in tags}
-        missing = set(tag_ids) - found_ids
-        if missing:
-            raise HTTPException(404, f"Tags no encontrados: {missing}")
+    uid_list = get_group_user_ids(current_user.id, db)
 
-    # Filter to user's expenses only
     expense_ids = [
         r[0]
         for r in db.query(Expense.id)
@@ -729,32 +744,23 @@ def bulk_update_tags(
         .all()
     ]
 
+    from app.services.tag_sync import remove_tags_by_group
+
     if mode == "replace":
-        db.query(ExpenseTag).filter(ExpenseTag.expense_id.in_(expense_ids)).delete(
-            synchronize_session=False
-        )
+        for eid in expense_ids:
+            for gn in ("tarjeta", "cuenta", "otros"):
+                remove_tags_by_group(db, eid, gn)
         if tag_ids:
-            db.add_all(
-                [ExpenseTag(expense_id=eid, tag_id=tid) for eid in expense_ids for tid in tag_ids]
-            )
+            for eid in expense_ids:
+                assign_tags_validated(db, eid, tag_ids, current_user.id, uid_list)
     elif mode == "add":
-        existing = set(
-            db.query(ExpenseTag.expense_id, ExpenseTag.tag_id)
-            .filter(ExpenseTag.expense_id.in_(expense_ids))
-            .all()
-        )
-        new_links = [
-            ExpenseTag(expense_id=eid, tag_id=tid)
-            for eid in expense_ids
-            for tid in tag_ids
-            if (eid, tid) not in existing
-        ]
-        if new_links:
-            db.add_all(new_links)
+        for eid in expense_ids:
+            assign_tags_validated(db, eid, tag_ids, current_user.id, uid_list)
     elif mode == "remove":
-        db.query(ExpenseTag).filter(
-            ExpenseTag.expense_id.in_(expense_ids), ExpenseTag.tag_id.in_(tag_ids)
-        ).delete(synchronize_session=False)
+        if tag_ids:
+            db.query(ExpenseTag).filter(
+                ExpenseTag.expense_id.in_(expense_ids), ExpenseTag.tag_id.in_(tag_ids)
+            ).delete(synchronize_session=False)
 
     db.commit()
     return {"updated": len(expense_ids)}

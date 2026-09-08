@@ -8,6 +8,7 @@ from app.schemas import CategoryCreate, CategoryResponse, CategorySuggestRequest
 from app.seed import _apply_base_hierarchy_for_user
 from app.services.auth import get_current_user
 from app.services.categorization import llm_categorize
+from app.services.tag_sync import get_or_create_mirror_tag, remove_mirror_tag
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
@@ -43,6 +44,8 @@ def create_category(
     db.add(db_cat)
     db.commit()
     db.refresh(db_cat)
+    get_or_create_mirror_tag(db, db_cat)
+    db.commit()
     return db_cat
 
 
@@ -79,6 +82,8 @@ def update_category(
         setattr(db_cat, k, v)
     db.commit()
     db.refresh(db_cat)
+    get_or_create_mirror_tag(db, db_cat)
+    db.commit()
     return db_cat
 
 
@@ -109,6 +114,7 @@ def delete_category(
     db.query(ScheduledExpense).filter(ScheduledExpense.category_id == cat_id).update(
         {"category_id": None}
     )
+    remove_mirror_tag(db, cat_id)
     db.delete(db_cat)
     db.commit()
     return {"ok": True}

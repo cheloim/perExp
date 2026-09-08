@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCategories, createCategory, suggestCategory, getTags, createTag } from "../api/client";
-import type { Expense, ExpenseCreate } from "../types";
+import type { Expense, ExpenseCreate, Tag } from "../types";
 import { Select } from "./ui/Select";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 
@@ -184,35 +184,62 @@ export function ExpenseModal({
 
   const [newTagName, setNewTagName] = useState("");
 
-  const selectedTags = tags.filter((t) => form.tag_ids?.includes(t.id));
-  const availableTags = tags.filter((t) => !form.tag_ids?.includes(t.id));
+  const visibleTags = useMemo(() => tags.filter((t) => t.group_name !== "categoria"), [tags]);
+
+  const selectedTags = visibleTags.filter((t) => form.tag_ids?.includes(t.id));
+  const availableTags = visibleTags.filter((t) => !form.tag_ids?.includes(t.id));
   const filteredNewTag =
     newTagName.trim() &&
     !tags.some((t) => t.name.toLowerCase() === newTagName.trim().toLowerCase());
 
   const toggleTag = (id: number) => {
-    setForm((prev) => ({
-      ...prev,
-      tag_ids: prev.tag_ids?.includes(id)
-        ? prev.tag_ids.filter((x) => x !== id)
-        : [...(prev.tag_ids ?? []), id],
-    }));
+    const tag = visibleTags.find((t) => t.id === id);
+    if (!tag) return;
+
+    const isExclusive = tag.group_name === "tarjeta" || tag.group_name === "cuenta";
+
+    setForm((prev) => {
+      const current = prev.tag_ids ?? [];
+      if (current.includes(id)) {
+        return { ...prev, tag_ids: current.filter((x) => x !== id) };
+      }
+      if (isExclusive) {
+        const sameGroupIds = visibleTags
+          .filter((t) => t.group_name === tag.group_name && t.id !== id)
+          .map((t) => t.id);
+        const filtered = current.filter((x) => !sameGroupIds.includes(x));
+        return { ...prev, tag_ids: [...filtered, id] };
+      }
+      return { ...prev, tag_ids: [...current, id] };
+    });
   };
 
   const handleCreateInlineTag = async () => {
     if (!newTagName.trim()) return;
     try {
-      const created = await createTag({ name: newTagName.trim(), color: "#6366f1" });
+      const created = await createTag({
+        name: newTagName.trim(),
+        color: "#6366f1",
+        group_name: "otros",
+      });
       queryClient.invalidateQueries({ queryKey: ["tags"] });
       setForm((prev) => ({
         ...prev,
         tag_ids: [...(prev.tag_ids ?? []), created.id],
       }));
       setNewTagName("");
-    } catch {
-      // Duplicate or error
-    }
+    } catch {}
   };
+
+  const groupedAvailable = useMemo(() => {
+    const groups: Record<string, Tag[]> = { tarjeta: [], cuenta: [], otros: [] };
+    for (const tag of availableTags) {
+      const key =
+        tag.group_name === "tarjeta" ? "tarjeta" : tag.group_name === "cuenta" ? "cuenta" : "otros";
+      groups[key].push(tag);
+    }
+    return groups;
+  }, [availableTags]);
 
   return (
     <div
@@ -414,18 +441,39 @@ export function ExpenseModal({
             />
           </div>
           {(availableTags.length > 0 || filteredNewTag) && (
-            <div className="flex flex-wrap gap-1 mt-1.5">
-              {availableTags.map((tag) => (
-                <button
-                  key={tag.id}
-                  type="button"
-                  onClick={() => toggleTag(tag.id)}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
-                >
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
-                  {tag.name}
-                </button>
-              ))}
+            <div className="mt-1.5 space-y-1.5">
+              {(["tarjeta", "cuenta", "otros"] as const).map((group) => {
+                const groupTags = groupedAvailable[group];
+                if (groupTags.length === 0) return null;
+                const labels: Record<string, string> = {
+                  tarjeta: "\uD83D\uDCB3 Tarjetas",
+                  cuenta: "\uD83C\uDFE6 Cuentas",
+                  otros: "Otros",
+                };
+                return (
+                  <div key={group}>
+                    <div className="text-[10px] font-medium text-[var(--text-tertiary)] mb-0.5">
+                      {labels[group]}
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {groupTags.map((tag) => (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          onClick={() => toggleTag(tag.id)}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
+                        >
+                          <span
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: tag.color }}
+                          />
+                          {tag.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
               {filteredNewTag && (
                 <button
                   type="button"

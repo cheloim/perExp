@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 from app.models import ImportJob, User
 from app.schemas import ImportJobResponse, RowsConfirmBody
 from app.services.auth import get_current_user
+from app.services.encryption import compute_hmac
 from app.services.import_utils import _normalize_text
 from app.tasks.import_processor import sync_process_import_job
 
@@ -191,7 +192,7 @@ async def confirm_import_job(
     Confirm import job - saves rows to database.
     Uses the same logic as POST /import/rows-confirm.
     """
-    from app.models import Card, Category, Expense, ScheduledExpense
+    from app.models import Card, Category, Expense, ScheduledExpense, Tag
     from app.services.normalizers import first_card_word, normalize_bank, title_case_single
 
     logger.info(
@@ -375,6 +376,7 @@ async def confirm_import_job(
                     card_obj, _ = find_or_create_card(
                         mapping_entry.get("bank", ""),
                         mapping_entry.get("card_name", ""),
+                        mapping_entry.get("holder", ""),
                         mapping_entry.get("card_type", "credito"),
                     )
                     scheduled_card_id = card_obj.id if card_obj else None
@@ -416,17 +418,7 @@ async def confirm_import_job(
                 )
                 card_id = card_obj.id
             else:
-                # Fallback: create card from card_header
-                from app.services.smart_import_core import _parse_card_header
-
-                detected_bank, detected_card = _parse_card_header(card_header)
-                card_obj, _ = find_or_create_card(
-                    detected_bank or "",
-                    detected_card or "",
-                    user.full_name.split()[0] if user.full_name else "",
-                    "credito",
-                )
-                card_id = card_obj.id
+                card_id = None
 
             try:
                 expense = Expense(
@@ -445,14 +437,16 @@ async def confirm_import_job(
                 db.add(expense)
                 db.flush()
 
-                # Link to recurring expense if matches
+                from app.services.tag_sync import sync_category_tag
+
+                sync_category_tag(db, expense, expense.category_id)
+
                 from app.services.recurring_linker import link_to_recurring
 
                 link_to_recurring(expense.id, expense.description, user.id, db)
 
                 if expense.card_id:
-                    from app.models import ExpenseTag, Tag
-                    from app.services.encryption import compute_hmac
+                    from app.services.tag_sync import assign_tags_validated
 
                     card = db.query(Card).filter(Card.id == expense.card_id).first()
                     if card:
@@ -473,7 +467,7 @@ async def confirm_import_job(
                             )
                             db.add(existing_tag)
                             db.flush()
-                        db.add(ExpenseTag(expense_id=expense.id, tag_id=existing_tag.id))
+                        assign_tags_validated(db, expense.id, [existing_tag.id], user.id)
 
                 imported_count += 1
             except Exception as e:

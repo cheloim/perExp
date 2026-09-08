@@ -52,13 +52,13 @@ type SortField = "date" | "description" | "category" | "bank" | "person" | "amou
 type SortDir = "asc" | "desc";
 
 function hasMissingData(exp: Expense): boolean {
-  return !exp.category_id || !exp.tags || exp.tags.length === 0;
+  return !exp.category_id || !exp.tags?.some((t) => t.group_name !== "categoria");
 }
 
 function getMissingDataFields(exp: Expense): string[] {
   const missing: string[] = [];
   if (!exp.category_id) missing.push("categoría");
-  if (!exp.tags || exp.tags.length === 0) missing.push("tag");
+  if (!exp.tags?.some((t) => t.group_name !== "categoria")) missing.push("tag");
   return missing;
 }
 
@@ -464,7 +464,10 @@ export default function ExpensesPage() {
       e.currency || "ARS",
       e.category_name || "",
       e.person || "",
-      e.tags?.map((t) => t.name).join("; ") || "",
+      e.tags
+        ?.filter((t) => t.group_name !== "categoria")
+        .map((t) => t.name)
+        .join("; ") || "",
     ]);
     const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
     const blob = new Blob(["\uFEFF" + csv], {
@@ -626,12 +629,25 @@ export default function ExpensesPage() {
 
               {/* Tag */}
               {(() => {
+                const visibleTags = tags.filter((t) => t.group_name !== "categoria");
                 const tagOptions: { value: string; label: string }[] = [
                   { value: "__untagged__", label: "Sin tag" },
                 ];
-                tags.forEach((t) => {
-                  tagOptions.push({ value: String(t.id), label: t.name });
-                });
+                const groups: { label: string; options: { value: string; label: string }[] }[] = [];
+                const tarjetaOpts = visibleTags
+                  .filter((t) => t.group_name === "tarjeta")
+                  .map((t) => ({ value: String(t.id), label: t.name }));
+                const cuentaOpts = visibleTags
+                  .filter((t) => t.group_name === "cuenta")
+                  .map((t) => ({ value: String(t.id), label: t.name }));
+                const otrosOpts = visibleTags
+                  .filter((t) => t.group_name !== "tarjeta" && t.group_name !== "cuenta")
+                  .map((t) => ({ value: String(t.id), label: t.name }));
+                if (tarjetaOpts.length > 0)
+                  groups.push({ label: "💳 Tarjetas", options: tarjetaOpts });
+                if (cuentaOpts.length > 0)
+                  groups.push({ label: "🏦 Cuentas", options: cuentaOpts });
+                if (otrosOpts.length > 0) groups.push({ label: "Otros", options: otrosOpts });
                 const currentTag = filterUntagged
                   ? "__untagged__"
                   : filterTagId
@@ -655,6 +671,7 @@ export default function ExpensesPage() {
                       setSearchParams(next);
                     }}
                     options={tagOptions}
+                    groups={groups}
                     placeholder="Tag"
                   />
                 );
@@ -1102,22 +1119,26 @@ export default function ExpensesPage() {
                               {exp.bank && <span>{titleCase(exp.bank)}</span>}
                               {(exp.card || exp.bank) && exp.person && <span>·</span>}
                               {exp.person && <span>{titleCase(exp.person)}</span>}
-                              {exp.tags?.map((tag: { id: number; name: string; color: string }) => (
-                                <span
-                                  key={tag.id}
-                                  className="badge"
-                                  style={{
-                                    backgroundColor: tag.color,
-                                    color: getContrastTextColor(tag.color),
-                                    fontSize: "0.65rem",
-                                    padding: "1px 6px",
-                                    borderRadius: "9999px",
-                                    marginLeft: "4px",
-                                  }}
-                                >
-                                  {tag.name}
-                                </span>
-                              ))}
+                              {exp.tags
+                                ?.filter(
+                                  (tag: { group_name?: string }) => tag.group_name !== "categoria",
+                                )
+                                .map((tag: { id: number; name: string; color: string }) => (
+                                  <span
+                                    key={tag.id}
+                                    className="badge"
+                                    style={{
+                                      backgroundColor: tag.color,
+                                      color: getContrastTextColor(tag.color),
+                                      fontSize: "0.65rem",
+                                      padding: "1px 6px",
+                                      borderRadius: "9999px",
+                                      marginLeft: "4px",
+                                    }}
+                                  >
+                                    {tag.name}
+                                  </span>
+                                ))}
                             </div>
                           </td>
                           <td className="px-4 py-3">
@@ -1305,7 +1326,7 @@ export default function ExpensesPage() {
                   placeholder="Seleccionar..."
                 />
               </div>
-              {tags.length > 0 && (
+              {tags.filter((t) => t.group_name !== "categoria").length > 0 && (
                 <div>
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                     Asignar tag
@@ -1313,7 +1334,9 @@ export default function ExpensesPage() {
                   <Select
                     value={bulkTagId}
                     onChange={setBulkTagId}
-                    options={tags.map((t) => ({ value: String(t.id), label: t.name }))}
+                    options={tags
+                      .filter((t) => t.group_name !== "categoria")
+                      .map((t) => ({ value: String(t.id), label: t.name }))}
                     placeholder="Seleccionar..."
                   />
                 </div>

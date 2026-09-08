@@ -527,10 +527,12 @@ def build_weekly_report_data(user_id: int, start: date, end: date, db) -> dict:
 
     Extracted from tasks/weekly_summary.py to be reusable.
     """
+    uid_list = get_group_user_ids(user_id, db)
+
     # 1. Weekly expenses
     expenses = (
         db.query(Expense)
-        .filter(Expense.user_id == user_id, Expense.date >= start, Expense.date <= end)
+        .filter(Expense.user_id.in_(uid_list), Expense.date >= start, Expense.date <= end)
         .all()
     )
     total_expenses = sum(abs(e.amount) for e in expenses if not e.is_income)
@@ -547,7 +549,7 @@ def build_weekly_report_data(user_id: int, start: date, end: date, db) -> dict:
     month_start = date(today.year, today.month, 1)
     monthly_expenses = (
         db.query(Expense)
-        .filter(Expense.user_id == user_id, Expense.date >= month_start, Expense.date <= today)
+        .filter(Expense.user_id.in_(uid_list), Expense.date >= month_start, Expense.date <= today)
         .all()
     )
     monthly_accumulated = sum(abs(e.amount) for e in monthly_expenses if not e.is_income)
@@ -589,7 +591,7 @@ def build_weekly_report_data(user_id: int, start: date, end: date, db) -> dict:
     upcoming = (
         db.query(ScheduledExpense)
         .filter(
-            ScheduledExpense.user_id == user_id,
+            ScheduledExpense.user_id.in_(uid_list),
             ScheduledExpense.status == "PENDING",
             ScheduledExpense.scheduled_date >= next_start,
             ScheduledExpense.scheduled_date <= next_end,
@@ -611,7 +613,6 @@ def build_weekly_report_data(user_id: int, start: date, end: date, db) -> dict:
     # 6. Budget warnings (≥80%)
     from app.services.budget_helpers import get_spending_for_event
 
-    uid_list = get_group_user_ids(user_id, db)
     today_bue = datetime.now(BUE).date()
     budgets = db.query(Budget).filter(Budget.user_id == user_id, Budget.is_active == True).all()
 
@@ -682,22 +683,41 @@ def build_weekly_report_data(user_id: int, start: date, end: date, db) -> dict:
     ]
 
     # 9. Tag breakdown
-    tag_breakdown: dict[str, dict] = {}
+    tag_breakdown: dict[tuple[str, str], dict] = {}
     for e in expenses:
         if e.is_income:
             continue
         for t in e.tags or []:
-            if t.name not in tag_breakdown:
-                tag_breakdown[t.name] = {"name": t.name, "color": t.color, "total": 0.0, "count": 0}
-            tag_breakdown[t.name]["total"] += abs(e.amount)
-            tag_breakdown[t.name]["count"] += 1
-    untagged = sum(abs(e.amount) for e in expenses if not e.tags and not e.is_income)
+            if t.group_name == "categoria":
+                continue
+            key = (t.group_name, t.name)
+            if key not in tag_breakdown:
+                tag_breakdown[key] = {
+                    "name": t.name,
+                    "group": t.group_name,
+                    "color": t.color,
+                    "total": 0.0,
+                    "count": 0,
+                }
+            tag_breakdown[key]["total"] += abs(e.amount)
+            tag_breakdown[key]["count"] += 1
+    untagged = sum(
+        abs(e.amount)
+        for e in expenses
+        if not [t for t in (e.tags or []) if t.group_name != "categoria"] and not e.is_income
+    )
     if untagged > 0:
-        tag_breakdown["Sin tag"] = {
+        tag_breakdown[("", "Sin tag")] = {
             "name": "Sin tag",
+            "group": None,
             "color": "#94a3b8",
             "total": untagged,
-            "count": sum(1 for e in expenses if not e.tags and not e.is_income),
+            "count": sum(
+                1
+                for e in expenses
+                if not [t for t in (e.tags or []) if t.group_name != "categoria"]
+                and not e.is_income
+            ),
         }
     tag_list = sorted(tag_breakdown.values(), key=lambda x: x["total"], reverse=True)
 
