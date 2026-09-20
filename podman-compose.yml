@@ -258,6 +258,65 @@ services:
         limits:
           memory: 512M
           cpus: "0.5"
+
+  loki:
+    image: docker.io/grafana/loki:3.4.2
+    command: "-config.file=/etc/loki/local-config.yaml"
+    volumes:
+      - loki_data:/loki
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+
+  alloy:
+    image: docker.io/grafana/alloy:latest
+    command: "run --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy"
+    volumes:
+      - ./config/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/log/journal:/var/log/journal:ro
+      - /run/log/journal:/run/log/journal:ro
+      - /etc/machine-id:/etc/machine-id:ro
+      - alloy_data:/var/lib/alloy/data
+    depends_on:
+      - loki
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.5"
+
+  cadvisor:
+    image: docker.io/gcr.io/cadvisor/cadvisor:latest
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/containers/:/var/lib/containers:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.5"
+
+  blackbox-exporter:
+    image: docker.io/prom/blackbox-exporter:latest
+    volumes:
+      - ./config/blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    command:
+      - "--config.file=/etc/blackbox/blackbox.yml"
+    deploy:
+      resources:
+        limits:
+          memory: 32M
+          cpus: "0.1"
+
+secrets:
   creditcard_backend_dev_postgres_password:
     external: true
     env: POSTGRES_PASSWORD_DEV
@@ -303,3 +362,5 @@ volumes:
   redis_data:
   prometheus_data:
   grafana_data:
+  loki_data:
+  alloy_data:
