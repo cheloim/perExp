@@ -464,6 +464,9 @@ jobs:
                     proxy_set_header X-Real-IP $remote_addr;
                     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
                     proxy_set_header X-Forwarded-Proto $scheme;
+                    proxy_connect_timeout 10s;
+                    proxy_read_timeout 120s;
+                    proxy_send_timeout 30s;
                 }
             }
             NGINXEOF
@@ -702,12 +705,13 @@ jobs:
                 restart: unless-stopped
 
               grafana:
-                image: docker.io/grafana/grafana:latest
+                image: docker.io/grafana/grafana:13.2.1
                 environment:
                   GF_SECURITY_ADMIN_USER: admin
                   GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
                   GF_AUTH_ANONYMOUS_ENABLED: "false"
                   GF_SERVER_ROOT_URL: https://grafana.${{ vars.DOMAIN_NAME }}
+                  GF_PLUGINS_DISABLE: grafana-pyroscope-app,grafana-exploretraces-app,grafana-lokiexplore-app,grafana-metricsdrilldown-app,grafana-advisor-app,mssql,mysql
                 volumes:
                   - ./grafana/provisioning:/etc/grafana/provisioning:ro
                   - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
@@ -717,7 +721,7 @@ jobs:
                 deploy:
                   resources:
                     limits:
-                      memory: 256M
+                      memory: 512M
                       cpus: "0.5"
                 restart: unless-stopped
 

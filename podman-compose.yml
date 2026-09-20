@@ -185,7 +185,7 @@ services:
           cpus: "1.0"
 
   grafana:
-    image: docker.io/grafana/grafana:latest
+    image: docker.io/grafana/grafana:13.2.1
     ports:
       - "3000:3000"
     environment:
@@ -193,6 +193,7 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_AUTH_ANONYMOUS_ENABLED: "false"
       GF_SERVER_ROOT_URL: http://localhost:3000
+      GF_PLUGINS_DISABLE: grafana-pyroscope-app,grafana-exploretraces-app,grafana-lokiexplore-app,grafana-metricsdrilldown-app,grafana-advisor-app,mssql,mysql
     volumes:
       - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./config/grafana/dashboards:/var/lib/grafana/dashboards:ro
@@ -202,10 +203,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 512M
           cpus: "0.5"
-
-secrets:
   creditcard_backend_dev_postgres_password:
     external: true
     env: POSTGRES_PASSWORD_DEV
