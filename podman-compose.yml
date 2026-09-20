@@ -184,6 +184,59 @@ services:
           memory: 512M
           cpus: "1.0"
 
+  postgres-exporter:
+    image: docker.io/prometheuscommunity/postgres-exporter:latest
+    environment:
+      DATA_SOURCE_NAME: "postgresql://expenses_user:${POSTGRES_PASSWORD_DEV}@db:5432/expenses?sslmode=disable"
+    depends_on:
+      - db
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: "0.25"
+
+  redis-exporter:
+    image: docker.io/oliver006/redis_exporter:latest
+    environment:
+      REDIS_ADDR: "redis://redis:6379"
+    depends_on:
+      - redis
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: "0.25"
+
+  node-exporter:
+    image: docker.io/prom/node-exporter:latest
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/host/root"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host:ro
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: "0.25"
+
+  nginx-exporter:
+    image: docker.io/nginx/nginx-prometheus-exporter:latest
+    command:
+      - "-nginx.scrape-uri=http://nginx:8080/stub_status"
+    depends_on:
+      - nginx
+    deploy:
+      resources:
+        limits:
+          memory: 32M
+          cpus: "0.1"
+
   grafana:
     image: docker.io/grafana/grafana:13.2.1
     ports:
