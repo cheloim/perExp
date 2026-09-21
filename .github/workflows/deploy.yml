@@ -856,21 +856,23 @@ jobs:
 
               oauth2-proxy:
                 image: quay.io/oauth2-proxy/oauth2-proxy:v7.7.1
+                command:
+                  - "--http-address=0.0.0.0:4180"
+                  - "--upstream=http://grafana:3000"
+                  - "--provider=google"
+                  - "--email-domain=*"
+                  - "--cookie-domain=.${{ vars.DOMAIN_NAME }}"
+                  - "--cookie-secure=true"
+                  - "--skip-provider-button=true"
+                  - "--set-xauthrequest=true"
+                  - "--pass-user-headers=true"
+                  - "--reverse-proxy=true"
                 environment:
-                  OAUTH2_PROXY_PROVIDER: google
                   OAUTH2_PROXY_CLIENT_ID: ${GOOGLE_CLIENT_ID}
                   OAUTH2_PROXY_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-                  OAUTH2_PROXY_EMAIL_DOMAINS: "*"
                   OAUTH2_PROXY_ALLOWED_EMAILS: ${GRAFANA_ALLOWED_EMAILS}
                   OAUTH2_PROXY_REDIRECT_URL: https://grafana.${{ vars.DOMAIN_NAME }}/oauth2/callback
-                  OAUTH2_PROXY_UPSTREAM: http://grafana:3000
-                  OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
-                  OAUTH2_PROXY_SET_XAUTHREQUEST: "true"
-                  OAUTH2_PROXY_PASS_USER_HEADERS: "true"
                   OAUTH2_PROXY_COOKIE_SECRET: ${OAUTH2_PROXY_COOKIE_SECRET}
-                  OAUTH2_PROXY_COOKIE_SECURE: "true"
-                  OAUTH2_PROXY_COOKIE_DOMAINS: ".${{ vars.DOMAIN_NAME }}"
-                  OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true"
                 depends_on:
                   - grafana
                 deploy:
