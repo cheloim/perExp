@@ -777,7 +777,7 @@ jobs:
           port: 43422
           source: "config/alloy/config.alloy,config/blackbox/blackbox.yml"
           target: /opt/creditcardanalyzer
-          strip_components: 2
+          strip_components: 1
 
       - name: Validate required env vars
         uses: appleboy/ssh-action@v1
