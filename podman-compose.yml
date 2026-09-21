@@ -170,39 +170,112 @@ services:
           memory: 256M
           cpus: "0.5"
 
-  prometheus:
-    image: docker.io/prom/prometheus:latest
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.retention.time=15d"
-    volumes:
-      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "1.0"
-
-  grafana:
-    image: docker.io/grafana/grafana:latest
-    ports:
-      - "3000:3000"
+  postgres-exporter:
+    image: docker.io/prometheuscommunity/postgres-exporter:latest
     environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
-      GF_AUTH_ANONYMOUS_ENABLED: "false"
-      GF_SERVER_ROOT_URL: http://localhost:3000
-    volumes:
-      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./config/grafana/dashboards:/var/lib/grafana/dashboards:ro
-      - grafana_data:/var/lib/grafana
+      DATA_SOURCE_NAME: "postgresql://expenses_user:${POSTGRES_PASSWORD_DEV}@db:5432/expenses?sslmode=disable"
     depends_on:
-      - prometheus
+      - db
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 64M
+          cpus: "0.25"
+
+  redis-exporter:
+    image: docker.io/oliver006/redis_exporter:latest
+    environment:
+      REDIS_ADDR: "redis://redis:6379"
+    depends_on:
+      - redis
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: "0.25"
+
+  node-exporter:
+    image: docker.io/prom/node-exporter:latest
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/host/root"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host:ro
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: "0.25"
+
+  nginx-exporter:
+    image: docker.io/nginx/nginx-prometheus-exporter:latest
+    command:
+      - "-nginx.scrape-uri=http://nginx:8080/stub_status"
+    depends_on:
+      - nginx
+    deploy:
+      resources:
+        limits:
+          memory: 32M
+          cpus: "0.1"
+
+  blackbox-exporter:
+    image: docker.io/prom/blackbox-exporter:latest
+    volumes:
+      - ./config/blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    command:
+      - "--config.file=/etc/blackbox/blackbox.yml"
+    deploy:
+      resources:
+        limits:
+          memory: 32M
+          cpus: "0.1"
+
+  alloy:
+    image: docker.io/grafana/alloy:latest
+    command:
+      - "run"
+      - "--storage.path=/var/lib/alloy/data"
+      - "--server.http.listen-addr=0.0.0.0:12345"
+      - "/etc/alloy/config.alloy"
+    environment:
+      GRAFANA_CLOUD_PROMETHEUS_URL: ${GRAFANA_CLOUD_PROMETHEUS_URL}
+      GRAFANA_CLOUD_PROMETHEUS_USER: ${GRAFANA_CLOUD_PROMETHEUS_USER}
+      GRAFANA_CLOUD_PROMETHEUS_PASSWORD: ${GRAFANA_CLOUD_PROMETHEUS_PASSWORD}
+      GRAFANA_CLOUD_LOKI_URL: ${GRAFANA_CLOUD_LOKI_URL}
+      GRAFANA_CLOUD_LOKI_USER: ${GRAFANA_CLOUD_LOKI_USER}
+      GRAFANA_CLOUD_LOKI_PASSWORD: ${GRAFANA_CLOUD_LOKI_PASSWORD}
+    volumes:
+      - ./config/alloy/config.alloy:/etc/alloy/config.alloy:ro,z
+      - /var/log/journal:/var/log/journal:ro
+      - /run/log/journal:/run/log/journal:ro
+      - /etc/machine-id:/etc/machine-id:ro
+      - alloy_data:/var/lib/alloy/data
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.5"
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.0
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/containers/:/var/lib/containers:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    deploy:
+      resources:
+        limits:
+          memory: 128M
           cpus: "0.5"
 
 secrets:
@@ -249,5 +322,4 @@ secrets:
 volumes:
   postgres_data:
   redis_data:
-  prometheus_data:
-  grafana_data:
+  alloy_data:

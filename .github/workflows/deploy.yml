@@ -203,24 +203,18 @@ jobs:
             CERT_FILE="/opt/creditcardanalyzer/certbot/conf/live/${{ vars.DOMAIN_NAME }}/fullchain.pem"
 
             if [ -f "$CERT_FILE" ]; then
-                # Check if cert covers grafana subdomain (new SAN)
-                if ! openssl x509 -in "$CERT_FILE" -noout -text | grep -q "grafana.${{ vars.DOMAIN_NAME }}"; then
-                    echo "Cert does not cover grafana subdomain, forcing re-issue..."
+                # Check if cert expires within 14 days
+                EXPIRY=$(openssl x509 -in "$CERT_FILE" -noout -enddate | cut -d= -f2)
+                EXPIRY_EPOCH=$(date -d "$EXPIRY" +%s)
+                NOW_EPOCH=$(date +%s)
+                DAYS_LEFT=$(( (EXPIRY_EPOCH - NOW_EPOCH) / 86400 ))
+
+                if [ "$DAYS_LEFT" -lt 14 ]; then
+                    echo "Certificate expires in $DAYS_LEFT days, forcing renewal..."
                     rm -f "$CERT_FILE"
                 else
-                    # Check if cert expires within 14 days
-                    EXPIRY=$(openssl x509 -in "$CERT_FILE" -noout -enddate | cut -d= -f2)
-                    EXPIRY_EPOCH=$(date -d "$EXPIRY" +%s)
-                    NOW_EPOCH=$(date +%s)
-                    DAYS_LEFT=$(( (EXPIRY_EPOCH - NOW_EPOCH) / 86400 ))
-
-                    if [ "$DAYS_LEFT" -lt 14 ]; then
-                        echo "Certificate expires in $DAYS_LEFT days, forcing renewal..."
-                        rm -f "$CERT_FILE"
-                    else
-                        echo "SSL certificate OK ($DAYS_LEFT days remaining), skipping"
-                        exit 0
-                    fi
+                    echo "SSL certificate OK ($DAYS_LEFT days remaining), skipping"
+                    exit 0
                 fi
             fi
 
@@ -234,7 +228,6 @@ jobs:
               -d ${{ vars.DOMAIN_NAME }} \
               -d www.${{ vars.DOMAIN_NAME }} \
               -d ${{ vars.PLATFORM_DOMAIN }} \
-              -d grafana.${{ vars.DOMAIN_NAME }} \
               --email mmendoza0989@gmail.com \
               --agree-tos --non-interactive
             echo "SSL certificate obtained"
@@ -260,11 +253,8 @@ jobs:
           key: ${{ secrets.LINODE_SSH_KEY }}
           port: 43422
           script: |
-            if [ -f /etc/systemd/system/certbot-renew.timer ]; then
-                echo "Certbot renewal timer already exists, skipping"
-            else
-                echo "Creating certbot renewal timer..."
-                cat > /etc/systemd/system/certbot-renew.service << 'UNIT'
+            echo "Creating certbot renewal timer..."
+            cat > /etc/systemd/system/certbot-renew.service << 'UNIT'
             [Unit]
             Description=Certbot SSL Certificate Renewal
             After=network-online.target
@@ -272,9 +262,9 @@ jobs:
             [Service]
             Type=oneshot
             ExecStart=/usr/bin/podman run --rm \
-              -v /opt/creditcardanalyzer/certbot/conf:/etc/letsencrypt:Z \
-              -v /opt/creditcardanalyzer/certbot/work:/var/lib/letsencrypt:Z \
-              -v /opt/creditcardanalyzer/certbot/logs:/var/log/letsencrypt:Z \
+              -v /opt/creditcardanalyzer/certbot/conf:/etc/letsencrypt:z \
+              -v /opt/creditcardanalyzer/certbot/work:/var/lib/letsencrypt:z \
+              -v /opt/creditcardanalyzer/certbot/logs:/var/log/letsencrypt:z \
               docker.io/certbot/certbot renew --quiet
             UNIT
 
@@ -294,7 +284,6 @@ jobs:
                 systemctl daemon-reload
                 systemctl enable --now certbot-renew.timer
                 echo "Certbot renewal timer installed"
-            fi
 
       - name: Open firewall ports
         uses: appleboy/ssh-action@v1
@@ -345,6 +334,20 @@ jobs:
             # Write nginx.conf
             mkdir -p /opt/creditcardanalyzer/nginx
             cat > /opt/creditcardanalyzer/nginx/nginx.conf << 'NGINXEOF'
+            # Internal: stub_status for nginx-exporter (not exposed externally)
+            server {
+                listen 8080;
+                server_name localhost;
+                location /stub_status {
+                    stub_status;
+                    allow 10.0.0.0/8;
+                    allow 172.16.0.0/12;
+                    allow 192.168.0.0/16;
+                    allow 127.0.0.1;
+                    deny all;
+                }
+            }
+
             # HTTP → HTTPS redirect
             server {
                 listen 80 default_server;
@@ -440,81 +443,13 @@ jobs:
                     return 404;
                 }
             }
-
-            # Grafana: grafana.oikonomia.ar
-            server {
-                listen 443 ssl;
-                server_name grafana.${{ vars.DOMAIN_NAME }};
-
-                ssl_certificate /etc/letsencrypt/live/${{ vars.DOMAIN_NAME }}/fullchain.pem;
-                ssl_certificate_key /etc/letsencrypt/live/${{ vars.DOMAIN_NAME }}/privkey.pem;
-                ssl_protocols TLSv1.2 TLSv1.3;
-                ssl_ciphers HIGH:!aNULL:!MD5;
-
-                add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-                add_header X-Content-Type-Options nosniff;
-                add_header X-Frame-Options DENY;
-                add_header X-Robots-Tag "noindex, nofollow" always;
-
-                location / {
-                    proxy_pass http://grafana:3000;
-                    proxy_set_header Host $host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto $scheme;
-                }
-            }
             NGINXEOF
 
-            # Write prometheus config
-            mkdir -p /opt/creditcardanalyzer/prometheus
-            cat > /opt/creditcardanalyzer/prometheus/prometheus.yml << 'PROMEOF'
-            global:
-              scrape_interval: 15s
-              evaluation_interval: 15s
+            # Write alloy config placeholder and copy files via SCP
+            mkdir -p /opt/creditcardanalyzer/alloy /opt/creditcardanalyzer/blackbox
+            echo "Config file placeholders written"
 
-            scrape_configs:
-              - job_name: "oikonomia-backend"
-                metrics_path: "/metrics"
-                static_configs:
-                  - targets:
-                      - "backend:8000"
-            PROMEOF
 
-            # Write grafana provisioning
-            mkdir -p /opt/creditcardanalyzer/grafana/provisioning/datasources
-            mkdir -p /opt/creditcardanalyzer/grafana/provisioning/dashboards
-            mkdir -p /opt/creditcardanalyzer/grafana/dashboards
-            cat > /opt/creditcardanalyzer/grafana/provisioning/datasources/datasource.yml << 'GFDSEOF'
-            apiVersion: 1
-
-            datasources:
-              - name: Prometheus
-                type: prometheus
-                access: proxy
-                url: http://prometheus:9090
-                isDefault: true
-                editable: false
-            GFDSEOF
-            cat > /opt/creditcardanalyzer/grafana/provisioning/dashboards/dashboard.yml << 'GFDBEOF'
-            apiVersion: 1
-
-            providers:
-              - name: "Oikonomia"
-                orgId: 1
-                folder: ""
-                type: file
-                disableDeletion: false
-                editable: false
-                options:
-                  path: /var/lib/grafana/dashboards
-                  foldersFromFilesStructure: false
-            GFDBEOF
-
-            # Write grafana dashboard JSON
-            cat > /opt/creditcardanalyzer/grafana/dashboards/fastapi.json << 'GFDASHEOF'
-            {"annotations":{"list":[]},"editable":false,"fiscalYearStartMonth":0,"graphTooltip":0,"links":[],"panels":[{"title":"Request Rate (req/s)","type":"timeseries","gridPos":{"h":8,"w":12,"x":0,"y":0},"targets":[{"expr":"sum(rate(http_requests_total[5m]))","legendFormat":"req/s","refId":"A"}],"fieldConfig":{"defaults":{"color":{"mode":"palette-classic"},"unit":"reqps"}}},{"title":"Error Rate (5xx)","type":"timeseries","gridPos":{"h":8,"w":12,"x":12,"y":0},"targets":[{"expr":"sum(rate(http_requests_total{status=~\"5..\"}[5m]))","legendFormat":"5xx/s","refId":"A"},{"expr":"sum(rate(http_requests_total{status=~\"4..\"}[5m]))","legendFormat":"4xx/s","refId":"B"}],"fieldConfig":{"defaults":{"color":{"mode":"palette-classic"},"unit":"reqps"}}},{"title":"Latency p50 / p95 / p99","type":"timeseries","gridPos":{"h":8,"w":12,"x":0,"y":8},"targets":[{"expr":"histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))","legendFormat":"p50","refId":"A"},{"expr":"histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))","legendFormat":"p95","refId":"B"},{"expr":"histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))","legendFormat":"p99","refId":"C"}],"fieldConfig":{"defaults":{"color":{"mode":"palette-classic"},"unit":"s"}}},{"title":"Top Endpoints by Requests","type":"table","gridPos":{"h":8,"w":12,"x":12,"y":8},"targets":[{"expr":"topk(10, sum(rate(http_requests_total[5m])) by (endpoint))","legendFormat":"{{endpoint}}","refId":"A","instant":true}],"fieldConfig":{"defaults":{"unit":"reqps"},"overrides":[{"matcher":{"id":"byName","options":"endpoint"},"properties":[{"id":"unit","value":"string"}]}]}}],"schemaVersion":39,"tags":["oikonomia","fastapi"],"templating":{"list":[]},"time":{"from":"now-6h","to":"now"},"title":"Oikonomia API","uid":"oikonomia-api","version":1}
-            GFDASHEOF
 
             # Write docker-compose.yml
             cat > /opt/creditcardanalyzer/docker-compose.yml << 'EOF'
@@ -668,7 +603,7 @@ jobs:
                   - "443:443"
                 volumes:
                   - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-                  - ./certbot/conf:/etc/letsencrypt:ro,Z
+                  - ./certbot/conf:/etc/letsencrypt:ro,z
                 depends_on:
                   - frontend
                 healthcheck:
@@ -684,46 +619,125 @@ jobs:
                       cpus: "0.5"
                 restart: unless-stopped
 
-              prometheus:
-                image: docker.io/prom/prometheus:latest
-                command:
-                  - "--config.file=/etc/prometheus/prometheus.yml"
-                  - "--storage.tsdb.retention.time=15d"
-                volumes:
-                  - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-                  - prometheus_data:/prometheus
+              postgres-exporter:
+                image: docker.io/prometheuscommunity/postgres-exporter:latest
+                environment:
+                  DATA_SOURCE_NAME: "postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses?sslmode=disable"
+                depends_on:
+                  - db
                 deploy:
                   resources:
                     limits:
-                      memory: 512M
-                      cpus: "1.0"
+                      memory: 64M
+                      cpus: "0.25"
                 restart: unless-stopped
 
-              grafana:
-                image: docker.io/grafana/grafana:latest
+              redis-exporter:
+                image: docker.io/oliver006/redis_exporter:latest
                 environment:
-                  GF_SECURITY_ADMIN_USER: admin
-                  GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
-                  GF_AUTH_ANONYMOUS_ENABLED: "false"
-                  GF_SERVER_ROOT_URL: https://grafana.${{ vars.DOMAIN_NAME }}
-                volumes:
-                  - ./grafana/provisioning:/etc/grafana/provisioning:ro
-                  - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
-                  - grafana_data:/var/lib/grafana
+                  REDIS_ADDR: "redis://redis:6379"
                 depends_on:
-                  - prometheus
+                  - redis
                 deploy:
                   resources:
                     limits:
-                      memory: 256M
+                      memory: 64M
+                      cpus: "0.25"
+                restart: unless-stopped
+
+              node-exporter:
+                image: docker.io/prom/node-exporter:latest
+                command:
+                  - "--path.procfs=/host/proc"
+                  - "--path.sysfs=/host/sys"
+                  - "--path.rootfs=/host/root"
+                  - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+                volumes:
+                  - /proc:/host/proc:ro
+                  - /sys:/host/sys:ro
+                  - /:/host:ro
+                deploy:
+                  resources:
+                    limits:
+                      memory: 64M
+                      cpus: "0.25"
+                restart: unless-stopped
+
+              nginx-exporter:
+                image: docker.io/nginx/nginx-prometheus-exporter:latest
+                command:
+                  - "-nginx.scrape-uri=http://nginx:8080/stub_status"
+                depends_on:
+                  - nginx
+                deploy:
+                  resources:
+                    limits:
+                      memory: 32M
+                      cpus: "0.1"
+                restart: unless-stopped
+
+              blackbox-exporter:
+                image: docker.io/prom/blackbox-exporter:latest
+                volumes:
+                  - ./blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+                command:
+                  - "--config.file=/etc/blackbox/blackbox.yml"
+                deploy:
+                  resources:
+                    limits:
+                      memory: 32M
+                      cpus: "0.1"
+                restart: unless-stopped
+
+              alloy:
+                image: docker.io/grafana/alloy:latest
+                command:
+                  - "run"
+                  - "--storage.path=/var/lib/alloy/data"
+                  - "--server.http.listen-addr=0.0.0.0:12345"
+                  - "/etc/alloy/config.alloy"
+                environment:
+                  GRAFANA_CLOUD_PROMETHEUS_URL: ${GRAFANA_CLOUD_PROMETHEUS_URL}
+                  GRAFANA_CLOUD_PROMETHEUS_USER: ${GRAFANA_CLOUD_PROMETHEUS_USER}
+                  GRAFANA_CLOUD_PROMETHEUS_PASSWORD: ${GRAFANA_CLOUD_PROMETHEUS_PASSWORD}
+                  GRAFANA_CLOUD_LOKI_URL: ${GRAFANA_CLOUD_LOKI_URL}
+                  GRAFANA_CLOUD_LOKI_USER: ${GRAFANA_CLOUD_LOKI_USER}
+                  GRAFANA_CLOUD_LOKI_PASSWORD: ${GRAFANA_CLOUD_LOKI_PASSWORD}
+                volumes:
+                  - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+                  - /var/log/journal:/var/log/journal:ro
+                  - /run/log/journal:/run/log/journal:ro
+                  - /etc/machine-id:/etc/machine-id:ro
+                  - alloy_data:/var/lib/alloy/data
+                deploy:
+                  resources:
+                    limits:
+                      memory: 128M
+                      cpus: "0.5"
+                restart: unless-stopped
+
+              cadvisor:
+                image: gcr.io/cadvisor/cadvisor:v0.47.0
+                volumes:
+                  - /:/rootfs:ro
+                  - /var/run:/var/run:ro
+                  - /sys:/sys:ro
+                  - /var/lib/containers/:/var/lib/containers:ro
+                  - /dev/disk/:/dev/disk:ro
+                privileged: true
+                devices:
+                  - /dev/kmsg
+                deploy:
+                  resources:
+                    limits:
+                      memory: 128M
                       cpus: "0.5"
                 restart: unless-stopped
 
             volumes:
               postgres_data:
               redis_data:
-              prometheus_data:
-              grafana_data:
+              alloy_data:
             EOF
 
             # Write .env
@@ -742,10 +756,28 @@ jobs:
             echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> /opt/creditcardanalyzer/.env
             echo "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" >> /opt/creditcardanalyzer/.env
             echo "EMAIL_API_KEY=${{ secrets.EMAIL_API_KEY }}" >> /opt/creditcardanalyzer/.env
-            echo "GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}" >> /opt/creditcardanalyzer/.env
+
+            # Grafana Cloud
+            echo "GRAFANA_CLOUD_PROMETHEUS_URL=${{ secrets.GRAFANA_CLOUD_PROMETHEUS_URL }}" >> /opt/creditcardanalyzer/.env
+            echo "GRAFANA_CLOUD_PROMETHEUS_USER=${{ secrets.GRAFANA_CLOUD_PROMETHEUS_USER }}" >> /opt/creditcardanalyzer/.env
+            echo "GRAFANA_CLOUD_PROMETHEUS_PASSWORD=${{ secrets.GRAFANA_CLOUD_PROMETHEUS_PASSWORD }}" >> /opt/creditcardanalyzer/.env
+            echo "GRAFANA_CLOUD_LOKI_URL=${{ secrets.GRAFANA_CLOUD_LOKI_URL }}" >> /opt/creditcardanalyzer/.env
+            echo "GRAFANA_CLOUD_LOKI_USER=${{ secrets.GRAFANA_CLOUD_LOKI_USER }}" >> /opt/creditcardanalyzer/.env
+            echo "GRAFANA_CLOUD_LOKI_PASSWORD=${{ secrets.GRAFANA_CLOUD_LOKI_PASSWORD }}" >> /opt/creditcardanalyzer/.env
 
             chmod 600 /opt/creditcardanalyzer/.env
             echo "Config files written"
+
+      - name: Copy config files via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.LINODE_SERVER_IP }}
+          username: ${{ secrets.LINODE_SSH_USER }}
+          key: ${{ secrets.LINODE_SSH_KEY }}
+          port: 43422
+          source: "config/alloy/config.alloy,config/blackbox/blackbox.yml"
+          target: /opt/creditcardanalyzer
+          strip_components: 2
 
       - name: Validate required env vars
         uses: appleboy/ssh-action@v1
