@@ -110,4 +110,9 @@ discovery.relabel "journal_rules" {
     source_labels = ["__journal__hostname"]
     target_label  = "host"
   }
+
+  rule {
+    target_label = "job"
+    replacement  = "systemd-journal"
+  }
 }
