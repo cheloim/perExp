@@ -170,20 +170,6 @@ services:
           memory: 256M
           cpus: "0.5"
 
-  prometheus:
-    image: docker.io/prom/prometheus:latest
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.retention.time=15d"
-    volumes:
-      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "1.0"
-
   postgres-exporter:
     image: docker.io/prometheuscommunity/postgres-exporter:latest
     environment:
@@ -237,44 +223,17 @@ services:
           memory: 32M
           cpus: "0.1"
 
-  grafana:
-    image: docker.io/grafana/grafana:13.2.1
-    ports:
-      - "3000:3000"
-    environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
-      GF_AUTH_ANONYMOUS_ENABLED: "false"
-      GF_SERVER_ROOT_URL: http://localhost:3000
-      GF_PLUGINS_DISABLE: grafana-pyroscope-app,grafana-exploretraces-app,grafana-lokiexplore-app,grafana-metricsdrilldown-app,grafana-advisor-app,mssql,mysql
-      GF_AUTH_PROXY_ENABLED: "true"
-      GF_AUTH_PROXY_HEADER_NAME: X-Forwarded-User
-      GF_AUTH_PROXY_AUTO_SIGN_UP: "true"
-      GF_USERS_AUTO_ASSIGN_ORG_ROLE: Admin
+  blackbox-exporter:
+    image: docker.io/prom/blackbox-exporter:latest
     volumes:
-      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./config/grafana/dashboards:/var/lib/grafana/dashboards:ro
-      - grafana_data:/var/lib/grafana
-    depends_on:
-      - prometheus
+      - ./config/blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    command:
+      - "--config.file=/etc/blackbox/blackbox.yml"
     deploy:
       resources:
         limits:
-          memory: 512M
-          cpus: "0.5"
-
-  loki:
-    image: docker.io/grafana/loki:3.4.2
-    command: "-config.file=/etc/loki/local-config.yaml"
-    profiles:
-      - monitoring
-    volumes:
-      - loki_data:/loki
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: "0.5"
+          memory: 32M
+          cpus: "0.1"
 
   alloy:
     image: docker.io/grafana/alloy:latest
@@ -283,16 +242,19 @@ services:
       - "--storage.path=/var/lib/alloy/data"
       - "--server.http.listen-addr=0.0.0.0:12345"
       - "/etc/alloy/config.alloy"
-    profiles:
-      - monitoring
+    environment:
+      GRAFANA_CLOUD_PROMETHEUS_URL: ${GRAFANA_CLOUD_PROMETHEUS_URL}
+      GRAFANA_CLOUD_PROMETHEUS_USER: ${GRAFANA_CLOUD_PROMETHEUS_USER}
+      GRAFANA_CLOUD_PROMETHEUS_PASSWORD: ${GRAFANA_CLOUD_PROMETHEUS_PASSWORD}
+      GRAFANA_CLOUD_LOKI_URL: ${GRAFANA_CLOUD_LOKI_URL}
+      GRAFANA_CLOUD_LOKI_USER: ${GRAFANA_CLOUD_LOKI_USER}
+      GRAFANA_CLOUD_LOKI_PASSWORD: ${GRAFANA_CLOUD_LOKI_PASSWORD}
     volumes:
       - ./config/alloy/config.alloy:/etc/alloy/config.alloy:ro,z
       - /var/log/journal:/var/log/journal:ro
       - /run/log/journal:/run/log/journal:ro
       - /etc/machine-id:/etc/machine-id:ro
       - alloy_data:/var/lib/alloy/data
-    depends_on:
-      - loki
     deploy:
       resources:
         limits:
@@ -301,8 +263,6 @@ services:
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.47.0
-    profiles:
-      - monitoring
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -317,49 +277,6 @@ services:
         limits:
           memory: 128M
           cpus: "0.5"
-
-  blackbox-exporter:
-    image: docker.io/prom/blackbox-exporter:latest
-    profiles:
-      - monitoring
-    volumes:
-      - ./config/blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
-    command:
-      - "--config.file=/etc/blackbox/blackbox.yml"
-    deploy:
-      resources:
-        limits:
-          memory: 32M
-          cpus: "0.1"
-
-  oauth2-proxy:
-    image: quay.io/oauth2-proxy/oauth2-proxy:v7.7.1
-    command:
-      - "--http-address=0.0.0.0:4180"
-      - "--upstream=http://grafana:3000"
-      - "--provider=google"
-      - "--email-domain=*"
-      - "--cookie-domain=.localhost"
-      - "--cookie-secure=false"
-      - "--skip-provider-button=true"
-      - "--set-xauthrequest=true"
-      - "--pass-user-headers=true"
-      - "--reverse-proxy=true"
-    environment:
-      OAUTH2_PROXY_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      OAUTH2_PROXY_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-      OAUTH2_PROXY_ALLOWED_EMAILS: ${GRAFANA_ALLOWED_EMAILS:-mmendoza0989@gmail.com,admin@nikofin.com}
-      OAUTH2_PROXY_REDIRECT_URL: http://localhost:4180/oauth2/callback
-      OAUTH2_PROXY_COOKIE_SECRET: ${OAUTH2_PROXY_COOKIE_SECRET:-0123456789abcdef0123456789abcdef}
-    ports:
-      - "4180:4180"
-    depends_on:
-      - grafana
-    deploy:
-      resources:
-        limits:
-          memory: 64M
-          cpus: "0.25"
 
 secrets:
   creditcard_backend_dev_postgres_password:
@@ -405,7 +322,4 @@ secrets:
 volumes:
   postgres_data:
   redis_data:
-  prometheus_data:
-  grafana_data:
-  loki_data:
   alloy_data:
