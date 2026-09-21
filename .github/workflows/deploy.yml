@@ -779,7 +779,7 @@ jobs:
                   GF_SERVER_ROOT_URL: https://grafana.${{ vars.DOMAIN_NAME }}
                   GF_PLUGINS_DISABLE: grafana-pyroscope-app,grafana-exploretraces-app,grafana-lokiexplore-app,grafana-metricsdrilldown-app,grafana-advisor-app,mssql,mysql
                   GF_AUTH_PROXY_ENABLED: "true"
-                  GF_AUTH_PROXY_HEADER_NAME: X-Webauth-User
+                  GF_AUTH_PROXY_HEADER_NAME: X-Forwarded-User
                   GF_AUTH_PROXY_AUTO_SIGN_UP: "true"
                   GF_USERS_AUTO_ASSIGN_ORG_ROLE: Admin
                   GF_AUTH_BASIC_ENABLED: "false"
@@ -866,6 +866,7 @@ jobs:
                   OAUTH2_PROXY_UPSTREAM: http://grafana:3000
                   OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
                   OAUTH2_PROXY_SET_XAUTHREQUEST: "true"
+                  OAUTH2_PROXY_PASS_USER_HEADERS: "true"
                   OAUTH2_PROXY_COOKIE_SECRET: ${OAUTH2_PROXY_COOKIE_SECRET}
                   OAUTH2_PROXY_COOKIE_SECURE: "true"
                   OAUTH2_PROXY_COOKIE_DOMAINS: ".${{ vars.DOMAIN_NAME }}"
