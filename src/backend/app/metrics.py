@@ -44,8 +44,12 @@ CARDS_TOTAL = Gauge("oikonomia_cards_total", "Total cards", ["user_id", "type"])
 CATEGORIES_TOTAL = Gauge("oikonomia_categories_total", "Total categories")
 INVESTMENTS_TOTAL = Gauge("oikonomia_investments_total", "Total investments", ["user_id"])
 IMPORT_JOBS_TOTAL = Gauge("oikonomia_import_jobs_total", "Import jobs by status", ["status"])
-SCHEDULED_EXPENSES_TOTAL = Gauge("oikonomia_scheduled_expenses_total", "Scheduled expenses by status", ["status"])
-RECURRING_EXPENSES_TOTAL = Gauge("oikonomia_recurring_expenses_total", "Recurring expenses", ["user_id"])
+SCHEDULED_EXPENSES_TOTAL = Gauge(
+    "oikonomia_scheduled_expenses_total", "Scheduled expenses by status", ["status"]
+)
+RECURRING_EXPENSES_TOTAL = Gauge(
+    "oikonomia_recurring_expenses_total", "Recurring expenses", ["user_id"]
+)
 BUDGET_GROUPS_TOTAL = Gauge("oikonomia_budget_groups_total", "Budget groups", ["user_id", "group"])
 
 # ── Business counters (incremented on events) ────────────────
@@ -121,7 +125,9 @@ def update_business_metrics() -> None:
             # Users
             USERS_TOTAL.set(db.query(User).count())
             ACTIVE_USERS.set(
-                db.query(User).filter(User.last_login.isnot(None), User.last_login > cutoff_24h).count()
+                db.query(User)
+                .filter(User.last_login.isnot(None), User.last_login > cutoff_24h)
+                .count()
             )
 
             # Categories
@@ -173,13 +179,17 @@ def update_business_metrics() -> None:
                     BUDGET_GROUPS_TOTAL.labels(user_id=uid, group=bname).set(count)
 
             # Import jobs by status
-            import_statuses = db.query(ImportJob.status, func.count()).group_by(ImportJob.status).all()
+            import_statuses = (
+                db.query(ImportJob.status, func.count()).group_by(ImportJob.status).all()
+            )
             for istatus, count in import_statuses:
                 IMPORT_JOBS_TOTAL.labels(status=istatus).set(count)
 
             # Scheduled expenses by status
             sched_statuses = (
-                db.query(ScheduledExpense.status, func.count()).group_by(ScheduledExpense.status).all()
+                db.query(ScheduledExpense.status, func.count())
+                .group_by(ScheduledExpense.status)
+                .all()
             )
             for sstatus, count in sched_statuses:
                 SCHEDULED_EXPENSES_TOTAL.labels(status=sstatus).set(count)
@@ -191,6 +201,7 @@ def update_business_metrics() -> None:
         logger.exception("Failed to update business metrics")
     finally:
         _business_metrics_lock.release()
+
 
 # ── In-memory ring buffer for admin UI ────────────────────────
 
