@@ -653,10 +653,12 @@ jobs:
                   - "--path.rootfs=/host"
                   - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
                 volumes:
-                  - /proc:/host/proc:ro,z
-                  - /sys:/host/sys:ro,z
-                  - /:/:ro,z
+                  - /proc:/host/proc:ro
+                  - /sys:/host/sys:ro
+                  - /:/:ro
                 privileged: true
+                security_opt:
+                  - label=disable
                 deploy:
                   resources:
                     limits:
@@ -710,6 +712,8 @@ jobs:
                   - /run/log/journal:/run/log/journal:ro
                   - /etc/machine-id:/etc/machine-id:ro
                   - alloy_data:/var/lib/alloy/data
+                security_opt:
+                  - label=disable
                 deploy:
                   resources:
                     limits:
