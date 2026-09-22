@@ -158,14 +158,11 @@ def assign_tags_validated(
 
         raise HTTPException(404, f"Tags no encontrados: {missing}")
 
-    for tag in tags:
-        if tag.group_name == "categoria":
-            from fastapi import HTTPException
-
-            raise HTTPException(
-                400,
-                "Los tags de categoría se asignan automáticamente vía la categoría del gasto.",
-            )
+    # Silently skip categoria tags — they are managed exclusively by sync_category_tag.
+    # This allows clients to send tag_ids including mirrors without breaking.
+    tags = [t for t in tags if t.group_name != "categoria"]
+    if not tags:
+        return []
 
     for tag in tags:
         if tag.group_name in SINGLE_SELECT_GROUPS:
@@ -196,6 +193,71 @@ def assign_tags_validated(
 
     db.flush()
     return tags
+
+
+def get_or_create_payment_tag(
+    db: Session,
+    user_id: int,
+    card=None,
+    account=None,
+    name_hint: str | None = None,
+) -> Tag:
+    """Get or create a payment tag (group 'cuenta') for a card or account.
+
+    Dedup priority: (1) card_id/account_id match, (2) name_hmac match (excluding mirrors).
+    Canonical name: "{bank} {card_name}" for cards, "{account.name}" for accounts.
+    """
+    if card is not None:
+        existing = db.query(Tag).filter(Tag.user_id == user_id, Tag.card_id == card.id).first()
+        if existing:
+            return existing
+        bank = str(card.bank) if card.bank else ""
+        card_name = str(card.card_name) if card.card_name else ""
+        name = " ".join(p for p in (bank, card_name) if p).strip() or "Tarjeta sin nombre"
+    elif account is not None:
+        existing = (
+            db.query(Tag).filter(Tag.user_id == user_id, Tag.account_id == account.id).first()
+        )
+        if existing:
+            return existing
+        name = str(account.name) if account.name else "Cuenta sin nombre"
+    else:
+        name = name_hint or "Sin nombre"
+
+    name_hmac = compute_hmac(name.strip().lower())
+    existing = (
+        db.query(Tag)
+        .filter(
+            Tag.user_id == user_id,
+            Tag.name_hmac == name_hmac,
+            Tag.group_name != "categoria",
+        )
+        .first()
+    )
+    if existing:
+        if card is not None and not existing.card_id:
+            existing.card_id = card.id
+            if existing.group_name != "cuenta":
+                existing.group_name = "cuenta"
+        elif account is not None and not existing.account_id:
+            existing.account_id = account.id
+            if existing.group_name != "cuenta":
+                existing.group_name = "cuenta"
+        return existing
+
+    color = pick_tag_color(db, user_id)
+    tag = Tag(
+        name=name,
+        name_hmac=name_hmac,
+        color=color,
+        group_name="cuenta",
+        user_id=user_id,
+        card_id=card.id if card else None,
+        account_id=account.id if account else None,
+    )
+    db.add(tag)
+    db.flush()
+    return tag
 
 
 def remove_tags_by_group(db: Session, expense_id: int, group_name: str):

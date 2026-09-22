@@ -90,6 +90,25 @@ def create_tag(
 
     color = tag.color if tag.color != "#6366f1" else pick_tag_color(db, current_user.id)
 
+    if tag.card_id is not None:
+        from app.models import Card
+
+        if (
+            not db.query(Card)
+            .filter(Card.id == tag.card_id, Card.user_id == current_user.id)
+            .first()
+        ):
+            raise HTTPException(404, "Tarjeta no encontrada")
+    if tag.account_id is not None:
+        from app.models import Account
+
+        if (
+            not db.query(Account)
+            .filter(Account.id == tag.account_id, Account.user_id == current_user.id)
+            .first()
+        ):
+            raise HTTPException(404, "Cuenta no encontrada")
+
     db_tag = Tag(
         name=tag.name,
         name_hmac=name_hmac,
@@ -153,10 +172,26 @@ def update_tag(
             raise HTTPException(400, "No se puede mover a grupo 'categoria'.")
         db_tag.group_name = tag.group_name if tag.group_name in VALID_GROUPS else "otros"
     if tag.card_id is not None:
+        from app.models import Card
+
+        if (
+            not db.query(Card)
+            .filter(Card.id == tag.card_id, Card.user_id == current_user.id)
+            .first()
+        ):
+            raise HTTPException(404, "Tarjeta no encontrada")
         db_tag.card_id = tag.card_id
         if db_tag.group_name not in ("cuenta", "otros"):
             db_tag.group_name = "cuenta"
     if tag.account_id is not None:
+        from app.models import Account
+
+        if (
+            not db.query(Account)
+            .filter(Account.id == tag.account_id, Account.user_id == current_user.id)
+            .first()
+        ):
+            raise HTTPException(404, "Cuenta no encontrada")
         db_tag.account_id = tag.account_id
         if db_tag.group_name not in ("cuenta", "otros"):
             db_tag.group_name = "cuenta"

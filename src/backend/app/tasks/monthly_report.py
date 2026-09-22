@@ -463,8 +463,7 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
             for fi in future_installments[:5]:
                 future_lines.append(f"  - {fi['date']}: {fi['description']} ${fi['amount']:,.2f}")
 
-            tarjeta_summary = [t for t in tags_summary if t.get("group") == "tarjeta"]
-            cuenta_summary = [t for t in tags_summary if t.get("group") == "cuenta"]
+            cuenta_summary = [t for t in tags_summary if t.get("group") in ("cuenta", "tarjeta")]
 
             llm_context = f"""RESUMEN MENSUAL - {MONTHS_ES[m]} {y}
 
@@ -491,14 +490,11 @@ CUENTAS:
 TARJETAS:
 {chr(10).join(card_lines) or "  Sin datos"}
 
-TARJETAS:
-{chr(10).join([f"  {t['name']}: ${t['total']:,.0f} ({t['count']} gastos)" for t in tarjeta_summary[:10]]) or "  Sin datos"}
-
 CUENTAS:
 {chr(10).join([f"  {t['name']}: ${t['total']:,.0f} ({t['count']} gastos)" for t in cuenta_summary[:10]]) or "  Sin datos"}
 
 OTROS TAGS:
-{chr(10).join([f"  {t['name']}: ${t['total']:,.0f} ({t['count']} gastos)" for t in [t for t in tags_summary if t.get("group") not in ("tarjeta", "cuenta")][:10]]) or "  Sin datos"}
+{chr(10).join([f"  {t['name']}: ${t['total']:,.0f} ({t['count']} gastos)" for t in [t for t in tags_summary if t.get("group") not in ("cuenta",)][:10]]) or "  Sin datos"}
 
 CUOTAS FUTURAS ({len(future_installments)} cuotas, ${sum(fi["amount"] for fi in future_installments):,.2f} total):
 {chr(10).join(future_lines) or "  Sin cuotas futuras"}
@@ -871,8 +867,8 @@ Usa flags para tendencias preocupantes a monitorear."""
         "accounts_summary": accounts_summary,
         "cards_summary": cards_summary,
         "tags_summary": tags_summary,
-        "tarjeta_summary": [t for t in tags_summary if t.get("group") == "tarjeta"],
-        "cuenta_summary": [t for t in tags_summary if t.get("group") == "cuenta"],
+        "tarjeta_summary": [],  # Deprecated: tarjeta merged into cuenta
+        "cuenta_summary": [t for t in tags_summary if t.get("group") in ("cuenta", "tarjeta")],
         "future_installments": future_installments,
         "future_installments_count": len(future_installments),
         "future_installments_total": round(sum(fi["amount"] for fi in future_installments), 2),

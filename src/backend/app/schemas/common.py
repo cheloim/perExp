@@ -107,4 +107,6 @@ class TagSimple(BaseModel):
     name: str
     color: str
     group_name: str = "otros"
+    card_id: int | None = None
+    account_id: int | None = None
     model_config = {"from_attributes": True}

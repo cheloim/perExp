@@ -100,10 +100,14 @@ class ExpenseResponse(BaseModel):
         return self.category.color if self.category else None
 
     def _tag_card_fallback(self) -> "CardSimple | None":
-        """Return the first tag's linked card, if any."""
+        """Return the first tag's linked card, if any.
+
+        Note: only works when the Tag ORM objects have card_rel preloaded.
+        """
         for t in self.tags:
-            if hasattr(t, "card_rel") and t.card_rel:
-                return t.card_rel
+            card_rel = getattr(t, "card_rel", None)
+            if card_rel:
+                return card_rel
         return None
 
     @computed_field  # type: ignore[misc]

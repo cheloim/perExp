@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 from app.models import ImportJob, User
 from app.schemas import ImportJobResponse, RowsConfirmBody
 from app.services.auth import get_current_user
-from app.services.encryption import compute_hmac
 from app.services.import_utils import _normalize_text
 from app.tasks.import_processor import sync_process_import_job
 
@@ -192,7 +191,7 @@ async def confirm_import_job(
     Confirm import job - saves rows to database.
     Uses the same logic as POST /import/rows-confirm.
     """
-    from app.models import Card, Category, Expense, ScheduledExpense, Tag
+    from app.models import Card, Category, Expense, ScheduledExpense
     from app.services.normalizers import first_card_word, normalize_bank, title_case_single
 
     logger.info(
@@ -446,31 +445,14 @@ async def confirm_import_job(
                 link_to_recurring(expense.id, expense.description, user.id, db)
 
                 if expense.card_id:
-                    from app.services.tag_sync import assign_tags_validated
+                    from app.services.tag_sync import get_or_create_payment_tag
 
                     card = db.query(Card).filter(Card.id == expense.card_id).first()
                     if card:
-                        tag_name = f"Tarjeta {card.bank or ''} {card.card_name}".strip()
-                        name_hmac = compute_hmac(tag_name.strip().lower())
-                        existing_tag = (
-                            db.query(Tag)
-                            .filter(Tag.user_id == user.id, Tag.name_hmac == name_hmac)
-                            .first()
-                        )
-                        if not existing_tag:
-                            from app.services.tag_sync import pick_tag_color
+                        tag = get_or_create_payment_tag(db, user.id, card=card)
+                        from app.services.tag_sync import assign_tags_validated
 
-                            color = pick_tag_color(db, user.id)
-                            existing_tag = Tag(
-                                name=tag_name,
-                                name_hmac=name_hmac,
-                                color=color,
-                                user_id=user.id,
-                                card_id=card.id,
-                            )
-                            db.add(existing_tag)
-                            db.flush()
-                        assign_tags_validated(db, expense.id, [existing_tag.id], user.id)
+                        assign_tags_validated(db, expense.id, [tag.id], user.id)
 
                 imported_count += 1
             except Exception as e:

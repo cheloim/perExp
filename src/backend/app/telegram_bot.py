@@ -171,22 +171,41 @@ def _strip_accents(s: str) -> str:
 
 
 def _find_or_create_tag(db, user_id: int, tag_name: str, card_id=None, account_id=None) -> Tag:
+    from app.services.tag_sync import get_or_create_payment_tag, pick_tag_color
+
+    if card_id is not None:
+        from app.models import Card
+
+        card = db.query(Card).filter(Card.id == card_id).first()
+        if card:
+            return get_or_create_payment_tag(db, user_id, card=card)
+    if account_id is not None:
+        from app.models import Account
+
+        account = db.query(Account).filter(Account.id == account_id).first()
+        if account:
+            return get_or_create_payment_tag(db, user_id, account=account)
+
     name_hmac = compute_hmac(tag_name.strip().lower())
-    existing = db.query(Tag).filter(Tag.user_id == user_id, Tag.name_hmac == name_hmac).first()
+    existing = (
+        db.query(Tag)
+        .filter(
+            Tag.user_id == user_id,
+            Tag.name_hmac == name_hmac,
+            Tag.group_name != "categoria",
+        )
+        .first()
+    )
     if existing:
         return existing
-    from app.services.tag_sync import pick_tag_color
 
     color = pick_tag_color(db, user_id)
-    group = "cuenta" if (card_id or account_id) else "otros"
     tag = Tag(
         name=tag_name,
         name_hmac=name_hmac,
         color=color,
-        group_name=group,
+        group_name="otros",
         user_id=user_id,
-        card_id=card_id,
-        account_id=account_id,
     )
     db.add(tag)
     db.flush()
@@ -1147,15 +1166,13 @@ async def _handle_bank_notification(
 
         if card:
             card_id = card.id
-            tag_name = f"Tarjeta {card.bank or ''} {card.card_name}".strip()
-            tag = _find_or_create_tag(db, user_id, tag_name, card_id=card.id)
+            tag = _find_or_create_tag(db, user_id, "", card_id=card.id)
             tag_ids.append(tag.id)
         elif parsed.get("card_type") == "debito" and parsed.get("bank"):
             account = _match_account_from_text(parsed["bank"], user_id, db)
             if account:
                 account_id = account.id
-                tag_name = f"Cuenta {account.name}"
-                tag = _find_or_create_tag(db, user_id, tag_name, account_id=account.id)
+                tag = _find_or_create_tag(db, user_id, "", account_id=account.id)
                 tag_ids.append(tag.id)
 
         if not card_id and not account_id:
@@ -1264,15 +1281,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         if matched_card:
             card_id = matched_card.id
-            tag_name = f"Tarjeta {matched_card.bank or ''} {matched_card.card_name}".strip()
-            tag = _find_or_create_tag(db, user_id, tag_name, card_id=matched_card.id)
+            tag = _find_or_create_tag(db, user_id, "", card_id=matched_card.id)
             tag_ids.append(tag.id)
         else:
             matched_account = _match_account_from_text(text, user_id, db)
             if matched_account:
                 account_id = matched_account.id
-                tag_name = f"Cuenta {matched_account.name}"
-                tag = _find_or_create_tag(db, user_id, tag_name, account_id=matched_account.id)
+                tag = _find_or_create_tag(db, user_id, "", account_id=matched_account.id)
                 tag_ids.append(tag.id)
 
         predicted_category_id, cats = _instant_categorize(parsed, user_id, db)

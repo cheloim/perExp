@@ -88,7 +88,7 @@ export function ExpenseModal({
         installment_group_id: initial.installment_group_id ?? null,
         account_id: initial.account_id ?? null,
         card_id: initial.card_id ?? null,
-        tag_ids: initial.tags?.map((t) => t.id) ?? [],
+        tag_ids: initial.tags?.filter((t) => t.group_name !== "categoria").map((t) => t.id) ?? [],
       };
     }
     return { ...EMPTY_FORM };
@@ -196,7 +196,7 @@ export function ExpenseModal({
     const tag = visibleTags.find((t) => t.id === id);
     if (!tag) return;
 
-    const isExclusive = tag.group_name === "cuenta" || tag.group_name === "tarjeta";
+    const isExclusive = tag.group_name === "cuenta";
 
     setForm((prev) => {
       const current = prev.tag_ids ?? [];
@@ -234,7 +234,7 @@ export function ExpenseModal({
   const groupedAvailable = useMemo(() => {
     const groups: Record<string, Tag[]> = { cuenta: [], otros: [] };
     for (const tag of availableTags) {
-      const key = tag.group_name === "cuenta" || tag.group_name === "tarjeta" ? "cuenta" : "otros";
+      const key = tag.group_name === "cuenta" ? "cuenta" : "otros";
       groups[key].push(tag);
     }
     return groups;

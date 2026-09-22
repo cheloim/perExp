@@ -64,10 +64,14 @@ def backfill(dry_run: bool = False, batch_size: int = 500):
             tag_name = _build_card_tag_name(card)
             name_hmac = compute_hmac(tag_name.strip().lower())
 
-            # Dedup by name_hmac
+            # Dedup by name_hmac (exclude categoria mirrors)
             existing = (
                 db.query(Tag)
-                .filter(Tag.user_id == uid, Tag.name_hmac == name_hmac)
+                .filter(
+                    Tag.user_id == uid,
+                    Tag.name_hmac == name_hmac,
+                    Tag.group_name != "categoria",
+                )
                 .first()
             )
             if existing:
@@ -115,10 +119,14 @@ def backfill(dry_run: bool = False, batch_size: int = 500):
             tag_name = _build_account_tag_name(account)
             name_hmac = compute_hmac(tag_name.strip().lower())
 
-            # Dedup by name_hmac
+            # Dedup by name_hmac (exclude categoria mirrors)
             existing = (
                 db.query(Tag)
-                .filter(Tag.user_id == uid, Tag.name_hmac == name_hmac)
+                .filter(
+                    Tag.user_id == uid,
+                    Tag.name_hmac == name_hmac,
+                    Tag.group_name != "categoria",
+                )
                 .first()
             )
             if existing:

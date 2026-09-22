@@ -634,17 +634,12 @@ export default function ExpensesPage() {
                   { value: "__untagged__", label: "Sin tag" },
                 ];
                 const groups: { label: string; options: { value: string; label: string }[] }[] = [];
-                const tarjetaOpts = visibleTags
-                  .filter((t) => t.group_name === "tarjeta")
-                  .map((t) => ({ value: String(t.id), label: t.name }));
                 const cuentaOpts = visibleTags
                   .filter((t) => t.group_name === "cuenta")
                   .map((t) => ({ value: String(t.id), label: t.name }));
                 const otrosOpts = visibleTags
-                  .filter((t) => t.group_name !== "tarjeta" && t.group_name !== "cuenta")
+                  .filter((t) => t.group_name !== "cuenta")
                   .map((t) => ({ value: String(t.id), label: t.name }));
-                if (tarjetaOpts.length > 0)
-                  groups.push({ label: "💳 Tarjetas", options: tarjetaOpts });
                 if (cuentaOpts.length > 0)
                   groups.push({ label: "🏦 Cuentas", options: cuentaOpts });
                 if (otrosOpts.length > 0) groups.push({ label: "Otros", options: otrosOpts });

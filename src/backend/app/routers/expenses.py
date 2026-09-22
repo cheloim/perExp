@@ -531,19 +531,41 @@ def update_expense(
     # Apply column changes if any (skip for tag-only updates)
     if data:
         try:
-            db_exp = update_expense_checked(db, current_user.id, db_exp, data, skip_48h_check=True)
+            db_exp = update_expense_checked(
+                db, current_user.id, db_exp, data, skip_48h_check=True, commit=False
+            )
         except ExpenseEditError as e:
             raise HTTPException(400, str(e))
 
+    # Filter out categoria ids (managed exclusively by sync_category_tag)
+    if tag_ids is not None:
+        non_categoria_ids = (
+            db.query(Tag.id).filter(Tag.id.in_(tag_ids), Tag.group_name != "categoria").all()
+        )
+        non_categoria_ids = [r[0] for r in non_categoria_ids]
+
+        # Delete non-categoria tags from this expense (preserves mirror)
+        non_cat_tag_ids = (
+            db.query(ExpenseTag.tag_id)
+            .join(Tag, Tag.id == ExpenseTag.tag_id)
+            .filter(ExpenseTag.expense_id == db_exp.id, Tag.group_name != "categoria")
+            .all()
+        )
+        if non_cat_tag_ids:
+            db.query(ExpenseTag).filter(
+                ExpenseTag.expense_id == db_exp.id,
+                ExpenseTag.tag_id.in_([r[0] for r in non_cat_tag_ids]),
+            ).delete(synchronize_session=False)
+
+        if non_categoria_ids:
+            uid_list = get_group_user_ids(current_user.id, db)
+            _assign_tags(db_exp.id, non_categoria_ids, current_user.id, db, uid_list)
+
+    # Sync mirror AFTER tag replacement so it's always preserved
     sync_category_tag(db, db_exp, db_exp.category_id)
 
-    if tag_ids is not None:
-        db.query(ExpenseTag).filter(ExpenseTag.expense_id == db_exp.id).delete()
-        if tag_ids:
-            uid_list = get_group_user_ids(current_user.id, db)
-            _assign_tags(db_exp.id, tag_ids, current_user.id, db, uid_list)
-        db.commit()
-        db.refresh(db_exp)
+    db.commit()
+    db.refresh(db_exp)
 
     return db_exp
 
@@ -748,7 +770,7 @@ def bulk_update_tags(
 
     if mode == "replace":
         for eid in expense_ids:
-            for gn in ("tarjeta", "cuenta", "otros"):
+            for gn in ("cuenta", "otros"):
                 remove_tags_by_group(db, eid, gn)
         if tag_ids:
             for eid in expense_ids:

@@ -123,12 +123,17 @@ def auto_link_payment_tags(db, dry_run=False):
 
     unlinked_tarjeta = (
         db.query(Tag)
-        .filter(Tag.group_name == "tarjeta", Tag.card_id.is_(None))
+        .filter(Tag.group_name.in_(["tarjeta", "cuenta"]), Tag.card_id.is_(None))
         .all()
     )
     for t in unlinked_tarjeta:
         t_name = str(t.name) if hasattr(t.name, "decrypt") else (t.name or "")
-        t_name_lower = t_name.lower().replace("tarjeta ", "").strip()
+        t_name_lower = t_name.lower().strip()
+        for prefix in ("tarjeta ", "cuenta "):
+            if t_name_lower.startswith(prefix):
+                t_name_lower = t_name_lower[len(prefix):]
+                break
+        t_name_lower = t_name_lower.strip()
         if not t_name_lower:
             continue
         cards = db.query(Card).filter(Card.user_id == t.user_id).all()
@@ -262,7 +267,7 @@ def remove_category_name_collisions(db, dry_run=False):
         cat_names.add(name.strip().lower())
 
     free_tags = db.query(Tag).filter(
-        Tag.group_name.in_(["otros", "tarjeta", "cuenta"]),
+        Tag.group_name.in_(["otros", "cuenta"]),
         Tag.category_id.is_(None),
     ).all()
 

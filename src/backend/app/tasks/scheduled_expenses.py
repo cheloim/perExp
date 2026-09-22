@@ -63,8 +63,16 @@ def execute_due_installments():
             link_to_recurring(expense.id, scheduled.description, scheduled.user_id, db)
 
             if scheduled.expense_id:
+                from app.models import Tag
+
                 template_tags = (
-                    db.query(ExpenseTag).filter(ExpenseTag.expense_id == scheduled.expense_id).all()
+                    db.query(ExpenseTag)
+                    .join(Tag, Tag.id == ExpenseTag.tag_id)
+                    .filter(
+                        ExpenseTag.expense_id == scheduled.expense_id,
+                        Tag.group_name != "categoria",
+                    )
+                    .all()
                 )
                 for et in template_tags:
                     db.add(ExpenseTag(expense_id=expense.id, tag_id=et.tag_id))

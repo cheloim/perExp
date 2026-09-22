@@ -96,6 +96,7 @@ def update_expense_checked(
     changes: dict[str, Any],
     *,
     skip_48h_check: bool = False,
+    commit: bool = True,
 ) -> Expense:
     """Apply validated changes to an expense with full checks.
 
@@ -210,6 +211,7 @@ def update_expense_checked(
             desc = str(desc)
         _track_merchant_preference(user_id, desc, changes["category_id"], db)
 
-    db.commit()
-    db.refresh(expense)
+    if commit:
+        db.commit()
+        db.refresh(expense)
     return expense

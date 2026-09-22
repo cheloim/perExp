@@ -1842,9 +1842,10 @@ def get_tag_summary(
         by_tag_monthly[key][month_key] = by_tag_monthly[key].get(month_key, 0.0) + e.amount
 
     if "tag:null" not in by_tag:
+        null_label = "Sin cuenta" if allowed_groups and "cuenta" in allowed_groups else "Sin tag"
         by_tag["tag:null"] = {
             "tag_id": None,
-            "tag_name": "Sin cuenta",
+            "tag_name": null_label,
             "tag_color": "#94a3b8",
             "group_name": None,
             "total_amount": 0.0,
