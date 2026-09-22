@@ -655,8 +655,6 @@ jobs:
                 volumes:
                   - /proc:/host/proc:ro
                   - /sys:/host/sys:ro
-                  - /:/:ro
-                privileged: true
                 security_opt:
                   - label=disable
                 deploy:
