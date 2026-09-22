@@ -36,6 +36,7 @@ env:
 
 jobs:
   test:
+    if: github.event_name == 'push' || inputs.action == 'full'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -60,7 +61,7 @@ jobs:
           cd src/backend
           python -m pytest tests/test_encryption.py -v
 
-  build-and-push:
+  build-backend:
     if: github.event_name == 'push' || inputs.action == 'full'
     runs-on: ubuntu-latest
     needs: test
@@ -93,6 +94,28 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  build-frontend:
+    if: github.event_name == 'push' || inputs.action == 'full'
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build and Push Frontend
         uses: docker/build-push-action@v7
         with:
@@ -109,11 +132,11 @@ jobs:
 
   setup-server:
     runs-on: ubuntu-latest
-    needs: build-and-push
+    needs: [build-backend, build-frontend]
     if: always() && !cancelled() && (github.event_name == 'push' || inputs.action == 'full')
 
     steps:
-      - name: Install podman and podman-compose
+      - name: Bootstrap server (install, DNS, stop old containers, firewall)
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.LINODE_SERVER_IP }}
@@ -121,6 +144,9 @@ jobs:
           key: ${{ secrets.LINODE_SSH_KEY }}
           port: 43422
           script: |
+            set -e
+
+            echo "=== Installing podman and podman-compose ==="
             if ! command -v podman &> /dev/null; then
                 echo "Installing podman..."
                 sudo dnf install -y podman podman-docker
@@ -140,14 +166,7 @@ jobs:
             sudo mkdir -p /opt/creditcardanalyzer /opt/creditcardanalyzer/backups
             sudo chown -R $USER:$USER /opt/creditcardanalyzer
 
-      - name: Verify DNS resolution
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
-          script: |
+            echo "=== Verifying DNS resolution ==="
             RESOLVED_IP=$(python3 -c "import socket; print(socket.gethostbyname('${{ vars.DOMAIN_NAME }}'))" 2>/dev/null)
             SERVER_IP=$(curl -s --connect-timeout 5 https://api.ipify.org || curl -s --connect-timeout 5 https://ifconfig.me)
 
@@ -162,24 +181,32 @@ jobs:
             fi
             echo "DNS OK: ${{ vars.DOMAIN_NAME }} -> $SERVER_IP"
 
-      - name: Stop old containers to free port 80
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
-          script: |
+            echo "=== Stopping old containers to free port 80 ==="
             cd /opt/creditcardanalyzer 2>/dev/null || true
             export PATH="$HOME/.local/bin:$PATH"
-            # Stop old nginx to free port 80 for certbot
             podman-compose down --remove-orphans 2>/dev/null || true
-            # Kill any orphaned containers on port 80/443
             podman kill $(podman ps -q --filter "publish=80") 2>/dev/null || true
             podman kill $(podman ps -q --filter "publish=443") 2>/dev/null || true
             echo "Old containers stopped, port 80 is free"
 
-      - name: Setup SSL certificates
+            echo "=== Opening firewall ports ==="
+            if ! firewall-cmd --list-ports | grep -q "80/tcp"; then
+                echo "Opening port 80..."
+                sudo firewall-cmd --permanent --add-port=80/tcp
+            else
+                echo "Port 80 already open, skipping"
+            fi
+
+            if ! firewall-cmd --list-ports | grep -q "443/tcp"; then
+                echo "Opening port 443..."
+                sudo firewall-cmd --permanent --add-port=443/tcp
+            else
+                echo "Port 443 already open, skipping"
+            fi
+            sudo firewall-cmd --reload
+            echo "Firewall ports: $(firewall-cmd --list-ports)"
+
+      - name: Setup SSL certificates, permissions, and renewal timer
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.LINODE_SERVER_IP }}
@@ -187,6 +214,9 @@ jobs:
           key: ${{ secrets.LINODE_SSH_KEY }}
           port: 43422
           script: |
+            set -e
+
+            echo "=== Setting up SSL certificates ==="
             mkdir -p /opt/creditcardanalyzer/certbot/{conf,work,logs}
 
             # Clean up old domain certbot data if domain changed
@@ -203,7 +233,6 @@ jobs:
             CERT_FILE="/opt/creditcardanalyzer/certbot/conf/live/${{ vars.DOMAIN_NAME }}/fullchain.pem"
 
             if [ -f "$CERT_FILE" ]; then
-                # Check if cert expires within 14 days
                 EXPIRY=$(openssl x509 -in "$CERT_FILE" -noout -enddate | cut -d= -f2)
                 EXPIRY_EPOCH=$(date -d "$EXPIRY" +%s)
                 NOW_EPOCH=$(date +%s)
@@ -214,46 +243,32 @@ jobs:
                     rm -f "$CERT_FILE"
                 else
                     echo "SSL certificate OK ($DAYS_LEFT days remaining), skipping"
-                    exit 0
                 fi
             fi
 
-            echo "Requesting SSL certificate..."
-            podman run --rm \
-              -v /opt/creditcardanalyzer/certbot/conf:/etc/letsencrypt:Z \
-              -v /opt/creditcardanalyzer/certbot/work:/var/lib/letsencrypt:Z \
-              -v /opt/creditcardanalyzer/certbot/logs:/var/log/letsencrypt:Z \
-              -p 80:80 \
-              docker.io/certbot/certbot certonly --standalone --expand \
-              -d ${{ vars.DOMAIN_NAME }} \
-              -d www.${{ vars.DOMAIN_NAME }} \
-              -d ${{ vars.PLATFORM_DOMAIN }} \
-              --email mmendoza0989@gmail.com \
-              --agree-tos --non-interactive
-            echo "SSL certificate obtained"
+            if [ ! -f "$CERT_FILE" ]; then
+                echo "Requesting SSL certificate..."
+                podman run --rm \
+                  -v /opt/creditcardanalyzer/certbot/conf:/etc/letsencrypt:Z \
+                  -v /opt/creditcardanalyzer/certbot/work:/var/lib/letsencrypt:Z \
+                  -v /opt/creditcardanalyzer/certbot/logs:/var/log/letsencrypt:Z \
+                  -p 80:80 \
+                  docker.io/certbot/certbot certonly --standalone --expand \
+                  -d ${{ vars.DOMAIN_NAME }} \
+                  -d www.${{ vars.DOMAIN_NAME }} \
+                  -d ${{ vars.PLATFORM_DOMAIN }} \
+                  --email mmendoza0989@gmail.com \
+                  --agree-tos --non-interactive
+                echo "SSL certificate obtained"
+            fi
 
-      - name: Fix cert permissions
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
-          script: |
+            echo "=== Fixing cert permissions ==="
             chmod 755 /opt/creditcardanalyzer/certbot/conf/archive 2>/dev/null || true
             chmod 755 /opt/creditcardanalyzer/certbot/conf/archive/${{ vars.DOMAIN_NAME }} 2>/dev/null || true
             chmod 644 /opt/creditcardanalyzer/certbot/conf/archive/${{ vars.DOMAIN_NAME }}/*.pem 2>/dev/null || true
             echo "Cert permissions fixed"
 
-      - name: Setup certbot renewal timer
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
-          script: |
-            echo "Creating certbot renewal timer..."
+            echo "=== Setting up certbot renewal timer ==="
             cat > /etc/systemd/system/certbot-renew.service << 'UNIT'
             [Unit]
             Description=Certbot SSL Certificate Renewal
@@ -268,7 +283,7 @@ jobs:
               docker.io/certbot/certbot renew --quiet
             UNIT
 
-                cat > /etc/systemd/system/certbot-renew.timer << 'UNIT'
+            cat > /etc/systemd/system/certbot-renew.timer << 'UNIT'
             [Unit]
             Description=Run certbot renewal twice daily
 
@@ -281,34 +296,9 @@ jobs:
             WantedBy=timers.target
             UNIT
 
-                systemctl daemon-reload
-                systemctl enable --now certbot-renew.timer
-                echo "Certbot renewal timer installed"
-
-      - name: Open firewall ports
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
-          script: |
-            if firewall-cmd --list-ports | grep -q "80/tcp"; then
-                echo "Port 80 already open, skipping"
-            else
-                echo "Opening port 80..."
-                sudo firewall-cmd --permanent --add-port=80/tcp
-            fi
-
-            if firewall-cmd --list-ports | grep -q "443/tcp"; then
-                echo "Port 443 already open, skipping"
-            else
-                echo "Opening port 443..."
-                sudo firewall-cmd --permanent --add-port=443/tcp
-            fi
-
-            sudo firewall-cmd --reload
-            echo "Firewall ports: $(firewall-cmd --list-ports)"
+            systemctl daemon-reload
+            systemctl enable --now certbot-renew.timer
+            echo "Certbot renewal timer installed"
 
   write-config:
     runs-on: ubuntu-latest
@@ -845,7 +835,7 @@ jobs:
 
   pull-images:
     runs-on: ubuntu-latest
-    needs: validate-config
+    needs: write-config
     if: always() && !cancelled() && (github.event_name == 'push' || inputs.action == 'full')
 
     steps:
@@ -883,7 +873,7 @@ jobs:
 
   backup-db:
     runs-on: ubuntu-latest
-    needs: pull-images
+    needs: [pull-images, validate-config]
     if: always() && !cancelled()
 
     steps:
@@ -895,6 +885,12 @@ jobs:
           key: ${{ secrets.LINODE_SSH_KEY }}
           port: 43422
           script: |
+            # Check if DB container is running
+            if ! podman ps --format '{{.Names}}' | grep -q 'creditcardanalyzer_db_1'; then
+              echo "WARNING: Database container not running, skipping backup (first deploy?)"
+              exit 0
+            fi
+
             BACKUP_DIR="/opt/creditcardanalyzer/backups"
             mkdir -p $BACKUP_DIR
 
@@ -960,8 +956,24 @@ jobs:
 
             echo "=== Step 1: Database structure migration ==="
             for script in migrate_add_reset_token migrate_remove_haberes migrate_encrypt_settings migrate_add_monthly_reports migrate_db_structure migrate_add_card_account_link migrate_add_budgets migrate_add_category_suggestions migrate_add_whatsapp migrate_add_google_refresh_token migrate_add_merchant_preferences migrate_security_columns migrate_add_expense_created_at; do
-              if ! podman-compose run --rm backend python -m scripts.$script; then
-                echo "::warning::Migration $script had issues (may already be applied)"
+              OUTPUT=$(podman-compose run --rm backend python -m scripts.$script 2>&1)
+              EXIT_CODE=$?
+              echo "$OUTPUT"
+              if [ $EXIT_CODE -ne 0 ]; then
+                if echo "$OUTPUT" | grep -qiE "already|exists|duplicate|no changes"; then
+                  echo "::warning::Migration $script already applied, continuing"
+                else
+                  echo "::error::Migration $script failed! Rolling back database..."
+                  LATEST=$(ls -t /opt/creditcardanalyzer/backups/db_*.sql.gz | head -1)
+                  if [ -n "$LATEST" ]; then
+                    echo "Restoring from: $LATEST"
+                    gunzip -c "$LATEST" | podman exec -i creditcardanalyzer_db_1 psql -U expenses_user expenses
+                    echo "Database restored from backup"
+                  else
+                    echo "::error::No backup found!"
+                  fi
+                  exit 1
+                fi
               fi
             done
 
@@ -1018,9 +1030,10 @@ jobs:
             source .env
             set +a
 
-            # Save current image tag for rollback
-            CURRENT_TAG=$IMAGE_TAG
-            echo "Current tag: $CURRENT_TAG"
+            # Save rollback info before overwriting
+            echo "$IMAGE_TAG" > /opt/creditcardanalyzer/.rollback_tag
+            cp .env .env.rollback
+            echo "Rollback snapshot saved (tag: $IMAGE_TAG)"
 
             # Stop old containers
             echo "Stopping old containers..."
@@ -1079,15 +1092,14 @@ jobs:
 
               echo "Rolling back to previous image tag..."
 
-              # Find previous tag from git log or use latest
-              PREV_TAG=$(podman images --format "{{.Tag}}" | grep -v latest | grep -v $IMAGE_TAG | head -1)
+              PREV_TAG=$(cat /opt/creditcardanalyzer/.rollback_tag 2>/dev/null)
               if [ -z "$PREV_TAG" ]; then
-                echo "ERROR: No previous image tag found for rollback"
+                echo "ERROR: No rollback tag found"
                 exit 1
               fi
 
               echo "Rolling back to tag: $PREV_TAG"
-              sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=${PREV_TAG}/" .env
+              cp .env.rollback .env
               podman-compose down --remove-orphans 2>/dev/null || true
               podman-compose up -d --remove-orphans
               exit 1
