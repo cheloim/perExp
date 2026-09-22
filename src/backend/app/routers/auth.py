@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.metrics import LOGIN_ATTEMPTS
 from app.models import AuditLog, User
 from app.schemas import (
     ChangePasswordRequest,
@@ -100,10 +101,12 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
             remaining = record_failed_login(user.id)
             _log_audit(db, user.id, "login_failed", request)
             if remaining == 0:
+                LOGIN_ATTEMPTS.labels(method="password", status="locked").inc()
                 raise HTTPException(
                     status_code=status.HTTP_423_LOCKED,
                     detail="Cuenta bloqueada por 15 minutos por demasiados intentos fallidos",
                 )
+        LOGIN_ATTEMPTS.labels(method="password", status="failed").inc()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email o contraseña incorrectos",
@@ -160,6 +163,7 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
         )
 
     _log_audit(db, user.id, "login_success", request)
+    LOGIN_ATTEMPTS.labels(method="password", status="success").inc()
     return Token(access_token=create_access_token(user.id), token_type="bearer")
 
 
@@ -380,6 +384,7 @@ async def oauth_callback(
         db.commit()
 
     _log_audit(db, user.id, "oauth_login", request, details=f"{body.provider}_callback")
+    LOGIN_ATTEMPTS.labels(method="google", status="success").inc()
     return Token(access_token=create_access_token(user.id), token_type="bearer")
 
 
@@ -425,6 +430,7 @@ def telegram_webapp_login(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cuenta bloqueada")
 
     _log_audit(db, user.id, "telegram_webapp_login", request)
+    LOGIN_ATTEMPTS.labels(method="telegram", status="success").inc()
     return Token(access_token=create_access_token(user.id), token_type="bearer")
 
 
@@ -471,6 +477,7 @@ def telegram_widget_login(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cuenta bloqueada")
 
     _log_audit(db, user.id, "telegram_widget_login", request)
+    LOGIN_ATTEMPTS.labels(method="telegram_widget", status="success").inc()
     return Token(access_token=create_access_token(user.id), token_type="bearer")
 
 

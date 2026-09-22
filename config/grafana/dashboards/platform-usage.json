@@ -1,0 +1,615 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "description": "Oikonomia platform usage metrics - API, users, expenses, integrations",
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+      "id": 100,
+      "title": "API Health",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 10, "lineWidth": 2},
+          "unit": "reqps"
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 0, "y": 1},
+      "id": 1,
+      "title": "Request Rate",
+      "type": "stat",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "sum(rate(http_requests_total[5m]))",
+          "legendFormat": "req/s",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 1},
+              {"color": "red", "value": 5}
+            ]
+          },
+          "unit": "reqps"
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 6, "y": 1},
+      "id": 2,
+      "title": "Error Rate (4xx+5xx)",
+      "type": "stat",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "sum(rate(http_requests_total{status=~\"4..|5..\"}[5m]))",
+          "legendFormat": "errors/s",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 500},
+              {"color": "red", "value": 2000}
+            ]
+          },
+          "unit": "ms"
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 12, "y": 1},
+      "id": 3,
+      "title": "Latency p95",
+      "type": "stat",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) * 1000",
+          "legendFormat": "p95",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 0.01}
+            ]
+          },
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 1},
+      "id": 4,
+      "title": "Error Ratio",
+      "type": "stat",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "sum(rate(http_requests_total{status=~\"4..|5..\"}[5m])) / sum(rate(http_requests_total[5m]))",
+          "legendFormat": "ratio",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 10, "lineWidth": 2},
+          "unit": "reqps"
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 9},
+      "id": 5,
+      "title": "Request Rate by Endpoint",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "topk(10, sum(rate(http_requests_total[5m])) by (endpoint))",
+          "legendFormat": "{{endpoint}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 10, "lineWidth": 2},
+          "unit": "ms"
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 9},
+      "id": 6,
+      "title": "Latency Percentiles",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) * 1000",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) * 1000",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) * 1000",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 17},
+      "id": 101,
+      "title": "User Activity",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "blue", "value": null}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 6, "w": 4, "x": 0, "y": 18},
+      "id": 7,
+      "title": "Total Users",
+      "type": "stat",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "oikonomia_users_total",
+          "legendFormat": "users",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 6, "w": 4, "x": 4, "y": 18},
+      "id": 8,
+      "title": "Active Users (24h)",
+      "type": "stat",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "oikonomia_active_users_total",
+          "legendFormat": "active",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 10, "lineWidth": 2}
+        }
+      },
+      "gridPos": {"h": 6, "w": 8, "x": 8, "y": 18},
+      "id": 9,
+      "title": "Login Attempts",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "sum(rate(oikonomia_login_attempts_total[5m])) by (method, status)",
+          "legendFormat": "{{method}} {{status}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 10, "lineWidth": 2}
+        }
+      },
+      "gridPos": {"h": 6, "w": 8, "x": 16, "y": 18},
+      "id": 10,
+      "title": "Login Success Rate",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "sum(rate(oikonomia_login_attempts_total{status=\"success\"}[5m])) by (method) / sum(rate(oikonomia_login_attempts_total[5m])) by (method)",
+          "legendFormat": "{{method}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 24},
+      "id": 102,
+      "title": "Financial Data",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "blue", "value": null}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 6, "w": 4, "x": 0, "y": 25},
+      "id": 11,
+      "title": "Total Expenses",
+      "type": "stat",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "sum(oikonomia_expenses_total)",
+          "legendFormat": "expenses",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "blue", "value": null}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 6, "w": 4, "x": 4, "y": 25},
+      "id": 12,
+      "title": "Total Accounts",
+      "type": "stat",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "sum(oikonomia_accounts_total)",
+          "legendFormat": "accounts",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "blue", "value": null}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 6, "w": 4, "x": 8, "y": 25},
+      "id": 13,
+      "title": "Total Cards",
+      "type": "stat",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "sum(oikonomia_cards_total)",
+          "legendFormat": "cards",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "blue", "value": null}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 6, "w": 4, "x": 12, "y": 25},
+      "id": 14,
+      "title": "Total Investments",
+      "type": "stat",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "sum(oikonomia_investments_total)",
+          "legendFormat": "investments",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 10, "lineWidth": 2}
+        }
+      },
+      "gridPos": {"h": 6, "w": 8, "x": 16, "y": 25},
+      "id": 15,
+      "title": "Expenses Created Rate",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "sum(rate(oikonomia_expenses_created_total[5m])) by (user_id)",
+          "legendFormat": "user {{user_id}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 10, "lineWidth": 2}
+        }
+      },
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 31},
+      "id": 16,
+      "title": "Expenses by User",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "oikonomia_expenses_total",
+          "legendFormat": "user {{user_id}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 10, "lineWidth": 2}
+        }
+      },
+      "gridPos": {"h": 6, "w": 12, "x": 12, "y": 31},
+      "id": 17,
+      "title": "Accounts by Type",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "oikonomia_accounts_total",
+          "legendFormat": "user {{user_id}} {{type}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 37},
+      "id": 103,
+      "title": "Integrations",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 10, "lineWidth": 2}
+        }
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 38},
+      "id": 18,
+      "title": "Telegram Messages",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "sum(rate(oikonomia_telegram_messages_total[5m])) by (direction)",
+          "legendFormat": "{{direction}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 10, "lineWidth": 2}
+        }
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 38},
+      "id": 19,
+      "title": "WhatsApp Messages",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "sum(rate(oikonomia_whatsapp_messages_total[5m])) by (direction)",
+          "legendFormat": "{{direction}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 10, "lineWidth": 2}
+        }
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 38},
+      "id": 20,
+      "title": "Import Jobs by Status",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "oikonomia_import_jobs_total",
+          "legendFormat": "{{status}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 46},
+      "id": 104,
+      "title": "Infrastructure",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 10, "lineWidth": 2}
+        }
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 47},
+      "id": 21,
+      "title": "DB Connections",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "pg_stat_activity_count{datname=\"expenses\"}",
+          "legendFormat": "{{state}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 10, "lineWidth": 2},
+          "unit": "ops"
+        }
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 47},
+      "id": 22,
+      "title": "Redis Ops/s",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "rate(redis_commands_processed_total[5m])",
+          "legendFormat": "ops/s",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 10, "lineWidth": 2},
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 47},
+      "id": 23,
+      "title": "Redis Memory",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "redis_memory_used_bytes",
+          "legendFormat": "Used",
+          "refId": "A"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "redis_memory_max_bytes",
+          "legendFormat": "Max",
+          "refId": "B"
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["oikonomia", "platform", "usage"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "title": "Oikonomia - Platform Usage",
+  "uid": "oikonomia-platform-usage",
+  "version": 1
+}

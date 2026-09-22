@@ -1,144 +1,385 @@
 {
-  "annotations": { "list": [] },
-  "editable": true,
+  "annotations": {
+    "list": []
+  },
+  "description": "Host-level resource metrics (CPU, Memory, Disk, Network)",
+  "editable": false,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "links": [
-    { "title": "Application", "url": "/d/oikonomia-api", "type": "link" },
-    { "title": "Logs", "url": "/d/oikonomia-logs", "type": "link" },
-    { "title": "System", "url": "/d/oikonomia-system", "type": "link" }
-  ],
+  "id": null,
+  "links": [],
   "panels": [
     {
-      "title": "Container CPU Usage",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-      "targets": [
-        {
-          "expr": "rate(container_cpu_usage_seconds_total{name=~\"creditcardanalyzer_.*\"}[5m]) * 100",
-          "legendFormat": "{{name}}",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": { "unit": "percent", "color": { "mode": "palette-classic" } }
-      }
-    },
-    {
-      "title": "Container Memory Usage",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-      "targets": [
-        {
-          "expr": "container_memory_usage_bytes{name=~\"creditcardanalyzer_.*\"}",
-          "legendFormat": "{{name}}",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": { "unit": "bytes", "color": { "mode": "palette-classic" } }
-      }
-    },
-    {
-      "title": "Container Memory vs Limit",
-      "type": "bargauge",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
-      "targets": [
-        {
-          "expr": "container_memory_usage_bytes{name=~\"creditcardanalyzer_.*\"} / container_spec_memory_limit_bytes{name=~\"creditcardanalyzer_.*\",container_spec_memory_limit_bytes!=0} * 100",
-          "legendFormat": "{{name}}",
-          "refId": "A",
-          "instant": true
-        }
-      ],
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
       "fieldConfig": {
         "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 70},
+              {"color": "red", "value": 90}
+            ]
+          },
           "unit": "percent",
-          "max": 100,
-          "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 75 }, { "color": "red", "value": 90 }] }
+          "min": 0,
+          "max": 100
         }
-      }
-    },
-    {
-      "title": "Container Network RX/TX",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0},
+      "id": 1,
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "title": "CPU Usage",
+      "type": "gauge",
       "targets": [
         {
-          "expr": "rate(container_network_receive_bytes_total{name=~\"creditcardanalyzer_.*\"}[5m])",
-          "legendFormat": "RX {{name}}",
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+          "legendFormat": "CPU",
           "refId": "A"
-        },
-        {
-          "expr": "rate(container_network_transmit_bytes_total{name=~\"creditcardanalyzer_.*\"}[5m])",
-          "legendFormat": "TX {{name}}",
-          "refId": "B"
         }
-      ],
-      "fieldConfig": {
-        "defaults": { "unit": "Bps", "color": { "mode": "palette-classic" } }
-      }
+      ]
     },
     {
-      "title": "Container Restart Count",
-      "type": "stat",
-      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 16 },
-      "targets": [
-        {
-          "expr": "container_restart_count{name=~\"creditcardanalyzer_.*\"}",
-          "legendFormat": "{{name}}",
-          "refId": "A",
-          "instant": true
-        }
-      ],
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
-          "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 3 }] }
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 70},
+              {"color": "red", "value": 90}
+            ]
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
         }
-      }
-    },
-    {
-      "title": "Container Block I/O",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0},
+      "id": 2,
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "title": "Memory Usage",
+      "type": "gauge",
       "targets": [
         {
-          "expr": "rate(container_fs_reads_bytes_total{name=~\"creditcardanalyzer_.*\"}[5m])",
-          "legendFormat": "Read {{name}}",
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100",
+          "legendFormat": "Memory",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 70},
+              {"color": "red", "value": 90}
+            ]
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0},
+      "id": 3,
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "title": "Disk Usage (/)",
+      "type": "gauge",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "(1 - node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"}) * 100",
+          "legendFormat": "Disk",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 70},
+              {"color": "red", "value": 90}
+            ]
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0},
+      "id": 4,
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "title": "Swap Usage",
+      "type": "gauge",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "(1 - node_memory_SwapFree_bytes / node_memory_SwapTotal_bytes) * 100",
+          "legendFormat": "Swap",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "fillOpacity": 20,
+            "lineWidth": 2,
+            "spanNulls": true
+          },
+          "unit": "percent"
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "id": 5,
+      "options": {
+        "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]}
+      },
+      "title": "CPU Usage Over Time",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "avg by (mode) (rate(node_cpu_seconds_total{mode!=\"idle\"}[5m])) * 100",
+          "legendFormat": "{{mode}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "fillOpacity": 30,
+            "lineWidth": 2,
+            "stacking": {"mode": "normal"}
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "id": 6,
+      "options": {
+        "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"]}
+      },
+      "title": "Memory Breakdown",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes",
+          "legendFormat": "Used",
           "refId": "A"
         },
         {
-          "expr": "rate(container_fs_writes_bytes_total{name=~\"creditcardanalyzer_.*\"}[5m])",
-          "legendFormat": "Write {{name}}",
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "node_memory_Buffers_bytes",
+          "legendFormat": "Buffers",
           "refId": "B"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "node_memory_Cached_bytes",
+          "legendFormat": "Cached",
+          "refId": "C"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "node_memory_MemFree_bytes",
+          "legendFormat": "Free",
+          "refId": "D"
         }
-      ],
-      "fieldConfig": {
-        "defaults": { "unit": "Bps", "color": { "mode": "palette-classic" } }
-      }
+      ]
     },
     {
-      "title": "Container Uptime",
-      "type": "stat",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "Bps"
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+      "id": 7,
+      "options": {
+        "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]}
+      },
+      "title": "Network Traffic",
+      "type": "timeseries",
       "targets": [
         {
-          "expr": "time() - container_start_time_seconds{name=~\"creditcardanalyzer_.*\"}",
-          "legendFormat": "{{name}}",
-          "refId": "A",
-          "instant": true
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "rate(node_network_receive_bytes_total{device!~\"lo|veth.*|br-.*|docker.*\"}[5m])",
+          "legendFormat": "RX {{device}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "-rate(node_network_transmit_bytes_total{device!~\"lo|veth.*|br-.*|docker.*\"}[5m])",
+          "legendFormat": "TX {{device}}",
+          "refId": "B"
         }
-      ],
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
       "fieldConfig": {
-        "defaults": { "unit": "s" }
-      }
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "Bps"
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "id": 8,
+      "options": {
+        "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]}
+      },
+      "title": "Disk I/O",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "rate(node_disk_read_bytes_total[5m])",
+          "legendFormat": "Read {{device}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "-rate(node_disk_written_bytes_total[5m])",
+          "legendFormat": "Write {{device}}",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2
+          }
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+      "id": 9,
+      "options": {
+        "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"]}
+      },
+      "title": "System Load Average",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "node_load1",
+          "legendFormat": "1m",
+          "refId": "A"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "node_load5",
+          "legendFormat": "5m",
+          "refId": "B"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "node_load15",
+          "legendFormat": "15m",
+          "refId": "C"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "count(node_cpu_seconds_total{mode=\"idle\"})",
+          "legendFormat": "CPUs",
+          "refId": "D"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+      "id": 10,
+      "options": {
+        "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"]}
+      },
+      "title": "Disk Space by Mount",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+          "expr": "(1 - node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay\"}) * 100",
+          "legendFormat": "{{mountpoint}}",
+          "refId": "A"
+        }
+      ]
     }
   ],
+  "refresh": "30s",
   "schemaVersion": 39,
-  "tags": ["oikonomia", "containers", "cadvisor"],
-  "templating": { "list": [] },
-  "time": { "from": "now-6h", "to": "now" },
+  "tags": ["oikonomia", "infrastructure"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
   "title": "Oikonomia - Containers",
   "uid": "oikonomia-containers",
   "version": 1
