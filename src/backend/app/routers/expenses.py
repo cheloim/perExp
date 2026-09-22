@@ -9,6 +9,7 @@ from sqlalchemy import desc, func
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
+from app.metrics import EXPENSES_CREATED
 from app.models import Card, Category, Expense, Notification, User
 from app.routers.groups import get_group_user_ids
 from app.schemas import ExpenseCreate, ExpenseResponse, ExpenseUpdate
@@ -427,6 +428,7 @@ def create_expense(
         db.add(notification)
         db.commit()
 
+    EXPENSES_CREATED.labels(user_id=str(current_user.id)).inc()
     return db_exp
 
 

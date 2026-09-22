@@ -650,12 +650,13 @@ jobs:
                 command:
                   - "--path.procfs=/host/proc"
                   - "--path.sysfs=/host/sys"
-                  - "--path.rootfs=/host/root"
+                  - "--path.rootfs=/host"
                   - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
                 volumes:
-                  - /proc:/host/proc:ro
-                  - /sys:/host/sys:ro
-                  - /:/host:ro
+                  - /proc:/host/proc:ro,z
+                  - /sys:/host/sys:ro,z
+                  - /:/:ro,z
+                privileged: true
                 deploy:
                   resources:
                     limits:
@@ -777,7 +778,7 @@ jobs:
           port: 43422
           source: "config/alloy/config.alloy,config/blackbox/blackbox.yml"
           target: /opt/creditcardanalyzer
-          strip_components: 2
+          strip_components: 1
 
       - name: Validate required env vars
         uses: appleboy/ssh-action@v1

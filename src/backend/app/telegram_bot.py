@@ -877,6 +877,9 @@ def send_disconnect_notification(chat_id: str) -> None:
 
 def send_message_to_chat(chat_id: str, text: str) -> None:
     """Send an arbitrary message to a Telegram chat. Safe to call from any thread."""
+    from app.metrics import TELEGRAM_MESSAGES
+
+    TELEGRAM_MESSAGES.labels(direction="outbound").inc()
     if not _bot_app or not _bot_app.bot:
         logger.warning("[TELEGRAM] Bot app not available, cannot send message")
         return
@@ -1284,6 +1287,9 @@ async def _handle_bank_notification(
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    from app.metrics import TELEGRAM_MESSAGES
+
+    TELEGRAM_MESSAGES.labels(direction="inbound").inc()
     chat_id = str(update.effective_chat.id)
     auth_user = _get_user_by_chat_id(chat_id)
     if not auth_user:

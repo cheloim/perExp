@@ -12,6 +12,8 @@ import os
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 
+from app.metrics import WHATSAPP_MESSAGES
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/webhook", tags=["whatsapp"])
@@ -109,6 +111,8 @@ async def _process_webhook(body: dict) -> None:
                         contact_name,
                         msg_type,
                     )
+
+                    WHATSAPP_MESSAGES.labels(direction="inbound").inc()
 
                     await handle_whatsapp_message(
                         phone=phone,
