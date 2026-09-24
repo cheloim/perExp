@@ -1,15 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  getCategories,
-  getAccounts,
-  getCards,
-  createCategory,
-  suggestCategory,
-} from "../api/client";
-import type { Expense, ExpenseCreate, Card } from "../types";
+import { getCategories, createCategory, suggestCategory, getTags, createTag } from "../api/client";
+import type { Expense, ExpenseCreate } from "../types";
 import { Select } from "./ui/Select";
-import CardAccountModal from "./CardAccountModal";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 
 // Helper function to get today's date in DD-MM-YYYY format
@@ -19,24 +12,6 @@ export function todayDDMMYYYY() {
   const m = String(now.getMonth() + 1).padStart(2, "0");
   const y = now.getFullYear();
   return `${d}-${m}-${y}`;
-}
-
-// Cache last used payment info for quick repeat
-function getLastUsedPayment(): {
-  card_id: number | null;
-  account_id: number | null;
-  payMethod: "card" | "cash";
-} {
-  try {
-    const data = JSON.parse(localStorage.getItem("expense_last_payment") || "{}");
-    return {
-      card_id: data.card_id || null,
-      account_id: data.account_id || null,
-      payMethod: data.payMethod || "card",
-    };
-  } catch {
-    return { card_id: null, account_id: null, payMethod: "card" };
-  }
 }
 
 // Empty form template
@@ -53,6 +28,7 @@ export const EMPTY_FORM: ExpenseCreate = {
   installment_group_id: null,
   account_id: null,
   card_id: null,
+  tag_ids: [],
 };
 
 // DatePicker component with calendar
@@ -80,13 +56,9 @@ export function ExpenseModal({
     queryKey: ["categories"],
     queryFn: getCategories,
   });
-  const { data: cards = [] } = useQuery({
-    queryKey: ["cards"],
-    queryFn: getCards,
-  });
-  const { data: accounts = [] } = useQuery({
-    queryKey: ["accounts"],
-    queryFn: getAccounts,
+  const { data: tags = [] } = useQuery({
+    queryKey: ["tags"],
+    queryFn: getTags,
   });
 
   useEffect(() => {
@@ -99,20 +71,7 @@ export function ExpenseModal({
 
   const [aiSuggested, setAiSuggested] = useState(false);
 
-  const isCash = (cardId: number | null | undefined) => !cardId;
-  const lastPayment = getLastUsedPayment();
   const isInstallmentsOnly = mode === "installments-only";
-
-  const [payMethod, setPayMethod] = useState<"card" | "cash">(
-    isInstallmentsOnly
-      ? "card"
-      : initial
-        ? isCash(initial.card_id)
-          ? "cash"
-          : "card"
-        : lastPayment.payMethod,
-  );
-  const [showCardModal, setShowCardModal] = useState(false);
 
   const [form, setForm] = useState<ExpenseCreate>(() => {
     if (initial) {
@@ -129,10 +88,10 @@ export function ExpenseModal({
         installment_group_id: initial.installment_group_id ?? null,
         account_id: initial.account_id ?? null,
         card_id: initial.card_id ?? null,
+        tag_ids: initial.tags?.filter((t) => t.group_name !== "categoria").map((t) => t.id) ?? [],
       };
     }
-    const last = getLastUsedPayment();
-    return { ...EMPTY_FORM, ...last };
+    return { ...EMPTY_FORM };
   });
 
   const [cuotasEnabled, setCuotasEnabled] = useState(
@@ -217,38 +176,60 @@ export function ExpenseModal({
   const set = (field: keyof ExpenseCreate, value: unknown) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
-  const switchPayMethod = (method: "card" | "cash") => {
-    setPayMethod(method);
-    if (method === "cash") {
-      setForm((prev) => ({ ...prev, card_id: null, account_id: null }));
-    } else {
-      setForm((prev) => ({ ...prev, account_id: null }));
-    }
-  };
-
-  // Cascading selectors: bank → card
-  const availableBanks = [...new Set(cards.map((c) => c.bank).filter(Boolean))].sort();
-
-  const selectedCard = cards.find((c) => c.id === form.card_id);
-  const selectedBank = selectedCard?.bank ?? "";
-  const availableCards = cards.filter((c) => !selectedBank || c.bank === selectedBank);
-
-  const handleBankChange = (_b: string) => {
-    setForm((prev) => ({ ...prev, card_id: null }));
-  };
-
-  const handleCardSelect = (c: Card) => {
-    setForm((prev) => ({
-      ...prev,
-      card_id: c.id,
-    }));
-  };
-
   const trapRef = useFocusTrap(true);
 
   const [showAdvanced, setShowAdvanced] = useState(
     !!initial?.notes || !!(initial?.installment_total && initial.installment_total > 1),
   );
+
+  const [newTagName, setNewTagName] = useState("");
+
+  const visibleTags = useMemo(() => tags.filter((t) => t.group_name !== "categoria"), [tags]);
+
+  const selectedTags = visibleTags.filter((t) => form.tag_ids?.includes(t.id));
+  const availableTags = visibleTags.filter((t) => !form.tag_ids?.includes(t.id));
+  const filteredNewTag =
+    newTagName.trim() &&
+    !tags.some((t) => t.name.toLowerCase() === newTagName.trim().toLowerCase());
+
+  const toggleTag = (id: number) => {
+    const tag = visibleTags.find((t) => t.id === id);
+    if (!tag) return;
+
+    const isExclusive = tag.group_name === "cuenta";
+
+    setForm((prev) => {
+      const current = prev.tag_ids ?? [];
+      if (current.includes(id)) {
+        return { ...prev, tag_ids: current.filter((x) => x !== id) };
+      }
+      if (isExclusive) {
+        const sameGroupIds = visibleTags
+          .filter((t) => t.group_name === tag.group_name && t.id !== id)
+          .map((t) => t.id);
+        const filtered = current.filter((x) => !sameGroupIds.includes(x));
+        return { ...prev, tag_ids: [...filtered, id] };
+      }
+      return { ...prev, tag_ids: [...current, id] };
+    });
+  };
+
+  const handleCreateInlineTag = async () => {
+    if (!newTagName.trim()) return;
+    try {
+      const created = await createTag({
+        name: newTagName.trim(),
+        color: "#6366f1",
+        group_name: "otros",
+      });
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
+      setForm((prev) => ({
+        ...prev,
+        tag_ids: [...(prev.tag_ids ?? []), created.id],
+      }));
+      setNewTagName("");
+    } catch {}
+  };
 
   return (
     <div
@@ -276,58 +257,10 @@ export function ExpenseModal({
           </button>
         </div>
 
-        {!initial && cards.length === 0 && accounts.length === 0 && (
-          <div className="flex items-start gap-2 bg-warning/10 border border-warning/30 rounded-lg px-3 py-2 text-xs text-warning">
-            <span className="mt-0.5">⚠</span>
-            <div className="flex-1">
-              <p>No tenés tarjetas ni cuentas creadas. Creá una para registrar gastos.</p>
-              <button
-                onClick={() => setShowCardModal(true)}
-                className="mt-1 text-xs font-semibold underline hover:no-underline"
-              >
-                Crear tarjeta o cuenta
-              </button>
-            </div>
-          </div>
-        )}
-
         {saveError && (
           <div className="flex items-start gap-2 bg-danger/10 border border-danger/30 rounded-lg px-3 py-2 text-xs text-danger">
             <span className="mt-0.5">✕</span>
             <span>{saveError}</span>
-          </div>
-        )}
-
-        {/* Payment method toggle */}
-        {!isInstallmentsOnly && (
-          <div>
-            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-              Medio de pago
-            </label>
-            <div className="flex rounded-md border border-[var(--border-color)] overflow-hidden">
-              <button
-                type="button"
-                onClick={() => switchPayMethod("card")}
-                className={`flex-1 px-3 py-1.5 text-sm font-medium transition ${
-                  payMethod === "card"
-                    ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
-                    : "bg-[var(--color-base-container)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
-                }`}
-              >
-                💳 Tarjeta
-              </button>
-              <button
-                type="button"
-                onClick={() => switchPayMethod("cash")}
-                className={`flex-1 px-3 py-1.5 text-sm font-medium transition ${
-                  payMethod === "cash"
-                    ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
-                    : "bg-[var(--color-base-container)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
-                }`}
-              >
-                💵 Efectivo / Transferencia
-              </button>
-            </div>
           </div>
         )}
 
@@ -459,75 +392,114 @@ export function ExpenseModal({
           </div>
         </div>
 
-        {/* Banco → Tarjeta */}
-        <div
-          className={`transition-opacity ${
-            payMethod === "cash" ? "opacity-40 pointer-events-none" : ""
-          }`}
-        >
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs font-medium text-[var(--text-secondary)]">Banco</label>
-              <Select
-                value={selectedBank}
-                onChange={(v) => handleBankChange(v)}
-                options={availableBanks.map((b) => ({ value: b, label: b }))}
-                placeholder="— Banco —"
-                disabled={payMethod === "cash"}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-[var(--text-secondary)]">Tarjeta</label>
-              <Select
-                value={String(form.card_id || "")}
-                onChange={(v) => {
-                  const selected = availableCards.find((c) => String(c.id) === v);
-                  if (selected) handleCardSelect(selected);
-                }}
-                options={availableCards.map((c) => ({
-                  value: String(c.id),
-                  label: c.card_name,
-                }))}
-                placeholder="— Tarjeta —"
-                disabled={payMethod === "cash"}
-              />
-            </div>
+        {/* Cuenta (single-select) */}
+        <div>
+          <label className="text-xs font-medium text-[var(--text-secondary)]">Cuenta</label>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {tags
+              .filter((t) => t.group_name === "cuenta")
+              .map((tag) => {
+                const selected = form.tag_ids?.includes(tag.id);
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => toggleTag(tag.id)}
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition ${
+                      selected
+                        ? "text-white"
+                        : "border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
+                    }`}
+                    style={selected ? { backgroundColor: tag.color } : undefined}
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: selected ? "#fff" : tag.color }}
+                    />
+                    {tag.name}
+                    {selected && <span className="ml-0.5 opacity-70">✕</span>}
+                  </button>
+                );
+              })}
+            {tags.filter((t) => t.group_name === "cuenta").length === 0 && (
+              <span className="text-xs text-[var(--text-tertiary)] italic">Sin cuentas</span>
+            )}
           </div>
         </div>
 
-        {/* Account selector for cash/transfer */}
-        <div className={`${payMethod === "card" ? "opacity-40 pointer-events-none" : ""}`}>
-          {payMethod === "cash" && accounts.filter((a) => a.type !== "credito").length === 0 && (
-            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700 mb-2">
-              <span className="mt-0.5">⚠️</span>
-              <div className="flex-1">
-                <p>No tenés cuentas creadas para efectivo/transferencia.</p>
-                <button
-                  onClick={() => setShowCardModal(true)}
-                  className="mt-1 text-xs font-semibold underline hover:text-amber-800"
-                >
-                  Crear cuenta
-                </button>
+        {/* Etiquetas (multi-select + create) */}
+        <div>
+          <label className="text-xs font-medium text-[var(--text-secondary)]">Etiquetas</label>
+          {(() => {
+            const selectedOtros = selectedTags.filter((t) => t.group_name === "otros");
+            return selectedOtros.length > 0 ? (
+              <div className="flex flex-wrap gap-1 mb-1.5">
+                {selectedOtros.map((tag) => (
+                  <span
+                    key={tag.id}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-white"
+                    style={{ backgroundColor: tag.color }}
+                  >
+                    {tag.name}
+                    <button
+                      type="button"
+                      onClick={() => toggleTag(tag.id)}
+                      className="ml-0.5 hover:opacity-70"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
               </div>
-            </div>
-          )}
-          <div>
-            <label className="text-xs font-medium text-[var(--text-secondary)]">
-              Cuenta de origen
-            </label>
-            <Select
-              value={String(form.account_id || "")}
-              onChange={(v) => set("account_id", v ? Number(v) : null)}
-              options={accounts
-                .filter((a) => a.type !== "credito")
-                .map((a) => ({
-                  value: String(a.id),
-                  label: a.name,
-                }))}
-              placeholder="Seleccionar cuenta"
-              disabled={payMethod === "card"}
+            ) : null;
+          })()}
+          <div className="flex gap-1.5">
+            <input
+              type="text"
+              value={newTagName}
+              onChange={(e) => setNewTagName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (filteredNewTag) handleCreateInlineTag();
+                }
+              }}
+              placeholder="Buscar o crear etiqueta..."
+              className="flex-1 px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
             />
           </div>
+          {(() => {
+            const otrosAvailable = availableTags.filter((t) => t.group_name === "otros");
+            return otrosAvailable.length > 0 || filteredNewTag ? (
+              <div className="mt-1.5">
+                <div className="flex flex-wrap gap-1">
+                  {otrosAvailable.map((tag) => (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => toggleTag(tag.id)}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
+                    >
+                      <span
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: tag.color }}
+                      />
+                      {tag.name}
+                    </button>
+                  ))}
+                  {filteredNewTag && (
+                    <button
+                      type="button"
+                      onClick={handleCreateInlineTag}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border border-dashed border-[var(--color-primary)] text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 transition"
+                    >
+                      + Crear "{newTagName.trim()}"
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : null;
+          })()}
         </div>
 
         {/* Advanced toggle */}
@@ -543,52 +515,50 @@ export function ExpenseModal({
         {/* Advanced section: Cuotas + Notas */}
         {showAdvanced && (
           <div className="space-y-2.5 pt-1 border-t border-[var(--border-color)]">
-            {payMethod === "card" && (
-              <div className="border border-[var(--border-color)] rounded-md p-2.5 space-y-2">
-                {!isInstallmentsOnly && (
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
+            <div className="border border-[var(--border-color)] rounded-md p-2.5 space-y-2">
+              {!isInstallmentsOnly && (
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={cuotasEnabled}
+                    onChange={(e) => toggleCuotas(e.target.checked)}
+                    className="accent-[var(--color-primary)]"
+                  />
+                  <span className="text-sm font-medium text-[var(--text-secondary)]">
+                    Compra en cuotas
+                  </span>
+                </label>
+              )}
+              {(cuotasEnabled || isInstallmentsOnly) && (
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <label className="text-xs font-medium text-[var(--text-secondary)]">
+                      Cuota N°
+                    </label>
                     <input
-                      type="checkbox"
-                      checked={cuotasEnabled}
-                      onChange={(e) => toggleCuotas(e.target.checked)}
-                      className="accent-[var(--color-primary)]"
+                      type="number"
+                      min={1}
+                      value={form.installment_number ?? 1}
+                      onChange={(e) => set("installment_number", parseInt(e.target.value) || 1)}
+                      className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition text-center"
                     />
-                    <span className="text-sm font-medium text-[var(--text-secondary)]">
-                      Compra en cuotas
-                    </span>
-                  </label>
-                )}
-                {(cuotasEnabled || isInstallmentsOnly) && (
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <label className="text-xs font-medium text-[var(--text-secondary)]">
-                        Cuota N°
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={form.installment_number ?? 1}
-                        onChange={(e) => set("installment_number", parseInt(e.target.value) || 1)}
-                        className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition text-center"
-                      />
-                    </div>
-                    <span className="text-[var(--text-tertiary)] mt-4">de</span>
-                    <div className="flex-1">
-                      <label className="text-xs font-medium text-[var(--text-secondary)]">
-                        Total cuotas
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={form.installment_total ?? 1}
-                        onChange={(e) => set("installment_total", parseInt(e.target.value) || 1)}
-                        className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition text-center"
-                      />
-                    </div>
                   </div>
-                )}
-              </div>
-            )}
+                  <span className="text-[var(--text-tertiary)] mt-4">de</span>
+                  <div className="flex-1">
+                    <label className="text-xs font-medium text-[var(--text-secondary)]">
+                      Total cuotas
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={form.installment_total ?? 1}
+                      onChange={(e) => set("installment_total", parseInt(e.target.value) || 1)}
+                      className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition text-center"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div>
               <label className="text-xs font-medium text-[var(--text-secondary)]">Notas</label>
@@ -612,17 +582,7 @@ export function ExpenseModal({
           </button>
           <button
             onClick={() => {
-              if (!initial) {
-                localStorage.setItem(
-                  "expense_last_payment",
-                  JSON.stringify({
-                    card_id: form.card_id,
-                    account_id: form.account_id,
-                    payMethod,
-                  }),
-                );
-              }
-              onSave({ ...form, amount: Math.abs(form.amount) });
+              onSave({ ...form, amount: Math.abs(form.amount), tag_ids: form.tag_ids });
             }}
             disabled={!isValid || isSaving}
             className="flex-1 px-4 py-2 rounded-md bg-[var(--color-primary)] text-white text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"
@@ -631,7 +591,6 @@ export function ExpenseModal({
           </button>
         </div>
       </div>
-      {showCardModal && <CardAccountModal onClose={() => setShowCardModal(false)} />}
     </div>
   );
 }

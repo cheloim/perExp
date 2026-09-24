@@ -15,7 +15,6 @@ import type {
   ExpenseCreate,
   DashboardSummary,
   InstallmentGroup,
-  CardSummary,
   SmartImportRow,
   AnalysisHistory,
   AITrendsResponse,
@@ -26,6 +25,8 @@ import type {
   ScheduledExpense,
   ImportJob,
   CardsMapping,
+  Tag,
+  TagSummary,
 } from "../types";
 
 // Token storage: Using localStorage for persistence across sessions.
@@ -158,6 +159,36 @@ export const deleteCategory = (id: number) => api.delete(`/categories/${id}`).th
 
 export const suggestCategory = (data: { description: string; amount?: number }) =>
   api.post<CategorySuggestion | null>("/categories/suggest", data).then((r) => r.data);
+
+export const getTags = (): Promise<Tag[]> => api.get("/tags").then((r) => r.data);
+
+export const createTag = (payload: {
+  name: string;
+  color?: string;
+  card_id?: number;
+  account_id?: number;
+  group_name?: string;
+}): Promise<Tag> => api.post("/tags", payload).then((r) => r.data);
+
+export const deleteTag = (id: number): Promise<void> =>
+  api.delete(`/tags/${id}`).then((r) => r.data);
+
+export const updateTag = (
+  id: number,
+  payload: {
+    name?: string;
+    color?: string;
+    group_name?: string;
+    card_id?: number | null;
+    account_id?: number | null;
+  },
+): Promise<Tag> => api.put(`/tags/${id}`, payload).then((r) => r.data);
+
+export const bulkUpdateTags = (payload: {
+  ids: number[];
+  tag_ids: number[];
+  mode?: string;
+}): Promise<{ updated: number }> => api.post("/expenses/bulk-tags", payload).then((r) => r.data);
 
 // Suggestions (AI auto-categorization)
 export interface SuggestionItem {
@@ -359,6 +390,10 @@ export const getExpenses = (params?: {
   account?: string;
   date_from?: string;
   date_to?: string;
+  tag_id?: number;
+  untagged?: boolean;
+  cuenta_id?: number;
+  sin_cuenta?: boolean;
   limit?: number;
   offset?: number;
 }) => api.get<Expense[]>("/expenses", { params }).then((r) => r.data);
@@ -591,25 +626,6 @@ export const getCreditCardPasivos = () =>
     }>("/dashboard/credit-card-pasivos")
     .then((r) => r.data);
 
-export const getAccountExpenses = (month?: string) =>
-  api
-    .get<
-      {
-        id: number;
-        date: string;
-        description: string;
-        amount: number;
-        currency: string;
-        category_id: number | null;
-        category_name: string | null;
-        category_color: string | null;
-        card: string;
-        bank: string;
-        person: string;
-      }[]
-    >("/dashboard/account-expenses", { params: month ? { month } : undefined })
-    .then((r) => r.data);
-
 export const getScheduledExpenses = async (params?: {
   status?: string;
   installment_group_id?: string;
@@ -633,8 +649,12 @@ export const cancelScheduledExpense = async (id: number) => {
   return data;
 };
 
-export const getCardSummary = () =>
-  api.get<CardSummary[]>("/dashboard/card-summary").then((r) => r.data);
+export async function getTagSummary(groups?: string): Promise<TagSummary[]> {
+  const { data } = await api.get("/dashboard/tag-summary", {
+    params: groups ? { groups } : undefined,
+  });
+  return data;
+}
 
 // Analysis history
 export const getAnalysisHistory = () =>
@@ -659,14 +679,6 @@ export const getCategoryTrend = (months = 4, anchorMonth?: string, person?: stri
     })
     .then((r) => r.data);
 
-export const getCardCategoryBreakdown = (params?: { month?: string; bank?: string }) =>
-  api
-    .get<{
-      rows: Record<string, number | string>[];
-      categories: { name: string; color: string }[];
-    }>("/dashboard/card-category-breakdown", { params })
-    .then((r) => r.data);
-
 export const bulkUpdateCategory = (ids: number[], category_id: number | null) =>
   api
     .post<{ updated: number }>("/expenses/bulk-category", { ids, category_id })
@@ -680,22 +692,6 @@ export const bulkUpdateFields = (
     account_id?: number | null;
   },
 ) => api.patch<{ updated: number }>("/expenses/bulk-update", { ids, ...data }).then((r) => r.data);
-
-export const recategorizeExpenses = (only_uncategorized = false) =>
-  api
-    .post<{
-      updated: number;
-      total: number;
-    }>("/expenses/recategorize", { only_uncategorized })
-    .then((r) => r.data);
-
-export const applyBaseHierarchy = () =>
-  api
-    .post<{
-      created: number;
-      updated: number;
-    }>("/categories/apply-base-hierarchy")
-    .then((r) => r.data);
 
 // Investments
 export const getInvestments = (broker?: string) =>

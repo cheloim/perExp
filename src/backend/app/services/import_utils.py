@@ -587,7 +587,10 @@ def fix_missing_installments(db: Session, user_id: int) -> dict:
                 db.add(new_exp)
                 db.flush()
 
-                # Link to recurring expense if matches
+                from app.services.tag_sync import sync_category_tag
+
+                sync_category_tag(db, new_exp, template_e.category_id)
+
                 from app.services.recurring_linker import link_to_recurring
 
                 link_to_recurring(new_exp.id, template_e.description, user_id, db)

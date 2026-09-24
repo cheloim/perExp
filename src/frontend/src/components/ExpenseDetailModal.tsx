@@ -1,6 +1,7 @@
 import { DetailModal } from "./DetailModal";
 import type { Expense } from "../types";
 import { formatCurrency, toUpperCase, formatDateDMY } from "../utils/format";
+import SymbolicIcon from "./SymbolicIcon";
 
 interface Props {
   expense: Expense;
@@ -63,12 +64,62 @@ export default function ExpenseDetailModal({ expense, onClose, onEdit }: Props) 
             </dd>
           </div>
           {expense.installment_number && expense.installment_total && (
-            <DetailField
-              label="Cuotas"
-              value={`${expense.installment_number} / ${expense.installment_total}`}
-            />
+            <div className="flex items-center gap-1.5">
+              <SymbolicIcon name="installments" size={14} className="text-[var(--text-tertiary)]" />
+              <span className="text-[var(--text-tertiary)] text-xs uppercase">Cuotas</span>
+              <span className="text-[var(--text-primary)] font-medium text-sm">
+                {expense.installment_number} / {expense.installment_total}
+              </span>
+            </div>
           )}
         </dl>
+
+        {expense.tags && expense.tags.filter((t) => t.group_name === "cuenta").length > 0 && (
+          <div>
+            <span className="text-xs text-[var(--text-tertiary)] uppercase">Cuenta</span>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {expense.tags
+                .filter((t) => t.group_name === "cuenta")
+                .map((tag) => (
+                  <span
+                    key={tag.id}
+                    className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
+                    style={{
+                      backgroundColor: tag.color + "1F",
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    <span
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ backgroundColor: tag.color }}
+                    />
+                    {tag.name}
+                  </span>
+                ))}
+            </div>
+          </div>
+        )}
+
+        {expense.tags &&
+          expense.tags.filter((t) => t.group_name !== "categoria" && t.group_name !== "cuenta")
+            .length > 0 && (
+            <div>
+              <span className="text-xs text-[var(--text-tertiary)] uppercase">Etiquetas</span>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {expense.tags
+                  .filter((t) => t.group_name !== "categoria" && t.group_name !== "cuenta")
+                  .map((tag) => (
+                    <span
+                      key={tag.id}
+                      className="text-xs px-2 py-0.5 rounded-full text-white"
+                      style={{ backgroundColor: tag.color }}
+                    >
+                      {tag.name}
+                    </span>
+                  ))}
+              </div>
+            </div>
+          )}
 
         {/* Notas */}
         <div className="flex items-center justify-between px-1 py-2 border-t border-[var(--border-color)]">

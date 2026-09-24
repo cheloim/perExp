@@ -7,7 +7,7 @@ from datetime import date, datetime
 
 from app.celery_app import celery_app
 from app.database import SessionLocal
-from app.models import Category, Expense, MonthlyReport, Notification, User
+from app.models import Category, Expense, MonthlyReport, Notification, Tag, User
 from app.routers.groups import get_group_user_ids
 
 logger = logging.getLogger(__name__)
@@ -229,6 +229,62 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
         )
     cards_summary.sort(key=lambda x: x["total"], reverse=True)
 
+    tags = db.query(Tag).filter(Tag.user_id.in_(uid_list)).all()
+    tag_totals: dict[int, float] = {}
+    tag_prev_totals: dict[int, float] = {}
+    tag_counts: dict[int, int] = {}
+
+    for e in expenses:
+        for t in e.tags or []:
+            if t.group_name == "categoria":
+                continue
+            tag_totals[t.id] = tag_totals.get(t.id, 0) + abs(e.amount)
+            tag_counts[t.id] = tag_counts.get(t.id, 0) + 1
+    for e in prev_expenses:
+        for t in e.tags or []:
+            if t.group_name == "categoria":
+                continue
+            tag_prev_totals[t.id] = tag_prev_totals.get(t.id, 0) + abs(e.amount)
+
+    tags_summary = []
+    for t in sorted(tags, key=lambda t: tag_totals.get(t.id, 0), reverse=True):
+        if tag_totals.get(t.id, 0) > 0:
+            tags_summary.append(
+                {
+                    "name": t.name,
+                    "group": t.group_name,
+                    "color": t.color,
+                    "total": round(tag_totals.get(t.id, 0), 2),
+                    "previous": round(tag_prev_totals.get(t.id, 0), 2),
+                    "count": tag_counts.get(t.id, 0),
+                }
+            )
+    untagged_total = sum(
+        abs(e.amount)
+        for e in expenses
+        if not [t for t in (e.tags or []) if t.group_name != "categoria"] and not e.is_income
+    )
+    untagged_prev = sum(
+        abs(e.amount)
+        for e in prev_expenses
+        if not [t for t in (e.tags or []) if t.group_name != "categoria"] and not e.is_income
+    )
+    untagged_count = sum(
+        1
+        for e in expenses
+        if not [t for t in (e.tags or []) if t.group_name != "categoria"] and not e.is_income
+    )
+    if untagged_total > 0:
+        tags_summary.append(
+            {
+                "name": "Sin tag",
+                "color": "#94a3b8",
+                "total": round(untagged_total, 2),
+                "previous": round(untagged_prev, 2),
+                "count": untagged_count,
+            }
+        )
+
     # Future installments
     from app.models import ScheduledExpense
 
@@ -407,6 +463,8 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
             for fi in future_installments[:5]:
                 future_lines.append(f"  - {fi['date']}: {fi['description']} ${fi['amount']:,.2f}")
 
+            cuenta_summary = [t for t in tags_summary if t.get("group") in ("cuenta", "tarjeta")]
+
             llm_context = f"""RESUMEN MENSUAL - {MONTHS_ES[m]} {y}
 
 RESUMEN:
@@ -431,6 +489,12 @@ CUENTAS:
 
 TARJETAS:
 {chr(10).join(card_lines) or "  Sin datos"}
+
+CUENTAS:
+{chr(10).join([f"  {t['name']}: ${t['total']:,.0f} ({t['count']} gastos)" for t in cuenta_summary[:10]]) or "  Sin datos"}
+
+OTROS TAGS:
+{chr(10).join([f"  {t['name']}: ${t['total']:,.0f} ({t['count']} gastos)" for t in [t for t in tags_summary if t.get("group") not in ("cuenta",)][:10]]) or "  Sin datos"}
 
 CUOTAS FUTURAS ({len(future_installments)} cuotas, ${sum(fi["amount"] for fi in future_installments):,.2f} total):
 {chr(10).join(future_lines) or "  Sin cuotas futuras"}
@@ -802,6 +866,9 @@ Usa flags para tendencias preocupantes a monitorear."""
         "top_expenses": top_expenses_data,
         "accounts_summary": accounts_summary,
         "cards_summary": cards_summary,
+        "tags_summary": tags_summary,
+        "tarjeta_summary": [],  # Deprecated: tarjeta merged into cuenta
+        "cuenta_summary": [t for t in tags_summary if t.get("group") in ("cuenta", "tarjeta")],
         "future_installments": future_installments,
         "future_installments_count": len(future_installments),
         "future_installments_total": round(sum(fi["amount"] for fi in future_installments), 2),

@@ -6,20 +6,43 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import desc, func
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.database import get_db
 from app.metrics import EXPENSES_CREATED
-from app.models import Card, Category, Expense, Notification, User
+from app.models import Card, Category, Expense, ExpenseTag, Notification, Tag, User
 from app.routers.groups import get_group_user_ids
 from app.schemas import ExpenseCreate, ExpenseResponse, ExpenseUpdate
 from app.services.auth import get_current_user
-from app.services.categorization import _normalize_merchant_key, _resolve_category, auto_categorize
+from app.services.categorization import _normalize_merchant_key, auto_categorize
 from app.services.date_utils import _normalize_date_str, add_months
 from app.services.encryption import compute_hmac
 from app.services.import_utils import _is_duplicate, _normalize_text
+from app.services.tag_sync import assign_tags_validated, sync_category_tag
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
+
+
+def _assign_tags(
+    expense_id: int,
+    tag_ids: list[int],
+    user_id: int,
+    db: Session,
+    uid_list: list[int] | None = None,
+):
+    return assign_tags_validated(db, expense_id, tag_ids, user_id, uid_list)
+
+
+def _derive_account_from_tags(tags: list[Tag]) -> tuple[int | None, int | None]:
+    """Derive card_id/account_id from tags with linked card/account. First match wins."""
+    card_id = None
+    account_id = None
+    for t in tags:
+        if t.card_id and not card_id:
+            card_id = t.card_id
+        if t.account_id and not account_id:
+            account_id = t.account_id
+    return card_id, account_id
 
 
 def _track_merchant_preference(user_id: int, description: str, category_id: int, db: Session):
@@ -75,6 +98,10 @@ def get_expenses(
     installment: bool | None = None,
     account: str | None = None,
     account_id: int | None = None,
+    tag_id: int | None = None,
+    untagged: bool = False,
+    cuenta_id: int | None = None,
+    sin_cuenta: bool = False,
     skip: int = 0,
     limit: int = 200,
     db: Session = Depends(get_db),
@@ -87,6 +114,7 @@ def get_expenses(
             joinedload(Expense.card_rel),
             joinedload(Expense.category),
             joinedload(Expense.account_rel),
+            selectinload(Expense.tags),
         )
         .filter(Expense.user_id.in_(uid_list))
     )
@@ -117,8 +145,20 @@ def get_expenses(
             matching_ids = [c.id for c in all_cards if bank.lower() in (c.bank or "").lower()]
             q = q.filter(Expense.card_id.in_(matching_ids))
         if person:
-            matching_ids = [c.id for c in all_cards if person.lower() in (c.holder or "").lower()]
-            q = q.filter(Expense.card_id.in_(matching_ids))
+            matching_card_ids = [
+                c.id for c in all_cards if person.lower() in (c.holder or "").lower()
+            ]
+            if matching_card_ids:
+                tag_expense_ids = (
+                    db.query(ExpenseTag.expense_id)
+                    .join(Tag, Tag.id == ExpenseTag.tag_id)
+                    .filter(Tag.card_id.in_(matching_card_ids))
+                )
+                q = q.filter(
+                    (Expense.card_id.in_(matching_card_ids)) | (Expense.id.in_(tag_expense_ids))
+                )
+            else:
+                q = q.filter(Expense.id == -1)
         if card:
             matching_ids = [c.id for c in all_cards if card.lower() in (c.card_name or "").lower()]
             q = q.filter(Expense.card_id.in_(matching_ids))
@@ -137,6 +177,33 @@ def get_expenses(
         all_accounts = db.query(Account).filter(Account.user_id.in_(uid_list)).all()
         matching_ids = [a.id for a in all_accounts if account.lower() in (a.name or "").lower()]
         q = q.filter(Expense.account_id.in_(matching_ids))
+    # Tag filtering
+    if tag_id:
+        q = q.join(ExpenseTag, ExpenseTag.expense_id == Expense.id).filter(
+            ExpenseTag.tag_id == tag_id
+        )
+    elif untagged:
+        tagged_ids = (
+            db.query(ExpenseTag.expense_id)
+            .join(Tag, Tag.id == ExpenseTag.tag_id)
+            .filter(Tag.group_name != "categoria")
+            .subquery()
+        )
+        q = q.filter(~Expense.id.in_(db.query(tagged_ids.c.expense_id)))
+    # Cuenta filtering
+    if cuenta_id:
+        cuenta_expense_ids = (
+            db.query(ExpenseTag.expense_id)
+            .join(Tag, Tag.id == ExpenseTag.tag_id)
+            .filter(ExpenseTag.tag_id == cuenta_id, Tag.group_name == "cuenta")
+        )
+        q = q.filter(Expense.id.in_(cuenta_expense_ids))
+    elif sin_cuenta:
+        cuenta_tag_ids = db.query(Tag.id).filter(Tag.group_name == "cuenta")
+        cuenta_expense_ids = db.query(ExpenseTag.expense_id).filter(
+            ExpenseTag.tag_id.in_(cuenta_tag_ids)
+        )
+        q = q.filter(~Expense.id.in_(cuenta_expense_ids))
     # Only exclude future installments when NOT filtering by specific category
     # (category-specific views like side panel need to show all expenses)
     if not category_id and not category_ids:
@@ -335,6 +402,20 @@ def create_expense(
 
     data = expense.model_dump()
 
+    # Extract tag_ids (M2M, not a column on Expense)
+    tag_ids = data.pop("tag_ids", None) or []
+
+    # Auto-derive card_id/account_id from tags if not explicitly set
+    if tag_ids and not data.get("card_id") and not data.get("account_id"):
+        tags_for_derive = (
+            db.query(Tag).filter(Tag.id.in_(tag_ids), Tag.user_id == current_user.id).all()
+        )
+        derived_card, derived_account = _derive_account_from_tags(tags_for_derive)
+        if derived_card and not data.get("card_id"):
+            data["card_id"] = derived_card
+        if derived_account and not data.get("account_id"):
+            data["account_id"] = derived_account
+
     # Auto-categorize if needed
     if data.get("category_id") is None:
         cats = db.query(Category).filter(Category.user_id == current_user.id).all()
@@ -351,25 +432,8 @@ def create_expense(
     # Always store amount as positive (no sign convention)
     data["amount"] = abs(data["amount"])
 
-    # Validate: income must have account_id
-    if data["is_income"] and not data.get("account_id"):
-        raise HTTPException(
-            400,
-            detail={
-                "error": "account_required",
-                "message": "Los ingresos requieren una cuenta destino.",
-            },
-        )
-
-    # Validate: non-income cash/transfer payments also need account
-    if not data["is_income"] and not data.get("account_id") and not data.get("card_id"):
-        raise HTTPException(
-            400,
-            detail={
-                "error": "account_required",
-                "message": "Para gastos en efectivo o transferencia, debes seleccionar o crear una cuenta.",
-            },
-        )
+    # Note: account_required validation removed (Issue 199).
+    # Cards/accounts are now optional; tags are the primary classification.
 
     # Validate card belongs to user
     if data.get("card_id"):
@@ -407,6 +471,13 @@ def create_expense(
     db.add(db_exp)
     db.commit()
     db.refresh(db_exp)
+
+    sync_category_tag(db, db_exp, db_exp.category_id)
+
+    if tag_ids:
+        uid_list = get_group_user_ids(current_user.id, db)
+        _assign_tags(db_exp.id, tag_ids, current_user.id, db, uid_list)
+        db.commit()
 
     # Link to recurring expense if matches
     from app.services.recurring_linker import link_to_recurring
@@ -452,6 +523,7 @@ def update_expense(
             joinedload(Expense.card_rel),
             joinedload(Expense.category),
             joinedload(Expense.account_rel),
+            selectinload(Expense.tags),
         )
         .filter(Expense.id == exp_id, Expense.user_id == current_user.id)
         .first()
@@ -459,7 +531,11 @@ def update_expense(
     if not db_exp:
         raise HTTPException(404, "Gasto no encontrado")
 
-    data = expense.model_dump(exclude_none=True)
+    data = expense.model_dump(exclude_unset=True)
+
+    # Extract tag_ids (M2M, not a column on Expense)
+    tag_ids = data.pop("tag_ids", None)
+
     if "date" in data:
         raw = str(data["date"]).strip()
         normalized = _normalize_date_str(raw)
@@ -468,10 +544,44 @@ def update_expense(
         else:
             data["date"] = pd.to_datetime(normalized, dayfirst=True).date()
 
-    try:
-        db_exp = update_expense_checked(db, current_user.id, db_exp, data, skip_48h_check=True)
-    except ExpenseEditError as e:
-        raise HTTPException(400, str(e))
+    # Apply column changes if any (skip for tag-only updates)
+    if data:
+        try:
+            db_exp = update_expense_checked(
+                db, current_user.id, db_exp, data, skip_48h_check=True, commit=False
+            )
+        except ExpenseEditError as e:
+            raise HTTPException(400, str(e))
+
+    # Filter out categoria ids (managed exclusively by sync_category_tag)
+    if tag_ids is not None:
+        non_categoria_ids = (
+            db.query(Tag.id).filter(Tag.id.in_(tag_ids), Tag.group_name != "categoria").all()
+        )
+        non_categoria_ids = [r[0] for r in non_categoria_ids]
+
+        # Delete non-categoria tags from this expense (preserves mirror)
+        non_cat_tag_ids = (
+            db.query(ExpenseTag.tag_id)
+            .join(Tag, Tag.id == ExpenseTag.tag_id)
+            .filter(ExpenseTag.expense_id == db_exp.id, Tag.group_name != "categoria")
+            .all()
+        )
+        if non_cat_tag_ids:
+            db.query(ExpenseTag).filter(
+                ExpenseTag.expense_id == db_exp.id,
+                ExpenseTag.tag_id.in_([r[0] for r in non_cat_tag_ids]),
+            ).delete(synchronize_session=False)
+
+        if non_categoria_ids:
+            uid_list = get_group_user_ids(current_user.id, db)
+            _assign_tags(db_exp.id, non_categoria_ids, current_user.id, db, uid_list)
+
+    # Sync mirror AFTER tag replacement so it's always preserved
+    sync_category_tag(db, db_exp, db_exp.category_id)
+
+    db.commit()
+    db.refresh(db_exp)
 
     return db_exp
 
@@ -534,34 +644,6 @@ def delete_expense(
     return {"ok": True}
 
 
-@router.post(
-    "/recategorize",
-    summary="Recategorize expenses",
-    description="Re-runs auto-categorization on all or only uncategorized expenses using the LLM categorization service.",
-)
-def recategorize_expenses(
-    payload: dict = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    if payload is None:
-        payload = {}
-    only_uncategorized = (payload or {}).get("only_uncategorized", False)
-    cats = db.query(Category).filter(Category.user_id == current_user.id).all()
-    q = db.query(Expense).filter(Expense.user_id == current_user.id)
-    if only_uncategorized:
-        q = q.filter(Expense.category_id.is_(None))
-    expenses = q.all()
-    updated = 0
-    for exp in expenses:
-        new_cat = _resolve_category(db, exp.amount, exp.description, cats)
-        if new_cat != exp.category_id:
-            exp.category_id = new_cat
-            updated += 1
-    db.commit()
-    return {"updated": updated, "total": len(expenses)}
-
-
 @router.patch(
     "/bulk-update",
     summary="Bulk update expense fields",
@@ -578,7 +660,8 @@ def bulk_update_expenses(
 
     update_data = {}
     for field in ["category_id", "card_id", "account_id"]:
-        if field in payload and payload[field] is not None:
+        if field in payload:
+            # Allow None for card_id/account_id (clearing) — Issue 199
             update_data[field] = payload[field]
 
     if not update_data:
@@ -590,6 +673,14 @@ def bulk_update_expenses(
         .update(update_data, synchronize_session=False)
     )
     db.commit()
+
+    if "category_id" in update_data:
+        affected = (
+            db.query(Expense).filter(Expense.id.in_(ids), Expense.user_id == current_user.id).all()
+        )
+        for e in affected:
+            sync_category_tag(db, e, e.category_id)
+
     return {"updated": updated}
 
 
@@ -627,7 +718,61 @@ def bulk_update_category(
         .update({"category_id": category_id}, synchronize_session=False)
     )
     db.commit()
+
+    affected = (
+        db.query(Expense).filter(Expense.id.in_(ids), Expense.user_id == current_user.id).all()
+    )
+    for e in affected:
+        sync_category_tag(db, e, e.category_id)
+
     return {"updated": updated}
+
+
+@router.post(
+    "/bulk-tags",
+    summary="Bulk assign tags",
+    description="Assigns or removes tags for multiple expenses at once. Supports 'add', 'remove', or 'replace' mode.",
+)
+def bulk_update_tags(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    ids: list = payload.get("ids", [])
+    tag_ids: list[int] = payload.get("tag_ids", [])
+    mode: str = payload.get("mode", "replace")
+    if not ids:
+        return {"updated": 0}
+
+    uid_list = get_group_user_ids(current_user.id, db)
+
+    expense_ids = [
+        r[0]
+        for r in db.query(Expense.id)
+        .filter(Expense.id.in_(ids), Expense.user_id == current_user.id)
+        .all()
+    ]
+
+    from app.services.tag_sync import remove_tags_by_group
+
+    if mode == "replace":
+        for eid in expense_ids:
+            for gn in ("cuenta", "otros"):
+                remove_tags_by_group(db, eid, gn)
+        if tag_ids:
+            for eid in expense_ids:
+                assign_tags_validated(db, eid, tag_ids, current_user.id, uid_list)
+    elif mode == "add":
+        for eid in expense_ids:
+            assign_tags_validated(db, eid, tag_ids, current_user.id, uid_list)
+    elif mode == "remove":
+        if tag_ids:
+            db.query(ExpenseTag).filter(
+                ExpenseTag.expense_id.in_(expense_ids), ExpenseTag.tag_id.in_(tag_ids)
+            ).delete(synchronize_session=False)
+
+    db.commit()
+    return {"updated": len(expense_ids)}
 
 
 @router.post(

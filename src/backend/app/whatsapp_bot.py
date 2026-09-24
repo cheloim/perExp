@@ -499,14 +499,17 @@ async def _handle_bank_notification(
             # No match — ask for payment method
             desc = parsed.get("description", "")
             amount_str = _format_amount(parsed["amount"], parsed.get("currency", "ARS"))
-            await send_text(
+            await send_reply_buttons(
                 phone,
                 f"🔔 *Notificación bancaria detectada*\n\n"
                 f"🛒 {desc}\n"
                 f"💰 {amount_str}\n\n"
-                "No encontré esta tarjeta. ¿Cómo pagaste?\n\n"
-                "1️⃣ Efectivo/Transferencia\n"
-                "2️⃣ Tarjeta",
+                "No encontré esta tarjeta. ¿Cómo pagaste?",
+                [
+                    {"id": "pay:cash", "title": "💵 Efectivo/Transfer."},
+                    {"id": "pay:card", "title": "💳 Tarjeta"},
+                    {"id": "payment_none", "title": "⏭️ Sin cuenta"},
+                ],
             )
             session["state"] = "WAITING_PAYMENT"
             return
@@ -580,6 +583,7 @@ async def _ask_payment_method(phone: str, phone_hash: str, parsed: dict, session
         [
             {"id": "pay:cash", "title": "💵 Efectivo/Transfer."},
             {"id": "pay:card", "title": "💳 Tarjeta"},
+            {"id": "payment_none", "title": "⏭️ Sin cuenta"},
         ],
     )
     session["state"] = "WAITING_PAYMENT"
@@ -763,6 +767,26 @@ async def _handle_button_reply(
                 sections,
             )
             session["state"] = "WAITING_CARD_SELECT"
+            return
+
+        elif button_id == "payment_none":
+            session["data"]["payment_method"] = "none"
+            session["data"]["payment_label"] = "Sin cuenta"
+            session["data"].pop("card_id", None)
+            session["data"].pop("account_id", None)
+            db = SessionLocal()
+            try:
+                predicted_category_id, _ = _instant_categorize(
+                    session.get("data", {}).get("parsed", {}), user_id, db
+                )
+                session["data"]["predicted_category_id"] = predicted_category_id
+                cat_levels = _build_cat_levels(predicted_category_id, db)
+            finally:
+                db.close()
+            parsed = session.get("data", {}).get("parsed", {})
+            confirm_text = _confirm_text_wa(parsed, "Sin cuenta", cat_levels)
+            await send_text(phone, confirm_text)
+            session["state"] = "WAITING_CONFIRM"
             return
 
     # Installment question

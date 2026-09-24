@@ -137,6 +137,12 @@ def _detect_for_user(user_id: int, db) -> tuple[int, int, int]:
         account_counts = Counter(e.account_id for e in group if e.account_id)
         account_id = account_counts.most_common(1)[0][0] if account_counts else None
 
+        tag_counter: dict[int, int] = {}
+        for e in group:
+            for t in e.tags or []:
+                tag_counter[t.id] = tag_counter.get(t.id, 0) + 1
+        mode_tag_id = max(tag_counter, key=tag_counter.get) if tag_counter else None
+
         # Fuzzy dedup: match against all existing records
         active_match = None
         inactive_match = None
@@ -156,6 +162,8 @@ def _detect_for_user(user_id: int, db) -> tuple[int, int, int]:
                 active_match.category_id = category_id
             if card_id and not active_match.card_id:
                 active_match.card_id = card_id
+            if mode_tag_id and not active_match.tag_id:
+                active_match.tag_id = mode_tag_id
             updated += 1
         elif inactive_match:
             # Tombstone covers this variant — skip
@@ -170,6 +178,7 @@ def _detect_for_user(user_id: int, db) -> tuple[int, int, int]:
                 category_id=category_id,
                 card_id=card_id,
                 account_id=account_id,
+                tag_id=mode_tag_id,
                 frequency=frequency,
                 next_charge_date=next_date,
                 source="auto",

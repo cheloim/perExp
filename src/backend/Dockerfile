@@ -24,6 +24,7 @@ RUN chmod +x docker-entrypoint.sh
 
 # --- Dev: hot reload, no source copy (volume mounts) ---
 FROM base AS dev
+ENTRYPOINT ["./docker-entrypoint.sh"]
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
 # --- Prod: source baked in ---

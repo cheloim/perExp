@@ -32,6 +32,25 @@ export const sidebarIcons = {
       <path d="M2 8h16" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   ),
+  tags: (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M3 3h6.586a1 1 0 01.707.293l7 7a1 1 0 010 1.414l-5.586 5.586a1 1 0 01-1.414 0l-7-7A1 1 0 013 9.586V3z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <circle cx="6.5" cy="6.5" r="1" fill="currentColor" />
+    </svg>
+  ),
   expenses: (
     <svg
       aria-hidden="true"

@@ -375,6 +375,7 @@ async def confirm_import_job(
                     card_obj, _ = find_or_create_card(
                         mapping_entry.get("bank", ""),
                         mapping_entry.get("card_name", ""),
+                        mapping_entry.get("holder", ""),
                         mapping_entry.get("card_type", "credito"),
                     )
                     scheduled_card_id = card_obj.id if card_obj else None
@@ -416,17 +417,7 @@ async def confirm_import_job(
                 )
                 card_id = card_obj.id
             else:
-                # Fallback: create card from card_header
-                from app.services.smart_import_core import _parse_card_header
-
-                detected_bank, detected_card = _parse_card_header(card_header)
-                card_obj, _ = find_or_create_card(
-                    detected_bank or "",
-                    detected_card or "",
-                    user.full_name.split()[0] if user.full_name else "",
-                    "credito",
-                )
-                card_id = card_obj.id
+                card_id = None
 
             try:
                 expense = Expense(
@@ -445,10 +436,23 @@ async def confirm_import_job(
                 db.add(expense)
                 db.flush()
 
-                # Link to recurring expense if matches
+                from app.services.tag_sync import sync_category_tag
+
+                sync_category_tag(db, expense, expense.category_id)
+
                 from app.services.recurring_linker import link_to_recurring
 
                 link_to_recurring(expense.id, expense.description, user.id, db)
+
+                if expense.card_id:
+                    from app.services.tag_sync import get_or_create_payment_tag
+
+                    card = db.query(Card).filter(Card.id == expense.card_id).first()
+                    if card:
+                        tag = get_or_create_payment_tag(db, user.id, card=card)
+                        from app.services.tag_sync import assign_tags_validated
+
+                        assign_tags_validated(db, expense.id, [tag.id], user.id)
 
                 imported_count += 1
             except Exception as e:

@@ -96,6 +96,7 @@ def update_expense_checked(
     changes: dict[str, Any],
     *,
     skip_48h_check: bool = False,
+    commit: bool = True,
 ) -> Expense:
     """Apply validated changes to an expense with full checks.
 
@@ -136,11 +137,22 @@ def update_expense_checked(
                 f"Este gasto tiene {hours_ago:.0f}h y solo se pueden editar los últimos {EDITABLE_WINDOW_HOURS}h."
             )
 
-    # 3. Block linked expenses
+    # 3. Block linked expenses (only structural fields for installments)
     if expense.budget_event_id is not None:
         raise ExpenseEditError("No se puede editar un gasto vinculado a un presupuesto/evento.")
     if expense.installment_group_id is not None and (expense.installment_total or 0) > 1:
-        raise ExpenseEditError("No se puede editar una cuota. Usá la gestión de cuotas.")
+        structural_fields = {
+            "amount",
+            "date",
+            "description",
+            "installment_number",
+            "installment_total",
+            "installment_group_id",
+        }
+        if structural_fields & set(changes.keys()):
+            raise ExpenseEditError(
+                "No se puede editar monto/fecha/descripción de una cuota. Usá la gestión de cuotas."
+            )
     if expense.recurring_expense_id is not None:
         raise ExpenseEditError("No se puede editar un gasto recurrente. Editá la suscripción.")
 
@@ -210,6 +222,7 @@ def update_expense_checked(
             desc = str(desc)
         _track_merchant_preference(user_id, desc, changes["category_id"], db)
 
-    db.commit()
-    db.refresh(expense)
+    if commit:
+        db.commit()
+        db.refresh(expense)
     return expense

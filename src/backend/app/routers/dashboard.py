@@ -8,10 +8,10 @@ from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from sqlalchemy import desc, func
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.database import get_db
-from app.models import Card, Category, Expense, MonthlyReport, Notification, User
+from app.models import Card, Category, Expense, ExpenseTag, MonthlyReport, Notification, Tag, User
 from app.routers.groups import get_group_user_ids
 from app.services.auth import get_current_user
 from app.services.date_utils import add_months
@@ -93,10 +93,20 @@ def _apply_filters(
     if (person_val or bank_val) and uid_list and db:
         all_cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
         if person_val:
-            matching_ids = [
+            matching_card_ids = [
                 c.id for c in all_cards if person_val.lower() in (c.holder or "").lower()
             ]
-            q = q.filter(Expense.card_id.in_(matching_ids))
+            if matching_card_ids:
+                tag_expense_ids = (
+                    db.query(ExpenseTag.expense_id)
+                    .join(Tag, Tag.id == ExpenseTag.tag_id)
+                    .filter(Tag.card_id.in_(matching_card_ids))
+                )
+                q = q.filter(
+                    (Expense.card_id.in_(matching_card_ids)) | (Expense.id.in_(tag_expense_ids))
+                )
+            else:
+                q = q.filter(Expense.id == -1)
         if bank_val:
             matching_ids = [c.id for c in all_cards if bank_val.lower() in (c.bank or "").lower()]
             q = q.filter(Expense.card_id.in_(matching_ids))
@@ -143,8 +153,21 @@ def get_summary(
     )
     credit_card_ids = {c.id for c in credit_cards}
 
+    tag_credit_expense_ids = set()
+    if credit_card_ids:
+        tag_credit_expense_ids = set(
+            row[0]
+            for row in db.query(ExpenseTag.expense_id)
+            .join(Tag, Tag.id == ExpenseTag.tag_id)
+            .filter(Tag.card_id.in_(credit_card_ids))
+            .distinct()
+            .all()
+        )
+
     def is_credit_card_expense(e: Expense) -> bool:
-        return e.card_id is not None and e.card_id in credit_card_ids
+        if e.card_id is not None and e.card_id in credit_card_ids:
+            return True
+        return e.id in tag_credit_expense_ids
 
     total_by_account = sum(
         e.amount for e in expenses if not is_credit_card_expense(e) and not e.is_income
@@ -770,7 +793,7 @@ def download_monthly_report(
 ):
     """Download the monthly report as a printable HTML file."""
     # Get or generate report data
-    from app.tasks.monthly_report import generate_user_report
+    from app.tasks.monthly_report import _generate_report_data
 
     if month:
         try:
@@ -781,7 +804,7 @@ def download_monthly_report(
     else:
         month_str = date.today().replace(day=1).strftime("%Y-%m")
 
-    report_data = generate_user_report(current_user.id, month_str)
+    report_data = _generate_report_data(current_user.id, month_str, db)
 
     # Build HTML
     user_name = current_user.full_name or current_user.email
@@ -976,8 +999,21 @@ def get_account_expenses(
 
     credit_card_ids = {cid for cid, c in cards_by_id.items() if c.card_type == "credito"}
 
+    tag_credit_expense_ids = set()
+    if credit_card_ids:
+        tag_credit_expense_ids = set(
+            row[0]
+            for row in db.query(ExpenseTag.expense_id)
+            .join(Tag, Tag.id == ExpenseTag.tag_id)
+            .filter(Tag.card_id.in_(credit_card_ids))
+            .distinct()
+            .all()
+        )
+
     def is_credit_card_expense(e: Expense) -> bool:
-        return e.card_id is not None and e.card_id in credit_card_ids
+        if e.card_id is not None and e.card_id in credit_card_ids:
+            return True
+        return e.id in tag_credit_expense_ids
 
     cat_map = {c.id: c for c in db.query(Category).all()}
 
@@ -1446,7 +1482,14 @@ def get_credit_card_pasivos(
             Expense.user_id.in_(uid_list),
             Expense.installment_group_id != None,
             Expense.installment_group_id != "",
-            Expense.card_id.in_(credit_card_ids),
+        )
+        .filter(
+            Expense.card_id.in_(credit_card_ids)
+            | Expense.id.in_(
+                db.query(ExpenseTag.expense_id)
+                .join(Tag, Tag.id == ExpenseTag.tag_id)
+                .filter(Tag.card_id.in_(credit_card_ids))
+            )
         )
         .all()
     )
@@ -1701,6 +1744,129 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
                 if g.get("account_ids")
                 else None,
                 "linked_account_name": g.get("linked_account_name"),
+                "total_amount": g["total_amount"],
+                "count": g["count"],
+                "currency": g["currency"],
+                "last_used": g["last_used"].isoformat() if g["last_used"] else None,
+                "monthly": monthly_data,
+            }
+        )
+
+    return sorted(result, key=lambda x: x["total_amount"], reverse=True)
+
+
+@router.get(
+    "/tag-summary",
+    summary="Get tag spending summary",
+    description="Retrieve spending summary per tag for the last 12 months, including monthly breakdowns. Optional groups filter.",
+)
+def get_tag_summary(
+    groups: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    uid_list = get_group_user_ids(current_user.id, db)
+
+    allowed_groups = None
+    if groups:
+        allowed_groups = {g.strip() for g in groups.split(",") if g.strip()}
+
+    all_tags = db.query(Tag).filter(Tag.user_id.in_(uid_list)).all()
+    if allowed_groups:
+        tags = [
+            t for t in all_tags if t.group_name in allowed_groups and t.group_name != "categoria"
+        ]
+    else:
+        tags = [t for t in all_tags if t.group_name != "categoria"]
+    tags_by_id = {t.id: t for t in tags}
+    allowed_tag_ids = set(tags_by_id.keys())
+
+    cutoff = date.today() - timedelta(days=365)
+    exps = (
+        db.query(Expense)
+        .options(selectinload(Expense.tags))
+        .filter(
+            Expense.user_id.in_(uid_list),
+            Expense.amount > 0,
+            Expense.date >= cutoff,
+        )
+        .all()
+    )
+
+    by_tag: dict = {}
+    by_tag_monthly: dict = {}
+
+    for e in exps:
+        month_key = e.date.strftime("%Y-%m") if e.date else "1970-01"
+
+        matching = [t for t in (e.tags or []) if t.id in allowed_tag_ids]
+        if matching:
+            first_tag = min(matching, key=lambda t: t.id)
+            key = f"tag:{first_tag.id}"
+        else:
+            key = "tag:null"
+
+        if key not in by_tag:
+            if key == "tag:null":
+                label = "Sin cuenta" if allowed_groups and "cuenta" in allowed_groups else "Sin tag"
+                by_tag[key] = {
+                    "tag_id": None,
+                    "tag_name": label,
+                    "tag_color": "#94a3b8",
+                    "group_name": None,
+                    "total_amount": 0.0,
+                    "count": 0,
+                    "currency": "ARS",
+                    "last_used": None,
+                }
+            else:
+                tid = int(key.split(":")[1])
+                t = tags_by_id[tid]
+                by_tag[key] = {
+                    "tag_id": t.id,
+                    "tag_name": t.name,
+                    "tag_color": t.color or "#6366f1",
+                    "group_name": t.group_name,
+                    "total_amount": 0.0,
+                    "count": 0,
+                    "currency": e.currency or "ARS",
+                    "last_used": None,
+                }
+            by_tag_monthly[key] = {}
+
+        g = by_tag[key]
+        g["total_amount"] += e.amount
+        g["count"] += 1
+        if not g["last_used"] or e.date > g["last_used"]:
+            g["last_used"] = e.date
+        by_tag_monthly[key][month_key] = by_tag_monthly[key].get(month_key, 0.0) + e.amount
+
+    if "tag:null" not in by_tag:
+        null_label = "Sin cuenta" if allowed_groups and "cuenta" in allowed_groups else "Sin tag"
+        by_tag["tag:null"] = {
+            "tag_id": None,
+            "tag_name": null_label,
+            "tag_color": "#94a3b8",
+            "group_name": None,
+            "total_amount": 0.0,
+            "count": 0,
+            "currency": "ARS",
+            "last_used": None,
+        }
+        by_tag_monthly["tag:null"] = {}
+
+    result = []
+    for key, g in by_tag.items():
+        monthly = by_tag_monthly.get(key, {})
+        months_list = sorted(monthly.keys(), reverse=True)[:12]
+        monthly_data = [{"month": m, "total": monthly[m]} for m in reversed(months_list)]
+
+        result.append(
+            {
+                "tag_id": g["tag_id"],
+                "tag_name": g["tag_name"],
+                "tag_color": g["tag_color"],
+                "group_name": g.get("group_name"),
                 "total_amount": g["total_amount"],
                 "count": g["count"],
                 "currency": g["currency"],

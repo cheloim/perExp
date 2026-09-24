@@ -1,11 +1,22 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis } from "recharts";
+import {
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Bar,
+  ComposedChart,
+  Line,
+  XAxis,
+} from "recharts";
 import { APP_NAME } from "../config";
+import Sparkline from "../components/ui/Sparkline";
 import {
   getDashboard,
-  getCardSummary,
+  getTagSummary,
   getExpenses,
   getScheduledSummary,
   getInvestments,
@@ -17,6 +28,7 @@ import {
   getTopMerchants,
   getUncategorizedCount,
   getMe,
+  getCategoryTrend,
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
 import { formatCurrency, toUpperCase, formatDateDMYSlash, MONTHS_ES_SHORT } from "../utils/format";
@@ -99,7 +111,7 @@ function getCategoryEmoji(name: string | null): string | null {
   return null;
 }
 
-function CardRow({
+export function CardRow({
   cardName,
   bank,
   total,
@@ -183,6 +195,7 @@ export default function Dashboard() {
       setEditing(undefined);
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["card-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["tag-summary"] });
       queryClient.invalidateQueries({ queryKey: ["expenses-month"] });
     },
   });
@@ -198,9 +211,9 @@ export default function Dashboard() {
     placeholderData: (prev) => prev,
   });
 
-  const { data: cardData = [] } = useQuery({
-    queryKey: ["card-summary"],
-    queryFn: getCardSummary,
+  const { data: tagData = [] } = useQuery({
+    queryKey: ["tag-summary", "cuenta"],
+    queryFn: () => getTagSummary("cuenta"),
     staleTime: 60_000,
   });
 
@@ -254,6 +267,13 @@ export default function Dashboard() {
   const { data: monthlyLoad = [] } = useQuery({
     queryKey: ["installments-monthly-load"],
     queryFn: getInstallmentsMonthlyLoad,
+    staleTime: 60_000,
+  });
+
+  // Category trend for sparklines (12 months)
+  const { data: catTrendData } = useQuery({
+    queryKey: ["category-trend", 12],
+    queryFn: () => getCategoryTrend(12),
     staleTime: 60_000,
   });
 
@@ -331,8 +351,6 @@ export default function Dashboard() {
     }
     return top6;
   }, [dashData?.by_category]);
-
-  const maxCatTotal = categories[0]?.total ?? 1;
 
   // Shared category → color map (consistent between pie chart and list)
   const categoryColorMap = useMemo(() => {
@@ -556,7 +574,7 @@ export default function Dashboard() {
       {/* Gastos por Categoría + Transacciones — side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Gastos por Categoría */}
-        <div className="card p-4 h-[520px] sm:h-[440px] flex flex-col overflow-hidden">
+        <div className="card p-4 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-primary">Gastos por Categoría</h2>
@@ -585,103 +603,93 @@ export default function Dashboard() {
               description="Los gastos por categoría aparecerán aquí"
             />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 flex-1 min-h-0">
-              {/* Pie chart */}
-              <div className="flex items-center justify-center">
-                <ResponsiveContainer width="100%" height={220}>
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      dataKey="total"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={85}
-                      innerRadius={40}
-                      paddingAngle={1}
-                      onClick={(entry) => handleCategorySelect(entry.name)}
-                      style={{ cursor: "pointer" }}
-                    >
-                      {pieData.map((entry, i) => (
-                        <Cell
-                          key={i}
-                          fill={entry.color}
-                          opacity={selectedCategory && selectedCategory !== entry.name ? 0.3 : 1}
-                          stroke={selectedCategory === entry.name ? "var(--color-primary)" : "none"}
-                          strokeWidth={2}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "var(--chart-tooltip-bg)",
-                        borderColor: "var(--chart-tooltip-border)",
-                        color: "var(--chart-tooltip-text)",
-                        borderRadius: 10,
-                        fontSize: 12,
-                        padding: "8px 12px",
-                        boxShadow: "var(--shadow-md)",
-                      }}
-                      formatter={(v: number, name: string) => {
-                        const total = pieData.reduce((s, d) => s + d.total, 0);
-                        const pct = total > 0 ? ((v / total) * 100).toFixed(1) : "0";
-                        return [`${formatCurrency(v)} (${pct}%)`, name];
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+            <div className="flex flex-col lg:flex-row items-center gap-4 flex-1 min-h-0">
+              <ResponsiveContainer width="100%" height={240} className="max-w-[260px]">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    dataKey="total"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={95}
+                    innerRadius={45}
+                    paddingAngle={1}
+                    onClick={(entry) => handleCategorySelect(entry.name)}
+                    style={{ cursor: "pointer" }}
+                  >
+                    {pieData.map((entry, i) => (
+                      <Cell
+                        key={i}
+                        fill={entry.color}
+                        opacity={selectedCategory && selectedCategory !== entry.name ? 0.3 : 1}
+                        stroke={selectedCategory === entry.name ? "var(--color-primary)" : "none"}
+                        strokeWidth={2}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "var(--chart-tooltip-bg)",
+                      borderColor: "var(--chart-tooltip-border)",
+                      color: "var(--chart-tooltip-text)",
+                      borderRadius: 10,
+                      fontSize: 12,
+                      padding: "8px 12px",
+                      boxShadow: "var(--shadow-md)",
+                    }}
+                    formatter={(v: number, name: string) => {
+                      const total = pieData.reduce((s, d) => s + d.total, 0);
+                      const pct = total > 0 ? ((v / total) * 100).toFixed(1) : "0";
+                      return [`${formatCurrency(v)} (${pct}%)`, name];
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
 
-              {/* Bars */}
-              <div className="space-y-1.5 p-1 overflow-y-auto min-h-0 pb-3 scrollbar-none">
+              {/* Enriched legend */}
+              <div className="flex-1 w-full space-y-1 overflow-y-auto min-h-0 pb-2 scrollbar-none">
                 {categories.map((cat, i) => {
-                  const pct = (cat.total / maxCatTotal) * 100;
                   const color =
                     cat.category_color || categoryColorMap.get(cat.category_name) || "#94a3b8";
                   const isSelected = selectedCategory === cat.category_name;
                   const prevTotal = cat.previous_total ?? 0;
                   const variation = prevTotal > 0 ? ((cat.total - prevTotal) / prevTotal) * 100 : 0;
+                  const catMonthly = (catTrendData?.rows ?? []).map(
+                    (r: Record<string, number | string>) => (r[cat.category_name] as number) ?? 0,
+                  );
                   return (
-                    <div
+                    <button
                       key={i}
                       onClick={() => handleCategorySelect(cat.category_name)}
-                      className={`cursor-pointer rounded-lg p-2 transition-all ${
+                      className={`flex items-center gap-2.5 w-full text-left rounded-lg px-2.5 py-1.5 transition-all ${
                         isSelected
                           ? "bg-primary/10 ring-1 ring-primary"
                           : selectedCategory
                             ? "opacity-40 hover:opacity-70"
-                            : "hover:bg-base-alt"
+                            : "hover:bg-[var(--color-base-alt)]"
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: color }}
-                          />
-                          <span className="text-xs text-secondary font-medium">
-                            {cat.category_name}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {prevTotal > 0 && (
-                            <span className="text-[10px] font-medium text-tertiary">
-                              {variation > 0 ? "↑" : variation < 0 ? "↓" : "→"}
-                              {Math.abs(variation).toFixed(0)}%
-                            </span>
-                          )}
-                          <span className="text-xs font-semibold text-primary">
-                            {formatCurrency(cat.total)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="h-2 bg-base-alt rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-500"
-                          style={{ width: `${pct}%`, backgroundColor: color }}
-                        />
-                      </div>
-                    </div>
+                      <span
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: color }}
+                      />
+                      <span className="text-xs font-medium text-primary truncate flex-1">
+                        {cat.category_name}
+                      </span>
+                      {prevTotal > 0 && (
+                        <span className="text-[10px] text-tertiary whitespace-nowrap">
+                          {variation > 0 ? "↑" : variation < 0 ? "↓" : "→"}
+                          {Math.abs(variation).toFixed(0)}%
+                        </span>
+                      )}
+                      <span className="text-xs text-tertiary whitespace-nowrap">
+                        {formatCurrency(cat.total)}
+                      </span>
+                      {catMonthly.length > 1 && (
+                        <Sparkline data={catMonthly} width={50} height={12} color={color} />
+                      )}
+                    </button>
                   );
                 })}
               </div>
@@ -795,44 +803,150 @@ export default function Dashboard() {
 
       {/* Tarjetas + Programados — side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Credit cards */}
+        {/* Tag donut */}
         <div className="card p-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-primary">Métodos de Pago</h2>
+            <h2 className="text-sm font-semibold text-primary">Gastos por Cuenta</h2>
             <button
-              onClick={() => navigate("/accounts")}
+              onClick={() => navigate("/expenses")}
               className="text-xs text-secondary hover:text-primary transition-colors"
             >
               Ver detalle →
             </button>
           </div>
-          {cardData.length === 0 ? (
+          {tagData.length === 0 ? (
             <EmptyState
-              icon="💳"
-              title="Sin tarjetas ni cuentas"
-              description="Creá una tarjeta o cuenta para ver el resumen"
-              action={{
-                label: "Crear cuenta",
-                onClick: () => navigate("/accounts"),
-              }}
+              icon="🏷️"
+              title="Sin tags"
+              description="Asigná tags a tus gastos para ver el resumen"
             />
           ) : (
-            <div className="divide-y divide-border-color">
-              {cardData.map((card, i) => {
-                const monthEntry = card.monthly?.find((m) => m.month === month);
+            <>
+              {(() => {
+                // Use current month amounts from monthly breakdown
+                const withCurrent = tagData.map((t) => {
+                  const monthEntry = t.monthly?.find((m) => m.month === currentMonth);
+                  return { ...t, current_amount: monthEntry?.total ?? 0 };
+                });
+                const total = withCurrent.reduce((s, t) => s + t.current_amount, 0);
+                const sorted = [...withCurrent].sort((a, b) => {
+                  if (a.tag_id == null) return 1;
+                  if (b.tag_id == null) return -1;
+                  return b.current_amount - a.current_amount;
+                });
+                const visible = sorted.filter((t) => t.current_amount > 0);
+
+                if (visible.length === 0 && sorted.every((t) => t.current_amount === 0)) {
+                  return (
+                    <EmptyState
+                      icon="🏷️"
+                      title="Sin gastos este mes"
+                      description="Los gastos por cuenta aparecerán aquí"
+                    />
+                  );
+                }
+
                 return (
-                  <CardRow
-                    key={i}
-                    cardName={card.card_name}
-                    bank={card.bank}
-                    total={monthEntry?.total ?? 0}
-                    cardType={card.card_type}
-                    holder={card.holder}
-                    linkedAccountName={card.linked_account_name}
-                  />
+                  <div className="flex flex-col lg:flex-row items-center gap-4">
+                    <ResponsiveContainer width="100%" height={240} className="max-w-[260px]">
+                      <PieChart>
+                        <Pie
+                          data={visible.map((t) => ({
+                            name: t.tag_name,
+                            value: t.current_amount,
+                            color: t.tag_color,
+                            tag_id: t.tag_id,
+                          }))}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={45}
+                          outerRadius={95}
+                          paddingAngle={1}
+                          onClick={(entry) => {
+                            if (entry.tag_id != null) {
+                              navigate(`/expenses?cuenta_id=${entry.tag_id}`);
+                            } else {
+                              navigate("/expenses?sin_cuenta=1");
+                            }
+                          }}
+                          style={{ cursor: "pointer" }}
+                        >
+                          {visible.map((t, i) => (
+                            <Cell key={i} fill={t.tag_color} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "var(--chart-tooltip-bg)",
+                            borderColor: "var(--chart-tooltip-border)",
+                            color: "var(--chart-tooltip-text)",
+                            borderRadius: 10,
+                            fontSize: 12,
+                            padding: "8px 12px",
+                            boxShadow: "var(--shadow-md)",
+                          }}
+                          formatter={(v: number, name: string) => {
+                            const pct = total > 0 ? ((v / total) * 100).toFixed(1) : "0";
+                            return [`${formatCurrency(v)} (${pct}%)`, name];
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+
+                    <div className="flex-1 w-full space-y-1.5">
+                      {sorted.map((t, i) => {
+                        const isNull = t.tag_id == null;
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => {
+                              if (t.tag_id != null) {
+                                navigate(`/expenses?cuenta_id=${t.tag_id}`);
+                              } else {
+                                navigate("/expenses?sin_cuenta=1");
+                              }
+                            }}
+                            className={`flex items-center gap-2.5 w-full text-left hover:bg-[var(--color-base-alt)] rounded-lg px-2.5 py-1.5 transition-colors ${
+                              isNull ? "opacity-60" : ""
+                            }`}
+                          >
+                            <span
+                              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: t.tag_color }}
+                            />
+                            <span className="text-xs font-medium text-primary truncate flex-1">
+                              {t.tag_name}
+                            </span>
+                            <span className="text-xs text-tertiary whitespace-nowrap">
+                              {t.current_amount > 0 ? formatCurrency(t.current_amount) : "—"}
+                            </span>
+                            {t.monthly && t.monthly.length > 1 && (
+                              <Sparkline
+                                data={t.monthly.map((m) => m.total)}
+                                width={50}
+                                height={12}
+                                color={t.tag_color}
+                              />
+                            )}
+                          </button>
+                        );
+                      })}
+
+                      {/* Total del mes */}
+                      <div className="flex items-center gap-2.5 px-2.5 pt-2 mt-1 border-t border-[var(--border-color)]">
+                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-[var(--text-tertiary)]" />
+                        <span className="text-xs font-semibold text-primary flex-1">Total</span>
+                        <span className="text-xs font-bold text-primary whitespace-nowrap">
+                          {formatCurrency(total)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 );
-              })}
-            </div>
+              })()}
+            </>
           )}
         </div>
 
@@ -900,7 +1014,21 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Carga de cuotas mini chart */}
         <div className="card p-4">
-          <h2 className="text-sm font-semibold text-primary mb-3">Carga de Cuotas</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-primary">Carga de Cuotas</h2>
+            {currentMonthLoad && (
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <span className="text-sm font-bold text-primary">
+                    {formatCurrency(currentMonthLoad.total)}
+                  </span>
+                  <span className="text-[10px] text-tertiary ml-1.5">
+                    {currentMonthLoad.count} cuota{currentMonthLoad.count !== 1 ? "s" : ""}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
           {monthlyLoad.length === 0 ? (
             <EmptyState
               icon="📦"
@@ -908,8 +1036,8 @@ export default function Dashboard() {
               description="Las cuotas comprometidas aparecerán aquí"
             />
           ) : (
-            <ResponsiveContainer width="100%" height={140}>
-              <BarChart data={monthlyLoad} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+            <ResponsiveContainer width="100%" height={160}>
+              <ComposedChart data={monthlyLoad} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
                 <Bar dataKey="total" radius={[4, 4, 0, 0]}>
                   {monthlyLoad.map((entry, i) => (
                     <Cell
@@ -921,10 +1049,18 @@ export default function Dashboard() {
                             ? "var(--text-tertiary)"
                             : "var(--color-primary)"
                       }
-                      opacity={entry.is_past ? 0.4 : 1}
+                      opacity={entry.is_past ? 0.3 : entry.is_current ? 1 : 0.6}
                     />
                   ))}
                 </Bar>
+                <Line
+                  dataKey="total"
+                  stroke="var(--color-primary)"
+                  strokeWidth={2}
+                  dot={false}
+                  opacity={0.4}
+                  type="monotone"
+                />
                 <XAxis
                   dataKey="month"
                   tick={{ fontSize: 10, fill: "var(--chart-text)" }}
@@ -951,7 +1087,7 @@ export default function Dashboard() {
                     return `${MONTHS_ES_SHORT[parseInt(m) - 1]} ${y}`;
                   }}
                 />
-              </BarChart>
+              </ComposedChart>
             </ResponsiveContainer>
           )}
         </div>

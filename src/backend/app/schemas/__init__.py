@@ -45,6 +45,7 @@ from app.schemas.common import (
     SPECIAL_CHARS,
     AccountSimple,
     CardSimple,
+    TagSimple,
     _validate_email_format,
     _validate_password_strength,
 )
@@ -60,6 +61,7 @@ from app.schemas.import_jobs import (
     RowsConfirmBody,
 )
 from app.schemas.investments import InvestmentCreate
+from app.schemas.tags import TagCreate, TagResponse, TagUpdate
 
 __all__ = [
     # common
@@ -124,4 +126,9 @@ __all__ = [
     "CardCreate",
     "CardResponse",
     "CardUpdate",
+    # tags
+    "TagSimple",
+    "TagCreate",
+    "TagResponse",
+    "TagUpdate",
 ]

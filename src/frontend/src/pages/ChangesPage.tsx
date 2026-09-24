@@ -20,9 +20,18 @@ import {
   QuickViewLoadingMockup,
   CurrencyToggleMockup,
   NotificationSlideMockup,
+  TagsSystemMockup,
+  ExpenseTableCuentaMockup,
+  ExpenseModalCuentaMockup,
+  DashboardEnrichedMockup,
 } from "./changes/FeatureMockups";
 
 const FEATURE_MOCKUPS: Record<string, React.FC> = {
+  "📂 Clasificación Unificada": TagsSystemMockup,
+  "🏦 Cuentas Flexibles": ExpenseModalCuentaMockup,
+  "📊 Gastos: columna Cuenta": ExpenseTableCuentaMockup,
+  "🧩 Modal renovado: Cuenta + Etiquetas": ExpenseModalCuentaMockup,
+  "🍩 Dashboard con detalle por cuenta": DashboardEnrichedMockup,
   "🤖 Reportes Inline del Bot": BotReportMockup,
   "✏️ Edición de Gastos (48h)": ExpenseEditMockup,
   "📸 Imágenes de Reportes": ReportImageMockup,

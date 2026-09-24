@@ -224,10 +224,7 @@ export default function ImportJobPreview() {
           </button>
           <button
             onClick={handleConfirm}
-            disabled={
-              (!selectedCardId && !(showNewCard && newBank && newCardName)) ||
-              confirmMutation.isPending
-            }
+            disabled={confirmMutation.isPending}
             className="px-4 py-1.5 text-sm bg-[var(--color-primary)] text-white rounded-lg disabled:opacity-50 transition-opacity"
           >
             {confirmMutation.isPending ? "Importando..." : "Importar"}
@@ -273,7 +270,7 @@ export default function ImportJobPreview() {
         {detectedCards.length > 0 && (
           <div className="mt-3">
             <label className="text-xs text-[var(--text-tertiary)] mb-1 block">
-              Tarjeta de destino
+              Tarjeta de destino (opcional)
             </label>
             <Select
               value={showNewCard ? "new" : selectedCardId?.toString() || ""}
@@ -281,6 +278,11 @@ export default function ImportJobPreview() {
                 if (val === "new") {
                   setShowNewCard(true);
                   setSelectedCardId(null);
+                } else if (val === "") {
+                  setShowNewCard(false);
+                  setSelectedCardId(null);
+                  setNewBank("");
+                  setNewCardName("");
                 } else {
                   setShowNewCard(false);
                   setSelectedCardId(Number(val) || null);
@@ -289,13 +291,14 @@ export default function ImportJobPreview() {
                 }
               }}
               options={[
+                { value: "", label: "Sin tarjeta" },
                 ...userCards.map((card: Card) => ({
                   value: card.id.toString(),
                   label: `${card.card_name}${card.bank ? ` - ${card.bank}` : ""}`,
                 })),
                 { value: "new", label: "Otro (crear nueva)" },
               ]}
-              placeholder="Seleccionar tarjeta..."
+              placeholder="Sin tarjeta"
               className="max-w-md"
             />
             {showNewCard && (

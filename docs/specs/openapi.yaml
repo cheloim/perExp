@@ -630,24 +630,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/CategoryResponse'
 
-  /categories/apply-base-hierarchy:
-    post:
-      tags: [categories]
-      summary: Seed base category hierarchy
-      operationId: applyBaseHierarchy
-      responses:
-        '200':
-          description: Hierarchy seeded
-
-  /categories/seed-defaults:
-    post:
-      tags: [categories]
-      summary: Seed default categories
-      operationId: seedDefaults
-      responses:
-        '200':
-          description: Defaults seeded
-
   /categories/suggest:
     post:
       tags: [categories]
@@ -835,6 +817,24 @@ paths:
           in: query
           schema:
             type: integer
+        - name: tag_id
+          in: query
+          schema:
+            type: integer
+        - name: untagged
+          in: query
+          schema:
+            type: boolean
+        - name: cuenta_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by cuenta-group tag ID
+        - name: sin_cuenta
+          in: query
+          schema:
+            type: boolean
+          description: Show only expenses without a cuenta-group tag
         - name: skip
           in: query
           schema:
@@ -972,15 +972,6 @@ paths:
                 properties:
                   updated:
                     type: integer
-
-  /expenses/recategorize:
-    post:
-      tags: [expenses]
-      summary: Re-run auto-categorization on uncategorized expenses
-      operationId: recategorizeExpenses
-      responses:
-        '200':
-          description: Recategorization complete
 
   /expenses/detect-installments:
     post:

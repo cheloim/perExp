@@ -10,6 +10,7 @@ from app.database import get_db
 from app.models import CategorySuggestion, Expense, MerchantPreference, Notification
 from app.services.auth import get_current_user
 from app.services.categorization import _normalize_merchant_key
+from app.services.tag_sync import sync_category_tag
 
 router = APIRouter(prefix="/suggestions", tags=["suggestions"])
 
@@ -105,6 +106,7 @@ def approve_suggestion(
     expense = db.query(Expense).filter(Expense.id == suggestion.expense_id).first()
     if expense:
         expense.category_id = suggestion.suggested_category_id
+        sync_category_tag(db, expense, expense.category_id)
 
         # Track merchant preference
         merchant_key = _normalize_merchant_key(expense.description)
@@ -199,6 +201,7 @@ def approve_all_suggestions(
         expense = db.query(Expense).filter(Expense.id == s.expense_id).first()
         if expense:
             expense.category_id = s.suggested_category_id
+            sync_category_tag(db, expense, expense.category_id)
 
             # Track merchant preference
             merchant_key = _normalize_merchant_key(expense.description)
