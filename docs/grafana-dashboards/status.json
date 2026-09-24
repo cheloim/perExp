@@ -1,0 +1,475 @@
+{
+  "annotations": {"list": []},
+  "description": "Platform health and status — services, endpoints, SSL, bots, DB",
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+      "id": 100,
+      "title": "Services",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "red", "value": null},
+            {"color": "green", "value": 1}
+          ]},
+          "mappings": [
+            {"options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}, "type": "value"}
+          ]
+        }
+      },
+      "gridPos": {"h": 4, "w": 3, "x": 0, "y": 1},
+      "id": 1,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name"},
+      "title": "Backend",
+      "type": "stat",
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "grafanacloud-prom"}, "expr": "up{job=\"oikonomia-backend\"}", "legendFormat": "API", "refId": "A", "instant": true}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "red", "value": null},
+            {"color": "green", "value": 1}
+          ]},
+          "mappings": [
+            {"options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}, "type": "value"}
+          ]
+        }
+      },
+      "gridPos": {"h": 4, "w": 3, "x": 3, "y": 1},
+      "id": 2,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name"},
+      "title": "Nginx",
+      "type": "stat",
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "grafanacloud-prom"}, "expr": "nginx_up", "legendFormat": "Web", "refId": "A", "instant": true}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "red", "value": null},
+            {"color": "green", "value": 1}
+          ]},
+          "mappings": [
+            {"options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}, "type": "value"}
+          ]
+        }
+      },
+      "gridPos": {"h": 4, "w": 3, "x": 6, "y": 1},
+      "id": 3,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name"},
+      "title": "PostgreSQL",
+      "type": "stat",
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "grafanacloud-prom"}, "expr": "pg_up", "legendFormat": "DB", "refId": "A", "instant": true}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "red", "value": null},
+            {"color": "green", "value": 1}
+          ]},
+          "mappings": [
+            {"options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}, "type": "value"}
+          ]
+        }
+      },
+      "gridPos": {"h": 4, "w": 3, "x": 9, "y": 1},
+      "id": 4,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name"},
+      "title": "Redis",
+      "type": "stat",
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "grafanacloud-prom"}, "expr": "redis_up", "legendFormat": "Cache", "refId": "A", "instant": true}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "red", "value": null},
+            {"color": "green", "value": 1}
+          ]},
+          "mappings": [
+            {"options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}, "type": "value"}
+          ]
+        }
+      },
+      "gridPos": {"h": 4, "w": 3, "x": 12, "y": 1},
+      "id": 5,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name"},
+      "title": "Telegram Bot",
+      "type": "stat",
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "grafanacloud-prom"}, "expr": "oikonomia_telegram_bot_healthy", "legendFormat": "Bot", "refId": "A", "instant": true}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "red", "value": null},
+            {"color": "green", "value": 1}
+          ]},
+          "mappings": [
+            {"options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}, "type": "value"}
+          ]
+        }
+      },
+      "gridPos": {"h": 4, "w": 3, "x": 15, "y": 1},
+      "id": 6,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name"},
+      "title": "Celery Workers",
+      "type": "stat",
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "grafanacloud-prom"}, "expr": "oikonomia_celery_worker_healthy", "legendFormat": "Celery", "refId": "A", "instant": true}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "red", "value": null},
+            {"color": "green", "value": 1}
+          ]},
+          "mappings": [
+            {"options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}, "type": "value"}
+          ]
+        }
+      },
+      "gridPos": {"h": 4, "w": 3, "x": 18, "y": 1},
+      "id": 7,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name"},
+      "title": "Node Exporter",
+      "type": "stat",
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "grafanacloud-prom"}, "expr": "up{job=\"node\"}", "legendFormat": "Host", "refId": "A", "instant": true}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "red", "value": null},
+            {"color": "green", "value": 1}
+          ]},
+          "mappings": [
+            {"options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}, "type": "value"}
+          ]
+        }
+      },
+      "gridPos": {"h": 4, "w": 3, "x": 21, "y": 1},
+      "id": 8,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name"},
+      "title": "Alloy",
+      "type": "stat",
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "grafanacloud-prom"}, "expr": "up{job=\"alloy\"}", "legendFormat": "Collector", "refId": "A", "instant": true}
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5},
+      "id": 101,
+      "title": "Endpoints",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "red", "value": null},
+            {"color": "green", "value": 1}
+          ]},
+          "mappings": [
+            {"options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}, "type": "value"}
+          ]
+        }
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 6},
+      "id": 9,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name"},
+      "title": "oikonomia.ar",
+      "type": "stat",
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "grafanacloud-prom"}, "expr": "probe_success{instance=\"https://oikonomia.ar\"}", "legendFormat": "Landing", "refId": "A", "instant": true}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "red", "value": null},
+            {"color": "green", "value": 1}
+          ]},
+          "mappings": [
+            {"options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}, "type": "value"}
+          ]
+        }
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 6},
+      "id": 10,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name"},
+      "title": "platform.oikonomia.ar",
+      "type": "stat",
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "grafanacloud-prom"}, "expr": "probe_success{instance=\"https://platform.oikonomia.ar\"}", "legendFormat": "Platform", "refId": "A", "instant": true}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 30},
+            {"color": "red", "value": 7}
+          ]},
+          "unit": "d"
+        }
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 6},
+      "id": 11,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "none", "textMode": "value_and_name"},
+      "title": "SSL Expires (landing)",
+      "type": "stat",
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "grafanacloud-prom"}, "expr": "(probe_ssl_earliest_cert_expiry{instance=\"https://oikonomia.ar\"} - time()) / 86400", "legendFormat": "days", "refId": "A", "instant": true}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 30},
+            {"color": "red", "value": 7}
+          ]},
+          "unit": "d"
+        }
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 12, "y": 6},
+      "id": 12,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "none", "textMode": "value_and_name"},
+      "title": "SSL Expires (platform)",
+      "type": "stat",
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "grafanacloud-prom"}, "expr": "(probe_ssl_earliest_cert_expiry{instance=\"https://platform.oikonomia.ar\"} - time()) / 86400", "legendFormat": "days", "refId": "A", "instant": true}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 500},
+            {"color": "red", "value": 2000}
+          ]},
+          "unit": "ms"
+        }
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 16, "y": 6},
+      "id": 13,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "none", "textMode": "value_and_name"},
+      "title": "Landing Response",
+      "type": "stat",
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "grafanacloud-prom"}, "expr": "probe_duration_seconds{instance=\"https://oikonomia.ar\"} * 1000", "legendFormat": "ms", "refId": "A", "instant": true}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 500},
+            {"color": "red", "value": 2000}
+          ]},
+          "unit": "ms"
+        }
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 6},
+      "id": 14,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "none", "textMode": "value_and_name"},
+      "title": "Platform Response",
+      "type": "stat",
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "grafanacloud-prom"}, "expr": "probe_duration_seconds{instance=\"https://platform.oikonomia.ar\"} * 1000", "legendFormat": "ms", "refId": "A", "instant": true}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 10, "lineWidth": 2, "spanNulls": true},
+          "unit": "ms"
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 10},
+      "id": 15,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]}},
+      "title": "Endpoint Response Time",
+      "type": "timeseries",
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "grafanacloud-prom"}, "expr": "probe_duration_seconds{instance=~\"https://.*\"} * 1000", "legendFormat": "{{instance}}", "refId": "A"}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 10, "lineWidth": 2, "spanNulls": true},
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 10},
+      "id": 16,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean"]}},
+      "title": "Endpoint Uptime (probe_success)",
+      "type": "timeseries",
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "grafanacloud-prom"}, "expr": "probe_success{instance=~\"https://.*\"}", "legendFormat": "{{instance}}", "refId": "A"}
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 18},
+      "id": 102,
+      "title": "Health History",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 30, "lineWidth": 0, "spanNulls": true, "thresholdsStyle": {"mode": "off"}},
+          "min": 0,
+          "max": 1,
+          "mappings": [
+            {"options": {"0": {"text": "DOWN"}, "1": {"text": "UP"}}, "type": "value"}
+          ]
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 19},
+      "id": 17,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"]}},
+      "title": "Service Health History",
+      "type": "timeseries",
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "grafanacloud-prom"}, "expr": "up{job=~\"oikonomia-backend|postgres|redis|nginx|node|alloy\"}", "legendFormat": "{{job}}", "refId": "A"},
+        {"datasource": {"type": "prometheus", "uid": "grafanacloud-prom"}, "expr": "oikonomia_telegram_bot_healthy", "legendFormat": "telegram-bot", "refId": "B"},
+        {"datasource": {"type": "prometheus", "uid": "grafanacloud-prom"}, "expr": "oikonomia_celery_worker_healthy", "legendFormat": "celery", "refId": "C"}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 30, "lineWidth": 0, "spanNulls": true},
+          "min": 0,
+          "max": 1,
+          "mappings": [
+            {"options": {"0": {"text": "DOWN"}, "1": {"text": "UP"}}, "type": "value"}
+          ]
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 19},
+      "id": 18,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"]}},
+      "title": "Endpoint Health History",
+      "type": "timeseries",
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "grafanacloud-prom"}, "expr": "probe_success{instance=~\"https://.*\"}", "legendFormat": "{{instance}}", "refId": "A"}
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 27},
+      "id": 103,
+      "title": "Scrape Targets",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "grafanacloud-prom"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "red", "value": null},
+            {"color": "green", "value": 1}
+          ]},
+          "mappings": [
+            {"options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}, "type": "value"}
+          ]
+        }
+      },
+      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 28},
+      "id": 19,
+      "options": {"showHeader": true, "cellHeight": "sm", "footer": {"show": false}},
+      "title": "All Scrape Targets",
+      "type": "table",
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "grafanacloud-prom"}, "expr": "up", "legendFormat": "{{job}} ({{instance}})", "refId": "A", "instant": true, "format": "table"}
+      ],
+      "transformations": [
+        {"id": "organize", "options": {"excludeByName": {"Time": true, "__name__": true}, "renameByName": {"job": "Job", "instance": "Target", "Value": "Status"}}}
+      ]
+    }
+  ],
+  "refresh": "15s",
+  "schemaVersion": 39,
+  "tags": ["oikonomia", "status", "health"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "title": "Oikonomia - Platform Status",
+  "uid": "oikonomia-status",
+  "version": 1
+}
