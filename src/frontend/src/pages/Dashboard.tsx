@@ -18,6 +18,7 @@ import {
   getTopMerchants,
   getUncategorizedCount,
   getMe,
+  getCategoryTrend,
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
 import { formatCurrency, toUpperCase, formatDateDMYSlash, MONTHS_ES_SHORT } from "../utils/format";
@@ -256,6 +257,13 @@ export default function Dashboard() {
   const { data: monthlyLoad = [] } = useQuery({
     queryKey: ["installments-monthly-load"],
     queryFn: getInstallmentsMonthlyLoad,
+    staleTime: 60_000,
+  });
+
+  // Category trend for sparklines (12 months)
+  const { data: catTrendData } = useQuery({
+    queryKey: ["category-trend", 12],
+    queryFn: () => getCategoryTrend(12),
     staleTime: 60_000,
   });
 
@@ -637,6 +645,9 @@ export default function Dashboard() {
                   const isSelected = selectedCategory === cat.category_name;
                   const prevTotal = cat.previous_total ?? 0;
                   const variation = prevTotal > 0 ? ((cat.total - prevTotal) / prevTotal) * 100 : 0;
+                  const catMonthly = (catTrendData?.rows ?? []).map(
+                    (r: Record<string, number | string>) => (r[cat.category_name] as number) ?? 0,
+                  );
                   return (
                     <button
                       key={i}
@@ -665,6 +676,9 @@ export default function Dashboard() {
                       <span className="text-xs text-tertiary whitespace-nowrap">
                         {formatCurrency(cat.total)}
                       </span>
+                      {catMonthly.length > 1 && (
+                        <Sparkline data={catMonthly} width={50} height={12} color={color} />
+                      )}
                     </button>
                   );
                 })}
@@ -1012,51 +1026,82 @@ export default function Dashboard() {
               description="Las cuotas comprometidas aparecerán aquí"
             />
           ) : (
-            <ResponsiveContainer width="100%" height={160}>
-              <BarChart data={monthlyLoad} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-                <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-                  {monthlyLoad.map((entry, i) => (
-                    <Cell
-                      key={i}
-                      fill={
-                        entry.is_current
-                          ? "var(--color-primary)"
-                          : entry.is_past
-                            ? "var(--text-tertiary)"
-                            : "var(--color-primary)"
-                      }
-                      opacity={entry.is_past ? 0.3 : entry.is_current ? 1 : 0.6}
+            <div className="relative">
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={monthlyLoad} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                  <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+                    {monthlyLoad.map((entry, i) => (
+                      <Cell
+                        key={i}
+                        fill={
+                          entry.is_current
+                            ? "var(--color-primary)"
+                            : entry.is_past
+                              ? "var(--text-tertiary)"
+                              : "var(--color-primary)"
+                        }
+                        opacity={entry.is_past ? 0.3 : entry.is_current ? 1 : 0.6}
+                      />
+                    ))}
+                  </Bar>
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fontSize: 10, fill: "var(--chart-text)" }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v) => {
+                      const [, m] = v.split("-");
+                      return MONTHS_ES_SHORT[parseInt(m) - 1] || v;
+                    }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "var(--chart-tooltip-bg)",
+                      borderColor: "var(--chart-tooltip-border)",
+                      color: "var(--chart-tooltip-text)",
+                      borderRadius: 10,
+                      fontSize: 12,
+                      padding: "8px 12px",
+                      boxShadow: "var(--shadow-md)",
+                    }}
+                    formatter={(v: number) => [formatCurrency(v), "Cuotas"]}
+                    labelFormatter={(v) => {
+                      const [y, m] = v.split("-");
+                      return `${MONTHS_ES_SHORT[parseInt(m) - 1]} ${y}`;
+                    }}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+              {/* Sparkline overlay on top of bars */}
+              {(() => {
+                const values = monthlyLoad.map((m) => m.total);
+                const max = Math.max(...values);
+                if (max === 0 || values.length < 2) return null;
+                const points = values
+                  .map((v, i) => {
+                    const xPct = (i / (values.length - 1)) * 100;
+                    const yPct = (1 - v / max) * 100;
+                    return `${xPct}%,${yPct}%`;
+                  })
+                  .join(" ");
+                return (
+                  <svg
+                    className="absolute inset-0 w-full h-full pointer-events-none"
+                    style={{ padding: "5px 20px 25px 0" }}
+                    preserveAspectRatio="none"
+                  >
+                    <polyline
+                      points={points}
+                      fill="none"
+                      stroke="var(--color-primary)"
+                      strokeWidth="2"
+                      vectorEffect="non-scaling-stroke"
+                      opacity="0.4"
                     />
-                  ))}
-                </Bar>
-                <XAxis
-                  dataKey="month"
-                  tick={{ fontSize: 10, fill: "var(--chart-text)" }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v) => {
-                    const [, m] = v.split("-");
-                    return MONTHS_ES_SHORT[parseInt(m) - 1] || v;
-                  }}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "var(--chart-tooltip-bg)",
-                    borderColor: "var(--chart-tooltip-border)",
-                    color: "var(--chart-tooltip-text)",
-                    borderRadius: 10,
-                    fontSize: 12,
-                    padding: "8px 12px",
-                    boxShadow: "var(--shadow-md)",
-                  }}
-                  formatter={(v: number) => [formatCurrency(v), "Cuotas"]}
-                  labelFormatter={(v) => {
-                    const [y, m] = v.split("-");
-                    return `${MONTHS_ES_SHORT[parseInt(m) - 1]} ${y}`;
-                  }}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+                  </svg>
+                );
+              })()}
+            </div>
           )}
         </div>
 

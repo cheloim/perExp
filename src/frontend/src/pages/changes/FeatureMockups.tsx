@@ -984,3 +984,297 @@ export function NotificationSlideMockup() {
     </div>
   );
 }
+
+/* ─── Tags System Mockup ─────────────────────────────── */
+
+export function TagsSystemMockup() {
+  const cats = [
+    { name: "Alimentos", color: "#e01b24" },
+    { name: "Transporte", color: "#3584e4" },
+    { name: "Nafta", color: "#3584e4", prefix: "└ " },
+    { name: "Salud", color: "#26a269" },
+  ];
+
+  return (
+    <div className="rounded-xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-primary)]">
+      <div className="px-4 pt-4 pb-2">
+        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Clasificación</h3>
+        <div className="h-7 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center px-2 mb-3">
+          <span className="text-[10px] text-[var(--text-tertiary)]">🔍 Buscar…</span>
+        </div>
+        <div className="flex gap-1 mb-2">
+          {["Categorías", "Cuentas", "Etiquetas"].map((tab, i) => (
+            <span
+              key={tab}
+              className={`px-3 py-1 rounded-full text-[10px] font-medium ${
+                i === 0
+                  ? "bg-[var(--color-primary)] text-white"
+                  : "bg-[var(--bg-secondary)] text-[var(--text-secondary)]"
+              }`}
+            >
+              {tab}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="px-4 pb-4 flex flex-wrap gap-1.5">
+        {cats.map((c, i) => (
+          <span
+            key={i}
+            className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px]"
+            style={{ backgroundColor: c.color + "1F", color: "var(--text-primary)" }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: c.color }} />
+            {c.prefix}
+            {c.name}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Expense Table Cuenta Column Mockup ──────────────── */
+
+export function ExpenseTableCuentaMockup() {
+  const rows = [
+    {
+      desc: "Supermercado Coto",
+      cat: "Alimentos",
+      catColor: "#e01b24",
+      cuenta: "Galicia Visa",
+      cuentaColor: "#f5c211",
+      amount: "$15.200",
+      income: false,
+    },
+    {
+      desc: "Sueldo septiembre",
+      cat: "Ingresos",
+      catColor: "#26a269",
+      cuenta: "Caja Ahorro",
+      cuentaColor: "#33d17a",
+      amount: "$350.000",
+      income: true,
+    },
+    {
+      desc: "Nafta YPF",
+      cat: "Nafta",
+      catColor: "#3584e4",
+      cuenta: null,
+      cuentaColor: null,
+      amount: "$8.500",
+      income: false,
+    },
+  ];
+
+  return (
+    <div className="rounded-xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-primary)]">
+      <div className="grid grid-cols-[1fr_90px_90px_80px] gap-2 px-3 py-2 bg-[var(--bg-secondary)] border-b border-[var(--border-color)]">
+        {["Descripción", "Categoría", "Cuenta", "Monto"].map((h) => (
+          <span key={h} className="text-[9px] font-semibold text-[var(--text-tertiary)] uppercase">
+            {h}
+          </span>
+        ))}
+      </div>
+      {rows.map((r, i) => (
+        <div
+          key={i}
+          className="grid grid-cols-[1fr_90px_90px_80px] gap-2 items-center px-3 py-2 border-b border-[var(--border-color)] last:border-0"
+        >
+          <span className="text-[10px] text-[var(--text-primary)] truncate">{r.desc}</span>
+          <span
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] max-w-fit"
+            style={{ backgroundColor: r.catColor + "1F", color: "var(--text-primary)" }}
+          >
+            <span className="w-1 h-1 rounded-full" style={{ backgroundColor: r.catColor }} />
+            <span className="truncate">{r.cat}</span>
+          </span>
+          {r.cuenta ? (
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] max-w-fit"
+              style={{ backgroundColor: r.cuentaColor + "1F", color: "var(--text-primary)" }}
+            >
+              <span className="w-1 h-1 rounded-full" style={{ backgroundColor: r.cuentaColor }} />
+              <span className="truncate">{r.cuenta}</span>
+            </span>
+          ) : (
+            <span className="text-[9px] text-[var(--text-tertiary)]">—</span>
+          )}
+          <span
+            className={`text-[10px] font-semibold text-right ${r.income ? "text-green-500" : "text-[var(--text-primary)]"}`}
+          >
+            {r.amount}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─── Expense Modal Cuenta/Etiquetas Mockup ───────────── */
+
+export function ExpenseModalCuentaMockup() {
+  return (
+    <div className="rounded-xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-primary)] max-w-[240px]">
+      <div className="px-3 py-2 border-b border-[var(--border-color)]">
+        <span className="text-[10px] font-semibold text-[var(--text-primary)]">Nuevo gasto</span>
+      </div>
+      <div className="p-3 space-y-2.5">
+        <div>
+          <span className="text-[9px] font-medium text-[var(--text-tertiary)] block mb-1">
+            Cuenta
+          </span>
+          <div className="flex gap-1">
+            {[
+              { name: "Galicia Visa", color: "#f5c211", selected: true },
+              { name: "Efectivo", color: "#33d17a", selected: false },
+            ].map((t) => (
+              <span
+                key={t.name}
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-medium ${
+                  t.selected
+                    ? "text-white"
+                    : "border border-[var(--border-color)] text-[var(--text-secondary)]"
+                }`}
+                style={t.selected ? { backgroundColor: t.color } : undefined}
+              >
+                <span
+                  className="w-1.5 h-1.5 rounded-full"
+                  style={{ backgroundColor: t.selected ? "#fff" : t.color }}
+                />
+                {t.name}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div>
+          <span className="text-[9px] font-medium text-[var(--text-tertiary)] block mb-1">
+            Etiquetas
+          </span>
+          <div className="flex gap-1 mb-1">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] text-white bg-[#9141ac]">
+              vacaciones ✕
+            </span>
+          </div>
+          <div className="h-6 rounded-md border border-[var(--border-color)] flex items-center px-2">
+            <span className="text-[9px] text-[var(--text-tertiary)]">Buscar o crear etiqueta…</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Dashboard Enriched Donut Mockup ─────────────────── */
+
+export function DashboardEnrichedMockup() {
+  const items = [
+    { name: "Galicia Visa", color: "#f5c211", amount: "$120.000" },
+    { name: "Efectivo", color: "#33d17a", amount: "$95.000" },
+    { name: "MercadoPago", color: "#3584e4", amount: "$45.000" },
+  ];
+
+  return (
+    <div className="rounded-xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-primary)] p-3">
+      <span className="text-[10px] font-semibold text-[var(--text-primary)] block mb-2">
+        Gastos por Cuenta
+      </span>
+      <div className="flex items-center gap-3">
+        <div className="relative w-20 h-20 flex-shrink-0">
+          <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+            <circle
+              cx="18"
+              cy="18"
+              r="15"
+              fill="none"
+              stroke="#f5c211"
+              strokeWidth="4"
+              strokeDasharray="40 60"
+            />
+            <circle
+              cx="18"
+              cy="18"
+              r="15"
+              fill="none"
+              stroke="#33d17a"
+              strokeWidth="4"
+              strokeDasharray="30 70"
+              strokeDashoffset="-40"
+            />
+            <circle
+              cx="18"
+              cy="18"
+              r="15"
+              fill="none"
+              stroke="#3584e4"
+              strokeWidth="4"
+              strokeDasharray="15 85"
+              strokeDashoffset="-70"
+            />
+            <circle cx="18" cy="18" r="10" fill="var(--bg-primary)" />
+          </svg>
+        </div>
+        <div className="flex-1 space-y-1.5">
+          {items.map((t) => (
+            <div key={t.name} className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: t.color }} />
+              <span className="text-[9px] text-[var(--text-primary)] flex-1">{t.name}</span>
+              <span className="text-[9px] text-[var(--text-tertiary)]">{t.amount}</span>
+              <svg width="36" height="8" className="flex-shrink-0 opacity-50">
+                <polyline
+                  points="0,6 8,3 16,5 24,2 36,4"
+                  fill="none"
+                  stroke={t.color}
+                  strokeWidth="1"
+                />
+              </svg>
+            </div>
+          ))}
+          <div className="flex items-center gap-2 pt-1 border-t border-[var(--border-color)]">
+            <span className="w-2 h-2 rounded-full bg-[var(--text-tertiary)]" />
+            <span className="text-[9px] font-semibold text-[var(--text-primary)] flex-1">
+              Total
+            </span>
+            <span className="text-[9px] font-bold text-[var(--text-primary)]">$260.000</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Cuotas KPI Mockup ───────────────────────────────── */
+
+export function CuotasKPIMockup() {
+  const bars = [35, 50, 75, 100, 60, 40, 30];
+  const months = ["Jul", "Ago", "Sep", "Oct", "Nov", "Dic", "Ene"];
+
+  return (
+    <div className="rounded-xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-primary)] p-3">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[10px] font-semibold text-[var(--text-primary)]">
+          Carga de Cuotas
+        </span>
+        <div className="text-right">
+          <span className="text-[11px] font-bold text-[var(--text-primary)]">$45.000</span>
+          <span className="text-[9px] text-[var(--text-tertiary)] ml-1">3 cuotas</span>
+        </div>
+      </div>
+      <div className="flex items-end gap-1 h-12">
+        {bars.map((h, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+            <div
+              className="w-full rounded-t-sm"
+              style={{
+                height: `${h}%`,
+                backgroundColor: "var(--color-primary)",
+                opacity: i < 3 ? 0.3 : i === 3 ? 1 : 0.6,
+              }}
+            />
+            <span className="text-[7px] text-[var(--text-tertiary)]">{months[i]}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

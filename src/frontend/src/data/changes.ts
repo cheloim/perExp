@@ -15,9 +15,59 @@ export interface ChangeVersion {
   previous?: string;
 }
 
-export const LATEST_VERSION = "v1.4";
+export const LATEST_VERSION = "v1.5";
 
 export const CHANGES: ChangeVersion[] = [
+  {
+    version: "v1.5",
+    date: "24 de Septiembre, 2026",
+    title: "Sistema de Tags, Cuentas como Tags y Dashboard Enriquecido",
+    previous: "v1.4",
+    features: [
+      {
+        title: "📂 Clasificación Unificada",
+        icon: "tag",
+        color: "#3584e4",
+        description:
+          "Nuevo sistema para organizar tus gastos: categorías, cuentas y etiquetas personalizadas en una sola página con búsqueda y edición rápida.",
+      },
+      {
+        title: "🏦 Cuentas Flexibles",
+        icon: "bank",
+        color: "#2ec27e",
+        description:
+          "Tus tarjetas y cuentas ya no son obligatorias. Ahora son métodos de pago opcionales que podés crear, editar y reorganizar libremente. Los gastos viejos se migraron automáticamente.",
+      },
+      {
+        title: "📊 Gastos: columna Cuenta",
+        icon: "list",
+        color: "#e5a50a",
+        description:
+          "Nueva columna 'Cuenta' en el listado de gastos con chip de color. Filtros separados para cuenta y etiqueta. Los ingresos ahora aparecen en verde.",
+      },
+      {
+        title: "🧩 Modal renovado: Cuenta + Etiquetas",
+        icon: "sparkles",
+        color: "#8b5cf6",
+        description:
+          "Al crear o editar un gasto, elegí la cuenta (single-select) y agregá etiquetas personalizadas por separado. También en el Mini App de Telegram.",
+      },
+      {
+        title: "🍩 Dashboard con detalle por cuenta",
+        icon: "chart-donut",
+        color: "#e5a50a",
+        description:
+          "Gastos por Cuenta y por Categoría ahora muestran montos del mes, sparklines de tendencia y total. Carga de Cuotas con KPI y sparkline del mes actual.",
+      },
+      {
+        title: "⌨️ UX: Escape, title-case, acciones hover",
+        icon: "settings",
+        color: "#9141ac",
+        description:
+          "Escape cierra los diálogos de categoría y tags. Descripciones en title-case. Acciones de fila aparecen en hover. Iconos SVG simbólicos reemplazan emojis en toda la app.",
+      },
+    ],
+  },
   {
     version: "v1.4",
     date: "6 de Septiembre, 2026",
