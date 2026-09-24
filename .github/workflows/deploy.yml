@@ -492,16 +492,16 @@ jobs:
             set +a
 
             echo "Validating compose-platform.yml..."
-            podman-compose -f docker/compose-platform.yml config --quiet
+            podman-compose -f docker-compose.platform.yml config --quiet
             echo "compose-platform.yml OK"
             echo "Validating compose-infra.yml..."
-            podman-compose -f docker/compose-infra.yml config --quiet
+            podman-compose -f docker-compose.infra.yml config --quiet
             echo "compose-infra.yml OK"
             echo "Validating compose-nginx.yml..."
-            podman-compose -f docker/compose-nginx.yml config --quiet
+            podman-compose -f docker-compose.nginx.yml config --quiet
             echo "compose-nginx.yml OK"
             echo "Validating compose-bots.yml..."
-            podman-compose -f docker/compose-bots.yml config --quiet
+            podman-compose -f docker-compose.bots.yml config --quiet
             echo "compose-bots.yml OK"
 
       - name: Validate nginx config
@@ -514,7 +514,7 @@ jobs:
           script: |
             echo "Validating nginx.conf..."
             podman run --rm \
-              -v /opt/creditcardanalyzer/docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro \
+              -v /opt/creditcardanalyzer/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro \
               docker.io/library/nginx:alpine nginx -t
             echo "nginx.conf OK"
 
@@ -542,13 +542,13 @@ jobs:
             echo "${{ secrets.GHCR_PAT }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin || echo "WARN: GHCR login failed (may be public repo)"
 
             echo "Pulling platform images..."
-            podman-compose -f docker/compose-platform.yml pull
+            podman-compose -f docker-compose.platform.yml pull
 
             echo "Pulling infra images..."
-            podman-compose -f docker/compose-infra.yml pull
+            podman-compose -f docker-compose.infra.yml pull
 
             echo "Pulling nginx image..."
-            podman-compose -f docker/compose-nginx.yml pull
+            podman-compose -f docker-compose.nginx.yml pull
 
             # Verify platform images exist
             echo "Verifying images..."
@@ -730,7 +730,7 @@ jobs:
             # Restart infra (db, redis) — only on first deploy or infra changes
             if ! podman ps --format '{{.Names}}' | grep -q 'creditcardanalyzer_db_1'; then
               echo "Starting infra (first deploy)..."
-              podman-compose -f docker/compose-infra.yml up -d --remove-orphans
+              podman-compose -f docker-compose.infra.yml up -d --remove-orphans
               echo "Waiting for infra health..."
               sleep 10
             fi
@@ -738,23 +738,23 @@ jobs:
             # Restart platform (frontend, backend, celery) — selective force-recreate
             if [ "${{ needs.detect-changes.outputs.platform }}" = "true" ] || [ "${{ inputs.action }}" = "full" ]; then
               echo "Restarting platform services..."
-              podman-compose -f docker/compose-platform.yml up -d --force-recreate --remove-orphans
+              podman-compose -f docker-compose.platform.yml up -d --force-recreate --remove-orphans
 
               # Bot uses same backend image — restart when platform changes
               echo "Restarting bot services..."
-              podman-compose -f docker/compose-bots.yml up -d --force-recreate --remove-orphans
+              podman-compose -f docker-compose.bots.yml up -d --force-recreate --remove-orphans
             fi
 
             # Restart nginx — only when nginx config or landing/platform topology changes
             if [ "${{ needs.detect-changes.outputs.nginx }}" = "true" ] || [ "${{ inputs.action }}" = "full" ]; then
               echo "Restarting nginx..."
-              podman-compose -f docker/compose-nginx.yml up -d --force-recreate --remove-orphans
+              podman-compose -f docker-compose.nginx.yml up -d --force-recreate --remove-orphans
             fi
 
             # Restart landing — only when landing changes
             if [ "${{ needs.detect-changes.outputs.landing }}" = "true" ] || [ "${{ inputs.action }}" = "full" ]; then
               echo "Restarting landing..."
-              podman-compose -f docker/compose-web-landing.yml up -d --force-recreate --remove-orphans
+              podman-compose -f docker-compose.web-landing.yml up -d --force-recreate --remove-orphans
             fi
 
             echo "Restart complete"
@@ -830,10 +830,10 @@ jobs:
 
               echo "Rolling back to tag: $PREV_TAG"
               cp .env.rollback .env
-              podman-compose -f docker/compose-platform.yml down --remove-orphans 2>/dev/null || true
-              podman-compose -f docker/compose-platform.yml up -d --remove-orphans
-              podman-compose -f docker/compose-bots.yml down --remove-orphans 2>/dev/null || true
-              podman-compose -f docker/compose-bots.yml up -d --remove-orphans
+              podman-compose -f docker-compose.platform.yml down --remove-orphans 2>/dev/null || true
+              podman-compose -f docker-compose.platform.yml up -d --remove-orphans
+              podman-compose -f docker-compose.bots.yml down --remove-orphans 2>/dev/null || true
+              podman-compose -f docker-compose.bots.yml up -d --remove-orphans
               exit 1
             fi
 
