@@ -770,10 +770,15 @@ jobs:
 
             if ! podman ps --format '{{.Names}}' | grep -q 'creditcardanalyzer_db_1'; then
               echo "Starting infra (first deploy)..."
-              podman-compose -f docker-compose.infra.yml up -d --remove-orphans
+              podman-compose -f docker-compose.infra.yml up -d
             else
               echo "Restarting infra..."
-              podman-compose -f docker-compose.infra.yml up -d --force-recreate --remove-orphans
+              # Stop ONLY infra containers
+              for SVC in creditcardanalyzer_db_1 creditcardanalyzer_redis_1; do
+                podman stop "$SVC" 2>/dev/null || true
+                podman rm "$SVC" 2>/dev/null || true
+              done
+              podman-compose -f docker-compose.infra.yml up -d
             fi
 
             echo "Waiting for infra health..."
@@ -839,21 +844,21 @@ jobs:
 
             echo "Restarting platform services..."
 
-            # Stop all platform containers first (handles renames and dependencies)
-            echo "Stopping existing platform containers..."
-            podman-compose -f docker-compose.platform.yml down --remove-orphans 2>/dev/null || true
+            # Stop ONLY platform containers (don't touch infra/nginx/monitoring)
+            echo "Stopping platform containers..."
+            for SVC in creditcardanalyzer_backend_1 creditcardanalyzer_platform-frontend_1 creditcardanalyzer_celery_worker_1 creditcardanalyzer_celery_beat_1; do
+              podman stop "$SVC" 2>/dev/null || true
+              podman rm "$SVC" 2>/dev/null || true
+            done
 
-            # Also clean up legacy containers with old names
-            for OLD_NAME in creditcardanalyzer_frontend_1 creditcardanalyzer_telegram_bot_1; do
-              if podman ps -a --format '{{.Names}}' | grep -q "^${OLD_NAME}$"; then
-                echo "Removing legacy container: $OLD_NAME"
-                podman rm -f "$OLD_NAME" 2>/dev/null || true
-              fi
+            # Clean up legacy containers with old names
+            for OLD in creditcardanalyzer_frontend_1 creditcardanalyzer_telegram_bot_1; do
+              podman rm -f "$OLD" 2>/dev/null || true
             done
 
             # Start platform containers
             echo "Starting platform containers..."
-            podman-compose -f docker-compose.platform.yml up -d --remove-orphans
+            podman-compose -f docker-compose.platform.yml up -d
             echo "Platform containers started"
 
             echo "Waiting for backend health..."
@@ -900,8 +905,13 @@ jobs:
             IMAGE_TAG="$PREV_TAG"
             export IMAGE_TAG
 
-            podman-compose -f docker-compose.platform.yml down --remove-orphans 2>/dev/null || true
-            podman-compose -f docker-compose.platform.yml up -d --remove-orphans
+            # Stop ONLY platform containers
+            for SVC in creditcardanalyzer_backend_1 creditcardanalyzer_platform-frontend_1 creditcardanalyzer_celery_worker_1 creditcardanalyzer_celery_beat_1; do
+              podman stop "$SVC" 2>/dev/null || true
+              podman rm "$SVC" 2>/dev/null || true
+            done
+
+            podman-compose -f docker-compose.platform.yml up -d
 
             echo "Waiting for rollback health..."
             for i in $(seq 1 15); do
@@ -935,10 +945,11 @@ jobs:
             set -a; source .env; set +a
 
             echo "Restarting bot services..."
-            # Stop existing bot containers first
-            podman-compose -f docker-compose.bots.yml down --remove-orphans 2>/dev/null || true
+            # Stop ONLY bot container
+            podman stop creditcardanalyzer_telegram_bot_1 2>/dev/null || true
+            podman rm creditcardanalyzer_telegram_bot_1 2>/dev/null || true
             # Start bot containers
-            podman-compose -f docker-compose.bots.yml up -d --remove-orphans
+            podman-compose -f docker-compose.bots.yml up -d
 
             # Wait for bot container to be running
             sleep 5
@@ -970,7 +981,11 @@ jobs:
             set -a; source .env; set +a
 
             echo "Restarting nginx..."
-            podman-compose -f docker-compose.nginx.yml up -d --force-recreate --remove-orphans
+            # Stop ONLY nginx container
+            podman stop creditcardanalyzer_nginx_1 2>/dev/null || true
+            podman rm creditcardanalyzer_nginx_1 2>/dev/null || true
+            # Start nginx
+            podman-compose -f docker-compose.nginx.yml up -d
 
             # Wait for nginx to be ready
             for i in $(seq 1 10); do
@@ -1010,7 +1025,11 @@ jobs:
             fi
 
             echo "Restarting landing..."
-            podman-compose -f docker-compose.web-landing.yml up -d --force-recreate --remove-orphans
+            # Stop ONLY landing container
+            podman stop creditcardanalyzer_landing_1 2>/dev/null || true
+            podman rm creditcardanalyzer_landing_1 2>/dev/null || true
+            # Start landing
+            podman-compose -f docker-compose.web-landing.yml up -d
             echo "Landing restarted"
 
   deploy-monitoring:
@@ -1033,7 +1052,13 @@ jobs:
             set -a; source .env; set +a
 
             echo "Restarting monitoring..."
-            podman-compose -f docker-compose.monitoring.yml up -d --force-recreate --remove-orphans
+            # Stop ONLY monitoring containers
+            for SVC in creditcardanalyzer_postgres-exporter_1 creditcardanalyzer_redis-exporter_1 creditcardanalyzer_node-exporter_1 creditcardanalyzer_nginx-exporter_1 creditcardanalyzer_blackbox-exporter_1 creditcardanalyzer_alloy_1 creditcardanalyzer_cadvisor_1; do
+              podman stop "$SVC" 2>/dev/null || true
+              podman rm "$SVC" 2>/dev/null || true
+            done
+            # Start monitoring
+            podman-compose -f docker-compose.monitoring.yml up -d
             echo "Monitoring restarted"
 
   # ── Health check (global) ──────────────────────────────────
