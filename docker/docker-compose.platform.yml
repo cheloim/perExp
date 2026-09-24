@@ -90,7 +90,7 @@ services:
           cpus: "0.5"
     restart: unless-stopped
 
-  frontend:
+  platform-frontend:
     image: ${FRONTEND_IMAGE}:${IMAGE_TAG}
     depends_on:
       backend:
@@ -101,3 +101,8 @@ services:
           memory: 256M
           cpus: "0.5"
     restart: unless-stopped
+
+networks:
+  default:
+    external: true
+    name: oikonomia
