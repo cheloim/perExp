@@ -653,9 +653,9 @@ jobs:
 
   migrate:
     runs-on: ubuntu-latest
-    needs: [backup-db, detect-changes]
+    needs: [deploy-infra, detect-changes]
     if: |
-      always() && needs.backup-db.result == 'success' &&
+      always() && needs.deploy-infra.result == 'success' &&
       (needs.detect-changes.outputs.backend == 'true' || inputs.action == 'full')
 
     steps:
@@ -749,10 +749,8 @@ jobs:
 
   deploy-infra:
     runs-on: ubuntu-latest
-    needs: [migrate, detect-changes]
-    if: |
-      always() && !cancelled() &&
-      (needs.detect-changes.outputs.infra == 'true' || inputs.action == 'full' || needs.migrate.result == 'success' || needs.migrate.result == 'skipped')
+    needs: [backup-db, detect-changes]
+    if: always() && !cancelled()
 
     steps:
       - name: Ensure infra is running
@@ -802,7 +800,7 @@ jobs:
 
   deploy-platform:
     runs-on: ubuntu-latest
-    needs: [deploy-infra, detect-changes]
+    needs: [migrate, detect-changes]
     if: always() && !cancelled() && (needs.detect-changes.outputs.platform == 'true' || inputs.action == 'full')
 
     steps:
@@ -904,7 +902,7 @@ jobs:
 
   deploy-bots:
     runs-on: ubuntu-latest
-    needs: [deploy-infra, detect-changes]
+    needs: [migrate, detect-changes]
     if: always() && !cancelled() && (needs.detect-changes.outputs.bots == 'true' || needs.detect-changes.outputs.platform == 'true' || inputs.action == 'full')
 
     steps:
@@ -936,7 +934,7 @@ jobs:
 
   deploy-nginx:
     runs-on: ubuntu-latest
-    needs: [deploy-infra, detect-changes]
+    needs: [migrate, detect-changes]
     if: always() && !cancelled() && (needs.detect-changes.outputs.nginx == 'true' || inputs.action == 'full')
 
     steps:
@@ -970,7 +968,7 @@ jobs:
 
   deploy-landing:
     runs-on: ubuntu-latest
-    needs: [deploy-infra, detect-changes]
+    needs: [migrate, detect-changes]
     if: always() && !cancelled() && (needs.detect-changes.outputs.landing == 'true' || inputs.action == 'full')
 
     steps:
@@ -999,7 +997,7 @@ jobs:
 
   deploy-monitoring:
     runs-on: ubuntu-latest
-    needs: [deploy-infra, detect-changes]
+    needs: [migrate, detect-changes]
     if: always() && !cancelled() && (needs.detect-changes.outputs.monitoring == 'true' || inputs.action == 'full')
 
     steps:
