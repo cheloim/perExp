@@ -441,8 +441,8 @@ jobs:
 
 
 
-            # Write docker-compose.yml
-            cat > /opt/creditcardanalyzer/docker-compose.yml << 'EOF'
+            # Write docker-compose.platform.yml (app services)
+            cat > /opt/creditcardanalyzer/docker-compose.platform.yml << 'EOF'
             services:
               db:
                 image: docker.io/library/postgres:16-alpine
@@ -609,12 +609,23 @@ jobs:
                       cpus: "0.5"
                 restart: unless-stopped
 
+            volumes:
+              postgres_data:
+              redis_data:
+            EOF
+
+            # Write docker-compose.monitoring.yml (exporters + observability)
+            cat > /opt/creditcardanalyzer/docker-compose.monitoring.yml << 'EOF'
+            services:
               postgres-exporter:
                 image: docker.io/prometheuscommunity/postgres-exporter:latest
                 environment:
                   DATA_SOURCE_NAME: "postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses?sslmode=disable"
+                extra_hosts:
+                  - "host.docker.internal:host-gateway"
+                network_mode: "service:db"
                 depends_on:
-                  - db
+                  - db_sidecar
                 deploy:
                   resources:
                     limits:
@@ -625,9 +636,9 @@ jobs:
               redis-exporter:
                 image: docker.io/oliver006/redis_exporter:latest
                 environment:
-                  REDIS_ADDR: "redis://redis:6379"
+                  REDIS_ADDR: "redis://redis_sidecar:6379"
                 depends_on:
-                  - redis
+                  - redis_sidecar
                 deploy:
                   resources:
                     limits:
@@ -658,8 +669,11 @@ jobs:
                 image: docker.io/nginx/nginx-prometheus-exporter:latest
                 command:
                   - "-nginx.scrape-uri=http://nginx:8080/stub_status"
+                extra_hosts:
+                  - "host.docker.internal:host-gateway"
+                network_mode: "service:db"
                 depends_on:
-                  - nginx
+                  - db_sidecar
                 deploy:
                   resources:
                     limits:
@@ -727,9 +741,30 @@ jobs:
                       cpus: "0.5"
                 restart: unless-stopped
 
+              # Sidecars: connect to platform network for DB/Redis access
+              db_sidecar:
+                image: docker.io/library/postgres:16-alpine
+                network_mode: "service:db"
+                depends_on:
+                  - db_net
+
+              redis_sidecar:
+                image: docker.io/library/redis:7-alpine
+                network_mode: "service:redis"
+                depends_on:
+                  - redis_net
+
+              db_net:
+                image: docker.io/library/postgres:16-alpine
+                network_mode: "container:creditcardanalyzer_db_1"
+                restart: "no"
+
+              redis_net:
+                image: docker.io/library/redis:7-alpine
+                network_mode: "container:creditcardanalyzer_redis_1"
+                restart: "no"
+
             volumes:
-              postgres_data:
-              redis_data:
               alloy_data:
             EOF
 
@@ -815,9 +850,13 @@ jobs:
             source .env
             set +a
 
-            echo "Validating docker-compose.yml..."
-            podman-compose config --quiet
-            echo "docker-compose.yml OK"
+            echo "Validating docker-compose.platform.yml..."
+            podman-compose -f docker-compose.platform.yml config --quiet
+            echo "docker-compose.platform.yml OK"
+            echo "Validating docker-compose.monitoring.yml..."
+            set -a; source .env; set +a
+            podman-compose -f docker-compose.monitoring.yml config --quiet
+            echo "docker-compose.monitoring.yml OK"
 
       - name: Validate nginx config
         uses: appleboy/ssh-action@v1
@@ -862,8 +901,8 @@ jobs:
             echo "Logging in to GHCR..."
             echo "${{ secrets.GHCR_PAT }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin || echo "WARN: GHCR login failed (may be public repo)"
 
-            echo "Pulling new images..."
-            podman-compose pull
+            echo "Pulling new platform images..."
+            podman-compose -f docker-compose.platform.yml pull
 
             # Verify images exist
             echo "Verifying images..."
@@ -1035,13 +1074,13 @@ jobs:
             cp .env .env.rollback
             echo "Rollback snapshot saved (tag: $IMAGE_TAG)"
 
-            # Stop old containers
-            echo "Stopping old containers..."
-            podman-compose down --remove-orphans 2>/dev/null || true
+            # Stop old platform containers (monitoring stays up)
+            echo "Stopping old platform containers..."
+            podman-compose -f docker-compose.platform.yml down --remove-orphans 2>/dev/null || true
 
-            # Start new containers
-            echo "Starting new containers..."
-            podman-compose up -d --remove-orphans
+            # Start new platform containers
+            echo "Starting new platform containers..."
+            podman-compose -f docker-compose.platform.yml up -d --remove-orphans
 
       - name: Health check with retry
         uses: appleboy/ssh-action@v1
@@ -1100,8 +1139,8 @@ jobs:
 
               echo "Rolling back to tag: $PREV_TAG"
               cp .env.rollback .env
-              podman-compose down --remove-orphans 2>/dev/null || true
-              podman-compose up -d --remove-orphans
+              podman-compose -f docker-compose.platform.yml down --remove-orphans 2>/dev/null || true
+              podman-compose -f docker-compose.platform.yml up -d --remove-orphans
               exit 1
             fi
 
