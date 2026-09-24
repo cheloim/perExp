@@ -290,8 +290,9 @@ jobs:
 
             echo "=== Ensuring shared network exists ==="
             export PATH="$HOME/.local/bin:$PATH"
-            podman network create oikonomia 2>/dev/null || true
-            echo "Network oikonomia ready"
+            NETWORK_NAME="${NETWORK_NAME:-oikonomia}"
+            podman network create "$NETWORK_NAME" 2>/dev/null || true
+            echo "Network $NETWORK_NAME ready"
 
             echo "Directories ready"
 
@@ -437,6 +438,7 @@ jobs:
             echo "IMAGE_TAG=${IMAGE_TAG}" >> /opt/creditcardanalyzer/.env
             echo "DOMAIN_NAME=${DOMAIN_NAME}" >> /opt/creditcardanalyzer/.env
             echo "PLATFORM_DOMAIN=${PLATFORM_DOMAIN}" >> /opt/creditcardanalyzer/.env
+            echo "NETWORK_NAME=oikonomia" >> /opt/creditcardanalyzer/.env
 
             # App secrets (individual, no base64)
             echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> /opt/creditcardanalyzer/.env
@@ -616,8 +618,9 @@ jobs:
           key: ${{ secrets.LINODE_SSH_KEY }}
           port: 43422
           script: |
-            # Check if DB container is running
-            if ! podman ps --format '{{.Names}}' | grep -q 'creditcardanalyzer_db_1'; then
+            # Check if DB container is running (compose-agnostic)
+            DB_CONTAINER=$(podman-compose -f docker-compose.infra.yml ps --format '{{.Names}}' 2>/dev/null | grep db | head -1)
+            if [ -z "$DB_CONTAINER" ]; then
               echo "WARNING: Database container not running, skipping backup (first deploy?)"
               exit 0
             fi
@@ -629,7 +632,7 @@ jobs:
             BACKUP_FILE="$BACKUP_DIR/db_${TIMESTAMP}.sql"
 
             echo "Backing up database..."
-            podman exec creditcardanalyzer_db_1 \
+            podman exec "$DB_CONTAINER" \
               pg_dump -U expenses_user expenses > $BACKUP_FILE 2>/dev/null
 
             # Compress
@@ -701,7 +704,8 @@ jobs:
                   LATEST=$(ls -t /opt/creditcardanalyzer/backups/db_*.sql.gz | head -1)
                   if [ -n "$LATEST" ]; then
                     echo "Restoring from: $LATEST"
-                    gunzip -c "$LATEST" | podman exec -i creditcardanalyzer_db_1 psql -U expenses_user expenses
+                    DB_CONTAINER=$(podman-compose -f docker-compose.infra.yml ps --format '{{.Names}}' 2>/dev/null | grep db | head -1)
+                    gunzip -c "$LATEST" | podman exec -i "$DB_CONTAINER" psql -U expenses_user expenses
                     echo "Database restored from backup"
                   else
                     echo "::error::No backup found!"
@@ -735,7 +739,8 @@ jobs:
               LATEST=$(ls -t /opt/creditcardanalyzer/backups/db_*.sql.gz | head -1)
               if [ -n "$LATEST" ]; then
                 echo "Restoring from: $LATEST"
-                gunzip -c $LATEST | podman exec -i creditcardanalyzer_db_1 psql -U expenses_user expenses
+                DB_CONTAINER=$(podman-compose -f docker-compose.infra.yml ps --format '{{.Names}}' 2>/dev/null | grep db | head -1)
+                gunzip -c "$LATEST" | podman exec -i "$DB_CONTAINER" psql -U expenses_user expenses
                 echo "Database restored from backup"
               else
                 echo "::error::No backup found!"
@@ -766,25 +771,28 @@ jobs:
             set -a; source .env; set +a
 
             echo "Ensuring shared network exists..."
-            podman network create oikonomia 2>/dev/null || true
+            NETWORK_NAME="${NETWORK_NAME:-oikonomia}"
+            podman network create "$NETWORK_NAME" 2>/dev/null || true
 
-            if ! podman ps --format '{{.Names}}' | grep -q 'creditcardanalyzer_db_1'; then
+            # Check if db is running (compose-agnostic)
+            if ! podman-compose -f docker-compose.infra.yml ps --format '{{.Names}}' 2>/dev/null | grep -q 'db'; then
               echo "Starting infra (first deploy)..."
               podman-compose -f docker-compose.infra.yml up -d
             else
               echo "Restarting infra..."
-              # Stop ONLY infra containers
-              for SVC in creditcardanalyzer_db_1 creditcardanalyzer_redis_1; do
-                podman stop "$SVC" 2>/dev/null || true
-                podman rm "$SVC" 2>/dev/null || true
-              done
+              # Stop ONLY infra services (compose handles container names)
+              podman-compose -f docker-compose.infra.yml stop db redis 2>/dev/null || true
               podman-compose -f docker-compose.infra.yml up -d
             fi
 
             echo "Waiting for infra health..."
+            # Get container names dynamically from compose
+            DB_CONTAINER=$(podman-compose -f docker-compose.infra.yml ps --format '{{.Names}}' 2>/dev/null | grep db | head -1)
+            REDIS_CONTAINER=$(podman-compose -f docker-compose.infra.yml ps --format '{{.Names}}' 2>/dev/null | grep redis | head -1)
+
             for i in $(seq 1 20); do
-              DB_OK=$(podman inspect --format='{{.State.Health.Status}}' creditcardanalyzer_db_1 2>/dev/null || echo "missing")
-              REDIS_OK=$(podman inspect --format='{{.State.Health.Status}}' creditcardanalyzer_redis_1 2>/dev/null || echo "missing")
+              DB_OK=$(podman inspect --format='{{.State.Health.Status}}' "$DB_CONTAINER" 2>/dev/null || echo "missing")
+              REDIS_OK=$(podman inspect --format='{{.State.Health.Status}}' "$REDIS_CONTAINER" 2>/dev/null || echo "missing")
               if [ "$DB_OK" = "healthy" ] && [ "$REDIS_OK" = "healthy" ]; then
                 echo "Infra healthy after ${i} attempt(s)"
                 break
@@ -793,8 +801,8 @@ jobs:
               sleep 3
             done
 
-            DB_FINAL=$(podman inspect --format='{{.State.Health.Status}}' creditcardanalyzer_db_1 2>/dev/null || echo "missing")
-            REDIS_FINAL=$(podman inspect --format='{{.State.Health.Status}}' creditcardanalyzer_redis_1 2>/dev/null || echo "missing")
+            DB_FINAL=$(podman inspect --format='{{.State.Health.Status}}' "$DB_CONTAINER" 2>/dev/null || echo "missing")
+            REDIS_FINAL=$(podman inspect --format='{{.State.Health.Status}}' "$REDIS_CONTAINER" 2>/dev/null || echo "missing")
             if [ "$DB_FINAL" != "healthy" ] || [ "$REDIS_FINAL" != "healthy" ]; then
               echo "::error::Infra health check failed: db=$DB_FINAL, redis=$REDIS_FINAL"
               exit 1
@@ -844,22 +852,18 @@ jobs:
 
             echo "Restarting platform services..."
 
-            # Stop ONLY platform containers (don't touch infra/nginx/monitoring)
-            echo "Stopping platform containers..."
-            for SVC in creditcardanalyzer_backend_1 creditcardanalyzer_platform-frontend_1 creditcardanalyzer_celery_worker_1 creditcardanalyzer_celery_beat_1; do
-              podman stop "$SVC" 2>/dev/null || true
-              podman rm "$SVC" 2>/dev/null || true
-            done
+            # Stop ONLY platform services (compose handles container names)
+            echo "Stopping platform services..."
+            podman-compose -f docker-compose.platform.yml stop backend platform-frontend celery_worker celery_beat 2>/dev/null || true
 
-            # Clean up legacy containers with old names
-            for OLD in creditcardanalyzer_frontend_1 creditcardanalyzer_telegram_bot_1; do
-              podman rm -f "$OLD" 2>/dev/null || true
-            done
+            # Clean up legacy service name (frontend → platform-frontend)
+            LEGACY_FRONTEND="${COMPOSE_PROJECT_NAME:-creditcardanalyzer}_frontend_1"
+            podman rm -f "$LEGACY_FRONTEND" 2>/dev/null || true
 
-            # Start platform containers
-            echo "Starting platform containers..."
+            # Start platform services
+            echo "Starting platform services..."
             podman-compose -f docker-compose.platform.yml up -d
-            echo "Platform containers started"
+            echo "Platform services started"
 
             echo "Waiting for backend health..."
             DEPLOY_OK=false
@@ -892,7 +896,9 @@ jobs:
             export PATH="$HOME/.local/bin:$PATH"
 
             echo "=== Platform deploy failed, initiating rollback ==="
-            podman logs creditcardanalyzer_backend_1 --tail 40 2>&1 || true
+            # Get backend container name dynamically
+            BACKEND_CONTAINER=$(podman-compose -f docker-compose.platform.yml ps --format '{{.Names}}' 2>/dev/null | grep backend | head -1)
+            podman logs "$BACKEND_CONTAINER" --tail 40 2>&1 || true
 
             PREV_TAG=$(cat /opt/creditcardanalyzer/.rollback_platform_tag 2>/dev/null)
             if [ -z "$PREV_TAG" ]; then
@@ -905,11 +911,8 @@ jobs:
             IMAGE_TAG="$PREV_TAG"
             export IMAGE_TAG
 
-            # Stop ONLY platform containers
-            for SVC in creditcardanalyzer_backend_1 creditcardanalyzer_platform-frontend_1 creditcardanalyzer_celery_worker_1 creditcardanalyzer_celery_beat_1; do
-              podman stop "$SVC" 2>/dev/null || true
-              podman rm "$SVC" 2>/dev/null || true
-            done
+            # Stop ONLY platform services
+            podman-compose -f docker-compose.platform.yml stop backend platform-frontend celery_worker celery_beat 2>/dev/null || true
 
             podman-compose -f docker-compose.platform.yml up -d
 
@@ -945,19 +948,26 @@ jobs:
             set -a; source .env; set +a
 
             echo "Restarting bot services..."
-            # Stop ONLY bot container
-            podman stop creditcardanalyzer_telegram_bot_1 2>/dev/null || true
-            podman rm creditcardanalyzer_telegram_bot_1 2>/dev/null || true
+            # Stop ONLY bot service (compose handles container names)
+            podman-compose -f docker-compose.bots.yml stop telegram_bot 2>/dev/null || true
+            # Clean up legacy bot container
+            LEGACY_BOT="${COMPOSE_PROJECT_NAME:-creditcardanalyzer}_telegram_bot_1"
+            podman rm -f "$LEGACY_BOT" 2>/dev/null || true
             # Start bot containers
             podman-compose -f docker-compose.bots.yml up -d
 
             # Wait for bot container to be running
             sleep 5
-            BOT_STATUS=$(podman inspect --format='{{.State.Status}}' creditcardanalyzer_telegram_bot_1 2>/dev/null || echo "missing")
-            if [ "$BOT_STATUS" = "running" ]; then
-              echo "Bot container running"
+            BOT_CONTAINER=$(podman-compose -f docker-compose.bots.yml ps --format '{{.Names}}' 2>/dev/null | grep telegram_bot | head -1)
+            if [ -n "$BOT_CONTAINER" ]; then
+              BOT_STATUS=$(podman inspect --format='{{.State.Status}}' "$BOT_CONTAINER" 2>/dev/null || echo "missing")
+              if [ "$BOT_STATUS" = "running" ]; then
+                echo "Bot container running"
+              else
+                echo "::warning::Bot container status: $BOT_STATUS"
+              fi
             else
-              echo "::warning::Bot container status: $BOT_STATUS"
+              echo "::warning::Bot container not found"
             fi
             echo "Bots restarted"
 
@@ -981,9 +991,8 @@ jobs:
             set -a; source .env; set +a
 
             echo "Restarting nginx..."
-            # Stop ONLY nginx container
-            podman stop creditcardanalyzer_nginx_1 2>/dev/null || true
-            podman rm creditcardanalyzer_nginx_1 2>/dev/null || true
+            # Stop ONLY nginx service (compose handles container names)
+            podman-compose -f docker-compose.nginx.yml stop nginx 2>/dev/null || true
             # Start nginx
             podman-compose -f docker-compose.nginx.yml up -d
 
@@ -1025,9 +1034,8 @@ jobs:
             fi
 
             echo "Restarting landing..."
-            # Stop ONLY landing container
-            podman stop creditcardanalyzer_landing_1 2>/dev/null || true
-            podman rm creditcardanalyzer_landing_1 2>/dev/null || true
+            # Stop ONLY landing service (compose handles container names)
+            podman-compose -f docker-compose.web-landing.yml stop landing 2>/dev/null || true
             # Start landing
             podman-compose -f docker-compose.web-landing.yml up -d
             echo "Landing restarted"
@@ -1052,11 +1060,8 @@ jobs:
             set -a; source .env; set +a
 
             echo "Restarting monitoring..."
-            # Stop ONLY monitoring containers
-            for SVC in creditcardanalyzer_postgres-exporter_1 creditcardanalyzer_redis-exporter_1 creditcardanalyzer_node-exporter_1 creditcardanalyzer_nginx-exporter_1 creditcardanalyzer_blackbox-exporter_1 creditcardanalyzer_alloy_1 creditcardanalyzer_cadvisor_1; do
-              podman stop "$SVC" 2>/dev/null || true
-              podman rm "$SVC" 2>/dev/null || true
-            done
+            # Stop ALL monitoring services (compose handles container names)
+            podman-compose -f docker-compose.monitoring.yml stop 2>/dev/null || true
             # Start monitoring
             podman-compose -f docker-compose.monitoring.yml up -d
             echo "Monitoring restarted"

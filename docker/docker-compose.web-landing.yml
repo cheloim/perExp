@@ -17,4 +17,4 @@ services:
 networks:
   default:
     external: true
-    name: oikonomia
+    name: ${NETWORK_NAME:-oikonomia}
