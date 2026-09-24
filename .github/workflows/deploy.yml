@@ -619,7 +619,7 @@ jobs:
           port: 43422
           script: |
             # Check if DB container is running (compose-agnostic)
-            DB_CONTAINER=$(podman-compose -f docker-compose.infra.yml ps --format '{{.Names}}' 2>/dev/null | grep db | head -1)
+            DB_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_db_' | head -1)
             if [ -z "$DB_CONTAINER" ]; then
               echo "WARNING: Database container not running, skipping backup (first deploy?)"
               exit 0
@@ -704,7 +704,7 @@ jobs:
                   LATEST=$(ls -t /opt/creditcardanalyzer/backups/db_*.sql.gz | head -1)
                   if [ -n "$LATEST" ]; then
                     echo "Restoring from: $LATEST"
-                    DB_CONTAINER=$(podman-compose -f docker-compose.infra.yml ps --format '{{.Names}}' 2>/dev/null | grep db | head -1)
+                    DB_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_db_' | head -1)
                     gunzip -c "$LATEST" | podman exec -i "$DB_CONTAINER" psql -U expenses_user expenses
                     echo "Database restored from backup"
                   else
@@ -739,7 +739,7 @@ jobs:
               LATEST=$(ls -t /opt/creditcardanalyzer/backups/db_*.sql.gz | head -1)
               if [ -n "$LATEST" ]; then
                 echo "Restoring from: $LATEST"
-                DB_CONTAINER=$(podman-compose -f docker-compose.infra.yml ps --format '{{.Names}}' 2>/dev/null | grep db | head -1)
+                DB_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_db_' | head -1)
                 gunzip -c "$LATEST" | podman exec -i "$DB_CONTAINER" psql -U expenses_user expenses
                 echo "Database restored from backup"
               else
@@ -775,7 +775,7 @@ jobs:
             podman network create "$NETWORK_NAME" 2>/dev/null || true
 
             # Check if db is running (compose-agnostic)
-            if ! podman-compose -f docker-compose.infra.yml ps --format '{{.Names}}' 2>/dev/null | grep -q 'db'; then
+            if ! podman ps --format '{{.Names}}' | grep -qE '_db_'; then
               echo "Starting infra (first deploy)..."
               podman-compose -f docker-compose.infra.yml up -d
             else
@@ -786,9 +786,17 @@ jobs:
             fi
 
             echo "Waiting for infra health..."
-            # Get container names dynamically from compose
-            DB_CONTAINER=$(podman-compose -f docker-compose.infra.yml ps --format '{{.Names}}' 2>/dev/null | grep db | head -1)
-            REDIS_CONTAINER=$(podman-compose -f docker-compose.infra.yml ps --format '{{.Names}}' 2>/dev/null | grep redis | head -1)
+            # Get container names dynamically (works regardless of project name)
+            DB_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_db_' | head -1)
+            REDIS_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_redis_' | head -1)
+
+            if [ -z "$DB_CONTAINER" ] || [ -z "$REDIS_CONTAINER" ]; then
+              echo "::error::Could not find db or redis containers"
+              podman ps --format "table {{.Names}}\t{{.Status}}"
+              exit 1
+            fi
+
+            echo "Found containers: db=$DB_CONTAINER, redis=$REDIS_CONTAINER"
 
             for i in $(seq 1 20); do
               DB_OK=$(podman inspect --format='{{.State.Health.Status}}' "$DB_CONTAINER" 2>/dev/null || echo "missing")
@@ -897,7 +905,7 @@ jobs:
 
             echo "=== Platform deploy failed, initiating rollback ==="
             # Get backend container name dynamically
-            BACKEND_CONTAINER=$(podman-compose -f docker-compose.platform.yml ps --format '{{.Names}}' 2>/dev/null | grep backend | head -1)
+            BACKEND_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_backend_' | head -1)
             podman logs "$BACKEND_CONTAINER" --tail 40 2>&1 || true
 
             PREV_TAG=$(cat /opt/creditcardanalyzer/.rollback_platform_tag 2>/dev/null)
@@ -958,7 +966,7 @@ jobs:
 
             # Wait for bot container to be running
             sleep 5
-            BOT_CONTAINER=$(podman-compose -f docker-compose.bots.yml ps --format '{{.Names}}' 2>/dev/null | grep telegram_bot | head -1)
+            BOT_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_telegram_bot_' | head -1)
             if [ -n "$BOT_CONTAINER" ]; then
               BOT_STATUS=$(podman inspect --format='{{.State.Status}}' "$BOT_CONTAINER" 2>/dev/null || echo "missing")
               if [ "$BOT_STATUS" = "running" ]; then
