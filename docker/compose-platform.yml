@@ -3,11 +3,6 @@ services:
     image: ${BACKEND_IMAGE}:${IMAGE_TAG}
     ports:
       - "8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')\""]
       interval: 5s
@@ -44,11 +39,6 @@ services:
   celery_worker:
     image: ${BACKEND_IMAGE}:${IMAGE_TAG}
     command: celery -A app.celery_app worker --loglevel=info --concurrency=2
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     environment:
       DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses
       REDIS_URL: redis://redis:6379/0
@@ -76,11 +66,6 @@ services:
   celery_beat:
     image: ${BACKEND_IMAGE}:${IMAGE_TAG}
     command: celery -A app.celery_app beat --loglevel=info
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     environment:
       DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses
       REDIS_URL: redis://redis:6379/0
