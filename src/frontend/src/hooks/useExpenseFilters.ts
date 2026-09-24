@@ -8,6 +8,8 @@ export interface ExpenseFilters {
   dateTo: string | undefined;
   tagId: number | undefined;
   untagged: boolean;
+  cuentaId: number | undefined;
+  sinCuenta: boolean;
 }
 
 export function useExpenseFilters() {
@@ -23,6 +25,8 @@ export function useExpenseFilters() {
     dateTo: searchParams.get("date_to") || undefined,
     tagId: searchParams.get("tag_id") ? parseInt(searchParams.get("tag_id")!) : undefined,
     untagged: searchParams.get("untagged") === "1",
+    cuentaId: searchParams.get("cuenta_id") ? parseInt(searchParams.get("cuenta_id")!) : undefined,
+    sinCuenta: searchParams.get("sin_cuenta") === "1",
   };
 
   const setFilter = (key: string, value: string | undefined) => {

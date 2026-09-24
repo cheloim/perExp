@@ -9,16 +9,13 @@ import {
   createTag,
   updateTag,
   deleteTag,
-  getExpenses,
-  recategorizeExpenses,
-  applyBaseHierarchy,
-  getCards,
-  getAccounts,
 } from "../api/client";
 import type { Category, Tag } from "../types";
 import { Select } from "../components/ui/Select";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import SymbolicIcon from "../components/SymbolicIcon";
 import { TAG_PALETTE } from "../utils/palette";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 function CategoryForm({
   initial,
@@ -44,9 +41,11 @@ function CategoryForm({
       : { name: "", color: "#3b82f6", keywords: "", parent_id: parentCategories[0]?.id ?? null },
   );
 
+  const trapRef = useFocusTrap(true, onClose);
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 animate-modal-backdrop">
-      <div className="card w-full max-w-md animate-modal-content">
+      <div ref={trapRef} className="card w-full max-w-md animate-modal-content">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border-color">
           <h2 className="text-base font-semibold text-primary">
             {initial ? "Editar categoría" : "Nueva categoría"}
@@ -83,12 +82,16 @@ function CategoryForm({
           </div>
           <div>
             <label className="block text-xs font-medium text-tertiary mb-1.5">Color</label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {TAG_PALETTE.map((c) => (
                 <button
                   key={c}
                   onClick={() => setForm((p) => ({ ...p, color: c }))}
-                  className={`w-7 h-7 rounded-full ${form.color === c ? "scale-125 ring-2 ring-offset-2 ring-offset-surface ring-primary" : ""}`}
+                  className={`w-6 h-6 rounded-full ${
+                    form.color === c
+                      ? "scale-125 ring-2 ring-offset-1 ring-offset-surface ring-primary"
+                      : ""
+                  }`}
                   style={{ backgroundColor: c }}
                 />
               ))}
@@ -96,7 +99,7 @@ function CategoryForm({
                 type="color"
                 value={form.color}
                 onChange={(e) => setForm((p) => ({ ...p, color: e.target.value }))}
-                className="w-7 h-7 rounded-full cursor-pointer border-0 p-0 bg-transparent"
+                className="w-6 h-6 rounded-full cursor-pointer border-0 p-0 bg-transparent"
               />
             </div>
           </div>
@@ -130,137 +133,122 @@ function CategoryForm({
   );
 }
 
-function TagSection({
-  title,
-  tags,
-  countMap,
-  cards,
-  accounts,
-  linkType,
-  onColorChange,
-  onDelete,
-  onLink,
+function TagForm({
+  initial,
+  defaultGroup,
+  onClose,
+  onSave,
+  isSaving,
 }: {
-  title: string;
-  tags: Tag[];
-  countMap: Record<number, number>;
-  cards: { id: number; card_name: string; bank: string }[];
-  accounts: { id: number; name: string }[];
-  linkType: "card" | "account" | null;
-  onColorChange: (tag: Tag, color: string) => void;
-  onDelete: (tag: Tag) => void;
-  onLink: (tag: Tag, id: number) => void;
+  initial?: Tag;
+  defaultGroup?: string;
+  onClose: () => void;
+  onSave: (data: { name: string; color: string; group_name: string }) => void;
+  isSaving?: boolean;
 }) {
-  const [linkingId, setLinkingId] = useState<number | null>(null);
+  const [form, setForm] = useState({
+    name: initial?.name ?? "",
+    color: initial?.color ?? TAG_PALETTE[0],
+    group_name: initial?.group_name ?? defaultGroup ?? "otros",
+  });
 
-  const resolveLinkType = (tag: Tag): "card" | "account" | null => {
-    if (linkType !== null) return linkType;
-    if (tag.card_id !== null && tag.card_id !== undefined) return "card";
-    if (tag.account_id !== null && tag.account_id !== undefined) return "account";
-    return "card";
-  };
+  useEffect(() => {
+    if (initial) {
+      setForm({
+        name: initial.name,
+        color: initial.color,
+        group_name: initial.group_name ?? "otros",
+      });
+    }
+  }, [initial]);
+
+  const trapRef = useFocusTrap(true, onClose);
 
   return (
-    <section className="card">
-      <div className="px-5 py-4 border-b border-border-color">
-        <h2 className="text-lg font-semibold text-primary">{title}</h2>
-      </div>
-      {tags.length === 0 ? (
-        <div className="px-5 py-8 text-center">
-          <p className="text-tertiary text-xs">No hay tags.</p>
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 animate-modal-backdrop">
+      <div ref={trapRef} className="card w-full max-w-md animate-modal-content">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border-color">
+          <h2 className="text-base font-semibold text-primary">
+            {initial ? "Editar tag" : "Nuevo tag"}
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-tertiary hover:text-primary text-xl leading-none"
+          >
+            ×
+          </button>
         </div>
-      ) : (
-        <div className="divide-y divide-border-color/40">
-          {tags.map((tag) => {
-            const tagLinkType = resolveLinkType(tag);
-            const linked =
-              tagLinkType === "card"
-                ? tag.card_id
-                  ? cards.find((c) => c.id === tag.card_id)
-                  : null
-                : tag.account_id
-                  ? accounts.find((a) => a.id === tag.account_id)
-                  : null;
-            const count = countMap[tag.id] ?? 0;
-            return (
-              <div
-                key={tag.id}
-                className="flex items-center gap-3 px-5 py-2.5 hover:bg-[var(--color-base-alt)] transition-colors group"
-              >
-                <input
-                  type="color"
-                  value={tag.color}
-                  onChange={(e) => onColorChange(tag, e.target.value)}
-                  className="w-7 h-7 rounded-full cursor-pointer border-0 p-0 bg-transparent flex-shrink-0"
-                  style={{ backgroundColor: tag.color }}
+        <div className="px-6 py-4 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-tertiary mb-1.5">Nombre</label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+              className="input"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-tertiary mb-1.5">Color</label>
+            <div className="flex flex-wrap gap-1.5">
+              {TAG_PALETTE.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setForm((p) => ({ ...p, color: c }))}
+                  className={`w-6 h-6 rounded-full ${
+                    form.color === c
+                      ? "scale-125 ring-2 ring-offset-1 ring-offset-surface ring-primary"
+                      : ""
+                  }`}
+                  style={{ backgroundColor: c }}
                 />
-                <span className="text-sm text-primary flex-1 min-w-0 truncate">{tag.name}</span>
-                {linked ? (
-                  <span className="text-xs text-secondary flex-shrink-0">
-                    {tagLinkType === "card"
-                      ? `💳 ${(linked as { card_name: string }).card_name}`
-                      : `🏦 ${(linked as { name: string }).name}`}
-                  </span>
-                ) : (
-                  <span className="text-xs text-tertiary italic flex-shrink-0">Sin vínculo</span>
-                )}
-                {count > 0 && (
-                  <span className="text-xs text-tertiary flex-shrink-0">
-                    {count} gasto{count !== 1 ? "s" : ""}
-                  </span>
-                )}
-                <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity relative">
-                  {!linked && (
-                    <>
-                      <button
-                        onClick={() => setLinkingId(linkingId === tag.id ? null : tag.id)}
-                        className="text-tertiary hover:text-primary text-xs p-1.5 rounded"
-                      >
-                        🔗
-                      </button>
-                      {linkingId === tag.id && (
-                        <div className="absolute right-0 top-full mt-1 z-20 bg-surface border border-border-color rounded-lg shadow-lg p-2 min-w-[180px]">
-                          {(tagLinkType === "card" ? cards : accounts).map((item) => (
-                            <button
-                              key={item.id}
-                              onClick={() => {
-                                onLink(tag, item.id);
-                                setLinkingId(null);
-                              }}
-                              className="block w-full text-left text-sm px-3 py-1.5 rounded hover:bg-[var(--color-base-alt)] text-primary"
-                            >
-                              {tagLinkType === "card"
-                                ? `${(item as { card_name: string }).card_name}${(item as { bank: string }).bank ? ` · ${(item as { bank: string }).bank}` : ""}`
-                                : (item as { name: string }).name}
-                            </button>
-                          ))}
-                          {(tagLinkType === "card" ? cards : accounts).length === 0 && (
-                            <p className="text-xs text-tertiary px-3 py-1.5">
-                              No hay opciones disponibles
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </>
-                  )}
-                  <button
-                    onClick={() => onDelete(tag)}
-                    className="text-tertiary hover:text-danger text-xs p-1.5 rounded"
-                  >
-                    🗑
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+              ))}
+              <input
+                type="color"
+                value={form.color}
+                onChange={(e) => setForm((p) => ({ ...p, color: e.target.value }))}
+                className="w-6 h-6 rounded-full cursor-pointer border-0 p-0 bg-transparent"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-tertiary mb-1.5">Grupo</label>
+            <Select
+              value={form.group_name}
+              onChange={(v) => setForm((p) => ({ ...p, group_name: v }))}
+              options={[
+                { value: "cuenta", label: "Cuenta" },
+                { value: "otros", label: "Otros" },
+              ]}
+            />
+          </div>
         </div>
-      )}
-    </section>
+        <div className="flex justify-end gap-2 px-6 py-4 border-t border-border-color">
+          <button onClick={onClose} className="gnome-btn-secondary-round text-sm">
+            Cancelar
+          </button>
+          <button
+            onClick={() =>
+              onSave({
+                name: form.name,
+                color: form.color,
+                group_name: form.group_name,
+              })
+            }
+            disabled={!form.name || isSaving}
+            className="gnome-btn-primary-round text-sm"
+          >
+            {isSaving ? "Guardando..." : "Guardar"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
 export default function ClasificacionPage() {
   const qc = useQueryClient();
+  const [search, setSearch] = useState("");
 
   const [editing, setEditing] = useState<{ cat: Category | null; isParent: boolean } | undefined>();
   const [deleteConfirm, setDeleteConfirm] = useState<Category | null>(null);
@@ -268,13 +256,10 @@ export default function ClasificacionPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [inlineEditId, setInlineEditId] = useState<number | null>(null);
   const [inlineEditName, setInlineEditName] = useState("");
-  const [newCatName, setNewCatName] = useState("");
-  const [newCatParentId, setNewCatParentId] = useState("");
-  const [newTagName, setNewTagName] = useState("");
-  const [newTagColor, setNewTagColor] = useState(TAG_PALETTE[0]);
+  const [editingTag, setEditingTag] = useState<Tag | undefined>();
+  const [tagFormOpen, setTagFormOpen] = useState(false);
+  const [tagDefaultGroup, setTagDefaultGroup] = useState<string>("otros");
   const [deleteTagTarget, setDeleteTagTarget] = useState<Tag | null>(null);
-  const [newCuentaName, setNewCuentaName] = useState("");
-  const [newCuentaColor, setNewCuentaColor] = useState(TAG_PALETTE[0]);
 
   useEffect(() => {
     if (successMsg) {
@@ -287,38 +272,13 @@ export default function ClasificacionPage() {
     queryKey: ["categories"],
     queryFn: getCategories,
   });
-  const { data: allExpenses = [] } = useQuery({
-    queryKey: ["expenses"],
-    queryFn: () => getExpenses({ limit: 500 }),
-  });
   const { data: tags = [], isLoading: tagsLoading } = useQuery({
     queryKey: ["tags"],
     queryFn: getTags,
   });
-  const { data: cards = [] } = useQuery({ queryKey: ["cards"], queryFn: getCards });
-  const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: getAccounts });
-
-  const countMap = useMemo(
-    () =>
-      allExpenses.reduce<Record<number, number>>((acc, e) => {
-        if (e.category_id != null) acc[e.category_id] = (acc[e.category_id] ?? 0) + 1;
-        return acc;
-      }, {}),
-    [allExpenses],
-  );
-
-  const tagCountMap = useMemo(
-    () =>
-      allExpenses.reduce<Record<number, number>>((acc, e) => {
-        if (e.tags) for (const t of e.tags) acc[t.id] = (acc[t.id] ?? 0) + 1;
-        return acc;
-      }, {}),
-    [allExpenses],
-  );
 
   const parentCats = categories.filter((c) => !c.parent_id);
   const childCats = categories.filter((c) => !!c.parent_id);
-  const hasHierarchy = parentCats.length > 0;
 
   const flatCategories = useMemo(() => {
     const result: { cat: Category; depth: number }[] = [];
@@ -363,8 +323,7 @@ export default function ClasificacionPage() {
     mutationFn: createCategory,
     onSuccess: () => {
       invalidate();
-      setNewCatName("");
-      setNewCatParentId("");
+      setEditing(undefined);
       setSuccessMsg("Categoría creada");
     },
   });
@@ -388,31 +347,22 @@ export default function ClasificacionPage() {
       setDeleteError(err?.response?.data?.detail ?? "Error al eliminar"),
   });
 
-  const [recatResult, setRecatResult] = useState<{ updated: number; total: number } | null>(null);
-  const recatMut = useMutation({
-    mutationFn: (only: boolean) => recategorizeExpenses(only),
-    onSuccess: (data) => {
-      setRecatResult(data);
-      invalidate();
-    },
-  });
-
-  const [hierarchyResult, setHierarchyResult] = useState<{
-    created: number;
-    updated: number;
-  } | null>(null);
-  const hierarchyMut = useMutation({
-    mutationFn: applyBaseHierarchy,
-    onSuccess: (data) => {
-      setHierarchyResult(data);
-      invalidate();
-    },
-  });
-
   const createTagMut = useMutation({
-    mutationFn: (p: { name: string; color: string; group_name: string }) => createTag(p),
+    mutationFn: (p: {
+      name: string;
+      color: string;
+      group_name: string;
+      card_id?: number | null;
+      account_id?: number | null;
+    }) =>
+      createTag({
+        ...p,
+        card_id: p.card_id ?? undefined,
+        account_id: p.account_id ?? undefined,
+      }),
     onSuccess: () => {
-      setNewTagName("");
+      setEditingTag(undefined);
+      setTagFormOpen(false);
       invalidateTags();
       setSuccessMsg("Tag creado");
     },
@@ -433,6 +383,8 @@ export default function ClasificacionPage() {
     }) => updateTag(id, data),
     onSuccess: () => {
       invalidateTags();
+      setEditingTag(undefined);
+      setTagFormOpen(false);
     },
   });
   const deleteTagMut = useMutation({
@@ -455,36 +407,85 @@ export default function ClasificacionPage() {
     else setInlineEditId(null);
   };
 
-  const saveCatColor = (cat: Category, color: string) =>
-    updateCatMut.mutate({ id: cat.id, data: { ...cat, color } });
-
-  const handleCreateCat = () => {
-    if (!newCatName.trim()) return;
-    createCatMut.mutate({
-      name: newCatName.trim(),
-      color: "#3b82f6",
-      keywords: "",
-      parent_id: newCatParentId ? parseInt(newCatParentId) : null,
-    });
+  const handleSaveTag = (data: { name: string; color: string; group_name: string }) => {
+    if (editingTag?.id) {
+      updateTagMut.mutate({ id: editingTag.id, data });
+    } else {
+      createTagMut.mutate(data);
+    }
   };
 
-  const handleCreateTag = () => {
-    if (!newTagName.trim()) return;
-    createTagMut.mutate({ name: newTagName.trim(), color: newTagColor, group_name: "otros" });
+  const openTagForm = (tag?: Tag, group?: string) => {
+    setEditingTag(tag);
+    setTagDefaultGroup(group ?? "otros");
+    setTagFormOpen(true);
   };
 
-  const handleCreateCuenta = () => {
-    if (!newCuentaName.trim()) return;
-    createTagMut.mutate({
-      name: newCuentaName.trim(),
-      color: newCuentaColor,
-      group_name: "cuenta",
-    });
-    setNewCuentaName("");
+  const q = search.toLowerCase().trim();
+
+  const filteredCats = useMemo(() => {
+    if (!q) return flatCategories;
+    return flatCategories.filter(({ cat }) => cat.name.toLowerCase().includes(q));
+  }, [flatCategories, q]);
+
+  const filteredCuentas = useMemo(() => {
+    if (!q) return tagsByGroup.cuenta;
+    return tagsByGroup.cuenta.filter((t) => t.name.toLowerCase().includes(q));
+  }, [tagsByGroup.cuenta, q]);
+
+  const filteredOtros = useMemo(() => {
+    if (!q) return tagsByGroup.otros;
+    return tagsByGroup.otros.filter((t) => t.name.toLowerCase().includes(q));
+  }, [tagsByGroup.otros, q]);
+
+  const renderChip = (tag: Tag) => {
+    return (
+      <button
+        key={tag.id}
+        onClick={() => openTagForm(tag, tag.group_name)}
+        className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs hover:ring-1 hover:ring-offset-1 hover:ring-offset-surface transition-all group"
+        style={
+          {
+            backgroundColor: tag.color + "1F",
+            "--ring-color": tag.color,
+            color: "var(--text-primary)",
+          } as React.CSSProperties
+        }
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLElement).style.setProperty("--tw-ring-color", tag.color);
+        }}
+      >
+        <span
+          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+          style={{ backgroundColor: tag.color }}
+        />
+        <span className="font-medium">{tag.name}</span>
+        <span className="flex gap-0.5 ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <span className="opacity-60 hover:opacity-100 cursor-pointer">
+            <SymbolicIcon name="pencil" size={11} />
+          </span>
+          <span
+            onClick={(e) => {
+              e.stopPropagation();
+              setDeleteTagTarget(tag);
+            }}
+            className="opacity-60 hover:opacity-100 cursor-pointer"
+          >
+            <SymbolicIcon name="trash" size={11} />
+          </span>
+        </span>
+      </button>
+    );
+  };
+
+  const sectionsVisible = {
+    categorias: !q || filteredCats.length > 0,
+    cuentas: !q || filteredCuentas.length > 0,
+    etiquetas: !q || filteredOtros.length > 0,
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {successMsg && (
         <div className="px-4 py-2 rounded-lg bg-success/20 text-success text-sm font-medium animate-pulse">
           {successMsg}
@@ -493,80 +494,48 @@ export default function ClasificacionPage() {
 
       <h1 className="text-2xl font-semibold text-primary">Clasificación</h1>
 
-      <section className="card">
-        <div className="px-5 py-4 border-b border-border-color flex items-center justify-between gap-3 flex-wrap">
-          <h2 className="text-lg font-semibold text-primary">Categorías</h2>
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => {
-                setRecatResult(null);
-                recatMut.mutate(true);
-              }}
-              disabled={recatMut.isPending}
-              className="gnome-btn-secondary-round text-sm"
-            >
-              {recatMut.isPending ? "Recategorizando..." : "↺ Recategorizar sin categoría"}
-            </button>
-            {recatResult && (
-              <span className="text-xs text-tertiary">
-                {recatResult.updated} actualizados de {recatResult.total}
-              </span>
-            )}
-          </div>
-        </div>
+      {/* Global search */}
+      <div className="relative">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar categorías, cuentas y tags…"
+          className="input text-sm pl-8"
+        />
+        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-tertiary">
+          <SymbolicIcon name="search" size={14} />
+        </span>
+      </div>
 
-        {!hasHierarchy && !hierarchyResult && (
-          <div className="px-5 py-4 border-b border-border-color bg-warning/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium text-warning">Configurar estructura base</p>
-              <p className="text-xs text-tertiary mt-0.5">
-                Crea una jerarquía recomendada con subcategorías y palabras clave.
-              </p>
+      {/* Categorías */}
+      {sectionsVisible.categorias && (
+        <section className="card p-3">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <h2 className="text-sm font-semibold text-secondary">
+              Categorías
+              <span className="text-tertiary font-normal ml-1">({filteredCats.length})</span>
+            </h2>
+            <button
+              onClick={() => setEditing({ cat: null, isParent: true })}
+              className="gnome-btn-primary-round text-xs"
+            >
+              + Nueva
+            </button>
+          </div>
+          {isLoading ? (
+            <div className="flex items-center justify-center h-20">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
             </div>
-            <button
-              onClick={() => hierarchyMut.mutate()}
-              disabled={hierarchyMut.isPending}
-              className="gnome-btn-primary-round text-sm"
-            >
-              {hierarchyMut.isPending ? "Aplicando..." : "Aplicar estructura base"}
-            </button>
-          </div>
-        )}
-        {hierarchyResult && (
-          <div className="px-5 py-3 border-b border-border-color bg-success/5">
-            <p className="text-sm text-success">
-              Estructura aplicada: {hierarchyResult.created} categorías creadas,{" "}
-              {hierarchyResult.updated} actualizadas.
+          ) : filteredCats.length === 0 ? (
+            <p className="text-tertiary text-xs text-center py-4">
+              {q ? "Sin resultados." : "No hay categorías aún."}
             </p>
-          </div>
-        )}
-
-        {isLoading ? (
-          <div className="flex items-center justify-center h-40">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-          </div>
-        ) : flatCategories.length === 0 ? (
-          <div className="px-5 py-10 text-center">
-            <p className="text-tertiary text-sm">No hay categorías aún.</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-border-color/40">
-            {flatCategories.map(({ cat, depth }) => {
-              const count = countMap[cat.id] ?? 0;
-              return (
-                <div
-                  key={cat.id}
-                  className="flex items-center gap-3 px-5 py-2.5 hover:bg-[var(--color-base-alt)] transition-colors group"
-                  style={{ paddingLeft: `${20 + depth * 24}px` }}
-                >
-                  <input
-                    type="color"
-                    value={cat.color}
-                    onChange={(e) => saveCatColor(cat, e.target.value)}
-                    className="w-7 h-7 rounded-full cursor-pointer border-0 p-0 bg-transparent flex-shrink-0"
-                    style={{ backgroundColor: cat.color }}
-                  />
-                  {inlineEditId === cat.id ? (
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {filteredCats.map(({ cat, depth }) =>
+                inlineEditId === cat.id ? (
+                  <div key={cat.id} className="inline-flex items-center">
                     <input
                       type="text"
                       value={inlineEditName}
@@ -577,216 +546,128 @@ export default function ClasificacionPage() {
                       }}
                       onBlur={() => saveInlineName(cat)}
                       autoFocus
-                      className="input text-sm py-0.5 px-2 flex-1 min-w-0"
+                      className="input text-xs py-0.5 px-2 w-28"
                     />
-                  ) : (
-                    <button
-                      onClick={() => {
-                        setInlineEditId(cat.id);
-                        setInlineEditName(cat.name);
-                      }}
-                      className="text-sm text-primary hover:text-primary/80 flex-1 text-left truncate"
-                    >
-                      {cat.name}
-                    </button>
-                  )}
-                  {count > 0 && (
-                    <span className="text-xs text-tertiary flex-shrink-0">
-                      {count} gasto{count !== 1 ? "s" : ""}
-                    </span>
-                  )}
-                  <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => setEditing({ cat, isParent: !cat.parent_id })}
-                      className="text-tertiary hover:text-primary text-xs p-1.5 rounded"
-                    >
-                      ✏
-                    </button>
-                    <button
-                      onClick={() => setDeleteConfirm(cat)}
-                      className="text-tertiary hover:text-danger text-xs p-1.5 rounded"
-                    >
-                      🗑
-                    </button>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="px-5 py-3 border-t border-border-color flex items-end gap-2 flex-wrap">
-          <div className="flex-1 min-w-[140px]">
-            <input
-              type="text"
-              value={newCatName}
-              onChange={(e) => setNewCatName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleCreateCat()}
-              placeholder="+ Nueva categoría..."
-              className="input text-sm"
-            />
-          </div>
-          <Select
-            value={newCatParentId}
-            onChange={setNewCatParentId}
-            options={[
-              { value: "", label: "Sin padre" },
-              ...parentCats.map((p) => ({ value: p.id.toString(), label: p.name })),
-            ]}
-            className="w-40"
-          />
-          <button
-            onClick={handleCreateCat}
-            disabled={!newCatName.trim() || createCatMut.isPending}
-            className="gnome-btn-primary-round text-sm"
-          >
-            + Crear
-          </button>
-        </div>
-      </section>
-
-      {tagsLoading ? (
-        <div className="flex items-center justify-center h-20">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
-        </div>
-      ) : (
-        <>
-          <TagSection
-            title="🏦 Cuentas"
-            tags={tagsByGroup.cuenta}
-            countMap={tagCountMap}
-            cards={cards}
-            accounts={accounts}
-            linkType={null}
-            onColorChange={(t, c) => updateTagMut.mutate({ id: t.id, data: { color: c } })}
-            onDelete={setDeleteTagTarget}
-            onLink={(t, id) => {
-              if (t.card_id !== null && t.card_id !== undefined) {
-                updateTagMut.mutate({ id: t.id, data: { card_id: id } });
-              } else {
-                updateTagMut.mutate({ id: t.id, data: { account_id: id } });
-              }
-            }}
-          />
-          <div className="card p-4">
-            <div className="flex items-end gap-3 flex-wrap">
-              <div className="flex-1 min-w-[140px]">
-                <label className="block text-xs font-medium text-tertiary mb-1">Nombre</label>
-                <input
-                  type="text"
-                  value={newCuentaName}
-                  onChange={(e) => setNewCuentaName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleCreateCuenta()}
-                  placeholder="Ej: Visa Galicia, Efectivo..."
-                  className="input text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-tertiary mb-1">Color</label>
-                <input
-                  type="color"
-                  value={newCuentaColor}
-                  onChange={(e) => setNewCuentaColor(e.target.value)}
-                  className="w-7 h-7 rounded-full cursor-pointer border-0 p-0 bg-transparent"
-                />
-              </div>
-              <button
-                onClick={handleCreateCuenta}
-                disabled={!newCuentaName.trim() || createTagMut.isPending}
-                className="gnome-btn-primary-round text-sm"
-              >
-                + Nueva cuenta
-              </button>
-            </div>
-          </div>
-
-          <section className="card">
-            <div className="px-5 py-4 border-b border-border-color">
-              <h2 className="text-lg font-semibold text-primary">Otros</h2>
-            </div>
-            {tagsByGroup.otros.length === 0 ? (
-              <div className="px-5 py-8 text-center">
-                <p className="text-tertiary text-xs">No hay tags otros.</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-border-color/40">
-                {tagsByGroup.otros.map((tag) => {
-                  const count = tagCountMap[tag.id] ?? 0;
-                  return (
-                    <div
-                      key={tag.id}
-                      className="flex items-center gap-3 px-5 py-2.5 hover:bg-[var(--color-base-alt)] transition-colors group"
-                    >
-                      <input
-                        type="color"
-                        value={tag.color}
-                        onChange={(e) =>
-                          updateTagMut.mutate({ id: tag.id, data: { color: e.target.value } })
-                        }
-                        className="w-7 h-7 rounded-full cursor-pointer border-0 p-0 bg-transparent flex-shrink-0"
-                        style={{ backgroundColor: tag.color }}
-                      />
-                      <span className="text-sm text-primary flex-1 min-w-0 truncate">
-                        {tag.name}
+                ) : (
+                  <button
+                    key={cat.id}
+                    onClick={() => {
+                      setInlineEditId(cat.id);
+                      setInlineEditName(cat.name);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs hover:ring-1 hover:ring-offset-1 hover:ring-offset-surface transition-all group"
+                    style={
+                      {
+                        backgroundColor: cat.color + "1F",
+                        "--ring-color": cat.color,
+                        color: "var(--text-primary)",
+                      } as React.CSSProperties
+                    }
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.setProperty(
+                        "--tw-ring-color",
+                        cat.color,
+                      );
+                    }}
+                  >
+                    <span
+                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: cat.color }}
+                    />
+                    {depth > 0 && <span className="text-tertiary text-[10px] mr-0.5">└</span>}
+                    <span className={depth === 0 ? "font-medium" : ""}>{cat.name}</span>
+                    <span className="flex gap-0.5 ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditing({ cat, isParent: !cat.parent_id });
+                        }}
+                        className="text-tertiary hover:text-primary cursor-pointer"
+                      >
+                        <SymbolicIcon name="pencil" size={11} />
                       </span>
-                      {count > 0 && (
-                        <span className="text-xs text-tertiary flex-shrink-0">
-                          {count} gasto{count !== 1 ? "s" : ""}
-                        </span>
-                      )}
-                      <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() =>
-                            setEditing({
-                              cat: { id: 0, name: tag.name, color: tag.color, keywords: "" },
-                              isParent: false,
-                            })
-                          }
-                          className="text-tertiary hover:text-primary text-xs p-1.5 rounded"
-                        >
-                          ✏
-                        </button>
-                        <button
-                          onClick={() => setDeleteTagTarget(tag)}
-                          className="text-tertiary hover:text-danger text-xs p-1.5 rounded"
-                        >
-                          🗑
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            <div className="px-5 py-3 border-t border-border-color flex items-end gap-2 flex-wrap">
-              <div className="flex-1 min-w-[140px]">
-                <input
-                  type="text"
-                  value={newTagName}
-                  onChange={(e) => setNewTagName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleCreateTag()}
-                  placeholder="+ Nuevo tag..."
-                  className="input text-sm"
-                />
-              </div>
-              <input
-                type="color"
-                value={newTagColor}
-                onChange={(e) => setNewTagColor(e.target.value)}
-                className="w-7 h-7 rounded-full cursor-pointer border-0 p-0 bg-transparent"
-              />
-              <button
-                onClick={handleCreateTag}
-                disabled={!newTagName.trim() || createTagMut.isPending}
-                className="gnome-btn-primary-round text-sm"
-              >
-                + Crear
-              </button>
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteConfirm(cat);
+                        }}
+                        className="text-tertiary hover:text-danger cursor-pointer"
+                      >
+                        <SymbolicIcon name="trash" size={11} />
+                      </span>
+                    </span>
+                  </button>
+                ),
+              )}
             </div>
-          </section>
-        </>
+          )}
+        </section>
       )}
 
+      {/* Cuentas */}
+      {sectionsVisible.cuentas && (
+        <section className="card p-3">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <h2 className="text-sm font-semibold text-secondary">
+              Cuentas
+              <span className="text-tertiary font-normal ml-1">({filteredCuentas.length})</span>
+            </h2>
+            <button
+              onClick={() => openTagForm(undefined, "cuenta")}
+              className="gnome-btn-primary-round text-xs"
+            >
+              + Nueva cuenta
+            </button>
+          </div>
+          {tagsLoading ? (
+            <div className="flex items-center justify-center h-20">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+            </div>
+          ) : filteredCuentas.length === 0 ? (
+            <p className="text-tertiary text-xs text-center py-4">
+              {q ? "Sin resultados." : "No hay cuentas aún. Creá tu primera cuenta."}
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {filteredCuentas.map((tag) => renderChip(tag))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Etiquetas */}
+      {sectionsVisible.etiquetas && (
+        <section className="card p-3">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <h2 className="text-sm font-semibold text-secondary">
+              Etiquetas
+              <span className="text-tertiary font-normal ml-1">({filteredOtros.length})</span>
+            </h2>
+            <button
+              onClick={() => openTagForm(undefined, "otros")}
+              className="gnome-btn-primary-round text-xs"
+            >
+              + Nuevo tag
+            </button>
+          </div>
+          {tagsLoading ? (
+            <div className="flex items-center justify-center h-20">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+            </div>
+          ) : filteredOtros.length === 0 ? (
+            <p className="text-tertiary text-xs text-center py-4">
+              {q ? "Sin resultados." : "No hay etiquetas aún. Creá tu primera etiqueta."}
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {filteredOtros.map((tag) => renderChip(tag))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Modals */}
       {editing !== undefined && (
         <CategoryForm
           initial={editing.cat || undefined}
@@ -816,6 +697,18 @@ export default function ClasificacionPage() {
             ✕
           </button>
         </div>
+      )}
+      {tagFormOpen && (
+        <TagForm
+          initial={editingTag}
+          defaultGroup={tagDefaultGroup}
+          onClose={() => {
+            setTagFormOpen(false);
+            setEditingTag(undefined);
+          }}
+          onSave={handleSaveTag}
+          isSaving={createTagMut.isPending || updateTagMut.isPending}
+        />
       )}
       {deleteTagTarget && (
         <ConfirmDialog

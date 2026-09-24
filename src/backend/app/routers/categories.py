@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Category, Expense, User
 from app.schemas import CategoryCreate, CategoryResponse, CategorySuggestRequest
-from app.seed import _apply_base_hierarchy_for_user
 from app.services.auth import get_current_user
 from app.services.categorization import llm_categorize
 from app.services.tag_sync import get_or_create_mirror_tag, remove_mirror_tag
@@ -118,28 +117,6 @@ def delete_category(
     db.delete(db_cat)
     db.commit()
     return {"ok": True}
-
-
-@router.post(
-    "/apply-base-hierarchy",
-    summary="Apply base category hierarchy",
-    description="Re-applies the default base category hierarchy for the current user.",
-)
-def apply_base_hierarchy(
-    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
-):
-    return _apply_base_hierarchy_for_user(db, current_user.id)
-
-
-@router.post(
-    "/seed-defaults",
-    summary="Seed default categories",
-    description="Seeds the default category hierarchy for the current user (same as apply-base-hierarchy).",
-)
-def seed_default_categories(
-    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
-):
-    return _apply_base_hierarchy_for_user(db, current_user.id)
 
 
 class CategorySuggestResponse(BaseModel):

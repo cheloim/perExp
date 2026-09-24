@@ -29,7 +29,7 @@ export function ConfirmDialog({
   onCancel,
   variant = "danger",
 }: ConfirmDialogProps) {
-  const trapRef = useFocusTrap(isOpen);
+  const trapRef = useFocusTrap(isOpen, onCancel);
 
   // Telegram BackButton
   useEffect(() => {

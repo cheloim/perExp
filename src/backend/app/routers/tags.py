@@ -171,30 +171,38 @@ def update_tag(
         if tag.group_name in BLOCKED_GROUPS:
             raise HTTPException(400, "No se puede mover a grupo 'categoria'.")
         db_tag.group_name = tag.group_name if tag.group_name in VALID_GROUPS else "otros"
-    if tag.card_id is not None:
-        from app.models import Card
 
-        if (
-            not db.query(Card)
-            .filter(Card.id == tag.card_id, Card.user_id == current_user.id)
-            .first()
-        ):
-            raise HTTPException(404, "Tarjeta no encontrada")
-        db_tag.card_id = tag.card_id
-        if db_tag.group_name not in ("cuenta", "otros"):
-            db_tag.group_name = "cuenta"
-    if tag.account_id is not None:
-        from app.models import Account
+    fields = tag.model_fields_set
+    if "card_id" in fields:
+        if tag.card_id is None:
+            db_tag.card_id = None
+        else:
+            from app.models import Card
 
-        if (
-            not db.query(Account)
-            .filter(Account.id == tag.account_id, Account.user_id == current_user.id)
-            .first()
-        ):
-            raise HTTPException(404, "Cuenta no encontrada")
-        db_tag.account_id = tag.account_id
-        if db_tag.group_name not in ("cuenta", "otros"):
-            db_tag.group_name = "cuenta"
+            if (
+                not db.query(Card)
+                .filter(Card.id == tag.card_id, Card.user_id == current_user.id)
+                .first()
+            ):
+                raise HTTPException(404, "Tarjeta no encontrada")
+            db_tag.card_id = tag.card_id
+            if db_tag.group_name not in ("cuenta", "otros"):
+                db_tag.group_name = "cuenta"
+    if "account_id" in fields:
+        if tag.account_id is None:
+            db_tag.account_id = None
+        else:
+            from app.models import Account
+
+            if (
+                not db.query(Account)
+                .filter(Account.id == tag.account_id, Account.user_id == current_user.id)
+                .first()
+            ):
+                raise HTTPException(404, "Cuenta no encontrada")
+            db_tag.account_id = tag.account_id
+            if db_tag.group_name not in ("cuenta", "otros"):
+                db_tag.group_name = "cuenta"
 
     db.commit()
     db.refresh(db_tag)

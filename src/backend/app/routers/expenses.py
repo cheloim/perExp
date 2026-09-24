@@ -14,7 +14,7 @@ from app.models import Card, Category, Expense, ExpenseTag, Notification, Tag, U
 from app.routers.groups import get_group_user_ids
 from app.schemas import ExpenseCreate, ExpenseResponse, ExpenseUpdate
 from app.services.auth import get_current_user
-from app.services.categorization import _normalize_merchant_key, _resolve_category, auto_categorize
+from app.services.categorization import _normalize_merchant_key, auto_categorize
 from app.services.date_utils import _normalize_date_str, add_months
 from app.services.encryption import compute_hmac
 from app.services.import_utils import _is_duplicate, _normalize_text
@@ -100,6 +100,8 @@ def get_expenses(
     account_id: int | None = None,
     tag_id: int | None = None,
     untagged: bool = False,
+    cuenta_id: int | None = None,
+    sin_cuenta: bool = False,
     skip: int = 0,
     limit: int = 200,
     db: Session = Depends(get_db),
@@ -188,6 +190,20 @@ def get_expenses(
             .subquery()
         )
         q = q.filter(~Expense.id.in_(db.query(tagged_ids.c.expense_id)))
+    # Cuenta filtering
+    if cuenta_id:
+        cuenta_expense_ids = (
+            db.query(ExpenseTag.expense_id)
+            .join(Tag, Tag.id == ExpenseTag.tag_id)
+            .filter(ExpenseTag.tag_id == cuenta_id, Tag.group_name == "cuenta")
+        )
+        q = q.filter(Expense.id.in_(cuenta_expense_ids))
+    elif sin_cuenta:
+        cuenta_tag_ids = db.query(Tag.id).filter(Tag.group_name == "cuenta")
+        cuenta_expense_ids = db.query(ExpenseTag.expense_id).filter(
+            ExpenseTag.tag_id.in_(cuenta_tag_ids)
+        )
+        q = q.filter(~Expense.id.in_(cuenta_expense_ids))
     # Only exclude future installments when NOT filtering by specific category
     # (category-specific views like side panel need to show all expenses)
     if not category_id and not category_ids:
@@ -626,35 +642,6 @@ def delete_expense(
     db.delete(db_exp)
     db.commit()
     return {"ok": True}
-
-
-@router.post(
-    "/recategorize",
-    summary="Recategorize expenses",
-    description="Re-runs auto-categorization on all or only uncategorized expenses using the LLM categorization service.",
-)
-def recategorize_expenses(
-    payload: dict = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    if payload is None:
-        payload = {}
-    only_uncategorized = (payload or {}).get("only_uncategorized", False)
-    cats = db.query(Category).filter(Category.user_id == current_user.id).all()
-    q = db.query(Expense).filter(Expense.user_id == current_user.id)
-    if only_uncategorized:
-        q = q.filter(Expense.category_id.is_(None))
-    expenses = q.all()
-    updated = 0
-    for exp in expenses:
-        new_cat = _resolve_category(db, exp.amount, exp.description, cats)
-        if new_cat != exp.category_id:
-            exp.category_id = new_cat
-            sync_category_tag(db, exp, new_cat)
-            updated += 1
-    db.commit()
-    return {"updated": updated, "total": len(expenses)}
 
 
 @router.patch(

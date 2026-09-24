@@ -26,7 +26,11 @@ export type IconName =
   | "home"
   | "bell"
   | "user"
-  | "installments";
+  | "installments"
+  | "pencil"
+  | "search"
+  | "tag"
+  | "folder";
 
 const icons: Record<IconName, string> = {
   bot: "M12 2a2 2 0 0 1 2 2v1h3a3 3 0 0 1 3 3v3a3 3 0 0 1-3 3h-1v1a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-1H6a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3h3V4a2 2 0 0 1 2-2h0zM9 8.5a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zM15 8.5a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zM9 14h6v1a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-1z",
@@ -64,6 +68,10 @@ const icons: Record<IconName, string> = {
   user: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
   installments:
     "M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2zm3 10h2m4 0h2m-6 4h2m4 0h2",
+  pencil: "M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z",
+  search: "M11 3a8 8 0 100 16 8 8 0 000-16zm0 0l6 6",
+  tag: "M3 3h6.59a1 1 0 01.7.29l7 7a1 1 0 010 1.42l-5.58 5.58a1 1 0 01-1.42 0l-7-7A1 1 0 013 9.59V3z",
+  folder: "M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z",
 };
 
 interface SymbolicIconProps {

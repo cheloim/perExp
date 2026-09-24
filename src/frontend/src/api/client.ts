@@ -392,6 +392,8 @@ export const getExpenses = (params?: {
   date_to?: string;
   tag_id?: number;
   untagged?: boolean;
+  cuenta_id?: number;
+  sin_cuenta?: boolean;
   limit?: number;
   offset?: number;
 }) => api.get<Expense[]>("/expenses", { params }).then((r) => r.data);
@@ -690,22 +692,6 @@ export const bulkUpdateFields = (
     account_id?: number | null;
   },
 ) => api.patch<{ updated: number }>("/expenses/bulk-update", { ids, ...data }).then((r) => r.data);
-
-export const recategorizeExpenses = (only_uncategorized = false) =>
-  api
-    .post<{
-      updated: number;
-      total: number;
-    }>("/expenses/recategorize", { only_uncategorized })
-    .then((r) => r.data);
-
-export const applyBaseHierarchy = () =>
-  api
-    .post<{
-      created: number;
-      updated: number;
-    }>("/categories/apply-base-hierarchy")
-    .then((r) => r.data);
 
 // Investments
 export const getInvestments = (broker?: string) =>

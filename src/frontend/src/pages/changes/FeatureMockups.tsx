@@ -738,7 +738,9 @@ export function ReportImageMockup() {
             {[30, 50, 40, 65, 55, 80, 70].map((h, i) => (
               <div
                 key={i}
-                className={`flex-1 rounded-t animate-fade-in-up ${i === 6 ? "bg-amber-500" : "bg-amber-500/30"}`}
+                className={`flex-1 rounded-t animate-fade-in-up ${
+                  i === 6 ? "bg-amber-500" : "bg-amber-500/30"
+                }`}
                 style={{ height: `${h}%`, animationDelay: `${400 + i * 60}ms` }}
               />
             ))}

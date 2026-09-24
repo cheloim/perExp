@@ -87,25 +87,22 @@ def deduplicate_by_link(db, dry_run=False):
                 survivor = seen[key]
                 if t.id == survivor.id:
                     continue
-                # Reassign expense_tags from duplicate to survivor
-                ets = db.query(ExpenseTag).filter(ExpenseTag.tag_id == t.id).all()
-                for et in ets:
-                    exists = (
-                        db.query(ExpenseTag)
-                        .filter(
-                            ExpenseTag.expense_id == et.expense_id,
-                            ExpenseTag.tag_id == survivor.id,
-                        )
-                        .first()
-                    )
-                    if not exists:
-                        if not dry_run:
-                            et.tag_id = survivor.id
-                    else:
-                        if not dry_run:
-                            db.delete(et)
+                # Collect expense_ids from duplicate before deleting
+                dup_expense_ids = [
+                    r[0] for r in db.query(ExpenseTag.expense_id).filter(ExpenseTag.tag_id == t.id).all()
+                ]
+                survivor_expense_ids = set(
+                    r[0] for r in db.query(ExpenseTag.expense_id).filter(ExpenseTag.tag_id == survivor.id).all()
+                )
                 if not dry_run:
+                    # Delete duplicate tag (CASCADE removes its expense_tags)
+                    db.query(ExpenseTag).filter(ExpenseTag.tag_id == t.id).delete(synchronize_session=False)
                     db.delete(t)
+                    db.flush()
+                    # Re-link expenses that didn't already have the survivor
+                    for eid in dup_expense_ids:
+                        if eid not in survivor_expense_ids:
+                            db.add(ExpenseTag(expense_id=eid, tag_id=survivor.id))
                 removed += 1
             else:
                 seen[key] = t
@@ -133,25 +130,20 @@ def deduplicate_by_name(db, dry_run=False):
                 # Swap: t is better
                 survivor, t = t, survivor
                 seen[key] = survivor
-            # Reassign expense_tags
-            ets = db.query(ExpenseTag).filter(ExpenseTag.tag_id == t.id).all()
-            for et in ets:
-                exists = (
-                    db.query(ExpenseTag)
-                    .filter(
-                        ExpenseTag.expense_id == et.expense_id,
-                        ExpenseTag.tag_id == survivor.id,
-                    )
-                    .first()
-                )
-                if not exists:
-                    if not dry_run:
-                        et.tag_id = survivor.id
-                else:
-                    if not dry_run:
-                        db.delete(et)
+            # Collect expense_ids from duplicate before deleting
+            dup_expense_ids = [
+                r[0] for r in db.query(ExpenseTag.expense_id).filter(ExpenseTag.tag_id == t.id).all()
+            ]
+            survivor_expense_ids = set(
+                r[0] for r in db.query(ExpenseTag.expense_id).filter(ExpenseTag.tag_id == survivor.id).all()
+            )
             if not dry_run:
+                db.query(ExpenseTag).filter(ExpenseTag.tag_id == t.id).delete(synchronize_session=False)
                 db.delete(t)
+                db.flush()
+                for eid in dup_expense_ids:
+                    if eid not in survivor_expense_ids:
+                        db.add(ExpenseTag(expense_id=eid, tag_id=survivor.id))
             removed += 1
         else:
             seen[key] = t

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCategories, createCategory, suggestCategory, getTags, createTag } from "../api/client";
-import type { Expense, ExpenseCreate, Tag } from "../types";
+import type { Expense, ExpenseCreate } from "../types";
 import { Select } from "./ui/Select";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 
@@ -231,15 +231,6 @@ export function ExpenseModal({
     } catch {}
   };
 
-  const groupedAvailable = useMemo(() => {
-    const groups: Record<string, Tag[]> = { cuenta: [], otros: [] };
-    for (const tag of availableTags) {
-      const key = tag.group_name === "cuenta" ? "cuenta" : "otros";
-      groups[key].push(tag);
-    }
-    return groups;
-  }, [availableTags]);
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-backdrop bg-black/60"
@@ -401,29 +392,67 @@ export function ExpenseModal({
           </div>
         </div>
 
-        {/* Tags */}
+        {/* Cuenta (single-select) */}
         <div>
-          <label className="text-xs font-medium text-[var(--text-secondary)]">Tags</label>
-          {selectedTags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-1.5">
-              {selectedTags.map((tag) => (
-                <span
-                  key={tag.id}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-white"
-                  style={{ backgroundColor: tag.color }}
-                >
-                  {tag.name}
+          <label className="text-xs font-medium text-[var(--text-secondary)]">Cuenta</label>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {tags
+              .filter((t) => t.group_name === "cuenta")
+              .map((tag) => {
+                const selected = form.tag_ids?.includes(tag.id);
+                return (
                   <button
+                    key={tag.id}
                     type="button"
                     onClick={() => toggleTag(tag.id)}
-                    className="ml-0.5 hover:opacity-70"
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition ${
+                      selected
+                        ? "text-white"
+                        : "border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
+                    }`}
+                    style={selected ? { backgroundColor: tag.color } : undefined}
                   >
-                    ✕
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: selected ? "#fff" : tag.color }}
+                    />
+                    {tag.name}
+                    {selected && <span className="ml-0.5 opacity-70">✕</span>}
                   </button>
-                </span>
-              ))}
-            </div>
-          )}
+                );
+              })}
+            {tags.filter((t) => t.group_name === "cuenta").length === 0 && (
+              <span className="text-xs text-[var(--text-tertiary)] italic">Sin cuentas</span>
+            )}
+          </div>
+        </div>
+
+        {/* Etiquetas (multi-select + create) */}
+        <div>
+          <label className="text-xs font-medium text-[var(--text-secondary)]">Etiquetas</label>
+          {(() => {
+            const selectedOtros = selectedTags.filter((t) => t.group_name === "otros");
+            return selectedOtros.length > 0 ? (
+              <div className="flex flex-wrap gap-1 mb-1.5">
+                {selectedOtros.map((tag) => (
+                  <span
+                    key={tag.id}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-white"
+                    style={{ backgroundColor: tag.color }}
+                  >
+                    {tag.name}
+                    <button
+                      type="button"
+                      onClick={() => toggleTag(tag.id)}
+                      className="ml-0.5 hover:opacity-70"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : null;
+          })()}
           <div className="flex gap-1.5">
             <input
               type="text"
@@ -435,54 +464,42 @@ export function ExpenseModal({
                   if (filteredNewTag) handleCreateInlineTag();
                 }
               }}
-              placeholder="Buscar o crear tag..."
+              placeholder="Buscar o crear etiqueta..."
               className="flex-1 px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
             />
           </div>
-          {(availableTags.length > 0 || filteredNewTag) && (
-            <div className="mt-1.5 space-y-1.5">
-              {(["cuenta", "otros"] as const).map((group) => {
-                const groupTags = groupedAvailable[group];
-                if (groupTags.length === 0) return null;
-                const labels: Record<string, string> = {
-                  cuenta: "\uD83C\uDFE6 Cuentas",
-                  otros: "Otros",
-                };
-                return (
-                  <div key={group}>
-                    <div className="text-[10px] font-medium text-[var(--text-tertiary)] mb-0.5">
-                      {labels[group]}
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {groupTags.map((tag) => (
-                        <button
-                          key={tag.id}
-                          type="button"
-                          onClick={() => toggleTag(tag.id)}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
-                        >
-                          <span
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: tag.color }}
-                          />
-                          {tag.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-              {filteredNewTag && (
-                <button
-                  type="button"
-                  onClick={handleCreateInlineTag}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border border-dashed border-[var(--color-primary)] text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 transition"
-                >
-                  + Crear "{newTagName.trim()}"
-                </button>
-              )}
-            </div>
-          )}
+          {(() => {
+            const otrosAvailable = availableTags.filter((t) => t.group_name === "otros");
+            return otrosAvailable.length > 0 || filteredNewTag ? (
+              <div className="mt-1.5">
+                <div className="flex flex-wrap gap-1">
+                  {otrosAvailable.map((tag) => (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => toggleTag(tag.id)}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
+                    >
+                      <span
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: tag.color }}
+                      />
+                      {tag.name}
+                    </button>
+                  ))}
+                  {filteredNewTag && (
+                    <button
+                      type="button"
+                      onClick={handleCreateInlineTag}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border border-dashed border-[var(--color-primary)] text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 transition"
+                    >
+                      + Crear "{newTagName.trim()}"
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : null;
+          })()}
         </div>
 
         {/* Advanced toggle */}

@@ -25,6 +25,7 @@ import { Select } from "../components/ui/Select";
 import { ExpenseModal } from "../components/ExpenseModals";
 import ExpenseDetailModal from "../components/ExpenseDetailModal";
 import EmptyState from "../components/ui/EmptyState";
+import SymbolicIcon from "../components/SymbolicIcon";
 import {
   PieChart,
   Pie,
@@ -38,9 +39,7 @@ import {
 } from "recharts";
 import {
   formatCurrency,
-  toUpperCase,
   titleCase,
-  getContrastTextColor,
   SortIcon,
   categoryGroupOptions,
   formatDateDMY,
@@ -52,14 +51,7 @@ type SortField = "date" | "description" | "category" | "bank" | "person" | "amou
 type SortDir = "asc" | "desc";
 
 function hasMissingData(exp: Expense): boolean {
-  return !exp.category_id || !exp.tags?.some((t) => t.group_name !== "categoria");
-}
-
-function getMissingDataFields(exp: Expense): string[] {
-  const missing: string[] = [];
-  if (!exp.category_id) missing.push("categoría");
-  if (!exp.tags?.some((t) => t.group_name !== "categoria")) missing.push("tag");
-  return missing;
+  return !exp.category_id;
 }
 
 function groupSmallCategories(
@@ -90,6 +82,8 @@ export default function ExpensesPage() {
   const filterDateTo = filters.dateTo;
   const filterTagId = filters.tagId;
   const filterUntagged = filters.untagged;
+  const filterCuentaId = filters.cuentaId;
+  const filterSinCuenta = filters.sinCuenta;
 
   // Category suggestions from API
   const { data: suggestionsData = [], refetch: refetchSuggestions } = useQuery({
@@ -131,12 +125,14 @@ export default function ExpensesPage() {
     filterDateTo,
     filterTagId || undefined,
     filterUntagged || undefined,
+    filterCuentaId || undefined,
+    filterSinCuenta || undefined,
   ].filter(Boolean).length;
 
   const [visibleCount, setVisibleCount] = useState(100);
 
   // Reset visible count when filters change
-  const filterKey = `${filterCategory}-${filterUncategorized}-${filterPerson}-${filterDateFrom}-${filterDateTo}-${filterTagId}-${filterUntagged}`;
+  const filterKey = `${filterCategory}-${filterUncategorized}-${filterPerson}-${filterDateFrom}-${filterDateTo}-${filterTagId}-${filterUntagged}-${filterCuentaId}-${filterSinCuenta}`;
   const prevFilterKey = useRef(filterKey);
   if (filterKey !== prevFilterKey.current) {
     prevFilterKey.current = filterKey;
@@ -145,7 +141,7 @@ export default function ExpensesPage() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["expenses"] });
 
-  const [expenses, setExpenses] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const reloadExpenses = useCallback(() => {
@@ -157,6 +153,8 @@ export default function ExpensesPage() {
       date_to: filterDateTo,
       tag_id: filterTagId,
       untagged: filterUntagged || undefined,
+      cuenta_id: filterCuentaId,
+      sin_cuenta: filterSinCuenta || undefined,
       limit: visibleCount,
     })
       .then((data) => {
@@ -171,6 +169,8 @@ export default function ExpensesPage() {
     filterDateTo,
     filterTagId,
     filterUntagged,
+    filterCuentaId,
+    filterSinCuenta,
     visibleCount,
   ]);
 
@@ -194,6 +194,8 @@ export default function ExpensesPage() {
       date_to: filterDateTo,
       tag_id: filterTagId,
       untagged: filterUntagged || undefined,
+      cuenta_id: filterCuentaId,
+      sin_cuenta: filterSinCuenta || undefined,
       limit: visibleCount,
     })
       .then((data) => {
@@ -456,16 +458,16 @@ export default function ExpensesPage() {
       untagged: filterUntagged || undefined,
       limit: 10000,
     });
-    const headers = ["Fecha", "Descripción", "Monto", "Moneda", "Categoría", "Persona", "Tags"];
+    const headers = ["Fecha", "Descripción", "Monto", "Moneda", "Categoría", "Cuenta", "Etiquetas"];
     const rows = allData.map((e) => [
       e.date,
       `"${e.description.replace(/"/g, '""')}"`,
       e.amount,
       e.currency || "ARS",
       e.category_name || "",
-      e.person || "",
+      e.tags?.find((t) => t.group_name === "cuenta")?.name || "",
       e.tags
-        ?.filter((t) => t.group_name !== "categoria")
+        ?.filter((t) => t.group_name !== "categoria" && t.group_name !== "cuenta")
         .map((t) => t.name)
         .join("; ") || "",
     ]);
@@ -627,22 +629,50 @@ export default function ExpensesPage() {
                 );
               })()}
 
-              {/* Tag */}
+              {/* Cuenta */}
               {(() => {
-                const visibleTags = tags.filter((t) => t.group_name !== "categoria");
-                const tagOptions: { value: string; label: string }[] = [
-                  { value: "__untagged__", label: "Sin tag" },
+                const cuentaTags = tags.filter((t) => t.group_name === "cuenta");
+                const options: { value: string; label: string }[] = [
+                  { value: "", label: "Todas" },
+                  { value: "__sin_cuenta__", label: "Sin cuenta" },
+                  ...cuentaTags.map((t) => ({ value: String(t.id), label: t.name })),
                 ];
-                const groups: { label: string; options: { value: string; label: string }[] }[] = [];
-                const cuentaOpts = visibleTags
-                  .filter((t) => t.group_name === "cuenta")
-                  .map((t) => ({ value: String(t.id), label: t.name }));
-                const otrosOpts = visibleTags
-                  .filter((t) => t.group_name !== "cuenta")
-                  .map((t) => ({ value: String(t.id), label: t.name }));
-                if (cuentaOpts.length > 0)
-                  groups.push({ label: "🏦 Cuentas", options: cuentaOpts });
-                if (otrosOpts.length > 0) groups.push({ label: "Otros", options: otrosOpts });
+                const currentValue = filterSinCuenta
+                  ? "__sin_cuenta__"
+                  : filterCuentaId
+                    ? String(filterCuentaId)
+                    : "";
+                return (
+                  <Select
+                    value={currentValue}
+                    onChange={(v) => {
+                      const next = new URLSearchParams(searchParams);
+                      if (v === "__sin_cuenta__") {
+                        next.set("sin_cuenta", "1");
+                        next.delete("cuenta_id");
+                      } else if (v) {
+                        next.set("cuenta_id", v);
+                        next.delete("sin_cuenta");
+                      } else {
+                        next.delete("cuenta_id");
+                        next.delete("sin_cuenta");
+                      }
+                      setSearchParams(next);
+                    }}
+                    options={options}
+                    placeholder="Cuenta"
+                  />
+                );
+              })()}
+
+              {/* Etiqueta */}
+              {(() => {
+                const otrosTags = tags.filter((t) => t.group_name === "otros");
+                const options: { value: string; label: string }[] = [
+                  { value: "", label: "Todas" },
+                  { value: "__untagged__", label: "Sin etiqueta" },
+                  ...otrosTags.map((t) => ({ value: String(t.id), label: t.name })),
+                ];
                 const currentTag = filterUntagged
                   ? "__untagged__"
                   : filterTagId
@@ -665,9 +695,8 @@ export default function ExpensesPage() {
                       }
                       setSearchParams(next);
                     }}
-                    options={tagOptions}
-                    groups={groups}
-                    placeholder="Tag"
+                    options={options}
+                    placeholder="Etiqueta"
                   />
                 );
               })()}
@@ -950,6 +979,9 @@ export default function ExpensesPage() {
                 >
                   Categoría <SortIcon field="category" sort={sort} />
                 </th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase hidden md:table-cell">
+                  Cuenta
+                </th>
                 <th
                   className={thClass("amount")}
                   onClick={() =>
@@ -961,11 +993,6 @@ export default function ExpensesPage() {
                 >
                   Monto <SortIcon field="amount" sort={sort} />
                 </th>
-                {!selectMode && (
-                  <th className="px-4 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase hidden sm:table-cell">
-                    Acciones
-                  </th>
-                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-color)]">
@@ -982,11 +1009,11 @@ export default function ExpensesPage() {
                       <td className="px-4 py-3">
                         <div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse w-20" />
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-3 hidden md:table-cell">
                         <div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse w-16" />
                       </td>
-                      <td className="px-4 py-3 hidden sm:table-cell">
-                        <div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse w-12" />
+                      <td className="px-4 py-3">
+                        <div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse w-16" />
                       </td>
                     </tr>
                   ))}
@@ -1037,9 +1064,9 @@ export default function ExpensesPage() {
                         )}
                         <tr
                           key={exp.id}
-                          className={`transition-colors ${
+                          className={`group transition-colors cursor-pointer ${
                             selectMode
-                              ? "cursor-pointer hover:bg-[var(--color-base-alt)]/50"
+                              ? "hover:bg-[var(--color-base-alt)]/50"
                               : "hover:bg-[var(--color-base-alt)]/30"
                           } ${selectedIds.has(exp.id) ? "bg-[var(--color-primary)]/10" : ""}`}
                           style={missing ? { borderLeft: "3px solid #f6d32d" } : undefined}
@@ -1075,14 +1102,6 @@ export default function ExpensesPage() {
                           )}
                           <td className="px-4 py-3 max-w-0 w-full">
                             <div className="flex items-center gap-2 min-w-0">
-                              {missing && (
-                                <span
-                                  title={`Faltan: ${getMissingDataFields(exp).join(", ")}`}
-                                  className="text-[#f6d32d] shrink-0"
-                                >
-                                  ⚠️
-                                </span>
-                              )}
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -1098,39 +1117,121 @@ export default function ExpensesPage() {
                                 )}
                                 <span className="flex items-center gap-1 min-w-0 max-w-full">
                                   <span className="text-[var(--text-primary)] truncate">
-                                    {toUpperCase(exp.description)}
+                                    {titleCase(exp.description)}
                                   </span>
                                   {exp.installment_number && exp.installment_total && (
-                                    <span className="text-[10px] bg-[var(--color-primary)] text-[var(--color-on-primary)] px-1 py-0.5 rounded shrink-0">
+                                    <span className="inline-flex items-center gap-0.5 text-[11px] px-1.5 py-0.5 rounded-full border border-[var(--color-primary)] text-[var(--color-primary)] shrink-0 font-medium">
+                                      <SymbolicIcon name="installments" size={10} />
                                       {exp.installment_number}/{exp.installment_total}
                                     </span>
                                   )}
                                 </span>
                               </button>
+                              {!selectMode && (
+                                <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditing(exp);
+                                    }}
+                                    className="p-1 rounded text-[var(--text-tertiary)] hover:text-primary hover:bg-[var(--color-base-alt)] transition"
+                                    title="Editar"
+                                  >
+                                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                                      <path
+                                        d="M10.5 1.5l2 2-8 8H2.5v-2l8-8z"
+                                        stroke="currentColor"
+                                        strokeWidth="1.2"
+                                        strokeLinejoin="round"
+                                      />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDeleteConfirm({
+                                        id: exp.id,
+                                        description: exp.description,
+                                      });
+                                    }}
+                                    className="p-1 rounded text-[var(--text-tertiary)] hover:text-danger hover:bg-[var(--color-base-alt)] transition"
+                                    title="Eliminar"
+                                  >
+                                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                                      <path
+                                        d="M3 4h8M5 4V3a1 1 0 011-1h2a1 1 0 011 1v1M4.5 4v7a1 1 0 001 1h3a1 1 0 001-1V4"
+                                        stroke="currentColor"
+                                        strokeWidth="1.2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                      />
+                                    </svg>
+                                  </button>
+                                </div>
+                              )}
                             </div>
-                            <div className="text-xs text-[var(--text-tertiary)] flex gap-1 items-center hidden sm:flex">
-                              {exp.card && <span>{titleCase(exp.card)}</span>}
-                              {exp.card && exp.bank && <span>·</span>}
-                              {exp.bank && <span>{titleCase(exp.bank)}</span>}
-                              {(exp.card || exp.bank) && exp.person && <span>·</span>}
-                              {exp.person && <span>{titleCase(exp.person)}</span>}
+                            {/* Mobile: cuenta chip + otros tags under title */}
+                            <div className="text-xs flex gap-1.5 items-center flex-wrap md:hidden">
+                              {(() => {
+                                const cuentaTag = exp.tags?.find((t) => t.group_name === "cuenta");
+                                return cuentaTag ? (
+                                  <span
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px]"
+                                    style={{
+                                      backgroundColor: cuentaTag.color + "1F",
+                                      color: "var(--text-primary)",
+                                    }}
+                                  >
+                                    <span
+                                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                      style={{ backgroundColor: cuentaTag.color }}
+                                    />
+                                    {cuentaTag.name}
+                                  </span>
+                                ) : null;
+                              })()}
                               {exp.tags
                                 ?.filter(
-                                  (tag: { group_name?: string }) => tag.group_name !== "categoria",
+                                  (tag: { group_name?: string }) =>
+                                    tag.group_name !== "categoria" && tag.group_name !== "cuenta",
                                 )
                                 .map((tag: { id: number; name: string; color: string }) => (
                                   <span
                                     key={tag.id}
-                                    className="badge"
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px]"
                                     style={{
-                                      backgroundColor: tag.color,
-                                      color: getContrastTextColor(tag.color),
-                                      fontSize: "0.65rem",
-                                      padding: "1px 6px",
-                                      borderRadius: "9999px",
-                                      marginLeft: "4px",
+                                      backgroundColor: tag.color + "1F",
+                                      color: "var(--text-primary)",
                                     }}
                                   >
+                                    <span
+                                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                      style={{ backgroundColor: tag.color }}
+                                    />
+                                    {tag.name}
+                                  </span>
+                                ))}
+                            </div>
+                            {/* Desktop: otros tags only (cuenta is in its own column) */}
+                            <div className="text-xs gap-1.5 items-center hidden md:flex flex-wrap">
+                              {exp.tags
+                                ?.filter(
+                                  (tag: { group_name?: string }) =>
+                                    tag.group_name !== "categoria" && tag.group_name !== "cuenta",
+                                )
+                                .map((tag: { id: number; name: string; color: string }) => (
+                                  <span
+                                    key={tag.id}
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px]"
+                                    style={{
+                                      backgroundColor: tag.color + "1F",
+                                      color: "var(--text-primary)",
+                                    }}
+                                  >
+                                    <span
+                                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                      style={{ backgroundColor: tag.color }}
+                                    />
                                     {tag.name}
                                   </span>
                                 ))}
@@ -1147,13 +1248,17 @@ export default function ExpensesPage() {
                             >
                               {exp.category_name ? (
                                 <span
-                                  className="px-2 py-1 rounded text-xs font-medium max-w-[110px] truncate block"
+                                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium max-w-[110px]"
                                   style={{
-                                    backgroundColor: (exp.category_color || "#9a9996") + "20",
-                                    color: getContrastTextColor(exp.category_color || "#9a9996"),
+                                    backgroundColor: (exp.category_color || "#9a9996") + "1F",
+                                    color: "var(--text-primary)",
                                   }}
                                 >
-                                  {exp.category_name}
+                                  <span
+                                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: exp.category_color || "#9a9996" }}
+                                  />
+                                  <span className="truncate">{exp.category_name}</span>
                                 </span>
                               ) : showSuggestions && suggestionsByExpenseId.has(exp.id) ? (
                                 <span className="inline-flex items-center gap-1.5">
@@ -1201,6 +1306,29 @@ export default function ExpensesPage() {
                               )}
                             </button>
                           </td>
+                          {/* Cuenta column */}
+                          <td className="px-3 py-3 hidden md:table-cell">
+                            {(() => {
+                              const cuentaTag = exp.tags?.find((t) => t.group_name === "cuenta");
+                              return cuentaTag ? (
+                                <span
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px]"
+                                  style={{
+                                    backgroundColor: cuentaTag.color + "1F",
+                                    color: "var(--text-primary)",
+                                  }}
+                                >
+                                  <span
+                                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: cuentaTag.color }}
+                                  />
+                                  <span className="truncate max-w-[90px]">{cuentaTag.name}</span>
+                                </span>
+                              ) : (
+                                <span className="text-[var(--text-tertiary)] text-xs">—</span>
+                              );
+                            })()}
+                          </td>
                           <td className="px-4 py-3 text-right">
                             <button
                               type="button"
@@ -1210,53 +1338,17 @@ export default function ExpensesPage() {
                               }}
                               className="text-right hover:text-primary transition"
                             >
-                              <span className="text-[var(--text-primary)] font-semibold whitespace-nowrap">
+                              <span
+                                className={`font-semibold whitespace-nowrap ${
+                                  exp.is_income
+                                    ? "text-[var(--color-success)]"
+                                    : "text-[var(--text-primary)]"
+                                }`}
+                              >
                                 {formatCurrency(exp.amount, exp.currency)}
                               </span>
                             </button>
                           </td>
-                          {!selectMode && (
-                            <td className="px-4 py-3 text-center hidden sm:table-cell">
-                              <div className="flex items-center justify-end gap-1">
-                                <button
-                                  onClick={() => {
-                                    setEditing(exp);
-                                  }}
-                                  className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-primary hover:bg-[var(--color-base-alt)] transition"
-                                  title="Editar"
-                                >
-                                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                                    <path
-                                      d="M10.5 1.5l2 2-8 8H2.5v-2l8-8z"
-                                      stroke="currentColor"
-                                      strokeWidth="1.2"
-                                      strokeLinejoin="round"
-                                    />
-                                  </svg>
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    setDeleteConfirm({
-                                      id: exp.id,
-                                      description: exp.description,
-                                    })
-                                  }
-                                  className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-danger hover:bg-[var(--color-base-alt)] transition"
-                                  title="Eliminar"
-                                >
-                                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                                    <path
-                                      d="M3 4h8M5 4V3a1 1 0 011-1h2a1 1 0 011 1v1M4.5 4v7a1 1 0 001 1h3a1 1 0 001-1V4"
-                                      stroke="currentColor"
-                                      strokeWidth="1.2"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                    />
-                                  </svg>
-                                </button>
-                              </div>
-                            </td>
-                          )}
                         </tr>
                       </Fragment>
                     );

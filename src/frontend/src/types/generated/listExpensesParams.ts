@@ -52,6 +52,16 @@ export type ListExpensesParams = {
   card_type?: string;
   installment?: boolean;
   account_id?: number;
+  tag_id?: number;
+  untagged?: boolean;
+  /**
+   * Filter by cuenta-group tag ID
+   */
+  cuenta_id?: number;
+  /**
+   * Show only expenses without a cuenta-group tag
+   */
+  sin_cuenta?: boolean;
   skip?: number;
   limit?: number;
 };

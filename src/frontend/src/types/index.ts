@@ -246,6 +246,7 @@ export interface Expense {
   account_rel?: Account | null;
   card_rel?: Card | null;
   tags?: Tag[];
+  is_income?: boolean;
 }
 
 export interface ExpenseCreate {
