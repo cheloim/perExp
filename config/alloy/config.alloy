@@ -84,7 +84,36 @@ loki.write "grafana_cloud" {
 loki.source.journal "containers" {
   max_age       = "12h"
   relabel_rules = discovery.relabel.journal_rules.rules
-  forward_to    = [loki.write.grafana_cloud.receiver]
+  forward_to    = [loki.process.log_level_fix.receiver]
+}
+
+// Fix log levels: re-label blackbox probe failures as warnings, not errors
+loki.process "log_level_fix" {
+  forward_to = [loki.write.grafana_cloud.receiver]
+
+  // If container is blackbox-exporter and message contains "Probe failed",
+  // downgrade level from ERROR to WARNING
+  stage.match {
+    selector = "{service_name=~\".*blackbox.*\"}"
+    stage.regex {
+      expression = ".*Probe failed.*"
+    }
+    stage.labels {
+      values = { detected_level = "warning" }
+    }
+  }
+
+  // If container is nginx-exporter and message contains "error getting stats",
+  // downgrade level from ERROR to WARNING (scrape issues, not system errors)
+  stage.match {
+    selector = "{service_name=~\".*nginx-exporter.*\"}"
+    stage.regex {
+      expression = ".*error getting stats.*"
+    }
+    stage.labels {
+      values = { detected_level = "warning" }
+    }
+  }
 }
 
 discovery.relabel "journal_rules" {

@@ -46,9 +46,12 @@ services:
 
   nginx-exporter:
     image: docker.io/nginx/nginx-prometheus-exporter:latest
-    network_mode: host
     command:
-      - "-nginx.scrape-uri=http://localhost:8080/stub_status"
+      - "-nginx.scrape-uri=http://nginx:8080/stub_status"
+    networks:
+      default:
+        external: true
+        name: ${NETWORK_NAME:-oikonomia}
     deploy:
       resources:
         limits:

@@ -692,7 +692,7 @@ jobs:
             echo "SECRET_KEY verified successfully"
 
             echo "=== Step 1: Database structure migration ==="
-            for script in migrate_add_reset_token migrate_remove_haberes migrate_encrypt_settings migrate_add_monthly_reports migrate_db_structure migrate_add_card_account_link migrate_add_budgets migrate_add_category_suggestions migrate_add_whatsapp migrate_add_google_refresh_token migrate_add_merchant_preferences migrate_security_columns migrate_add_expense_created_at migrate_add_tags migrate_tag_groups backfill_tags_from_cards_accounts migrate_fix_tag_groups cleanup_legacy_cards_accounts; do
+            for script in migrate_add_reset_token migrate_remove_haberes migrate_encrypt_settings migrate_add_monthly_reports migrate_db_structure migrate_add_card_account_link migrate_add_budgets migrate_add_category_suggestions migrate_add_whatsapp migrate_add_google_refresh_token migrate_add_merchant_preferences migrate_security_columns migrate_add_expense_created_at migrate_add_tags migrate_tag_groups backfill_tags_from_cards_accounts migrate_fix_tag_groups cleanup_legacy_cards_accounts migrate_add_last_login; do
               OUTPUT=$(podman-compose -f docker-compose.platform.yml run --rm backend python -m scripts.$script 2>&1)
               EXIT_CODE=$?
               echo "$OUTPUT"
