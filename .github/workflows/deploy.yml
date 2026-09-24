@@ -33,8 +33,38 @@ env:
   REGISTRY: ghcr.io
   BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/perexp/backend
   FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/perexp/frontend
+  LANDING_IMAGE: ghcr.io/${{ github.repository_owner }}/perexp/landing
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    outputs:
+      landing: ${{ steps.changes.outputs.landing }}
+      platform: ${{ steps.changes.outputs.platform }}
+      monitoring: ${{ steps.changes.outputs.monitoring }}
+      nginx: ${{ steps.changes.outputs.nginx }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            landing:
+              - 'src/landing/**'
+            platform:
+              - 'src/frontend/**'
+              - 'src/backend/**'
+              - 'docker/compose-platform.yml'
+            monitoring:
+              - 'docker/compose-monitoring.yml'
+              - 'config/alloy/**'
+              - 'config/blackbox/**'
+            nginx:
+              - 'docker/nginx/**'
+              - 'docker/compose-nginx.yml'
+              - 'config/nginx/**'
+
   test:
     if: github.event_name == 'push' || inputs.action == 'full'
     runs-on: ubuntu-latest
@@ -62,9 +92,11 @@ jobs:
           python -m pytest tests/test_encryption.py -v
 
   build-backend:
-    if: github.event_name == 'push' || inputs.action == 'full'
+    if: |
+      always() && !cancelled() &&
+      (inputs.action == 'full' || (needs.detect-changes.outputs.platform == 'true'))
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, detect-changes]
     permissions:
       contents: read
       packages: write
@@ -95,9 +127,11 @@ jobs:
           cache-to: type=gha,mode=max
 
   build-frontend:
-    if: github.event_name == 'push' || inputs.action == 'full'
+    if: |
+      always() && !cancelled() &&
+      (inputs.action == 'full' || (needs.detect-changes.outputs.platform == 'true'))
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, detect-changes]
     permissions:
       contents: read
       packages: write
@@ -130,9 +164,44 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  build-landing:
+    if: |
+      always() && !cancelled() &&
+      (inputs.action == 'full' || (needs.detect-changes.outputs.landing == 'true'))
+    runs-on: ubuntu-latest
+    needs: [test, detect-changes]
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Landing
+        uses: docker/build-push-action@v7
+        with:
+          context: ./src/landing
+          push: true
+          tags: |
+            ${{ env.LANDING_IMAGE }}:${{ github.sha }}
+            ${{ env.LANDING_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   setup-server:
     runs-on: ubuntu-latest
-    needs: [build-backend, build-frontend]
+    needs: [build-backend, build-frontend, build-landing]
     if: always() && !cancelled() && (github.event_name == 'push' || inputs.action == 'full')
 
     steps:
@@ -181,13 +250,14 @@ jobs:
             fi
             echo "DNS OK: ${{ vars.DOMAIN_NAME }} -> $SERVER_IP"
 
-            echo "=== Stopping old containers to free port 80 ==="
-            cd /opt/creditcardanalyzer 2>/dev/null || true
-            export PATH="$HOME/.local/bin:$PATH"
-            podman-compose down --remove-orphans 2>/dev/null || true
-            podman kill $(podman ps -q --filter "publish=80") 2>/dev/null || true
-            podman kill $(podman ps -q --filter "publish=443") 2>/dev/null || true
-            echo "Old containers stopped, port 80 is free"
+            echo "=== Ensuring directories exist ==="
+            sudo mkdir -p /opt/creditcardanalyzer /opt/creditcardanalyzer/backups
+            sudo mkdir -p /opt/creditcardanalyzer/docker/nginx/maintenance
+            sudo mkdir -p /opt/creditcardanalyzer/docker/certbot/conf
+            sudo mkdir -p /opt/creditcardanalyzer/docker/alloy
+            sudo mkdir -p /opt/creditcardanalyzer/docker/blackbox
+            sudo chown -R $USER:$USER /opt/creditcardanalyzer
+            echo "Directories ready"
 
             echo "=== Opening firewall ports ==="
             if ! firewall-cmd --list-ports | grep -q "80/tcp"; then
@@ -319,459 +389,28 @@ jobs:
           script: |
             BACKEND_IMAGE="${{ env.BACKEND_IMAGE }}"
             FRONTEND_IMAGE="${{ env.FRONTEND_IMAGE }}"
+            LANDING_IMAGE="${{ env.LANDING_IMAGE }}"
             IMAGE_TAG="${{ github.sha }}"
+            DOMAIN_NAME="${{ vars.DOMAIN_NAME }}"
+            PLATFORM_DOMAIN="${{ vars.PLATFORM_DOMAIN }}"
 
-            # Write nginx.conf
-            mkdir -p /opt/creditcardanalyzer/nginx
-            cat > /opt/creditcardanalyzer/nginx/nginx.conf << 'NGINXEOF'
-            # Internal: stub_status for nginx-exporter (not exposed externally)
-            server {
-                listen 8080;
-                server_name localhost;
-                location /stub_status {
-                    stub_status;
-                    allow 10.0.0.0/8;
-                    allow 172.16.0.0/12;
-                    allow 192.168.0.0/16;
-                    allow 127.0.0.1;
-                    deny all;
-                }
-            }
+            # Ensure directories exist
+            mkdir -p /opt/creditcardanalyzer/docker/nginx/maintenance
+            mkdir -p /opt/creditcardanalyzer/docker/alloy
+            mkdir -p /opt/creditcardanalyzer/docker/blackbox
+            mkdir -p /opt/creditcardanalyzer/docker/certbot/conf
 
-            # HTTP → HTTPS redirect
-            server {
-                listen 80 default_server;
-                server_name _;
-                return 301 https://${{ vars.DOMAIN_NAME }}$request_uri;
-            }
-
-            # www → apex redirect
-            server {
-                listen 443 ssl;
-                server_name www.${{ vars.DOMAIN_NAME }};
-                ssl_certificate /etc/letsencrypt/live/${{ vars.DOMAIN_NAME }}/fullchain.pem;
-                ssl_certificate_key /etc/letsencrypt/live/${{ vars.DOMAIN_NAME }}/privkey.pem;
-                ssl_protocols TLSv1.2 TLSv1.3;
-                return 301 https://${{ vars.DOMAIN_NAME }}$request_uri;
-            }
-
-            # Landing site: oikonomia.ar
-            server {
-                listen 443 ssl default_server;
-                server_name $host;
-
-                ssl_certificate /etc/letsencrypt/live/${{ vars.DOMAIN_NAME }}/fullchain.pem;
-                ssl_certificate_key /etc/letsencrypt/live/${{ vars.DOMAIN_NAME }}/privkey.pem;
-                ssl_protocols TLSv1.2 TLSv1.3;
-                ssl_ciphers HIGH:!aNULL:!MD5;
-                ssl_prefer_server_ciphers on;
-                ssl_session_cache shared:SSL:10m;
-                ssl_session_timeout 10m;
-
-                add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-                add_header X-Content-Type-Options nosniff;
-                add_header X-Frame-Options DENY;
-
-                gzip on;
-                gzip_types text/plain text/css application/json application/javascript text/xml;
-
-                location / {
-                    proxy_pass http://frontend:80;
-                    proxy_set_header Host $host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto $scheme;
-                    proxy_buffering off;
-                    proxy_cache off;
-                    proxy_read_timeout 86400;
-                }
-            }
-
-            # App: platform.oikonomia.ar
-            server {
-                listen 443 ssl;
-                server_name ${{ vars.PLATFORM_DOMAIN }};
-
-                ssl_certificate /etc/letsencrypt/live/${{ vars.DOMAIN_NAME }}/fullchain.pem;
-                ssl_certificate_key /etc/letsencrypt/live/${{ vars.DOMAIN_NAME }}/privkey.pem;
-                ssl_protocols TLSv1.2 TLSv1.3;
-                ssl_ciphers HIGH:!aNULL:!MD5;
-                ssl_prefer_server_ciphers on;
-                ssl_session_cache shared:SSL:10m;
-                ssl_session_timeout 10m;
-
-                add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-                add_header X-Content-Type-Options nosniff;
-                add_header X-Frame-Options DENY;
-                add_header X-Robots-Tag "noindex, nofollow" always;
-
-                gzip on;
-                gzip_types text/plain text/css application/json application/javascript text/xml;
-
-                location = /robots.txt {
-                    return 200 "User-agent: *\nDisallow: /";
-                    add_header Content-Type text/plain;
-                }
-
-                location = /sitemap.xml {
-                    return 404;
-                }
-
-                location / {
-                    proxy_pass http://frontend:80;
-                    proxy_set_header Host $host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto $scheme;
-                    proxy_buffering off;
-                    proxy_cache off;
-                    proxy_read_timeout 86400;
-                }
-
-                location = /api/metrics {
-                    deny all;
-                    return 404;
-                }
-            }
-            NGINXEOF
-
-            # Write alloy config placeholder and copy files via SCP
-            mkdir -p /opt/creditcardanalyzer/alloy /opt/creditcardanalyzer/blackbox
-            echo "Config file placeholders written"
-
-
-
-            # Write docker-compose.platform.yml (app services)
-            cat > /opt/creditcardanalyzer/docker-compose.platform.yml << 'EOF'
-            services:
-              db:
-                image: docker.io/library/postgres:16-alpine
-                ports:
-                  - "5432:5432"
-                environment:
-                  POSTGRES_DB: expenses
-                  POSTGRES_USER: expenses_user
-                  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-                volumes:
-                  - postgres_data:/var/lib/postgresql/data
-                healthcheck:
-                  test: ["CMD-SHELL", "pg_isready -U expenses_user -d expenses"]
-                  interval: 10s
-                  timeout: 5s
-                  retries: 5
-                deploy:
-                  resources:
-                    limits:
-                      memory: 512M
-                      cpus: "1.0"
-
-              redis:
-                image: docker.io/library/redis:7-alpine
-                volumes:
-                  - redis_data:/data
-                healthcheck:
-                  test: ["CMD", "redis-cli", "ping"]
-                  interval: 10s
-                  timeout: 5s
-                  retries: 5
-
-              backend:
-                image: ${BACKEND_IMAGE}:${IMAGE_TAG}
-                depends_on:
-                  db:
-                    condition: service_healthy
-                  redis:
-                    condition: service_healthy
-                healthcheck:
-                  test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')\""]
-                  interval: 5s
-                  timeout: 3s
-                  retries: 10
-                  start_period: 15s
-                environment:
-                  DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses
-                  REDIS_URL: redis://redis:6379/0
-                  PYTHONUNBUFFERED: "1"
-                  APP_ENV: production
-                  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-                  LLM_API_KEY: ${LLM_API_KEY}
-                  INVESTMENTS_LLM_API_KEY: ${INVESTMENTS_LLM_API_KEY}
-                  MESSAGES_BOT_LLM_API_KEY: ${MESSAGES_BOT_LLM_API_KEY}
-                  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-                  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-                  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-                  SECRET_KEY: ${SECRET_KEY}
-                  EMAIL_API_KEY: ${EMAIL_API_KEY}
-                  SMTP_FROM: ${{ vars.SMTP_FROM }}
-                  SMTP_FROM_ADDRESS: ${{ vars.SMTP_FROM_ADDRESS }}
-                  FRONTEND_URL: https://${{ vars.PLATFORM_DOMAIN }}
-                  CORS_ORIGINS: https://${{ vars.DOMAIN_NAME }},https://www.${{ vars.DOMAIN_NAME }},https://${{ vars.PLATFORM_DOMAIN }}
-                  TZ: America/Argentina/Buenos_Aires
-                deploy:
-                  resources:
-                    limits:
-                      memory: 512M
-                      cpus: "1.0"
-                restart: unless-stopped
-
-              celery_worker:
-                image: ${BACKEND_IMAGE}:${IMAGE_TAG}
-                command: celery -A app.celery_app worker --loglevel=info --concurrency=2
-                depends_on:
-                  - db
-                  - redis
-                environment:
-                  DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses
-                  REDIS_URL: redis://redis:6379/0
-                  PYTHONUNBUFFERED: "1"
-                  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-                  LLM_API_KEY: ${LLM_API_KEY}
-                  INVESTMENTS_LLM_API_KEY: ${INVESTMENTS_LLM_API_KEY}
-                  MESSAGES_BOT_LLM_API_KEY: ${MESSAGES_BOT_LLM_API_KEY}
-                  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-                  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-                  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-                  SECRET_KEY: ${SECRET_KEY}
-                  EMAIL_API_KEY: ${EMAIL_API_KEY}
-                  SMTP_FROM: ${{ vars.SMTP_FROM }}
-                  SMTP_FROM_ADDRESS: ${{ vars.SMTP_FROM_ADDRESS }}
-                  ADMIN_EMAIL: ${ADMIN_EMAIL}
-                  TZ: America/Argentina/Buenos_Aires
-                deploy:
-                  resources:
-                    limits:
-                      memory: 1G
-                      cpus: "1.0"
-                restart: unless-stopped
-
-              celery_beat:
-                image: ${BACKEND_IMAGE}:${IMAGE_TAG}
-                command: celery -A app.celery_app beat --loglevel=info
-                depends_on:
-                  - db
-                  - redis
-                environment:
-                  DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses
-                  REDIS_URL: redis://redis:6379/0
-                  PYTHONUNBUFFERED: "1"
-                  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-                  LLM_API_KEY: ${LLM_API_KEY}
-                  INVESTMENTS_LLM_API_KEY: ${INVESTMENTS_LLM_API_KEY}
-                  MESSAGES_BOT_LLM_API_KEY: ${MESSAGES_BOT_LLM_API_KEY}
-                  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-                  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-                  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-                  SECRET_KEY: ${SECRET_KEY}
-                  EMAIL_API_KEY: ${EMAIL_API_KEY}
-                  SMTP_FROM: ${{ vars.SMTP_FROM }}
-                  SMTP_FROM_ADDRESS: ${{ vars.SMTP_FROM_ADDRESS }}
-                  ADMIN_EMAIL: ${ADMIN_EMAIL}
-                  TZ: America/Argentina/Buenos_Aires
-                deploy:
-                  resources:
-                    limits:
-                      memory: 256M
-                      cpus: "0.5"
-                restart: unless-stopped
-
-              frontend:
-                image: ${FRONTEND_IMAGE}:${IMAGE_TAG}
-                depends_on:
-                  backend:
-                    condition: service_healthy
-                deploy:
-                  resources:
-                    limits:
-                      memory: 256M
-                      cpus: "0.5"
-                restart: unless-stopped
-
-              nginx:
-                image: docker.io/library/nginx:alpine
-                ports:
-                  - "80:80"
-                  - "443:443"
-                volumes:
-                  - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-                  - ./certbot/conf:/etc/letsencrypt:ro,z
-                depends_on:
-                  - frontend
-                healthcheck:
-                  test: ["CMD-SHELL", "wget -qO- --no-check-certificate https://127.0.0.1/ || exit 1"]
-                  interval: 30s
-                  timeout: 5s
-                  start_period: 10s
-                  retries: 3
-                deploy:
-                  resources:
-                    limits:
-                      memory: 128M
-                      cpus: "0.5"
-                restart: unless-stopped
-
-            volumes:
-              postgres_data:
-              redis_data:
-            EOF
-
-            # Write docker-compose.monitoring.yml (exporters + observability)
-            cat > /opt/creditcardanalyzer/docker-compose.monitoring.yml << 'EOF'
-            services:
-              postgres-exporter:
-                image: docker.io/prometheuscommunity/postgres-exporter:latest
-                environment:
-                  DATA_SOURCE_NAME: "postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses?sslmode=disable"
-                extra_hosts:
-                  - "host.docker.internal:host-gateway"
-                network_mode: "service:db"
-                depends_on:
-                  - db_sidecar
-                deploy:
-                  resources:
-                    limits:
-                      memory: 64M
-                      cpus: "0.25"
-                restart: unless-stopped
-
-              redis-exporter:
-                image: docker.io/oliver006/redis_exporter:latest
-                environment:
-                  REDIS_ADDR: "redis://redis_sidecar:6379"
-                depends_on:
-                  - redis_sidecar
-                deploy:
-                  resources:
-                    limits:
-                      memory: 64M
-                      cpus: "0.25"
-                restart: unless-stopped
-
-              node-exporter:
-                image: docker.io/prom/node-exporter:latest
-                command:
-                  - "--path.procfs=/host/proc"
-                  - "--path.sysfs=/host/sys"
-                  - "--path.rootfs=/host"
-                  - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
-                volumes:
-                  - /proc:/host/proc:ro
-                  - /sys:/host/sys:ro
-                security_opt:
-                  - label=disable
-                deploy:
-                  resources:
-                    limits:
-                      memory: 64M
-                      cpus: "0.25"
-                restart: unless-stopped
-
-              nginx-exporter:
-                image: docker.io/nginx/nginx-prometheus-exporter:latest
-                command:
-                  - "-nginx.scrape-uri=http://nginx:8080/stub_status"
-                extra_hosts:
-                  - "host.docker.internal:host-gateway"
-                network_mode: "service:db"
-                depends_on:
-                  - db_sidecar
-                deploy:
-                  resources:
-                    limits:
-                      memory: 32M
-                      cpus: "0.1"
-                restart: unless-stopped
-
-              blackbox-exporter:
-                image: docker.io/prom/blackbox-exporter:latest
-                volumes:
-                  - ./blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
-                command:
-                  - "--config.file=/etc/blackbox/blackbox.yml"
-                deploy:
-                  resources:
-                    limits:
-                      memory: 32M
-                      cpus: "0.1"
-                restart: unless-stopped
-
-              alloy:
-                image: docker.io/grafana/alloy:latest
-                command:
-                  - "run"
-                  - "--storage.path=/var/lib/alloy/data"
-                  - "--server.http.listen-addr=0.0.0.0:12345"
-                  - "/etc/alloy/config.alloy"
-                environment:
-                  GRAFANA_CLOUD_PROMETHEUS_URL: ${GRAFANA_CLOUD_PROMETHEUS_URL}
-                  GRAFANA_CLOUD_PROMETHEUS_USER: ${GRAFANA_CLOUD_PROMETHEUS_USER}
-                  GRAFANA_CLOUD_PROMETHEUS_PASSWORD: ${GRAFANA_CLOUD_PROMETHEUS_PASSWORD}
-                  GRAFANA_CLOUD_LOKI_URL: ${GRAFANA_CLOUD_LOKI_URL}
-                  GRAFANA_CLOUD_LOKI_USER: ${GRAFANA_CLOUD_LOKI_USER}
-                  GRAFANA_CLOUD_LOKI_PASSWORD: ${GRAFANA_CLOUD_LOKI_PASSWORD}
-                volumes:
-                  - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
-                  - /var/log/journal:/var/log/journal:ro
-                  - /run/log/journal:/run/log/journal:ro
-                  - /etc/machine-id:/etc/machine-id:ro
-                  - alloy_data:/var/lib/alloy/data
-                security_opt:
-                  - label=disable
-                deploy:
-                  resources:
-                    limits:
-                      memory: 128M
-                      cpus: "0.5"
-                restart: unless-stopped
-
-              cadvisor:
-                image: gcr.io/cadvisor/cadvisor:v0.47.0
-                volumes:
-                  - /:/rootfs:ro
-                  - /var/run:/var/run:ro
-                  - /sys:/sys:ro
-                  - /var/lib/containers/:/var/lib/containers:ro
-                  - /dev/disk/:/dev/disk:ro
-                privileged: true
-                devices:
-                  - /dev/kmsg
-                deploy:
-                  resources:
-                    limits:
-                      memory: 128M
-                      cpus: "0.5"
-                restart: unless-stopped
-
-              # Sidecars: connect to platform network for DB/Redis access
-              db_sidecar:
-                image: docker.io/library/postgres:16-alpine
-                network_mode: "service:db"
-                depends_on:
-                  - db_net
-
-              redis_sidecar:
-                image: docker.io/library/redis:7-alpine
-                network_mode: "service:redis"
-                depends_on:
-                  - redis_net
-
-              db_net:
-                image: docker.io/library/postgres:16-alpine
-                network_mode: "container:creditcardanalyzer_db_1"
-                restart: "no"
-
-              redis_net:
-                image: docker.io/library/redis:7-alpine
-                network_mode: "container:creditcardanalyzer_redis_1"
-                restart: "no"
-
-            volumes:
-              alloy_data:
-            EOF
+            # Substitute domain variables in nginx.conf
+            sed -i "s/\${DOMAIN_NAME}/${DOMAIN_NAME}/g" /opt/creditcardanalyzer/docker/nginx/nginx.conf
+            sed -i "s/\${PLATFORM_DOMAIN}/${PLATFORM_DOMAIN}/g" /opt/creditcardanalyzer/docker/nginx/nginx.conf
 
             # Write .env
             echo "BACKEND_IMAGE=${BACKEND_IMAGE}" > /opt/creditcardanalyzer/.env
             echo "FRONTEND_IMAGE=${FRONTEND_IMAGE}" >> /opt/creditcardanalyzer/.env
+            echo "LANDING_IMAGE=${LANDING_IMAGE}" >> /opt/creditcardanalyzer/.env
             echo "IMAGE_TAG=${IMAGE_TAG}" >> /opt/creditcardanalyzer/.env
+            echo "DOMAIN_NAME=${DOMAIN_NAME}" >> /opt/creditcardanalyzer/.env
+            echo "PLATFORM_DOMAIN=${PLATFORM_DOMAIN}" >> /opt/creditcardanalyzer/.env
 
             # App secrets (individual, no base64)
             echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> /opt/creditcardanalyzer/.env
@@ -784,6 +423,8 @@ jobs:
             echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> /opt/creditcardanalyzer/.env
             echo "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" >> /opt/creditcardanalyzer/.env
             echo "EMAIL_API_KEY=${{ secrets.EMAIL_API_KEY }}" >> /opt/creditcardanalyzer/.env
+            echo "SMTP_FROM=${{ vars.SMTP_FROM }}" >> /opt/creditcardanalyzer/.env
+            echo "SMTP_FROM_ADDRESS=${{ vars.SMTP_FROM_ADDRESS }}" >> /opt/creditcardanalyzer/.env
 
             # Grafana Cloud
             echo "GRAFANA_CLOUD_PROMETHEUS_URL=${{ secrets.GRAFANA_CLOUD_PROMETHEUS_URL }}" >> /opt/creditcardanalyzer/.env
@@ -796,16 +437,16 @@ jobs:
             chmod 600 /opt/creditcardanalyzer/.env
             echo "Config files written"
 
-      - name: Copy config files via SCP
+      - name: Copy compose and config files via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.LINODE_SERVER_IP }}
           username: ${{ secrets.LINODE_SSH_USER }}
           key: ${{ secrets.LINODE_SSH_KEY }}
           port: 43422
-          source: "config/alloy/config.alloy,config/blackbox/blackbox.yml"
+          source: "docker/compose-infra.yml,docker/compose-nginx.yml,docker/compose-platform.yml,docker/compose-bots.yml,docker/compose-monitoring.yml,docker/compose-web-landing.yml,docker/nginx/nginx.conf,docker/nginx/maintenance/,config/alloy/config.alloy,config/blackbox/blackbox.yml"
           target: /opt/creditcardanalyzer
-          strip_components: 1
+          strip_components: 2
 
       - name: Validate required env vars
         uses: appleboy/ssh-action@v1
@@ -850,13 +491,18 @@ jobs:
             source .env
             set +a
 
-            echo "Validating docker-compose.platform.yml..."
-            podman-compose -f docker-compose.platform.yml config --quiet
-            echo "docker-compose.platform.yml OK"
-            echo "Validating docker-compose.monitoring.yml..."
-            set -a; source .env; set +a
-            podman-compose -f docker-compose.monitoring.yml config --quiet
-            echo "docker-compose.monitoring.yml OK"
+            echo "Validating compose-platform.yml..."
+            podman-compose -f docker/compose-platform.yml config --quiet
+            echo "compose-platform.yml OK"
+            echo "Validating compose-infra.yml..."
+            podman-compose -f docker/compose-infra.yml config --quiet
+            echo "compose-infra.yml OK"
+            echo "Validating compose-nginx.yml..."
+            podman-compose -f docker/compose-nginx.yml config --quiet
+            echo "compose-nginx.yml OK"
+            echo "Validating compose-bots.yml..."
+            podman-compose -f docker/compose-bots.yml config --quiet
+            echo "compose-bots.yml OK"
 
       - name: Validate nginx config
         uses: appleboy/ssh-action@v1
@@ -868,7 +514,7 @@ jobs:
           script: |
             echo "Validating nginx.conf..."
             podman run --rm \
-              -v /opt/creditcardanalyzer/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro \
+              -v /opt/creditcardanalyzer/docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro \
               docker.io/library/nginx:alpine nginx -t
             echo "nginx.conf OK"
 
@@ -886,12 +532,6 @@ jobs:
           key: ${{ secrets.LINODE_SSH_KEY }}
           port: 43422
           script: |
-            # Substitute domains in nginx.conf
-            DOMAIN_NAME="${{ vars.DOMAIN_NAME }}"
-            PLATFORM_DOMAIN="${{ vars.PLATFORM_DOMAIN }}"
-            sed -i "s/\${OIKONOMIA_DOMAIN}/${DOMAIN_NAME}/g" /opt/creditcardanalyzer/nginx/nginx.conf
-            sed -i "s/\${PLATFORM_DOMAIN}/${PLATFORM_DOMAIN}/g" /opt/creditcardanalyzer/nginx/nginx.conf
-
             cd /opt/creditcardanalyzer
             export PATH="$HOME/.local/bin:$PATH"
             set -a
@@ -901,10 +541,16 @@ jobs:
             echo "Logging in to GHCR..."
             echo "${{ secrets.GHCR_PAT }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin || echo "WARN: GHCR login failed (may be public repo)"
 
-            echo "Pulling new platform images..."
-            podman-compose -f docker-compose.platform.yml pull
+            echo "Pulling platform images..."
+            podman-compose -f docker/compose-platform.yml pull
 
-            # Verify images exist
+            echo "Pulling infra images..."
+            podman-compose -f docker/compose-infra.yml pull
+
+            echo "Pulling nginx image..."
+            podman-compose -f docker/compose-nginx.yml pull
+
+            # Verify platform images exist
             echo "Verifying images..."
             podman image inspect ${BACKEND_IMAGE}:${IMAGE_TAG} > /dev/null 2>&1 || { echo "ERROR: Backend image not found"; exit 1; }
             podman image inspect ${FRONTEND_IMAGE}:${IMAGE_TAG} > /dev/null 2>&1 || { echo "ERROR: Frontend image not found"; exit 1; }
@@ -1052,10 +698,11 @@ jobs:
 
   restart-and-verify:
     runs-on: ubuntu-latest
-    needs: migrate
+    needs: [migrate, detect-changes]
+    if: always() && !cancelled()
 
     steps:
-      - name: Restart services
+      - name: Restart changed services
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.LINODE_SERVER_IP }}
@@ -1069,18 +716,62 @@ jobs:
             source .env
             set +a
 
-            # Save rollback info before overwriting
+            # Save rollback info
             echo "$IMAGE_TAG" > /opt/creditcardanalyzer/.rollback_tag
             cp .env .env.rollback
             echo "Rollback snapshot saved (tag: $IMAGE_TAG)"
 
-            # Stop old platform containers (monitoring stays up)
-            echo "Stopping old platform containers..."
-            podman-compose -f docker-compose.platform.yml down --remove-orphans 2>/dev/null || true
+            CHANGED="${{ needs.detect-changes.outputs.platform }}${{ needs.detect-changes.outputs.nginx }}${{ needs.detect-changes.outputs.landing }}"
+            if [ -z "$CHANGED" ] && [ "${{ inputs.action }}" != "full" ]; then
+              echo "No service changes detected, skipping restart"
+              exit 0
+            fi
 
-            # Start new platform containers
-            echo "Starting new platform containers..."
-            podman-compose -f docker-compose.platform.yml up -d --remove-orphans
+            # Restart infra (db, redis) — only on first deploy or infra changes
+            if ! podman ps --format '{{.Names}}' | grep -q 'creditcardanalyzer_db_1'; then
+              echo "Starting infra (first deploy)..."
+              podman-compose -f docker/compose-infra.yml up -d --remove-orphans
+              echo "Waiting for infra health..."
+              sleep 10
+            fi
+
+            # Restart platform (frontend, backend, celery) — selective force-recreate
+            if [ "${{ needs.detect-changes.outputs.platform }}" = "true" ] || [ "${{ inputs.action }}" = "full" ]; then
+              echo "Restarting platform services..."
+              podman-compose -f docker/compose-platform.yml up -d --force-recreate --remove-orphans
+
+              # Bot uses same backend image — restart when platform changes
+              echo "Restarting bot services..."
+              podman-compose -f docker/compose-bots.yml up -d --force-recreate --remove-orphans
+            fi
+
+            # Restart nginx — only when nginx config or landing/platform topology changes
+            if [ "${{ needs.detect-changes.outputs.nginx }}" = "true" ] || [ "${{ inputs.action }}" = "full" ]; then
+              echo "Restarting nginx..."
+              podman-compose -f docker/compose-nginx.yml up -d --force-recreate --remove-orphans
+            fi
+
+            # Restart landing — only when landing changes
+            if [ "${{ needs.detect-changes.outputs.landing }}" = "true" ] || [ "${{ inputs.action }}" = "full" ]; then
+              echo "Restarting landing..."
+              podman-compose -f docker/compose-web-landing.yml up -d --force-recreate --remove-orphans
+            fi
+
+            echo "Restart complete"
+
+      - name: Reload monitoring config
+        if: needs.detect-changes.outputs.monitoring == 'true'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.LINODE_SERVER_IP }}
+          username: ${{ secrets.LINODE_SSH_USER }}
+          key: ${{ secrets.LINODE_SSH_KEY }}
+          port: 43422
+          script: |
+            echo "Reloading monitoring (alloy + blackbox config changed)..."
+            systemctl reload oikonomia-monitoring 2>/dev/null || \
+              podman-compose -f /opt/creditcardanalyzer/docker-compose.monitoring.yml up -d --force-recreate --remove-orphans
+            echo "Monitoring reloaded"
 
       - name: Health check with retry
         uses: appleboy/ssh-action@v1
@@ -1139,8 +830,10 @@ jobs:
 
               echo "Rolling back to tag: $PREV_TAG"
               cp .env.rollback .env
-              podman-compose -f docker-compose.platform.yml down --remove-orphans 2>/dev/null || true
-              podman-compose -f docker-compose.platform.yml up -d --remove-orphans
+              podman-compose -f docker/compose-platform.yml down --remove-orphans 2>/dev/null || true
+              podman-compose -f docker/compose-platform.yml up -d --remove-orphans
+              podman-compose -f docker/compose-bots.yml down --remove-orphans 2>/dev/null || true
+              podman-compose -f docker/compose-bots.yml up -d --remove-orphans
               exit 1
             fi
 

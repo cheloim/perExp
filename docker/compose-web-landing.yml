@@ -1,0 +1,15 @@
+services:
+  landing:
+    image: ${LANDING_IMAGE}:${IMAGE_TAG}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80/ || exit 1"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+    restart: unless-stopped
