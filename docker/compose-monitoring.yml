@@ -1,0 +1,122 @@
+services:
+  postgres-exporter:
+    image: docker.io/prometheuscommunity/postgres-exporter:latest
+    network_mode: host
+    environment:
+      DATA_SOURCE_NAME: "postgresql://expenses_user:${POSTGRES_PASSWORD}@localhost:5432/expenses?sslmode=disable"
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: "0.25"
+    restart: unless-stopped
+
+  redis-exporter:
+    image: docker.io/oliver006/redis_exporter:latest
+    network_mode: host
+    environment:
+      REDIS_ADDR: "redis://localhost:6379"
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: "0.25"
+    restart: unless-stopped
+
+  node-exporter:
+    image: docker.io/prom/node-exporter:latest
+    network_mode: host
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/host"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    security_opt:
+      - label=disable
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: "0.25"
+    restart: unless-stopped
+
+  nginx-exporter:
+    image: docker.io/nginx/nginx-prometheus-exporter:latest
+    network_mode: host
+    command:
+      - "-nginx.scrape-uri=http://localhost:8080/stub_status"
+    deploy:
+      resources:
+        limits:
+          memory: 32M
+          cpus: "0.1"
+    restart: unless-stopped
+
+  blackbox-exporter:
+    image: docker.io/prom/blackbox-exporter:latest
+    network_mode: host
+    volumes:
+      - ./blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    command:
+      - "--config.file=/etc/blackbox/blackbox.yml"
+    deploy:
+      resources:
+        limits:
+          memory: 32M
+          cpus: "0.1"
+    restart: unless-stopped
+
+  alloy:
+    image: docker.io/grafana/alloy:latest
+    network_mode: host
+    command:
+      - "run"
+      - "--storage.path=/var/lib/alloy/data"
+      - "--server.http.listen-addr=0.0.0.0:12345"
+      - "/etc/alloy/config.alloy"
+    environment:
+      GRAFANA_CLOUD_PROMETHEUS_URL: ${GRAFANA_CLOUD_PROMETHEUS_URL}
+      GRAFANA_CLOUD_PROMETHEUS_USER: ${GRAFANA_CLOUD_PROMETHEUS_USER}
+      GRAFANA_CLOUD_PROMETHEUS_PASSWORD: ${GRAFANA_CLOUD_PROMETHEUS_PASSWORD}
+      GRAFANA_CLOUD_LOKI_URL: ${GRAFANA_CLOUD_LOKI_URL}
+      GRAFANA_CLOUD_LOKI_USER: ${GRAFANA_CLOUD_LOKI_USER}
+      GRAFANA_CLOUD_LOKI_PASSWORD: ${GRAFANA_CLOUD_LOKI_PASSWORD}
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/log/journal:/var/log/journal:ro
+      - /run/log/journal:/run/log/journal:ro
+      - /etc/machine-id:/etc/machine-id:ro
+      - alloy_data:/var/lib/alloy/data
+    security_opt:
+      - label=disable
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.5"
+    restart: unless-stopped
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.0
+    network_mode: host
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/containers/:/var/lib/containers:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.5"
+    restart: unless-stopped
+
+volumes:
+  alloy_data:

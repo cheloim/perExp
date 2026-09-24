@@ -1,0 +1,116 @@
+services:
+  backend:
+    image: ${BACKEND_IMAGE}:${IMAGE_TAG}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    environment:
+      DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses
+      REDIS_URL: redis://redis:6379/0
+      PYTHONUNBUFFERED: "1"
+      APP_ENV: production
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      LLM_API_KEY: ${LLM_API_KEY}
+      INVESTMENTS_LLM_API_KEY: ${INVESTMENTS_LLM_API_KEY}
+      MESSAGES_BOT_LLM_API_KEY: ${MESSAGES_BOT_LLM_API_KEY}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      SECRET_KEY: ${SECRET_KEY}
+      EMAIL_API_KEY: ${EMAIL_API_KEY}
+      SMTP_FROM: ${SMTP_FROM}
+      SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS}
+      FRONTEND_URL: https://${PLATFORM_DOMAIN}
+      CORS_ORIGINS: https://${DOMAIN_NAME},https://www.${DOMAIN_NAME},https://${PLATFORM_DOMAIN}
+      TELEGRAM_BOT_ENABLED: "false"
+      TZ: America/Argentina/Buenos_Aires
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+    restart: unless-stopped
+
+  celery_worker:
+    image: ${BACKEND_IMAGE}:${IMAGE_TAG}
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=2
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses
+      REDIS_URL: redis://redis:6379/0
+      PYTHONUNBUFFERED: "1"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      LLM_API_KEY: ${LLM_API_KEY}
+      INVESTMENTS_LLM_API_KEY: ${INVESTMENTS_LLM_API_KEY}
+      MESSAGES_BOT_LLM_API_KEY: ${MESSAGES_BOT_LLM_API_KEY}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      SECRET_KEY: ${SECRET_KEY}
+      EMAIL_API_KEY: ${EMAIL_API_KEY}
+      SMTP_FROM: ${SMTP_FROM}
+      SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      TZ: America/Argentina/Buenos_Aires
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+    restart: unless-stopped
+
+  celery_beat:
+    image: ${BACKEND_IMAGE}:${IMAGE_TAG}
+    command: celery -A app.celery_app beat --loglevel=info
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses
+      REDIS_URL: redis://redis:6379/0
+      PYTHONUNBUFFERED: "1"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      LLM_API_KEY: ${LLM_API_KEY}
+      INVESTMENTS_LLM_API_KEY: ${INVESTMENTS_LLM_API_KEY}
+      MESSAGES_BOT_LLM_API_KEY: ${MESSAGES_BOT_LLM_API_KEY}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      SECRET_KEY: ${SECRET_KEY}
+      EMAIL_API_KEY: ${EMAIL_API_KEY}
+      SMTP_FROM: ${SMTP_FROM}
+      SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      TZ: America/Argentina/Buenos_Aires
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    restart: unless-stopped
+
+  frontend:
+    image: ${FRONTEND_IMAGE}:${IMAGE_TAG}
+    depends_on:
+      backend:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    restart: unless-stopped
