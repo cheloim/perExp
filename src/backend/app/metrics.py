@@ -52,6 +52,18 @@ RECURRING_EXPENSES_TOTAL = Gauge(
 )
 BUDGET_GROUPS_TOTAL = Gauge("oikonomia_budget_groups_total", "Budget groups", ["user_id", "group"])
 
+# ── Service health metrics ─────────────────────────────────
+
+TELEGRAM_BOT_HEALTH = Gauge(
+    "oikonomia_telegram_bot_healthy",
+    "Whether the Telegram bot thread is running (1=healthy, 0=down)",
+)
+
+CELERY_WORKER_HEALTH = Gauge(
+    "oikonomia_celery_worker_healthy",
+    "Whether celery workers are reachable (1=healthy, 0=down)",
+)
+
 # ── Business counters (incremented on events) ────────────────
 
 LOGIN_ATTEMPTS = Counter(
@@ -193,6 +205,23 @@ def update_business_metrics() -> None:
             )
             for sstatus, count in sched_statuses:
                 SCHEDULED_EXPENSES_TOTAL.labels(status=sstatus).set(count)
+
+            # Service health checks
+            # Telegram bot: check if the bot thread is alive
+            bot_thread_alive = any(
+                t.name == "telegram-bot" and t.is_alive() for t in threading.enumerate()
+            )
+            TELEGRAM_BOT_HEALTH.set(1 if bot_thread_alive else 0)
+
+            # Celery: check if workers respond
+            try:
+                from app.celery_app import celery_app
+
+                inspect = celery_app.control.inspect(timeout=2.0)
+                active = inspect.active()
+                CELERY_WORKER_HEALTH.set(1 if active else 0)
+            except Exception:
+                CELERY_WORKER_HEALTH.set(0)
 
             _business_metrics_last_update = time.time()
         finally:
