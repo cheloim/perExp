@@ -1,7 +1,17 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis } from "recharts";
+import {
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Bar,
+  ComposedChart,
+  Line,
+  XAxis,
+} from "recharts";
 import { APP_NAME } from "../config";
 import Sparkline from "../components/ui/Sparkline";
 import {
@@ -1026,82 +1036,59 @@ export default function Dashboard() {
               description="Las cuotas comprometidas aparecerán aquí"
             />
           ) : (
-            <div className="relative">
-              <ResponsiveContainer width="100%" height={160}>
-                <BarChart data={monthlyLoad} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-                  <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-                    {monthlyLoad.map((entry, i) => (
-                      <Cell
-                        key={i}
-                        fill={
-                          entry.is_current
-                            ? "var(--color-primary)"
-                            : entry.is_past
-                              ? "var(--text-tertiary)"
-                              : "var(--color-primary)"
-                        }
-                        opacity={entry.is_past ? 0.3 : entry.is_current ? 1 : 0.6}
-                      />
-                    ))}
-                  </Bar>
-                  <XAxis
-                    dataKey="month"
-                    tick={{ fontSize: 10, fill: "var(--chart-text)" }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v) => {
-                      const [, m] = v.split("-");
-                      return MONTHS_ES_SHORT[parseInt(m) - 1] || v;
-                    }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "var(--chart-tooltip-bg)",
-                      borderColor: "var(--chart-tooltip-border)",
-                      color: "var(--chart-tooltip-text)",
-                      borderRadius: 10,
-                      fontSize: 12,
-                      padding: "8px 12px",
-                      boxShadow: "var(--shadow-md)",
-                    }}
-                    formatter={(v: number) => [formatCurrency(v), "Cuotas"]}
-                    labelFormatter={(v) => {
-                      const [y, m] = v.split("-");
-                      return `${MONTHS_ES_SHORT[parseInt(m) - 1]} ${y}`;
-                    }}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-              {/* Sparkline overlay on top of bars */}
-              {(() => {
-                const values = monthlyLoad.map((m) => m.total);
-                const max = Math.max(...values);
-                if (max === 0 || values.length < 2) return null;
-                const points = values
-                  .map((v, i) => {
-                    const xPct = (i / (values.length - 1)) * 100;
-                    const yPct = (1 - v / max) * 100;
-                    return `${xPct}%,${yPct}%`;
-                  })
-                  .join(" ");
-                return (
-                  <svg
-                    className="absolute inset-0 w-full h-full pointer-events-none"
-                    style={{ padding: "5px 20px 25px 0" }}
-                    preserveAspectRatio="none"
-                  >
-                    <polyline
-                      points={points}
-                      fill="none"
-                      stroke="var(--color-primary)"
-                      strokeWidth="2"
-                      vectorEffect="non-scaling-stroke"
-                      opacity="0.4"
+            <ResponsiveContainer width="100%" height={160}>
+              <ComposedChart data={monthlyLoad} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+                  {monthlyLoad.map((entry, i) => (
+                    <Cell
+                      key={i}
+                      fill={
+                        entry.is_current
+                          ? "var(--color-primary)"
+                          : entry.is_past
+                            ? "var(--text-tertiary)"
+                            : "var(--color-primary)"
+                      }
+                      opacity={entry.is_past ? 0.3 : entry.is_current ? 1 : 0.6}
                     />
-                  </svg>
-                );
-              })()}
-            </div>
+                  ))}
+                </Bar>
+                <Line
+                  dataKey="total"
+                  stroke="var(--color-primary)"
+                  strokeWidth={2}
+                  dot={false}
+                  opacity={0.4}
+                  type="monotone"
+                />
+                <XAxis
+                  dataKey="month"
+                  tick={{ fontSize: 10, fill: "var(--chart-text)" }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v) => {
+                    const [, m] = v.split("-");
+                    return MONTHS_ES_SHORT[parseInt(m) - 1] || v;
+                  }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "var(--chart-tooltip-bg)",
+                    borderColor: "var(--chart-tooltip-border)",
+                    color: "var(--chart-tooltip-text)",
+                    borderRadius: 10,
+                    fontSize: 12,
+                    padding: "8px 12px",
+                    boxShadow: "var(--shadow-md)",
+                  }}
+                  formatter={(v: number) => [formatCurrency(v), "Cuotas"]}
+                  labelFormatter={(v) => {
+                    const [y, m] = v.split("-");
+                    return `${MONTHS_ES_SHORT[parseInt(m) - 1]} ${y}`;
+                  }}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
           )}
         </div>
 
