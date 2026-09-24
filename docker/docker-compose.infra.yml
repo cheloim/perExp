@@ -39,6 +39,11 @@ services:
           cpus: "0.5"
     restart: unless-stopped
 
+networks:
+  default:
+    external: true
+    name: oikonomia
+
 volumes:
   postgres_data:
   redis_data:

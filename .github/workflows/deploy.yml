@@ -29,6 +29,10 @@ permissions:
   contents: read
   packages: write
 
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 env:
   REGISTRY: ghcr.io
   BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/perexp/backend
@@ -42,8 +46,11 @@ jobs:
     outputs:
       landing: ${{ steps.changes.outputs.landing }}
       platform: ${{ steps.changes.outputs.platform }}
+      backend: ${{ steps.changes.outputs.backend }}
       monitoring: ${{ steps.changes.outputs.monitoring }}
       nginx: ${{ steps.changes.outputs.nginx }}
+      bots: ${{ steps.changes.outputs.bots }}
+      infra: ${{ steps.changes.outputs.infra }}
     steps:
       - uses: actions/checkout@v5
       - uses: dorny/paths-filter@v3
@@ -52,18 +59,26 @@ jobs:
           filters: |
             landing:
               - 'src/landing/**'
+              - 'docker/docker-compose.web-landing.yml'
             platform:
               - 'src/frontend/**'
               - 'src/backend/**'
-              - 'docker/compose-platform.yml'
+              - 'docker/docker-compose.platform.yml'
+            backend:
+              - 'src/backend/**'
+              - 'docker/docker-compose.platform.yml'
             monitoring:
-              - 'docker/compose-monitoring.yml'
+              - 'docker/docker-compose.monitoring.yml'
               - 'config/alloy/**'
               - 'config/blackbox/**'
             nginx:
               - 'docker/nginx/**'
-              - 'docker/compose-nginx.yml'
+              - 'docker/docker-compose.nginx.yml'
               - 'config/nginx/**'
+            bots:
+              - 'docker/docker-compose.bots.yml'
+            infra:
+              - 'docker/docker-compose.infra.yml'
 
   test:
     if: github.event_name == 'push' || inputs.action == 'full'
@@ -93,8 +108,8 @@ jobs:
 
   build-backend:
     if: |
-      always() && !cancelled() &&
-      (inputs.action == 'full' || (needs.detect-changes.outputs.platform == 'true'))
+      always() && !cancelled() && needs.test.result == 'success' &&
+      (inputs.action == 'full' || needs.detect-changes.outputs.platform == 'true')
     runs-on: ubuntu-latest
     needs: [test, detect-changes]
     permissions:
@@ -128,8 +143,8 @@ jobs:
 
   build-frontend:
     if: |
-      always() && !cancelled() &&
-      (inputs.action == 'full' || (needs.detect-changes.outputs.platform == 'true'))
+      always() && !cancelled() && needs.test.result == 'success' &&
+      (inputs.action == 'full' || needs.detect-changes.outputs.platform == 'true')
     runs-on: ubuntu-latest
     needs: [test, detect-changes]
     permissions:
@@ -166,8 +181,8 @@ jobs:
 
   build-landing:
     if: |
-      always() && !cancelled() &&
-      (inputs.action == 'full' || (needs.detect-changes.outputs.landing == 'true'))
+      always() && !cancelled() && needs.test.result == 'success' &&
+      (inputs.action == 'full' || needs.detect-changes.outputs.landing == 'true')
     runs-on: ubuntu-latest
     needs: [test, detect-changes]
     permissions:
@@ -215,7 +230,9 @@ jobs:
   setup-server:
     runs-on: ubuntu-latest
     needs: [build-backend, build-frontend, build-landing]
-    if: always() && !cancelled() && (github.event_name == 'push' || inputs.action == 'full')
+    if: |
+      always() && !cancelled() &&
+      (needs.build-backend.result == 'success' || needs.build-frontend.result == 'success' || needs.build-landing.result == 'success' || inputs.action == 'full')
 
     steps:
       - name: Bootstrap server (install, DNS, stop old containers, firewall)
@@ -265,11 +282,17 @@ jobs:
 
             echo "=== Ensuring directories exist ==="
             sudo mkdir -p /opt/creditcardanalyzer /opt/creditcardanalyzer/backups
-            sudo mkdir -p /opt/creditcardanalyzer/docker/nginx/maintenance
-            sudo mkdir -p /opt/creditcardanalyzer/docker/certbot/conf
-            sudo mkdir -p /opt/creditcardanalyzer/docker/alloy
-            sudo mkdir -p /opt/creditcardanalyzer/docker/blackbox
+            sudo mkdir -p /opt/creditcardanalyzer/nginx/maintenance
+            sudo mkdir -p /opt/creditcardanalyzer/certbot/conf
+            sudo mkdir -p /opt/creditcardanalyzer/alloy
+            sudo mkdir -p /opt/creditcardanalyzer/blackbox
             sudo chown -R $USER:$USER /opt/creditcardanalyzer
+
+            echo "=== Ensuring shared network exists ==="
+            export PATH="$HOME/.local/bin:$PATH"
+            podman network create oikonomia 2>/dev/null || true
+            echo "Network oikonomia ready"
+
             echo "Directories ready"
 
             echo "=== Opening firewall ports ==="
@@ -386,7 +409,7 @@ jobs:
   write-config:
     runs-on: ubuntu-latest
     needs: setup-server
-    if: always() && !cancelled() && (github.event_name == 'push' || inputs.action == 'full')
+    if: always() && needs.setup-server.result == 'success'
 
     steps:
       - name: Checkout
@@ -406,16 +429,6 @@ jobs:
             IMAGE_TAG="${{ github.sha }}"
             DOMAIN_NAME="${{ vars.DOMAIN_NAME }}"
             PLATFORM_DOMAIN="${{ vars.PLATFORM_DOMAIN }}"
-
-            # Ensure directories exist
-            mkdir -p /opt/creditcardanalyzer/docker/nginx/maintenance
-            mkdir -p /opt/creditcardanalyzer/docker/alloy
-            mkdir -p /opt/creditcardanalyzer/docker/blackbox
-            mkdir -p /opt/creditcardanalyzer/docker/certbot/conf
-
-            # Substitute domain variables in nginx.conf
-            sed -i "s/\${DOMAIN_NAME}/${DOMAIN_NAME}/g" /opt/creditcardanalyzer/docker/nginx/nginx.conf
-            sed -i "s/\${PLATFORM_DOMAIN}/${PLATFORM_DOMAIN}/g" /opt/creditcardanalyzer/docker/nginx/nginx.conf
 
             # Write .env
             echo "BACKEND_IMAGE=${BACKEND_IMAGE}" > /opt/creditcardanalyzer/.env
@@ -457,9 +470,23 @@ jobs:
           username: ${{ secrets.LINODE_SSH_USER }}
           key: ${{ secrets.LINODE_SSH_KEY }}
           port: 43422
-          source: "docker/compose-infra.yml,docker/compose-nginx.yml,docker/compose-platform.yml,docker/compose-bots.yml,docker/compose-monitoring.yml,docker/compose-web-landing.yml,docker/nginx/nginx.conf,docker/nginx/maintenance/,config/alloy/config.alloy,config/blackbox/blackbox.yml"
+          source: "docker/docker-compose.infra.yml,docker/docker-compose.nginx.yml,docker/docker-compose.platform.yml,docker/docker-compose.bots.yml,docker/docker-compose.monitoring.yml,docker/docker-compose.web-landing.yml,docker/nginx/nginx.conf,docker/nginx/maintenance/,config/alloy/config.alloy,config/blackbox/blackbox.yml"
           target: /opt/creditcardanalyzer
-          strip_components: 2
+          strip_components: 1
+
+      - name: Substitute domain variables in nginx.conf
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.LINODE_SERVER_IP }}
+          username: ${{ secrets.LINODE_SSH_USER }}
+          key: ${{ secrets.LINODE_SSH_KEY }}
+          port: 43422
+          script: |
+            DOMAIN_NAME="${{ vars.DOMAIN_NAME }}"
+            PLATFORM_DOMAIN="${{ vars.PLATFORM_DOMAIN }}"
+            sed -i "s/\${DOMAIN_NAME}/${DOMAIN_NAME}/g" /opt/creditcardanalyzer/nginx/nginx.conf
+            sed -i "s/\${PLATFORM_DOMAIN}/${PLATFORM_DOMAIN}/g" /opt/creditcardanalyzer/nginx/nginx.conf
+            echo "nginx.conf variables substituted"
 
       - name: Validate required env vars
         uses: appleboy/ssh-action@v1
@@ -487,7 +514,7 @@ jobs:
   validate-config:
     runs-on: ubuntu-latest
     needs: write-config
-    if: always() && !cancelled() && (github.event_name == 'push' || inputs.action == 'full')
+    if: always() && needs.write-config.result == 'success'
 
     steps:
       - name: Validate docker-compose syntax
@@ -516,6 +543,12 @@ jobs:
             echo "Validating compose-bots.yml..."
             podman-compose -f docker-compose.bots.yml config --quiet
             echo "compose-bots.yml OK"
+            echo "Validating compose-monitoring.yml..."
+            podman-compose -f docker-compose.monitoring.yml config --quiet
+            echo "compose-monitoring.yml OK"
+            echo "Validating compose-web-landing.yml..."
+            podman-compose -f docker-compose.web-landing.yml config --quiet
+            echo "compose-web-landing.yml OK"
 
       - name: Validate nginx config
         uses: appleboy/ssh-action@v1
@@ -534,7 +567,7 @@ jobs:
   pull-images:
     runs-on: ubuntu-latest
     needs: write-config
-    if: always() && !cancelled() && (github.event_name == 'push' || inputs.action == 'full')
+    if: always() && needs.write-config.result == 'success'
 
     steps:
       - name: Pull and verify images
@@ -572,7 +605,7 @@ jobs:
   backup-db:
     runs-on: ubuntu-latest
     needs: [pull-images, validate-config]
-    if: always() && !cancelled()
+    if: always() && (needs.pull-images.result == 'success' && needs.validate-config.result == 'success')
 
     steps:
       - name: Backup database
@@ -620,7 +653,10 @@ jobs:
 
   migrate:
     runs-on: ubuntu-latest
-    needs: backup-db
+    needs: [backup-db, detect-changes]
+    if: |
+      always() && needs.backup-db.result == 'success' &&
+      (needs.detect-changes.outputs.backend == 'true' || inputs.action == 'full')
 
     steps:
       - name: Run database migrations
@@ -638,7 +674,7 @@ jobs:
             set +a
 
             echo "=== Step 0: Verify SECRET_KEY ==="
-            KEY_CHECK=$(podman-compose run --rm backend python -c "
+            KEY_CHECK=$(podman-compose -f docker-compose.platform.yml run --rm backend python -c "
             from app.services.encryption import verify_key_works
             if verify_key_works():
                 print('KEY_VALID')
@@ -654,7 +690,7 @@ jobs:
 
             echo "=== Step 1: Database structure migration ==="
             for script in migrate_add_reset_token migrate_remove_haberes migrate_encrypt_settings migrate_add_monthly_reports migrate_db_structure migrate_add_card_account_link migrate_add_budgets migrate_add_category_suggestions migrate_add_whatsapp migrate_add_google_refresh_token migrate_add_merchant_preferences migrate_security_columns migrate_add_expense_created_at migrate_add_tags migrate_tag_groups backfill_tags_from_cards_accounts migrate_fix_tag_groups cleanup_legacy_cards_accounts; do
-              OUTPUT=$(podman-compose run --rm backend python -m scripts.$script 2>&1)
+              OUTPUT=$(podman-compose -f docker-compose.platform.yml run --rm backend python -m scripts.$script 2>&1)
               EXIT_CODE=$?
               echo "$OUTPUT"
               if [ $EXIT_CODE -ne 0 ]; then
@@ -676,7 +712,7 @@ jobs:
             done
 
             echo "=== Step 2: Dry-run encryption migration ==="
-            DRY_RUN=$(podman-compose run --rm backend python scripts/dry_run_migration.py 2>&1)
+            DRY_RUN=$(podman-compose -f docker-compose.platform.yml run --rm backend python scripts/dry_run_migration.py 2>&1)
             echo "$DRY_RUN"
 
             if echo "$DRY_RUN" | grep -q "Status: FAIL"; then
@@ -685,13 +721,13 @@ jobs:
             fi
 
             echo "=== Step 3: Run encryption migration ==="
-            if ! podman-compose run --rm backend python scripts/migrate_encrypt_fields.py; then
+            if ! podman-compose -f docker-compose.platform.yml run --rm backend python scripts/migrate_encrypt_fields.py; then
               echo "::error::Encryption migration failed!"
               exit 1
             fi
 
             echo "=== Step 4: Verify encryption ==="
-            VERIFY=$(podman-compose run --rm backend python scripts/verify_encryption.py 2>&1)
+            VERIFY=$(podman-compose -f docker-compose.platform.yml run --rm backend python scripts/verify_encryption.py 2>&1)
             echo "$VERIFY"
 
             if echo "$VERIFY" | grep -q "Status: FAIL"; then
@@ -709,13 +745,17 @@ jobs:
 
             echo "=== Migration complete and verified ==="
 
-  restart-and-verify:
+  # ── Disaggregated deploy jobs ─────────────────────────────
+
+  deploy-infra:
     runs-on: ubuntu-latest
     needs: [migrate, detect-changes]
-    if: always() && !cancelled()
+    if: |
+      always() && !cancelled() &&
+      (needs.detect-changes.outputs.infra == 'true' || inputs.action == 'full' || needs.migrate.result == 'success' || needs.migrate.result == 'skipped')
 
     steps:
-      - name: Restart changed services
+      - name: Ensure infra is running
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.LINODE_SERVER_IP }}
@@ -725,68 +765,48 @@ jobs:
           script: |
             cd /opt/creditcardanalyzer
             export PATH="$HOME/.local/bin:$PATH"
-            set -a
-            source .env
-            set +a
+            set -a; source .env; set +a
 
-            # Save rollback info
-            echo "$IMAGE_TAG" > /opt/creditcardanalyzer/.rollback_tag
-            cp .env .env.rollback
-            echo "Rollback snapshot saved (tag: $IMAGE_TAG)"
+            echo "Ensuring shared network exists..."
+            podman network create oikonomia 2>/dev/null || true
 
-            CHANGED="${{ needs.detect-changes.outputs.platform }}${{ needs.detect-changes.outputs.nginx }}${{ needs.detect-changes.outputs.landing }}"
-            if [ -z "$CHANGED" ] && [ "${{ inputs.action }}" != "full" ]; then
-              echo "No service changes detected, skipping restart"
-              exit 0
-            fi
-
-            # Restart infra (db, redis) — only on first deploy or infra changes
             if ! podman ps --format '{{.Names}}' | grep -q 'creditcardanalyzer_db_1'; then
               echo "Starting infra (first deploy)..."
               podman-compose -f docker-compose.infra.yml up -d --remove-orphans
-              echo "Waiting for infra health..."
-              sleep 10
+            else
+              echo "Restarting infra..."
+              podman-compose -f docker-compose.infra.yml up -d --force-recreate --remove-orphans
             fi
 
-            # Restart platform (frontend, backend, celery) — selective force-recreate
-            if [ "${{ needs.detect-changes.outputs.platform }}" = "true" ] || [ "${{ inputs.action }}" = "full" ]; then
-              echo "Restarting platform services..."
-              podman-compose -f docker-compose.platform.yml up -d --force-recreate --remove-orphans
+            echo "Waiting for infra health..."
+            for i in $(seq 1 20); do
+              DB_OK=$(podman inspect --format='{{.State.Health.Status}}' creditcardanalyzer_db_1 2>/dev/null || echo "missing")
+              REDIS_OK=$(podman inspect --format='{{.State.Health.Status}}' creditcardanalyzer_redis_1 2>/dev/null || echo "missing")
+              if [ "$DB_OK" = "healthy" ] && [ "$REDIS_OK" = "healthy" ]; then
+                echo "Infra healthy after ${i} attempt(s)"
+                break
+              fi
+              echo "Attempt $i/20: db=$DB_OK, redis=$REDIS_OK, waiting 3s..."
+              sleep 3
+            done
 
-              # Bot uses same backend image — restart when platform changes
-              echo "Restarting bot services..."
-              podman-compose -f docker-compose.bots.yml up -d --force-recreate --remove-orphans
+            DB_FINAL=$(podman inspect --format='{{.State.Health.Status}}' creditcardanalyzer_db_1 2>/dev/null || echo "missing")
+            REDIS_FINAL=$(podman inspect --format='{{.State.Health.Status}}' creditcardanalyzer_redis_1 2>/dev/null || echo "missing")
+            if [ "$DB_FINAL" != "healthy" ] || [ "$REDIS_FINAL" != "healthy" ]; then
+              echo "::error::Infra health check failed: db=$DB_FINAL, redis=$REDIS_FINAL"
+              exit 1
             fi
 
-            # Restart nginx — only when nginx config or landing/platform topology changes
-            if [ "${{ needs.detect-changes.outputs.nginx }}" = "true" ] || [ "${{ inputs.action }}" = "full" ]; then
-              echo "Restarting nginx..."
-              podman-compose -f docker-compose.nginx.yml up -d --force-recreate --remove-orphans
-            fi
+            echo "Infra status:"
+            podman ps --format "table {{.Names}}\t{{.Status}}" | grep -E "db|redis"
 
-            # Restart landing — only when landing changes
-            if [ "${{ needs.detect-changes.outputs.landing }}" = "true" ] || [ "${{ inputs.action }}" = "full" ]; then
-              echo "Restarting landing..."
-              podman-compose -f docker-compose.web-landing.yml up -d --force-recreate --remove-orphans
-            fi
+  deploy-platform:
+    runs-on: ubuntu-latest
+    needs: [deploy-infra, detect-changes]
+    if: always() && !cancelled() && (needs.detect-changes.outputs.platform == 'true' || inputs.action == 'full')
 
-            echo "Restart complete"
-
-      - name: Reload monitoring config
-        if: needs.detect-changes.outputs.monitoring == 'true'
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
-          script: |
-            echo "Reloading monitoring (alloy + blackbox config changed)..."
-            systemctl reload oikonomia-monitoring 2>/dev/null || \
-              podman-compose -f /opt/creditcardanalyzer/docker-compose.monitoring.yml up -d --force-recreate --remove-orphans
-            echo "Monitoring reloaded"
-
-      - name: Health check with retry
+    steps:
+      - name: Save platform rollback snapshot
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.LINODE_SERVER_IP }}
@@ -795,69 +815,250 @@ jobs:
           port: 43422
           script: |
             cd /opt/creditcardanalyzer
-            set -a
-            source .env
-            set +a
+            CURRENT_TAG=$(podman inspect --format='{{.Config.Image}}' creditcardanalyzer_backend_1 2>/dev/null | cut -d: -f2 || echo "")
+            if [ -n "$CURRENT_TAG" ]; then
+              echo "$CURRENT_TAG" > /opt/creditcardanalyzer/.rollback_platform_tag
+              cp .env .env.rollback.platform
+              echo "Platform rollback snapshot saved (tag: $CURRENT_TAG)"
+            else
+              echo "No previous platform deployment found, skipping rollback snapshot"
+            fi
 
-            echo "Waiting for services to start..."
-            sleep 15
+      - name: Restart platform services
+        id: restart
+        uses: appleboy/ssh-action@v1
+        timeout-minutes: 5
+        with:
+          host: ${{ secrets.LINODE_SERVER_IP }}
+          username: ${{ secrets.LINODE_SSH_USER }}
+          key: ${{ secrets.LINODE_SSH_KEY }}
+          port: 43422
+          command_timeout: 4m
+          script: |
+            cd /opt/creditcardanalyzer
+            export PATH="$HOME/.local/bin:$PATH"
+            set -a; source .env; set +a
 
-            RETRIES=20
-            SLEEP=5
+            echo "Restarting platform services..."
+            podman-compose -f docker-compose.platform.yml up -d --force-recreate --remove-orphans
+            echo "Platform containers recreated"
+
+            echo "Waiting for backend health..."
             DEPLOY_OK=false
-
-            for i in $(seq 1 $RETRIES); do
-              STATUS=$(curl -sk -o /dev/null -w "%{http_code}" https://${{ vars.PLATFORM_DOMAIN }}/api/docs 2>/dev/null)
+            for i in $(seq 1 20); do
+              STATUS=$(curl -sk -o /dev/null -w "%{http_code}" http://localhost:8000/docs 2>/dev/null)
               if [ "$STATUS" = "200" ]; then
-                echo "Deploy OK after ${i} attempt(s)"
+                echo "Backend healthy after ${i} attempt(s)"
                 DEPLOY_OK=true
                 break
               fi
-              echo "Attempt $i/$RETRIES: got $STATUS, retrying in ${SLEEP}s..."
-              sleep $SLEEP
+              echo "Attempt $i/20: got $STATUS, retrying in 3s..."
+              sleep 3
             done
 
             if [ "$DEPLOY_OK" = "false" ]; then
-              echo "CRITICAL: Health check failed after $((RETRIES * SLEEP))s"
-              echo ""
-              echo "=== Backend logs (last 80 lines) ==="
-              podman logs creditcardanalyzer_backend_1 --tail 80 2>&1 || echo "Could not get backend logs"
-              echo ""
-              echo "=== Backend healthcheck status ==="
-              podman inspect --format='{{.State.Health.Status}} last={{range .State.Health.Log}}{{.Output}}{{end}}' creditcardanalyzer_backend_1 2>/dev/null || echo "No healthcheck info"
-              echo ""
-              echo "=== Nginx test (direct to frontend:80) ==="
-              curl -s -o /dev/null -w "frontend:80 => %{http_code}" http://localhost: 2>/dev/null || echo "frontend unreachable"
-              echo ""
-              echo "=== All container status ==="
-              podman ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-              echo ""
-
-              echo "Rolling back to previous image tag..."
-
-              PREV_TAG=$(cat /opt/creditcardanalyzer/.rollback_tag 2>/dev/null)
-              if [ -z "$PREV_TAG" ]; then
-                echo "ERROR: No rollback tag found"
-                exit 1
-              fi
-
-              echo "Rolling back to tag: $PREV_TAG"
-              cp .env.rollback .env
-              podman-compose -f docker-compose.platform.yml down --remove-orphans 2>/dev/null || true
-              podman-compose -f docker-compose.platform.yml up -d --remove-orphans
-              podman-compose -f docker-compose.bots.yml down --remove-orphans 2>/dev/null || true
-              podman-compose -f docker-compose.bots.yml up -d --remove-orphans
+              echo "::error::Backend health check failed after restart"
               exit 1
             fi
 
-            # Show final status
+      - name: Rollback on failure
+        if: always() && steps.restart.outcome == 'failure'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.LINODE_SERVER_IP }}
+          username: ${{ secrets.LINODE_SSH_USER }}
+          key: ${{ secrets.LINODE_SSH_KEY }}
+          port: 43422
+          script: |
+            cd /opt/creditcardanalyzer
+            export PATH="$HOME/.local/bin:$PATH"
+
+            echo "=== Platform deploy failed, initiating rollback ==="
+            podman logs creditcardanalyzer_backend_1 --tail 40 2>&1 || true
+
+            PREV_TAG=$(cat /opt/creditcardanalyzer/.rollback_platform_tag 2>/dev/null)
+            if [ -z "$PREV_TAG" ]; then
+              echo "No rollback tag found, cannot rollback"
+              exit 1
+            fi
+
+            echo "Rolling back platform to tag: $PREV_TAG"
+            set -a; source .env.rollback.platform; set +a
+            IMAGE_TAG="$PREV_TAG"
+            export IMAGE_TAG
+
+            podman-compose -f docker-compose.platform.yml down --remove-orphans 2>/dev/null || true
+            podman-compose -f docker-compose.platform.yml up -d --remove-orphans
+
+            echo "Waiting for rollback health..."
+            for i in $(seq 1 15); do
+              STATUS=$(curl -sk -o /dev/null -w "%{http_code}" http://localhost:8000/docs 2>/dev/null)
+              if [ "$STATUS" = "200" ]; then
+                echo "Rollback successful, backend healthy after ${i} attempt(s)"
+                exit 0
+              fi
+              sleep 3
+            done
+            echo "::error::Rollback also failed!"
+            exit 1
+
+  deploy-bots:
+    runs-on: ubuntu-latest
+    needs: [deploy-infra, detect-changes]
+    if: always() && !cancelled() && (needs.detect-changes.outputs.bots == 'true' || needs.detect-changes.outputs.platform == 'true' || inputs.action == 'full')
+
+    steps:
+      - name: Restart bot services
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.LINODE_SERVER_IP }}
+          username: ${{ secrets.LINODE_SSH_USER }}
+          key: ${{ secrets.LINODE_SSH_KEY }}
+          port: 43422
+          command_timeout: 2m
+          script: |
+            cd /opt/creditcardanalyzer
+            export PATH="$HOME/.local/bin:$PATH"
+            set -a; source .env; set +a
+
+            echo "Restarting bot services..."
+            podman-compose -f docker-compose.bots.yml up -d --force-recreate --remove-orphans
+
+            # Wait for bot container to be running
+            sleep 5
+            BOT_STATUS=$(podman inspect --format='{{.State.Status}}' creditcardanalyzer_telegram_bot_1 2>/dev/null || echo "missing")
+            if [ "$BOT_STATUS" = "running" ]; then
+              echo "Bot container running"
+            else
+              echo "::warning::Bot container status: $BOT_STATUS"
+            fi
+            echo "Bots restarted"
+
+  deploy-nginx:
+    runs-on: ubuntu-latest
+    needs: [deploy-infra, detect-changes]
+    if: always() && !cancelled() && (needs.detect-changes.outputs.nginx == 'true' || inputs.action == 'full')
+
+    steps:
+      - name: Restart nginx
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.LINODE_SERVER_IP }}
+          username: ${{ secrets.LINODE_SSH_USER }}
+          key: ${{ secrets.LINODE_SSH_KEY }}
+          port: 43422
+          command_timeout: 2m
+          script: |
+            cd /opt/creditcardanalyzer
+            export PATH="$HOME/.local/bin:$PATH"
+            set -a; source .env; set +a
+
+            echo "Restarting nginx..."
+            podman-compose -f docker-compose.nginx.yml up -d --force-recreate --remove-orphans
+
+            # Wait for nginx to be ready
+            for i in $(seq 1 10); do
+              STATUS=$(curl -sk -o /dev/null -w "%{http_code}" https://127.0.0.1/ 2>/dev/null)
+              if [ "$STATUS" = "301" ] || [ "$STATUS" = "200" ]; then
+                echo "Nginx healthy after ${i} attempt(s) (status: $STATUS)"
+                break
+              fi
+              echo "Attempt $i/10: got $STATUS, retrying in 2s..."
+              sleep 2
+            done
+            echo "Nginx restarted"
+
+  deploy-landing:
+    runs-on: ubuntu-latest
+    needs: [deploy-infra, detect-changes]
+    if: always() && !cancelled() && (needs.detect-changes.outputs.landing == 'true' || inputs.action == 'full')
+
+    steps:
+      - name: Restart landing
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.LINODE_SERVER_IP }}
+          username: ${{ secrets.LINODE_SSH_USER }}
+          key: ${{ secrets.LINODE_SSH_KEY }}
+          port: 43422
+          command_timeout: 2m
+          script: |
+            cd /opt/creditcardanalyzer
+            export PATH="$HOME/.local/bin:$PATH"
+            set -a; source .env; set +a
+
+            # Guard: skip if landing image not available
+            if ! podman image inspect ${LANDING_IMAGE}:${IMAGE_TAG} > /dev/null 2>&1; then
+              echo "Landing image not available, skipping (src/landing/ may not exist yet)"
+              exit 0
+            fi
+
+            echo "Restarting landing..."
+            podman-compose -f docker-compose.web-landing.yml up -d --force-recreate --remove-orphans
+            echo "Landing restarted"
+
+  deploy-monitoring:
+    runs-on: ubuntu-latest
+    needs: [deploy-infra, detect-changes]
+    if: always() && !cancelled() && (needs.detect-changes.outputs.monitoring == 'true' || inputs.action == 'full')
+
+    steps:
+      - name: Restart monitoring
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.LINODE_SERVER_IP }}
+          username: ${{ secrets.LINODE_SSH_USER }}
+          key: ${{ secrets.LINODE_SSH_KEY }}
+          port: 43422
+          command_timeout: 3m
+          script: |
+            cd /opt/creditcardanalyzer
+            export PATH="$HOME/.local/bin:$PATH"
+            set -a; source .env; set +a
+
+            echo "Restarting monitoring..."
+            podman-compose -f docker-compose.monitoring.yml up -d --force-recreate --remove-orphans
+            echo "Monitoring restarted"
+
+  # ── Health check (global) ──────────────────────────────────
+
+  health-check:
+    runs-on: ubuntu-latest
+    needs: [deploy-platform, deploy-nginx, deploy-bots, deploy-landing, deploy-monitoring]
+    if: always() && !cancelled()
+
+    steps:
+      - name: Global health check
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.LINODE_SERVER_IP }}
+          username: ${{ secrets.LINODE_SSH_USER }}
+          key: ${{ secrets.LINODE_SSH_KEY }}
+          port: 43422
+          script: |
+            echo "Waiting for all services to stabilize..."
+            sleep 10
+
             echo ""
-            echo "=== Final Status ==="
+            echo "=== Container Status ==="
             podman ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            echo ""
+
+            # Check landing site (non-fatal if not deployed)
+            LANDING_STATUS=$(curl -sk -o /dev/null -w "%{http_code}" https://${{ vars.DOMAIN_NAME }}/ 2>/dev/null)
+            echo "Landing (${{ vars.DOMAIN_NAME }}): $LANDING_STATUS"
+
+            # Check platform (critical)
+            PLATFORM_STATUS=$(curl -sk -o /dev/null -w "%{http_code}" https://${{ vars.PLATFORM_DOMAIN }}/api/docs 2>/dev/null)
+            echo "Platform (${{ vars.PLATFORM_DOMAIN }}): $PLATFORM_STATUS"
+
+            if [ "$PLATFORM_STATUS" != "200" ]; then
+              echo "::warning::Platform health check returned $PLATFORM_STATUS (banner should be visible)"
+            fi
 
   cleanup-old-images:
     runs-on: ubuntu-latest
-    needs: restart-and-verify
+    needs: health-check
     if: success()
 
     steps:
@@ -870,5 +1071,8 @@ jobs:
           port: 43422
           script: |
             echo "Cleaning up old images..."
-            podman system prune -af 2>/dev/null || true
+            # Remove dangling images only, keep tagged versions for rollback
+            podman image prune -f 2>/dev/null || true
+            # Remove old backup images older than 7 days
+            find /opt/creditcardanalyzer/backups -name "db_*.sql.gz" -mtime +7 -delete 2>/dev/null || true
             echo "Cleanup complete"

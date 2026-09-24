@@ -116,13 +116,16 @@ async def lifespan(application: FastAPI):
     task = asyncio.create_task(price_refresh_loop())
 
     telegram_token = os.getenv("TELEGRAM_BOT_TOKEN")
-    if telegram_token:
+    bot_enabled = os.getenv("TELEGRAM_BOT_ENABLED", "true").lower() in ("true", "1", "yes")
+    if telegram_token and bot_enabled:
         from app.telegram_bot import start_bot
 
         threading.Thread(
             target=start_bot, args=(telegram_token,), daemon=True, name="telegram-bot"
         ).start()
         logging.getLogger(__name__).info("Telegram bot thread started")
+    elif telegram_token and not bot_enabled:
+        logging.getLogger(__name__).info("Telegram bot disabled via TELEGRAM_BOT_ENABLED=false")
     else:
         logging.getLogger(__name__).warning("TELEGRAM_BOT_TOKEN not set — bot disabled")
 

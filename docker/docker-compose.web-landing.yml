@@ -13,3 +13,8 @@ services:
           memory: 128M
           cpus: "0.25"
     restart: unless-stopped
+
+networks:
+  default:
+    external: true
+    name: oikonomia
