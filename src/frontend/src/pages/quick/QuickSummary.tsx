@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getDashboard } from "../../api/client";
+import { getDashboard, getTagSummary } from "../../api/client";
 import { formatCurrency, toUpperCase } from "../../utils/format";
 
 const now = new Date();
@@ -9,6 +9,12 @@ export default function QuickSummary() {
   const { data: dash, isLoading } = useQuery({
     queryKey: ["dashboard", "quick", currentMonth],
     queryFn: () => getDashboard({ month: currentMonth }),
+  });
+
+  const { data: cuentaData = [] } = useQuery({
+    queryKey: ["tag-summary", "cuenta", currentMonth],
+    queryFn: () => getTagSummary("cuenta"),
+    staleTime: 60_000,
   });
 
   if (isLoading) {
@@ -115,6 +121,41 @@ export default function QuickSummary() {
           </div>
         </div>
       )}
+
+      {/* Top Cuentas */}
+      {(() => {
+        const topCuentas = cuentaData
+          .map((t) => {
+            const monthEntry = t.monthly?.find((m) => m.month === currentMonth);
+            return { ...t, current_amount: monthEntry?.total ?? 0 };
+          })
+          .filter((t) => t.current_amount > 0)
+          .sort((a, b) => b.current_amount - a.current_amount)
+          .slice(0, 3);
+        return topCuentas.length > 0 ? (
+          <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl p-3">
+            <div className="text-[10px] font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-2">
+              Top Cuentas
+            </div>
+            <div className="space-y-2">
+              {topCuentas.map((t) => (
+                <div key={t.tag_id ?? "null"} className="flex items-center gap-2">
+                  <span
+                    className="w-3 h-3 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: t.tag_color }}
+                  />
+                  <span className="text-xs text-[var(--text-primary)] font-medium flex-1 truncate">
+                    {t.tag_name}
+                  </span>
+                  <span className="text-xs text-[var(--text-secondary)] font-semibold whitespace-nowrap">
+                    {formatCurrency(t.current_amount)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null;
+      })()}
 
       {/* Recent expenses */}
       {recent.length > 0 && (
