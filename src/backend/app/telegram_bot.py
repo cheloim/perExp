@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import json
 import logging
 import os
@@ -3422,10 +3423,8 @@ async def _run_bot(token: str) -> None:
         redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
         r = aioredis.from_url(redis_url)
         while True:
-            try:
+            with contextlib.suppress(Exception):
                 await r.set("bot:heartbeat", "1", ex=60)
-            except Exception:
-                pass
             await asyncio.sleep(30)
 
     heartbeat_task = asyncio.create_task(_heartbeat())
