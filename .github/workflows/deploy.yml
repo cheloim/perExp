@@ -799,12 +799,20 @@ jobs:
             done
 
             # Also clean up any orphaned oikonomia-* containers from failed deploys
+            # But DO NOT touch infra containers (db, redis) — they have persistent data
             echo "Cleaning up orphaned containers..."
             for SVC in backend platform-frontend celery_worker celery_beat; do
               podman rm -f "oikonomia-platform_${SVC}_1" 2>/dev/null || true
             done
             for SVC in telegram_bot; do
               podman rm -f "oikonomia-bots_${SVC}_1" 2>/dev/null || true
+            done
+            for SVC in nginx; do
+              podman rm -f "oikonomia-nginx_${SVC}_1" 2>/dev/null || true
+            done
+            # Clean up monitoring containers (they have no persistent data)
+            for SVC in postgres-exporter redis-exporter node-exporter nginx-exporter blackbox-exporter alloy cadvisor; do
+              podman rm -f "oikonomia-monitoring_${SVC}_1" 2>/dev/null || true
             done
 
             # Check if db is running (compose-agnostic)
@@ -1017,7 +1025,7 @@ jobs:
   deploy-nginx:
     runs-on: ubuntu-latest
     needs: [migrate, detect-changes]
-    if: always() && !cancelled() && (needs.detect-changes.outputs.nginx == 'true' || inputs.action == 'full')
+    if: always() && !cancelled() && (needs.detect-changes.outputs.nginx == 'true' || needs.detect-changes.outputs.platform == 'true' || inputs.action == 'full')
 
     steps:
       - name: Restart nginx
@@ -1222,6 +1230,28 @@ jobs:
               echo "Telegram Bot: $BOT_STATUS"
               if [ "$BOT_STATUS" != "running" ]; then
                 echo "::warning::Telegram bot status: $BOT_STATUS"
+              fi
+            fi
+
+            # Check platform-frontend
+            FRONTEND_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_platform-frontend_' | head -1)
+            if [ -n "$FRONTEND_CONTAINER" ]; then
+              FRONTEND_STATUS=$(podman inspect --format='{{.State.Health.Status}}' "$FRONTEND_CONTAINER" 2>/dev/null || echo "no-healthcheck")
+              echo "Platform Frontend: $FRONTEND_STATUS"
+              if [ "$FRONTEND_STATUS" = "unhealthy" ]; then
+                echo "::error::Platform frontend unhealthy"
+                ERRORS=$((ERRORS + 1))
+              fi
+            fi
+
+            # Check nginx
+            NGINX_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_nginx_' | head -1)
+            if [ -n "$NGINX_CONTAINER" ]; then
+              NGINX_STATUS=$(podman inspect --format='{{.State.Health.Status}}' "$NGINX_CONTAINER" 2>/dev/null || echo "no-healthcheck")
+              echo "Nginx: $NGINX_STATUS"
+              if [ "$NGINX_STATUS" = "unhealthy" ]; then
+                echo "::error::Nginx unhealthy"
+                ERRORS=$((ERRORS + 1))
               fi
             fi
 
