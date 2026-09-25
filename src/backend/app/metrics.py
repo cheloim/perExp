@@ -1,6 +1,7 @@
 """In-memory metrics middleware and Prometheus exposition for the admin panel."""
 
 import logging
+import os
 import threading
 import time
 from collections import deque
@@ -207,11 +208,24 @@ def update_business_metrics() -> None:
                 SCHEDULED_EXPENSES_TOTAL.labels(status=sstatus).set(count)
 
             # Service health checks
-            # Telegram bot: check if the bot thread is alive
+            # Telegram bot: check if bot thread is alive OR if standalone bot is writing heartbeat
             bot_thread_alive = any(
                 t.name == "telegram-bot" and t.is_alive() for t in threading.enumerate()
             )
-            TELEGRAM_BOT_HEALTH.set(1 if bot_thread_alive else 0)
+            if not bot_thread_alive:
+                # Check Redis heartbeat from standalone bot container
+                try:
+                    import redis
+
+                    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+                    r = redis.from_url(redis_url)
+                    heartbeat = r.get("bot:heartbeat")
+                    TELEGRAM_BOT_HEALTH.set(1 if heartbeat else 0)
+                    r.close()
+                except Exception:
+                    TELEGRAM_BOT_HEALTH.set(0)
+            else:
+                TELEGRAM_BOT_HEALTH.set(1)
 
             # Celery: check if workers respond (ping is lighter than active)
             try:

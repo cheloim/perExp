@@ -3415,10 +3415,26 @@ async def _run_bot(token: str) -> None:
     await app.start()
     await app.updater.start_polling(drop_pending_updates=True)
 
+    # Write heartbeat to Redis so backend can check bot liveness
+    async def _heartbeat():
+        import redis.asyncio as aioredis
+
+        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        r = aioredis.from_url(redis_url)
+        while True:
+            try:
+                await r.set("bot:heartbeat", "1", ex=60)
+            except Exception:
+                pass
+            await asyncio.sleep(30)
+
+    heartbeat_task = asyncio.create_task(_heartbeat())
+
     # Keep running until the process dies
     try:
         await asyncio.Event().wait()
     finally:
+        heartbeat_task.cancel()
         await app.updater.stop()
         await app.stop()
         await app.shutdown()
