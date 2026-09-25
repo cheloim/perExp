@@ -353,6 +353,9 @@ function MainLayout() {
         const { SHOW_WHATS_NEW } = await import("./components/WhatsNewModal");
         if (!SHOW_WHATS_NEW) return;
 
+        // Don't show What's New while onboarding is still pending
+        if (currentUser && !currentUser.onboarding_completed) return;
+
         // Fast-path: localStorage fallback (instant, no network)
         const dontRemindLocal = localStorage.getItem("whats_new_dont_remind_version");
         if (dontRemindLocal === LATEST_VERSION) return;
@@ -370,7 +373,7 @@ function MainLayout() {
       }
     };
     checkWhatsNew();
-  }, [location.pathname, currentUser?.whats_new_dismissed_version]);
+  }, [location.pathname, currentUser]);
 
   useEffect(() => {
     const main = document.querySelector("main");
@@ -766,14 +769,13 @@ function MainLayout() {
                   onClose={(dontRemind) => {
                     setShowWhatsNew(false);
                     if (dontRemind) {
-                      // Persist to backend (syncs across devices)
+                      // Persist to backend, then sync localStorage on success
                       dismissWhatsNew(LATEST_VERSION)
                         .then(() => {
+                          localStorage.setItem("whats_new_dont_remind_version", LATEST_VERSION);
                           queryClient.invalidateQueries({ queryKey: ["me"] });
                         })
                         .catch(() => {});
-                      // Also set localStorage as fast-path fallback
-                      localStorage.setItem("whats_new_dont_remind_version", LATEST_VERSION);
                     }
                   }}
                 />
