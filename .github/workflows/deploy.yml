@@ -294,6 +294,12 @@ jobs:
             podman network create "$NETWORK_NAME" 2>/dev/null || true
             echo "Network $NETWORK_NAME ready"
 
+            echo "=== Cleaning up legacy containers (old project name) ==="
+            for OLD in $(podman ps -a --format '{{.Names}}' | grep '^creditcardanalyzer_' 2>/dev/null); do
+              echo "Removing legacy container: $OLD"
+              podman rm -f "$OLD" 2>/dev/null || true
+            done
+
             echo "Directories ready"
 
             echo "=== Opening firewall ports ==="
@@ -533,22 +539,22 @@ jobs:
             set +a
 
             echo "Validating compose-platform.yml..."
-            podman-compose -f docker-compose.platform.yml config --quiet
+            podman-compose -p oikonomia-platform -f docker-compose.platform.yml config --quiet
             echo "compose-platform.yml OK"
             echo "Validating compose-infra.yml..."
-            podman-compose -f docker-compose.infra.yml config --quiet
+            podman-compose -p oikonomia-infra -f docker-compose.infra.yml config --quiet
             echo "compose-infra.yml OK"
             echo "Validating compose-nginx.yml..."
-            podman-compose -f docker-compose.nginx.yml config --quiet
+            podman-compose -p oikonomia-nginx -f docker-compose.nginx.yml config --quiet
             echo "compose-nginx.yml OK"
             echo "Validating compose-bots.yml..."
-            podman-compose -f docker-compose.bots.yml config --quiet
+            podman-compose -p oikonomia-bots -f docker-compose.bots.yml config --quiet
             echo "compose-bots.yml OK"
             echo "Validating compose-monitoring.yml..."
-            podman-compose -f docker-compose.monitoring.yml config --quiet
+            podman-compose -p oikonomia-monitoring -f docker-compose.monitoring.yml config --quiet
             echo "compose-monitoring.yml OK"
             echo "Validating compose-web-landing.yml..."
-            podman-compose -f docker-compose.web-landing.yml config --quiet
+            podman-compose -p oikonomia-landing -f docker-compose.web-landing.yml config --quiet
             echo "compose-web-landing.yml OK"
 
       - name: Validate nginx config
@@ -589,13 +595,13 @@ jobs:
             echo "${{ secrets.GHCR_PAT }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin || echo "WARN: GHCR login failed (may be public repo)"
 
             echo "Pulling platform images..."
-            podman-compose -f docker-compose.platform.yml pull
+            podman-compose -p oikonomia-platform -f docker-compose.platform.yml pull
 
             echo "Pulling infra images..."
-            podman-compose -f docker-compose.infra.yml pull
+            podman-compose -p oikonomia-infra -f docker-compose.infra.yml pull
 
             echo "Pulling nginx image..."
-            podman-compose -f docker-compose.nginx.yml pull
+            podman-compose -p oikonomia-nginx -f docker-compose.nginx.yml pull
 
             # Verify platform images exist
             echo "Verifying images..."
@@ -676,7 +682,7 @@ jobs:
             set +a
 
             echo "=== Step 0: Verify SECRET_KEY ==="
-            KEY_CHECK=$(podman-compose -f docker-compose.platform.yml run --rm backend python -c "
+            KEY_CHECK=$(podman-compose -p oikonomia-platform -f docker-compose.platform.yml run --rm backend python -c "
             from app.services.encryption import verify_key_works
             if verify_key_works():
                 print('KEY_VALID')
@@ -693,7 +699,7 @@ jobs:
             echo "=== Step 1: Database structure migration ==="
             # Auto-discover and run migration scripts in a single container
             # Write a temp script to avoid nested shell quoting issues
-            podman-compose -f docker-compose.platform.yml run --rm backend sh -c '
+            podman-compose -p oikonomia-platform -f docker-compose.platform.yml run --rm backend sh -c '
               set -e
               SCRIPTS=$(ls -1 scripts/migrate_*.py scripts/backfill_*.py scripts/cleanup_*.py 2>/dev/null | xargs -n1 basename | sed "s/\.py$//" | sort)
               echo "Found migrations: $SCRIPTS"
@@ -716,7 +722,7 @@ jobs:
             }
 
             echo "=== Step 2: Dry-run encryption migration ==="
-            DRY_RUN=$(podman-compose -f docker-compose.platform.yml run --rm backend python scripts/dry_run_migration.py 2>&1)
+            DRY_RUN=$(podman-compose -p oikonomia-platform -f docker-compose.platform.yml run --rm backend python scripts/dry_run_migration.py 2>&1)
             echo "$DRY_RUN"
 
             if echo "$DRY_RUN" | grep -q "Status: FAIL"; then
@@ -725,13 +731,13 @@ jobs:
             fi
 
             echo "=== Step 3: Run encryption migration ==="
-            if ! podman-compose -f docker-compose.platform.yml run --rm backend python scripts/migrate_encrypt_fields.py; then
+            if ! podman-compose -p oikonomia-platform -f docker-compose.platform.yml run --rm backend python scripts/migrate_encrypt_fields.py; then
               echo "::error::Encryption migration failed!"
               exit 1
             fi
 
             echo "=== Step 4: Verify encryption ==="
-            VERIFY=$(podman-compose -f docker-compose.platform.yml run --rm backend python scripts/verify_encryption.py 2>&1)
+            VERIFY=$(podman-compose -p oikonomia-platform -f docker-compose.platform.yml run --rm backend python scripts/verify_encryption.py 2>&1)
             echo "$VERIFY"
 
             if echo "$VERIFY" | grep -q "Status: FAIL"; then
@@ -779,11 +785,11 @@ jobs:
             # Check if db is running (compose-agnostic)
             if ! podman ps --format '{{.Names}}' | grep -qE '_db_'; then
               echo "Starting infra (first deploy)..."
-              podman-compose -f docker-compose.infra.yml up -d
+              podman-compose -p oikonomia-infra -f docker-compose.infra.yml up -d
             elif [ "${{ needs.detect-changes.outputs.infra }}" = "true" ] || [ "${{ inputs.action }}" = "full" ]; then
               echo "Infra compose changed, restarting..."
-              podman-compose -f docker-compose.infra.yml stop db redis 2>/dev/null || true
-              podman-compose -f docker-compose.infra.yml up -d
+              podman-compose -p oikonomia-infra -f docker-compose.infra.yml stop db redis 2>/dev/null || true
+              podman-compose -p oikonomia-infra -f docker-compose.infra.yml up -d
             else
               echo "Infra unchanged, verifying health only..."
             fi
@@ -870,17 +876,13 @@ jobs:
 
             # Stop ONLY platform services (compose handles container names)
             echo "Stopping platform services..."
-            podman-compose -f docker-compose.platform.yml stop backend platform-frontend celery_worker celery_beat 2>/dev/null || true
-
-            # Clean up legacy service name (frontend → platform-frontend)
-            LEGACY_FRONTEND="${COMPOSE_PROJECT_NAME:-creditcardanalyzer}_frontend_1"
-            podman rm -f "$LEGACY_FRONTEND" 2>/dev/null || true
+            podman-compose -p oikonomia-platform -f docker-compose.platform.yml stop backend platform-frontend celery_worker celery_beat 2>/dev/null || true
 
             # Pull new images and force recreate to ensure new image tag is used
             echo "Pulling new platform images..."
-            podman-compose -f docker-compose.platform.yml pull
+            podman-compose -p oikonomia-platform -f docker-compose.platform.yml pull
             echo "Starting platform services..."
-            podman-compose -f docker-compose.platform.yml up -d --force-recreate
+            podman-compose -p oikonomia-platform -f docker-compose.platform.yml up -d --force-recreate
             echo "Platform services started"
 
             echo "Waiting for backend health..."
@@ -930,9 +932,9 @@ jobs:
             export IMAGE_TAG
 
             # Stop ONLY platform services
-            podman-compose -f docker-compose.platform.yml stop backend platform-frontend celery_worker celery_beat 2>/dev/null || true
+            podman-compose -p oikonomia-platform -f docker-compose.platform.yml stop backend platform-frontend celery_worker celery_beat 2>/dev/null || true
 
-            podman-compose -f docker-compose.platform.yml up -d
+            podman-compose -p oikonomia-platform -f docker-compose.platform.yml up -d
 
             echo "Waiting for rollback health..."
             for i in $(seq 1 15); do
@@ -967,12 +969,9 @@ jobs:
 
             echo "Restarting bot services..."
             # Stop ONLY bot service (compose handles container names)
-            podman-compose -f docker-compose.bots.yml stop telegram_bot 2>/dev/null || true
-            # Clean up legacy bot container
-            LEGACY_BOT="${COMPOSE_PROJECT_NAME:-creditcardanalyzer}_telegram_bot_1"
-            podman rm -f "$LEGACY_BOT" 2>/dev/null || true
+            podman-compose -p oikonomia-bots -f docker-compose.bots.yml stop telegram_bot 2>/dev/null || true
             # Start bot containers
-            podman-compose -f docker-compose.bots.yml up -d
+            podman-compose -p oikonomia-bots -f docker-compose.bots.yml up -d
 
             # Wait for bot container to be running
             sleep 5
@@ -1010,9 +1009,9 @@ jobs:
 
             echo "Restarting nginx..."
             # Stop ONLY nginx service (compose handles container names)
-            podman-compose -f docker-compose.nginx.yml stop nginx 2>/dev/null || true
+            podman-compose -p oikonomia-nginx -f docker-compose.nginx.yml stop nginx 2>/dev/null || true
             # Start nginx
-            podman-compose -f docker-compose.nginx.yml up -d
+            podman-compose -p oikonomia-nginx -f docker-compose.nginx.yml up -d
 
             # Wait for nginx to be ready
             for i in $(seq 1 10); do
@@ -1053,9 +1052,9 @@ jobs:
 
             echo "Restarting landing..."
             # Stop ONLY landing service (compose handles container names)
-            podman-compose -f docker-compose.web-landing.yml stop landing 2>/dev/null || true
+            podman-compose -p oikonomia-landing -f docker-compose.web-landing.yml stop landing 2>/dev/null || true
             # Start landing
-            podman-compose -f docker-compose.web-landing.yml up -d
+            podman-compose -p oikonomia-landing -f docker-compose.web-landing.yml up -d
             echo "Landing restarted"
 
   deploy-monitoring:
@@ -1079,9 +1078,9 @@ jobs:
 
             echo "Restarting monitoring..."
             # Stop ALL monitoring services (compose handles container names)
-            podman-compose -f docker-compose.monitoring.yml stop 2>/dev/null || true
+            podman-compose -p oikonomia-monitoring -f docker-compose.monitoring.yml stop 2>/dev/null || true
             # Start monitoring
-            podman-compose -f docker-compose.monitoring.yml up -d
+            podman-compose -p oikonomia-monitoring -f docker-compose.monitoring.yml up -d
             echo "Monitoring restarted"
 
   # ── Health check (global) ──────────────────────────────────
