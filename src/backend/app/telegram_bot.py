@@ -1161,7 +1161,34 @@ _HELP_TEXT = (
 
 async def handle_unsupported_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle non-text messages (photos, stickers, voice notes, etc.)."""
-    await update.message.reply_text(
+    msg = update.message
+    msg_type = "unknown"
+    if msg.photo:
+        msg_type = "photo"
+    elif msg.sticker:
+        msg_type = "sticker"
+    elif msg.voice or msg.audio:
+        msg_type = "voice/audio"
+    elif msg.video or msg.video_note:
+        msg_type = "video"
+    elif msg.document:
+        msg_type = "document"
+    elif msg.location:
+        msg_type = "location"
+    elif msg.contact:
+        msg_type = "contact"
+
+    chat_id = str(msg.chat_id) if msg.chat_id else "unknown"
+    user = msg.from_user
+    username = user.username or user.first_name or "unknown" if user else "unknown"
+    logger.info(
+        "[UNSUPPORTED] chat_id=%s user=%s type=%s",
+        chat_id,
+        username,
+        msg_type,
+    )
+
+    await msg.reply_text(
         "📌 Este tipo de mensaje no está soportado por el bot. "
         "Mandame un texto con el gasto o usá /ayuda para ver los comandos disponibles."
     )
@@ -1181,6 +1208,11 @@ async def _handle_bank_notification(
     parsed = await asyncio.to_thread(_parse_bank_notification, text)
 
     if not parsed or not parsed.get("amount"):
+        logger.warning(
+            "[BANK_PARSE] Failed to parse bank notification — chat_id=%s text=%s",
+            str(update.effective_chat.id),
+            text[:200],
+        )
         await update.message.reply_text(
             "🔔 Notificación bancaria detectada pero no pude parsear el monto.\n"
             "Probá de nuevo o escribí el gasto manualmente.",
@@ -1285,6 +1317,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     TELEGRAM_MESSAGES.labels(direction="inbound").inc()
     chat_id = str(update.effective_chat.id)
+    user = update.effective_user
+    username = user.username or user.first_name or "unknown" if user else "unknown"
+    text_raw = update.message.text or ""
+    logger.info(
+        "[MSG] chat_id=%s user=%s len=%d preview=%s",
+        chat_id,
+        username,
+        len(text_raw),
+        text_raw[:80] if text_raw else "(empty)",
+    )
+
     auth_user = _get_user_by_chat_id(chat_id)
     if not auth_user:
         await update.message.reply_text("Primero autenticate con /start.")

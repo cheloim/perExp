@@ -103,12 +103,12 @@ loki.process "log_level_fix" {
     }
   }
 
-  // If container is nginx-exporter and message contains "error getting stats",
+  // If container is nginx-exporter and message contains "error getting stats" or "round trip failed",
   // downgrade level from ERROR to WARNING (scrape issues, not system errors)
   stage.match {
     selector = "{service_name=~\".*nginx-exporter.*\"}"
     stage.regex {
-      expression = ".*error getting stats.*"
+      expression = ".*(error getting stats|round trip failed|no such host).*"
     }
     stage.labels {
       values = { detected_level = "warning" }
