@@ -48,6 +48,8 @@ services:
     image: docker.io/nginx/nginx-prometheus-exporter:latest
     command:
       - "-nginx.scrape-uri=http://nginx:8080/stub_status"
+    ports:
+      - "9113:9113"
     networks:
       default:
         external: true

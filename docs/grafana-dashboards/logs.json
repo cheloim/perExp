@@ -54,7 +54,7 @@
       "gridPos": { "h": 10, "w": 12, "x": 0, "y": 16 },
       "targets": [
         {
-          "expr": "{container=\"creditcardanalyzer_backend_1\"}",
+          "expr": "{container=~\".*backend.*\"}",
           "legendFormat": "",
           "refId": "A"
         }
@@ -77,7 +77,7 @@
       "gridPos": { "h": 10, "w": 12, "x": 12, "y": 16 },
       "targets": [
         {
-          "expr": "{container=\"creditcardanalyzer_nginx_1\"}",
+          "expr": "{container=~\".*nginx_1.*\"}",
           "legendFormat": "",
           "refId": "A"
         }
@@ -100,7 +100,7 @@
       "gridPos": { "h": 10, "w": 12, "x": 0, "y": 26 },
       "targets": [
         {
-          "expr": "{container=\"creditcardanalyzer_celery_worker_1\"}",
+          "expr": "{container=~\".*celery_worker.*\"}",
           "legendFormat": "",
           "refId": "A"
         }
@@ -118,12 +118,12 @@
       "datasource": { "type": "loki", "uid": "" }
     },
     {
-      "title": "Grafana Logs",
+      "title": "Alloy Logs",
       "type": "logs",
       "gridPos": { "h": 10, "w": 12, "x": 12, "y": 26 },
       "targets": [
         {
-          "expr": "{container=\"creditcardanalyzer_grafana_1\"}",
+          "expr": "{container=~\".*alloy.*\"}",
           "legendFormat": "",
           "refId": "A"
         }
@@ -146,7 +146,7 @@
       "gridPos": { "h": 10, "w": 12, "x": 0, "y": 36 },
       "targets": [
         {
-          "expr": "{container=\"creditcardanalyzer_db_1\"}",
+          "expr": "{container=~\".*_db_.*\"}",
           "legendFormat": "",
           "refId": "A"
         }
@@ -187,12 +187,12 @@
       "datasource": { "type": "loki", "uid": "" }
     },
     {
-      "title": "All Container Logs (search)",
+      "title": "Telegram Bot Logs",
       "type": "logs",
-      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 46 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 46 },
       "targets": [
         {
-          "expr": "{job=\"systemd-journal\"} |= \"$search\"",
+          "expr": "{job=\"systemd-journal\"} |~ \"$search\"",
           "legendFormat": "",
           "refId": "A"
         }
@@ -218,7 +218,7 @@
         "name": "search",
         "type": "textbox",
         "label": "Search",
-        "current": { "value": "" },
+        "current": { "value": ".*" },
         "options": []
       }
     ]
@@ -226,5 +226,5 @@
   "time": { "from": "now-1h", "to": "now" },
   "title": "Oikonomia - Logs",
   "uid": "oikonomia-logs",
-  "version": 1
+  "version": 2
 }
