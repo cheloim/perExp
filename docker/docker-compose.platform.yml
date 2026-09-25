@@ -25,6 +25,7 @@ services:
       EMAIL_API_KEY: ${EMAIL_API_KEY}
       SMTP_FROM: ${SMTP_FROM}
       SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
       FRONTEND_URL: https://${PLATFORM_DOMAIN}
       CORS_ORIGINS: https://${DOMAIN_NAME},https://www.${DOMAIN_NAME},https://${PLATFORM_DOMAIN}
       TELEGRAM_BOT_ENABLED: "false"
@@ -95,6 +96,12 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
     deploy:
       resources:
         limits:

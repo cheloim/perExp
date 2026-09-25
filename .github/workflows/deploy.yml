@@ -503,7 +503,7 @@ jobs:
           port: 43422
           script: |
             cd /opt/creditcardanalyzer
-            REQUIRED="POSTGRES_PASSWORD LLM_API_KEY SECRET_KEY TELEGRAM_BOT_TOKEN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET EMAIL_API_KEY ADMIN_EMAIL INVESTMENTS_LLM_API_KEY MESSAGES_BOT_LLM_API_KEY GRAFANA_CLOUD_PROMETHEUS_URL GRAFANA_CLOUD_LOKI_URL"
+            REQUIRED="POSTGRES_PASSWORD LLM_API_KEY SECRET_KEY TELEGRAM_BOT_TOKEN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET EMAIL_API_KEY ADMIN_EMAIL INVESTMENTS_LLM_API_KEY MESSAGES_BOT_LLM_API_KEY GRAFANA_CLOUD_PROMETHEUS_URL GRAFANA_CLOUD_PROMETHEUS_USER GRAFANA_CLOUD_PROMETHEUS_PASSWORD GRAFANA_CLOUD_LOKI_URL GRAFANA_CLOUD_LOKI_USER GRAFANA_CLOUD_LOKI_PASSWORD"
             MISSING=""
             for var in $REQUIRED; do
               VALUE=$(grep "^${var}=" .env | cut -d= -f2-)
@@ -810,11 +810,12 @@ jobs:
             # Check if db is running (compose-agnostic)
             if ! podman ps --format '{{.Names}}' | grep -qE '_db_'; then
               echo "Starting infra (first deploy)..."
-              podman-compose -p oikonomia-infra -f docker-compose.infra.yml up -d
+              podman-compose -p oikonomia-infra -f docker-compose.infra.yml up -d --force-recreate
             elif [ "${{ needs.detect-changes.outputs.infra }}" = "true" ] || [ "${{ inputs.action }}" = "full" ]; then
               echo "Infra compose changed, restarting..."
+              # Force recreate to ensure volume changes take effect
               podman-compose -p oikonomia-infra -f docker-compose.infra.yml stop db redis 2>/dev/null || true
-              podman-compose -p oikonomia-infra -f docker-compose.infra.yml up -d
+              podman-compose -p oikonomia-infra -f docker-compose.infra.yml up -d --force-recreate
             else
               echo "Infra unchanged, verifying health only..."
             fi
@@ -1039,15 +1040,23 @@ jobs:
             podman-compose -p oikonomia-nginx -f docker-compose.nginx.yml up -d
 
             # Wait for nginx to be ready
-            for i in $(seq 1 10); do
+            NGINX_OK=false
+            for i in $(seq 1 15); do
               STATUS=$(curl -sk -o /dev/null -w "%{http_code}" https://127.0.0.1/ 2>/dev/null)
               if [ "$STATUS" = "301" ] || [ "$STATUS" = "200" ]; then
                 echo "Nginx healthy after ${i} attempt(s) (status: $STATUS)"
+                NGINX_OK=true
                 break
               fi
-              echo "Attempt $i/10: got $STATUS, retrying in 2s..."
-              sleep 2
+              echo "Attempt $i/15: got $STATUS, retrying in 3s..."
+              sleep 3
             done
+
+            if [ "$NGINX_OK" = "false" ]; then
+              echo "::error::Nginx health check failed"
+              podman logs $(podman ps --format '{{.Names}}' | grep -E '_nginx_' | head -1) --tail 20 2>&1 || true
+              exit 1
+            fi
             echo "Nginx restarted"
 
   deploy-landing:
@@ -1102,16 +1111,28 @@ jobs:
             set -a; source .env; set +a
 
             echo "Restarting monitoring..."
-            # Stop ALL monitoring services (compose handles container names)
-            podman-compose -p oikonomia-monitoring -f docker-compose.monitoring.yml stop 2>/dev/null || true
+
+            # Stop ALL old monitoring containers (legacy + current) to free ports
+            echo "Cleaning up old monitoring containers..."
+            for OLD in $(podman ps -a --format '{{.Names}}' | grep -E '^(creditcardanalyzer_|oikonomia-monitoring_)'); do
+              echo "  Stopping: $OLD"
+              podman stop "$OLD" 2>/dev/null || true
+              podman rm -f "$OLD" 2>/dev/null || true
+            done
+
             # Start monitoring
+            echo "Starting monitoring..."
             podman-compose -p oikonomia-monitoring -f docker-compose.monitoring.yml up -d
 
             # Connect nginx-exporter to oikonomia network so it can reach nginx:8080
             echo "Connecting nginx-exporter to oikonomia network..."
             sleep 3
-            podman network connect oikonomia oikonomia-monitoring_nginx-exporter_1 2>/dev/null || true
-            podman restart oikonomia-monitoring_nginx-exporter_1 2>/dev/null || true
+            NGINX_EXPORTER=$(podman ps --format '{{.Names}}' | grep -E '_nginx-exporter_' | head -1)
+            if [ -n "$NGINX_EXPORTER" ]; then
+              podman network connect oikonomia "$NGINX_EXPORTER" 2>/dev/null || true
+              podman restart "$NGINX_EXPORTER" 2>/dev/null || true
+              echo "Nginx-exporter connected to oikonomia network"
+            fi
             echo "Monitoring restarted"
 
   # ── Health check (global) ──────────────────────────────────

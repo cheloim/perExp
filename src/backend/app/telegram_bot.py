@@ -507,14 +507,31 @@ def _save_expense(
         sync_category_tag(db, expense, expense.category_id)
 
         if tag_ids:
+            # Validate tags exist before inserting to avoid FK violations
+            valid_tag_ids = []
             for tid in tag_ids:
+                tag_exists = db.query(Tag).filter(Tag.id == tid).first()
+                if tag_exists:
+                    valid_tag_ids.append(tid)
+                else:
+                    logger.warning(f"Tag {tid} not found, skipping")
+
+            for tid in valid_tag_ids:
                 db.add(ExpenseTag(expense_id=expense.id, tag_id=tid))
-            db.commit()
+            try:
+                db.commit()
+            except Exception as e:
+                logger.warning(f"Failed to add expense tags: {e}")
+                db.rollback()
 
         # Link to recurring expense if matches
         from app.services.recurring_linker import link_to_recurring
 
-        link_to_recurring(expense.id, expense.description, user_id, db)
+        try:
+            link_to_recurring(expense.id, expense.description, user_id, db)
+        except Exception as e:
+            logger.warning(f"Failed to link recurring: {e}")
+            db.rollback()
 
         # Resolve up to 3 levels: cat → parent → grandparent
         expense._cat_levels = []
@@ -1246,6 +1263,20 @@ async def _handle_bank_notification(
             reply_markup=keyboard,
         )
         return ConversationHandler.END
+    except Exception as e:
+        logger.error(f"Error saving bank notification expense: {e}", exc_info=True)
+        try:
+            amount_str = _format_amount(
+                float(parsed.get("amount", 0)), parsed.get("currency", "ARS")
+            )
+            await update.message.reply_text(
+                f"⚠️ Notificación bancaria recibida ({amount_str}) pero hubo un error al guardarla.\n"
+                f"Intentá registrar el gasto manualmente.",
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
+        return ConversationHandler.END
     finally:
         db.close()
 
@@ -1358,6 +1389,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             _quick_saved_text(expense, cat.name if cat else None, expense_tags),
             reply_markup=keyboard,
         )
+        return ConversationHandler.END
+    except Exception as e:
+        logger.error(f"Error saving manual expense: {e}", exc_info=True)
+        try:
+            amount_str = _format_amount(
+                float(parsed.get("amount", 0)), parsed.get("currency", "ARS")
+            )
+            await update.message.reply_text(
+                f"⚠️ Gasto recibido ({amount_str}) pero hubo un error al guardarlo.\n"
+                f"Intentá de nuevo.",
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
         return ConversationHandler.END
     finally:
         db.close()
