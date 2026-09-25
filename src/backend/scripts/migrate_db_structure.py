@@ -110,17 +110,24 @@ def step2_card_closing_card_id(engine):
         )
         print(f"  Backfilled {result.rowcount} card_closings with card_id.")
 
-        # Add FK constraint
+        # Add FK constraint (idempotent)
         if dialect == "postgresql":
             try:
-                conn.execute(
-                    text("""
-                    ALTER TABLE card_closings
-                    ADD CONSTRAINT fk_card_closings_card_id
-                    FOREIGN KEY (card_id) REFERENCES cards(id)
-                """)
+                # Check if constraint already exists
+                result = conn.execute(
+                    text("SELECT 1 FROM pg_constraint WHERE conname = 'fk_card_closings_card_id'")
                 )
-                print("  Added FK constraint.")
+                if result.fetchone():
+                    print("  FK constraint already exists, skipping.")
+                else:
+                    conn.execute(
+                        text("""
+                        ALTER TABLE card_closings
+                        ADD CONSTRAINT fk_card_closings_card_id
+                        FOREIGN KEY (card_id) REFERENCES cards(id)
+                    """)
+                    )
+                    print("  Added FK constraint.")
             except Exception as e:
                 print(f"  FK constraint warning: {e}")
 
@@ -251,12 +258,14 @@ def step6_drop_whats_new_seen(engine):
             print("  Skipping — only supported on PostgreSQL.")
             return
 
-        exists = conn.execute(text("""
+        exists = conn.execute(
+            text("""
             SELECT EXISTS (
                 SELECT 1 FROM information_schema.columns
                 WHERE table_name = 'users' AND column_name = 'whats_new_seen'
             )
-        """)).scalar()
+        """)
+        ).scalar()
 
         if exists:
             conn.execute(text("ALTER TABLE users DROP COLUMN whats_new_seen"))
@@ -505,7 +514,9 @@ def step10_hmac_migration(engine):
 
         # Expenses: description_hmac
         expenses = conn.execute(
-            text("SELECT id, description FROM expenses WHERE description IS NOT NULL AND description_hmac IS NULL")
+            text(
+                "SELECT id, description FROM expenses WHERE description IS NOT NULL AND description_hmac IS NULL"
+            )
         ).fetchall()
 
         hmac_count = 0
@@ -526,7 +537,9 @@ def step10_hmac_migration(engine):
 
         # Scheduled expenses: description_hmac
         scheduled = conn.execute(
-            text("SELECT id, description FROM scheduled_expenses WHERE description IS NOT NULL AND description_hmac IS NULL")
+            text(
+                "SELECT id, description FROM scheduled_expenses WHERE description IS NOT NULL AND description_hmac IS NULL"
+            )
         ).fetchall()
 
         hmac_count = 0
@@ -536,7 +549,9 @@ def step10_hmac_migration(engine):
                     decrypted = decrypt_value(description)
                     hmac_value = compute_hmac(decrypted)
                     conn.execute(
-                        text("UPDATE scheduled_expenses SET description_hmac = :hmac WHERE id = :id"),
+                        text(
+                            "UPDATE scheduled_expenses SET description_hmac = :hmac WHERE id = :id"
+                        ),
                         {"hmac": hmac_value, "id": se_id},
                     )
                     hmac_count += 1
@@ -646,7 +661,9 @@ def step11_recurring_source_column(engine):
             print("  recurring_expenses.source already exists. Skipping.")
         else:
             conn.execute(
-                text("ALTER TABLE recurring_expenses ADD COLUMN source VARCHAR(20) DEFAULT 'manual'")
+                text(
+                    "ALTER TABLE recurring_expenses ADD COLUMN source VARCHAR(20) DEFAULT 'manual'"
+                )
             )
             conn.execute(
                 text("CREATE INDEX ix_recurring_expenses_source ON recurring_expenses (source)")
@@ -721,7 +738,8 @@ def step12_admin_panel(engine):
             print(f"  {seed_email} already is admin or not found.")
 
         # 3. Create impersonation_sessions table
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE TABLE IF NOT EXISTS impersonation_sessions (
                 id SERIAL PRIMARY KEY,
                 admin_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -732,15 +750,19 @@ def step12_admin_panel(engine):
                 ended_at TIMESTAMP,
                 created_at TIMESTAMP DEFAULT NOW()
             )
-        """))
-        conn.execute(text("""
+        """)
+        )
+        conn.execute(
+            text("""
             CREATE INDEX IF NOT EXISTS ix_impersonation_sessions_admin_id
             ON impersonation_sessions (admin_id)
-        """))
+        """)
+        )
         print("  Created impersonation_sessions table.")
 
         # 4. Create impersonation_messages table
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE TABLE IF NOT EXISTS impersonation_messages (
                 id SERIAL PRIMARY KEY,
                 session_id INTEGER NOT NULL REFERENCES impersonation_sessions(id) ON DELETE CASCADE,
@@ -748,11 +770,14 @@ def step12_admin_panel(engine):
                 message TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT NOW()
             )
-        """))
-        conn.execute(text("""
+        """)
+        )
+        conn.execute(
+            text("""
             CREATE INDEX IF NOT EXISTS ix_impersonation_messages_session_id
             ON impersonation_messages (session_id)
-        """))
+        """)
+        )
         print("  Created impersonation_messages table.")
 
         # 5. Generate admin_panel_slug if not exists
@@ -780,7 +805,8 @@ def step13_platform_logs(engine):
 
         print("[Step 13/13] Creating platform_logs table...")
 
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE TABLE IF NOT EXISTS platform_logs (
                 id SERIAL PRIMARY KEY,
                 level VARCHAR(10) NOT NULL,
@@ -789,15 +815,20 @@ def step13_platform_logs(engine):
                 details TEXT,
                 created_at TIMESTAMP DEFAULT NOW()
             )
-        """))
-        conn.execute(text("""
+        """)
+        )
+        conn.execute(
+            text("""
             CREATE INDEX IF NOT EXISTS ix_platform_logs_level_created
             ON platform_logs (level, created_at)
-        """))
-        conn.execute(text("""
+        """)
+        )
+        conn.execute(
+            text("""
             CREATE INDEX IF NOT EXISTS ix_platform_logs_created_at
             ON platform_logs (created_at)
-        """))
+        """)
+        )
         print("  Created platform_logs table with indexes.")
 
 
@@ -825,22 +856,24 @@ def step14_recurring_expense_link(engine):
             print("  expenses.recurring_expense_id already exists. Skipping.")
         else:
             # 2. Add the column
-            conn.execute(
-                text("ALTER TABLE expenses ADD COLUMN recurring_expense_id INTEGER")
-            )
+            conn.execute(text("ALTER TABLE expenses ADD COLUMN recurring_expense_id INTEGER"))
 
             # 3. Add FK constraint (RESTRICT - can't delete linked RecurringExpense)
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 ALTER TABLE expenses
                 ADD CONSTRAINT fk_expenses_recurring_expense_id
                 FOREIGN KEY (recurring_expense_id) REFERENCES recurring_expenses(id)
                 ON DELETE RESTRICT
-            """))
+            """)
+            )
 
             # 4. Add index for query performance
-            conn.execute(text(
-                "CREATE INDEX ix_expenses_recurring_expense_id ON expenses (recurring_expense_id)"
-            ))
+            conn.execute(
+                text(
+                    "CREATE INDEX ix_expenses_recurring_expense_id ON expenses (recurring_expense_id)"
+                )
+            )
 
             print("  Added recurring_expense_id INTEGER with FK (RESTRICT) and index.")
 
@@ -856,12 +889,14 @@ def step15_whats_new_dismissed_version(engine):
             print("  Skipping — only supported on PostgreSQL.")
             return
 
-        exists = conn.execute(text("""
+        exists = conn.execute(
+            text("""
             SELECT EXISTS (
                 SELECT 1 FROM information_schema.columns
                 WHERE table_name = 'users' AND column_name = 'whats_new_dismissed_version'
             )
-        """)).scalar()
+        """)
+        ).scalar()
 
         if exists:
             print("  whats_new_dismissed_version already exists. Skipping.")
@@ -884,12 +919,14 @@ def step16_google_oauth_columns(engine):
             return
 
         # google_refresh_token (encrypted, stored as TEXT)
-        exists = conn.execute(text("""
+        exists = conn.execute(
+            text("""
             SELECT EXISTS (
                 SELECT 1 FROM information_schema.columns
                 WHERE table_name = 'users' AND column_name = 'google_refresh_token'
             )
-        """)).scalar()
+        """)
+        ).scalar()
 
         if exists:
             print("  google_refresh_token already exists. Skipping.")
@@ -898,18 +935,24 @@ def step16_google_oauth_columns(engine):
             print("  Added google_refresh_token TEXT.")
 
         # google_refresh_token_hmac
-        exists = conn.execute(text("""
+        exists = conn.execute(
+            text("""
             SELECT EXISTS (
                 SELECT 1 FROM information_schema.columns
                 WHERE table_name = 'users' AND column_name = 'google_refresh_token_hmac'
             )
-        """)).scalar()
+        """)
+        ).scalar()
 
         if exists:
             print("  google_refresh_token_hmac already exists. Skipping.")
         else:
             conn.execute(text("ALTER TABLE users ADD COLUMN google_refresh_token_hmac VARCHAR(64)"))
-            conn.execute(text("CREATE INDEX ix_users_google_refresh_token_hmac ON users (google_refresh_token_hmac)"))
+            conn.execute(
+                text(
+                    "CREATE INDEX ix_users_google_refresh_token_hmac ON users (google_refresh_token_hmac)"
+                )
+            )
             print("  Added google_refresh_token_hmac VARCHAR(64) with index.")
 
 

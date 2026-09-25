@@ -416,7 +416,42 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Write config files
+      - name: Build .env file securely
+        id: env-file
+        run: |
+          cat > /tmp/env-file << 'ENVEOF'
+          BACKEND_IMAGE=${{ env.BACKEND_IMAGE }}
+          FRONTEND_IMAGE=${{ env.FRONTEND_IMAGE }}
+          LANDING_IMAGE=${{ env.LANDING_IMAGE }}
+          IMAGE_TAG=${{ github.sha }}
+          DOMAIN_NAME=${{ vars.DOMAIN_NAME }}
+          PLATFORM_DOMAIN=${{ vars.PLATFORM_DOMAIN }}
+          NETWORK_NAME=oikonomia
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          LLM_API_KEY=${{ secrets.LLM_API_KEY }}
+          INVESTMENTS_LLM_API_KEY=${{ secrets.INVESTMENTS_LLM_API_KEY }}
+          MESSAGES_BOT_LLM_API_KEY=${{ secrets.MESSAGES_BOT_LLM_API_KEY }}
+          TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
+          ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
+          EMAIL_API_KEY=${{ secrets.EMAIL_API_KEY }}
+          SMTP_FROM=${{ vars.SMTP_FROM }}
+          SMTP_FROM_ADDRESS=${{ vars.SMTP_FROM_ADDRESS }}
+          GRAFANA_CLOUD_PROMETHEUS_URL=${{ secrets.GRAFANA_CLOUD_PROMETHEUS_URL }}
+          GRAFANA_CLOUD_PROMETHEUS_USER=${{ secrets.GRAFANA_CLOUD_PROMETHEUS_USER }}
+          GRAFANA_CLOUD_PROMETHEUS_PASSWORD=${{ secrets.GRAFANA_CLOUD_PROMETHEUS_PASSWORD }}
+          GRAFANA_CLOUD_LOKI_URL=${{ secrets.GRAFANA_CLOUD_LOKI_URL }}
+          GRAFANA_CLOUD_LOKI_USER=${{ secrets.GRAFANA_CLOUD_LOKI_USER }}
+          GRAFANA_CLOUD_LOKI_PASSWORD=${{ secrets.GRAFANA_CLOUD_LOKI_PASSWORD }}
+          ENVEOF
+          # Remove leading whitespace from heredoc
+          sed -i 's/^[[:space:]]*//' /tmp/env-file
+          # Base64 encode for safe transfer
+          echo "env_b64=$(base64 -w0 /tmp/env-file)" >> $GITHUB_OUTPUT
+
+      - name: Deploy .env to server
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.LINODE_SERVER_IP }}
@@ -424,46 +459,9 @@ jobs:
           key: ${{ secrets.LINODE_SSH_KEY }}
           port: 43422
           script: |
-            BACKEND_IMAGE="${{ env.BACKEND_IMAGE }}"
-            FRONTEND_IMAGE="${{ env.FRONTEND_IMAGE }}"
-            LANDING_IMAGE="${{ env.LANDING_IMAGE }}"
-            IMAGE_TAG="${{ github.sha }}"
-            DOMAIN_NAME="${{ vars.DOMAIN_NAME }}"
-            PLATFORM_DOMAIN="${{ vars.PLATFORM_DOMAIN }}"
-
-            # Write .env
-            echo "BACKEND_IMAGE=${BACKEND_IMAGE}" > /opt/creditcardanalyzer/.env
-            echo "FRONTEND_IMAGE=${FRONTEND_IMAGE}" >> /opt/creditcardanalyzer/.env
-            echo "LANDING_IMAGE=${LANDING_IMAGE}" >> /opt/creditcardanalyzer/.env
-            echo "IMAGE_TAG=${IMAGE_TAG}" >> /opt/creditcardanalyzer/.env
-            echo "DOMAIN_NAME=${DOMAIN_NAME}" >> /opt/creditcardanalyzer/.env
-            echo "PLATFORM_DOMAIN=${PLATFORM_DOMAIN}" >> /opt/creditcardanalyzer/.env
-            echo "NETWORK_NAME=oikonomia" >> /opt/creditcardanalyzer/.env
-
-            # App secrets (individual, no base64)
-            echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> /opt/creditcardanalyzer/.env
-            echo "LLM_API_KEY=${{ secrets.LLM_API_KEY }}" >> /opt/creditcardanalyzer/.env
-            echo "INVESTMENTS_LLM_API_KEY=${{ secrets.INVESTMENTS_LLM_API_KEY }}" >> /opt/creditcardanalyzer/.env
-            echo "MESSAGES_BOT_LLM_API_KEY=${{ secrets.MESSAGES_BOT_LLM_API_KEY }}" >> /opt/creditcardanalyzer/.env
-            echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" >> /opt/creditcardanalyzer/.env
-            echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> /opt/creditcardanalyzer/.env
-            echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> /opt/creditcardanalyzer/.env
-            echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> /opt/creditcardanalyzer/.env
-            echo "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" >> /opt/creditcardanalyzer/.env
-            echo "EMAIL_API_KEY=${{ secrets.EMAIL_API_KEY }}" >> /opt/creditcardanalyzer/.env
-            echo "SMTP_FROM=${{ vars.SMTP_FROM }}" >> /opt/creditcardanalyzer/.env
-            echo "SMTP_FROM_ADDRESS=${{ vars.SMTP_FROM_ADDRESS }}" >> /opt/creditcardanalyzer/.env
-
-            # Grafana Cloud
-            echo "GRAFANA_CLOUD_PROMETHEUS_URL=${{ secrets.GRAFANA_CLOUD_PROMETHEUS_URL }}" >> /opt/creditcardanalyzer/.env
-            echo "GRAFANA_CLOUD_PROMETHEUS_USER=${{ secrets.GRAFANA_CLOUD_PROMETHEUS_USER }}" >> /opt/creditcardanalyzer/.env
-            echo "GRAFANA_CLOUD_PROMETHEUS_PASSWORD=${{ secrets.GRAFANA_CLOUD_PROMETHEUS_PASSWORD }}" >> /opt/creditcardanalyzer/.env
-            echo "GRAFANA_CLOUD_LOKI_URL=${{ secrets.GRAFANA_CLOUD_LOKI_URL }}" >> /opt/creditcardanalyzer/.env
-            echo "GRAFANA_CLOUD_LOKI_USER=${{ secrets.GRAFANA_CLOUD_LOKI_USER }}" >> /opt/creditcardanalyzer/.env
-            echo "GRAFANA_CLOUD_LOKI_PASSWORD=${{ secrets.GRAFANA_CLOUD_LOKI_PASSWORD }}" >> /opt/creditcardanalyzer/.env
-
+            echo "${{ steps.env-file.outputs.env_b64 }}" | base64 -d > /opt/creditcardanalyzer/.env
             chmod 600 /opt/creditcardanalyzer/.env
-            echo "Config files written"
+            echo "Config file written securely (base64 transfer)"
 
       - name: Copy compose and config files via SCP
         uses: appleboy/scp-action@v0.1.7
@@ -499,19 +497,20 @@ jobs:
           port: 43422
           script: |
             cd /opt/creditcardanalyzer
-            REQUIRED="POSTGRES_PASSWORD LLM_API_KEY SECRET_KEY TELEGRAM_BOT_TOKEN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET EMAIL_API_KEY ADMIN_EMAIL"
+            REQUIRED="POSTGRES_PASSWORD LLM_API_KEY SECRET_KEY TELEGRAM_BOT_TOKEN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET EMAIL_API_KEY ADMIN_EMAIL INVESTMENTS_LLM_API_KEY MESSAGES_BOT_LLM_API_KEY GRAFANA_CLOUD_PROMETHEUS_URL GRAFANA_CLOUD_LOKI_URL SMTP_FROM SMTP_FROM_ADDRESS"
             MISSING=""
             for var in $REQUIRED; do
-              if ! grep -q "^${var}=" .env; then
+              VALUE=$(grep "^${var}=" .env | cut -d= -f2-)
+              if [ -z "$VALUE" ]; then
                 MISSING="$MISSING $var"
               fi
             done
 
             if [ -n "$MISSING" ]; then
-              echo "ERROR: Missing required env vars:$MISSING"
+              echo "ERROR: Missing or empty required env vars:$MISSING"
               exit 1
             fi
-            echo "All required env vars present"
+            echo "All required env vars present and non-empty"
 
   validate-config:
     runs-on: ubuntu-latest
@@ -644,8 +643,8 @@ jobs:
               exit 1
             fi
 
-            # Clean up backups older than 12 days
-            find $BACKUP_DIR -name "db_*.sql.gz" -mtime +12 -delete
+            # Clean up backups older than 7 days
+            find $BACKUP_DIR -name "db_*.sql.gz" -mtime +7 -delete
 
             BACKUP_SIZE=$(du -h ${BACKUP_FILE}.gz | cut -f1)
             echo "Backup saved: ${BACKUP_FILE}.gz ($BACKUP_SIZE)"
@@ -692,28 +691,58 @@ jobs:
             echo "SECRET_KEY verified successfully"
 
             echo "=== Step 1: Database structure migration ==="
-            for script in migrate_add_reset_token migrate_remove_haberes migrate_encrypt_settings migrate_add_monthly_reports migrate_db_structure migrate_add_card_account_link migrate_add_budgets migrate_add_category_suggestions migrate_add_whatsapp migrate_add_google_refresh_token migrate_add_merchant_preferences migrate_security_columns migrate_add_expense_created_at migrate_add_tags migrate_tag_groups backfill_tags_from_cards_accounts migrate_fix_tag_groups cleanup_legacy_cards_accounts; do
-              OUTPUT=$(podman-compose -f docker-compose.platform.yml run --rm backend python -m scripts.$script 2>&1)
-              EXIT_CODE=$?
-              echo "$OUTPUT"
-              if [ $EXIT_CODE -ne 0 ]; then
-                if echo "$OUTPUT" | grep -qiE "already|exists|duplicate|no changes"; then
-                  echo "::warning::Migration $script already applied, continuing"
-                else
-                  echo "::error::Migration $script failed! Rolling back database..."
-                  LATEST=$(ls -t /opt/creditcardanalyzer/backups/db_*.sql.gz | head -1)
-                  if [ -n "$LATEST" ]; then
-                    echo "Restoring from: $LATEST"
-                    DB_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_db_' | head -1)
-                    gunzip -c "$LATEST" | podman exec -i "$DB_CONTAINER" psql -U expenses_user expenses
-                    echo "Database restored from backup"
-                  else
-                    echo "::error::No backup found!"
-                  fi
-                  exit 1
+            # Auto-discover migration scripts (sorted by name for deterministic order)
+            MIGRATION_SCRIPTS=$(podman-compose -f docker-compose.platform.yml run --rm backend sh -c "ls -1 scripts/migrate_*.py scripts/backfill_*.py scripts/cleanup_*.py 2>/dev/null | xargs -n1 basename | sed 's/\.py$//' | sort" 2>/dev/null)
+            echo "Found migrations: $MIGRATION_SCRIPTS"
+
+            # Run all migrations in a single container
+            MIGRATION_OUTPUT=$(podman-compose -f docker-compose.platform.yml run --rm backend sh -c "
+              for script in $MIGRATION_SCRIPTS; do
+                echo \"--- Running: \$script ---\"
+                python -m scripts.\$script 2>&1
+                EXIT_CODE=\$?
+                if [ \$EXIT_CODE -ne 0 ]; then
+                  echo \"EXIT_CODE=\$EXIT_CODE\"
                 fi
+              done
+            " 2>&1)
+            echo "$MIGRATION_OUTPUT"
+
+            # Check for failures (ignore "already applied" messages)
+            if echo "$MIGRATION_OUTPUT" | grep -q "EXIT_CODE=[1-9]"; then
+              if ! echo "$MIGRATION_OUTPUT" | grep -qiE "already|exists|duplicate|no changes"; then
+                echo "::error::Migration failed! Rolling back database..."
+                LATEST=$(ls -t /opt/creditcardanalyzer/backups/db_*.sql.gz | head -1)
+                if [ -n "$LATEST" ]; then
+                  echo "Restoring from: $LATEST"
+                  DB_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_db_' | head -1)
+                  gunzip -c "$LATEST" | podman exec -i "$DB_CONTAINER" psql -U expenses_user expenses
+                  echo "Database restored from backup"
+                else
+                  echo "::error::No backup found!"
+                fi
+                exit 1
               fi
-            done
+            fi
+            " 2>&1)
+            echo "$MIGRATION_OUTPUT"
+
+            # Check for failures (ignore "already applied" messages)
+            if echo "$MIGRATION_OUTPUT" | grep -q "EXIT_CODE=[1-9]"; then
+              if ! echo "$MIGRATION_OUTPUT" | grep -qiE "already|exists|duplicate|no changes"; then
+                echo "::error::Migration failed! Rolling back database..."
+                LATEST=$(ls -t /opt/creditcardanalyzer/backups/db_*.sql.gz | head -1)
+                if [ -n "$LATEST" ]; then
+                  echo "Restoring from: $LATEST"
+                  DB_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_db_' | head -1)
+                  gunzip -c "$LATEST" | podman exec -i "$DB_CONTAINER" psql -U expenses_user expenses
+                  echo "Database restored from backup"
+                else
+                  echo "::error::No backup found!"
+                fi
+                exit 1
+              fi
+            fi
 
             echo "=== Step 2: Dry-run encryption migration ==="
             DRY_RUN=$(podman-compose -f docker-compose.platform.yml run --rm backend python scripts/dry_run_migration.py 2>&1)
@@ -755,7 +784,9 @@ jobs:
   deploy-infra:
     runs-on: ubuntu-latest
     needs: [backup-db, detect-changes]
-    if: always() && !cancelled()
+    if: |
+      always() && !cancelled() &&
+      (needs.backup-db.result == 'success' || needs.detect-changes.outputs.infra == 'true' || inputs.action == 'full')
 
     steps:
       - name: Ensure infra is running
@@ -778,11 +809,12 @@ jobs:
             if ! podman ps --format '{{.Names}}' | grep -qE '_db_'; then
               echo "Starting infra (first deploy)..."
               podman-compose -f docker-compose.infra.yml up -d
-            else
-              echo "Restarting infra..."
-              # Stop ONLY infra services (compose handles container names)
+            elif [ "${{ needs.detect-changes.outputs.infra }}" = "true" ] || [ "${{ inputs.action }}" = "full" ]; then
+              echo "Infra compose changed, restarting..."
               podman-compose -f docker-compose.infra.yml stop db redis 2>/dev/null || true
               podman-compose -f docker-compose.infra.yml up -d
+            else
+              echo "Infra unchanged, verifying health only..."
             fi
 
             echo "Waiting for infra health..."
@@ -834,7 +866,12 @@ jobs:
           port: 43422
           script: |
             cd /opt/creditcardanalyzer
-            CURRENT_TAG=$(podman inspect --format='{{.Config.Image}}' creditcardanalyzer_backend_1 2>/dev/null | cut -d: -f2 || echo "")
+            # Get backend container name dynamically (agnostic to project name)
+            BACKEND_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_backend_' | head -1)
+            CURRENT_TAG=""
+            if [ -n "$BACKEND_CONTAINER" ]; then
+              CURRENT_TAG=$(podman inspect --format='{{.Config.Image}}' "$BACKEND_CONTAINER" 2>/dev/null | cut -d: -f2 || echo "")
+            fi
             if [ -n "$CURRENT_TAG" ]; then
               echo "$CURRENT_TAG" > /opt/creditcardanalyzer/.rollback_platform_tag
               cp .env .env.rollback.platform
@@ -1098,17 +1135,62 @@ jobs:
             podman ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
             echo ""
 
+            ERRORS=0
+
             # Check landing site (non-fatal if not deployed)
             LANDING_STATUS=$(curl -sk -o /dev/null -w "%{http_code}" https://${{ vars.DOMAIN_NAME }}/ 2>/dev/null)
             echo "Landing (${{ vars.DOMAIN_NAME }}): $LANDING_STATUS"
+            if [ "$LANDING_STATUS" = "000" ]; then
+              echo "::warning::Landing site unreachable"
+            fi
 
             # Check platform (critical)
             PLATFORM_STATUS=$(curl -sk -o /dev/null -w "%{http_code}" https://${{ vars.PLATFORM_DOMAIN }}/api/docs 2>/dev/null)
             echo "Platform (${{ vars.PLATFORM_DOMAIN }}): $PLATFORM_STATUS"
-
             if [ "$PLATFORM_STATUS" != "200" ]; then
-              echo "::warning::Platform health check returned $PLATFORM_STATUS (banner should be visible)"
+              echo "::error::Platform health check returned $PLATFORM_STATUS"
+              ERRORS=$((ERRORS + 1))
             fi
+
+            # Check database
+            DB_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_db_' | head -1)
+            if [ -n "$DB_CONTAINER" ]; then
+              DB_STATUS=$(podman inspect --format='{{.State.Health.Status}}' "$DB_CONTAINER" 2>/dev/null || echo "missing")
+              echo "Database: $DB_STATUS"
+              if [ "$DB_STATUS" != "healthy" ]; then
+                echo "::error::Database health: $DB_STATUS"
+                ERRORS=$((ERRORS + 1))
+              fi
+            fi
+
+            # Check Redis
+            REDIS_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_redis_' | head -1)
+            if [ -n "$REDIS_CONTAINER" ]; then
+              REDIS_STATUS=$(podman inspect --format='{{.State.Health.Status}}' "$REDIS_CONTAINER" 2>/dev/null || echo "missing")
+              echo "Redis: $REDIS_STATUS"
+              if [ "$REDIS_STATUS" != "healthy" ]; then
+                echo "::error::Redis health: $REDIS_STATUS"
+                ERRORS=$((ERRORS + 1))
+              fi
+            fi
+
+            # Check bot container
+            BOT_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_telegram_bot_' | head -1)
+            if [ -n "$BOT_CONTAINER" ]; then
+              BOT_STATUS=$(podman inspect --format='{{.State.Status}}' "$BOT_CONTAINER" 2>/dev/null || echo "missing")
+              echo "Telegram Bot: $BOT_STATUS"
+              if [ "$BOT_STATUS" != "running" ]; then
+                echo "::warning::Telegram bot status: $BOT_STATUS"
+              fi
+            fi
+
+            if [ "$ERRORS" -gt 0 ]; then
+              echo "::error::$ERRORS critical health check(s) failed"
+              exit 1
+            fi
+
+            echo ""
+            echo "=== All critical health checks passed ==="
 
   cleanup-old-images:
     runs-on: ubuntu-latest

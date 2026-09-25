@@ -77,6 +77,14 @@ def _log_audit(
     db.commit()
 
 
+def _record_login(db: Session, user: User):
+    """Update user's last_login timestamp."""
+    from datetime import UTC
+
+    user.last_login = datetime.now(UTC)
+    db.commit()
+
+
 @router.post(
     "/login",
     response_model=Token,
@@ -163,6 +171,7 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
         )
 
     _log_audit(db, user.id, "login_success", request)
+    _record_login(db, user)
     LOGIN_ATTEMPTS.labels(method="password", status="success").inc()
     return Token(access_token=create_access_token(user.id), token_type="bearer")
 
@@ -212,6 +221,7 @@ def login_mfa(body: MFALoginRequest, request: Request, db: Session = Depends(get
         )
 
     _log_audit(db, user.id, "login_success", request, details="mfa_verified")
+    _record_login(db, user)
     return Token(access_token=create_access_token(user.id), token_type="bearer")
 
 
@@ -384,6 +394,7 @@ async def oauth_callback(
         db.commit()
 
     _log_audit(db, user.id, "oauth_login", request, details=f"{body.provider}_callback")
+    _record_login(db, user)
     LOGIN_ATTEMPTS.labels(method="google", status="success").inc()
     return Token(access_token=create_access_token(user.id), token_type="bearer")
 
@@ -430,6 +441,7 @@ def telegram_webapp_login(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cuenta bloqueada")
 
     _log_audit(db, user.id, "telegram_webapp_login", request)
+    _record_login(db, user)
     LOGIN_ATTEMPTS.labels(method="telegram", status="success").inc()
     return Token(access_token=create_access_token(user.id), token_type="bearer")
 

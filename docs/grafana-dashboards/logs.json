@@ -164,9 +164,32 @@
       "datasource": { "type": "loki", "uid": "" }
     },
     {
-      "title": "All Container Logs (search)",
+      "title": "Telegram Bot Logs",
       "type": "logs",
       "gridPos": { "h": 10, "w": 12, "x": 12, "y": 36 },
+      "targets": [
+        {
+          "expr": "{container=~\".*telegram_bot.*\"}",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      },
+      "datasource": { "type": "loki", "uid": "" }
+    },
+    {
+      "title": "All Container Logs (search)",
+      "type": "logs",
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 46 },
       "targets": [
         {
           "expr": "{job=\"systemd-journal\"} |= \"$search\"",

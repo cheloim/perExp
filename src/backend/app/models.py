@@ -29,6 +29,7 @@ class User(Base):
     hashed_password = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    last_login = Column(DateTime, nullable=True)
     telegram_key = Column(String(12), nullable=True, unique=True, index=True)
     telegram_chat_id = Column(EncryptedType, nullable=True)
     telegram_chat_hash = Column(String(64), nullable=True, unique=True, index=True)
