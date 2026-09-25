@@ -696,6 +696,14 @@ jobs:
             fi
             echo "SECRET_KEY verified successfully"
 
+            echo "=== Step 0: Ensure database tables exist ==="
+            podman-compose -p oikonomia-platform -f docker-compose.platform.yml run --rm backend python -c "
+            from app.database import Base, engine
+            Base.metadata.create_all(bind=engine)
+            print('Tables ensured')
+            " 2>&1
+            echo "Tables ready"
+
             echo "=== Step 1: Database structure migration ==="
             # Auto-discover and run migration scripts in a single container
             # Write a temp script to avoid nested shell quoting issues
@@ -781,6 +789,14 @@ jobs:
             echo "Ensuring shared network exists..."
             NETWORK_NAME="${NETWORK_NAME:-oikonomia}"
             podman network create "$NETWORK_NAME" 2>/dev/null || true
+
+            # Stop ALL containers with old project prefix (legacy cleanup)
+            echo "Cleaning up legacy containers..."
+            for OLD in $(podman ps -a --format '{{.Names}}' | grep '^creditcardanalyzer_' 2>/dev/null); do
+              echo "  Removing legacy: $OLD"
+              podman stop "$OLD" 2>/dev/null || true
+              podman rm -f "$OLD" 2>/dev/null || true
+            done
 
             # Check if db is running (compose-agnostic)
             if ! podman ps --format '{{.Names}}' | grep -qE '_db_'; then
