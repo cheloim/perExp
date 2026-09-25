@@ -1445,13 +1445,11 @@ def get_credit_card_pasivos(
     scheduled_gids: set = set()
 
     for s in pending_pasivos:
-        is_credit_card = s.card_id is not None and s.card_id in credit_card_ids
-
         # Always track group to prevent Expense projection double-counting
         scheduled_gids.add(s.installment_group_id)
 
-        # Only count credit card scheduled expenses
-        if not is_credit_card:
+        # Count ALL pending scheduled expenses with installments (not just credit cards)
+        if not s.installment_group_id:
             continue
 
         total_pasivos += s.amount
@@ -1482,14 +1480,6 @@ def get_credit_card_pasivos(
             Expense.user_id.in_(uid_list),
             Expense.installment_group_id != None,
             Expense.installment_group_id != "",
-        )
-        .filter(
-            Expense.card_id.in_(credit_card_ids)
-            | Expense.id.in_(
-                db.query(ExpenseTag.expense_id)
-                .join(Tag, Tag.id == ExpenseTag.tag_id)
-                .filter(Tag.card_id.in_(credit_card_ids))
-            )
         )
         .all()
     )
