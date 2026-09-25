@@ -142,7 +142,8 @@ BANK_NOTIFICATION_PATTERNS = [
     r"naranja\s+terminada",
     r"terminad[ao]\s+en\s+\d{4}",
     r"cr[eé]dito\s+(aprobado|confirmado|registrado)",
-    r"transferencia\s+(saliente|enviada|realizada)",
+    r"transferencia\s+(saliente|enviada|realizada|a\s+tu\s+nombre)",
+    r"realiz[oó]\s+la\s+siguiente\s+transferencia",
     r"extracci[oó]n\s+(cajero|autom[aá]tico)",
 ]
 
@@ -1156,6 +1157,15 @@ _HELP_TEXT = (
     "/cancelar — Cancelar operación actual\n"
     "/ayuda — Mostrar esta ayuda"
 )
+
+
+async def handle_unsupported_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle non-text messages (photos, stickers, voice notes, etc.)."""
+    await update.message.reply_text(
+        "📌 Este tipo de mensaje no está soportado por el bot. "
+        "Mandame un texto con el gasto o usá /ayuda para ver los comandos disponibles."
+    )
+
 
 _UNRECOGNIZED_MESSAGES = [
     "No encontré un monto en tu mensaje. ¿Podés contarme qué gastaste y cuánto?",
@@ -3444,6 +3454,7 @@ async def _run_bot(token: str) -> None:
     app.add_handler(CallbackQueryHandler(handle_undo, pattern=r"^undo:"))
 
     app.add_handler(conv_handler)
+    app.add_handler(MessageHandler(~filters.TEXT & ~filters.COMMAND, handle_unsupported_message))
 
     logger.info("Telegram bot started (polling)")
     await app.initialize()

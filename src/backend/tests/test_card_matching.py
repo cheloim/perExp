@@ -1,8 +1,9 @@
 """Unit tests for card matching logic in telegram_bot and smart_import_core."""
 
+import asyncio
 import os
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-testing"
 
@@ -12,6 +13,7 @@ from app.telegram_bot import (
     _match_card_from_notification,
     _match_card_from_text,
     _strip_accents,
+    handle_unsupported_message,
 )
 from app.services.smart_import_core import _match_card_to_existing
 
@@ -359,6 +361,47 @@ class TestIsBankNotification(unittest.TestCase):
     def test_natural_language_with_card_not_detected(self):
         msg = "visa santander verduleria 59999"
         self.assertFalse(_is_bank_notification(msg))
+
+    def test_transferencia_a_tu_nombre_detected(self):
+        """Issue #225: 'transferencia a tu nombre' should be detected."""
+        msg = (
+            "Se realizó la siguiente transferencia a tu nombre:\n"
+            "Destinatario 27146205661\n"
+            "Importe $2.000,00"
+        )
+        self.assertTrue(_is_bank_notification(msg))
+
+    def test_transferencia_saliente_detected(self):
+        """Issue #225: 'transferencia saliente' should be detected."""
+        msg = "Transferencia saliente de $5000 a cuenta de terceros"
+        self.assertTrue(_is_bank_notification(msg))
+
+    def test_transferencia_enviada_detected(self):
+        """Issue #225: 'transferencia enviada' should be detected."""
+        msg = "Transferencia enviada por $10000 a CVU 00000123456789"
+        self.assertTrue(_is_bank_notification(msg))
+
+    def test_transferencia_realizada_detected(self):
+        """Issue #225: 'transferencia realizada' should be detected."""
+        msg = "Se debitó $15.000 - Transferencia realizada con éxito"
+        self.assertTrue(_is_bank_notification(msg))
+
+
+class TestUnsupportedMessage(unittest.TestCase):
+    """Tests for handle_unsupported_message (Issue #228)."""
+
+    def test_handle_unsupported_message_replies(self):
+        """Non-text messages get a clear error response."""
+        update = MagicMock()
+        update.message.reply_text = AsyncMock()
+        context = MagicMock()
+
+        asyncio.run(handle_unsupported_message(update, context))
+
+        update.message.reply_text.assert_called_once()
+        args = update.message.reply_text.call_args
+        assert "no está soportado" in args[0][0]
+        assert "/ayuda" in args[0][0]
 
 
 if __name__ == "__main__":
