@@ -724,6 +724,25 @@ jobs:
                 exit 1
               fi
             fi
+            " 2>&1)
+            echo "$MIGRATION_OUTPUT"
+
+            # Check for failures (ignore "already applied" messages)
+            if echo "$MIGRATION_OUTPUT" | grep -q "EXIT_CODE=[1-9]"; then
+              if ! echo "$MIGRATION_OUTPUT" | grep -qiE "already|exists|duplicate|no changes"; then
+                echo "::error::Migration failed! Rolling back database..."
+                LATEST=$(ls -t /opt/creditcardanalyzer/backups/db_*.sql.gz | head -1)
+                if [ -n "$LATEST" ]; then
+                  echo "Restoring from: $LATEST"
+                  DB_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_db_' | head -1)
+                  gunzip -c "$LATEST" | podman exec -i "$DB_CONTAINER" psql -U expenses_user expenses
+                  echo "Database restored from backup"
+                else
+                  echo "::error::No backup found!"
+                fi
+                exit 1
+              fi
+            fi
 
             echo "=== Step 2: Dry-run encryption migration ==="
             DRY_RUN=$(podman-compose -f docker-compose.platform.yml run --rm backend python scripts/dry_run_migration.py 2>&1)
