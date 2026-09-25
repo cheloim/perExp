@@ -1150,6 +1150,14 @@ jobs:
             echo "Starting monitoring..."
             podman-compose -p oikonomia-monitoring -f docker-compose.monitoring.yml up -d
 
+            # Update systemd health check script to use correct project name
+            # This prevents the timer from recreating containers with old names
+            if [ -f /usr/local/bin/oikonomia-monitoring.sh ]; then
+              sed -i 's|podman-compose -f docker-compose|podman-compose -p oikonomia-monitoring -f docker-compose|g' /usr/local/bin/oikonomia-monitoring.sh
+              systemctl daemon-reload 2>/dev/null || true
+              echo "Updated systemd monitoring script"
+            fi
+
             # Connect nginx-exporter to oikonomia network so it can reach nginx:8080
             echo "Connecting nginx-exporter to oikonomia network..."
             sleep 3
