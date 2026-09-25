@@ -327,17 +327,6 @@ def _parse_bank_notification(text: str) -> dict | None:
                     "[BANK_PARSE] Stripped prefix: '%s' -> '%s'", original, result["description"]
                 )
 
-        # Extract card_last4 from notification text if LLM didn't provide it
-        if result and not result.get("card_last4"):
-            last4_match = re.search(
-                r"(?:terminada?\s+en|\*{4}|\*{2})\s*(\d{4})", text, re.IGNORECASE
-            )
-            if not last4_match:
-                last4_match = re.search(r"\*{4}(\d{4})", text)
-            if last4_match:
-                result["card_last4"] = last4_match.group(1)
-                logger.info("[BANK_PARSE] Extracted card_last4 from text: %s", result["card_last4"])
-
         return result
     except Exception as e:
         logger.error("Bank notification parse error: %s", e)
@@ -1217,8 +1206,8 @@ async def _handle_bank_notification(
 
         if not card_id and not account_id:
             bank_info = parsed.get("bank", "")
-            card_info = f"••{parsed.get('card_last4', '')}" if parsed.get("card_last4") else ""
-            tag_name = f"{bank_info} {card_info}".strip()
+            card_name_info = parsed.get("card_name", "")
+            tag_name = f"{bank_info} {card_name_info}".strip()
             if tag_name:
                 tag = _find_or_create_tag(db, user_id, tag_name)
                 tag_ids.append(tag.id)
