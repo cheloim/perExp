@@ -718,14 +718,18 @@ async def _enhance_with_llm(
     if not message_id:
         return  # Can't edit message without message_id (new messages from bank notification)
     try:
-        result = await asyncio.to_thread(
-            llm_categorize,
-            parsed.get("description", ""),
-            parsed.get("amount"),
-            cats,
-            user_id,
-            SessionLocal(),
-        )
+        db = SessionLocal()
+        try:
+            result = await asyncio.to_thread(
+                llm_categorize,
+                parsed.get("description", ""),
+                parsed.get("amount"),
+                cats,
+                user_id,
+                db,
+            )
+        finally:
+            db.close()
         if not result or result["category_id"] == current_cat_id:
             return
 
@@ -734,7 +738,11 @@ async def _enhance_with_llm(
         context.user_data["llm_result"] = result
         context.user_data["cat_debug"] = _cat_debug_str(result, parsed.get("description", ""), cats)
 
-        cat_levels = _build_cat_levels(result["category_id"], SessionLocal())
+        db2 = SessionLocal()
+        try:
+            cat_levels = _build_cat_levels(result["category_id"], db2)
+        finally:
+            db2.close()
         confirm_keyboard = [
             [
                 InlineKeyboardButton("✅ Sí, guardar", callback_data="confirm:yes"),
@@ -880,10 +888,24 @@ def _saved_text(expense: "Expense", payment_label: str) -> str:
     )
 
 
-def _quick_saved_text(expense: "Expense", category_name: str | None) -> str:
+def _quick_saved_text(
+    expense: "Expense", category_name: str | None, tags: list | None = None
+) -> str:
     amount_str = _format_amount(expense.amount, expense.currency)
     cat_line = f"📂 {category_name}" if category_name else ""
-    return f"✅ {amount_str} — {expense.description}\n{cat_line}"
+    tag_parts = []
+    if tags:
+        for t in tags:
+            if t.group_name == "categoria":
+                continue  # Skip mirror tags (shown as category)
+            tag_parts.append(t.name)
+    tag_line = f"🏷️ {', '.join(tag_parts)}" if tag_parts else ""
+    lines = [f"✅ {amount_str} — {expense.description}"]
+    if cat_line:
+        lines.append(cat_line)
+    if tag_line:
+        lines.append(tag_line)
+    return "\n".join(lines)
 
 
 def _get_user_by_chat_id(chat_id: str) -> User | None:
@@ -1201,6 +1223,12 @@ async def _handle_bank_notification(
             if expense.category_id
             else None
         )
+        # Fetch assigned tags (excluding category mirrors)
+        expense_tags = []
+        if tag_ids:
+            from app.models import Tag
+
+            expense_tags = db.query(Tag).filter(Tag.id.in_(tag_ids)).all()
         context.user_data["last_expense_id"] = expense.id
         context.user_data["last_expense_time"] = time.time()
 
@@ -1213,7 +1241,7 @@ async def _handle_bank_notification(
             ]
         )
         await update.message.reply_text(
-            _quick_saved_text(expense, cat.name if cat else None),
+            _quick_saved_text(expense, cat.name if cat else None, expense_tags),
             reply_markup=keyboard,
         )
         return ConversationHandler.END
@@ -1308,6 +1336,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             if expense.category_id
             else None
         )
+        # Fetch assigned tags (excluding category mirrors)
+        expense_tags = []
+        if tag_ids:
+            from app.models import Tag
+
+            expense_tags = db.query(Tag).filter(Tag.id.in_(tag_ids)).all()
         context.user_data["last_expense_id"] = expense.id
         context.user_data["last_expense_time"] = time.time()
 
@@ -1320,7 +1354,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             ]
         )
         await update.message.reply_text(
-            _quick_saved_text(expense, cat.name if cat else None),
+            _quick_saved_text(expense, cat.name if cat else None, expense_tags),
             reply_markup=keyboard,
         )
         return ConversationHandler.END
@@ -3283,7 +3317,13 @@ def start_bot(token: str) -> None:
     logging.getLogger("httpx").setLevel(logging.WARNING)
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    loop.run_until_complete(_run_bot(token))
+    try:
+        loop.run_until_complete(_run_bot(token))
+    except Exception as e:
+        logger.error("Bot fatal error: %s", e, exc_info=True)
+        raise
+    finally:
+        loop.close()
 
 
 async def _post_init(app: Application) -> None:
@@ -3372,7 +3412,6 @@ async def _run_bot(token: str) -> None:
 
     logger.info("Telegram bot started (polling)")
     await app.initialize()
-    await _post_init(app)
     await app.start()
     await app.updater.start_polling(drop_pending_updates=True)
 

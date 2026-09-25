@@ -213,13 +213,13 @@ def update_business_metrics() -> None:
             )
             TELEGRAM_BOT_HEALTH.set(1 if bot_thread_alive else 0)
 
-            # Celery: check if workers respond
+            # Celery: check if workers respond (ping is lighter than active)
             try:
                 from app.celery_app import celery_app
 
-                inspect = celery_app.control.inspect(timeout=2.0)
-                active = inspect.active()
-                CELERY_WORKER_HEALTH.set(1 if active else 0)
+                inspect = celery_app.control.inspect(timeout=5.0)
+                ping = inspect.ping()
+                CELERY_WORKER_HEALTH.set(1 if ping else 0)
             except Exception:
                 CELERY_WORKER_HEALTH.set(0)
 

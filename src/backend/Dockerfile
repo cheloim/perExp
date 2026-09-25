@@ -32,5 +32,6 @@ FROM base AS prod
 COPY app/ ./app/
 COPY scripts/ ./scripts/
 COPY main.py .
+COPY bot_entrypoint.py .
 EXPOSE 8000
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
