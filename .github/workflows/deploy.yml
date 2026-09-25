@@ -876,9 +876,11 @@ jobs:
             LEGACY_FRONTEND="${COMPOSE_PROJECT_NAME:-creditcardanalyzer}_frontend_1"
             podman rm -f "$LEGACY_FRONTEND" 2>/dev/null || true
 
-            # Start platform services
+            # Pull new images and force recreate to ensure new image tag is used
+            echo "Pulling new platform images..."
+            podman-compose -f docker-compose.platform.yml pull
             echo "Starting platform services..."
-            podman-compose -f docker-compose.platform.yml up -d
+            podman-compose -f docker-compose.platform.yml up -d --force-recreate
             echo "Platform services started"
 
             echo "Waiting for backend health..."
@@ -1098,8 +1100,19 @@ jobs:
           key: ${{ secrets.LINODE_SSH_KEY }}
           port: 43422
           script: |
-            echo "Waiting for all services to stabilize..."
-            sleep 10
+            echo "Waiting for services to stabilize..."
+
+            # Wait for platform with retry (up to 45s)
+            PLATFORM_STATUS="000"
+            for i in $(seq 1 15); do
+              PLATFORM_STATUS=$(curl -sk -o /dev/null -w "%{http_code}" https://${{ vars.PLATFORM_DOMAIN }}/api/docs 2>/dev/null)
+              if [ "$PLATFORM_STATUS" != "000" ]; then
+                echo "Platform responding after ${i} attempt(s): $PLATFORM_STATUS"
+                break
+              fi
+              echo "Attempt $i/15: waiting for platform... retrying in 3s"
+              sleep 3
+            done
 
             echo ""
             echo "=== Container Status ==="
@@ -1116,7 +1129,6 @@ jobs:
             fi
 
             # Check platform (critical)
-            PLATFORM_STATUS=$(curl -sk -o /dev/null -w "%{http_code}" https://${{ vars.PLATFORM_DOMAIN }}/api/docs 2>/dev/null)
             echo "Platform (${{ vars.PLATFORM_DOMAIN }}): $PLATFORM_STATUS"
             if [ "$PLATFORM_STATUS" != "200" ]; then
               echo "::error::Platform health check returned $PLATFORM_STATUS"
