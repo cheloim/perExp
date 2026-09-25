@@ -47,4 +47,8 @@ networks:
 
 volumes:
   postgres_data:
+    external: true
+    name: creditcardanalyzer_postgres_data
   redis_data:
+    external: true
+    name: creditcardanalyzer_redis_data
