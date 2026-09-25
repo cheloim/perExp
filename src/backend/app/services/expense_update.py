@@ -141,7 +141,7 @@ def update_expense_checked(
     if expense.budget_event_id is not None:
         raise ExpenseEditError("No se puede editar un gasto vinculado a un presupuesto/evento.")
     if expense.installment_group_id is not None and (expense.installment_total or 0) > 1:
-        structural_fields = {
+        blocked_fields = {
             "amount",
             "date",
             "description",
@@ -149,10 +149,22 @@ def update_expense_checked(
             "installment_total",
             "installment_group_id",
         }
-        if structural_fields & set(changes.keys()):
-            raise ExpenseEditError(
-                "No se puede editar monto/fecha/descripción de una cuota. Usá la gestión de cuotas."
+        requested_blocked = blocked_fields & set(changes.keys())
+        if requested_blocked:
+            # Remove blocked fields from changes (allow non-structural edits)
+            for field in requested_blocked:
+                changes.pop(field, None)
+            logger.info(
+                "Stripped blocked fields %s from installment expense %s edit",
+                requested_blocked,
+                expense.id,
             )
+            if not changes:
+                # Only blocked fields were requested — show helpful message
+                raise ExpenseEditError(
+                    f"No se puede editar {', '.join(sorted(requested_blocked))} de una cuota. "
+                    f"Podés editar: categoría, cuenta. Usá la gestión de cuotas para cambios estructurales."
+                )
     if expense.recurring_expense_id is not None:
         raise ExpenseEditError("No se puede editar un gasto recurrente. Editá la suscripción.")
 
