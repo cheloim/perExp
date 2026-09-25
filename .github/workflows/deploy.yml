@@ -802,18 +802,29 @@ jobs:
             # But DO NOT touch infra containers (db, redis) — they have persistent data
             echo "Cleaning up orphaned containers..."
             for SVC in backend platform-frontend celery_worker celery_beat; do
+              podman stop "oikonomia-platform_${SVC}_1" 2>/dev/null || true
               podman rm -f "oikonomia-platform_${SVC}_1" 2>/dev/null || true
             done
             for SVC in telegram_bot; do
+              podman stop "oikonomia-bots_${SVC}_1" 2>/dev/null || true
               podman rm -f "oikonomia-bots_${SVC}_1" 2>/dev/null || true
             done
             for SVC in nginx; do
+              podman stop "oikonomia-nginx_${SVC}_1" 2>/dev/null || true
               podman rm -f "oikonomia-nginx_${SVC}_1" 2>/dev/null || true
             done
             # Clean up monitoring containers (they have no persistent data)
             for SVC in postgres-exporter redis-exporter node-exporter nginx-exporter blackbox-exporter alloy cadvisor; do
+              podman stop "oikonomia-monitoring_${SVC}_1" 2>/dev/null || true
               podman rm -f "oikonomia-monitoring_${SVC}_1" 2>/dev/null || true
             done
+
+            # Verify cleanup — no legacy containers should remain
+            REMAINING=$(podman ps -a --format '{{.Names}}' | grep -c '^creditcardanalyzer_' 2>/dev/null || echo "0")
+            if [ "$REMAINING" -gt 0 ]; then
+              echo "::warning::$REMAINING legacy containers still remain after cleanup:"
+              podman ps -a --format '{{.Names}}' | grep '^creditcardanalyzer_'
+            fi
 
             # Check if db is running (compose-agnostic)
             if ! podman ps --format '{{.Names}}' | grep -qE '_db_'; then
@@ -1128,9 +1139,24 @@ jobs:
               podman rm -f "$OLD" 2>/dev/null || true
             done
 
+            # Verify cleanup — no monitoring containers should remain
+            sleep 2
+            REMAINING=$(podman ps -a --format '{{.Names}}' | grep -cE '^(creditcardanalyzer_|oikonomia-monitoring_)' 2>/dev/null || echo "0")
+            if [ "$REMAINING" -gt 0 ]; then
+              echo "::warning::$REMAINING monitoring containers still remain after cleanup"
+            fi
+
             # Start monitoring
             echo "Starting monitoring..."
             podman-compose -p oikonomia-monitoring -f docker-compose.monitoring.yml up -d
+
+            # Update systemd health check script to use correct project name
+            # This prevents the timer from recreating containers with old names
+            if [ -f /usr/local/bin/oikonomia-monitoring.sh ]; then
+              sed -i 's|podman-compose -f docker-compose|podman-compose -p oikonomia-monitoring -f docker-compose|g' /usr/local/bin/oikonomia-monitoring.sh
+              systemctl daemon-reload 2>/dev/null || true
+              echo "Updated systemd monitoring script"
+            fi
 
             # Connect nginx-exporter to oikonomia network so it can reach nginx:8080
             echo "Connecting nginx-exporter to oikonomia network..."
@@ -1181,8 +1207,9 @@ jobs:
             # Verify no legacy containers remain
             LEGACY_COUNT=$(podman ps -a --format '{{.Names}}' | grep -c '^creditcardanalyzer_' 2>/dev/null || echo "0")
             if [ "$LEGACY_COUNT" -gt 0 ]; then
-              echo "::warning::$LEGACY_COUNT legacy containers still running:"
+              echo "::error::$LEGACY_COUNT legacy containers still running:"
               podman ps -a --format '{{.Names}}' | grep '^creditcardanalyzer_'
+              ERRORS=$((ERRORS + 1))
             fi
 
             ERRORS=0
