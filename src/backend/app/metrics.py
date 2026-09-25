@@ -172,9 +172,9 @@ def update_business_metrics() -> None:
 
                 # Cards by type
                 card_types = (
-                    db.query(Card.type, func.count())
+                    db.query(Card.card_type, func.count())
                     .filter(Card.user_id == user_id)
-                    .group_by(Card.type)
+                    .group_by(Card.card_type)
                     .all()
                 )
                 for ctype, count in card_types:
