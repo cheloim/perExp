@@ -497,7 +497,7 @@ jobs:
           port: 43422
           script: |
             cd /opt/creditcardanalyzer
-            REQUIRED="POSTGRES_PASSWORD LLM_API_KEY SECRET_KEY TELEGRAM_BOT_TOKEN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET EMAIL_API_KEY ADMIN_EMAIL INVESTMENTS_LLM_API_KEY MESSAGES_BOT_LLM_API_KEY GRAFANA_CLOUD_PROMETHEUS_URL GRAFANA_CLOUD_LOKI_URL SMTP_FROM SMTP_FROM_ADDRESS"
+            REQUIRED="POSTGRES_PASSWORD LLM_API_KEY SECRET_KEY TELEGRAM_BOT_TOKEN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET EMAIL_API_KEY ADMIN_EMAIL INVESTMENTS_LLM_API_KEY MESSAGES_BOT_LLM_API_KEY GRAFANA_CLOUD_PROMETHEUS_URL GRAFANA_CLOUD_LOKI_URL"
             MISSING=""
             for var in $REQUIRED; do
               VALUE=$(grep "^${var}=" .env | cut -d= -f2-)
@@ -691,58 +691,29 @@ jobs:
             echo "SECRET_KEY verified successfully"
 
             echo "=== Step 1: Database structure migration ==="
-            # Auto-discover migration scripts (sorted by name for deterministic order)
-            MIGRATION_SCRIPTS=$(podman-compose -f docker-compose.platform.yml run --rm backend sh -c "ls -1 scripts/migrate_*.py scripts/backfill_*.py scripts/cleanup_*.py 2>/dev/null | xargs -n1 basename | sed 's/\.py$//' | sort" 2>/dev/null)
-            echo "Found migrations: $MIGRATION_SCRIPTS"
-
-            # Run all migrations in a single container
-            MIGRATION_OUTPUT=$(podman-compose -f docker-compose.platform.yml run --rm backend sh -c "
-              for script in $MIGRATION_SCRIPTS; do
-                echo \"--- Running: \$script ---\"
-                python -m scripts.\$script 2>&1
-                EXIT_CODE=\$?
-                if [ \$EXIT_CODE -ne 0 ]; then
-                  echo \"EXIT_CODE=\$EXIT_CODE\"
-                fi
+            # Auto-discover and run migration scripts in a single container
+            # Write a temp script to avoid nested shell quoting issues
+            podman-compose -f docker-compose.platform.yml run --rm backend sh -c '
+              set -e
+              SCRIPTS=$(ls -1 scripts/migrate_*.py scripts/backfill_*.py scripts/cleanup_*.py 2>/dev/null | xargs -n1 basename | sed "s/\.py$//" | sort)
+              echo "Found migrations: $SCRIPTS"
+              for script in $SCRIPTS; do
+                echo "--- Running: $script ---"
+                python -m scripts.$script 2>&1 || echo "EXIT_CODE=$?"
               done
-            " 2>&1)
-            echo "$MIGRATION_OUTPUT"
-
-            # Check for failures (ignore "already applied" messages)
-            if echo "$MIGRATION_OUTPUT" | grep -q "EXIT_CODE=[1-9]"; then
-              if ! echo "$MIGRATION_OUTPUT" | grep -qiE "already|exists|duplicate|no changes"; then
-                echo "::error::Migration failed! Rolling back database..."
-                LATEST=$(ls -t /opt/creditcardanalyzer/backups/db_*.sql.gz | head -1)
-                if [ -n "$LATEST" ]; then
-                  echo "Restoring from: $LATEST"
-                  DB_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_db_' | head -1)
-                  gunzip -c "$LATEST" | podman exec -i "$DB_CONTAINER" psql -U expenses_user expenses
-                  echo "Database restored from backup"
-                else
-                  echo "::error::No backup found!"
-                fi
-                exit 1
+            ' 2>&1 || {
+              echo "::error::Migration failed! Rolling back database..."
+              LATEST=$(ls -t /opt/creditcardanalyzer/backups/db_*.sql.gz | head -1)
+              if [ -n "$LATEST" ]; then
+                echo "Restoring from: $LATEST"
+                DB_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_db_' | head -1)
+                gunzip -c "$LATEST" | podman exec -i "$DB_CONTAINER" psql -U expenses_user expenses
+                echo "Database restored from backup"
+              else
+                echo "::error::No backup found!"
               fi
-            fi
-            " 2>&1)
-            echo "$MIGRATION_OUTPUT"
-
-            # Check for failures (ignore "already applied" messages)
-            if echo "$MIGRATION_OUTPUT" | grep -q "EXIT_CODE=[1-9]"; then
-              if ! echo "$MIGRATION_OUTPUT" | grep -qiE "already|exists|duplicate|no changes"; then
-                echo "::error::Migration failed! Rolling back database..."
-                LATEST=$(ls -t /opt/creditcardanalyzer/backups/db_*.sql.gz | head -1)
-                if [ -n "$LATEST" ]; then
-                  echo "Restoring from: $LATEST"
-                  DB_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_db_' | head -1)
-                  gunzip -c "$LATEST" | podman exec -i "$DB_CONTAINER" psql -U expenses_user expenses
-                  echo "Database restored from backup"
-                else
-                  echo "::error::No backup found!"
-                fi
-                exit 1
-              fi
-            fi
+              exit 1
+            }
 
             echo "=== Step 2: Dry-run encryption migration ==="
             DRY_RUN=$(podman-compose -f docker-compose.platform.yml run --rm backend python scripts/dry_run_migration.py 2>&1)
