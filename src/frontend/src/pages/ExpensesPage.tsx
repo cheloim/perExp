@@ -26,6 +26,7 @@ import { ExpenseModal } from "../components/ExpenseModals";
 import ExpenseDetailModal from "../components/ExpenseDetailModal";
 import EmptyState from "../components/ui/EmptyState";
 import SymbolicIcon from "../components/SymbolicIcon";
+import { getCategoryEmoji } from "../utils/categoryEmoji";
 import {
   PieChart,
   Pie,
@@ -1102,6 +1103,19 @@ export default function ExpensesPage() {
                           )}
                           <td className="px-4 py-3 max-w-0 w-full">
                             <div className="flex items-center gap-2 min-w-0">
+                              <span
+                                className="w-7 h-7 rounded-full flex items-center justify-center text-sm flex-shrink-0"
+                                style={{
+                                  backgroundColor: (exp.category_color || "#6b7280") + "20",
+                                }}
+                              >
+                                {getCategoryEmoji(exp.category_name) || (
+                                  <span
+                                    className="w-2 h-2 rounded-full"
+                                    style={{ backgroundColor: exp.category_color || "#6b7280" }}
+                                  />
+                                )}
+                              </span>
                               <button
                                 type="button"
                                 onClick={(e) => {

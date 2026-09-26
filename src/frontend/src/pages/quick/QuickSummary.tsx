@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getDashboard, getExpenses, getTagSummary } from "../../api/client";
 import SymbolicIcon from "../../components/SymbolicIcon";
+import { getCategoryEmoji } from "../../utils/categoryEmoji";
 import { formatCurrency, toUpperCase } from "../../utils/format";
 
 const now = new Date();
@@ -144,7 +145,7 @@ export default function QuickSummary() {
           />
           <div className="min-w-0">
             <div className="text-[10px] text-[var(--text-secondary)]">Gasto mes</div>
-            <div className="text-base font-bold text-[var(--text-primary)] truncate">
+            <div className="text-base font-bold text-[var(--color-primary)] truncate">
               {formatCurrency(arsTotal)}
             </div>
             {usdTotal > 0 && (
@@ -317,9 +318,16 @@ export default function QuickSummary() {
                   className="flex items-center gap-2 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl px-3 py-2.5"
                 >
                   <span
-                    className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: exp.category_color || "#6b7280" }}
-                  />
+                    className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-sm"
+                    style={{ backgroundColor: (exp.category_color || "#6b7280") + "20" }}
+                  >
+                    {getCategoryEmoji(exp.category_name) || (
+                      <span
+                        className="w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: exp.category_color || "#6b7280" }}
+                      />
+                    )}
+                  </span>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-medium text-[var(--text-primary)] truncate">
                       {exp.description}
