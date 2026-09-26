@@ -72,6 +72,8 @@ export default function QuickSummary() {
       : momPct > 0
         ? `↑ ${Math.abs(Math.round(momPct))}%`
         : `↓ ${Math.abs(Math.round(momPct))}%`;
+  // Red when spending increased (bad), green when decreased (good)
+  const momColor = momPct > 0 ? "#e01b24" : momPct < 0 ? "#26a269" : "#71717a";
 
   // Category comparison data (current vs previous)
   const catComparison = categories
@@ -120,19 +122,17 @@ export default function QuickSummary() {
           <SymbolicIcon
             name="card"
             size={20}
-            className={
-              selectedKpi === "gasto"
-                ? "text-white flex-shrink-0"
-                : "text-[var(--text-tertiary)] flex-shrink-0"
-            }
+            className="text-[var(--text-tertiary)] flex-shrink-0"
           />
           <div className="min-w-0">
             <div className="text-[10px] text-[var(--text-secondary)]">Gasto mes</div>
-            <div className="text-base font-bold text-white truncate">
+            <div className="text-base font-bold text-[var(--text-primary)] truncate">
               {formatCurrency(arsTotal)}
             </div>
             {usdTotal > 0 && (
-              <div className="text-[10px] text-white/70">+ {formatCurrency(usdTotal, "USD")}</div>
+              <div className="text-[10px] text-[var(--text-tertiary)]">
+                + {formatCurrency(usdTotal, "USD")}
+              </div>
             )}
           </div>
         </button>
@@ -144,15 +144,13 @@ export default function QuickSummary() {
           <SymbolicIcon
             name="chart-bar"
             size={20}
-            className={
-              selectedKpi === "comparativa"
-                ? "text-white flex-shrink-0"
-                : "text-[var(--text-tertiary)] flex-shrink-0"
-            }
+            className="text-[var(--text-tertiary)] flex-shrink-0"
           />
           <div className="min-w-0">
             <div className="text-[10px] text-[var(--text-secondary)]">vs mes anterior</div>
-            <div className="text-base font-bold text-white truncate">{momLabel}</div>
+            <div className="text-base font-bold truncate" style={{ color: momColor }}>
+              {momLabel}
+            </div>
           </div>
         </button>
       </div>
