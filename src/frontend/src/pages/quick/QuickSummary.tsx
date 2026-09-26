@@ -74,9 +74,9 @@ export default function QuickSummary() {
         : `↓ ${Math.abs(Math.round(momPct))}%`;
   const momColor =
     momPct > 0
-      ? "var(--gnome-red-5)"
+      ? "var(--gnome-red-3)"
       : momPct < 0
-        ? "var(--gnome-green-5)"
+        ? "var(--gnome-green-4)"
         : "var(--text-secondary)";
   const momBg =
     momPct > 0
@@ -113,8 +113,8 @@ export default function QuickSummary() {
   const kpiBtn = (kpi: KpiSelection) =>
     `rounded-xl p-3 flex items-center gap-3 cursor-pointer active:scale-[0.97] transition-all ${
       selectedKpi === kpi
-        ? "border-2 border-[var(--color-primary)] bg-[var(--color-primary)]/5"
-        : "border border-transparent"
+        ? "border-2 border-[var(--color-primary)] bg-[var(--color-primary)]/10"
+        : "border border-[var(--border-color)]"
     }`;
 
   return (
@@ -139,13 +139,13 @@ export default function QuickSummary() {
             size={20}
             className={
               selectedKpi === "gasto"
-                ? "text-[var(--color-primary)] flex-shrink-0"
+                ? "text-[var(--text-primary)] flex-shrink-0"
                 : "text-[var(--text-tertiary)] flex-shrink-0"
             }
           />
           <div className="min-w-0">
             <div className="text-[10px] text-[var(--text-secondary)]">Gasto mes</div>
-            <div className="text-base font-bold text-[var(--color-primary)] truncate">
+            <div className="text-base font-bold text-[var(--text-primary)] truncate">
               {formatCurrency(arsTotal)}
             </div>
             {usdTotal > 0 && (
@@ -166,7 +166,7 @@ export default function QuickSummary() {
             size={20}
             className={
               selectedKpi === "comparativa"
-                ? "text-[var(--color-primary)] flex-shrink-0"
+                ? "text-[var(--text-primary)] flex-shrink-0"
                 : "text-[var(--text-tertiary)] flex-shrink-0"
             }
           />
