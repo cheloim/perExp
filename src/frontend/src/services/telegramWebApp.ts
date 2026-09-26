@@ -74,6 +74,8 @@ declare global {
 // ── Public API ──────────────────────────────────────────────────────────────
 
 export function isTelegramWebApp(): boolean {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("miniapp") === "1") return true;
   return typeof window !== "undefined" && !!window.Telegram?.WebApp?.initData;
 }
 
