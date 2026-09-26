@@ -32,6 +32,7 @@ import {
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
 import { formatCurrency, toUpperCase, formatDateDMYSlash, MONTHS_ES_SHORT } from "../utils/format";
+import { getCategoryEmoji } from "../utils/categoryEmoji";
 import { ExpenseModal } from "../components/ExpenseModals";
 import EmptyState from "../components/ui/EmptyState";
 
@@ -44,72 +45,6 @@ const FALLBACK_COLORS = [
   "#ef4444", // red
   "#06b6d4", // cyan
 ];
-
-const CATEGORY_EMOJI: Record<string, string> = {
-  comida: "🍔",
-  alimentación: "🛒",
-  supermercado: "🛒",
-  mercado: "🛒",
-  transporte: "🚗",
-  uber: "🚗",
-  taxi: "🚗",
-  nafta: "⛽",
-  gasolina: "⛽",
-  salud: "💊",
-  farmacia: "💊",
-  médico: "🏥",
-  hospital: "🏥",
-  servicios: "💡",
-  luz: "💡",
-  gas: "💡",
-  internet: "📶",
-  teléfono: "📱",
-  phone: "📱",
-  ocio: "🎬",
-  entretenimiento: "🎬",
-  streaming: "🎬",
-  netflix: "🎬",
-  spotify: "🎵",
-  música: "🎵",
-  educación: "📚",
-  universidad: "📚",
-  college: "📚",
-  hogar: "🏠",
-  alquiler: "🏠",
-  expensas: "🏠",
-  ropa: "👕",
-  vestimenta: "👕",
-  fitness: "🏋️",
-  gimnasio: "🏋️",
-  deporte: "🏋️",
-  café: "☕",
-  suscripciones: "📦",
-  regalos: "🎁",
-  donaciones: "💝",
-  viajes: "✈️",
-  vuelos: "✈️",
-  hotels: "🏨",
-  hotel: "🏨",
-  restaurantes: "🍽️",
-  restó: "🍽️",
-  delivery: "🛵",
-  rappi: "🛵",
-  pedidosya: "🛵",
-  mascotas: "🐾",
-  perro: "🐾",
-  gato: "🐾",
-  bebés: "👶",
-  baby: "👶",
-};
-
-function getCategoryEmoji(name: string | null): string | null {
-  if (!name) return null;
-  const lower = name.toLowerCase();
-  for (const [keyword, emoji] of Object.entries(CATEGORY_EMOJI)) {
-    if (lower.includes(keyword)) return emoji;
-  }
-  return null;
-}
 
 export function CardRow({
   cardName,
