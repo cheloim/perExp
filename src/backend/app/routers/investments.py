@@ -485,6 +485,7 @@ def sync_iol(db: Session = Depends(get_db), current_user: User = Depends(get_cur
     headers = {"Authorization": f"Bearer {token}"}
 
     raw: list[dict] = []
+    successful_markets: list[str] = []
     for mercado in ("bCBA", "nYSE", "cFondos"):
         try:
             resp = _req.get(
@@ -494,6 +495,7 @@ def sync_iol(db: Session = Depends(get_db), current_user: User = Depends(get_cur
             )
             if resp.status_code != 200:
                 continue
+            successful_markets.append(mercado)
             for activo in resp.json().get("activos", []):
                 titulo = activo.get("titulo", {})
                 tipo_raw = titulo.get("tipo", "")
@@ -584,9 +586,31 @@ def sync_iol(db: Session = Depends(get_db), current_user: User = Depends(get_cur
             )
             created += 1
 
+    removed = 0
+    if len(successful_markets) == 3:
+        fetched_tickers = set(best.keys())
+        stale = (
+            db.query(Investment)
+            .filter(
+                Investment.broker == "InvertirOnline",
+                Investment.user_id == current_user.id,
+                ~Investment.ticker.in_(fetched_tickers) if fetched_tickers else True,
+            )
+            .all()
+        )
+        for inv in stale:
+            db.delete(inv)
+            removed += 1
+
     db.commit()
     _set_setting(db, "iol_last_sync", datetime.utcnow().isoformat(), user_id=current_user.id)
-    return {"broker": "IOL", "created": created, "updated": updated, "total": len(best)}
+    return {
+        "broker": "IOL",
+        "created": created,
+        "updated": updated,
+        "removed": removed,
+        "total": len(best),
+    }
 
 
 @router.post(
@@ -635,6 +659,7 @@ def sync_ppi(db: Session = Depends(get_db), current_user: User = Depends(get_cur
         raise HTTPException(502, f"Error conectando con PPI: {e}")
 
     created = updated = 0
+    fetched_tickers: set[str] = set()
     for group in data.get("groupedInstruments", []):
         group_name = (group.get("name") or "").upper()
         inv_type = _PPI_TYPE_MAP.get(group_name, "Otro")
@@ -648,6 +673,7 @@ def sync_ppi(db: Session = Depends(get_db), current_user: User = Depends(get_cur
             if not ticker or not quantity:
                 continue
 
+            fetched_tickers.add(ticker)
             price_f = float(price) if price is not None else None
             quantity_f = float(quantity)
             currency = _PPI_CURRENCY_MAP.get(currency_raw, "ARS")
@@ -690,9 +716,23 @@ def sync_ppi(db: Session = Depends(get_db), current_user: User = Depends(get_cur
                 )
                 created += 1
 
+    removed = 0
+    stale = (
+        db.query(Investment)
+        .filter(
+            Investment.broker == "Portfolio Personal",
+            Investment.user_id == current_user.id,
+            ~Investment.ticker.in_(fetched_tickers) if fetched_tickers else True,
+        )
+        .all()
+    )
+    for inv in stale:
+        db.delete(inv)
+        removed += 1
+
     db.commit()
     _set_setting(db, "ppi_last_sync", datetime.utcnow().isoformat(), user_id=current_user.id)
-    return {"broker": "PPI", "created": created, "updated": updated}
+    return {"broker": "PPI", "created": created, "updated": updated, "removed": removed}
 
 
 # ─── USD Rate ─────────────────────────────────────────────────────────────────

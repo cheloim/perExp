@@ -718,7 +718,7 @@ export default function InvestmentsPage() {
       if (iolOk) {
         try {
           const r = await syncIOL();
-          results.push(`IOL: ${r.updated}↑ ${r.created}+`);
+          results.push(`IOL: ${r.updated}↑ ${r.created}+${r.removed > 0 ? ` ${r.removed}✗` : ""}`);
         } catch (e: any) {
           errors.push(`IOL: ${e?.response?.data?.detail ?? "error"}`);
         }
@@ -726,7 +726,7 @@ export default function InvestmentsPage() {
       if (ppiOk) {
         try {
           const r = await syncPPI();
-          results.push(`PPI: ${r.updated}↑ ${r.created}+`);
+          results.push(`PPI: ${r.updated}↑ ${r.created}+${r.removed > 0 ? ` ${r.removed}✗` : ""}`);
         } catch (e: any) {
           errors.push(`PPI: ${e?.response?.data?.detail ?? "error"}`);
         }
@@ -754,10 +754,10 @@ export default function InvestmentsPage() {
     mutationFn: async (broker: string) => {
       if (broker === "InvertirOnline") {
         const r = await syncIOL();
-        return `IOL: ${r.updated}↑ ${r.created}+`;
+        return `IOL: ${r.updated}↑ ${r.created}+${r.removed > 0 ? ` ${r.removed}✗` : ""}`;
       } else if (broker === "Portfolio Personal") {
         const r = await syncPPI();
-        return `PPI: ${r.updated}↑ ${r.created}+`;
+        return `PPI: ${r.updated}↑ ${r.created}+${r.removed > 0 ? ` ${r.removed}✗` : ""}`;
       }
       throw new Error(`Sync no disponible para ${broker}`);
     },
