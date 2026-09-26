@@ -72,12 +72,6 @@ export default function QuickSummary() {
       : momPct > 0
         ? `↑ ${Math.abs(Math.round(momPct))}%`
         : `↓ ${Math.abs(Math.round(momPct))}%`;
-  const momColor =
-    momPct > 0
-      ? "var(--gnome-red-3)"
-      : momPct < 0
-        ? "var(--gnome-green-4)"
-        : "var(--text-secondary)";
 
   // Category comparison data (current vs previous)
   const catComparison = categories
@@ -128,19 +122,17 @@ export default function QuickSummary() {
             size={20}
             className={
               selectedKpi === "gasto"
-                ? "text-[var(--text-primary)] flex-shrink-0"
+                ? "text-white flex-shrink-0"
                 : "text-[var(--text-tertiary)] flex-shrink-0"
             }
           />
           <div className="min-w-0">
             <div className="text-[10px] text-[var(--text-secondary)]">Gasto mes</div>
-            <div className="text-base font-bold text-[var(--text-primary)] truncate">
+            <div className="text-base font-bold text-white truncate">
               {formatCurrency(arsTotal)}
             </div>
             {usdTotal > 0 && (
-              <div className="text-[10px] text-[var(--text-tertiary)]">
-                + {formatCurrency(usdTotal, "USD")}
-              </div>
+              <div className="text-[10px] text-white/70">+ {formatCurrency(usdTotal, "USD")}</div>
             )}
           </div>
         </button>
@@ -154,15 +146,13 @@ export default function QuickSummary() {
             size={20}
             className={
               selectedKpi === "comparativa"
-                ? "text-[var(--text-primary)] flex-shrink-0"
+                ? "text-white flex-shrink-0"
                 : "text-[var(--text-tertiary)] flex-shrink-0"
             }
           />
           <div className="min-w-0">
             <div className="text-[10px] text-[var(--text-secondary)]">vs mes anterior</div>
-            <div className="text-base font-bold truncate" style={{ color: momColor }}>
-              {momLabel}
-            </div>
+            <div className="text-base font-bold text-white truncate">{momLabel}</div>
           </div>
         </button>
       </div>
