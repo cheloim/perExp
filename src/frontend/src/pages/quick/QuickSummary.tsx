@@ -27,8 +27,10 @@ function monthLabel(ym: string): string {
   return `${MONTHS_ES[parseInt(m, 10) - 1]} ${y}`;
 }
 
+type KpiSelection = "gasto" | "comparativa";
+
 export default function QuickSummary() {
-  const [showComparison, setShowComparison] = useState(false);
+  const [selectedKpi, setSelectedKpi] = useState<KpiSelection>("gasto");
 
   const { data: dash, isLoading } = useQuery({
     queryKey: ["dashboard", "quick", currentMonth],
@@ -107,6 +109,13 @@ export default function QuickSummary() {
   // Month-filtered expenses
   const expenses = monthExpenses.filter((e) => !e.is_income);
 
+  const kpiBtn = (kpi: KpiSelection) =>
+    `rounded-xl p-3 flex items-center gap-3 cursor-pointer active:scale-[0.97] transition-all ${
+      selectedKpi === kpi
+        ? "border-2 border-[var(--color-primary)] bg-[var(--color-primary)]/5"
+        : "border border-transparent"
+    }`;
+
   return (
     <div className="p-4 space-y-4">
       {/* Month header */}
@@ -118,11 +127,20 @@ export default function QuickSummary() {
 
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl p-3 flex items-center gap-3 bg-[var(--color-base-alt)]">
+        <button
+          type="button"
+          className={kpiBtn("gasto")}
+          style={selectedKpi === "gasto" ? undefined : { backgroundColor: "var(--color-base-alt)" }}
+          onClick={() => setSelectedKpi("gasto")}
+        >
           <SymbolicIcon
             name="card"
             size={20}
-            className="text-[var(--text-tertiary)] flex-shrink-0"
+            className={
+              selectedKpi === "gasto"
+                ? "text-[var(--color-primary)] flex-shrink-0"
+                : "text-[var(--text-tertiary)] flex-shrink-0"
+            }
           />
           <div className="min-w-0">
             <div className="text-[10px] text-[var(--text-secondary)]">Gasto mes</div>
@@ -135,22 +153,18 @@ export default function QuickSummary() {
               </div>
             )}
           </div>
-        </div>
+        </button>
         <button
           type="button"
-          className={`rounded-xl p-3 flex items-center gap-3 cursor-pointer active:scale-[0.97] transition-all ${
-            showComparison
-              ? "border-2 border-[var(--color-primary)] bg-[var(--color-primary)]/5"
-              : "border border-transparent"
-          }`}
-          style={{ backgroundColor: showComparison ? undefined : momBg }}
-          onClick={() => setShowComparison((v) => !v)}
+          className={kpiBtn("comparativa")}
+          style={selectedKpi === "comparativa" ? undefined : { backgroundColor: momBg }}
+          onClick={() => setSelectedKpi("comparativa")}
         >
           <SymbolicIcon
             name="chart-bar"
             size={20}
             className={
-              showComparison
+              selectedKpi === "comparativa"
                 ? "text-[var(--color-primary)] flex-shrink-0"
                 : "text-[var(--text-tertiary)] flex-shrink-0"
             }
@@ -164,158 +178,164 @@ export default function QuickSummary() {
         </button>
       </div>
 
-      {/* Category comparison panel (expandable) */}
-      {showComparison && catComparison.length > 0 && (
-        <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl p-3 animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="text-[10px] font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-3">
-            Comparativa por categoría
-          </div>
-          <div className="space-y-2">
-            {catComparison.map((cat) => {
-              const isUp = cat.changePct > 0;
-              const isNeutral = Math.abs(cat.changePct) < 1;
-              const arrowColor = isUp
-                ? "var(--gnome-red-5)"
-                : isNeutral
-                  ? "var(--text-tertiary)"
-                  : "var(--gnome-green-5)";
+      {/* Content based on selected KPI */}
+      {selectedKpi === "comparativa" ? (
+        /* Category comparison panel */
+        catComparison.length > 0 && (
+          <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl p-3">
+            <div className="text-[10px] font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-3">
+              Comparativa por categoría
+            </div>
+            <div className="space-y-2">
+              {catComparison.map((cat) => {
+                const isUp = cat.changePct > 0;
+                const isNeutral = Math.abs(cat.changePct) < 1;
+                const arrowColor = isUp
+                  ? "var(--gnome-red-5)"
+                  : isNeutral
+                    ? "var(--text-tertiary)"
+                    : "var(--gnome-green-5)";
 
-              return (
-                <div key={cat.id} className="flex items-center gap-2">
-                  <span
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: cat.color }}
-                  />
-                  <span className="text-[11px] text-[var(--text-primary)] font-medium w-20 truncate">
-                    {toUpperCase(cat.name)}
-                  </span>
-                  <span className="text-[11px] text-[var(--text-secondary)] text-right flex-1">
-                    {formatCurrency(cat.current)}
-                  </span>
-                  <span className="text-[10px] text-[var(--text-tertiary)] w-14 text-right">
-                    {cat.previous > 0 ? formatCurrency(cat.previous) : "—"}
-                  </span>
-                  <span
-                    className="text-[11px] font-semibold w-12 text-right"
-                    style={{ color: arrowColor }}
-                  >
-                    {isNeutral
-                      ? "≈"
-                      : isUp
-                        ? `↑${Math.abs(Math.round(cat.changePct))}%`
-                        : `↓${Math.abs(Math.round(cat.changePct))}%`}
-                  </span>
-                </div>
-              );
-            })}
+                return (
+                  <div key={cat.id} className="flex items-center gap-2">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: cat.color }}
+                    />
+                    <span className="text-[11px] text-[var(--text-primary)] font-medium flex-1 truncate">
+                      {toUpperCase(cat.name)}
+                    </span>
+                    <span className="text-[11px] text-[var(--text-secondary)] text-right w-16">
+                      {formatCurrency(cat.current)}
+                    </span>
+                    <span className="text-[10px] text-[var(--text-tertiary)] text-right w-14">
+                      {cat.previous > 0 ? formatCurrency(cat.previous) : "—"}
+                    </span>
+                    <span
+                      className="text-[11px] font-semibold text-right w-12"
+                      style={{ color: arrowColor }}
+                    >
+                      {isNeutral
+                        ? "≈"
+                        : isUp
+                          ? `↑${Math.abs(Math.round(cat.changePct))}%`
+                          : `↓${Math.abs(Math.round(cat.changePct))}%`}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <div className="flex gap-4 mt-3 pt-2 border-t border-[var(--border-color)]">
-            <div className="text-[9px] text-[var(--text-tertiary)] flex-1">Categoría</div>
-            <div className="text-[9px] text-[var(--text-tertiary)] w-20 text-right">Este mes</div>
-            <div className="text-[9px] text-[var(--text-tertiary)] w-14 text-right">Anterior</div>
-            <div className="text-[9px] text-[var(--text-tertiary)] w-12 text-right">Var.</div>
-          </div>
-        </div>
-      )}
-
-      {/* Top categories */}
-      {topCats.length > 0 && (
-        <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl p-4">
-          <div className="text-[11px] font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-3">
-            Top Categorías
-          </div>
-          <div className="space-y-2.5">
-            {topCats.map((cat) => (
-              <div key={cat.category_id ?? cat.category_name} className="flex items-center gap-2">
-                <span
-                  className="w-3 h-3 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: cat.category_color || "#6b7280" }}
-                />
-                <span className="text-xs text-[var(--text-primary)] font-medium w-16 truncate">
-                  {toUpperCase(cat.category_name)}
-                </span>
-                <div className="flex-1 h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+        )
+      ) : (
+        /* Gasto mes content: Top Categories + Top Cuentas + Transactions */
+        <>
+          {/* Top categories */}
+          {topCats.length > 0 && (
+            <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl p-4">
+              <div className="text-[11px] font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-3">
+                Top Categorías
+              </div>
+              <div className="space-y-2.5">
+                {topCats.map((cat) => (
                   <div
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${(cat.total / catMax) * 100}%`,
-                      backgroundColor: cat.category_color || "var(--color-primary)",
-                    }}
-                  />
+                    key={cat.category_id ?? cat.category_name}
+                    className="flex items-center gap-2"
+                  >
+                    <span
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: cat.category_color || "#6b7280" }}
+                    />
+                    <span className="text-xs text-[var(--text-primary)] font-medium w-16 truncate">
+                      {toUpperCase(cat.category_name)}
+                    </span>
+                    <div className="flex-1 h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${(cat.total / catMax) * 100}%`,
+                          backgroundColor: cat.category_color || "var(--color-primary)",
+                        }}
+                      />
+                    </div>
+                    <span className="text-xs text-[var(--text-secondary)] font-semibold whitespace-nowrap">
+                      {formatCurrency(cat.total)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Top Cuentas */}
+          {(() => {
+            const topCuentas = cuentaData
+              .map((t) => {
+                const monthEntry = t.monthly?.find((m) => m.month === currentMonth);
+                return { ...t, current_amount: monthEntry?.total ?? 0 };
+              })
+              .filter((t) => t.current_amount > 0)
+              .sort((a, b) => b.current_amount - a.current_amount)
+              .slice(0, 3);
+            return topCuentas.length > 0 ? (
+              <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl p-4">
+                <div className="text-[11px] font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-3">
+                  Top Cuentas
                 </div>
-                <span className="text-xs text-[var(--text-secondary)] font-semibold whitespace-nowrap">
-                  {formatCurrency(cat.total)}
+                <div className="space-y-2.5">
+                  {topCuentas.map((t) => (
+                    <div key={t.tag_id ?? "null"} className="flex items-center gap-2">
+                      <span
+                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: t.tag_color }}
+                      />
+                      <span className="text-xs text-[var(--text-primary)] font-medium flex-1 truncate">
+                        {t.tag_name}
+                      </span>
+                      <span className="text-xs text-[var(--text-secondary)] font-semibold whitespace-nowrap">
+                        {formatCurrency(t.current_amount)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null;
+          })()}
+
+          {/* Month transactions */}
+          {expenses.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 px-1">
+                <SymbolicIcon name="list" size={14} className="text-[var(--color-primary)]" />
+                <span className="text-[11px] font-semibold text-[var(--color-primary)] uppercase tracking-wider">
+                  Transacciones de {monthLabel(currentMonth).split(" ")[0]}
                 </span>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Top Cuentas */}
-      {(() => {
-        const topCuentas = cuentaData
-          .map((t) => {
-            const monthEntry = t.monthly?.find((m) => m.month === currentMonth);
-            return { ...t, current_amount: monthEntry?.total ?? 0 };
-          })
-          .filter((t) => t.current_amount > 0)
-          .sort((a, b) => b.current_amount - a.current_amount)
-          .slice(0, 3);
-        return topCuentas.length > 0 ? (
-          <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl p-4">
-            <div className="text-[11px] font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-3">
-              Top Cuentas
-            </div>
-            <div className="space-y-2.5">
-              {topCuentas.map((t) => (
-                <div key={t.tag_id ?? "null"} className="flex items-center gap-2">
+              {expenses.map((exp) => (
+                <div
+                  key={exp.id}
+                  className="flex items-center gap-2 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl px-3 py-2.5"
+                >
                   <span
-                    className="w-3 h-3 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: t.tag_color }}
+                    className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: exp.category_color || "#6b7280" }}
                   />
-                  <span className="text-xs text-[var(--text-primary)] font-medium flex-1 truncate">
-                    {t.tag_name}
-                  </span>
-                  <span className="text-xs text-[var(--text-secondary)] font-semibold whitespace-nowrap">
-                    {formatCurrency(t.current_amount)}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-[var(--text-primary)] truncate">
+                      {exp.description}
+                    </div>
+                    <div className="text-[10px] text-[var(--text-tertiary)]">
+                      {toUpperCase(exp.category_name ?? "Sin cat.")}
+                    </div>
+                  </div>
+                  <span className="text-xs font-semibold text-[var(--text-primary)] whitespace-nowrap">
+                    {formatCurrency(exp.amount, exp.currency)}
                   </span>
                 </div>
               ))}
             </div>
-          </div>
-        ) : null;
-      })()}
-
-      {/* Month transactions */}
-      {expenses.length > 0 && (
-        <div className="space-y-2">
-          <div className="text-[11px] font-semibold text-[var(--color-primary)] uppercase tracking-wider px-1">
-            📝 Transacciones de {monthLabel(currentMonth).split(" ")[0]}
-          </div>
-          {expenses.map((exp) => (
-            <div
-              key={exp.id}
-              className="flex items-center gap-2 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl px-3 py-2.5"
-            >
-              <span
-                className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: exp.category_color || "#6b7280" }}
-              />
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium text-[var(--text-primary)] truncate">
-                  {exp.description}
-                </div>
-                <div className="text-[10px] text-[var(--text-tertiary)]">
-                  {toUpperCase(exp.category_name ?? "Sin cat.")}
-                </div>
-              </div>
-              <span className="text-xs font-semibold text-[var(--text-primary)] whitespace-nowrap">
-                {formatCurrency(exp.amount, exp.currency)}
-              </span>
-            </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );
