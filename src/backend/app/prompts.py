@@ -70,14 +70,18 @@ EXPENSE_PARSE_PROMPT = """Sos un asistente que extrae datos de gastos de mensaje
 
 Hoy es {today}.
 
-Extraé del mensaje del usuario:
+El mensaje puede contener UNO O MÚLTIPLES gastos. Extraé todos los gastos que encuentres.
+
+Para cada gasto extraé:
 - "amount": monto numérico (float, siempre positivo). Si no hay monto claro, null.
 - "description": descripción del gasto (texto limpio, sin monto ni fecha).
 - "date": fecha en formato "YYYY-MM-DD". Si dice "ayer" restá 1 día a hoy. Si no se menciona fecha, usá hoy.
 - "currency": "ARS" si es pesos o no se menciona, "USD" si es dólares.
 
-Respondé ÚNICAMENTE con un objeto JSON válido, sin markdown, sin texto adicional.
-Ejemplo de salida: {{"amount": 1500.0, "description": "farmacity", "date": "2026-05-05", "currency": "ARS"}}"""
+Respondé ÚNICAMENTE con un array JSON válido (aunque sea un solo gasto), sin markdown, sin texto adicional.
+Ejemplos:
+- Un gasto: [{{"amount": 1500.0, "description": "farmacity", "date": "2026-05-05", "currency": "ARS"}}]
+- Dos gastos: [{{"amount": 1500.0, "description": "farmacity", "date": "2026-05-05", "currency": "ARS"}}, {{"amount": 800.0, "description": "uber", "date": "2026-05-05", "currency": "ARS"}}]"""
 
 
 ANALYSIS_SYSTEM_PROMPT = """IMPORTANTE: Solo podés responder preguntas relacionadas con los gastos, consumos y finanzas personales del usuario. Si te hacen una pregunta sobre cualquier otro tema (política, recetas, programación, historia, etc.), respondé únicamente: "Solo puedo ayudarte con el análisis de tus gastos y finanzas personales." No hagas excepciones bajo ninguna circunstancia.

@@ -368,15 +368,19 @@ async def _handle_text_message(
             _clear_session(phone_hash)
             await send_text(phone, "❌ Cancelado. Cuando quieras, mandame otro gasto.")
             return
+        else:
+            # User sent a new message while waiting for confirm — treat as new expense
+            _clear_session(phone_hash)
+            session = _get_session(phone_hash)
 
     # Help
     if text.lower().strip() in ("ayuda", "help", "?", "comandos"):
         await _send_help(phone)
         return
 
-    # Parse expense
-    parsed = await _parse_expense_async(text)
-    if not parsed or not parsed.get("amount"):
+    # Parse expense(s)
+    parsed_list = await _parse_expense_async(text)
+    if not parsed_list:
         await send_text(
             phone,
             "🤔 No entendí bien. Mandame un gasto como:\n\n"
@@ -387,47 +391,100 @@ async def _handle_text_message(
         )
         return
 
-    session["data"]["parsed"] = parsed
-    session["data"]["tg_user"] = user.full_name or ""
+    # For single expense, use existing flow with confirmation
+    if len(parsed_list) == 1:
+        parsed = parsed_list[0]
+        session["data"]["parsed"] = parsed
+        session["data"]["tg_user"] = user.full_name or ""
 
-    # Check if it's a bank notification
-    if _is_bank_notification(text):
-        await _handle_bank_notification(phone, phone_hash, text, parsed, session, user_id)
-        return
+        if _is_bank_notification(text):
+            await _handle_bank_notification(phone, phone_hash, text, parsed, session, user_id)
+            return
 
-    # Try card matching from text
-    text_card_name, text_bank, text_card_type = _extract_card_from_text(text)
-    if text_card_name:
+        text_card_name, text_bank, text_card_type = _extract_card_from_text(text)
+        if text_card_name:
+            db = SessionLocal()
+            try:
+                cards = db.query(Card).filter(Card.user_id == user_id).all()
+                matched_card = _match_card_from_text(
+                    cards, text_card_name, text_bank, text_card_type
+                )
+                if not matched_card and text_bank and not text_card_name:
+                    for card in cards:
+                        if card.bank and card.bank.lower() == text_bank.lower():
+                            matched_card = card
+                            break
+
+                if matched_card:
+                    await _confirm_with_card(
+                        phone, phone_hash, matched_card, parsed, session, user_id
+                    )
+                    return
+            finally:
+                db.close()
+
         db = SessionLocal()
         try:
-            cards = db.query(Card).filter(Card.user_id == user_id).all()
-            matched_card = _match_card_from_text(cards, text_card_name, text_bank, text_card_type)
-            if not matched_card and text_bank and not text_card_name:
-                for card in cards:
-                    if card.bank and card.bank.lower() == text_bank.lower():
-                        matched_card = card
-                        break
-
-            if matched_card:
-                await _confirm_with_card(phone, phone_hash, matched_card, parsed, session, user_id)
+            matched_account = _match_account_from_text(text, user_id, db)
+            if matched_account:
+                await _confirm_with_account(
+                    phone, phone_hash, matched_account, parsed, session, user_id
+                )
                 return
         finally:
             db.close()
 
-    # Try account matching from text
+        await _ask_payment_method(phone, phone_hash, parsed, session)
+        return
+
+    # Multiple expenses: save all directly (batch mode)
+    text_card_name, text_bank, text_card_type = _extract_card_from_text(text)
+
     db = SessionLocal()
     try:
-        matched_account = _match_account_from_text(text, user_id, db)
-        if matched_account:
-            await _confirm_with_account(
-                phone, phone_hash, matched_account, parsed, session, user_id
+        cards = db.query(Card).filter(Card.user_id == user_id).all()
+
+        card_id = None
+        account_id = None
+
+        matched_card = _match_card_from_text(cards, text_card_name or "", text_bank, text_card_type)
+        if not matched_card and text_bank and not text_card_name:
+            for card in cards:
+                if card.bank and card.bank.lower() == text_bank.lower():
+                    matched_card = card
+                    break
+
+        if matched_card:
+            card_id = matched_card.id
+        else:
+            matched_account = _match_account_from_text(text, user_id, db)
+            if matched_account:
+                account_id = matched_account.id
+
+        saved_expenses = []
+        for parsed_item in parsed_list:
+            predicted_category_id, _ = _instant_categorize(parsed_item, user_id, db)
+            expense = _save_expense(
+                parsed_item,
+                payment="",
+                person=user.full_name or "",
+                user_id=user_id,
+                predicted_category_id=predicted_category_id,
+                card_id=card_id,
+                account_id=account_id,
             )
-            return
+            saved_expenses.append(expense)
+
+        lines = [f"✅ *{len(saved_expenses)} gastos guardados:*\n"]
+        for i, exp in enumerate(saved_expenses, 1):
+            amount_str = _format_amount(exp.amount, exp.currency)
+            lines.append(f"{i}. {amount_str} — {exp.description}")
+        await send_text(phone, "\n".join(lines))
+    except Exception as e:
+        logger.error("[WA] batch save error: %s", e)
+        await send_text(phone, "❌ Error al guardar los gastos. Intentá de nuevo.")
     finally:
         db.close()
-
-    # No match — ask for payment method
-    await _ask_payment_method(phone, phone_hash, parsed, session)
 
 
 # ---------------------------------------------------------------------------
@@ -1107,14 +1164,14 @@ async def _do_save_expense(phone: str, phone_hash: str, session: dict, user_id: 
             db.commit()
 
         saved_text = _saved_text_wa(expense, payment_label)
+        _clear_session(phone_hash)
         await send_text(phone, saved_text)
     except Exception as e:
         logger.error("[WA] save expense error: %s", e)
+        _clear_session(phone_hash)
         await send_text(phone, "❌ Error al guardar el gasto. Intentá de nuevo.")
     finally:
         db.close()
-
-    _clear_session(phone_hash)
 
 
 # ---------------------------------------------------------------------------
@@ -1147,7 +1204,7 @@ async def _send_help(phone: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-async def _parse_expense_async(text: str) -> dict | None:
+async def _parse_expense_async(text: str) -> list[dict]:
     """Async wrapper for _parse_expense."""
     import asyncio
 
