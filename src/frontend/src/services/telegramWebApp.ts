@@ -79,6 +79,13 @@ export function isTelegramWebApp(): boolean {
   return typeof window !== "undefined" && !!window.Telegram?.WebApp?.initData;
 }
 
+export function isDarkMode(): boolean {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("dark") === "1") return true;
+  if (window.Telegram?.WebApp?.colorScheme === "dark") return true;
+  return document.documentElement.classList.contains("dark");
+}
+
 export function getTelegramWebApp(): TelegramWebApp | null {
   return window.Telegram?.WebApp ?? null;
 }

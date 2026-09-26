@@ -4,6 +4,7 @@ import { getDashboard, getExpenses, getTagSummary } from "../../api/client";
 import SymbolicIcon from "../../components/SymbolicIcon";
 import { getCategoryEmoji } from "../../utils/categoryEmoji";
 import { formatCurrency, toUpperCase } from "../../utils/format";
+import { isDarkMode } from "../../services/telegramWebApp";
 
 const now = new Date();
 const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -63,10 +64,8 @@ export default function QuickSummary() {
   const usdTotal = byCurrency.find((c) => c.currency === "USD")?.total ?? 0;
 
   // Detect dark mode for text color
-  const isDark =
-    window.Telegram?.WebApp?.colorScheme === "dark" ||
-    document.documentElement.classList.contains("dark");
-  const amountColor = isDark ? "#ffffff" : "#1c1b1f";
+  const dark = isDarkMode();
+  const amountColor = dark ? "#ffffff" : "#1c1b1f";
 
   // MoM comparison (only ARS for consistency with platform)
   const categories = dash?.by_category ?? [];
