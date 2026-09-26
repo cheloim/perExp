@@ -763,6 +763,7 @@ export const syncIOL = () =>
       broker: string;
       created: number;
       updated: number;
+      removed: number;
       total: number;
     }>("/investments/sync/iol")
     .then((r) => r.data);
@@ -773,6 +774,7 @@ export const syncPPI = () =>
       broker: string;
       created: number;
       updated: number;
+      removed: number;
     }>("/investments/sync/ppi")
     .then((r) => r.data);
 
