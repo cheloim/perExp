@@ -76,7 +76,7 @@ def _gemini_client() -> genai.Client:
     return genai.Client(api_key=os.getenv("MESSAGES_BOT_LLM_API_KEY", ""))
 
 
-def _parse_expense(text: str) -> dict | None:
+def _parse_expense(text: str) -> list[dict]:
     today = datetime.now(BUE).date().strftime("%Y-%m-%d")
     prompt = EXPENSE_PARSE_PROMPT.format(today=today) + f"\n\nMensaje: {text}"
     logger.debug(f"[PARSE] Prompt:\n{prompt}")
@@ -88,18 +88,22 @@ def _parse_expense(text: str) -> dict | None:
         )
         raw = response.text.strip()
         logger.debug(f"[PARSE] Raw response: {raw}")
-        # Strip markdown code fences if present
         if raw.startswith("```"):
             raw = raw.split("```")[1]
             if raw.startswith("json"):
                 raw = raw[4:]
         result = json.loads(raw.strip())
         logger.info("Gemini parsed result: %s", result)
-        return result
+        # Normalize: if LLM returns a single object, wrap in list
+        if isinstance(result, dict):
+            return [result]
+        if isinstance(result, list):
+            return [r for r in result if isinstance(r, dict) and r.get("amount")]
+        return []
     except Exception as e:
         logger.error("Gemini parse error: %s", e)
         logger.debug(f"[PARSE] Failed text input: {text}")
-        return None
+        return []
 
 
 def _extract_card_info(raw_input: str, card_type: str) -> dict:
@@ -1346,9 +1350,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if _is_bank_notification(text):
         return await _handle_bank_notification(update, context, text)
 
-    parsed = await asyncio.to_thread(_parse_expense, text)
+    parsed_list = await asyncio.to_thread(_parse_expense, text)
 
-    if not parsed or not parsed.get("amount"):
+    if not parsed_list:
         await update.message.reply_text(
             "No pude entender el gasto. Probá: 'gasto 500 en supermercado'",
             parse_mode="HTML",
@@ -1356,20 +1360,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return ConversationHandler.END
 
     text_card_name, text_bank, text_card_type = _extract_card_from_text(text)
-    if text_card_name and parsed.get("description"):
-        desc = parsed["description"]
-        for word in [text_card_name, text_bank or ""]:
-            if word:
-                desc = re.sub(re.escape(word), "", desc, flags=re.IGNORECASE)
-        for word in ["credito", "crédito", "débito", "debito"]:
-            desc = re.sub(rf"\b{word}\b", "", desc, flags=re.IGNORECASE)
-        parsed["description"] = re.sub(r"\s+", " ", desc).strip()
+
+    # Clean card/bank words from descriptions
+    for parsed_item in parsed_list:
+        if text_card_name and parsed_item.get("description"):
+            desc = parsed_item["description"]
+            for word in [text_card_name, text_bank or ""]:
+                if word:
+                    desc = re.sub(re.escape(word), "", desc, flags=re.IGNORECASE)
+            for word in ["credito", "crédito", "débito", "debito"]:
+                desc = re.sub(rf"\b{word}\b", "", desc, flags=re.IGNORECASE)
+            parsed_item["description"] = re.sub(r"\s+", " ", desc).strip()
 
     user_id = context.user_data["user_id"]
     db = SessionLocal()
     try:
         cards = db.query(Card).filter(Card.user_id == user_id).all()
 
+        # Match card/account once from the message text (applies to all expenses)
         card_id = None
         account_id = None
         tag_ids = []
@@ -1392,59 +1400,87 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 tag = _find_or_create_tag(db, user_id, "", account_id=matched_account.id)
                 tag_ids.append(tag.id)
 
-        predicted_category_id, cats = _instant_categorize(parsed, user_id, db)
+        saved_expenses = []
+        for parsed_item in parsed_list:
+            predicted_category_id, cats = _instant_categorize(parsed_item, user_id, db)
 
-        expense = _save_expense(
-            parsed,
-            payment="",
-            person=update.effective_user.full_name or "",
-            user_id=user_id,
-            predicted_category_id=predicted_category_id,
-            card_id=card_id,
-            account_id=account_id,
-            tag_ids=tag_ids,
-        )
+            expense = _save_expense(
+                parsed_item,
+                payment="",
+                person=update.effective_user.full_name or "",
+                user_id=user_id,
+                predicted_category_id=predicted_category_id,
+                card_id=card_id,
+                account_id=account_id,
+                tag_ids=tag_ids,
+            )
+            saved_expenses.append(expense)
 
-        cat = (
-            db.query(Category).filter(Category.id == expense.category_id).first()
-            if expense.category_id
-            else None
-        )
-        # Fetch assigned tags (excluding category mirrors)
-        expense_tags = []
-        if tag_ids:
-            from app.models import Tag
+        if not saved_expenses:
+            await update.message.reply_text(
+                "No pude guardar ningún gasto.",
+                parse_mode="HTML",
+            )
+            return ConversationHandler.END
 
-            expense_tags = db.query(Tag).filter(Tag.id.in_(tag_ids)).all()
-        context.user_data["last_expense_id"] = expense.id
+        # Build combined response
+        context.user_data["last_expense_id"] = saved_expenses[-1].id
         context.user_data["last_expense_time"] = time.time()
 
-        keyboard = InlineKeyboardMarkup(
-            [
+        if len(saved_expenses) == 1:
+            expense = saved_expenses[0]
+            cat = (
+                db.query(Category).filter(Category.id == expense.category_id).first()
+                if expense.category_id
+                else None
+            )
+            expense_tags = []
+            if tag_ids:
+                from app.models import Tag
+
+                expense_tags = db.query(Tag).filter(Tag.id.in_(tag_ids)).all()
+
+            keyboard = InlineKeyboardMarkup(
                 [
-                    InlineKeyboardButton("✏️ Editar", callback_data=f"quickedit:{expense.id}"),
-                    InlineKeyboardButton("🗑 Deshacer", callback_data=f"undo:{expense.id}"),
+                    [
+                        InlineKeyboardButton("✏️ Editar", callback_data=f"quickedit:{expense.id}"),
+                        InlineKeyboardButton("🗑 Deshacer", callback_data=f"undo:{expense.id}"),
+                    ]
                 ]
-            ]
-        )
-        await update.message.reply_text(
-            _quick_saved_text(expense, cat.name if cat else None, expense_tags),
-            reply_markup=keyboard,
-        )
+            )
+            await update.message.reply_text(
+                _quick_saved_text(expense, cat.name if cat else None, expense_tags),
+                reply_markup=keyboard,
+            )
+        else:
+            lines = [f"✅ {len(saved_expenses)} gastos guardados:"]
+            expense_ids = []
+            for i, exp in enumerate(saved_expenses, 1):
+                amount_str = _format_amount(exp.amount, exp.currency)
+                lines.append(f"  {i}. {amount_str} — {exp.description}")
+                expense_ids.append(str(exp.id))
+            context.user_data["last_batch_ids"] = ",".join(expense_ids)
+
+            keyboard = InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            "🗑 Deshacer todo",
+                            callback_data=f"undobatch:{','.join(expense_ids)}",
+                        )
+                    ]
+                ]
+            )
+            await update.message.reply_text("\n".join(lines), reply_markup=keyboard)
+
         return ConversationHandler.END
     except Exception as e:
         logger.error(f"Error saving manual expense: {e}", exc_info=True)
-        try:
-            amount_str = _format_amount(
-                float(parsed.get("amount", 0)), parsed.get("currency", "ARS")
-            )
+        with contextlib.suppress(Exception):
             await update.message.reply_text(
-                f"⚠️ Gasto recibido ({amount_str}) pero hubo un error al guardarlo.\n"
-                f"Intentá de nuevo.",
+                "⚠️ Hubo un error al guardar los gastos. Intentá de nuevo.",
                 parse_mode="HTML",
             )
-        except Exception:
-            pass
         return ConversationHandler.END
     finally:
         db.close()
@@ -2474,6 +2510,49 @@ async def handle_undo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         db.close()
 
 
+async def handle_undo_batch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+
+    ids_str = query.data.split(":")[1]
+    expense_ids = [int(x) for x in ids_str.split(",") if x.isdigit()]
+    if not expense_ids:
+        await query.edit_message_text("❌ No hay gastos para deshacer.")
+        return
+
+    db = SessionLocal()
+    try:
+        chat_id = str(update.effective_chat.id)
+        user = _get_user_by_chat_id(chat_id)
+        if not user:
+            await query.edit_message_text("🔒 Sesión expirada.")
+            return
+
+        deleted = 0
+        for eid in expense_ids:
+            expense = (
+                db.query(Expense).filter(Expense.id == eid, Expense.user_id == user.id).first()
+            )
+            if not expense:
+                continue
+            if expense.created_at and (datetime.utcnow() - expense.created_at).seconds > 120:
+                continue
+            db.query(ExpenseTag).filter(ExpenseTag.expense_id == eid).delete()
+            from app.models import ScheduledExpense
+
+            db.query(ScheduledExpense).filter(ScheduledExpense.expense_id == eid).delete()
+            db.delete(expense)
+            deleted += 1
+
+        db.commit()
+        if deleted:
+            await query.edit_message_text(f"🗑 {deleted} gasto(s) deshecho(s).")
+        else:
+            await query.edit_message_text("❌ No se pudo deshacer. Usá /editar.")
+    finally:
+        db.close()
+
+
 async def handle_edit_quick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
@@ -3495,6 +3574,7 @@ async def _run_bot(token: str) -> None:
     app.add_handler(CallbackQueryHandler(handle_report_callback, pattern=r"^report:"))
     app.add_handler(CallbackQueryHandler(handle_reportimg_callback, pattern=r"^reportimg:"))
     app.add_handler(CallbackQueryHandler(handle_undo, pattern=r"^undo:"))
+    app.add_handler(CallbackQueryHandler(handle_undo_batch, pattern=r"^undobatch:"))
 
     app.add_handler(conv_handler)
     app.add_handler(MessageHandler(~filters.TEXT & ~filters.COMMAND, handle_unsupported_message))
