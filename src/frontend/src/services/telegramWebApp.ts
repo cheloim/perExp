@@ -74,7 +74,16 @@ declare global {
 // ── Public API ──────────────────────────────────────────────────────────────
 
 export function isTelegramWebApp(): boolean {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("miniapp") === "1") return true;
   return typeof window !== "undefined" && !!window.Telegram?.WebApp?.initData;
+}
+
+export function isDarkMode(): boolean {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("dark") === "1") return true;
+  if (window.Telegram?.WebApp?.colorScheme === "dark") return true;
+  return document.documentElement.classList.contains("dark");
 }
 
 export function getTelegramWebApp(): TelegramWebApp | null {

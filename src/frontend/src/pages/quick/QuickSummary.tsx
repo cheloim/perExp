@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getDashboard, getExpenses, getTagSummary } from "../../api/client";
 import SymbolicIcon from "../../components/SymbolicIcon";
+import { getCategoryEmoji } from "../../utils/categoryEmoji";
 import { formatCurrency, toUpperCase } from "../../utils/format";
+import { isDarkMode } from "../../services/telegramWebApp";
 
 const now = new Date();
 const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -61,6 +63,10 @@ export default function QuickSummary() {
   const arsTotal = byCurrency.find((c) => c.currency === "ARS")?.total ?? 0;
   const usdTotal = byCurrency.find((c) => c.currency === "USD")?.total ?? 0;
 
+  // Detect dark mode for text color
+  const dark = isDarkMode();
+  const amountColor = dark ? "#ffffff" : "#1c1b1f";
+
   // MoM comparison (only ARS for consistency with platform)
   const categories = dash?.by_category ?? [];
   const prevTotal = categories.reduce((s, c) => s + (c.previous_total ?? 0), 0);
@@ -71,18 +77,8 @@ export default function QuickSummary() {
       : momPct > 0
         ? `↑ ${Math.abs(Math.round(momPct))}%`
         : `↓ ${Math.abs(Math.round(momPct))}%`;
-  const momColor =
-    momPct > 0
-      ? "var(--gnome-red-5)"
-      : momPct < 0
-        ? "var(--gnome-green-5)"
-        : "var(--text-secondary)";
-  const momBg =
-    momPct > 0
-      ? "var(--gnome-red-1)"
-      : momPct < 0
-        ? "var(--gnome-green-1)"
-        : "var(--color-base-alt)";
+  // Red when spending increased (bad), green when decreased (good)
+  const momColor = momPct > 0 ? "#e01b24" : momPct < 0 ? "#26a269" : "#71717a";
 
   // Category comparison data (current vs previous)
   const catComparison = categories
@@ -112,8 +108,8 @@ export default function QuickSummary() {
   const kpiBtn = (kpi: KpiSelection) =>
     `rounded-xl p-3 flex items-center gap-3 cursor-pointer active:scale-[0.97] transition-all ${
       selectedKpi === kpi
-        ? "border-2 border-[var(--color-primary)] bg-[var(--color-primary)]/5"
-        : "border border-transparent"
+        ? "border-2 border-[var(--color-primary)] bg-[var(--color-primary)]/10"
+        : "border border-[var(--border-color)]"
     }`;
 
   return (
@@ -127,47 +123,27 @@ export default function QuickSummary() {
 
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-3">
-        <button
-          type="button"
-          className={kpiBtn("gasto")}
-          style={selectedKpi === "gasto" ? undefined : { backgroundColor: "var(--color-base-alt)" }}
-          onClick={() => setSelectedKpi("gasto")}
-        >
-          <SymbolicIcon
-            name="card"
-            size={20}
-            className={
-              selectedKpi === "gasto"
-                ? "text-[var(--color-primary)] flex-shrink-0"
-                : "text-[var(--text-tertiary)] flex-shrink-0"
-            }
-          />
+        <button type="button" className={kpiBtn("gasto")} onClick={() => setSelectedKpi("gasto")}>
+          <SymbolicIcon name="card" size={20} className="flex-shrink-0 opacity-60" />
           <div className="min-w-0">
-            <div className="text-[10px] text-[var(--text-secondary)]">Gasto mes</div>
-            <div className="text-base font-bold text-[var(--text-primary)] truncate">
+            <div className="text-[10px] opacity-60">Gasto mes</div>
+            <div className="text-base font-bold truncate" style={{ color: amountColor }}>
               {formatCurrency(arsTotal)}
             </div>
             {usdTotal > 0 && (
-              <div className="text-[10px] text-[var(--text-tertiary)]">
-                + {formatCurrency(usdTotal, "USD")}
-              </div>
+              <div className="text-[10px] opacity-60">+ {formatCurrency(usdTotal, "USD")}</div>
             )}
           </div>
         </button>
         <button
           type="button"
           className={kpiBtn("comparativa")}
-          style={selectedKpi === "comparativa" ? undefined : { backgroundColor: momBg }}
           onClick={() => setSelectedKpi("comparativa")}
         >
           <SymbolicIcon
             name="chart-bar"
             size={20}
-            className={
-              selectedKpi === "comparativa"
-                ? "text-[var(--color-primary)] flex-shrink-0"
-                : "text-[var(--text-tertiary)] flex-shrink-0"
-            }
+            className="text-[var(--text-tertiary)] flex-shrink-0"
           />
           <div className="min-w-0">
             <div className="text-[10px] text-[var(--text-secondary)]">vs mes anterior</div>
@@ -317,9 +293,16 @@ export default function QuickSummary() {
                   className="flex items-center gap-2 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl px-3 py-2.5"
                 >
                   <span
-                    className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: exp.category_color || "#6b7280" }}
-                  />
+                    className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-sm"
+                    style={{ backgroundColor: (exp.category_color || "#6b7280") + "20" }}
+                  >
+                    {getCategoryEmoji(exp.category_name) || (
+                      <span
+                        className="w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: exp.category_color || "#6b7280" }}
+                      />
+                    )}
+                  </span>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-medium text-[var(--text-primary)] truncate">
                       {exp.description}

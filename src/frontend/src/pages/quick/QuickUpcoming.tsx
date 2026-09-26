@@ -44,9 +44,10 @@ export default function QuickUpcoming() {
 
   const installments = scheduled?.installments ?? [];
   const manual = scheduled?.manual ?? [];
-  const recurringActive = (recurring ?? []).filter(
+  const recurringWithDate = (recurring ?? []).filter(
     (r) => r.next_charge_date != null && new Date(r.next_charge_date) >= new Date(),
   );
+  const recurringNoDate = (recurring ?? []).filter((r) => r.next_charge_date == null);
 
   // Build flat list with currency
   const allItems: UpcomingItem[] = [
@@ -66,11 +67,18 @@ export default function QuickUpcoming() {
       type: "Programado",
       card: m.card,
     })),
-    ...recurringActive.map((r) => ({
+    ...recurringWithDate.map((r) => ({
       description: r.description,
       amount: r.amount,
       currency: r.currency ?? "ARS",
       date: r.next_charge_date ?? "",
+      type: `Recurrente · ${toUpperCase(r.frequency)}`,
+    })),
+    ...recurringNoDate.map((r) => ({
+      description: r.description,
+      amount: r.amount,
+      currency: r.currency ?? "ARS",
+      date: "",
       type: `Recurrente · ${toUpperCase(r.frequency)}`,
     })),
   ];
@@ -153,7 +161,7 @@ export default function QuickUpcoming() {
                     {item.type.startsWith("Cuota")
                       ? "💳"
                       : item.type.startsWith("Recurrente")
-                        ? "🔄"
+                        ? "📦"
                         : "📋"}
                   </span>
                   <div className="flex-1 min-w-0">
