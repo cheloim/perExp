@@ -62,6 +62,12 @@ export default function QuickSummary() {
   const arsTotal = byCurrency.find((c) => c.currency === "ARS")?.total ?? 0;
   const usdTotal = byCurrency.find((c) => c.currency === "USD")?.total ?? 0;
 
+  // Detect dark mode for text color
+  const isDark =
+    window.Telegram?.WebApp?.colorScheme === "dark" ||
+    document.documentElement.classList.contains("dark");
+  const amountColor = isDark ? "#ffffff" : "#1c1b1f";
+
   // MoM comparison (only ARS for consistency with platform)
   const categories = dash?.by_category ?? [];
   const prevTotal = categories.reduce((s, c) => s + (c.previous_total ?? 0), 0);
@@ -119,20 +125,14 @@ export default function QuickSummary() {
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-3">
         <button type="button" className={kpiBtn("gasto")} onClick={() => setSelectedKpi("gasto")}>
-          <SymbolicIcon
-            name="card"
-            size={20}
-            className="text-[var(--text-tertiary)] flex-shrink-0"
-          />
+          <SymbolicIcon name="card" size={20} className="flex-shrink-0 opacity-60" />
           <div className="min-w-0">
-            <div className="text-[10px] text-[var(--text-secondary)]">Gasto mes</div>
-            <div className="text-base font-bold text-[var(--text-primary)] truncate">
+            <div className="text-[10px] opacity-60">Gasto mes</div>
+            <div className="text-base font-bold truncate" style={{ color: amountColor }}>
               {formatCurrency(arsTotal)}
             </div>
             {usdTotal > 0 && (
-              <div className="text-[10px] text-[var(--text-tertiary)]">
-                + {formatCurrency(usdTotal, "USD")}
-              </div>
+              <div className="text-[10px] opacity-60">+ {formatCurrency(usdTotal, "USD")}</div>
             )}
           </div>
         </button>
