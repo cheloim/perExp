@@ -78,12 +78,6 @@ export default function QuickSummary() {
       : momPct < 0
         ? "var(--gnome-green-4)"
         : "var(--text-secondary)";
-  const momBg =
-    momPct > 0
-      ? "var(--gnome-red-1)"
-      : momPct < 0
-        ? "var(--gnome-green-1)"
-        : "var(--color-base-alt)";
 
   // Category comparison data (current vs previous)
   const catComparison = categories
@@ -128,12 +122,7 @@ export default function QuickSummary() {
 
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-3">
-        <button
-          type="button"
-          className={kpiBtn("gasto")}
-          style={selectedKpi === "gasto" ? undefined : { backgroundColor: "var(--color-base-alt)" }}
-          onClick={() => setSelectedKpi("gasto")}
-        >
+        <button type="button" className={kpiBtn("gasto")} onClick={() => setSelectedKpi("gasto")}>
           <SymbolicIcon
             name="card"
             size={20}
@@ -158,7 +147,6 @@ export default function QuickSummary() {
         <button
           type="button"
           className={kpiBtn("comparativa")}
-          style={selectedKpi === "comparativa" ? undefined : { backgroundColor: momBg }}
           onClick={() => setSelectedKpi("comparativa")}
         >
           <SymbolicIcon
