@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getDashboard, getExpenses, getTagSummary } from "../../api/client";
+import SymbolicIcon from "../../components/SymbolicIcon";
 import { formatCurrency, toUpperCase } from "../../utils/format";
 
 const now = new Date();
@@ -52,8 +53,6 @@ export default function QuickSummary() {
       </div>
     );
   }
-
-  const totalExpenses = dash?.total_expenses ?? 0;
 
   // Per-currency totals for the KPI
   const byCurrency = dash?.by_currency ?? [];
@@ -118,36 +117,51 @@ export default function QuickSummary() {
       </div>
 
       {/* KPI row */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl p-4 text-center bg-[var(--color-base-alt)]">
-          <div className="text-[11px] text-[var(--text-secondary)] mb-1">Gasto mes</div>
-          <div className="text-xl font-bold text-[var(--text-primary)]">
-            {formatCurrency(arsTotal)}
-          </div>
-          {usdTotal > 0 && (
-            <div className="text-[10px] text-[var(--text-tertiary)] mt-0.5">
-              + {formatCurrency(usdTotal, "USD")}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl p-3 flex items-center gap-3 bg-[var(--color-base-alt)]">
+          <SymbolicIcon
+            name="card"
+            size={20}
+            className="text-[var(--text-tertiary)] flex-shrink-0"
+          />
+          <div className="min-w-0">
+            <div className="text-[10px] text-[var(--text-secondary)]">Gasto mes</div>
+            <div className="text-base font-bold text-[var(--text-primary)] truncate">
+              {formatCurrency(arsTotal)}
             </div>
-          )}
+            {usdTotal > 0 && (
+              <div className="text-[10px] text-[var(--text-tertiary)]">
+                + {formatCurrency(usdTotal, "USD")}
+              </div>
+            )}
+          </div>
         </div>
         <button
           type="button"
-          className="rounded-xl p-4 text-center cursor-pointer active:scale-[0.97] transition-transform"
-          style={{ backgroundColor: momBg }}
+          className={`rounded-xl p-3 flex items-center gap-3 cursor-pointer active:scale-[0.97] transition-all ${
+            showComparison
+              ? "border-2 border-[var(--color-primary)] bg-[var(--color-primary)]/5"
+              : "border border-transparent"
+          }`}
+          style={{ backgroundColor: showComparison ? undefined : momBg }}
           onClick={() => setShowComparison((v) => !v)}
         >
-          <div className="text-[11px] text-[var(--text-secondary)] mb-1">vs mes anterior</div>
-          <div className="text-xl font-bold" style={{ color: momColor }}>
-            {momLabel}
-          </div>
-          <div className="text-[9px] text-[var(--text-tertiary)] mt-0.5">
-            {showComparison ? "tocar para cerrar" : "tocar para detalle"}
+          <SymbolicIcon
+            name="chart-bar"
+            size={20}
+            className={
+              showComparison
+                ? "text-[var(--color-primary)] flex-shrink-0"
+                : "text-[var(--text-tertiary)] flex-shrink-0"
+            }
+          />
+          <div className="min-w-0">
+            <div className="text-[10px] text-[var(--text-secondary)]">vs mes anterior</div>
+            <div className="text-base font-bold truncate" style={{ color: momColor }}>
+              {momLabel}
+            </div>
           </div>
         </button>
-        <div className="rounded-xl p-4 text-center bg-[var(--color-primary)]/10">
-          <div className="text-[11px] text-[var(--text-secondary)] mb-1">Transacciones</div>
-          <div className="text-xl font-bold text-[var(--color-primary)]">{totalExpenses}</div>
-        </div>
       </div>
 
       {/* Category comparison panel (expandable) */}
@@ -277,7 +291,7 @@ export default function QuickSummary() {
       {expenses.length > 0 && (
         <div className="space-y-2">
           <div className="text-[11px] font-semibold text-[var(--color-primary)] uppercase tracking-wider px-1">
-            Transacciones de {monthLabel(currentMonth).split(" ")[0]}
+            📝 Transacciones de {monthLabel(currentMonth).split(" ")[0]}
           </div>
           {expenses.map((exp) => (
             <div
