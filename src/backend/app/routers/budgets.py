@@ -239,9 +239,13 @@ def list_budgets(
         db.query(Budget).filter(Budget.user_id == current_user.id, Budget.is_active == True).all()
     )
 
+    # Pre-fetch categories to avoid N+1
+    cat_ids = {b.category_id for b in budgets}
+    categories = {c.id: c for c in db.query(Category).filter(Category.id.in_(cat_ids)).all()}
+
     result = []
     for b in budgets:
-        cat = db.query(Category).filter(Category.id == b.category_id).first()
+        cat = categories.get(b.category_id)
         result.append(
             BudgetResponse(
                 id=b.id,

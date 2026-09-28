@@ -494,8 +494,7 @@ def _save_expense(
             card_id=card_id,
         )
         db.add(expense)
-        db.commit()
-        db.refresh(expense)
+        db.flush()  # Assign ID without committing
 
         from app.services.tag_sync import sync_category_tag
 
@@ -513,11 +512,6 @@ def _save_expense(
 
             for tid in valid_tag_ids:
                 db.add(ExpenseTag(expense_id=expense.id, tag_id=tid))
-            try:
-                db.commit()
-            except Exception as e:
-                logger.warning(f"Failed to add expense tags: {e}")
-                db.rollback()
 
         # Link to recurring expense if matches
         from app.services.recurring_linker import link_to_recurring
@@ -526,7 +520,10 @@ def _save_expense(
             link_to_recurring(expense.id, expense.description, user_id, db)
         except Exception as e:
             logger.warning(f"Failed to link recurring: {e}")
-            db.rollback()
+
+        # Single atomic commit for expense + tags + recurring linkage
+        db.commit()
+        db.refresh(expense)
 
         # Resolve up to 3 levels: cat → parent → grandparent
         expense._cat_levels = []

@@ -6,6 +6,8 @@ Handles:
 """
 
 import asyncio
+import hashlib
+import hmac
 import logging
 import os
 
@@ -19,6 +21,29 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webhook", tags=["whatsapp"])
 
 VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "oikonomia-whatsapp-dev")
+APP_SECRET = os.getenv("WHATSAPP_APP_SECRET", "")
+
+
+def _verify_webhook_signature(body: bytes, signature_header: str | None) -> bool:
+    """Verify Meta's X-Hub-Signature-256 HMAC on webhook payloads.
+
+    If APP_SECRET is not configured, verification is skipped (dev mode).
+    In production, APP_SECRET must be set.
+    """
+    if not APP_SECRET:
+        # Dev mode: skip verification if no secret configured
+        return True
+    if not signature_header:
+        return False
+    # signature_header format: "sha256=<hex>"
+    try:
+        algo, received_sig = signature_header.split("=", 1)
+    except ValueError:
+        return False
+    if algo != "sha256":
+        return False
+    expected_sig = hmac.new(APP_SECRET.encode(), body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected_sig, received_sig)
 
 
 @router.get(
@@ -57,10 +82,21 @@ async def receive_webhook(request: Request):
     """Handle incoming WhatsApp messages.
 
     Meta sends a POST with the message payload. We must respond with 200 within 5 seconds.
-    Processing is done asynchronously.
+    Processing is done asynchronously. Verifies X-Hub-Signature-256 if APP_SECRET is set.
     """
+    # Read raw body for signature verification
+    raw_body = await request.body()
+
+    # Verify HMAC signature
+    signature_header = request.headers.get("X-Hub-Signature-256")
+    if not _verify_webhook_signature(raw_body, signature_header):
+        logger.warning("[WA_WEBHOOK] Invalid signature — rejecting request")
+        return JSONResponse(content={"error": "Invalid signature"}, status_code=403)
+
     try:
-        body = await request.json()
+        import json
+
+        body = json.loads(raw_body)
     except Exception:
         return JSONResponse(content={"status": "ok"})
 

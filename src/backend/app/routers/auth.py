@@ -187,10 +187,16 @@ def login_mfa(body: MFALoginRequest, request: Request, db: Session = Depends(get
     import jwt
     from jwt import PyJWTError as JWTError
 
-    from app.services.auth import ALGORITHM, SECRET_KEY
+    from app.services.auth import ALGORITHM, JWT_SECRET, SECRET_KEY
 
     try:
-        payload = jwt.decode(body.token, SECRET_KEY, algorithms=[ALGORITHM])
+        try:
+            payload = jwt.decode(body.token, JWT_SECRET, algorithms=[ALGORITHM])
+        except JWTError:
+            if JWT_SECRET != SECRET_KEY:
+                payload = jwt.decode(body.token, SECRET_KEY, algorithms=[ALGORITHM])
+            else:
+                raise
         user_id: str | None = payload.get("sub")
         if user_id is None:
             raise HTTPException(status_code=401, detail="Token inválido")
@@ -598,6 +604,14 @@ def change_password(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # Rate limit password change attempts
+    ip = _get_client_ip(request)
+    allowed, retry_after = check_rate_limit(ip, "password_change")
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Demasiados intentos. Probá en {retry_after} segundos.",
+        )
     if not verify_password(body.current_password, current_user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Contraseña actual incorrecta"
@@ -623,10 +637,16 @@ def force_change_password(
     import jwt
     from jwt import PyJWTError as JWTError
 
-    from app.services.auth import ALGORITHM, SECRET_KEY
+    from app.services.auth import ALGORITHM, JWT_SECRET, SECRET_KEY
 
     try:
-        payload = jwt.decode(body.token, SECRET_KEY, algorithms=[ALGORITHM])
+        try:
+            payload = jwt.decode(body.token, JWT_SECRET, algorithms=[ALGORITHM])
+        except JWTError:
+            if JWT_SECRET != SECRET_KEY:
+                payload = jwt.decode(body.token, SECRET_KEY, algorithms=[ALGORITHM])
+            else:
+                raise
         user_id: str | None = payload.get("sub")
         if user_id is None:
             raise HTTPException(status_code=401, detail="Token inválido")
@@ -723,7 +743,14 @@ def get_telegram_status(
     summary="Refresh access token",
     description="Issues a new access token for the currently authenticated user.",
 )
-def refresh_token(current_user: User = Depends(get_current_user)):
+def refresh_token(request: Request, current_user: User = Depends(get_current_user)):
+    ip = _get_client_ip(request)
+    allowed, retry_after = check_rate_limit(ip, "token_refresh")
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Demasiados intentos. Probá en {retry_after} segundos.",
+        )
     return Token(access_token=create_access_token(current_user.id), token_type="bearer")
 
 

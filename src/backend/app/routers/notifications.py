@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db
 from app.models import GroupMember, Notification, User
-from app.services.auth import ALGORITHM, SECRET_KEY, get_current_user
+from app.services.auth import ALGORITHM, JWT_SECRET, SECRET_KEY, get_current_user
 
 
 class NotificationResponse(BaseModel):
@@ -55,7 +55,13 @@ def _validate_token(token: str, db: Session) -> User:
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
+        except JWTError:
+            if JWT_SECRET != SECRET_KEY:
+                payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            else:
+                raise
         user_id: str = payload.get("sub")
         if user_id is None:
             raise credentials_exc

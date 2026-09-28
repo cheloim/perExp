@@ -196,8 +196,14 @@ function MainLayout() {
   // Check for active impersonation on mount
   useEffect(() => {
     const sessionId = sessionStorage.getItem("impersonation_session_id");
-    if (sessionId) {
-      // We have an active impersonation - the banner will show
+    const targetName = sessionStorage.getItem("impersonation_target_name");
+    const expiresAt = sessionStorage.getItem("impersonation_expires_at");
+    if (sessionId && targetName) {
+      setImpersonationSession({
+        sessionId: Number(sessionId),
+        targetUserName: targetName,
+        expiresAt: expiresAt || "",
+      });
     }
   }, []);
 

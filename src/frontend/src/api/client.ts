@@ -48,7 +48,7 @@ export const clearToken = () => {
   localStorage.removeItem(TOKEN_KEY);
 };
 
-const api = axios.create({ baseURL: "/api" });
+export const api = axios.create({ baseURL: "/api" });
 
 api.interceptors.request.use((config) => {
   const token = getStoredToken();
@@ -508,14 +508,21 @@ export const generateMonthlyReport = (month: string) =>
     .then((r) => r.data);
 
 export const downloadReportPdf = async (month: string) => {
-  const token = localStorage.getItem("auth_token");
+  const token = getStoredToken();
   const res = await fetch(`/api/dashboard/monthly-reports/${month}/download`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error("Failed to download report");
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `reporte-${month}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Revoke the blob URL after a short delay to free memory
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
 };
 
 export const getInstallmentsDashboard = () =>

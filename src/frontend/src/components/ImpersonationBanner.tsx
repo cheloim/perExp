@@ -84,6 +84,8 @@ export default function ImpersonationBanner({
     onSuccess: () => {
       sessionStorage.removeItem("impersonation_token");
       sessionStorage.removeItem("impersonation_session_id");
+      sessionStorage.removeItem("impersonation_target_name");
+      sessionStorage.removeItem("impersonation_expires_at");
       onEnd();
     },
   });

@@ -23,6 +23,8 @@ RATE_LIMITS = {
     "register": {"max_attempts": 3, "window_seconds": 300},
     "forgot_password": {"max_attempts": 3, "window_seconds": 300},
     "mfa": {"max_attempts": 5, "window_seconds": 300},
+    "password_change": {"max_attempts": 5, "window_seconds": 300},
+    "token_refresh": {"max_attempts": 20, "window_seconds": 60},
 }
 
 

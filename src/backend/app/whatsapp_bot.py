@@ -291,16 +291,8 @@ async def handle_whatsapp_message(
         _get_session(phone_hash)["state"] = "WAITING_AUTH"
         return
 
-    # Mark user as verified if not already
-    if not user.whatsapp_verified:
-        db = SessionLocal()
-        try:
-            u = db.query(User).filter(User.id == user.id).first()
-            if u:
-                u.whatsapp_verified = True
-                db.commit()
-        finally:
-            db.close()
+    # Note: whatsapp_verified column doesn't exist on User model.
+    # The user is already identified by phone hash match — no extra verification needed.
 
     session = _get_session(phone_hash)
     session["user_id"] = user.id
@@ -889,7 +881,11 @@ async def _handle_list_reply(
         account_id = int(list_id.split(":")[1])
         db = SessionLocal()
         try:
-            account = db.query(Account).filter(Account.id == account_id).first()
+            account = (
+                db.query(Account)
+                .filter(Account.id == account_id, Account.user_id == user_id)
+                .first()
+            )
         finally:
             db.close()
 
@@ -909,7 +905,7 @@ async def _handle_list_reply(
         card_id = int(list_id.split(":")[1])
         db = SessionLocal()
         try:
-            card = db.query(Card).filter(Card.id == card_id).first()
+            card = db.query(Card).filter(Card.id == card_id, Card.user_id == user_id).first()
         finally:
             db.close()
 

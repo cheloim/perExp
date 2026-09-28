@@ -6,7 +6,14 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql://expenses_user:changeme@localhost:5432/expenses"
 )
-engine = create_engine(DATABASE_URL, pool_size=10, max_overflow=20, pool_pre_ping=True)
+engine = create_engine(
+    DATABASE_URL,
+    pool_size=10,
+    max_overflow=20,
+    pool_pre_ping=True,
+    pool_timeout=10,
+    pool_recycle=1800,
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
