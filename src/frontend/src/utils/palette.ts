@@ -12,5 +12,3 @@ export const TAG_PALETTE = [
   "#62a0ea",
   "#c061cb",
 ];
-
-

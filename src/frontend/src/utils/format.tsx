@@ -257,5 +257,3 @@ export function categoryGroupOptions(
   }
   return groups;
 }
-
-
