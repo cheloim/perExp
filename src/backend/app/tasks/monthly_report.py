@@ -867,7 +867,6 @@ Usa flags para tendencias preocupantes a monitorear."""
         "accounts_summary": accounts_summary,
         "cards_summary": cards_summary,
         "tags_summary": tags_summary,
-        "tarjeta_summary": [],  # Deprecated: tarjeta merged into cuenta
         "cuenta_summary": [t for t in tags_summary if t.get("group") in ("cuenta", "tarjeta")],
         "future_installments": future_installments,
         "future_installments_count": len(future_installments),

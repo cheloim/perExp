@@ -514,18 +514,6 @@ export interface TopMerchant {
   category_color: string | null;
 }
 
-export interface TagSummary {
-  tag_id: number | null;
-  tag_name: string;
-  tag_color: string;
-  group_name?: string;
-  total_amount: number;
-  count: number;
-  currency: string;
-  last_used: string | null;
-  monthly: { month: string; total: number }[];
-}
-
 export interface AITrendsResponse {
   trend: "up" | "down" | "stable";
   trend_pct: number;

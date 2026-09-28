@@ -751,8 +751,3 @@ def _next_week_range() -> tuple[date, date]:
     start = today + timedelta(days=days_until_next_monday)
     end = start + timedelta(days=6)
     return start, end
-
-
-def _current_week_range_export() -> tuple[date, date]:
-    """Alias for external callers needing the past-week range."""
-    return _current_week_range()

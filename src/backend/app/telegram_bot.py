@@ -541,6 +541,15 @@ def _save_expense(
                     levels.append(node.name)
                 expense._cat_levels = list(reversed(levels))
 
+        # Budget threshold check (non-blocking)
+        if expense.category_id and user_id:
+            try:
+                from app.services.budget_helpers import check_budget_threshold_on_expense
+
+                check_budget_threshold_on_expense(db, user_id, expense.category_id, expense.amount)
+            except Exception as e:
+                logger.warning(f"Budget threshold check failed: {e}")
+
         return expense
     finally:
         db.close()

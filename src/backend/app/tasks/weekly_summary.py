@@ -235,10 +235,3 @@ def send_weekly_reports():
         db.rollback()
     finally:
         db.close()
-
-
-# Keep old function name for backward compatibility
-@celery_app.task(name="app.tasks.weekly_summary.send_weekly_summaries")
-def send_weekly_summaries():
-    """Legacy function - redirects to send_weekly_reports."""
-    send_weekly_reports()

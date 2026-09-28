@@ -6,7 +6,8 @@ from datetime import date
 
 from app.celery_app import celery_app
 from app.database import SessionLocal
-from app.models import Budget, BudgetGroup, Category, Expense, Notification, User
+from app.models import Budget, BudgetGroup, Category, Expense, Notification, Setting, User
+from app.services.task_tracker import record_task_run
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +141,13 @@ def check_budget_alerts():
 
         alerts_sent = 0
         for user in users:
+            # Per-user toggle: skip if budget alerts disabled
+            alert_setting = (
+                db.query(Setting).filter(Setting.key == f"{user.id}:budget_alerts_enabled").first()
+            )
+            if alert_setting and alert_setting.value.lower() in ("false", "0", "no"):
+                continue
+
             uid_list = _get_group_user_ids(user.id, db)
 
             # ─── Check macro groups (50/30/20) ────────────────────────
@@ -265,9 +273,11 @@ def check_budget_alerts():
 
         db.commit()
         logger.info(f"[BUDGET ALERTS] Sent {alerts_sent} alerts for {month_key}")
+        record_task_run("check-budget-alerts-daily", success=True)
 
     except Exception as e:
         logger.error(f"[BUDGET ALERTS] Error: {e}")
+        record_task_run("check-budget-alerts-daily", success=False)
         db.rollback()
     finally:
         db.close()

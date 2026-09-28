@@ -1,8 +1,5 @@
 import re
 
-from sqlalchemy import func
-from sqlalchemy.orm import Session
-
 BANK_NORM_MAP: dict[str, str] = {
     "santander río": "Santander",
     "santander rio": "Santander",
@@ -35,29 +32,6 @@ def normalize_bank(name: str) -> str:
         return BANK_NORM_MAP[key]
     cleaned = re.sub(r"(?i)^banco\s+", "", raw).strip()
     return cleaned.title() if cleaned else "Banco"
-
-
-def _normalize_person(person: str, db: Session) -> str:
-    from app.models import Card
-
-    val = person.strip()
-    if not val:
-        return val
-    val_lower = val.lower()
-    rows = (
-        db.query(Card.holder, func.count(Card.id).label("cnt"))
-        .filter(Card.holder != "")
-        .group_by(Card.holder)
-        .all()
-    )
-    candidates = [
-        (r.holder, r.cnt)
-        for r in rows
-        if r.holder.lower().startswith(val_lower) and len(r.holder) > len(val)
-    ]
-    if not candidates:
-        return val
-    return max(candidates, key=lambda x: (x[1], len(x[0])))[0]
 
 
 def _norm_holder(name: str) -> str:

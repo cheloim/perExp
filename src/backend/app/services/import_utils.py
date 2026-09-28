@@ -40,18 +40,7 @@ def _normalize_text(text: str | None) -> str:
     if not text:
         return ""
     cleaned = re.sub(r"[\t ]*-[\t ]*Pendiente[\t ]*$", "", text.strip())
-    result = cleaned.upper()
-    if result:
-        logger.debug("[DEBUG NORMALIZE] '%s' -> '%s'", text, result)
-    return result
-
-
-def _title_case(text: str | None) -> str:
-    if not text:
-        return ""
-    result = text.strip().title()
-    logger.debug("[DEBUG TITLE_CASE] '%s' -> '%s'", text, result)
-    return result
+    return cleaned.upper()
 
 
 def _load_dataframe(content: bytes, filename: str) -> "pd.DataFrame":

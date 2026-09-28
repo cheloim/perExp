@@ -60,4 +60,8 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.cleanup_audit_logs.cleanup_old_records",
         "schedule": _cron_from_env("SCHEDULE_CLEANUP_AUDIT", 4, 0),
     },
+    "check-budget-alerts-daily": {
+        "task": "app.tasks.budgets.check_budget_alerts",
+        "schedule": _cron_from_env("SCHEDULE_BUDGET_ALERTS", 10, 0),
+    },
 }

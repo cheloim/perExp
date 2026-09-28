@@ -13,6 +13,4 @@ export const TAG_PALETTE = [
   "#c061cb",
 ];
 
-export function suggestTagColor(existingCount: number): string {
-  return TAG_PALETTE[existingCount % TAG_PALETTE.length];
-}
+

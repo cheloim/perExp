@@ -64,15 +64,14 @@ from app.schemas.investments import InvestmentCreate
 from app.schemas.tags import TagCreate, TagResponse, TagUpdate
 
 __all__ = [
-    # common
     "BUE",
     "BLOCKED_DOMAINS",
     "SPECIAL_CHARS",
     "AccountSimple",
     "CardSimple",
+    "TagSimple",
     "_validate_email_format",
     "_validate_password_strength",
-    # auth
     "ChangePasswordRequest",
     "DeleteAccountRequest",
     "EmailVerificationRequest",
@@ -89,26 +88,20 @@ __all__ = [
     "Token",
     "UserCreate",
     "UserResponse",
-    # categories
     "CategoryBase",
     "CategoryCreate",
     "CategoryResponse",
     "CategorySuggestRequest",
-    # expenses
     "ExpenseCreate",
     "ExpenseResponse",
     "ExpenseUpdate",
-    # investments
     "InvestmentCreate",
-    # analysis
     "AnalysisHistoryResponse",
     "AnalysisRequest",
-    # import_jobs
     "CardClosingResponse",
     "CardsMappingEntry",
     "ImportJobResponse",
     "RowsConfirmBody",
-    # budgets
     "BudgetCreate",
     "BudgetEventCreate",
     "BudgetEventResponse",
@@ -122,12 +115,9 @@ __all__ = [
     "BudgetSummaryItem",
     "BudgetSummaryResponse",
     "BudgetUpdate",
-    # cards
     "CardCreate",
     "CardResponse",
     "CardUpdate",
-    # tags
-    "TagSimple",
     "TagCreate",
     "TagResponse",
     "TagUpdate",
