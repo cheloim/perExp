@@ -109,6 +109,35 @@ def list_users(
     total = query.count()
     users = query.order_by(User.id).offset((page - 1) * per_page).limit(per_page).all()
 
+    # Pre-fetch counts with subqueries to avoid N+1
+    from sqlalchemy import func
+
+    user_ids = [u.id for u in users]
+    expense_counts = dict(
+        db.query(Expense.user_id, func.count(Expense.id))
+        .filter(Expense.user_id.in_(user_ids))
+        .group_by(Expense.user_id)
+        .all()
+    )
+    card_counts = dict(
+        db.query(Card.user_id, func.count(Card.id))
+        .filter(Card.user_id.in_(user_ids))
+        .group_by(Card.user_id)
+        .all()
+    )
+    account_counts = dict(
+        db.query(Account.user_id, func.count(Account.id))
+        .filter(Account.user_id.in_(user_ids))
+        .group_by(Account.user_id)
+        .all()
+    )
+    recurring_counts = dict(
+        db.query(RecurringExpense.user_id, func.count(RecurringExpense.id))
+        .filter(RecurringExpense.user_id.in_(user_ids))
+        .group_by(RecurringExpense.user_id)
+        .all()
+    )
+
     result = []
     for u in users:
         locked, ttl = is_account_locked(u.id)
@@ -127,12 +156,10 @@ def list_users(
                 mfa_enabled=u.mfa_enabled,
                 email_verified=u.email_verified,
                 provider=u.provider,
-                expense_count=db.query(Expense).filter(Expense.user_id == u.id).count(),
-                card_count=db.query(Card).filter(Card.user_id == u.id).count(),
-                account_count=db.query(Account).filter(Account.user_id == u.id).count(),
-                recurring_count=db.query(RecurringExpense)
-                .filter(RecurringExpense.user_id == u.id)
-                .count(),
+                expense_count=expense_counts.get(u.id, 0),
+                card_count=card_counts.get(u.id, 0),
+                account_count=account_counts.get(u.id, 0),
+                recurring_count=recurring_counts.get(u.id, 0),
                 is_locked=locked,
                 lock_ttl=ttl,
             )

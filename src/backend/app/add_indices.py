@@ -46,6 +46,24 @@ INDICES = [
     # Scheduled expenses
     ("ix_scheduled_expenses_user_id", "scheduled_expenses", ["user_id"]),
     ("ix_scheduled_expenses_user_status", "scheduled_expenses", ["user_id", "status"]),
+    ("ix_scheduled_expenses_card_id", "scheduled_expenses", ["card_id"]),
+    ("ix_scheduled_expenses_account_id", "scheduled_expenses", ["account_id"]),
+    # Recurring expenses
+    ("ix_recurring_expenses_user_id", "recurring_expenses", ["user_id"]),
+    ("ix_recurring_expenses_category_id", "recurring_expenses", ["category_id"]),
+    ("ix_recurring_expenses_card_id", "recurring_expenses", ["card_id"]),
+    ("ix_recurring_expenses_account_id", "recurring_expenses", ["account_id"]),
+    ("ix_recurring_expenses_tag_id", "recurring_expenses", ["tag_id"]),
+    # Card closings - card FK
+    ("ix_card_closings_card_id", "card_closings", ["card_id"]),
+    # Expenses - budget event FK
+    ("ix_expenses_budget_event_id", "expenses", ["budget_event_id"]),
+    # Category suggestions
+    (
+        "ix_category_suggestions_suggested_category_id",
+        "category_suggestions",
+        ["suggested_category_id"],
+    ),
 ]
 
 

@@ -876,8 +876,6 @@ def get_expense_stats(
             matching_ids = [c.id for c in all_cards if bank.lower() in (c.bank or "").lower()]
             last_used_q = last_used_q.filter(Expense.card_id.in_(matching_ids))
     last_used = last_used_q.scalar()
-
-    total, count = q.one()
     return ExpenseStatsResponse(
         total=float(total),
         count=count,

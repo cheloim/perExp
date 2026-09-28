@@ -25,6 +25,11 @@ if len(SECRET_KEY) < 32:
         "SECRET_KEY must be at least 32 characters. "
         'Generate one with: python -c "import secrets; print(secrets.token_urlsafe(64))"'
     )
+
+# JWT_SECRET: separate key for signing JWT tokens.
+# Falls back to SECRET_KEY for backward compatibility with existing tokens.
+# Once all old tokens expire (7 days), set JWT_SECRET to a unique value.
+JWT_SECRET = os.getenv("JWT_SECRET") or SECRET_KEY
 ALGORITHM = "HS256"
 JWT_EXPIRE_DAYS = int(os.getenv("JWT_EXPIRE_DAYS", "7"))
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
@@ -48,7 +53,7 @@ def create_access_token(user_id: int, expires_minutes: int | None = None) -> str
         expire = datetime.now(UTC) + timedelta(minutes=expires_minutes)
     else:
         expire = datetime.now(UTC) + timedelta(days=JWT_EXPIRE_DAYS)
-    return jwt.encode({"sub": str(user_id), "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode({"sub": str(user_id), "exp": expire}, JWT_SECRET, algorithm=ALGORITHM)
 
 
 def get_current_user(
@@ -61,7 +66,14 @@ def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        # Try JWT_SECRET first, fall back to SECRET_KEY for backward compat
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
+        except JWTError:
+            if JWT_SECRET != SECRET_KEY:
+                payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            else:
+                raise
         user_id: str | None = payload.get("sub")
         if user_id is None:
             raise credentials_exc
@@ -70,6 +82,11 @@ def get_current_user(
     user = db.get(User, int(user_id))
     if user is None or not user.is_active:
         raise credentials_exc
+    if user.is_blocked:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tu cuenta ha sido bloqueada. Contactá al administrador.",
+        )
     return user
 
 

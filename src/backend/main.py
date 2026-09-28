@@ -36,6 +36,7 @@ from app.routers import (
     dashboard,
     expenses,
     groups,
+    health,
     import_jobs,
     investments,
     mfa,
@@ -191,8 +192,14 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def admin_seo_headers(request: Request, call_next):
+async def security_and_seo_headers(request: Request, call_next):
     response = await call_next(request)
+    # Security headers on all responses
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["X-XSS-Protection"] = "0"  # Modern browsers: CSP instead
+    # Admin SEO headers
     if request.url.path.startswith("/x/"):
         response.headers["X-Robots-Tag"] = "noindex"
         response.headers["Cache-Control"] = "no-store"
@@ -201,6 +208,7 @@ async def admin_seo_headers(request: Request, call_next):
 
 install_metrics(app)
 
+app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(mfa.router)
 app.include_router(accounts.router)

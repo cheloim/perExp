@@ -13,14 +13,23 @@ _fernet_instance = None
 
 
 def get_fernet() -> Fernet:
-    """Singleton Fernet instance derived from SECRET_KEY."""
+    """Singleton Fernet instance.
+
+    Uses ENCRYPTION_KEY if set (standalone Fernet key, 32 url-safe base64 chars).
+    Falls back to deriving from SECRET_KEY for backward compatibility.
+    """
     global _fernet_instance
     if _fernet_instance is None:
-        secret = os.getenv("SECRET_KEY", "")
-        if len(secret) < 32:
-            raise RuntimeError("SECRET_KEY must be at least 32 characters")
-        key = hashlib.sha256(secret.encode()).digest()
-        _fernet_instance = Fernet(base64.urlsafe_b64encode(key))
+        enc_key = os.getenv("ENCRYPTION_KEY", "")
+        if enc_key:
+            # Standalone Fernet key (generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+            _fernet_instance = Fernet(enc_key.encode())
+        else:
+            secret = os.getenv("SECRET_KEY", "")
+            if len(secret) < 32:
+                raise RuntimeError("SECRET_KEY must be at least 32 characters")
+            key = hashlib.sha256(secret.encode()).digest()
+            _fernet_instance = Fernet(base64.urlsafe_b64encode(key))
     return _fernet_instance
 
 
@@ -43,10 +52,13 @@ def decrypt_value(value: str) -> str:
 
 
 def compute_hmac(value: str) -> str:
-    """Compute HMAC-SHA256 for lookup columns."""
+    """Compute HMAC-SHA256 for lookup columns.
+
+    Uses ENCRYPTION_KEY if set, falls back to SECRET_KEY.
+    """
     if not value:
         return value
-    secret = os.getenv("SECRET_KEY", "")
+    secret = os.getenv("ENCRYPTION_KEY", "") or os.getenv("SECRET_KEY", "")
     return hmac.new(secret.encode(), value.encode(), hashlib.sha256).hexdigest()
 
 

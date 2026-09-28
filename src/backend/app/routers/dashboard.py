@@ -489,6 +489,18 @@ async def get_monthly_report(
         total_income = sum(abs(e.amount) for e in expenses if e.is_income)
         count = sum(1 for e in expenses if not e.is_income)
 
+        # Pre-fetch all categories for the user to avoid N+1 queries
+        all_cats = {
+            c.id: c for c in db.query(Category).filter(Category.user_id.in_(uid_list)).all()
+        }
+        # Also fetch parent categories (they may belong to a different user in the group)
+        parent_ids = {c.parent_id for c in all_cats.values() if c.parent_id}
+        if parent_ids:
+            parents = {
+                c.id: c for c in db.query(Category).filter(Category.id.in_(parent_ids)).all()
+            }
+            all_cats.update(parents)
+
         # By category (only expenses, not income)
         by_cat = defaultdict(lambda: {"total": 0.0, "count": 0, "name": "", "color": ""})
         for e in expenses:
@@ -497,13 +509,13 @@ async def get_monthly_report(
             cat_name = "Sin categoría"
             cat_color = "#6b7280"
             if e.category_id:
-                cat = db.query(Category).filter(Category.id == e.category_id).first()
+                cat = all_cats.get(e.category_id)
                 if cat:
                     cat_name = cat.name
                     cat_color = cat.color or "#6b7280"
                     # Use parent name if it's a subcategory
                     if cat.parent_id:
-                        parent = db.query(Category).filter(Category.id == cat.parent_id).first()
+                        parent = all_cats.get(cat.parent_id)
                         if parent:
                             cat_name = f"{parent.name} > {cat.name}"
             by_cat[e.category_id or 0]["total"] += abs(e.amount)

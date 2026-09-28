@@ -31,6 +31,12 @@ export default function ImpersonationRequestModal({
       if (data.token) {
         sessionStorage.setItem("impersonation_token", data.token);
         sessionStorage.setItem("impersonation_session_id", String(data.session_id));
+        if (data.target_user_name) {
+          sessionStorage.setItem("impersonation_target_name", data.target_user_name);
+        }
+        if (data.expires_at) {
+          sessionStorage.setItem("impersonation_expires_at", data.expires_at);
+        }
       }
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       onAccept();

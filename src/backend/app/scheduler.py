@@ -87,6 +87,7 @@ async def _do_refresh():
         )
     except Exception as e:
         logger.error(f"Price refresh failed: {e}")
+        db.rollback()
     finally:
         db.close()
 

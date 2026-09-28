@@ -440,6 +440,9 @@ jobs:
           GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
           SECRET_KEY=${{ secrets.SECRET_KEY }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
+          WHATSAPP_APP_SECRET=${{ secrets.WHATSAPP_APP_SECRET }}
           ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
           EMAIL_API_KEY=${{ secrets.EMAIL_API_KEY }}
           SMTP_FROM=${{ vars.SMTP_FROM }}

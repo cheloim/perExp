@@ -1,49 +1,18 @@
-import axios from "axios";
+/**
+ * Re-exports the shared Axios instance from client.ts.
+ *
+ * Previously this file created a separate Axios instance with its own
+ * in-memory token, causing auth inconsistencies. Now it delegates to the
+ * single source of truth in client.ts.
+ */
 import type { AxiosRequestConfig, AxiosError } from "axios";
 
-const TOKEN_KEY = "auth_token";
+import { api, getStoredToken, storeToken, clearToken } from "./client";
 
-let inMemoryAuthToken: string | null = null;
+// Re-export auth helpers so generated client imports still work
+export { getStoredToken, storeToken, clearToken };
 
-export const getStoredToken = () => inMemoryAuthToken || localStorage.getItem(TOKEN_KEY);
-export const storeToken = (token: string) => {
-  inMemoryAuthToken = token;
-  localStorage.setItem(TOKEN_KEY, token);
-};
-export const clearToken = () => {
-  inMemoryAuthToken = null;
-  localStorage.removeItem(TOKEN_KEY);
-};
-
-const AXIOS_INSTANCE = axios.create({ baseURL: "/api" });
-
-AXIOS_INSTANCE.interceptors.request.use((config) => {
-  const token = getStoredToken();
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  const impToken = sessionStorage.getItem("impersonation_token");
-  if (impToken) config.headers["X-ImpersonationToken"] = impToken;
-  return config;
-});
-
-AXIOS_INSTANCE.interceptors.response.use(
-  (r) => r,
-  (error) => {
-    if (error.response?.status === 401) {
-      const isAdminPage = window.location.pathname.startsWith("/x/");
-      if (isAdminPage) {
-        window.dispatchEvent(new CustomEvent("admin-reauth-required"));
-        return Promise.reject(error);
-      }
-      clearToken();
-      const detail = error.response?.data?.detail;
-      const msg =
-        typeof detail === "string" ? detail : "Tu sesion expiro. Iniciá sesion nuevamente.";
-      sessionStorage.setItem("auth_error", msg);
-      window.location.href = "/login";
-    }
-    return Promise.reject(error);
-  },
-);
+const AXIOS_INSTANCE = api;
 
 export const customInstance = <T>(
   config: AxiosRequestConfig,
