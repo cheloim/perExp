@@ -268,14 +268,24 @@ export function ExpenseModal({
             className="text-[var(--text-tertiary)] hover:text-[var(--color-primary)] p-1 rounded-md transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <path
+                d="M4 4l8 8M12 4l-8 8"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
             </svg>
           </button>
         </div>
 
         {saveError && (
-          <div role="alert" className="flex items-start gap-2 bg-danger/10 border border-danger/30 rounded-lg px-3 py-2 text-xs text-danger">
-            <span className="mt-0.5" aria-hidden="true">✕</span>
+          <div
+            role="alert"
+            className="flex items-start gap-2 bg-danger/10 border border-danger/30 rounded-lg px-3 py-2 text-xs text-danger"
+          >
+            <span className="mt-0.5" aria-hidden="true">
+              ✕
+            </span>
             <span>{saveError}</span>
           </div>
         )}

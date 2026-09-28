@@ -47,9 +47,21 @@ const TABS = [
   { path: "/expenses", label: "Gastos", icon: "expenses", exact: false, tour: "sidebar-expenses" },
   { path: "/cat-dashboard", label: "Categorías", icon: "catDashboard", exact: false },
   { path: "/budget", label: "Presupuesto", icon: "chartBar", exact: false, tour: "sidebar-budget" },
-  { path: "/installments", label: "Programados", icon: "installments", exact: false, tour: "sidebar-programados" },
+  {
+    path: "/installments",
+    label: "Programados",
+    icon: "installments",
+    exact: false,
+    tour: "sidebar-programados",
+  },
   { path: "/investments", label: "Inversiones", icon: "investments", exact: false },
-  { path: "/clasificacion", label: "Clasificación", icon: "tags", exact: false, tour: "sidebar-clasificacion" },
+  {
+    path: "/clasificacion",
+    label: "Clasificación",
+    icon: "tags",
+    exact: false,
+    tour: "sidebar-clasificacion",
+  },
 ];
 
 const AI_DRAWER_STATE_KEY = "ai_drawer_open";

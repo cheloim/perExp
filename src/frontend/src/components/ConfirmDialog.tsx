@@ -71,11 +71,7 @@ export function ConfirmDialog({
           </p>
         </div>
         <div className="flex gap-2 justify-end">
-          <button
-            onClick={handleCancel}
-            autoFocus
-            className="gnome-btn-secondary text-sm"
-          >
+          <button onClick={handleCancel} autoFocus className="gnome-btn-secondary text-sm">
             {cancelLabel}
           </button>
           <button

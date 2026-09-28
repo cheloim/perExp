@@ -108,7 +108,9 @@ export default function QuickViewLayout({ onSwitchToFull }: { onSwitchToFull: ()
                   : "text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
               }`}
             >
-              <span className="text-base"><SymbolicIcon name={tab.icon} size={18} /></span>
+              <span className="text-base">
+                <SymbolicIcon name={tab.icon} size={18} />
+              </span>
               <span>{tab.label}</span>
             </button>
           ))}

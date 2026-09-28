@@ -94,11 +94,7 @@ function MobileSpeedDial({
     <div className="md:hidden">
       {open && (
         <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setOpen(false)}
-            aria-hidden="true"
-          />
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true" />
           <button
             onClick={() => {
               setOpen(false);
@@ -149,12 +145,7 @@ function MobileSpeedDial({
           aria-hidden="true"
           className={`transition-transform duration-200 ${open ? "rotate-45" : ""}`}
         >
-          <path
-            d="M10 4v12M4 10h12"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
+          <path d="M10 4v12M4 10h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
       </button>
     </div>

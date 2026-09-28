@@ -11,7 +11,8 @@ interface SkeletonProps {
 }
 
 export default function Skeleton({ className = "", variant = "default" }: SkeletonProps) {
-  const radius = variant === "circle" ? "rounded-full" : variant === "text" ? "rounded" : "rounded-lg";
+  const radius =
+    variant === "circle" ? "rounded-full" : variant === "text" ? "rounded" : "rounded-lg";
 
   return (
     <div
@@ -22,7 +23,13 @@ export default function Skeleton({ className = "", variant = "default" }: Skelet
 }
 
 /** Pre-built skeleton for a card with title + content lines */
-export function SkeletonCard({ lines = 3, className = "" }: { lines?: number; className?: string }) {
+export function SkeletonCard({
+  lines = 3,
+  className = "",
+}: {
+  lines?: number;
+  className?: string;
+}) {
   return (
     <div className={`card p-4 space-y-3 ${className}`} aria-label="Cargando...">
       <Skeleton className="h-4 w-1/3" variant="text" />
@@ -48,7 +55,13 @@ export function SkeletonRow({ className = "" }: { className?: string }) {
 }
 
 /** Pre-built skeleton for a chart area */
-export function SkeletonChart({ height = "h-48", className = "" }: { height?: string; className?: string }) {
+export function SkeletonChart({
+  height = "h-48",
+  className = "",
+}: {
+  height?: string;
+  className?: string;
+}) {
   return (
     <div className={`card p-4 ${className}`} aria-label="Cargando gráfico...">
       <Skeleton className="h-4 w-1/4 mb-4" variant="text" />
