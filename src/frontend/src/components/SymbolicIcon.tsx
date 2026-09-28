@@ -123,8 +123,7 @@ const icons: Record<IconName, string> = {
   wallet: "M21 12V7H5a2 2 0 010-4h14v4M3 5v14a2 2 0 002 2h16v-5M18 12a1 1 0 100 2 1 1 0 000-2z",
   more: "M12 12h.01M19 12h.01M5 12h.01",
   investments: "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5",
-  warning:
-    "M12 2L1 21h22L12 2zm0 4l7.53 13H4.47L12 6zm-1 5v4m0 4h2",
+  warning: "M12 2L1 21h22L12 2zm0 4l7.53 13H4.47L12 6zm-1 5v4m0 4h2",
 };
 
 interface SymbolicIconProps {

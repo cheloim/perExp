@@ -142,10 +142,7 @@ export default function ExpensesPage() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["expenses-list"] });
 
-  const {
-    data: expenses = [],
-    isLoading,
-  } = useQuery<Expense[]>({
+  const { data: expenses = [], isLoading } = useQuery<Expense[]>({
     queryKey: [
       "expenses-list",
       filterCategory,
