@@ -145,3 +145,142 @@ def get_avg_monthly_spending(category_id: int, uid_list: list[int], db: Session)
         monthly_totals.append(abs(total))
 
     return sum(monthly_totals) / len(monthly_totals) if monthly_totals else 0
+
+
+def check_budget_threshold_on_expense(
+    db: Session, user_id: int, category_id: int, expense_amount: float
+) -> None:
+    """After saving an expense, check if budget threshold was crossed and notify.
+
+    Non-blocking: catches all exceptions to never break expense creation.
+    """
+    try:
+        _check_budget_threshold(db, user_id, category_id)
+    except Exception as e:
+        import logging
+
+        logging.getLogger(__name__).warning(f"Budget threshold check failed: {e}")
+
+
+def _check_budget_threshold(db: Session, user_id: int, category_id: int) -> None:
+    from app.models import Budget, BudgetGroup, Category, Notification, Setting
+    from app.services.notify import notify_user
+
+    # Check if alerts enabled for user
+    alert_setting = (
+        db.query(Setting).filter(Setting.key == f"{user_id}:budget_alerts_enabled").first()
+    )
+    if alert_setting and alert_setting.value.lower() in ("false", "0", "no"):
+        return
+
+    today = date.today()
+    year, month = today.year, today.month
+    month_key = f"{year}-{month:02d}"
+    uid_list = get_group_user_ids(user_id, db)
+
+    cat = db.query(Category).filter(Category.id == category_id).first()
+    if not cat:
+        return
+
+    # ── Individual category budget ──
+    budget = (
+        db.query(Budget)
+        .filter(
+            Budget.user_id == user_id, Budget.category_id == category_id, Budget.is_active == True
+        )  # noqa: E712
+        .first()
+    )
+
+    if budget and budget.amount > 0:
+        spent = get_spending_for_category(category_id, year, month, uid_list, db)
+        pct = spent / budget.amount
+
+        if pct >= budget.alert_threshold:
+            existing = (
+                db.query(Notification)
+                .filter(
+                    Notification.user_id == user_id,
+                    Notification.type == "budget_warning",
+                    Notification.data.contains(f'"category_id": {category_id}'),
+                    Notification.data.contains(f'"month": "{month_key}"'),
+                    Notification.read == False,  # noqa: E712
+                )
+                .first()
+            )
+
+            if not existing:
+                is_exceeded = pct >= 1.0
+                status = "exceeded" if is_exceeded else "warning"
+                notify_user(
+                    db,
+                    user_id,
+                    "budget_warning",
+                    f"{'🔴 Excedido' if is_exceeded else '🟡 Alerta'}: {cat.name}",
+                    f"Presupuesto ${budget.amount:,.0f} | Gastado ${spent:,.0f} ({pct:.0%})",
+                    {
+                        "category_id": category_id,
+                        "category_name": cat.name,
+                        "month": month_key,
+                        "budget_amount": budget.amount,
+                        "spent_amount": spent,
+                        "percentage": pct,
+                        "status": status,
+                    },
+                )
+
+    # ── Macro group budget ──
+    if not cat.budget_group:
+        return
+
+    group = (
+        db.query(BudgetGroup)
+        .filter(
+            BudgetGroup.user_id == user_id,
+            BudgetGroup.name == cat.budget_group,
+            BudgetGroup.is_active == True,  # noqa: E712
+        )
+        .first()
+    )
+
+    if not group or group.amount <= 0:
+        return
+
+    group_spent = get_spending_for_group(cat.budget_group, year, month, uid_list, db)
+    pct = group_spent / group.amount
+
+    if pct < 0.80:
+        return
+
+    existing = (
+        db.query(Notification)
+        .filter(
+            Notification.user_id == user_id,
+            Notification.type == "budget_warning",
+            Notification.data.contains(f'"group_name": "{cat.budget_group}"'),
+            Notification.data.contains(f'"month": "{month_key}"'),
+            Notification.read == False,  # noqa: E712
+        )
+        .first()
+    )
+
+    if existing:
+        return
+
+    display_names = {"necesidades": "Necesidades", "gustos": "Gustos", "ahorro": "Ahorro"}
+    is_exceeded = pct >= 1.0
+    status = "exceeded" if is_exceeded else "warning"
+    notify_user(
+        db,
+        user_id,
+        "budget_warning",
+        f"{'🔴 Excedido' if is_exceeded else '🟡 Alerta'}: {display_names.get(cat.budget_group, cat.budget_group)}",
+        f"Presupuesto ${group.amount:,.0f} | Gastado ${group_spent:,.0f} ({pct:.0%})",
+        {
+            "group_name": cat.budget_group,
+            "month": month_key,
+            "budget_amount": group.amount,
+            "spent_amount": group_spent,
+            "percentage": pct,
+            "status": status,
+        },
+    )

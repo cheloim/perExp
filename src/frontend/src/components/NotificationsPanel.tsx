@@ -129,6 +129,10 @@ export default function NotificationsPanel({ onClose }: Props) {
       handleMarkRead(n.id);
       navigate("/installments?filter=recurring");
       onClose();
+    } else if (n.type === "budget_warning") {
+      handleMarkRead(n.id);
+      navigate("/budgets");
+      onClose();
     }
   };
 
@@ -356,11 +360,13 @@ export default function NotificationsPanel({ onClose }: Props) {
               n.type === "uncategorized_expense" || n.type === "uncategorized_expenses";
             const isCategorySuggestion = n.type === "category_suggestions";
             const isRecurringDetected = n.type === "auto_recurring_detected";
+            const isBudgetWarning = n.type === "budget_warning";
             const isClickable =
               isImportNotif ||
               isUncategorizedNotif ||
               isCategorySuggestion ||
               isRecurringDetected ||
+              isBudgetWarning ||
               n.type === "monthly_report_ready" ||
               n.type === "monthly_report_queued";
             const isFailed = n.type === "import_failed";
@@ -383,7 +389,11 @@ export default function NotificationsPanel({ onClose }: Props) {
                     : ""
                 } ${isUncategorizedNotif ? "border-l-4 border-l-amber-500" : ""} ${
                   isCategorySuggestion ? "border-l-4 border-l-purple-500" : ""
-                } ${isRecurringDetected ? "border-l-4 border-l-indigo-500" : ""} ${
+                }                 ${isRecurringDetected ? "border-l-4 border-l-indigo-500" : ""} ${
+                  isBudgetWarning
+                    ? `border-l-4 ${n.data?.status === "exceeded" ? "border-l-red-500" : "border-l-amber-500"}`
+                    : ""
+                } ${
                   n.type === "monthly_report_ready" || n.type === "monthly_report_queued"
                     ? "border-l-4 border-l-blue-500"
                     : ""
@@ -477,6 +487,11 @@ export default function NotificationsPanel({ onClose }: Props) {
                         </svg>
                       )}
                       {isCategorySuggestion && <span className="text-sm">✨</span>}
+                      {isBudgetWarning && (
+                        <span className="text-sm">
+                          {n.data?.status === "exceeded" ? "🔴" : "🟡"}
+                        </span>
+                      )}
                       {n.type === "monthly_report_ready" && (
                         <svg
                           width="16"
@@ -553,6 +568,12 @@ export default function NotificationsPanel({ onClose }: Props) {
                 {isRecurringDetected && (
                   <p className="text-[var(--color-primary)] text-xs font-medium">
                     Ver programados →
+                  </p>
+                )}
+
+                {isBudgetWarning && (
+                  <p className="text-[var(--color-primary)] text-xs font-medium">
+                    Ver presupuestos →
                   </p>
                 )}
 

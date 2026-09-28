@@ -9,23 +9,9 @@ from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import Category, Expense, MonthlyReport, Notification, Tag, User
 from app.routers.groups import get_group_user_ids
+from app.services.date_utils import MONTHS_ES
 
 logger = logging.getLogger(__name__)
-
-MONTHS_ES = {
-    1: "Enero",
-    2: "Febrero",
-    3: "Marzo",
-    4: "Abril",
-    5: "Mayo",
-    6: "Junio",
-    7: "Julio",
-    8: "Agosto",
-    9: "Septiembre",
-    10: "Octubre",
-    11: "Noviembre",
-    12: "Diciembre",
-}
 
 
 def _generate_report_data(user_id: int, month_str: str, db) -> dict:
@@ -867,7 +853,6 @@ Usa flags para tendencias preocupantes a monitorear."""
         "accounts_summary": accounts_summary,
         "cards_summary": cards_summary,
         "tags_summary": tags_summary,
-        "tarjeta_summary": [],  # Deprecated: tarjeta merged into cuenta
         "cuenta_summary": [t for t in tags_summary if t.get("group") in ("cuenta", "tarjeta")],
         "future_installments": future_installments,
         "future_installments_count": len(future_installments),

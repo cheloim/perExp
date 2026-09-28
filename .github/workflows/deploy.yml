@@ -74,7 +74,6 @@ jobs:
             nginx:
               - 'docker/nginx/**'
               - 'docker/docker-compose.nginx.yml'
-              - 'config/nginx/**'
             bots:
               - 'docker/docker-compose.bots.yml'
             infra:

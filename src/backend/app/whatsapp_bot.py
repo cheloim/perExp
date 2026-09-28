@@ -176,9 +176,9 @@ def _clear_session(phone_hash: str) -> None:
 # Shared business logic (imported from telegram_bot)
 # ---------------------------------------------------------------------------
 
+from app.services.bot_reports import _cat_emoji
+from app.services.bot_reports import build_cat_levels as _build_cat_levels
 from app.telegram_bot import (  # noqa: E402
-    _build_cat_levels,
-    _cat_emoji,
     _extract_card_from_text,
     _format_amount,
     _format_date_es,

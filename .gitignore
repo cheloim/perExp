@@ -36,3 +36,10 @@ backend/secrets/
 frontend/secrets/
 backend/alembic.ini
 .opencode/
+
+# Agent tooling (global config, not repo-specific)
+.agents/
+.claude/
+agent/
+graphify-out/
+skills-lock.json

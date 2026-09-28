@@ -44,16 +44,6 @@ export function formatDate(dateStr: string, format: "short" | "long" | "iso" = "
   }
 }
 
-export function formatMonthYear(dateStr: string): string {
-  if (!dateStr) return "";
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return dateStr;
-  return new Intl.DateTimeFormat("es-AR", {
-    month: "long",
-    year: "numeric",
-  }).format(date);
-}
-
 export function titleCase(str: string): string {
   if (!str) return "";
   return str.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
@@ -266,16 +256,4 @@ export function categoryGroupOptions(
     });
   }
   return groups;
-}
-
-export function getVariationBadge(variation: number, className: string = "") {
-  return (
-    <span
-      className={`text-xs mt-1 ${
-        variation > 0 ? "text-success" : variation < 0 ? "text-danger" : "text-tertiary"
-      } ${className}`}
-    >
-      {variation > 0 ? "↑" : variation < 0 ? "↓" : "→"} {Math.abs(variation).toFixed(2)}%
-    </span>
-  );
 }

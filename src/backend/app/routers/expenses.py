@@ -499,6 +499,12 @@ def create_expense(
         db.add(notification)
         db.commit()
 
+    # Budget threshold check (non-blocking)
+    if db_exp.category_id:
+        from app.services.budget_helpers import check_budget_threshold_on_expense
+
+        check_budget_threshold_on_expense(db, current_user.id, db_exp.category_id, db_exp.amount)
+
     EXPENSES_CREATED.labels(user_id=str(current_user.id)).inc()
     return db_exp
 

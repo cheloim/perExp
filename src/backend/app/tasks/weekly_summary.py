@@ -14,21 +14,6 @@ logger = logging.getLogger(__name__)
 
 BUE = ZoneInfo("America/Argentina/Buenos_Aires")
 
-MONTHS_ES = {
-    1: "Enero",
-    2: "Febrero",
-    3: "Marzo",
-    4: "Abril",
-    5: "Mayo",
-    6: "Junio",
-    7: "Julio",
-    8: "Agosto",
-    9: "Septiembre",
-    10: "Octubre",
-    11: "Noviembre",
-    12: "Diciembre",
-}
-
 
 def _generate_weekly_llm_analysis(report_data: dict) -> dict:
     """Generate LLM analysis for weekly report using Gemini."""
@@ -235,10 +220,3 @@ def send_weekly_reports():
         db.rollback()
     finally:
         db.close()
-
-
-# Keep old function name for backward compatibility
-@celery_app.task(name="app.tasks.weekly_summary.send_weekly_summaries")
-def send_weekly_summaries():
-    """Legacy function - redirects to send_weekly_reports."""
-    send_weekly_reports()

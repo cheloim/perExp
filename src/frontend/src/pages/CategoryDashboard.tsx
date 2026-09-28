@@ -11,10 +11,9 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { getDashboard, getCategoryTrend, getTopMerchants } from "../api/client";
+import { getDashboard, getCategoryTrend, getTopMerchants, getMyGroup } from "../api/client";
 import { formatCurrency, MonthSelector, toUpperCase } from "../utils/format";
 import CategoryTreemap from "../components/CategoryTreemap";
-import { useFamilyGroup } from "../context/FamilyGroupContext";
 
 const MONTH_NAMES = [
   "Ene",
@@ -46,7 +45,16 @@ export default function CategoryDashboard() {
   const [trendMonths, setTrendMonths] = useState(6);
   const [merchantTab, setMerchantTab] = useState<"amount" | "count">("amount");
   const [personFilter, setPersonFilter] = useState<string | null>(null);
-  const { members } = useFamilyGroup();
+  const { data: group } = useQuery({
+    queryKey: ["my-group"],
+    queryFn: getMyGroup,
+    staleTime: 300_000,
+  });
+  const members =
+    group?.members?.map((m: { user_id: number; full_name: string }) => ({
+      id: m.user_id,
+      name: m.full_name,
+    })) ?? [];
 
   const trendRangeLabel = useMemo(() => {
     const [y, m] = month.split("-").map(Number);

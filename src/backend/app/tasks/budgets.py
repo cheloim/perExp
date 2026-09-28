@@ -1,124 +1,45 @@
 """Budget alerts Celery task - checks budget thresholds and sends notifications."""
 
 import logging
-from calendar import monthrange
 from datetime import date
 
 from app.celery_app import celery_app
 from app.database import SessionLocal
-from app.models import Budget, BudgetGroup, Category, Expense, Notification, User
+from app.models import Budget, BudgetGroup, Category, Notification, Setting, User
+from app.services.budget_helpers import (
+    get_group_user_ids as _get_group_user_ids,
+)
+from app.services.budget_helpers import (
+    get_spending_for_category as _get_spending_for_category,
+)
+from app.services.budget_helpers import (
+    get_spending_for_group as _get_spending_for_group,
+)
+from app.services.task_tracker import record_task_run
 
 logger = logging.getLogger(__name__)
 
 
-def _get_spending_for_category(
-    category_id: int, year: int, month: int, uid_list: list[int], db
-) -> float:
-    """Get total spending for a category in a given month (including children)."""
-    from app.models import Category as CatModel
-
-    cat_ids = [category_id]
-    children = db.query(CatModel).filter(CatModel.parent_id == category_id).all()
-    cat_ids.extend([c.id for c in children])
-
-    start = date(year, month, 1)
-    end = date(year, month, monthrange(year, month)[1])
-
-    total = (
-        db.query(Expense)
-        .filter(
-            Expense.user_id.in_(uid_list),
-            Expense.category_id.in_(cat_ids),
-            Expense.date >= start,
-            Expense.date <= end,
-            Expense.is_income == False,
-        )
-        .with_entities(Expense.amount)
-        .all()
-    )
-    return sum(abs(t[0]) for t in total)
-
-
-def _get_spending_for_group(
-    group_name: str, year: int, month: int, uid_list: list[int], db
-) -> float:
-    """Get total spending for a macro group (necesidades/gustos/ahorro)."""
-    from app.models import Category as CatModel
-
-    cat_ids = [c.id for c in db.query(CatModel).filter(CatModel.budget_group == group_name).all()]
-
-    start = date(year, month, 1)
-    end = date(year, month, monthrange(year, month)[1])
-
-    total = (
-        db.query(Expense)
-        .filter(
-            Expense.user_id.in_(uid_list),
-            Expense.category_id.in_(cat_ids),
-            Expense.date >= start,
-            Expense.date <= end,
-            Expense.is_income == False,
-        )
-        .with_entities(Expense.amount)
-        .all()
-    )
-    return sum(abs(t[0]) for t in total)
-
-
-def _get_group_user_ids(user_id: int, db) -> list[int]:
-    """Get all user IDs in the same family group."""
-    from app.models import GroupMember
-
-    member = db.query(GroupMember).filter(GroupMember.user_id == user_id).first()
-    if not member:
-        return [user_id]
-    return [
-        m.user_id
-        for m in db.query(GroupMember).filter(GroupMember.group_id == member.group_id).all()
-    ]
-
-
-def _send_telegram_alert(chat_id: str, category_name: str, pct: float, spent: float, budget: float):
-    """Send budget alert via Telegram."""
+def _send_telegram_alert(chat_id: str, label: str, pct: float, spent: float, budget: float):
+    """Send budget alert via Telegram for a category or macro group."""
     try:
         from app.telegram_bot import send_message_to_chat
 
         emoji = "🔴" if pct >= 1.0 else "🟡"
         remaining = budget - spent
         remaining_pct = (remaining / budget * 100) if budget > 0 else 0
-        send_message_to_chat(
-            chat_id,
-            f"{emoji} <b>Alerta de Presupuesto</b>\n\n"
-            f"<b>{category_name}</b>\n"
-            f"💰 Gastado: ${spent:,.0f} de ${budget:,.0f}\n"
-            f"📊 Uso: {pct:.0%}\n"
-            f"💸 Te quedan: ${remaining:,.0f} ({remaining_pct:.0f}%)\n\n"
-            f"{'⚠️ Presupuesto excedido! Revisá tus gastos.' if pct >= 1.0 else '⚠️ Te estás acercando al límite. Revisá tus gastos en esta categoría.'}",
+        exceeded_msg = (
+            "⚠️ Presupuesto excedido! Revisá tus gastos."
+            if pct >= 1.0
+            else f"⚠️ Te estás acercando al límite. Revisá tus gastos en {label}."
         )
-    except Exception as e:
-        logger.warning(f"[BUDGET ALERT] Failed to send Telegram alert: {e}")
-
-
-def _send_group_telegram_alert(
-    chat_id: str, group_name: str, pct: float, spent: float, budget: float
-):
-    """Send macro group budget alert via Telegram."""
-    try:
-        from app.telegram_bot import send_message_to_chat
-
-        emoji = "🔴" if pct >= 1.0 else "🟡"
-        display_names = {"necesidades": "Necesidades", "gustos": "Gustos", "ahorro": "Ahorro"}
-        display_name = display_names.get(group_name, group_name)
-        remaining = budget - spent
-        remaining_pct = (remaining / budget * 100) if budget > 0 else 0
-
         send_message_to_chat(
             chat_id,
-            f"{emoji} <b>Alerta de Presupuesto — {display_name}</b>\n\n"
+            f"{emoji} <b>Alerta de Presupuesto — {label}</b>\n\n"
             f"💰 Gastado: ${spent:,.0f} de ${budget:,.0f}\n"
             f"📊 Uso: {pct:.0%}\n"
             f"💸 Te quedan: ${remaining:,.0f} ({remaining_pct:.0f}%)\n\n"
-            f"{'⚠️ Macrogrupo excedido! Revisá tus gastos.' if pct >= 1.0 else f'⚠️ Te estás acercando al límite del macrogrupo {display_name}.'}",
+            f"{exceeded_msg}",
         )
     except Exception as e:
         logger.warning(f"[BUDGET ALERT] Failed to send Telegram alert: {e}")
@@ -140,6 +61,13 @@ def check_budget_alerts():
 
         alerts_sent = 0
         for user in users:
+            # Per-user toggle: skip if budget alerts disabled
+            alert_setting = (
+                db.query(Setting).filter(Setting.key == f"{user.id}:budget_alerts_enabled").first()
+            )
+            if alert_setting and alert_setting.value.lower() in ("false", "0", "no"):
+                continue
+
             uid_list = _get_group_user_ids(user.id, db)
 
             # ─── Check macro groups (50/30/20) ────────────────────────
@@ -198,9 +126,9 @@ def check_budget_alerts():
                 alerts_sent += 1
 
                 if user.telegram_chat_id and user.telegram_chat_id != "[encrypted]":
-                    _send_group_telegram_alert(
+                    _send_telegram_alert(
                         user.telegram_chat_id,
-                        group.name,
+                        display_names.get(group.name, group.name),
                         pct,
                         spent,
                         group.amount,
@@ -265,9 +193,11 @@ def check_budget_alerts():
 
         db.commit()
         logger.info(f"[BUDGET ALERTS] Sent {alerts_sent} alerts for {month_key}")
+        record_task_run("check-budget-alerts-daily", success=True)
 
     except Exception as e:
         logger.error(f"[BUDGET ALERTS] Error: {e}")
+        record_task_run("check-budget-alerts-daily", success=False)
         db.rollback()
     finally:
         db.close()

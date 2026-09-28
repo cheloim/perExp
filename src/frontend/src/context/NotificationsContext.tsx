@@ -95,6 +95,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       showToast(notification.title, "error", 5000, "top-right");
     } else if (notification.type === "category_suggestions") {
       showToast(notification.title, "info", 5000, "top-right");
+    } else if (notification.type === "budget_warning") {
+      const data = notification.data;
+      const isExceeded = data?.status === "exceeded";
+      showToast(notification.title, isExceeded ? "error" : "info", 5000, "top-right");
     }
 
     setState((s) => {

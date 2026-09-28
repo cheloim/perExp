@@ -439,44 +439,6 @@ export const getExpensesByPerson = (params?: { month?: string }) =>
     .get<{ person: string; total: number; count: number }[]>("/expenses/by-person", { params })
     .then((r) => r.data);
 
-export const getExpensesTrend = (params?: { months?: number }) =>
-  api
-    .get<{ month: string; total: number; count: number }[]>("/expenses/trend", { params })
-    .then((r) => r.data);
-
-export const getDistinctValues = () =>
-  api
-    .get<{
-      banks: string[];
-      persons: string[];
-      cards: string[];
-    }>("/expenses/distinct-values")
-    .then((r) => r.data);
-
-export const getCardOptions = () =>
-  api
-    .get<{
-      persons: string[];
-      by_person: Record<string, Record<string, string[]>>;
-    }>("/expenses/card-options")
-    .then((r) => r.data);
-
-export const checkDuplicate = (params: {
-  date: string;
-  amount: number;
-  description: string;
-  transaction_id?: string | null;
-}) =>
-  api
-    .get<{
-      duplicate: boolean;
-      existing_id?: number;
-      existing_date?: string;
-      existing_description?: string;
-      existing_amount?: number;
-    }>("/expenses/check-duplicate", { params })
-    .then((r) => r.data);
-
 export const createExpense = (data: ExpenseCreate) =>
   api.post<Expense>("/expenses", data).then((r) => r.data);
 
@@ -524,11 +486,6 @@ export const getMonthlyReport = (params?: { month?: string }) =>
       } | null;
     }>("/dashboard/monthly-report", { params })
     .then((r) => r.data);
-
-export const downloadMonthlyReport = (params?: { month?: string }) => {
-  const query = params?.month ? `?month=${params.month}` : "";
-  window.open(`/api/dashboard/monthly-report/download${query}`, "_blank");
-};
 
 export const getMonthlyReports = () =>
   api
@@ -666,9 +623,6 @@ export const deleteAnalysisHistory = (id: number) =>
 export const getDashboardAITrends = (params?: { month?: string }) =>
   api.get<AITrendsResponse>("/dashboard/ai-trends", { params }).then((r) => r.data);
 
-export const deleteAllExpenses = () =>
-  api.delete<{ deleted: number }>("/expenses/all").then((r) => r.data);
-
 export const getCategoryTrend = (months = 4, anchorMonth?: string, person?: string) =>
   api
     .get<{
@@ -777,9 +731,6 @@ export const syncPPI = () =>
       removed: number;
     }>("/investments/sync/ppi")
     .then((r) => r.data);
-
-export const deduplicateInvestments = () =>
-  api.post<{ removed: number }>("/investments/deduplicate").then((r) => r.data);
 
 export const getUsdRate = () =>
   api

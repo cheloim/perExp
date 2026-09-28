@@ -28,246 +28,50 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def _migrate_users(db):
-    """Encrypt user fields and generate telegram_chat_hash."""
-    logger.info("Migrating users table...")
+def _migrate_table(db, table_name, id_column, query, fields):
+    """Generic encrypt-and-update for a table.
 
-    raw = db.execute(
-        text("SELECT id, full_name, telegram_chat_id, mfa_secret FROM users")
-    ).fetchall()
+    Args:
+        db: SQLAlchemy session.
+        table_name: Name for logging.
+        id_column: Name of the primary key column.
+        query: SQL SELECT to fetch rows (must return id as first column).
+        fields: List of dicts, one per encryptable column:
+            - "col": SELECT alias / row attribute name
+            - "update": SET clause column name (e.g. "full_name = :fn")
+            - "param": param name used in SET clause
+            - "hmac_update" (optional): SET clause for HMAC column
+            - "hmac_param" (optional): param name for HMAC value
+            - "hmac_transform" (optional): function applied before HMAC (e.g. str.lower)
+    """
+    logger.info(f"Migrating {table_name} table...")
+    raw = db.execute(text(query)).fetchall()
     migrated = 0
 
     for row in raw:
-        uid, fn, tcid, mfa = row
+        row_id = row[0]
         updates = []
-        params = {"uid": uid}
+        params = {id_column: row_id}
 
-        if fn and not is_encrypted(fn):
-            updates.append("full_name = :fn")
-            params["fn"] = encrypt_value(fn)
-
-        if tcid and not is_encrypted(tcid):
-            updates.append("telegram_chat_id = :tcid")
-            params["tcid"] = encrypt_value(tcid)
-            updates.append("telegram_chat_hash = :hash")
-            params["hash"] = compute_hmac(tcid)
-
-        if mfa and not is_encrypted(mfa):
-            updates.append("mfa_secret = :mfa")
-            params["mfa"] = encrypt_value(mfa)
+        for i, field in enumerate(fields):
+            value = row[1 + i]
+            if value and not is_encrypted(value):
+                updates.append(field["update"])
+                params[field["param"]] = encrypt_value(value)
+                if "hmac_update" in field:
+                    updates.append(field["hmac_update"])
+                    transform = field.get("hmac_transform", lambda v: v)
+                    params[field["hmac_param"]] = compute_hmac(transform(value))
 
         if updates:
             db.execute(
-                text(f"UPDATE users SET {', '.join(updates)} WHERE id = :uid"), params
-            )
-            migrated += 1
-
-    db.commit()
-    logger.info(f"  Migrated {migrated} users")
-
-
-def _migrate_cards(db):
-    """Encrypt card fields and generate search tokens."""
-    logger.info("Migrating cards table...")
-
-    raw = db.execute(
-        text("SELECT id, card_name, bank, holder FROM cards")
-    ).fetchall()
-    migrated = 0
-
-    for row in raw:
-        cid, cn, bk, ho = row
-        updates = []
-        params = {"cid": cid}
-
-        if cn and not is_encrypted(cn):
-            updates.append("card_name = :cn")
-            params["cn"] = encrypt_value(cn)
-            updates.append("card_name_hmac = :cns")
-            params["cns"] = compute_hmac(cn.lower())
-
-        if bk and not is_encrypted(bk):
-            updates.append("bank = :bk")
-            params["bk"] = encrypt_value(bk)
-            updates.append("bank_hmac = :bks")
-            params["bks"] = compute_hmac(bk.lower())
-
-        if ho and not is_encrypted(ho):
-            updates.append("holder = :ho")
-            params["ho"] = encrypt_value(ho)
-
-        if updates:
-            db.execute(
-                text(f"UPDATE cards SET {', '.join(updates)} WHERE id = :cid"), params
-            )
-            migrated += 1
-
-    db.commit()
-    logger.info(f"  Migrated {migrated} cards")
-
-
-def _migrate_expenses(db):
-    """Encrypt expense fields and generate description_search."""
-    logger.info("Migrating expenses table...")
-
-    raw = db.execute(text("SELECT id, description, notes FROM expenses")).fetchall()
-    migrated = 0
-
-    for row in raw:
-        eid, desc, notes = row
-        updates = []
-        params = {"eid": eid}
-
-        if desc and not is_encrypted(desc):
-            updates.append("description = :desc")
-            params["desc"] = encrypt_value(desc)
-            updates.append("description_hmac = :search")
-            params["search"] = compute_hmac(desc)
-
-        if notes and not is_encrypted(notes):
-            updates.append("notes = :notes")
-            params["notes"] = encrypt_value(notes)
-
-        if updates:
-            db.execute(
-                text(f"UPDATE expenses SET {', '.join(updates)} WHERE id = :eid"),
+                text(f"UPDATE {table_name} SET {', '.join(updates)} WHERE id = :{id_column}"),
                 params,
             )
             migrated += 1
 
     db.commit()
-    logger.info(f"  Migrated {migrated} expenses")
-
-
-def _migrate_investments(db):
-    """Encrypt investment notes."""
-    logger.info("Migrating investments table...")
-
-    raw = db.execute(
-        text("SELECT id, notes FROM investments WHERE notes IS NOT NULL")
-    ).fetchall()
-    migrated = 0
-
-    for row in raw:
-        iid, notes = row
-        if notes and not is_encrypted(notes):
-            db.execute(
-                text("UPDATE investments SET notes = :notes WHERE id = :iid"),
-                {"notes": encrypt_value(notes), "iid": iid},
-            )
-            migrated += 1
-
-    db.commit()
-    logger.info(f"  Migrated {migrated} investments")
-
-
-def _migrate_audit_logs(db):
-    """Encrypt audit log fields."""
-    logger.info("Migrating audit_logs table...")
-
-    raw = db.execute(
-        text("SELECT id, ip_address, user_agent FROM audit_logs")
-    ).fetchall()
-    migrated = 0
-
-    for row in raw:
-        lid, ip, ua = row
-        updates = []
-        params = {"lid": lid}
-
-        if ip and not is_encrypted(ip):
-            updates.append("ip_address = :ip")
-            params["ip"] = encrypt_value(ip)
-
-        if ua and not is_encrypted(ua):
-            updates.append("user_agent = :ua")
-            params["ua"] = encrypt_value(ua)
-
-        if updates:
-            db.execute(
-                text(f"UPDATE audit_logs SET {', '.join(updates)} WHERE id = :lid"),
-                params,
-            )
-            migrated += 1
-
-    db.commit()
-    logger.info(f"  Migrated {migrated} audit logs")
-
-
-def _migrate_accounts(db):
-    """Encrypt account fields and generate HMAC."""
-    logger.info("Migrating accounts table...")
-
-    raw = db.execute(text("SELECT id, name FROM accounts")).fetchall()
-    migrated = 0
-
-    for row in raw:
-        aid, name = row
-        if name and not is_encrypted(name):
-            db.execute(
-                text(
-                    "UPDATE accounts SET name = :name, name_hmac = :hmac WHERE id = :aid"
-                ),
-                {
-                    "name": encrypt_value(name),
-                    "hmac": compute_hmac(name),
-                    "aid": aid,
-                },
-            )
-            migrated += 1
-
-    db.commit()
-    logger.info(f"  Migrated {migrated} accounts")
-
-
-def _migrate_monthly_reports(db):
-    """Encrypt monthly report data."""
-    logger.info("Migrating monthly_reports table...")
-
-    raw = db.execute(
-        text("SELECT id, report_data FROM monthly_reports WHERE report_data IS NOT NULL")
-    ).fetchall()
-    migrated = 0
-
-    for row in raw:
-        rid, rd = row
-        if rd and not is_encrypted(rd):
-            db.execute(
-                text("UPDATE monthly_reports SET report_data = :rd WHERE id = :rid"),
-                {"rd": encrypt_value(rd), "rid": rid},
-            )
-            migrated += 1
-
-    db.commit()
-    logger.info(f"  Migrated {migrated} monthly reports")
-
-
-def _migrate_scheduled_expenses(db):
-    """Encrypt scheduled expense fields and generate search tokens."""
-    logger.info("Migrating scheduled_expenses table...")
-
-    raw = db.execute(
-        text("SELECT id, description FROM scheduled_expenses")
-    ).fetchall()
-    migrated = 0
-
-    for row in raw:
-        sid, desc = row
-        if desc and not is_encrypted(desc):
-            db.execute(
-                text(
-                    "UPDATE scheduled_expenses SET description = :desc, description_hmac = :search WHERE id = :sid"
-                ),
-                {
-                    "desc": encrypt_value(desc),
-                    "search": compute_hmac(desc),
-                    "sid": sid,
-                },
-            )
-            migrated += 1
-
-    db.commit()
-    logger.info(f"  Migrated {migrated} scheduled expenses")
+    logger.info(f"  Migrated {migrated} {table_name}")
 
 
 def migrate_plaintext_data():
@@ -276,14 +80,59 @@ def migrate_plaintext_data():
     try:
         logger.info("Starting encryption migration...")
 
-        _migrate_users(db)
-        _migrate_accounts(db)
-        _migrate_cards(db)
-        _migrate_expenses(db)
-        _migrate_investments(db)
-        _migrate_audit_logs(db)
-        _migrate_monthly_reports(db)
-        _migrate_scheduled_expenses(db)
+        _migrate_table(db, "users", "uid",
+            "SELECT id, full_name, telegram_chat_id, mfa_secret FROM users", [
+                dict(col="full_name", update="full_name = :fn", param="fn"),
+                dict(col="telegram_chat_id", update="telegram_chat_id = :tcid", param="tcid",
+                     hmac_update="telegram_chat_hash = :hash", hmac_param="hash"),
+                dict(col="mfa_secret", update="mfa_secret = :mfa", param="mfa"),
+            ])
+
+        _migrate_table(db, "accounts", "aid",
+            "SELECT id, name FROM accounts", [
+                dict(col="name", update="name = :name", param="name",
+                     hmac_update="name_hmac = :hmac", hmac_param="hmac"),
+            ])
+
+        _migrate_table(db, "cards", "cid",
+            "SELECT id, card_name, bank, holder FROM cards", [
+                dict(col="card_name", update="card_name = :cn", param="cn",
+                     hmac_update="card_name_hmac = :cns", hmac_param="cns",
+                     hmac_transform=str.lower),
+                dict(col="bank", update="bank = :bk", param="bk",
+                     hmac_update="bank_hmac = :bks", hmac_param="bks",
+                     hmac_transform=str.lower),
+                dict(col="holder", update="holder = :ho", param="ho"),
+            ])
+
+        _migrate_table(db, "expenses", "eid",
+            "SELECT id, description, notes FROM expenses", [
+                dict(col="description", update="description = :desc", param="desc",
+                     hmac_update="description_hmac = :search", hmac_param="search"),
+                dict(col="notes", update="notes = :notes", param="notes"),
+            ])
+
+        _migrate_table(db, "investments", "iid",
+            "SELECT id, notes FROM investments WHERE notes IS NOT NULL", [
+                dict(col="notes", update="notes = :notes", param="notes"),
+            ])
+
+        _migrate_table(db, "audit_logs", "lid",
+            "SELECT id, ip_address, user_agent FROM audit_logs", [
+                dict(col="ip_address", update="ip_address = :ip", param="ip"),
+                dict(col="user_agent", update="user_agent = :ua", param="ua"),
+            ])
+
+        _migrate_table(db, "monthly_reports", "rid",
+            "SELECT id, report_data FROM monthly_reports WHERE report_data IS NOT NULL", [
+                dict(col="report_data", update="report_data = :rd", param="rd"),
+            ])
+
+        _migrate_table(db, "scheduled_expenses", "sid",
+            "SELECT id, description FROM scheduled_expenses", [
+                dict(col="description", update="description = :desc", param="desc",
+                     hmac_update="description_hmac = :search", hmac_param="search"),
+            ])
 
         logger.info("Encryption migration completed successfully!")
     except Exception as e:

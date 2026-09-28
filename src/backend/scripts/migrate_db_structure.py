@@ -47,6 +47,49 @@ def _constraint_exists(conn, constraint_name: str) -> bool:
     return result.scalar()
 
 
+def _column_exists(conn, table_name: str, column_name: str) -> bool:
+    """Check if a column exists in a table (PostgreSQL only)."""
+    return conn.execute(
+        text(
+            "SELECT EXISTS ("
+            "  SELECT 1 FROM information_schema.columns"
+            "  WHERE table_name = :table AND column_name = :col"
+            ")"
+        ),
+        {"table": table_name, "col": column_name},
+    ).scalar()
+
+
+def ensure_column(conn, table_name: str, column_name: str, column_type: str,
+                  default: str | None = None, index: bool = False):
+    """Add a column if it doesn't exist. Returns True if added."""
+    if _column_exists(conn, table_name, column_name):
+        print(f"  {table_name}.{column_name} already exists. Skipping.")
+        return False
+    default_clause = f" DEFAULT {default}" if default else ""
+    conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}{default_clause}"))
+    if index:
+        idx_name = f"ix_{table_name}_{column_name}"
+        conn.execute(text(f"CREATE INDEX {idx_name} ON {table_name} ({column_name})"))
+    print(f"  Added {table_name}.{column_name} {column_type}.")
+    return True
+
+
+def drop_column(conn, table_name: str, column_name: str):
+    """Drop a column if it exists. Returns True if dropped."""
+    if not _column_exists(conn, table_name, column_name):
+        print(f"    {table_name}.{column_name} already dropped. Skipping.")
+        return False
+    index_name = f"ix_{table_name}_{column_name}"
+    try:
+        conn.execute(text(f"DROP INDEX IF EXISTS {index_name}"))
+    except Exception:
+        pass
+    conn.execute(text(f"ALTER TABLE {table_name} DROP COLUMN {column_name}"))
+    print(f"    Dropped {table_name}.{column_name}")
+    return True
+
+
 def step1_unique_constraint(engine):
     """Add UNIQUE constraint on group_members(group_id, user_id)."""
     print("\n[Step 1/5] Adding unique constraint on group_members...")
@@ -77,24 +120,9 @@ def step2_card_closing_card_id(engine):
     with engine.begin() as conn:
         dialect = engine.dialect.name
 
-        # Check if column already exists
-        if dialect == "postgresql":
-            exists = conn.execute(
-                text("""
-                SELECT EXISTS (
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_name = 'card_closings' AND column_name = 'card_id'
-                )
-            """)
-            ).scalar()
-        else:
-            exists = False
-
-        if exists:
+        added = ensure_column(conn, "card_closings", "card_id", "INTEGER")
+        if not added:
             print("  card_id column already exists. Backfilling...")
-        else:
-            conn.execute(text("ALTER TABLE card_closings ADD COLUMN card_id INTEGER"))
-            print("  Added card_id column.")
 
         # Backfill: match card_closings to cards by (user_id, card_name, bank)
         result = conn.execute(
@@ -113,7 +141,6 @@ def step2_card_closing_card_id(engine):
         # Add FK constraint (idempotent)
         if dialect == "postgresql":
             try:
-                # Check if constraint already exists
                 result = conn.execute(
                     text("SELECT 1 FROM pg_constraint WHERE conname = 'fk_card_closings_card_id'")
                 )
@@ -224,27 +251,10 @@ def step5_onboarding_completed(engine):
     print("\n[Step 5/5] Adding onboarding_completed to users...")
 
     with engine.begin() as conn:
-        dialect = engine.dialect.name
-
-        if dialect == "postgresql":
-            exists = conn.execute(
-                text("""
-                SELECT EXISTS (
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_name = 'users' AND column_name = 'onboarding_completed'
-                )
-            """)
-            ).scalar()
-        else:
-            exists = False
-
-        if exists:
-            print("  onboarding_completed already exists. Skipping.")
-        else:
-            conn.execute(
-                text("ALTER TABLE users ADD COLUMN onboarding_completed BOOLEAN DEFAULT FALSE")
-            )
-            print("  Added onboarding_completed BOOLEAN DEFAULT FALSE.")
+        if engine.dialect.name != "postgresql":
+            print("  Skipping — only supported on PostgreSQL.")
+            return
+        ensure_column(conn, "users", "onboarding_completed", "BOOLEAN", default="FALSE")
 
 
 def step6_drop_whats_new_seen(engine):
@@ -252,26 +262,10 @@ def step6_drop_whats_new_seen(engine):
     print("\n[Step 6] Dropping whats_new_seen column...")
 
     with engine.begin() as conn:
-        dialect = engine.dialect.name
-
-        if dialect != "postgresql":
+        if engine.dialect.name != "postgresql":
             print("  Skipping — only supported on PostgreSQL.")
             return
-
-        exists = conn.execute(
-            text("""
-            SELECT EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_name = 'users' AND column_name = 'whats_new_seen'
-            )
-        """)
-        ).scalar()
-
-        if exists:
-            conn.execute(text("ALTER TABLE users DROP COLUMN whats_new_seen"))
-            print("  Dropped whats_new_seen column.")
-        else:
-            print("  whats_new_seen already dropped. Skipping.")
+        drop_column(conn, "users", "whats_new_seen")
 
 
 def step7_encryption_columns(engine):
@@ -279,51 +273,25 @@ def step7_encryption_columns(engine):
     print("\n[Step 7/10] Adding encryption-related columns...")
 
     with engine.begin() as conn:
-        dialect = engine.dialect.name
-
-        if dialect != "postgresql":
+        if engine.dialect.name != "postgresql":
             print("  Skipping — only supported on PostgreSQL.")
             return
 
         # Add telegram_chat_hash to users
-        exists = conn.execute(
-            text("""
-            SELECT EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_name = 'users' AND column_name = 'telegram_chat_hash'
-            )
-        """)
-        ).scalar()
-
-        if exists:
-            print("  telegram_chat_hash already exists. Skipping.")
-        else:
-            conn.execute(text("ALTER TABLE users ADD COLUMN telegram_chat_hash VARCHAR(64)"))
+        if ensure_column(conn, "users", "telegram_chat_hash", "VARCHAR(64)"):
             conn.execute(
                 text(
                     "CREATE UNIQUE INDEX ix_users_telegram_chat_hash ON users (telegram_chat_hash) WHERE telegram_chat_hash IS NOT NULL"
                 )
             )
-            print("  Added telegram_chat_hash VARCHAR(64) with unique index.")
+            print("  Added unique index on telegram_chat_hash.")
 
         # Add description_search to expenses
-        exists = conn.execute(
-            text("""
-            SELECT EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_name = 'expenses' AND column_name = 'description_search'
-            )
-        """)
-        ).scalar()
-
-        if exists:
-            print("  description_search already exists. Skipping.")
-        else:
-            conn.execute(text("ALTER TABLE expenses ADD COLUMN description_search VARCHAR"))
+        if ensure_column(conn, "expenses", "description_search", "VARCHAR"):
             conn.execute(
                 text("CREATE INDEX ix_expenses_description_search ON expenses (description_search)")
             )
-            print("  Added description_search VARCHAR with index.")
+            print("  Added index on description_search.")
 
         # Expand column sizes for encrypted data
         print("  Expanding column sizes for encrypted data...")
@@ -353,29 +321,12 @@ def step8_card_search_columns(engine):
     print("\n[Step 8/10] Adding Card search columns...")
 
     with engine.begin() as conn:
-        dialect = engine.dialect.name
-
-        if dialect != "postgresql":
+        if engine.dialect.name != "postgresql":
             print("  Skipping — only supported on PostgreSQL.")
             return
 
         for column in ["card_name_search", "bank_search", "holder_search"]:
-            exists = conn.execute(
-                text("""
-                SELECT EXISTS (
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_name = 'cards' AND column_name = :col
-                )
-            """),
-                {"col": column},
-            ).scalar()
-
-            if exists:
-                print(f"  {column} already exists. Skipping.")
-            else:
-                conn.execute(text(f"ALTER TABLE cards ADD COLUMN {column} VARCHAR"))
-                conn.execute(text(f"CREATE INDEX ix_cards_{column} ON cards ({column})"))
-                print(f"  Added {column} VARCHAR with index.")
+            ensure_column(conn, "cards", column, "VARCHAR", index=True)
 
 
 def step9_scheduled_expense_search_columns(engine):
@@ -383,33 +334,17 @@ def step9_scheduled_expense_search_columns(engine):
     print("\n[Step 9/10] Adding ScheduledExpense search columns...")
 
     with engine.begin() as conn:
-        dialect = engine.dialect.name
-
-        if dialect != "postgresql":
+        if engine.dialect.name != "postgresql":
             print("  Skipping — only supported on PostgreSQL.")
             return
 
-        exists = conn.execute(
-            text("""
-            SELECT EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_name = 'scheduled_expenses' AND column_name = 'description_search'
-            )
-        """)
-        ).scalar()
-
-        if exists:
-            print("  description_search already exists. Skipping.")
-        else:
-            conn.execute(
-                text("ALTER TABLE scheduled_expenses ADD COLUMN description_search VARCHAR")
-            )
+        if ensure_column(conn, "scheduled_expenses", "description_search", "VARCHAR"):
             conn.execute(
                 text(
                     "CREATE INDEX ix_scheduled_expenses_description_search ON scheduled_expenses (description_search)"
                 )
             )
-            print("  Added description_search VARCHAR with index.")
+            print("  Added index on description_search.")
 
 
 def step10_hmac_migration(engine):
@@ -425,65 +360,25 @@ def step10_hmac_migration(engine):
 
         # 1. Drop old search columns (idempotent)
         print("  Dropping old search columns...")
-        search_columns_to_drop = [
+        for table, column in [
             ("expenses", "description_search"),
             ("scheduled_expenses", "description_search"),
             ("cards", "card_name_search"),
             ("cards", "bank_search"),
             ("cards", "holder_search"),
-        ]
-
-        for table, column in search_columns_to_drop:
-            exists = conn.execute(
-                text("""
-                SELECT EXISTS (
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_name = :table AND column_name = :column
-                )
-            """),
-                {"table": table, "column": column},
-            ).scalar()
-
-            if exists:
-                # Drop index first (if exists)
-                index_name = f"ix_{table}_{column}"
-                try:
-                    conn.execute(text(f"DROP INDEX IF EXISTS {index_name}"))
-                except Exception:
-                    pass
-                conn.execute(text(f"ALTER TABLE {table} DROP COLUMN {column}"))
-                print(f"    Dropped {table}.{column}")
-            else:
-                print(f"    {table}.{column} already dropped. Skipping.")
+        ]:
+            drop_column(conn, table, column)
 
         # 2. Add new HMAC columns (idempotent)
         print("  Adding new HMAC columns...")
-        hmac_columns_to_add = [
+        for table, column in [
             ("expenses", "description_hmac"),
             ("scheduled_expenses", "description_hmac"),
             ("cards", "card_name_hmac"),
             ("cards", "bank_hmac"),
             ("accounts", "name_hmac"),
-        ]
-
-        for table, column in hmac_columns_to_add:
-            exists = conn.execute(
-                text("""
-                SELECT EXISTS (
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_name = :table AND column_name = :column
-                )
-            """),
-                {"table": table, "column": column},
-            ).scalar()
-
-            if exists:
-                print(f"    {table}.{column} already exists. Skipping.")
-            else:
-                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} VARCHAR(64)"))
-                index_name = f"ix_{table}_{column}"
-                conn.execute(text(f"CREATE INDEX {index_name} ON {table} ({column})"))
-                print(f"    Added {table}.{column} VARCHAR(64) with index.")
+        ]:
+            ensure_column(conn, table, column, "VARCHAR(64)", index=True)
 
         # 3. Encrypt Account.name column (migrate from plain String to encrypted)
         print("  Encrypting Account.name column...")
@@ -640,55 +535,19 @@ def main():
 def step11_recurring_source_column(engine):
     """Add source column to recurring_expenses and auto_detected_banner_dismissed_at to users."""
     with engine.begin() as conn:
-        dialect = engine.dialect.name
-        if dialect != "postgresql":
+        if engine.dialect.name != "postgresql":
             print("  Skipping — only supported on PostgreSQL.")
             return
 
         print("[Step 11/11] Adding recurring source column and user banner dismissed...")
 
-        # Add source column to recurring_expenses
-        exists = conn.execute(
-            text("""
-            SELECT EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_name = 'recurring_expenses' AND column_name = 'source'
-            )
-        """)
-        ).scalar()
-
-        if exists:
-            print("  recurring_expenses.source already exists. Skipping.")
-        else:
-            conn.execute(
-                text(
-                    "ALTER TABLE recurring_expenses ADD COLUMN source VARCHAR(20) DEFAULT 'manual'"
-                )
-            )
+        if ensure_column(conn, "recurring_expenses", "source", "VARCHAR(20)", default="'manual'"):
             conn.execute(
                 text("CREATE INDEX ix_recurring_expenses_source ON recurring_expenses (source)")
             )
-            print("  Added recurring_expenses.source VARCHAR(20) with index.")
+            print("  Added index on source.")
 
-        # Add auto_detected_banner_dismissed_at to users
-        exists = conn.execute(
-            text("""
-            SELECT EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_name = 'users' AND column_name = 'auto_detected_banner_dismissed_at'
-            )
-        """)
-        ).scalar()
-
-        if exists:
-            print("  users.auto_detected_banner_dismissed_at already exists. Skipping.")
-        else:
-            conn.execute(
-                text(
-                    "ALTER TABLE users ADD COLUMN auto_detected_banner_dismissed_at TIMESTAMP NULL"
-                )
-            )
-            print("  Added users.auto_detected_banner_dismissed_at TIMESTAMP NULL.")
+        ensure_column(conn, "users", "auto_detected_banner_dismissed_at", "TIMESTAMP NULL")
 
 
 def step12_admin_panel(engine):
@@ -710,21 +569,7 @@ def step12_admin_panel(engine):
             ("blocked_at", "TIMESTAMP NULL"),
             ("blocked_reason", "TEXT NULL"),
         ]:
-            exists = conn.execute(
-                text("""
-                SELECT EXISTS (
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_name = 'users' AND column_name = :col
-                )
-            """),
-                {"col": col},
-            ).scalar()
-
-            if exists:
-                print(f"  users.{col} already exists. Skipping.")
-            else:
-                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {col_type}"))
-                print(f"  Added users.{col} {col_type}.")
+            ensure_column(conn, "users", col, col_type)
 
         # 2. Set is_admin=True for admin@nikofin.com
         seed_email = os.getenv("SEED_USER_EMAIL", "admin@nikofin.com")
@@ -835,30 +680,13 @@ def step13_platform_logs(engine):
 def step14_recurring_expense_link(engine):
     """Add recurring_expense_id FK to expenses table."""
     with engine.begin() as conn:
-        dialect = engine.dialect.name
-        if dialect != "postgresql":
+        if engine.dialect.name != "postgresql":
             print("  Skipping — only supported on PostgreSQL.")
             return
 
         print("[Step 14/14] Adding recurring_expense_id to expenses...")
 
-        # 1. Check if column already exists
-        exists = conn.execute(
-            text("""
-            SELECT EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_name = 'expenses' AND column_name = 'recurring_expense_id'
-            )
-        """)
-        ).scalar()
-
-        if exists:
-            print("  expenses.recurring_expense_id already exists. Skipping.")
-        else:
-            # 2. Add the column
-            conn.execute(text("ALTER TABLE expenses ADD COLUMN recurring_expense_id INTEGER"))
-
-            # 3. Add FK constraint (RESTRICT - can't delete linked RecurringExpense)
+        if ensure_column(conn, "expenses", "recurring_expense_id", "INTEGER"):
             conn.execute(
                 text("""
                 ALTER TABLE expenses
@@ -867,15 +695,12 @@ def step14_recurring_expense_link(engine):
                 ON DELETE RESTRICT
             """)
             )
-
-            # 4. Add index for query performance
             conn.execute(
                 text(
                     "CREATE INDEX ix_expenses_recurring_expense_id ON expenses (recurring_expense_id)"
                 )
             )
-
-            print("  Added recurring_expense_id INTEGER with FK (RESTRICT) and index.")
+            print("  Added FK (RESTRICT) and index.")
 
 
 def step15_whats_new_dismissed_version(engine):
@@ -883,28 +708,10 @@ def step15_whats_new_dismissed_version(engine):
     print("\n[Step 15] Adding whats_new_dismissed_version to users...")
 
     with engine.begin() as conn:
-        dialect = engine.dialect.name
-
-        if dialect != "postgresql":
+        if engine.dialect.name != "postgresql":
             print("  Skipping — only supported on PostgreSQL.")
             return
-
-        exists = conn.execute(
-            text("""
-            SELECT EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_name = 'users' AND column_name = 'whats_new_dismissed_version'
-            )
-        """)
-        ).scalar()
-
-        if exists:
-            print("  whats_new_dismissed_version already exists. Skipping.")
-        else:
-            conn.execute(
-                text("ALTER TABLE users ADD COLUMN whats_new_dismissed_version VARCHAR(20)")
-            )
-            print("  Added whats_new_dismissed_version VARCHAR(20).")
+        ensure_column(conn, "users", "whats_new_dismissed_version", "VARCHAR(20)")
 
 
 def step16_google_oauth_columns(engine):
@@ -912,48 +719,12 @@ def step16_google_oauth_columns(engine):
     print("\n[Step 16] Adding Google OAuth columns to users...")
 
     with engine.begin() as conn:
-        dialect = engine.dialect.name
-
-        if dialect != "postgresql":
+        if engine.dialect.name != "postgresql":
             print("  Skipping — only supported on PostgreSQL.")
             return
 
-        # google_refresh_token (encrypted, stored as TEXT)
-        exists = conn.execute(
-            text("""
-            SELECT EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_name = 'users' AND column_name = 'google_refresh_token'
-            )
-        """)
-        ).scalar()
-
-        if exists:
-            print("  google_refresh_token already exists. Skipping.")
-        else:
-            conn.execute(text("ALTER TABLE users ADD COLUMN google_refresh_token TEXT"))
-            print("  Added google_refresh_token TEXT.")
-
-        # google_refresh_token_hmac
-        exists = conn.execute(
-            text("""
-            SELECT EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_name = 'users' AND column_name = 'google_refresh_token_hmac'
-            )
-        """)
-        ).scalar()
-
-        if exists:
-            print("  google_refresh_token_hmac already exists. Skipping.")
-        else:
-            conn.execute(text("ALTER TABLE users ADD COLUMN google_refresh_token_hmac VARCHAR(64)"))
-            conn.execute(
-                text(
-                    "CREATE INDEX ix_users_google_refresh_token_hmac ON users (google_refresh_token_hmac)"
-                )
-            )
-            print("  Added google_refresh_token_hmac VARCHAR(64) with index.")
+        ensure_column(conn, "users", "google_refresh_token", "TEXT")
+        ensure_column(conn, "users", "google_refresh_token_hmac", "VARCHAR(64)", index=True)
 
 
 if __name__ == "__main__":
