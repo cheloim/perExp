@@ -60,27 +60,28 @@ export function ConfirmDialog({
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        aria-describedby="confirm-dialog-message"
         className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-md shadow-xl w-full max-w-sm p-4 space-y-4 animate-modal-content"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="space-y-1">
           <h3 className="text-sm font-semibold text-[var(--text-primary)]">{title}</h3>
-          <p className="text-sm text-[var(--text-secondary)]">{message}</p>
+          <p id="confirm-dialog-message" className="text-sm text-[var(--text-secondary)]">
+            {message}
+          </p>
         </div>
         <div className="flex gap-2 justify-end">
           <button
             onClick={handleCancel}
             autoFocus
-            className="px-4 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
+            className="gnome-btn-secondary text-sm"
           >
             {cancelLabel}
           </button>
           <button
             onClick={handleConfirm}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-              variant === "danger"
-                ? "bg-[var(--color-danger)] text-white hover:brightness-110"
-                : "bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110"
+            className={`text-sm font-medium ${
+              variant === "danger" ? "gnome-btn-danger" : "gnome-btn-primary"
             }`}
           >
             {confirmLabel}

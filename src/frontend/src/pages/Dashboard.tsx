@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
@@ -32,7 +32,8 @@ import {
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
 import { formatCurrency, toUpperCase, formatDateDMYSlash, MONTHS_ES_SHORT } from "../utils/format";
-import { getCategoryEmoji } from "../utils/categoryEmoji";
+import { getCategoryIcon } from "../utils/categoryIcon";
+import SymbolicIcon from "../components/SymbolicIcon";
 import { ExpenseModal } from "../components/ExpenseModals";
 import EmptyState from "../components/ui/EmptyState";
 
@@ -65,12 +66,12 @@ export function CardRow({
 
   const renderIcon = () => {
     if (isAccount) {
-      if (cardName.toLowerCase().includes("efectivo")) return "💵";
+      if (cardName.toLowerCase().includes("efectivo")) return "cash" as const;
       if (cardName.toLowerCase().includes("mercadopago") || cardName.toLowerCase().includes("mp"))
-        return "📱";
-      return "🏦";
+        return "smartphone" as const;
+      return "bank" as const;
     }
-    return "💳";
+    return "card" as const;
   };
 
   const getNetwork = (name: string): string => {
@@ -92,7 +93,7 @@ export function CardRow({
             isAccount ? "bg-gnomeOrange5/10" : "bg-base-alt"
           } flex items-center justify-center text-xs`}
         >
-          {renderIcon()}
+          <SymbolicIcon name={renderIcon()} size={16} />
         </div>
         <div>
           <p className="text-sm font-medium text-primary leading-tight">
@@ -124,6 +125,12 @@ export default function Dashboard() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [daysFilter, setDaysFilter] = useState(7);
+  // Performance: defer off-screen queries after initial render
+  const [deferred, setDeferred] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setDeferred(true), 150);
+    return () => clearTimeout(timer);
+  }, []);
   const createMut = useMutation({
     mutationFn: (data: ExpenseCreate) => createExpense(data),
     onSuccess: () => {
@@ -164,59 +171,67 @@ export default function Dashboard() {
     placeholderData: (prev) => prev,
   });
 
-  // Scheduled expenses for current month
+  // Scheduled expenses for current month (Tier 3: deferred)
   const { data: scheduledData } = useQuery({
     queryKey: ["scheduled-summary"],
     queryFn: () => getScheduledSummary(),
     staleTime: 60_000,
+    enabled: deferred,
   });
 
   const { data: myGroup } = useQuery({
     queryKey: ["my-group"],
     queryFn: getMyGroup,
     staleTime: 300_000,
+    enabled: deferred,
   });
 
-  // Investments
+  // Investments (Tier 3: deferred)
   const { data: investments = [] } = useQuery({
     queryKey: ["investments"],
     queryFn: () => getInvestments(),
     staleTime: 60_000,
+    enabled: deferred,
   });
 
-  // USD exchange rate for conversion
+  // USD exchange rate for conversion (Tier 3: deferred)
   const { data: usdRate } = useQuery({
     queryKey: ["usd-rate"],
     queryFn: getUsdRate,
     staleTime: 30 * 60_000,
+    enabled: deferred,
   });
 
-  // Credit card pasivos (pending debt)
+  // Credit card pasivos (pending debt) (Tier 3: deferred)
   const { data: pasivosData } = useQuery({
     queryKey: ["credit-card-pasivos"],
     queryFn: getCreditCardPasivos,
     staleTime: 60_000,
+    enabled: deferred,
   });
 
-  // Installment monthly load (7 months)
+  // Installment monthly load (7 months) (Tier 3: deferred)
   const { data: monthlyLoad = [] } = useQuery({
     queryKey: ["installments-monthly-load"],
     queryFn: getInstallmentsMonthlyLoad,
     staleTime: 60_000,
+    enabled: deferred,
   });
 
-  // Category trend for sparklines (12 months)
+  // Category trend for sparklines (12 months) (Tier 3: deferred)
   const { data: catTrendData } = useQuery({
     queryKey: ["category-trend", 12],
     queryFn: () => getCategoryTrend(12),
     staleTime: 60_000,
+    enabled: deferred,
   });
 
-  // Top merchants for current month
+  // Top merchants for current month (Tier 3: deferred)
   const { data: topMerchants = [] } = useQuery({
     queryKey: ["top-merchants", month],
     queryFn: () => getTopMerchants({ month, limit: 5 }),
     staleTime: 60_000,
+    enabled: deferred,
   });
 
   // Check for uncategorized expenses (triggers notification on login)
@@ -533,7 +548,7 @@ export default function Dashboard() {
           </div>
           {categories.length === 0 ? (
             <EmptyState
-              icon="📊"
+              icon="chart-bar"
               title="Sin datos"
               description="Los gastos por categoría aparecerán aquí"
             />
@@ -669,7 +684,7 @@ export default function Dashboard() {
           </div>
           {filteredExpenses.length === 0 ? (
             <EmptyState
-              icon="💸"
+              icon="cash"
               title={
                 selectedCategory
                   ? `Sin gastos en ${selectedCategory}`
@@ -699,7 +714,9 @@ export default function Dashboard() {
                         backgroundColor: (exp.category_color || "#3584e4") + "20",
                       }}
                     >
-                      {getCategoryEmoji(exp.category_name) || (
+                      {getCategoryIcon(exp.category_name) ? (
+                        <SymbolicIcon name={getCategoryIcon(exp.category_name)!} size={14} />
+                      ) : (
                         <span
                           className="w-2.5 h-2.5 rounded-full"
                           style={{ backgroundColor: exp.category_color || "#3584e4" }}
@@ -751,7 +768,7 @@ export default function Dashboard() {
           </div>
           {tagData.length === 0 ? (
             <EmptyState
-              icon="🏷️"
+              icon="tag"
               title="Sin tags"
               description="Asigná tags a tus gastos para ver el resumen"
             />
@@ -774,7 +791,7 @@ export default function Dashboard() {
                 if (visible.length === 0 && sorted.every((t) => t.current_amount === 0)) {
                   return (
                     <EmptyState
-                      icon="🏷️"
+                      icon="tag"
                       title="Sin gastos este mes"
                       description="Los gastos por cuenta aparecerán aquí"
                     />
@@ -891,7 +908,7 @@ export default function Dashboard() {
           {!scheduledData ||
           (scheduledData.installments.length === 0 && scheduledData.manual.length === 0) ? (
             <EmptyState
-              icon="📅"
+              icon="installments"
               title="Sin gastos programados"
               description="Los vencimientos del mes aparecerán aquí"
             />
@@ -966,7 +983,7 @@ export default function Dashboard() {
           </div>
           {monthlyLoad.length === 0 ? (
             <EmptyState
-              icon="📦"
+              icon="folder"
               title="Sin cuotas"
               description="Las cuotas comprometidas aparecerán aquí"
             />
@@ -1032,7 +1049,7 @@ export default function Dashboard() {
           <h2 className="text-sm font-semibold text-primary mb-3">Top Comercios</h2>
           {topMerchants.length === 0 ? (
             <EmptyState
-              icon="🏪"
+              icon="bank"
               title="Sin datos"
               description="Los comercios con más gasto aparecerán aquí"
             />

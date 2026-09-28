@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { getBudgetGroups, getBudgetSummary } from "../../api/client";
 import { formatCurrency } from "../../utils/format";
+import SymbolicIcon from "../../components/SymbolicIcon";
+import type { IconName } from "../../components/SymbolicIcon";
 
 export default function QuickBudget() {
   const { data: groups, isLoading: groupsLoading } = useQuery({
@@ -73,7 +75,7 @@ export default function QuickBudget() {
                 : status === "warning"
                   ? "var(--gnome-orange-4)"
                   : "var(--gnome-green-5)";
-            const emoji = g.name === "necesidades" ? "🏠" : g.name === "gustos" ? "🎉" : "💰";
+            const iconName: IconName = g.name === "necesidades" ? "home" : g.name === "gustos" ? "gift" : "wallet";
 
             return (
               <div
@@ -82,7 +84,7 @@ export default function QuickBudget() {
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm">{emoji}</span>
+                    <span className="text-sm"><SymbolicIcon name={iconName} size={16} /></span>
                     <span className="text-xs font-semibold text-[var(--text-primary)]">
                       {g.display_name}
                     </span>

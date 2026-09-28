@@ -117,9 +117,13 @@ export function useUndoToast() {
 
   const ToastContainer = (
     <>
-      {/* Bottom center toasts */}
+      {/* Bottom center toasts — GNOME HIG AdwToast pattern */}
       {bottomToasts.length > 0 && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2">
+        <div
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2"
+          role="status"
+          aria-live="polite"
+        >
           {bottomToasts.map((toast) => (
             <div
               key={toast.id}
@@ -141,7 +145,11 @@ export function useUndoToast() {
 
       {/* Top right toasts */}
       {topRightToasts.length > 0 && (
-        <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2">
+        <div
+          className="fixed top-4 right-4 z-[100] flex flex-col gap-2"
+          role="alert"
+          aria-live="assertive"
+        >
           {topRightToasts.map((toast) => (
             <div
               key={toast.id}

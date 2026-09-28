@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+/* Fonts loaded via <link> in index.html (preconnect + display=swap) */
 
 @tailwind base;
 @tailwind components;
@@ -61,9 +61,17 @@
   animation: spin 0.8s linear infinite;
 }
 
+/* ─────────────────────────────────────────────────────────────
+   Adwaita Design System — CSS Custom Properties
+   GNOME HIG: "use existing style classes and color variables
+   as much as possible, since these automatically adjust for
+   light, dark and high-contrast styles"
+   ───────────────────────────────────────────────────────────── */
+
 :root {
   --font-family: "Inter", "Cantarell", "Ubuntu", system-ui, -apple-system, sans-serif;
 
+  /* ── Surface colors (Adwaita-aligned) ── */
   --color-base: #f6f5f4;
   --color-base-alt: #deddda;
   --color-base-container: #ffffff;
@@ -87,11 +95,34 @@
   --text-tertiary: #71717a;
   --border-color: rgba(0, 0, 0, 0.1);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 3px 6px rgba(0, 0, 0, 0.08), 0 4px 8px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.1), 0 4px 8px rgba(0, 0, 0, 0.04);
-  --focus-ring: 0 0 0 3px rgba(53, 132, 228, 0.3);
+  --shadow-sm: 0 1px 2px rgb(0 0 6 / 6%), 0 1px 3px rgb(0 0 6 / 4%);
+  --shadow-md: 0 2px 4px rgb(0 0 6 / 8%), 0 1px 6px rgb(0 0 6 / 4%);
+  --shadow-lg: 0 4px 8px rgb(0 0 6 / 10%), 0 2px 12px rgb(0 0 6 / 4%);
+  --focus-ring: 0 0 0 3px rgba(53, 132, 228, 0.4);
 
+  /* ── Adwaita CSS variable aliases ──
+     These map Adwaita naming to our semantic tokens.
+     Components can use either naming convention. */
+  --accent-bg-color: var(--color-primary);
+  --accent-fg-color: var(--color-on-primary);
+  --accent-color: #0461be; /* Adwaita standalone accent for light */
+  --window-bg-color: var(--color-base);
+  --window-fg-color: var(--text-primary);
+  --card-bg-color: var(--color-surface);
+  --card-fg-color: var(--color-on-surface);
+  --sidebar-bg-color: var(--color-sidebar);
+  --sidebar-fg-color: var(--color-on-sidebar);
+  --headerbar-bg-color: var(--color-sidebar);
+  --headerbar-fg-color: var(--color-on-sidebar);
+  --view-bg-color: var(--color-base);
+  --view-fg-color: var(--text-primary);
+
+  /* ── Adwaita opacity tokens (auto high-contrast) ── */
+  --border-opacity: 15%;
+  --dim-opacity: 55%;
+  --disabled-opacity: 50%;
+
+  /* ── GNOME palette ── */
   --gnome-red-1: #ff7b63;
   --gnome-red-2: #ed333b;
   --gnome-red-3: #e01b24;
@@ -183,10 +214,13 @@
   --text-tertiary: #a1a1aa;
   --border-color: rgba(255, 255, 255, 0.1);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.15);
-  --shadow-md: 0 3px 6px rgba(0, 0, 0, 0.25), 0 4px 8px rgba(0, 0, 0, 0.15);
-  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.3), 0 4px 8px rgba(0, 0, 0, 0.2);
-  --focus-ring: 0 0 0 3px rgba(98, 160, 234, 0.4);
+  --shadow-sm: 0 1px 2px rgb(0 0 6 / 20%), 0 1px 3px rgb(0 0 6 / 15%);
+  --shadow-md: 0 2px 4px rgb(0 0 6 / 25%), 0 1px 6px rgb(0 0 6 / 15%);
+  --shadow-lg: 0 4px 8px rgb(0 0 6 / 30%), 0 2px 12px rgb(0 0 6 / 20%);
+  --focus-ring: 0 0 0 3px rgba(98, 160, 234, 0.5);
+
+  /* Adwaita dark accent standalone */
+  --accent-color: #81d0ff;
 
   --gnome-red-1: #ff7b63;
   --gnome-red-2: #ed333b;
@@ -255,6 +289,17 @@
   --chart-tooltip-text: #ffffff;
 }
 
+/* ── High Contrast Mode (GNOME 50) ──
+   "high contrast mode changes the UI style to have very high contrast"
+   Adwaita auto-derives --border-color from currentColor + --border-opacity */
+@media (prefers-contrast: more) {
+  :root {
+    --border-opacity: 50%;
+    --dim-opacity: 90%;
+    --disabled-opacity: 40%;
+  }
+}
+
 @keyframes modal-backdrop-in {
   from {
     opacity: 0;
@@ -292,6 +337,10 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── Adwaita Standard Font Styles ──
+   GNOME HIG Typography: "minimize the number of font sizes and weights"
+   Maps to Adwaita's body, heading, caption, title-1..title-4 classes */
 
 @layer base {
   * {
@@ -354,6 +403,48 @@
   }
 }
 
+/* Adwaita font style classes */
+.adw-body {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+.adw-heading {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.adw-caption {
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+.adw-caption-heading {
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.adw-title-1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.adw-title-2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.adw-title-3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+.adw-title-4 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+/* Adwaita .dim-label — "make the widget partially transparent" */
+.adw-dim-label {
+  opacity: var(--dim-opacity);
+}
+
+/* ── react-day-picker overrides ── */
 .rdp {
   --rdp-cell-size: 40px;
   margin: 0;
@@ -455,14 +546,38 @@
   opacity: 0.5;
 }
 
+/* ─────────────────────────────────────────────────────────────
+   Component Styles
+   ───────────────────────────────────────────────────────────── */
+
 @layer components {
+  /* ── Card (Adwaita boxed-list compatible) ── */
   .card {
     background: var(--color-surface);
     border: 1px solid var(--border-color);
-    border-radius: 6px;
+    border-radius: 12px;
     box-shadow: var(--shadow-sm);
   }
+  .card-interactive {
+    background: var(--color-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: box-shadow 0.15s ease;
+  }
+  .card-interactive:hover {
+    box-shadow: var(--shadow-md);
+  }
+  .card-compact {
+    background: var(--color-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    padding: 0.75rem;
+  }
 
+  /* ── Input (Adwaita entry) ── */
   .input {
     width: 100%;
     border: 1px solid var(--border-color);
@@ -482,31 +597,7 @@
     box-shadow: var(--focus-ring);
   }
 
-  .select-input {
-    width: 100% !important;
-    padding: 0.5rem 0.75rem !important;
-    border-radius: 6px !important;
-    border: 1px solid var(--border-color) !important;
-    background: var(--color-base-container) !important;
-    color: var(--text-primary) !important;
-    font-size: 0.875rem !important;
-    transition: all 0.15s;
-    cursor: pointer;
-    appearance: none !important;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2377767b' d='M2 4l4 4 4-4'/%3E%3C/svg%3E") !important;
-    background-repeat: no-repeat !important;
-    background-position: right 0.75rem center !important;
-    padding-right: 2rem !important;
-  }
-  .select-input:hover {
-    border-color: var(--text-secondary) !important;
-  }
-  .select-input:focus {
-    outline: none !important;
-    border-color: var(--color-primary) !important;
-    box-shadow: var(--focus-ring) !important;
-  }
-
+  /* ── Table header ── */
   .table-th {
     padding: 0.75rem 1rem;
     text-align: left;
@@ -529,6 +620,7 @@
     color: var(--color-primary);
   }
 
+  /* ── Alerts ── */
   .alert-success {
     background: rgba(38, 162, 105, 0.1);
     border: 1px solid rgba(38, 162, 105, 0.3);
@@ -553,6 +645,8 @@
     border-radius: 6px;
     font-size: 0.875rem;
   }
+
+  /* ── Text utilities ── */
   .text-primary {
     color: var(--text-primary);
   }
@@ -563,7 +657,7 @@
     color: var(--text-tertiary);
   }
   .text-panel-title {
-    color: var(--text-secondary) !important;
+    color: var(--text-secondary);
   }
   .installments-title {
     color: var(--text-secondary);
@@ -578,6 +672,7 @@
     color: var(--gnome-yellow-6);
   }
 
+  /* ── Background utilities ── */
   .bg-surface {
     background: var(--color-surface);
   }
@@ -588,6 +683,11 @@
     background: rgba(53, 132, 228, 0.08);
   }
 
+  /* ── Buttons — Adwaita style classes ──
+     GNOME HIG: "suggested-action highlights a button for affirmative action"
+     GNOME HIG: "destructive-action draws attention to damaging consequences" */
+
+  /* .flat — Adwaita flat button (transparent until hover) */
   .gnome-btn-secondary {
     display: inline-flex;
     align-items: center;
@@ -613,10 +713,11 @@
     box-shadow: var(--shadow-sm);
   }
   .gnome-btn-secondary:disabled {
-    opacity: 0.5;
+    opacity: var(--disabled-opacity);
     cursor: not-allowed;
   }
 
+  /* .pill — flat pill */
   .gnome-btn-secondary-round {
     display: inline-flex;
     align-items: center;
@@ -642,10 +743,11 @@
     box-shadow: var(--shadow-sm);
   }
   .gnome-btn-secondary-round:disabled {
-    opacity: 0.5;
+    opacity: var(--disabled-opacity);
     cursor: not-allowed;
   }
 
+  /* .suggested-action — pill */
   .gnome-btn-primary-round {
     display: inline-flex;
     align-items: center;
@@ -669,10 +771,11 @@
     box-shadow: var(--shadow-sm);
   }
   .gnome-btn-primary-round:disabled {
-    opacity: 0.5;
+    opacity: var(--disabled-opacity);
     cursor: not-allowed;
   }
 
+  /* .destructive-action — pill */
   .gnome-btn-danger-round {
     display: inline-flex;
     align-items: center;
@@ -698,10 +801,11 @@
     box-shadow: var(--shadow-sm);
   }
   .gnome-btn-danger-round:disabled {
-    opacity: 0.5;
+    opacity: var(--disabled-opacity);
     cursor: not-allowed;
   }
 
+  /* .suggested-action — rectangular */
   .gnome-btn-primary {
     display: inline-flex;
     align-items: center;
@@ -725,10 +829,11 @@
     box-shadow: var(--shadow-sm);
   }
   .gnome-btn-primary:disabled {
-    opacity: 0.5;
+    opacity: var(--disabled-opacity);
     cursor: not-allowed;
   }
 
+  /* .destructive-action — rectangular */
   .gnome-btn-danger {
     display: inline-flex;
     align-items: center;
@@ -751,10 +856,11 @@
     box-shadow: var(--shadow-sm);
   }
   .gnome-btn-danger:disabled {
-    opacity: 0.5;
+    opacity: var(--disabled-opacity);
     cursor: not-allowed;
   }
 
+  /* Destructive outline */
   .gnome-btn-outline-danger {
     display: inline-flex;
     align-items: center;
@@ -778,10 +884,11 @@
     box-shadow: var(--shadow-sm);
   }
   .gnome-btn-outline-danger:disabled {
-    opacity: 0.5;
+    opacity: var(--disabled-opacity);
     cursor: not-allowed;
   }
 
+  /* Warning */
   .gnome-btn-warning {
     display: inline-flex;
     align-items: center;
@@ -804,12 +911,45 @@
     box-shadow: var(--shadow-sm);
   }
   .gnome-btn-warning:disabled {
-    opacity: 0.5;
+    opacity: var(--disabled-opacity);
     cursor: not-allowed;
   }
 }
 
-/* Landing page animations */
+/* ─────────────────────────────────────────────────────────────
+   Select Input — outside @layer for proper specificity
+   GNOME HIG: "keep the amount of custom styling to a minimum"
+   ───────────────────────────────────────────────────────────── */
+
+.select-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--color-base-container);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  transition: all 0.15s;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2377767b' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2rem;
+}
+.select-input:hover {
+  border-color: var(--text-secondary);
+}
+.select-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Landing page animations
+   ───────────────────────────────────────────────────────────── */
+
 @keyframes fade-in-up {
   from {
     opacity: 0;
@@ -933,7 +1073,7 @@
   animation: donut-draw 1s ease-out forwards;
 }
 
-@keyframes blink {
+@keyframes blink-anim {
   0%,
   100% {
     opacity: 1;
@@ -944,7 +1084,7 @@
 }
 
 .animate-blink {
-  animation: blink 0.8s step-end infinite;
+  animation: blink-anim 0.8s step-end infinite;
 }
 
 @keyframes slideIn {

@@ -26,7 +26,7 @@ import { ExpenseModal } from "../components/ExpenseModals";
 import ExpenseDetailModal from "../components/ExpenseDetailModal";
 import EmptyState from "../components/ui/EmptyState";
 import SymbolicIcon from "../components/SymbolicIcon";
-import { getCategoryEmoji } from "../utils/categoryEmoji";
+import { getCategoryIcon } from "../utils/categoryIcon";
 import {
   PieChart,
   Pie,
@@ -1023,7 +1023,7 @@ export default function ExpensesPage() {
                 <tr>
                   <td colSpan={selectMode ? 6 : 5} className="px-4 py-4">
                     <EmptyState
-                      icon="📋"
+                      icon="list"
                       title={
                         activeFiltersCount > 0 ? "Sin resultados" : "No hay gastos registrados"
                       }
@@ -1109,7 +1109,9 @@ export default function ExpensesPage() {
                                   backgroundColor: (exp.category_color || "#6b7280") + "20",
                                 }}
                               >
-                                {getCategoryEmoji(exp.category_name) || (
+                                {getCategoryIcon(exp.category_name) ? (
+                                  <SymbolicIcon name={getCategoryIcon(exp.category_name)!} size={14} />
+                                ) : (
                                   <span
                                     className="w-2 h-2 rounded-full"
                                     style={{ backgroundColor: exp.category_color || "#6b7280" }}
