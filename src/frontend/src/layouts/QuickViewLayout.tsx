@@ -3,14 +3,16 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ExpenseModal } from "../components/ExpenseModals";
 import { createExpense } from "../api/client";
 import { hapticLight, hideBackButton } from "../services/telegramWebApp";
+import SymbolicIcon from "../components/SymbolicIcon";
+import type { IconName } from "../components/SymbolicIcon";
 import type { ExpenseCreate } from "../types";
 
 type Tab = "summary" | "budget" | "upcoming";
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: "summary", label: "Resumen", icon: "🏠" },
-  { id: "budget", label: "Presupuesto", icon: "📊" },
-  { id: "upcoming", label: "Próximos", icon: "📅" },
+const TABS: { id: Tab; label: string; icon: IconName }[] = [
+  { id: "summary", label: "Resumen", icon: "home" },
+  { id: "budget", label: "Presupuesto", icon: "chart-donut" },
+  { id: "upcoming", label: "Próximos", icon: "installments" },
 ];
 
 const QuickSummary = lazy(() => import("../pages/quick/QuickSummary"));
@@ -106,7 +108,9 @@ export default function QuickViewLayout({ onSwitchToFull }: { onSwitchToFull: ()
                   : "text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
               }`}
             >
-              <span className="text-base">{tab.icon}</span>
+              <span className="text-base">
+                <SymbolicIcon name={tab.icon} size={18} />
+              </span>
               <span>{tab.label}</span>
             </button>
           ))}

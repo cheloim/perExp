@@ -98,6 +98,23 @@ export function ExpenseModal({
     isInstallmentsOnly || !!(initial?.installment_total && initial.installment_total > 1),
   );
 
+  // Track dirty state for unsaved changes warning (GNOME HIG: confirmation before destructive actions)
+  const [isDirty, setIsDirty] = useState(false);
+  const set = <K extends keyof ExpenseCreate>(key: K, value: ExpenseCreate[K]) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    setIsDirty(true);
+  };
+
+  // Warn before closing browser tab with unsaved changes
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
   // Local keyword matching — instant, no API cost
   const keywordMatch = (desc: string): number | null => {
     const lower = desc.toLowerCase();
@@ -173,9 +190,6 @@ export function ExpenseModal({
     }
   };
 
-  const set = (field: keyof ExpenseCreate, value: unknown) =>
-    setForm((prev) => ({ ...prev, [field]: value }));
-
   const trapRef = useFocusTrap(true);
 
   const [showAdvanced, setShowAdvanced] = useState(
@@ -250,16 +264,28 @@ export function ExpenseModal({
           </h2>
           <button
             onClick={onClose}
-            aria-label="Cerrar"
-            className="text-[var(--text-tertiary)] hover:text-[var(--color-primary)]"
+            aria-label="Cerrar diálogo"
+            className="text-[var(--text-tertiary)] hover:text-[var(--color-primary)] p-1 rounded-md transition-colors"
           >
-            ✕
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path
+                d="M4 4l8 8M12 4l-8 8"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
           </button>
         </div>
 
         {saveError && (
-          <div className="flex items-start gap-2 bg-danger/10 border border-danger/30 rounded-lg px-3 py-2 text-xs text-danger">
-            <span className="mt-0.5">✕</span>
+          <div
+            role="alert"
+            className="flex items-start gap-2 bg-danger/10 border border-danger/30 rounded-lg px-3 py-2 text-xs text-danger"
+          >
+            <span className="mt-0.5" aria-hidden="true">
+              ✕
+            </span>
             <span>{saveError}</span>
           </div>
         )}
@@ -295,8 +321,10 @@ export function ExpenseModal({
             </label>
             <input
               type="number"
+              inputMode="decimal"
               value={form.amount}
               onChange={(e) => set("amount", parseFloat(e.target.value) || 0)}
+              aria-label="Monto"
               className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
             />
           </div>

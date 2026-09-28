@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getDashboard, getExpenses, getTagSummary } from "../../api/client";
 import SymbolicIcon from "../../components/SymbolicIcon";
-import { getCategoryEmoji } from "../../utils/categoryEmoji";
+import { getCategoryIcon } from "../../utils/categoryIcon";
 import { formatCurrency, toUpperCase } from "../../utils/format";
 import { isDarkMode } from "../../services/telegramWebApp";
 
@@ -296,7 +296,9 @@ export default function QuickSummary() {
                     className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-sm"
                     style={{ backgroundColor: (exp.category_color || "#6b7280") + "20" }}
                   >
-                    {getCategoryEmoji(exp.category_name) || (
+                    {getCategoryIcon(exp.category_name) ? (
+                      <SymbolicIcon name={getCategoryIcon(exp.category_name)!} size={14} />
+                    ) : (
                       <span
                         className="w-2.5 h-2.5 rounded-full"
                         style={{ backgroundColor: exp.category_color || "#6b7280" }}
