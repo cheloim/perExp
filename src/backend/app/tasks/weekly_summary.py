@@ -14,21 +14,6 @@ logger = logging.getLogger(__name__)
 
 BUE = ZoneInfo("America/Argentina/Buenos_Aires")
 
-MONTHS_ES = {
-    1: "Enero",
-    2: "Febrero",
-    3: "Marzo",
-    4: "Abril",
-    5: "Mayo",
-    6: "Junio",
-    7: "Julio",
-    8: "Agosto",
-    9: "Septiembre",
-    10: "Octubre",
-    11: "Noviembre",
-    12: "Diciembre",
-}
-
 
 def _generate_weekly_llm_analysis(report_data: dict) -> dict:
     """Generate LLM analysis for weekly report using Gemini."""

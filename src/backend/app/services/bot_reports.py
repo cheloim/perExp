@@ -187,12 +187,14 @@ _CAT_EMOJI: dict[str, str] = {
     "suscripciones": "📲",
     "farmacia": "💊",
     "médico": "🩺",
+    "médicos": "🩺",
     "taxi": "🚕",
     "uber": "🚕",
     "combustible": "⛽",
     "nafta": "⛽",
     "restaurante": "🍴",
     "café": "☕",
+    "cafetería": "☕",
     "bar": "🍺",
     "fast food": "🍔",
     "netflix": "📺",
@@ -215,6 +217,23 @@ _CAT_EMOJI: dict[str, str] = {
 
 def _cat_emoji(name: str) -> str:
     return _CAT_EMOJI.get(name.lower().strip(), "📂")
+
+
+def build_cat_levels(category_id: int | None, db: Session) -> list[str]:
+    """Build category hierarchy list from category_id."""
+    if not category_id:
+        return []
+    cat = db.query(Category).filter(Category.id == category_id).first()
+    if not cat:
+        return []
+    levels = [cat.name]
+    node = cat
+    while node.parent_id:
+        node = db.query(Category).filter(Category.id == node.parent_id).first()
+        if not node:
+            break
+        levels.append(node.name)
+    return list(reversed(levels))
 
 
 # ── 1. Budget status report ──────────────────────────────────────────

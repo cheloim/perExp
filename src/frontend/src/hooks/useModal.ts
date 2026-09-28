@@ -7,16 +7,6 @@ interface UseModalReturn {
   toggle: () => void;
 }
 
-export function useModal(initialState = false): UseModalReturn {
-  const [isOpen, setIsOpen] = useState(initialState);
-
-  const open = useCallback(() => setIsOpen(true), []);
-  const close = useCallback(() => setIsOpen(false), []);
-  const toggle = useCallback(() => setIsOpen((prev) => !prev), []);
-
-  return { isOpen, open, close, toggle };
-}
-
 export function useModalWithData<T>(initialState = false): UseModalReturn & {
   data: T | null;
   setData: (data: T | null) => void;

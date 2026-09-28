@@ -9,14 +9,10 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from app.models import Investment, Setting, User
+from app.models import Investment, User
+from app.services import get_setting as _get_setting
 
 logger = logging.getLogger(__name__)
-
-
-def _get_setting(db: Session, key: str, user_id: int) -> str:
-    row = db.query(Setting).filter(Setting.key == f"{user_id}:{key}").first()
-    return row.value if row else ""
 
 
 _IOL_TYPE_MAP = {

@@ -14,7 +14,7 @@ from app.database import get_db
 from app.models import Card, Category, Expense, ExpenseTag, MonthlyReport, Notification, Tag, User
 from app.routers.groups import get_group_user_ids
 from app.services.auth import get_current_user
-from app.services.date_utils import add_months
+from app.services.date_utils import MONTHS_ES, add_months
 from app.services.normalizers import normalize_bank
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -637,27 +637,11 @@ Sé específico con los números. Respondé en español, de forma clara y amigab
     }
 
 
-MONTHS_ES = {
-    "01": "Enero",
-    "02": "Febrero",
-    "03": "Marzo",
-    "04": "Abril",
-    "05": "Mayo",
-    "06": "Junio",
-    "07": "Julio",
-    "08": "Agosto",
-    "09": "Septiembre",
-    "10": "Octubre",
-    "11": "Noviembre",
-    "12": "Diciembre",
-}
-
-
 def _build_report_html(data: dict, user_name: str) -> str:
     """Build a printable HTML report from monthly report data."""
     month_str = data["month"]
     year, month_num = month_str.split("-")
-    month_name = MONTHS_ES.get(month_num, month_num)
+    month_name = MONTHS_ES.get(int(month_num), month_num)
 
     categories_html = ""
     for cat in data.get("top_categories", []):
@@ -676,7 +660,7 @@ def _build_report_html(data: dict, user_name: str) -> str:
     trend_rows = ""
     for t in data.get("trend_history", []):
         y_t, m_t = t["month"].split("-")
-        m_name = MONTHS_ES.get(m_t, m_t)
+        m_name = MONTHS_ES.get(int(m_t), m_t)
         trend_rows += f"""
         <tr>
             <td style="padding:6px;border-bottom:1px solid #eee;">{m_name} {y_t}</td>

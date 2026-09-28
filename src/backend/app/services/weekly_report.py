@@ -4,22 +4,8 @@ from datetime import date
 
 import emoji
 
+from app.services.date_utils import MONTHS_ES
 from app.services.report_renderer import render_report_image
-
-MONTHS_ES = {
-    1: "Enero",
-    2: "Febrero",
-    3: "Marzo",
-    4: "Abril",
-    5: "Mayo",
-    6: "Junio",
-    7: "Julio",
-    8: "Agosto",
-    9: "Septiembre",
-    10: "Octubre",
-    11: "Noviembre",
-    12: "Diciembre",
-}
 
 
 def _strip_emojis(text: str) -> str:

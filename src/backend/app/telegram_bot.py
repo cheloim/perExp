@@ -38,6 +38,7 @@ from telegram.ext import (
 from app.database import SessionLocal
 from app.models import Account, Card, Category, Expense, ExpenseTag, Tag, User
 from app.prompts import CARD_EXTRACT_PROMPT, EXPENSE_PARSE_PROMPT
+from app.services.bot_reports import _cat_emoji
 from app.services.categorization import auto_categorize, llm_categorize
 from app.services.encryption import compute_hmac
 from app.services.import_utils import _normalize_text
@@ -648,21 +649,7 @@ def _format_date_es(date_str: str) -> str:
         return date_str
 
 
-def _build_cat_levels(category_id: int | None, db) -> list[str]:
-    """Build category hierarchy list from category_id."""
-    if not category_id:
-        return []
-    cat = db.query(Category).filter(Category.id == category_id).first()
-    if not cat:
-        return []
-    levels = [cat.name]
-    node = cat
-    while node.parent_id:
-        node = db.query(Category).filter(Category.id == node.parent_id).first()
-        if not node:
-            break
-        levels.append(node.name)
-    return list(reversed(levels))
+from app.services.bot_reports import build_cat_levels as _build_cat_levels
 
 
 def _confirm_text(
@@ -787,59 +774,6 @@ async def _enhance_with_llm(
         pass  # Message already edited by user confirming, or Telegram error
 
 
-_CAT_EMOJI: dict[str, str] = {
-    # Categorías raíz
-    "salud": "🏥",
-    "alimentación": "🍽️",
-    "alimentos": "🍽️",
-    "supermercado": "🛒",
-    "transporte": "🚗",
-    "servicios": "⚡",
-    "entretenimiento": "🎬",
-    "educación": "📚",
-    "ropa": "👕",
-    "indumentaria": "👕",
-    "viajes": "✈️",
-    "hogar": "🏠",
-    "tecnología": "💻",
-    "mascotas": "🐾",
-    "deporte": "🏋️",
-    "inversiones": "📈",
-    "impuestos": "🧾",
-    "seguros": "🛡️",
-    "banco": "🏦",
-    "suscripciones": "📲",
-    # Subcategorías
-    "farmacia": "💊",
-    "médico": "🩺",
-    "médicos": "🩺",
-    "taxi": "🚕",
-    "uber": "🚕",
-    "combustible": "⛽",
-    "nafta": "⛽",
-    "restaurante": "🍴",
-    "café": "☕",
-    "cafetería": "☕",
-    "bar": "🍺",
-    "fast food": "🍔",
-    "netflix": "📺",
-    "spotify": "🎵",
-    "streaming": "📺",
-    "gimnasio": "🏋️",
-    "librería": "📖",
-    "colegio": "🏫",
-    "universidad": "🎓",
-    "luz": "💡",
-    "gas": "🔥",
-    "agua": "💧",
-    "internet": "🌐",
-    "celular": "📱",
-    "supermercados": "🛒",
-    "almacén": "🛒",
-    "verdulería": "🥦",
-}
-
-
 def _escape_html(text: str) -> str:
     """Escape HTML special characters for Telegram."""
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
@@ -867,10 +801,6 @@ async def _edit_html(query, text: str, **kwargs):
         logger.warning(f"[TELEGRAM] HTML parse failed, retrying as plain text: {e}")
         plain = _re.sub(r"<[^>]+>", "", text)
         await query.edit_message_text(plain, **kwargs)
-
-
-def _cat_emoji(name: str) -> str:
-    return _CAT_EMOJI.get(name.lower(), "📂")
 
 
 def _saved_text(expense: "Expense", payment_label: str) -> str:
