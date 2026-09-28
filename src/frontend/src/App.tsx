@@ -7,10 +7,8 @@ import UserPanel from "./components/UserPanel";
 import { APP_NAME } from "./config";
 import NotificationsPanel from "./components/NotificationsPanel";
 import ImportUploadButton from "./components/ImportUploadButton";
-import { usePanelWidth } from "./context/PanelWidthContext";
 import { UploadProgressProvider } from "./context/UploadProgressContext";
 import { NotificationsProvider, useNotifications } from "./context/NotificationsContext";
-import { FamilyGroupProvider } from "./context/FamilyGroupContext";
 import { sidebarIcons } from "./components/SidebarIcons";
 import { getStoredToken, getMe, getAdminSlug, dismissWhatsNew, createExpense } from "./api/client";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -379,7 +377,8 @@ function MainLayout() {
     const main = document.querySelector("main");
     if (main) main.scrollTo(0, 0);
   }, [location.pathname]);
-  const { panelWidth, isCollapsed } = usePanelWidth();
+  const panelWidth = 360;
+  const isCollapsed = true;
   const { unreadCount } = useNotifications();
 
   useEffect(() => {
@@ -445,8 +444,7 @@ function MainLayout() {
 
   return (
     <UploadProgressProvider>
-      <FamilyGroupProvider>
-        <div className="flex h-screen overflow-hidden bg-base">
+      <div className="flex h-screen overflow-hidden bg-base">
           {/* Sidebar — GNOME Adwaita style, expand/collapse on hover */}
           <aside className="group fixed left-0 top-0 h-full z-30 bg-sidebar border-r border-[var(--border-color)] hidden md:flex flex-col w-16 hover:w-[220px] transition-all duration-300 overflow-hidden">
             {/* Header */}
@@ -998,7 +996,6 @@ function MainLayout() {
             />
           )}
         </div>
-      </FamilyGroupProvider>
       {/* Onboarding - rendered at root to avoid overflow clipping */}
       <Suspense fallback={null}>
         <OnboardingWalkthrough onOpenPanel={setUserPanelOpen} />

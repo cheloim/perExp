@@ -50,76 +50,32 @@ def main():
             if exists:
                 print("Table already exists. Checking for columns...")
 
-                # Ensure png_data column exists
-                has_png = conn.execute(
-                    text("""
-                    SELECT EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_name = 'monthly_reports' AND column_name = 'png_data'
-                    )
-                """)
-                ).scalar()
-                if not has_png:
-                    print("Adding png_data column...")
-                    conn.execute(text("ALTER TABLE monthly_reports ADD COLUMN png_data BYTEA"))
-                    print("png_data column added!")
-                else:
-                    print("png_data column already exists.")
+                columns = [
+                    ("png_data", "BYTEA", None),
+                    ("pdf_data", "BYTEA", None),
+                    ("status", "VARCHAR(20) DEFAULT 'READY'",
+                     "UPDATE monthly_reports SET status = 'READY' WHERE status IS NULL"),
+                    ("error_message", "TEXT", None),
+                ]
 
-                # Ensure pdf_data column exists
-                has_pdf = conn.execute(
-                    text("""
-                    SELECT EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_name = 'monthly_reports' AND column_name = 'pdf_data'
-                    )
-                """)
-                ).scalar()
-                if not has_pdf:
-                    print("Adding pdf_data column...")
-                    conn.execute(text("ALTER TABLE monthly_reports ADD COLUMN pdf_data BYTEA"))
-                    print("pdf_data column added!")
-                else:
-                    print("pdf_data column already exists.")
-
-                # Ensure status column exists
-                has_status = conn.execute(
-                    text("""
-                    SELECT EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_name = 'monthly_reports' AND column_name = 'status'
-                    )
-                """)
-                ).scalar()
-                if not has_status:
-                    print("Adding status column...")
-                    conn.execute(
-                        text(
-                            "ALTER TABLE monthly_reports ADD COLUMN status VARCHAR(20) DEFAULT 'READY'"
+                for col_name, col_type, post_sql in columns:
+                    has_col = conn.execute(
+                        text("""
+                        SELECT EXISTS (
+                            SELECT 1 FROM information_schema.columns
+                            WHERE table_name = 'monthly_reports' AND column_name = :col
                         )
-                    )
-                    conn.execute(
-                        text("UPDATE monthly_reports SET status = 'READY' WHERE status IS NULL")
-                    )
-                    print("status column added!")
-                else:
-                    print("status column already exists.")
-
-                # Ensure error_message column exists
-                has_error = conn.execute(
-                    text("""
-                    SELECT EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_name = 'monthly_reports' AND column_name = 'error_message'
-                    )
-                """)
-                ).scalar()
-                if not has_error:
-                    print("Adding error_message column...")
-                    conn.execute(text("ALTER TABLE monthly_reports ADD COLUMN error_message TEXT"))
-                    print("error_message column added!")
-                else:
-                    print("error_message column already exists.")
+                    """),
+                        {"col": col_name},
+                    ).scalar()
+                    if has_col:
+                        print(f"{col_name} column already exists.")
+                    else:
+                        print(f"Adding {col_name} column...")
+                        conn.execute(text(f"ALTER TABLE monthly_reports ADD COLUMN {col_name} {col_type}"))
+                        if post_sql:
+                            conn.execute(text(post_sql))
+                        print(f"{col_name} column added!")
             else:
                 print("Creating monthly_reports table...")
                 conn.execute(

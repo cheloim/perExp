@@ -33,6 +33,63 @@ def _build_account_tag_name(account: Account) -> str:
     return name or "Cuenta sin nombre"
 
 
+def _backfill_entity(db, entities, entity_type, build_tag_name, tag_fk_field, users_seen, dry_run):
+    """Create/reuse tags for a list of entities (Cards or Accounts). Returns (created, reused)."""
+    created = 0
+    reused = 0
+    for entity in entities:
+        uid = entity.user_id
+        users_seen.add(uid)
+
+        existing = (
+            db.query(Tag)
+            .filter(Tag.user_id == uid, getattr(Tag, tag_fk_field) == entity.id)
+            .first()
+        )
+        if existing:
+            reused += 1
+            continue
+
+        tag_name = build_tag_name(entity)
+        name_hmac = compute_hmac(tag_name.strip().lower())
+
+        existing = (
+            db.query(Tag)
+            .filter(
+                Tag.user_id == uid,
+                Tag.name_hmac == name_hmac,
+                Tag.group_name != "categoria",
+            )
+            .first()
+        )
+        if existing:
+            if not getattr(existing, tag_fk_field):
+                setattr(existing, tag_fk_field, entity.id)
+                if existing.group_name != "cuenta":
+                    existing.group_name = "cuenta"
+                if not dry_run:
+                    db.flush()
+            reused += 1
+            continue
+
+        color = pick_tag_color(db, uid)
+        tag_kwargs = dict(
+            name=tag_name,
+            name_hmac=name_hmac,
+            color=color,
+            group_name="cuenta",
+            user_id=uid,
+        )
+        tag_kwargs[tag_fk_field] = entity.id
+        tag = Tag(**tag_kwargs)
+        if not dry_run:
+            db.add(tag)
+            db.flush()
+        created += 1
+        print(f"  [{entity_type}] Created tag: '{tag_name}' (user {uid})")
+    return created, reused
+
+
 def backfill(dry_run: bool = False, batch_size: int = 500):
     db = SessionLocal()
     try:
@@ -44,115 +101,17 @@ def backfill(dry_run: bool = False, batch_size: int = 500):
         tags_reused = 0
         links_created = 0
 
-        # --- Pass 1: Create tags from Cards ---
-        cards = db.query(Card).all()
-        print(f"Found {len(cards)} cards to process.")
-        for card in cards:
-            uid = card.user_id
-            users_seen.add(uid)
-
-            # Dedup by card_id
-            existing = (
-                db.query(Tag)
-                .filter(Tag.user_id == uid, Tag.card_id == card.id)
-                .first()
+        # --- Create tags from Cards and Accounts ---
+        for entities, entity_type, build_fn, fk_field in [
+            (db.query(Card).all(), "Card", _build_card_tag_name, "card_id"),
+            (db.query(Account).all(), "Account", _build_account_tag_name, "account_id"),
+        ]:
+            print(f"Found {len(entities)} {entity_type.lower()}s to process.")
+            created, reused = _backfill_entity(
+                db, entities, entity_type, build_fn, fk_field, users_seen, dry_run
             )
-            if existing:
-                tags_reused += 1
-                continue
-
-            tag_name = _build_card_tag_name(card)
-            name_hmac = compute_hmac(tag_name.strip().lower())
-
-            # Dedup by name_hmac (exclude categoria mirrors)
-            existing = (
-                db.query(Tag)
-                .filter(
-                    Tag.user_id == uid,
-                    Tag.name_hmac == name_hmac,
-                    Tag.group_name != "categoria",
-                )
-                .first()
-            )
-            if existing:
-                if not existing.card_id:
-                    existing.card_id = card.id
-                    if existing.group_name != "cuenta":
-                        existing.group_name = "cuenta"
-                    if not dry_run:
-                        db.flush()
-                tags_reused += 1
-                continue
-
-            color = pick_tag_color(db, uid)
-            tag = Tag(
-                name=tag_name,
-                name_hmac=name_hmac,
-                color=color,
-                group_name="cuenta",
-                user_id=uid,
-                card_id=card.id,
-            )
-            if not dry_run:
-                db.add(tag)
-                db.flush()
-            tags_created += 1
-            print(f"  [Card] Created tag: '{tag_name}' (user {uid})")
-
-        # --- Pass 2: Create tags from Accounts ---
-        accounts = db.query(Account).all()
-        print(f"Found {len(accounts)} accounts to process.")
-        for account in accounts:
-            uid = account.user_id
-            users_seen.add(uid)
-
-            # Dedup by account_id
-            existing = (
-                db.query(Tag)
-                .filter(Tag.user_id == uid, Tag.account_id == account.id)
-                .first()
-            )
-            if existing:
-                tags_reused += 1
-                continue
-
-            tag_name = _build_account_tag_name(account)
-            name_hmac = compute_hmac(tag_name.strip().lower())
-
-            # Dedup by name_hmac (exclude categoria mirrors)
-            existing = (
-                db.query(Tag)
-                .filter(
-                    Tag.user_id == uid,
-                    Tag.name_hmac == name_hmac,
-                    Tag.group_name != "categoria",
-                )
-                .first()
-            )
-            if existing:
-                if not existing.account_id:
-                    existing.account_id = account.id
-                    if existing.group_name != "cuenta":
-                        existing.group_name = "cuenta"
-                    if not dry_run:
-                        db.flush()
-                tags_reused += 1
-                continue
-
-            color = pick_tag_color(db, uid)
-            tag = Tag(
-                name=tag_name,
-                name_hmac=name_hmac,
-                color=color,
-                group_name="cuenta",
-                user_id=uid,
-                account_id=account.id,
-            )
-            if not dry_run:
-                db.add(tag)
-                db.flush()
-            tags_created += 1
-            print(f"  [Account] Created tag: '{tag_name}' (user {uid})")
+            tags_created += created
+            tags_reused += reused
 
         if not dry_run:
             db.commit()

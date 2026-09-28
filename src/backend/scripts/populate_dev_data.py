@@ -775,30 +775,23 @@ def main():
         seed_notifications(db, uid)
 
         print("\n=== Resumen ===")
-        print(
-            f"  Gastos:              {db.query(Expense).filter(Expense.user_id == uid, Expense.is_income == False).count()}"
-        )
-        print(
-            f"  Ingresos:            {db.query(Expense).filter(Expense.user_id == uid, Expense.is_income == True).count()}"
-        )
-        print(f"  Tarjetas:            {db.query(Card).filter(Card.user_id == uid).count()}")
-        print(f"  Cuentas:             {db.query(Account).filter(Account.user_id == uid).count()}")
-        print(
-            f"  Programados:         {db.query(ScheduledExpense).filter(ScheduledExpense.user_id == uid).count()}"
-        )
-        print(
-            f"  Recurrentes:         {db.query(RecurringExpense).filter(RecurringExpense.user_id == uid).count()}"
-        )
-        print(f"  Presupuestos:        {db.query(Budget).filter(Budget.user_id == uid).count()}")
-        print(
-            f"  Inversiones:         {db.query(Investment).filter(Investment.user_id == uid).count()}"
-        )
-        print(
-            f"  Notificaciones:      {db.query(Notification).filter(Notification.user_id == uid).count()}"
-        )
-        print(
-            f"  Cierres de tarjeta:  {db.query(CardClosing).filter(CardClosing.user_id == uid).count()}"
-        )
+        counts = [
+            ("Gastos", db.query(Expense).filter(Expense.user_id == uid, Expense.is_income == False).count()),
+            ("Ingresos", db.query(Expense).filter(Expense.user_id == uid, Expense.is_income == True).count()),
+        ]
+        for label, model in [
+            ("Tarjetas", Card),
+            ("Cuentas", Account),
+            ("Programados", ScheduledExpense),
+            ("Recurrentes", RecurringExpense),
+            ("Presupuestos", Budget),
+            ("Inversiones", Investment),
+            ("Notificaciones", Notification),
+            ("Cierres de tarjeta", CardClosing),
+        ]:
+            counts.append((label, db.query(model).filter(model.user_id == uid).count()))
+        for label, count in counts:
+            print(f"  {label + ':':<22} {count}")
         print("\nListo! Abrí http://localhost:8082 para explorar.")
 
     finally:
