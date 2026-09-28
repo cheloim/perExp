@@ -20,9 +20,7 @@ from app.services.task_tracker import record_task_run
 logger = logging.getLogger(__name__)
 
 
-def _send_telegram_alert(
-    chat_id: str, label: str, pct: float, spent: float, budget: float
-):
+def _send_telegram_alert(chat_id: str, label: str, pct: float, spent: float, budget: float):
     """Send budget alert via Telegram for a category or macro group."""
     try:
         from app.telegram_bot import send_message_to_chat
