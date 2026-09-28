@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect, useCallback, Fragment } from "react";
+import { useState, useMemo, useRef, Fragment } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUndoToast } from "../hooks/useUndoToast";
 import {
@@ -140,84 +140,38 @@ export default function ExpensesPage() {
     setVisibleCount(100);
   }
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["expenses"] });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["expenses-list"] });
 
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const reloadExpenses = useCallback(() => {
-    return getExpenses({
-      category_id: filterCategory,
-      uncategorized: filterUncategorized || undefined,
-      person: filterPerson,
-      date_from: filterDateFrom,
-      date_to: filterDateTo,
-      tag_id: filterTagId,
-      untagged: filterUntagged || undefined,
-      cuenta_id: filterCuentaId,
-      sin_cuenta: filterSinCuenta || undefined,
-      limit: visibleCount,
-    })
-      .then((data) => {
-        setExpenses(data);
-      })
-      .catch(() => {});
-  }, [
-    filterCategory,
-    filterUncategorized,
-    filterPerson,
-    filterDateFrom,
-    filterDateTo,
-    filterTagId,
-    filterUntagged,
-    filterCuentaId,
-    filterSinCuenta,
-    visibleCount,
-  ]);
-
-  useEffect(() => {
-    console.log(
-      "[ExpensesPage] useEffect fired. filterKey:",
+  const { data: expenses = [], isLoading } = useQuery<Expense[]>({
+    queryKey: [
+      "expenses-list",
       filterCategory,
-      "date_from:",
+      filterUncategorized,
+      filterPerson,
       filterDateFrom,
-      "date_to:",
       filterDateTo,
-    );
-    let cancelled = false;
-    setIsLoading(true);
-
-    getExpenses({
-      category_id: filterCategory,
-      uncategorized: filterUncategorized || undefined,
-      person: filterPerson,
-      date_from: filterDateFrom,
-      date_to: filterDateTo,
-      tag_id: filterTagId,
-      untagged: filterUntagged || undefined,
-      cuenta_id: filterCuentaId,
-      sin_cuenta: filterSinCuenta || undefined,
-      limit: visibleCount,
-    })
-      .then((data) => {
-        console.log("[ExpensesPage] Success:", data.length, "expenses");
-        if (!cancelled) {
-          setExpenses(data);
-          setIsLoading(false);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          console.error("[ExpensesPage] Error fetching expenses:", err);
-          setExpenses([]);
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [filterKey, visibleCount]);
+      filterTagId,
+      filterUntagged,
+      filterCuentaId,
+      filterSinCuenta,
+      visibleCount,
+    ],
+    queryFn: () =>
+      getExpenses({
+        category_id: filterCategory,
+        uncategorized: filterUncategorized || undefined,
+        person: filterPerson,
+        date_from: filterDateFrom,
+        date_to: filterDateTo,
+        tag_id: filterTagId,
+        untagged: filterUntagged || undefined,
+        cuenta_id: filterCuentaId,
+        sin_cuenta: filterSinCuenta || undefined,
+        limit: visibleCount,
+      }),
+    placeholderData: (prev) => prev,
+    staleTime: 30_000,
+  });
 
   const { data: categories = [] } = useQuery({
     queryKey: ["categories"],
@@ -296,12 +250,11 @@ export default function ExpensesPage() {
       card_id?: number | null;
       account_id?: number | null;
     }) => bulkUpdateFields(ids, updateData),
-    onSuccess: async () => {
-      await reloadExpenses();
+    onSuccess: () => {
+      invalidate();
       clearBulkState();
     },
-    onError: (e: Error) => {
-      console.error("Bulk update failed:", e);
+    onError: () => {
       setSaveError("Error al actualizar");
     },
   });
@@ -309,12 +262,11 @@ export default function ExpensesPage() {
   const bulkTagMut = useMutation({
     mutationFn: ({ ids, tag_id }: { ids: number[]; tag_id: number }) =>
       bulkUpdateTags({ ids, tag_ids: [tag_id], mode: "add" }),
-    onSuccess: async () => {
-      await reloadExpenses();
+    onSuccess: () => {
+      invalidate();
       clearBulkState();
     },
-    onError: (e: Error) => {
-      console.error("Bulk tag update failed:", e);
+    onError: () => {
       setSaveError("Error al actualizar tags");
     },
   });
@@ -342,8 +294,7 @@ export default function ExpensesPage() {
       clearBulkState();
       setBulkDeleteConfirm(false);
     },
-    onError: (e: Error) => {
-      console.error("Bulk delete failed:", e);
+    onError: () => {
       setSaveError("Error al eliminar");
       setBulkDeleteConfirm(false);
     },
@@ -351,8 +302,8 @@ export default function ExpensesPage() {
 
   const createMut = useMutation({
     mutationFn: createExpense,
-    onSuccess: async () => {
-      await reloadExpenses();
+    onSuccess: () => {
+      invalidate();
       setEditing(undefined);
       setSaveError(null);
     },
@@ -362,8 +313,8 @@ export default function ExpensesPage() {
   const updateMut = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<ExpenseCreate> }) =>
       updateExpense(id, data),
-    onSuccess: async () => {
-      await reloadExpenses();
+    onSuccess: () => {
+      invalidate();
       setEditing(undefined);
       setSaveError(null);
     },
@@ -372,8 +323,8 @@ export default function ExpensesPage() {
 
   const deleteMut = useMutation({
     mutationFn: deleteExpense,
-    onSuccess: async () => {
-      await reloadExpenses();
+    onSuccess: () => {
+      invalidate();
     },
   });
 
@@ -543,7 +494,7 @@ export default function ExpensesPage() {
               <button
                 onClick={async () => {
                   await approveAllSuggestions(0.7);
-                  reloadExpenses();
+                  invalidate();
                   refetchSuggestions();
                 }}
                 className="gnome-btn-secondary-round text-xs"
@@ -1287,7 +1238,7 @@ export default function ExpensesPage() {
                                       e.stopPropagation();
                                       const s = suggestionsByExpenseId.get(exp.id)!;
                                       await approveSuggestion(s.id);
-                                      reloadExpenses();
+                                      invalidate();
                                       refetchSuggestions();
                                     }}
                                     className={`px-2 py-1 rounded text-xs font-medium transition ${

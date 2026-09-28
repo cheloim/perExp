@@ -52,7 +52,8 @@ export type IconName =
   | "cash"
   | "wallet"
   | "more"
-  | "investments";
+  | "investments"
+  | "warning";
 
 const icons: Record<IconName, string> = {
   bot: "M12 2a2 2 0 0 1 2 2v1h3a3 3 0 0 1 3 3v3a3 3 0 0 1-3 3h-1v1a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-1H6a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3h3V4a2 2 0 0 1 2-2h0zM9 8.5a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zM15 8.5a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zM9 14h6v1a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-1z",
@@ -122,6 +123,7 @@ const icons: Record<IconName, string> = {
   wallet: "M21 12V7H5a2 2 0 010-4h14v4M3 5v14a2 2 0 002 2h16v-5M18 12a1 1 0 100 2 1 1 0 000-2z",
   more: "M12 12h.01M19 12h.01M5 12h.01",
   investments: "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5",
+  warning: "M12 2L1 21h22L12 2zm0 4l7.53 13H4.47L12 6zm-1 5v4m0 4h2",
 };
 
 interface SymbolicIconProps {

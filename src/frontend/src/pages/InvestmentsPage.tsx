@@ -1095,23 +1095,13 @@ export default function InvestmentsPage() {
                 const isOpen = brokerDropdownOpen === b.broker;
                 return (
                   <div key={b.broker} className="relative" data-broker-dropdown>
-                    <div
-                      role="button"
-                      tabIndex={0}
+                    <button
+                      type="button"
                       onClick={() => {
                         if (isSelected) {
                           setBrokerFilter(null);
                         } else {
                           setBrokerFilter(b.broker);
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          if (isSelected) {
-                            setBrokerFilter(null);
-                          } else {
-                            setBrokerFilter(b.broker);
-                          }
                         }
                       }}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
@@ -1131,7 +1121,7 @@ export default function InvestmentsPage() {
                       >
                         ▼
                       </button>
-                    </div>
+                    </button>
                     {/* Dropdown */}
                     {isOpen && (
                       <div className="absolute top-full left-0 mt-1 w-48 bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-lg py-1 z-20">

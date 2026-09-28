@@ -45,7 +45,23 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+      // Load Telegram Web App script only inside Telegram Mini Apps.
+      // Avoids a synchronous 300-500ms blocking request for all other users.
+      (function () {
+        var ua = navigator.userAgent || "";
+        var isTg =
+          window.Telegram && window.Telegram.WebApp
+            ? true
+            : ua.indexOf("Telegram") !== -1 ||
+              (window.location.hash && window.location.hash.indexOf("tgWebAppData") !== -1);
+        if (isTg) {
+          var s = document.createElement("script");
+          s.src = "https://telegram.org/js/telegram-web-app.js";
+          document.head.appendChild(s);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

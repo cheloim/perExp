@@ -146,6 +146,12 @@ function ReportsTab() {
                     : "border-[var(--border-color)] bg-[var(--color-base-container)]"
                 }`}
                 onClick={() => isReady && downloadReportPdf(r.month)}
+                onKeyDown={(e) => {
+                  if (isReady && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    downloadReportPdf(r.month);
+                  }
+                }}
                 role={isReady ? "button" : undefined}
                 tabIndex={isReady ? 0 : undefined}
               >

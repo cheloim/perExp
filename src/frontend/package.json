@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.59.0",
+    "@tanstack/react-virtual": "^3.14.13",
     "@types/d3-hierarchy": "^3.1.7",
     "axios": "^1.7.7",
     "d3-hierarchy": "^3.1.2",
@@ -35,7 +36,8 @@
     "react-dom": "^18.3.1",
     "react-joyride": "^3.2.0",
     "react-router-dom": "^7.14.2",
-    "recharts": "^2.13.3"
+    "recharts": "^2.13.3",
+    "web-vitals": "^6.2.2"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

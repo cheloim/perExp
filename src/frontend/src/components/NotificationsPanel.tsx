@@ -141,14 +141,7 @@ export default function NotificationsPanel({ onClose }: Props) {
 
   return (
     <>
-      <div
-        className="fixed inset-0 z-30 bg-black/10"
-        onClick={onClose}
-        onKeyDown={(e) => e.key === "Escape" && onClose()}
-        role="button"
-        tabIndex={-1}
-        aria-label="Cerrar notificaciones"
-      />
+      <div className="fixed inset-0 z-30 bg-black/10" onClick={onClose} aria-hidden="true" />
 
       <div
         className="fixed bottom-[calc(3.5rem+var(--browser-bottom-inset,0px))] left-4 z-40 w-80 max-w-[calc(100vw-2rem)] bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-gnome-lg flex flex-col max-h-[480px]"
@@ -375,7 +368,10 @@ export default function NotificationsPanel({ onClose }: Props) {
                 key={n.id}
                 onClick={() => isClickable && handleNotificationClick(n)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && isClickable) handleNotificationClick(n);
+                  if ((e.key === "Enter" || e.key === " ") && isClickable) {
+                    e.preventDefault();
+                    handleNotificationClick(n);
+                  }
                 }}
                 className={`px-4 py-3 border-b border-[var(--border-color)] last:border-0 ${
                   !n.read ? "bg-[var(--color-primary)]/8" : ""
