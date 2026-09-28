@@ -329,12 +329,36 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* Preserve meaningful transitions (modals, focus, state changes) at reduced speed */
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+
+  /* Keep transitions functional but instant — state changes still register */
+  .transition-all,
+  .transition-colors,
+  .transition,
+  .transition-opacity,
+  .transition-transform,
+  .transition-shadow {
     transition-duration: 0.01ms !important;
+  }
+
+  /* Preserve modal animations — users need to see state change */
+  .animate-modal-backdrop,
+  .animate-modal-content {
+    animation-duration: 0.01ms !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  /* Preserve spinners — they communicate loading state */
+  .spinner,
+  .animate-spin {
+    animation-duration: 1.2s !important;
   }
 }
 
@@ -396,6 +420,9 @@
     background-repeat: no-repeat;
     background-position: right 0.75rem center;
     padding-right: 2rem;
+  }
+  .dark select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23b5b5b5' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
   }
   select option {
     background: var(--color-base-container);
@@ -939,6 +966,9 @@
 }
 .select-input:hover {
   border-color: var(--text-secondary);
+}
+.dark .select-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23b5b5b5' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
 }
 .select-input:focus {
   outline: none;

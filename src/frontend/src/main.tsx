@@ -3,8 +3,11 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "./context/ThemeContext";
+import { initVitals } from "./vitals";
 import App from "./App";
 import "./index.css";
+
+initVitals();
 
 const queryClient = new QueryClient({
   defaultOptions: {

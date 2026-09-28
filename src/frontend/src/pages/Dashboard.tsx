@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, memo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
@@ -47,7 +47,7 @@ const FALLBACK_COLORS = [
   "#06b6d4", // cyan
 ];
 
-export function CardRow({
+export const CardRow = memo(function CardRow({
   cardName,
   bank,
   total,
@@ -113,7 +113,7 @@ export function CardRow({
       <span className="text-sm font-semibold text-primary">{formatCurrency(total)}</span>
     </div>
   );
-}
+});
 
 export default function Dashboard() {
   const now = new Date();
@@ -159,13 +159,13 @@ export default function Dashboard() {
     staleTime: 60_000,
   });
 
-  // Expenses for current month
+  // Expenses for current month (reduced limit — category breakdown comes from dashData.by_category)
   const { data: monthExpenses = [] } = useQuery({
     queryKey: ["expenses-month", month],
     queryFn: () =>
       getExpenses({
         month,
-        limit: 500,
+        limit: 200,
       }),
     staleTime: 30_000,
     placeholderData: (prev) => prev,
