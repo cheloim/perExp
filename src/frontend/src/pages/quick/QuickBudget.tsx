@@ -75,7 +75,8 @@ export default function QuickBudget() {
                 : status === "warning"
                   ? "var(--gnome-orange-4)"
                   : "var(--gnome-green-5)";
-            const iconName: IconName = g.name === "necesidades" ? "home" : g.name === "gustos" ? "gift" : "wallet";
+            const iconName: IconName =
+              g.name === "necesidades" ? "home" : g.name === "gustos" ? "gift" : "wallet";
 
             return (
               <div
@@ -84,7 +85,9 @@ export default function QuickBudget() {
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm"><SymbolicIcon name={iconName} size={16} /></span>
+                    <span className="text-sm">
+                      <SymbolicIcon name={iconName} size={16} />
+                    </span>
                     <span className="text-xs font-semibold text-[var(--text-primary)]">
                       {g.display_name}
                     </span>

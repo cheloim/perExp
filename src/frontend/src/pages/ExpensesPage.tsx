@@ -1110,7 +1110,10 @@ export default function ExpensesPage() {
                                 }}
                               >
                                 {getCategoryIcon(exp.category_name) ? (
-                                  <SymbolicIcon name={getCategoryIcon(exp.category_name)!} size={14} />
+                                  <SymbolicIcon
+                                    name={getCategoryIcon(exp.category_name)!}
+                                    size={14}
+                                  />
                                 ) : (
                                   <span
                                     className="w-2 h-2 rounded-full"
