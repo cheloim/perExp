@@ -42,6 +42,47 @@ TimeoutStopSec=60
 WantedBy=multi-user.target
 EOF
 
+# Create wrapper script for heal logic
+cat > "/usr/local/bin/oikonomia-monitoring.sh" << 'WRAPPER'
+#!/bin/bash
+export PATH="/root/.local/bin:$PATH"
+cd /opt/creditcardanalyzer
+set -a
+source .env
+set +a
+
+COMPOSE_FILE="docker-compose.monitoring.yml"
+PROJECT="oikonomia-monitoring"
+
+case "$1" in
+  start)
+    podman-compose -p $PROJECT -f $COMPOSE_FILE up -d --remove-orphans
+    ;;
+  stop)
+    podman-compose -p $PROJECT -f $COMPOSE_FILE down
+    ;;
+  reload)
+    podman-compose -p $PROJECT -f $COMPOSE_FILE up -d --force-recreate --remove-orphans
+    ;;
+  heal)
+    # Check if Alloy is actually responding (not just "running")
+    if ! podman exec ${PROJECT}_alloy_1 wget -qO- http://localhost:12345/metrics >/dev/null 2>&1; then
+      echo "$(date -Iseconds) Alloy not responding — restarting all monitoring containers"
+      podman-compose -p $PROJECT -f $COMPOSE_FILE down 2>/dev/null
+      podman rm -f $(podman ps -a --filter name=${PROJECT} -q) 2>/dev/null
+      podman-compose -p $PROJECT -f $COMPOSE_FILE up -d --remove-orphans
+    else
+      echo "$(date -Iseconds) Alloy healthy"
+    fi
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|reload|heal}"
+    exit 1
+    ;;
+esac
+WRAPPER
+chmod +x "/usr/local/bin/oikonomia-monitoring.sh"
+
 # Create a health-check timer that restarts monitoring if containers die
 cat > "/etc/systemd/system/${SERVICE_NAME}-heal.service" << EOF
 [Unit]
@@ -50,7 +91,7 @@ After=${SERVICE_NAME}.service
 
 [Service]
 Type=oneshot
-ExecStart=/bin/bash -c 'cd /opt/creditcardanalyzer && source .env && podman-compose -f ${COMPOSE_FILE} up -d --remove-orphans'
+ExecStart=/usr/local/bin/oikonomia-monitoring.sh heal
 EnvironmentFile=${ENV_FILE}
 EOF
 
