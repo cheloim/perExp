@@ -1,0 +1,486 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "skipped",
+  "type": "architecture",
+  "quality": "showcase",
+  "startedAt": "2026-09-29T01:43:57.375Z",
+  "specification": {
+    "path": "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.json",
+    "sha256": "4a2656d60bd3f1110038664b448f91673f573bbec61486c321846d0a659710c2",
+    "bytes": 4594
+  },
+  "artifact": {
+    "path": "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.html",
+    "sha256": "bc917f372a34d44117409371c3f864f0f72c2981a0cc8973548e69d9cc6f357a",
+    "bytes": 775041
+  },
+  "stages": {
+    "validate": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": null,
+      "execution": "embedded-in-deliver",
+      "command": [
+        "/home/chelo/.nvm/versions/node/v26.4.0/bin/node",
+        "/home/chelo/.config/opencode/skills/archify/bin/archify.mjs",
+        "deliver",
+        "architecture",
+        "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.json",
+        "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.html",
+        "--quality",
+        "showcase",
+        "--json"
+      ],
+      "receipt": {
+        "schemaVersion": 1,
+        "ok": true,
+        "command": "validate",
+        "specification": {
+          "sha256": "4a2656d60bd3f1110038664b448f91673f573bbec61486c321846d0a659710c2",
+          "bytes": 4594
+        },
+        "validation": {
+          "checksPassed": 9,
+          "checkCount": 9,
+          "compositionProfile": "showcase",
+          "compositionStatus": "pass",
+          "errors": 0,
+          "warnings": 0
+        }
+      }
+    },
+    "deliver": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 480,
+      "command": [
+        "/home/chelo/.nvm/versions/node/v26.4.0/bin/node",
+        "/home/chelo/.config/opencode/skills/archify/bin/archify.mjs",
+        "deliver",
+        "architecture",
+        "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.json",
+        "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.html",
+        "--quality",
+        "showcase",
+        "--json"
+      ],
+      "receipt": {
+        "schemaVersion": 1,
+        "receiptId": "ac39f761-f426-40d8-b50b-e1f4fffc45de",
+        "ok": true,
+        "command": "deliver",
+        "type": "architecture",
+        "input": "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.json",
+        "output": "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.html",
+        "specification": {
+          "sha256": "4a2656d60bd3f1110038664b448f91673f573bbec61486c321846d0a659710c2",
+          "bytes": 4594
+        },
+        "artifact": {
+          "sha256": "bc917f372a34d44117409371c3f864f0f72c2981a0cc8973548e69d9cc6f357a",
+          "bytes": 775041
+        },
+        "validation": {
+          "checksPassed": 9,
+          "checkCount": 9,
+          "compositionProfile": "showcase",
+          "compositionStatus": "pass",
+          "errors": 0,
+          "warnings": 0
+        }
+      }
+    },
+    "check": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 160,
+      "command": [
+        "/home/chelo/.nvm/versions/node/v26.4.0/bin/node",
+        "/home/chelo/.config/opencode/skills/archify/bin/archify.mjs",
+        "check",
+        "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.html",
+        "--require-provenance"
+      ],
+      "receipt": {
+        "ok": true,
+        "file": "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.html",
+        "artifact": {
+          "sha256": "bc917f372a34d44117409371c3f864f0f72c2981a0cc8973548e69d9cc6f357a",
+          "bytes": 775041
+        },
+        "checks": [
+          {
+            "name": "single_svg",
+            "ok": true,
+            "details": [
+              "found 1 <svg> block(s)"
+            ]
+          },
+          {
+            "name": "finite_svg",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "orthogonal_arrows",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "label_route_clearance",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "relationship_crossings",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "relationship_corridors",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "container_border_runs",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "route_rhythm",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "legend_clearance",
+            "ok": true,
+            "details": []
+          }
+        ],
+        "composition": {
+          "schemaVersion": 1,
+          "profile": "showcase",
+          "status": "pass",
+          "summary": {
+            "errors": 0,
+            "warnings": 0
+          },
+          "metrics": {
+            "properCrossings": 0,
+            "resolvedCrossovers": 3,
+            "ambiguousCorridors": 0,
+            "arrowheadCollisions": 0,
+            "containerBorderRuns": 0,
+            "labelRouteClearanceIssues": 0,
+            "labelCanvasOverflowIssues": 0,
+            "minLabelRouteClearance": 5,
+            "desktopReadabilityIssues": 0,
+            "viewportHeightIssues": 0,
+            "minProjectedNodeTextPx": 7.5,
+            "maxBends": 4,
+            "routesOverSuggestedBends": 4,
+            "maxStretch": 1.33,
+            "routesOverSuggestedStretch": 0,
+            "minSegmentPx": 16,
+            "minInteriorSegmentPx": 16,
+            "shortSegmentCount": 0,
+            "shortEndpointSegmentCount": 0,
+            "shortInteriorSegmentCount": 0,
+            "microSegmentCount": 0
+          },
+          "suggestedLimits": {
+            "bendsPerRelationship": 2,
+            "stretch": 1.35,
+            "segmentPx": 16,
+            "microSegmentPx": 8
+          },
+          "routeReview": {
+            "crossings": [
+              {
+                "left": {
+                  "id": "api-to-redis",
+                  "from": "api",
+                  "to": "redis",
+                  "label": "Celery enqueue",
+                  "collectionIndex": 5,
+                  "artifactIndex": 6
+                },
+                "right": {
+                  "id": "celery-to-postgres",
+                  "from": "celery",
+                  "to": "postgres",
+                  "label": "write results",
+                  "collectionIndex": 7,
+                  "artifactIndex": 8
+                },
+                "point": [
+                  854,
+                  420
+                ]
+              },
+              {
+                "left": {
+                  "id": "api-to-redis",
+                  "from": "api",
+                  "to": "redis",
+                  "label": "Celery enqueue",
+                  "collectionIndex": 5,
+                  "artifactIndex": 6
+                },
+                "right": {
+                  "id": "api-to-resend",
+                  "from": "api",
+                  "to": "resend",
+                  "label": "emails",
+                  "collectionIndex": 13,
+                  "artifactIndex": 14
+                },
+                "point": [
+                  854,
+                  384
+                ],
+                "sharedNode": "api"
+              },
+              {
+                "left": {
+                  "id": "celery-to-postgres",
+                  "from": "celery",
+                  "to": "postgres",
+                  "label": "write results",
+                  "collectionIndex": 7,
+                  "artifactIndex": 8
+                },
+                "right": {
+                  "id": "api-to-resend",
+                  "from": "api",
+                  "to": "resend",
+                  "label": "emails",
+                  "collectionIndex": 13,
+                  "artifactIndex": 14
+                },
+                "point": [
+                  990,
+                  384
+                ]
+              }
+            ],
+            "detours": [
+              {
+                "relationship": {
+                  "id": "api-to-postgres",
+                  "from": "api",
+                  "to": "postgres",
+                  "label": "SQLAlchemy",
+                  "collectionIndex": 4,
+                  "artifactIndex": 5
+                },
+                "bends": 4,
+                "stretch": 1.33
+              },
+              {
+                "relationship": {
+                  "id": "api-to-redis",
+                  "from": "api",
+                  "to": "redis",
+                  "label": "Celery enqueue",
+                  "collectionIndex": 5,
+                  "artifactIndex": 6
+                },
+                "bends": 3,
+                "stretch": 1
+              },
+              {
+                "relationship": {
+                  "id": "tg-to-bot",
+                  "from": "tg_user",
+                  "to": "bot_thread",
+                  "label": "Webhook",
+                  "collectionIndex": 9,
+                  "artifactIndex": 10
+                },
+                "bends": 4,
+                "stretch": 1.127,
+                "directCorridorBlockers": [
+                  {
+                    "id": "google",
+                    "label": "Google OAuth",
+                    "box": [
+                      250,
+                      120,
+                      130,
+                      60
+                    ]
+                  },
+                  {
+                    "id": "nginx",
+                    "label": "Nginx",
+                    "box": [
+                      460,
+                      120,
+                      140,
+                      60
+                    ]
+                  }
+                ]
+              },
+              {
+                "relationship": {
+                  "id": "api-to-resend",
+                  "from": "api",
+                  "to": "resend",
+                  "label": "emails",
+                  "collectionIndex": 13,
+                  "artifactIndex": 14
+                },
+                "bends": 3,
+                "stretch": 1.084
+              }
+            ]
+          },
+          "leadingSpace": {
+            "measured": true,
+            "emptyTopPx": 90,
+            "emptyTopRatio": 0.125,
+            "occupiedTop": 90,
+            "viewBoxTop": 0,
+            "canvasHeight": 718,
+            "typicalNodeHeight": 60,
+            "reviewSuggested": false
+          },
+          "desktopReadability": {
+            "budgetBasis": "recognized-declared-wide",
+            "readerContract": "declared-wide-v1",
+            "availableDiagramWidth": 1130,
+            "actualBudgetPx": 1130,
+            "actualReaderWidth": 1160,
+            "desiredReaderWidth": 1160,
+            "viewportCap": 1376,
+            "limit": "source-size",
+            "requestedTargetPx": 7.5,
+            "requestedTargetMet": true,
+            "hardFloorPx": 6,
+            "hardFloorMet": true,
+            "minimumOwner": {
+              "kind": "node",
+              "id": "postgres"
+            },
+            "minimumSourceTextPx": 7.5,
+            "minimumProjectedTextPx": 7.5,
+            "semanticTextCount": 43
+          },
+          "issues": []
+        },
+        "provenance": "current",
+        "deliveryReceiptId": "ac39f761-f426-40d8-b50b-e1f4fffc45de"
+      }
+    },
+    "browser-check": {
+      "status": "skipped",
+      "exitCode": 2,
+      "durationMs": 18,
+      "command": [
+        "/home/chelo/.nvm/versions/node/v26.4.0/bin/node",
+        "/home/chelo/.config/opencode/skills/archify/bin/archify.mjs",
+        "browser-check",
+        "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.html",
+        "--json",
+        "--require-provenance"
+      ],
+      "execution": "in-process",
+      "receipt": {
+        "schemaVersion": 1,
+        "ok": false,
+        "command": "browser-check",
+        "evidenceKind": "automated-browser",
+        "status": "skipped",
+        "visualReview": "not-requested",
+        "provenance": "current",
+        "deliveryReceiptId": "ac39f761-f426-40d8-b50b-e1f4fffc45de",
+        "artifact": {
+          "path": "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.html",
+          "sha256": "bc917f372a34d44117409371c3f864f0f72c2981a0cc8973548e69d9cc6f357a",
+          "bytes": 775041
+        },
+        "state": {
+          "detail": "read",
+          "motion": "still"
+        },
+        "chrome": {
+          "status": "unavailable",
+          "executable": null
+        },
+        "diagnostics": [
+          {
+            "code": "viewer/chrome-unavailable",
+            "severity": "warning",
+            "message": "Chrome or Chromium is unavailable. Set ARCHIFY_CHROME to its executable path.",
+            "subject": {
+              "artifact": "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.html"
+            },
+            "evidence": {
+              "executable": null
+            },
+            "supportedFixes": [
+              "set ARCHIFY_CHROME to a Chrome or Chromium executable and rerun browser-check"
+            ]
+          }
+        ],
+        "containment": {
+          "status": "skipped",
+          "policy": "fit-or-reader-declared-readable-vertical-scroll",
+          "viewports": []
+        },
+        "themeStates": {
+          "status": "skipped",
+          "viewports": []
+        },
+        "readability": {
+          "status": "skipped",
+          "minimumProjectedNodeTextPx": 6,
+          "viewports": []
+        },
+        "viewerChrome": {
+          "status": "skipped",
+          "viewports": []
+        },
+        "captures": {
+          "status": "not-requested",
+          "screenshots": [],
+          "contactSheet": null
+        },
+        "sidecars": {
+          "receipt": "oikonomia-architecture.browser-check.json",
+          "files": []
+        },
+        "error": "Chrome or Chromium is unavailable. Set ARCHIFY_CHROME to its executable path."
+      }
+    }
+  },
+  "diagnostics": [
+    {
+      "code": "viewer/chrome-unavailable",
+      "severity": "warning",
+      "message": "Chrome or Chromium is unavailable. Set ARCHIFY_CHROME to its executable path.",
+      "subject": {
+        "artifact": "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.html"
+      },
+      "evidence": {
+        "executable": null
+      },
+      "supportedFixes": [
+        "set ARCHIFY_CHROME to a Chrome or Chromium executable and rerun browser-check"
+      ]
+    }
+  ],
+  "evidence": {
+    "receipt": "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.finalize.json",
+    "summaryReceipt": "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.finalize-summary.json",
+    "browserCheckReceipt": "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.browser-check.json"
+  },
+  "visualReview": "not-requested",
+  "failedStage": "browser-check",
+  "finishedAt": "2026-09-29T01:43:58.147Z",
+  "durationMs": 772
+}

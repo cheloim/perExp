@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "skipped",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.json",
+    "sha256": "4a2656d60bd3f1110038664b448f91673f573bbec61486c321846d0a659710c2",
+    "bytes": 4594
+  },
+  "artifact": {
+    "path": "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.html",
+    "sha256": "bc917f372a34d44117409371c3f864f0f72c2981a0cc8973548e69d9cc6f357a",
+    "bytes": 775041
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "skipped"
+  },
+  "failedStage": "browser-check",
+  "diagnostics": [
+    {
+      "code": "viewer/chrome-unavailable",
+      "severity": "warning",
+      "message": "Chrome or Chromium is unavailable. Set ARCHIFY_CHROME to its executable path.",
+      "subject": {
+        "artifact": "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.html"
+      },
+      "evidence": {
+        "executable": null
+      },
+      "supportedFixes": [
+        "set ARCHIFY_CHROME to a Chrome or Chromium executable and rerun browser-check"
+      ]
+    }
+  ],
+  "diagnosticSummary": {
+    "total": 1,
+    "shown": 1,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.finalize.json",
+    "summaryReceipt": "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.finalize-summary.json",
+    "browserCheckReceipt": "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.browser-check.json"
+  },
+  "visualReview": "not-requested",
+  "durationMs": 772
+}

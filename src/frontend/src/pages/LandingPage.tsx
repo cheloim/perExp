@@ -518,6 +518,11 @@ export default function LandingPage() {
               <h4 className="font-semibold text-[var(--text-primary)] mb-3">Legal</h4>
               <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
                 <li>
+                  <a href="/tos" className="hover:text-[var(--text-primary)] transition">
+                    Términos y Condiciones
+                  </a>
+                </li>
+                <li>
                   <a href="/privacy" className="hover:text-[var(--text-primary)] transition">
                     Política de Privacidad
                   </a>
@@ -1438,9 +1443,9 @@ function SecurityItem({
       <div className="w-10 h-10 rounded-xl bg-[var(--gnome-green-1)]/20 flex items-center justify-center mb-3">
         <SymbolicIcon name={icon} size={20} className="text-[var(--gnome-green-5)]" />
       </div>
-      <h4 className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>
+      <h3 className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>
         {title}
-      </h4>
+      </h3>
       <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
         {description}
       </p>
@@ -1452,11 +1457,12 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <button
-      onClick={() => setOpen(!open)}
-      className="w-full text-left p-5 rounded-xl border border-[var(--border-color)] bg-[var(--color-surface)] hover:border-[var(--color-primary)]/20 transition-colors"
-    >
-      <div className="flex items-center justify-between gap-3">
+    <div className="rounded-xl border border-[var(--border-color)] bg-[var(--color-surface)] hover:border-[var(--color-primary)]/20 transition-colors">
+      <button
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        className="w-full text-left p-5 flex items-center justify-between gap-3"
+      >
         <h3 className="font-semibold text-[var(--text-primary)]">{question}</h3>
         <SymbolicIcon
           name="chevron"
@@ -1465,14 +1471,14 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
             open ? "rotate-90" : ""
           }`}
         />
-      </div>
+      </button>
       <div
-        className={`overflow-hidden transition-all duration-300 ${
-          open ? "max-h-40 mt-3" : "max-h-0"
+        className={`overflow-hidden transition-all duration-300 px-5 ${
+          open ? "max-h-40 pb-5" : "max-h-0"
         }`}
       >
         <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{answer}</p>
       </div>
-    </button>
+    </div>
   );
 }

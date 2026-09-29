@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "ac39f761-f426-40d8-b50b-e1f4fffc45de",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.json",
+  "output": "/home/chelo/creditCardAnalyzer/.archify/oikonomia-architecture.html",
+  "specification": {
+    "sha256": "4a2656d60bd3f1110038664b448f91673f573bbec61486c321846d0a659710c2",
+    "bytes": 4594
+  },
+  "artifact": {
+    "sha256": "bc917f372a34d44117409371c3f864f0f72c2981a0cc8973548e69d9cc6f357a",
+    "bytes": 775041
+  }
+}

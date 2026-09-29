@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Oikonomia — System Architecture",
+    "output": "oikonomia-architecture.html",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    { "id": "user", "type": "external", "label": "Usuario", "sublabel": "Browser / Mobile", "pos": [40, 300], "size": [120, 60] },
+    { "id": "tg_user", "type": "external", "label": "Telegram", "sublabel": "@NikoFin_bot", "pos": [40, 120], "size": [120, 60] },
+    { "id": "wa_user", "type": "external", "label": "WhatsApp", "sublabel": "Meta Cloud API", "pos": [40, 480], "size": [120, 60] },
+    { "id": "google", "type": "security", "label": "Google OAuth", "sublabel": "Authentication", "pos": [250, 120], "size": [130, 60] },
+    { "id": "landing", "type": "frontend", "label": "Landing Page", "sublabel": "oikonomia.ar", "pos": [250, 300], "size": [130, 60] },
+    { "id": "frontend", "type": "frontend", "label": "React SPA", "sublabel": "platform.oikonomia.ar", "pos": [460, 300], "size": [140, 60] },
+    { "id": "nginx", "type": "cloud", "label": "Nginx", "sublabel": "Reverse Proxy + SSL", "pos": [460, 120], "size": [140, 60] },
+    { "id": "api", "type": "backend", "label": "FastAPI", "sublabel": "22 Routers · 80+ endpoints", "pos": [680, 300], "size": [150, 60] },
+    { "id": "bot_thread", "type": "backend", "label": "Telegram Bot", "sublabel": "Daemon thread", "pos": [680, 120], "size": [150, 60] },
+    { "id": "celery", "type": "backend", "label": "Celery Worker", "sublabel": "Imports · Scheduled · Reports", "pos": [680, 480], "size": [150, 60] },
+    { "id": "gemini", "type": "external", "label": "Gemini Flash", "sublabel": "LLM · Categorization", "pos": [920, 120], "size": [140, 60] },
+    { "id": "postgres", "type": "database", "label": "PostgreSQL", "sublabel": "20+ tables · Encrypted fields", "pos": [920, 300], "size": [140, 60] },
+    { "id": "redis", "type": "database", "label": "Redis", "sublabel": "Broker · Locks · Cache", "pos": [920, 480], "size": [140, 60] },
+    { "id": "resend", "type": "external", "label": "Resend", "sublabel": "Transactional Email", "pos": [920, 600], "size": [140, 50] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Linode Server", "wraps": ["nginx", "frontend", "api", "bot_thread", "celery", "postgres", "redis"] }
+  ],
+  "connections": [
+    { "id": "user-to-landing", "from": "user", "to": "landing", "label": "HTTPS", "variant": "emphasis" },
+    { "id": "landing-to-frontend", "from": "landing", "to": "frontend", "label": "redirect" },
+    { "id": "frontend-to-nginx", "from": "frontend", "to": "nginx", "label": "SPA + API proxy" },
+    { "id": "nginx-to-api", "from": "nginx", "to": "api", "label": "proxy_pass :8000" },
+    { "id": "api-to-postgres", "from": "api", "to": "postgres", "label": "SQLAlchemy" },
+    { "id": "api-to-redis", "from": "api", "to": "redis", "label": "Celery enqueue", "variant": "dashed" },
+    { "id": "redis-to-celery", "from": "redis", "to": "celery", "label": "task queue" },
+    { "id": "celery-to-postgres", "from": "celery", "to": "postgres", "label": "write results" },
+    { "id": "api-to-gemini", "from": "api", "to": "gemini", "label": "categorize · analyze", "variant": "dashed" },
+    { "id": "tg-to-bot", "from": "tg_user", "to": "bot_thread", "label": "Webhook", "variant": "emphasis" },
+    { "id": "bot-to-api", "from": "bot_thread", "to": "api", "label": "internal" },
+    { "id": "wa-to-api", "from": "wa_user", "to": "api", "label": "Webhook", "variant": "emphasis" },
+    { "id": "google-to-frontend", "from": "google", "to": "frontend", "label": "OAuth redirect", "variant": "security" },
+    { "id": "api-to-resend", "from": "api", "to": "resend", "label": "emails", "variant": "dashed" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Frontend", "items": ["React 18 + TypeScript + Vite", "TanStack Query v5 · Recharts", "GNOME HIG-inspired theming", "Landing at oikonomia.ar · App at platform.oikonomia.ar"] },
+    { "dot": "emerald", "title": "Backend", "items": ["FastAPI + SQLAlchemy 2 + Pydantic v2", "22 routers · JWT auth · SSE notifications", "Telegram bot as daemon thread", "WhatsApp bot via Meta Cloud API"] },
+    { "dot": "amber", "title": "Background", "items": ["Celery: PDF/CSV/XLSX import via Gemini", "Scheduled expenses · Weekly reports", "Investment price refresh (Yahoo Finance)"] },
+    { "dot": "rose", "title": "Security", "items": ["Field-level encryption (AES + HMAC)", "bcrypt passwords · JWT sessions", "Rate limiting · Account lockout", "Google OAuth · Telegram WebApp auth"] }
+  ]
+}

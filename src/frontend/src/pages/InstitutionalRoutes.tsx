@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router-dom";
 
 const LandingPage = lazy(() => import("./LandingPage"));
 const PrivacyPage = lazy(() => import("./PrivacyPage"));
+const TermsPage = lazy(() => import("./TermsPage"));
 const GuidePage = lazy(() => import("./GuidePage"));
 const GuideBudgetingPage = lazy(() => import("./GuideBudgetingPage"));
 const GuideSmartImportPage = lazy(() => import("./GuideSmartImportPage"));
@@ -24,6 +25,7 @@ export default function InstitutionalRoutes() {
     <Suspense>
       <Routes>
         <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/tos" element={<TermsPage />} />
         <Route path="/guide" element={<GuidePage />} />
         <Route path="/guide/budgeting" element={<GuideBudgetingPage />} />
         <Route path="/guide/smart-import" element={<GuideSmartImportPage />} />
