@@ -202,9 +202,7 @@ def _parse_signed_request(signed_request: str) -> dict | None:
         return None
 
     # Compute expected signature
-    expected_sig = hmac.new(
-        APP_SECRET.encode(), payload_b64.encode(), hashlib.sha256
-    ).digest()
+    expected_sig = hmac.new(APP_SECRET.encode(), payload_b64.encode(), hashlib.sha256).digest()
 
     if not hmac.compare_digest(received_sig, expected_sig):
         return None
@@ -242,24 +240,18 @@ async def delete_user_callback(request: Request):
 
     if not signed_request:
         logger.warning("[WA_DELETE] Missing signed_request parameter")
-        return JSONResponse(
-            content={"error": "Missing signed_request"}, status_code=400
-        )
+        return JSONResponse(content={"error": "Missing signed_request"}, status_code=400)
 
     # Verify and decode
     payload = _parse_signed_request(str(signed_request))
     if not payload:
         logger.warning("[WA_DELETE] Invalid signed_request")
-        return JSONResponse(
-            content={"error": "Invalid signed_request"}, status_code=403
-        )
+        return JSONResponse(content={"error": "Invalid signed_request"}, status_code=403)
 
     user_id = payload.get("user_id")
     if not user_id:
         logger.warning("[WA_DELETE] No user_id in signed_request payload")
-        return JSONResponse(
-            content={"error": "Missing user_id in payload"}, status_code=400
-        )
+        return JSONResponse(content={"error": "Missing user_id in payload"}, status_code=400)
 
     logger.info("[WA_DELETE] Deletion request for WhatsApp user_id=%s", user_id)
 
@@ -285,9 +277,7 @@ async def delete_user_callback(request: Request):
             logger.info("[WA_DELETE] Deleted user %s for WhatsApp user_id=%s", user.id, user_id)
     except Exception as e:
         logger.error("[WA_DELETE] Error deleting user: %s", e, exc_info=True)
-        return JSONResponse(
-            content={"error": "Internal error during deletion"}, status_code=500
-        )
+        return JSONResponse(content={"error": "Internal error during deletion"}, status_code=500)
     finally:
         db.close()
 
