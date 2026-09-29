@@ -921,7 +921,7 @@ export default function ExpensesPage() {
                   Descripción <SortIcon field="description" sort={sort} />
                 </th>
                 <th
-                  className={thClass("category")}
+                  className={thClass("category") + " hidden sm:table-cell"}
                   onClick={() =>
                     setSort({
                       field: "category",
@@ -958,7 +958,7 @@ export default function ExpensesPage() {
                       <td className="px-4 py-3">
                         <div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse w-40" />
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 hidden sm:table-cell">
                         <div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse w-20" />
                       </td>
                       <td className="px-3 py-3 hidden md:table-cell">
@@ -1086,7 +1086,7 @@ export default function ExpensesPage() {
                                   </span>
                                 )}
                                 <span className="flex items-center gap-1 min-w-0 max-w-full">
-                                  <span className="text-[var(--text-primary)] truncate">
+                                  <span className="text-[var(--text-primary)] sm:truncate">
                                     {titleCase(exp.description)}
                                   </span>
                                   {exp.installment_number && exp.installment_total && (
@@ -1140,8 +1140,23 @@ export default function ExpensesPage() {
                                 </div>
                               )}
                             </div>
-                            {/* Mobile: cuenta chip + otros tags under title */}
+                            {/* Mobile: category + cuenta chip + otros tags under title */}
                             <div className="text-xs flex gap-1.5 items-center flex-wrap md:hidden">
+                              {exp.category_name ? (
+                                <span
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium"
+                                  style={{
+                                    backgroundColor: (exp.category_color || "#9a9996") + "1F",
+                                    color: "var(--text-primary)",
+                                  }}
+                                >
+                                  <span
+                                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: exp.category_color || "#9a9996" }}
+                                  />
+                                  {exp.category_name}
+                                </span>
+                              ) : null}
                               {(() => {
                                 const cuentaTag = exp.tags?.find((t) => t.group_name === "cuenta");
                                 return cuentaTag ? (
@@ -1207,7 +1222,7 @@ export default function ExpensesPage() {
                                 ))}
                             </div>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 hidden sm:table-cell">
                             <button
                               type="button"
                               onClick={(e) => {
