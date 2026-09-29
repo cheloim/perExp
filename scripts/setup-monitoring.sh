@@ -70,7 +70,7 @@ case "$1" in
     # Grace period: wait 60s after container start before restarting
     if ! curl -sf http://localhost:12345/metrics >/dev/null 2>&1; then
       # Check if containers were recently started (within 60s)
-      STARTED=$(podman inspect ${PROJECT}_alloy_1 --format '{{.State.StartedAt}}' 2>/dev/null)
+      STARTED=$(podman inspect ${PROJECT}_alloy_1 --format '{{.State.StartedAt}}' 2>/dev/null | cut -d. -f1)
       if [ -n "$STARTED" ]; then
         STARTED_EPOCH=$(date -d "$STARTED" +%s 2>/dev/null || echo 0)
         NOW_EPOCH=$(date +%s)
