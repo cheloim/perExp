@@ -172,6 +172,7 @@ jobs:
           build-args: |
             VITE_APP_ENV=production
             VITE_GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+            VITE_TELEGRAM_OIDC_CLIENT_ID=${{ secrets.TELEGRAM_OIDC_CLIENT_ID }}
           tags: |
             ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
             ${{ env.FRONTEND_IMAGE }}:latest

@@ -38,6 +38,7 @@ const InstallmentsPage = lazy(() => import("./pages/InstallmentsPage"));
 const InvestmentsPage = lazy(() => import("./pages/InvestmentsPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const OAuthCallbackPage = lazy(() => import("./pages/OAuthCallbackPage"));
+const TelegramCallbackPage = lazy(() => import("./pages/TelegramCallbackPage"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 const TermsPage = lazy(() => import("./pages/TermsPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
@@ -178,6 +179,14 @@ export default function App() {
     return (
       <Suspense>
         <OAuthCallbackPage />
+      </Suspense>
+    );
+  }
+
+  if (location.pathname === "/auth/telegram/callback") {
+    return (
+      <Suspense>
+        <TelegramCallbackPage />
       </Suspense>
     );
   }

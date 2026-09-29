@@ -23,6 +23,8 @@ from app.schemas import (
     OAuthRequest,
     ResetPasswordRequest,
     TelegramLoginWidgetRequest,
+    TelegramOidcLinkRequest,
+    TelegramOidcRequest,
     TelegramWebAppRequest,
     Token,
     UserCreate,
@@ -497,6 +499,169 @@ def telegram_widget_login(
     _log_audit(db, user.id, "telegram_widget_login", request)
     LOGIN_ATTEMPTS.labels(method="telegram_widget", status="success").inc()
     return Token(access_token=create_access_token(user.id), token_type="bearer")
+
+
+@router.post(
+    "/telegram/oidc",
+    response_model=Token,
+    summary="Login via Telegram OpenID Connect",
+    description="Exchanges an OIDC authorization code for a Telegram id_token, verifies it, and returns a JWT.",
+)
+async def telegram_oidc_login(
+    body: TelegramOidcRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    client_ip = _get_client_ip(request)
+    allowed, retry_after = check_rate_limit(client_ip, "login")
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Demasiados intentos. Intentá de nuevo en {retry_after} segundos",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    from app.services.telegram_oidc import exchange_code, verify_id_token
+
+    # Exchange code for tokens
+    token_data = await exchange_code(body.code, body.redirect_uri)
+    if not token_data or not token_data.get("id_token"):
+        raise HTTPException(status_code=401, detail="Error al intercambiar código con Telegram")
+
+    # Verify id_token
+    claims = await verify_id_token(token_data["id_token"])
+    if not claims:
+        raise HTTPException(status_code=401, detail="Token de Telegram inválido o expirado")
+
+    tg_id = claims.get("sub")
+    if not tg_id:
+        raise HTTPException(status_code=400, detail="Falta ID de usuario de Telegram")
+
+    # Find linked user
+    chat_hash = compute_hmac(str(tg_id))
+    user = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="Tu cuenta de Telegram no está vinculada. Vinculala desde Configuración → Telegram Bot.",
+        )
+
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuario inactivo")
+    if user.is_blocked:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cuenta bloqueada")
+
+    _log_audit(db, user.id, "telegram_oidc_login", request)
+    _record_login(db, user)
+    LOGIN_ATTEMPTS.labels(method="telegram_oidc", status="success").inc()
+    return Token(access_token=create_access_token(user.id), token_type="bearer")
+
+
+@router.get(
+    "/telegram/callback",
+    summary="Telegram OIDC callback",
+    description="Handles the redirect from Telegram's OIDC authorization endpoint. Exchanges code for token and redirects to frontend.",
+)
+async def telegram_oidc_callback(
+    code: str = "",
+    state: str = "",
+    request: Request = None,
+    db: Session = Depends(get_db),
+):
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing authorization code")
+
+    frontend_url = os.getenv("FRONTEND_URL", "https://platform.oikonomia.ar")
+    from app.services.telegram_oidc import exchange_code, verify_id_token
+
+    # Exchange code for tokens
+    token_data = await exchange_code(code, f"{frontend_url}/auth/telegram/callback")
+    if not token_data or not token_data.get("id_token"):
+        # Redirect to frontend with error
+        from fastapi.responses import RedirectResponse
+
+        return RedirectResponse(url=f"{frontend_url}/login?error=telegram_oidc_failed")
+
+    # Verify id_token
+    claims = await verify_id_token(token_data["id_token"])
+    if not claims:
+        from fastapi.responses import RedirectResponse
+
+        return RedirectResponse(url=f"{frontend_url}/login?error=telegram_token_invalid")
+
+    tg_id = claims.get("sub")
+    if not tg_id:
+        from fastapi.responses import RedirectResponse
+
+        return RedirectResponse(url=f"{frontend_url}/login?error=telegram_no_id")
+
+    # Find linked user
+    chat_hash = compute_hmac(str(tg_id))
+    user = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
+    if not user:
+        from fastapi.responses import RedirectResponse
+
+        return RedirectResponse(url=f"{frontend_url}/login?error=telegram_not_linked")
+
+    if not user.is_active or user.is_blocked:
+        from fastapi.responses import RedirectResponse
+
+        return RedirectResponse(url=f"{frontend_url}/login?error=telegram_account_issue")
+
+    _log_audit(db, user.id, "telegram_oidc_login", request)
+    _record_login(db, user)
+    LOGIN_ATTEMPTS.labels(method="telegram_oidc", status="success").inc()
+
+    # Redirect to frontend with token
+    from fastapi.responses import RedirectResponse
+
+    access_token = create_access_token(user.id)
+    return RedirectResponse(url=f"{frontend_url}/auth/telegram/callback?token={access_token}")
+
+
+@router.post(
+    "/telegram/link",
+    summary="Link Telegram account via OIDC",
+    description="Links the authenticated user's Telegram account using an OIDC authorization code.",
+)
+async def telegram_oidc_link(
+    body: TelegramOidcLinkRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from app.services.telegram_oidc import exchange_code, verify_id_token
+
+    # Exchange code for tokens
+    token_data = await exchange_code(body.code, body.redirect_uri)
+    if not token_data or not token_data.get("id_token"):
+        raise HTTPException(status_code=401, detail="Error al intercambiar código con Telegram")
+
+    # Verify id_token
+    claims = await verify_id_token(token_data["id_token"])
+    if not claims:
+        raise HTTPException(status_code=401, detail="Token de Telegram inválido o expirado")
+
+    tg_id = claims.get("sub")
+    if not tg_id:
+        raise HTTPException(status_code=400, detail="Falta ID de usuario de Telegram")
+
+    # Check if already linked to another user
+    chat_hash = compute_hmac(str(tg_id))
+    existing = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
+    if existing and existing.id != current_user.id:
+        raise HTTPException(
+            status_code=409,
+            detail="Esta cuenta de Telegram ya está vinculada a otro usuario.",
+        )
+
+    # Link
+    current_user.telegram_chat_hash = chat_hash
+    db.commit()
+    db.refresh(current_user)
+
+    _log_audit(db, current_user.id, "telegram_oidc_link", request)
+    return {"status": "linked", "telegram_id": tg_id}
 
 
 @router.get(
