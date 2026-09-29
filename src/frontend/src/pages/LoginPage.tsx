@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   forgotPassword,
@@ -8,7 +8,6 @@ import {
   loginMfa,
   register,
   storeToken,
-  telegramWidgetLogin,
 } from "../api/client";
 import { APP_NAME } from "../config";
 
@@ -164,7 +163,6 @@ function LoginForm({
   onSuccess: () => void;
   authRedirectError?: string;
 }) {
-  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -186,58 +184,21 @@ function LoginForm({
     if (client) client.requestCode();
   }, [googleCodeClient]);
 
-  // Telegram Login Widget
-  const telegramWidgetRef = useRef<HTMLDivElement>(null);
-
-  const handleTelegramAuth = useCallback(
-    async (tgUser: Record<string, unknown>) => {
-      try {
-        setError("");
-        const data = await telegramWidgetLogin({
-          id: tgUser.id as number,
-          first_name: (tgUser.first_name as string) || "",
-          last_name: (tgUser.last_name as string) || undefined,
-          username: (tgUser.username as string) || undefined,
-          photo_url: (tgUser.photo_url as string) || undefined,
-          auth_date: String(tgUser.auth_date),
-          hash: tgUser.hash as string,
-        });
-        storeToken(data.access_token);
-        navigate("/", { replace: true });
-        window.location.reload();
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Error al autenticar con Telegram";
-        if (msg.includes("no está vinculada")) {
-          setError(
-            "Tu cuenta de Telegram no está vinculada. Vinculala desde Configuración → Telegram Bot.",
-          );
-        } else {
-          setError(msg);
-        }
-      }
-    },
-    [navigate],
-  );
-
-  // Load Telegram Login Widget
-  useEffect(() => {
-    const container = telegramWidgetRef.current;
-    if (!container || container.querySelector("iframe")) return;
-
-    // Expose callback globally for the widget
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (window as any).__telegramAuth = handleTelegramAuth;
-
-    const script = document.createElement("script");
-    script.src = "https://telegram.org/js/telegram-widget.js?22";
-    script.setAttribute("data-telegram-login", "NikoFin_bot");
-    script.setAttribute("data-size", "large");
-    script.setAttribute("data-userpic", "false");
-    script.setAttribute("data-request-access", "write");
-    script.setAttribute("data-onauth", "window.__telegramAuth(user)");
-    script.async = true;
-    container.appendChild(script);
-  }, [handleTelegramAuth]);
+  // Telegram OIDC login
+  const handleTelegramOidc = useCallback(() => {
+    const clientId = import.meta.env.VITE_TELEGRAM_OIDC_CLIENT_ID || "";
+    const redirectUri = `${window.location.origin}/auth/telegram/callback`;
+    const state = Math.random().toString(36).substring(2);
+    sessionStorage.setItem("telegram_oidc_state", state);
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: "code",
+      scope: "openid",
+      state,
+    });
+    window.location.href = `https://oauth.telegram.org/auth?${params}`;
+  }, []);
 
   // Load GIS script
   useEffect(() => {
@@ -377,10 +338,20 @@ function LoginForm({
         <div className="flex-1 h-px bg-[var(--border-color)]"></div>
       </div>
 
-      {/* Telegram Login Widget */}
-      <div className="flex justify-center">
-        <div ref={telegramWidgetRef} />
-      </div>
+      {/* Telegram OIDC Login */}
+      <button
+        type="button"
+        onClick={handleTelegramOidc}
+        className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border-2 border-[var(--border-color)] text-[var(--text-primary)] font-semibold hover:bg-[var(--color-base-alt)] transition"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"
+            fill="currentColor"
+          />
+        </svg>
+        Continuar con Telegram
+      </button>
 
       <p className="text-center text-sm text-[var(--text-tertiary)]">
         ¿No tenés cuenta?{" "}

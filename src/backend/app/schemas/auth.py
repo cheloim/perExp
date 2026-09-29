@@ -127,6 +127,16 @@ class TelegramLoginWidgetRequest(BaseModel):
     hash: str
 
 
+class TelegramOidcRequest(BaseModel):
+    code: str
+    redirect_uri: str
+
+
+class TelegramOidcLinkRequest(BaseModel):
+    code: str
+    redirect_uri: str
+
+
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str

@@ -103,6 +103,14 @@ export const telegramWidgetLogin = (data: {
   hash: string;
 }) => api.post<AuthToken>("/auth/telegram/login-widget", data).then((r) => r.data);
 
+export const telegramOidcLogin = (code: string, redirectUri: string) =>
+  api
+    .post<AuthToken>("/auth/telegram/oidc", { code, redirect_uri: redirectUri })
+    .then((r) => r.data);
+
+export const telegramOidcLink = (code: string, redirectUri: string) =>
+  api.post("/auth/telegram/link", { code, redirect_uri: redirectUri }).then((r) => r.data);
+
 export const getMe = () => api.get<User>("/auth/me").then((r) => r.data);
 
 export const markOnboardingCompleted = () =>
