@@ -13,7 +13,12 @@ import { useUndoToast } from "./hooks/useUndoToast";
 import ImpersonationBanner from "./components/ImpersonationBanner";
 import ReAuthModal from "./components/ReAuthModal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { isTelegramWebApp, initTelegramWebApp, telegramAutoLogin } from "./services/telegramWebApp";
+import {
+  isTelegramWebApp,
+  initTelegramWebApp,
+  telegramAutoLogin,
+  isLikelyTelegram,
+} from "./services/telegramWebApp";
 import { ExpenseModal } from "./components/ExpenseModals";
 import QuickViewLayout from "./layouts/QuickViewLayout";
 import Sidebar from "./components/Sidebar";
@@ -84,19 +89,60 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 export default function App() {
   const location = useLocation();
   const hostname = window.location.hostname;
-  const [telegramReady, setTelegramReady] = useState(!isTelegramWebApp());
-  const [quickView, setQuickView] = useState(isTelegramWebApp());
+  const [telegramReady, setTelegramReady] = useState(false);
+  const [quickView, setQuickView] = useState(false);
 
   useSeoMeta();
 
   // Telegram Mini App init + auto-login (runs once)
+  // Waits for the async SDK script to load before deciding
   useEffect(() => {
-    if (!isTelegramWebApp()) {
+    // If SDK is already present (sync script), resolve immediately
+    if (isTelegramWebApp()) {
+      setQuickView(true);
+      initTelegramWebApp();
+      telegramAutoLogin().finally(() => setTelegramReady(true));
+      return;
+    }
+
+    // Fast check: if we're not likely in Telegram, don't wait
+    if (!isLikelyTelegram()) {
       setTelegramReady(true);
       return;
     }
-    initTelegramWebApp();
-    telegramAutoLogin().finally(() => setTelegramReady(true));
+
+    // We think we're in Telegram but SDK hasn't loaded yet — wait for it
+    let resolved = false;
+    const resolve = () => {
+      if (resolved) return;
+      resolved = true;
+      if (isTelegramWebApp()) {
+        setQuickView(true);
+        initTelegramWebApp();
+        telegramAutoLogin().finally(() => setTelegramReady(true));
+      } else {
+        setTelegramReady(true);
+      }
+    };
+
+    // Poll for SDK availability
+    const interval = setInterval(() => {
+      if (window.Telegram?.WebApp) {
+        clearInterval(interval);
+        resolve();
+      }
+    }, 50);
+
+    // Timeout: if SDK doesn't load in 3s, assume not in Telegram
+    const timeout = setTimeout(() => {
+      clearInterval(interval);
+      resolve();
+    }, 3000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
   }, []);
 
   // Institutional site: oikonomia.ar / www.oikonomia.ar
