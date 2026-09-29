@@ -544,52 +544,9 @@ def delete_my_account(
     user_id = current_user.id
     _log_audit(db, user_id, "account_deleted", request)
 
-    # Leave family group first (if in one)
-    from app.routers.groups import _get_user_group
+    from app.services.account_deletion import delete_user_and_all_data
 
-    membership = _get_user_group(user_id, db)
-    if membership:
-        from app.routers.groups import _remove_member
-
-        _remove_member(db, user_id, user_id)
-
-    # Delete data in order (handle FK constraints manually)
-    from app.models import (
-        Account,
-        AnalysisHistory,
-        Card,
-        CardClosing,
-        Category,
-        Expense,
-        ExpenseTag,
-        ImportJob,
-        Investment,
-        MonthlyReport,
-        Notification,
-        ScheduledExpense,
-        Tag,
-    )
-
-    db.query(ExpenseTag).filter(
-        ExpenseTag.tag_id.in_(db.query(Tag.id).filter(Tag.user_id == user_id))
-    ).delete(synchronize_session=False)
-    db.query(Tag).filter(Tag.user_id == user_id).delete(synchronize_session=False)
-    db.query(Notification).filter(Notification.user_id == user_id).delete()
-    db.query(Expense).filter(Expense.user_id == user_id).delete()
-    db.query(Category).filter(Category.user_id == user_id).delete()
-    db.query(Account).filter(Account.user_id == user_id).delete()
-    db.query(Card).filter(Card.user_id == user_id).delete()
-    db.query(AnalysisHistory).filter(AnalysisHistory.user_id == user_id).delete()
-    db.query(Investment).filter(Investment.user_id == user_id).delete()
-    db.query(CardClosing).filter(CardClosing.user_id == user_id).delete()
-    db.query(ScheduledExpense).filter(ScheduledExpense.user_id == user_id).delete()
-    db.query(ImportJob).filter(ImportJob.user_id == user_id).delete()
-    db.query(MonthlyReport).filter(MonthlyReport.user_id == user_id).delete()
-
-    # Delete user last
-    db.delete(current_user)
-    db.commit()
-    logger.info(f"Account deleted: user_id={user_id}")
+    delete_user_and_all_data(db, current_user)
 
 
 @router.put(

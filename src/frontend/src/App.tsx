@@ -34,6 +34,7 @@ const InvestmentsPage = lazy(() => import("./pages/InvestmentsPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const OAuthCallbackPage = lazy(() => import("./pages/OAuthCallbackPage"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
+const TermsPage = lazy(() => import("./pages/TermsPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const OnboardingWalkthrough = lazy(() => import("./components/OnboardingWalkthrough"));
 const WhatsNewModal = lazy(() => import("./components/WhatsNewModal"));
@@ -113,6 +114,14 @@ export default function App() {
     return (
       <Suspense>
         <PrivacyPage />
+      </Suspense>
+    );
+  }
+
+  if (location.pathname === "/tos") {
+    return (
+      <Suspense>
+        <TermsPage />
       </Suspense>
     );
   }

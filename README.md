@@ -1,6 +1,6 @@
 # Oikonomia
 
-Personal finance management with intelligent bank statement import, AI auto-categorization, and a Telegram bot.
+Personal finance management with intelligent bank statement import, AI auto-categorization, and messaging bots.
 
 > **[Technical Documentation](docs/Home.md)** — Architecture, API reference, data model, and more.
 
@@ -15,95 +15,46 @@ Personal finance management with intelligent bank statement import, AI auto-cate
 | PDF parsing | pdfplumber |
 | Task queue | Celery + Redis |
 | Telegram | python-telegram-bot |
+| WhatsApp | Meta Cloud API |
 | Onboarding | React Joyride |
 | Email | Resend |
 
 ## Features
 
-- **Smart Import**: PDF (LLM-powered) and CSV/XLSX (deterministic) bank statement import
-- **Card Management**: Credit/debit card CRUD
+- **Smart Import**: PDF (LLM-powered) and CSV/XLSX bank statement import
+- **Card Management**: Credit/debit card CRUD with bank and holder tracking
 - **Account Management**: Cash and bank accounts for tracking transfers
-- **Payment Methods**: Select account (cash/transfer) or card per expense
-- **Auto-categorization**: Keyword-based and AI-powered (Gemini Flash) categorization
-- **Installments**: Track installment purchases with automatic expansion; Telegram bot divides total by installment count
-- **Investments**: Sync with IOL and Portfolio Personal
-- **AI Analysis**: Chat with AI to query expenses
-- **Family Groups**: Share expenses with your family
+- **Auto-categorization**: Keyword-based and AI-powered (Gemini Flash) categorization with hierarchical category tree
+- **Installments**: Track installment purchases with automatic expansion; bots divide total by installment count
+- **Investments**: Sync with IOL and Portfolio Personal via Yahoo Finance
+- **AI Analysis**: Chat with AI to query expenses and get trend analysis
+- **Budgets**: 50/30/20 macro groups with category-level budgets and temporal events
+- **Family Groups**: Share expenses with your family via invite codes
 - **Telegram Bot**: Log expenses via Telegram (@NikoFin_bot) with natural language parsing
-- **Google OAuth**: Login with Google (same-window redirect)
+- **WhatsApp Bot**: Log expenses via WhatsApp (Meta Cloud API)
+- **Google OAuth**: Login with Google
+- **MFA**: TOTP-based two-factor authentication
 - **Onboarding Tour**: First-time guided walkthrough of all features
-- **User Guide**: Comprehensive 16-chapter guide at /guide
-- **Landing Page**: GNOME 50-inspired design with visual mockups
+- **User Guide**: Comprehensive guide at /guide with 8 chapters
+- **Landing Page**: GNOME HIG-inspired design with visual mockups at oikonomia.ar
 - **Multi-Domain**: Landing page at oikonomia.ar, app at platform.oikonomia.ar
+- **Terms & Privacy**: TOS at /tos, privacy policy at /privacy
+- **Field-level Encryption**: AES encryption for PII fields with HMAC-indexed lookups
+- **Data Deletion**: Meta-compliant WhatsApp data deletion callback
 
-## Recent Updates
-
-- **Gastos Programados y Mejoras Visuales**
-  - Unified Programados page with installments + recurring expenses
-  - Auto-detect subscriptions from transaction history
-  - Pause/resume/delete recurring expenses
-  - Telegram commands: /suscripciones, /pausar, /cancelar, /ver
-  - AI-powered category suggestions with inline approval
-  - Merchant preference learning (prioritizes user history over LLM)
-  - Email validation with DNS MX record verification
-  - Onboarding walkthrough with per-release feature announcements
-
-- **Budgets and Reports**
-  - Expense budgets with 50/30/20 macro groups
-  - Weekly Telegram reports
-  - Monthly analysis PNG reports
-  - Family groups
-
-- **Core Features**
-  - Smart Import (PDF/CSV/XLSX)
-  - AI auto-categorization
-  - Installment tracking
-  - Investment sync (IOL/PPI)
-  - Google OAuth
-  - Field-level encryption
-
-## Onboarding
-
-First-time users see a guided tour with rich tooltips and step icons:
-
-1. Welcome screen with app branding
-2. Dashboard walkthrough
-3. Accounts & cards setup
-4. Expense tracking
-5. Telegram bot setup
-6. Data import
-7. Notifications
-8. User guide
-9. Account settings
-
-Tour state is stored in the database (`onboarding_completed` on User model) and runs only once. The tour can be reset per user via:
-
-```sql
-UPDATE users SET onboarding_completed = false WHERE id = USER_ID;
-```
-
-## Import Protection
-
-### Per-User FIFO Queue
-
-Import jobs are processed sequentially per user using Redis locks. This prevents duplicate expenses when importing multiple files.
+## Architecture
 
 ```
-User A uploads File 1 → Lock(A) → Process → Release
-User A uploads File 2 → Lock(A) → WAIT → Process (FIFO)
-
-User B uploads File 3 → Lock(B) → Process (parallel with A)
+User → Landing (oikonomia.ar) → React SPA (platform.oikonomia.ar)
+                                        ↓
+                                    Nginx (SSL + proxy)
+                                        ↓
+                    Telegram Bot ←→ FastAPI (22 routers) → PostgreSQL
+                    WhatsApp Bot ←→         ↓              → Redis → Celery Worker
+                                        Gemini Flash      → Resend (email)
 ```
 
-### Duplicate Validation
-
-Two layers of protection:
-1. **During LLM processing**: `_is_duplicate()` checks against existing expenses
-2. **At confirm time**: Re-checks `_is_duplicate()` as safety net for parallel imports
-
-### Deterministic CSV/XLSX
-
-CSV and XLSX files bypass the LLM entirely — parsed deterministically with pandas. Faster (<1s), cheaper ($0), and more reliable.
+> **[Interactive Architecture Diagram](.archify/oikonomia-architecture.html)** — Open in browser for a visual, interactive system overview with component relationships.
 
 ## Requirements
 
@@ -113,55 +64,26 @@ CSV and XLSX files bypass the LLM entirely — parsed deterministically with pan
 - Redis 7+
 - Docker or Podman
 
-## Local Development with Podman
-
-### Prerequisites
+## Local Development
 
 ```bash
-# Install Podman (Fedora/RHEL)
-sudo dnf install -y podman podman-docker podman-compose
+# Clone
+git clone https://github.com/cheloim/perExp.git
+cd perExp
 
-# Install Podman (Ubuntu/Debian)
-sudo apt install -y podman podman-compose
+# Copy and edit environment file
+cp .env.example .env
 
-# Or via pip
-pip install podman-compose
-```
-
-### Environment Setup
-
-```bash
-# Create secrets directory
-mkdir -p backend/secrets/dev
-
-# Create password file for PostgreSQL
-echo -n "your-postgres-password" > backend/secrets/dev/postgres_password.txt
-
-# Create .env file in backend/
-cat > backend/.env << 'EOF'
-DATABASE_URL=postgresql://expenses_user:your-postgres-password@db:5432/expenses
-REDIS_URL=redis://redis:6379/0
-LLM_API_KEY=your-gemini-api-key
-SECRET_KEY=your-jwt-secret-key
-TELEGRAM_BOT_TOKEN=your-telegram-bot-token
-EOF
-```
-
-### Build and Run
-
-```bash
-# Build images
-podman-compose build
-
-# Start all services
+# Start with Podman
 podman-compose up -d
 
-# View logs
-podman-compose logs -f backend_dev
-podman-compose logs -f celery_worker_dev
+# Run migrations
+podman-compose run --rm backend_dev python /app/scripts/migrate_db_structure.py
 
-# Stop services
-podman-compose down
+# Access
+# Frontend: http://localhost:8082
+# Backend:  http://localhost:8001
+# API docs: http://localhost:8001/docs
 ```
 
 ### Services
@@ -174,119 +96,6 @@ podman-compose down
 | `db` | 5432 | PostgreSQL database |
 | `redis` | 6379 | Redis (Celery broker) |
 
-### First Run
-
-```bash
-# Run database migrations (all-in-one, idempotent)
-podman-compose run --rm backend_dev python /app/scripts/migrate_db_structure.py
-
-# Seed default categories
-podman-compose run --rm backend_dev python -c "from app.database import SessionLocal; from app.seed import _apply_base_hierarchy; db = SessionLocal(); _apply_base_hierarchy(db); db.commit()"
-```
-
-### Access
-
-- **App**: http://localhost:8082
-- **API docs**: http://localhost:8001/docs
-
-## Production Deployment
-
-### Architecture
-
-```
-Internet → :80 (redirect) → :443 (nginx SSL) → :80 (frontend nginx) → backend:8000
-```
-
-Production runs on a Linode server with the following services:
-
-| Service | Description |
-|---------|-------------|
-| `nginx` | Reverse proxy with SSL termination (ports 80/443) |
-| `frontend` | React SPA served by nginx (internal only) |
-| `backend` | FastAPI backend (internal only) |
-| `celery_worker` | Background task processor |
-| `db` | PostgreSQL 16 |
-| `redis` | Redis 7 |
-
-### GitHub Actions
-
-Push to `main` branch triggers automatic deployment:
-
-1. Build Docker images → push to GHCR
-2. Setup server (podman, SSL certs, firewall)
-3. Deploy containers → run migrations → verify health
-
-### SSL Certificates
-
-SSL is handled by Let's Encrypt via certbot:
-
-- Certs stored at `/opt/creditcardanalyzer/certbot/conf/`
-- Auto-renewal via systemd timer (`certbot-renew.timer`)
-- Nginx mounts certs as read-only with SELinux `:Z` flag
-
-### Idempotent Setup Steps
-
-Each setup step validates before acting:
-
-| Step | Validation | Action |
-|------|------------|--------|
-| Podman | `command -v podman` | Install via dnf |
-| podman-compose | `command -v podman-compose` | Install via pip |
-| SSL cert | `ls certbot/conf/live/.../fullchain.pem` | Run certbot container |
-| Certbot timer | `ls /etc/systemd/system/certbot-renew.timer` | Create systemd timer |
-| Firewall | `firewall-cmd --list-ports` | Open 80/443 |
-
-### Required Secrets
-
-Add in `Settings → Secrets → Actions`:
-
-| Secret | Description |
-|--------|-------------|
-| `LINODE_SERVER_IP` | Server IP address |
-| `LINODE_SSH_USER` | SSH username |
-| `LINODE_SSH_KEY` | SSH private key |
-| `GHCR_PAT` | GitHub PAT for GHCR login |
-| `POSTGRES_PASSWORD` | Database password |
-| `LLM_API_KEY` | Gemini API key |
-| `INVESTMENTS_LLM_API_KEY` | Investments LLM key |
-| `MESSAGES_BOT_LLM_API_KEY` | Messages bot LLM key |
-| `TELEGRAM_BOT_TOKEN` | Telegram bot token |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
-| `SECRET_KEY` | JWT secret key |
-| `EMAIL_API_KEY` | Resend email service key |
-| `ADMIN_EMAIL` | Admin alert email |
-
-### Manual Deploy
-
-```bash
-# On the server
-cd /opt/creditcardanalyzer
-source .env
-
-# Run all migrations (idempotent, safe to re-run)
-podman-compose run --rm --no-deps backend python /app/scripts/migrate_db_structure.py
-
-# Restart services
-podman-compose down
-podman-compose up -d
-
-# Verify
-curl -sk https://oikonomia.ar/api/docs
-```
-
-### Health Checks
-
-Deployment verifies the full stack:
-
-```bash
-# Primary: domain-based (validates DNS + SSL + nginx + backend)
-curl -sk https://oikonomia.ar/api/docs
-
-# Fallback: localhost (validates nginx container only)
-curl -sf http://localhost/api/docs
-```
-
 ## Telegram Bot
 
 The bot is available at [@NikoFin_bot](https://t.me/NikoFin_bot).
@@ -296,11 +105,6 @@ The bot is available at [@NikoFin_bot](https://t.me/NikoFin_bot).
 3. Go to the app → Settings → Telegram Bot
 4. Copy the key and paste it in the bot
 
-### Bot Commands
-
-- `/start` — Authenticate with your account
-- `/help` — Show usage instructions
-
 ### Logging Expenses
 
 Just send a message describing your expense:
@@ -309,21 +113,6 @@ Just send a message describing your expense:
 - "Netflix USD 5"
 - "compré una laptop en 4 cuotas de 15000"
 
-### Installments
-
-When logging an expense via Telegram:
-- If the category matches installment rules (Viajes, Educación, Indumentaria, etc.) or the amount is > $10,000 on a credit card, the bot asks "¿Lo pagaste en cuotas?"
-- If yes, the total amount is divided by the number of installments
-- Each installment is recorded as a separate expense with the per-installment amount
-- Future installments are created as ScheduledExpenses for automatic tracking
-
-### Bank Notifications
-
-The bot can parse bank notifications (forwarded from your bank's SMS/email):
-- "Compra aprobada Visa ****4521 $15.200 Supermercado Coto"
-- The bot extracts the amount, card, and merchant automatically
-- For credit card purchases > $10,000, it also asks about installments
-
 ## License
 
-MIT
+GPLv3

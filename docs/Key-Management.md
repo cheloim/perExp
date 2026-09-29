@@ -88,7 +88,7 @@ assert verify_key_works(), "SECRET_KEY is invalid!"
 | Environment | Location | Status |
 |-------------|----------|--------|
 | Development | Podman secret `creditcard_backend_dev_secret_key` | Active |
-| Production | `/opt/creditcardanalyzer/.env` | Active |
+| Production | Server `.env` file (see ops docs) | Active |
 
 ## Emergency Recovery
 

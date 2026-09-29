@@ -1,16 +1,17 @@
-# NikoFin — Technical Documentation
+# Oikonomia — Technical Documentation
 
-**NikoFin** is a personal finance management application with intelligent bank statement import, built primarily for Argentine users. It combines AI-powered expense tracking, investment portfolio monitoring, and family group sharing into a single platform.
+**Oikonomia** is a personal finance management application with intelligent bank statement import, built primarily for Argentine users. It combines AI-powered expense tracking, investment portfolio monitoring, and family group sharing into a single platform, accessible via web, Telegram, and WhatsApp.
 
 ## What Problem Does It Solve?
 
-Tracking personal finances across credit cards, bank accounts, and investments is tedious. NikoFin automates this by:
+Tracking personal finances across credit cards, bank accounts, and investments is tedious. Oikonomia automates this by:
 
 - **Importing bank statements** (PDF, CSV, XLSX) using AI to parse transactions automatically
 - **Categorizing expenses** with keyword-based auto-categorization and a hierarchical category tree
 - **Tracking investments** synced with Argentine brokers (IOL, PPI) via Yahoo Finance
-- **Logging expenses on-the-go** via a Telegram bot that understands natural language
+- **Logging expenses on-the-go** via Telegram and WhatsApp bots that understand natural language
 - **Sharing finances** with family members through group invites
+- **Managing budgets** with 50/30/20 macro groups and category-level limits
 
 ## Documentation
 
@@ -19,16 +20,17 @@ Tracking personal finances across credit cards, bank accounts, and investments i
 | [Architecture](Architecture.md)     | Tech stack, component diagram, how everything connects  |
 | [Features](Features.md)             | Full feature list with descriptions                     |
 | [Smart Import](Smart-Import.md)     | PDF/CSV/XLSX import pipeline (LLM, Redis queue, Celery) |
-| [Telegram Bot](Telegram-Bot.md)     | Bot setup, conversation flow, all 15 states             |
-| [Data Model](Data-Model.md)         | All 13 entities, relationships, key fields              |
+| [Telegram Bot](Telegram-Bot.md)     | Bot setup, conversation flow, all states                |
+| [Data Model](Data-Model.md)         | All entities, relationships, key fields                 |
 | [AI Integration](AI-Integration.md) | How Gemini is used: parsing, analysis, trends           |
 | [Family Groups](Family-Groups.md)   | Multi-user sharing, invite flow                         |
 | [Investments](Investments.md)       | IOL/PPI sync, Yahoo Finance, price refresh scheduler    |
-| [Authentication](Authentication.md) | JWT, Google OAuth, Apple Sign-In, password reset        |
+| [Authentication](Authentication.md) | JWT, Google OAuth, MFA, password reset                  |
 | [Budgets](Budgets.md)               | 50/30/20 groups, temporal events, category budgets      |
-| [API Reference](API-Reference.md)   | All 14 routers and key endpoints                        |
+| [API Reference](API-Reference.md)   | All routers and key endpoints                           |
 | [Deployment](Deployment.md)         | Docker/Podman setup, CI/CD pipeline, secrets            |
 | [Frontend](Frontend.md)             | Routes, key components, state management                |
+| [Security](Security.md)             | Encryption, rate limiting, MFA                          |
 
 ## Quick Start (Development)
 
@@ -60,6 +62,7 @@ podman-compose up -d
 | AI/LLM       | Google Gemini Flash                             |
 | Task Queue   | Celery + Redis                                  |
 | Telegram     | python-telegram-bot                             |
+| WhatsApp     | Meta Cloud API                                  |
 | Charts       | Recharts                                        |
 | Email        | Resend API                                      |
 
@@ -67,25 +70,29 @@ podman-compose up -d
 
 ```
 creditCardAnalyzer/
-├── backend/
-│   ├── app/
-│   │   ├── models.py          # SQLAlchemy models (13 entities)
-│   │   ├── routers/           # 14 API routers
-│   │   ├── services/          # Business logic (auth, import, analysis)
-│   │   ├── tasks/             # Celery tasks (import, cleanup, scheduled)
-│   │   ├── telegram_bot.py    # @NikoFin_bot (15 conversation states)
-│   │   └── prompts.py         # LLM prompt templates
-│   ├── migrations/            # Alembic DB migrations
-│   └── Dockerfile             # Multi-stage production build
-├── frontend/
-│   ├── src/
-│   │   ├── components/        # Reusable UI components
-│   │   ├── pages/             # Route-level page components
-│   │   ├── context/           # React contexts (Theme, Notifications, etc.)
-│   │   ├── api/               # API client functions
-│   │   └── types/             # TypeScript interfaces
-│   └── Dockerfile             # Multi-stage production build
-├── docs/                      # This documentation
-├── podman-compose.yml         # Development orchestration
-└── .github/workflows/ci.yml   # CI/CD pipeline
+├── src/
+│   ├── backend/
+│   │   ├── app/
+│   │   │   ├── models.py          # SQLAlchemy models (20+ entities)
+│   │   │   ├── routers/           # 22 API routers
+│   │   │   ├── services/          # Business logic (auth, import, analysis, deletion)
+│   │   │   ├── tasks/             # Celery tasks (import, cleanup, scheduled)
+│   │   │   ├── telegram_bot.py    # @NikoFin_bot
+│   │   │   ├── whatsapp_bot.py    # WhatsApp bot (Meta Cloud API)
+│   │   │   └── prompts.py         # LLM prompt templates
+│   │   ├── scripts/               # Migration and utility scripts
+│   │   └── Dockerfile             # Multi-stage production build
+│   └── frontend/
+│       ├── src/
+│       │   ├── components/        # Reusable UI components
+│       │   ├── pages/             # Route-level page components
+│       │   ├── context/           # React contexts (Theme, Notifications, etc.)
+│       │   ├── api/               # API client functions
+│       │   ├── hooks/             # Custom React hooks
+│       │   └── types/             # TypeScript interfaces
+│       └── Dockerfile             # Multi-stage production build
+├── docs/                          # This documentation
+├── .archify/                      # Architecture diagrams
+├── podman-compose.yml             # Development orchestration
+└── .github/workflows/ci.yml      # CI/CD pipeline
 ```

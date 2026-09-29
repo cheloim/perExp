@@ -47,9 +47,6 @@ Both backend and frontend support hot reload via volume mounts:
 # Frontend: ./frontend/src:/app/src
 ```
 
-Changes to `./backend/app/` are auto-reloaded by uvicorn.
-Changes to `./frontend/src/` are auto-reloaded by Vite HMR.
-
 ### Useful Commands
 
 ```bash
@@ -71,13 +68,6 @@ podman-compose exec db psql -U postgres -d creditcard
 
 ## Production Setup
 
-### Prerequisites
-
-- Linux server (tested on Linode)
-- Podman + podman-compose
-- Domain with SSL (nginx)
-- GitHub account (for CI/CD)
-
 ### Architecture
 
 ```
@@ -97,41 +87,16 @@ podman-compose exec db psql -U postgres -d creditcard
 └─────────────────────────────────────┘
 ```
 
-### Secrets Management
-
-All secrets are stored as individual GitHub Actions secrets and injected as environment variables in the docker-compose config.
-
-Required secrets:
-
-| Secret | Purpose |
-|--------|---------|
-| `POSTGRES_PASSWORD` | Database password |
-| `LLM_API_KEY` | Gemini API key |
-| `INVESTMENTS_LLM_API_KEY` | Investments LLM key |
-| `MESSAGES_BOT_LLM_API_KEY` | Messages bot LLM key |
-| `TELEGRAM_BOT_TOKEN` | Telegram bot token |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
-| `SECRET_KEY` | JWT secret key |
-| `EMAIL_API_KEY` | Resend email service key |
-| `ADMIN_EMAIL` | Admin alert email |
-
 ### CI/CD Pipeline
 
-GitHub Actions workflow (`.github/workflows/ci.yml`):
+Push to `main` branch triggers automatic deployment via GitHub Actions:
 
-1. **Build**: Docker images built and pushed to GHCR
-2. **Deploy**: SSH into Linode server
-3. **Pull**: Latest images pulled
-4. **Migrate**: Alembic migrations run
-5. **Restart**: Services restarted
-
-**Required GitHub secrets**:
-
-- `LINODE_SERVER_IP`
-- `LINODE_SSH_USER`
-- `LINODE_SSH_KEY`
-- `APP_SECRETS_B64`
+1. Build Docker images → push to GHCR
+2. SSH into server
+3. Pull latest images
+4. Run migrations
+5. Restart services
+6. Verify health
 
 ### Celery Beat Schedule
 
@@ -148,10 +113,8 @@ Monthly report generation has built-in resilience:
 
 - **Auto-retry**: `generate_single_report` retries up to 3 times with exponential backoff on transient errors (TimeoutError, OSError, ConnectionError)
 - **Failure marking**: Failed reports are marked as `FAILED` in the database with an error message
-- **Admin email alerts**: When all retries fail, an email is sent to `ADMIN_EMAIL` via Resend with error details (user_id, month, error, timestamp)
+- **Admin email alerts**: When all retries fail, an email is sent via Resend with error details
 - **In-app notifications**: Users receive a `monthly_report_failed` notification
-
-The `celery_worker` and `celery_beat` containers require `EMAIL_API_KEY` and `ADMIN_EMAIL` in their environment for email alerts to work.
 
 ### Investment Price Refresh
 
@@ -196,27 +159,3 @@ FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 ```
-
-## Environment Variables
-
-### Backend
-
-| Variable                   | Description                  | Default                     |
-| -------------------------- | ---------------------------- | --------------------------- |
-| `DATABASE_URL`             | PostgreSQL connection string | -                           |
-| `REDIS_URL`                | Redis connection string      | redis://localhost:6379/0    |
-| `SECRET_KEY`               | JWT signing key              | -                           |
-| `LLM_API_KEY`              | Gemini API key               | -                           |
-| `INVESTMENTS_LLM_API_KEY`  | Investment LLM key           | (falls back to LLM_API_KEY) |
-| `MESSAGES_BOT_LLM_API_KEY` | Telegram bot LLM key         | -                           |
-| `TELEGRAM_BOT_TOKEN_PROD`  | Production bot token         | -                           |
-| `TELEGRAM_BOT_TOKEN_DEV`   | Development bot token        | -                           |
-| `EMAIL_API_KEY`               | Email service key            | -                           |
-| `ADMIN_EMAIL`              | Admin alert email address    | admin@financialplanning.com |
-| `JWT_EXPIRE_DAYS`          | Token expiry                 | 7                           |
-
-### Frontend
-
-| Variable       | Description     | Default               |
-| -------------- | --------------- | --------------------- |
-| `VITE_API_URL` | Backend API URL | http://localhost:8001 |

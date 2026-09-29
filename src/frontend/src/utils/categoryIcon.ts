@@ -62,6 +62,62 @@ const CATEGORY_ICON: Record<string, IconName> = {
   bebés: "baby",
   bebes: "baby",
   baby: "baby",
+  // Transporte
+  combustible: "fuel",
+  peaje: "car",
+  estacionamiento: "car",
+  traslados: "car",
+  remis: "car",
+  // Alimentación
+  verdulería: "cart",
+  verduleria: "cart",
+  almacén: "cart",
+  almacen: "cart",
+  kiosco: "cart",
+  carnicería: "cart",
+  carniceria: "cart",
+  panadería: "cart",
+  panaderia: "cart",
+  // Entretenimiento
+  juegos: "film",
+  cine: "film",
+  salidas: "film",
+  // Salud
+  laboratorio: "pill",
+  prepaga: "heart",
+  clínica: "heart",
+  clinica: "heart",
+  odontología: "heart",
+  odontologia: "heart",
+  dentista: "heart",
+  psicología: "heart",
+  psicologia: "heart",
+  seguro: "shield",
+  seguros: "shield",
+  // Hogar & Servicios
+  electricidad: "lightbulb",
+  cable: "wifi",
+  limpieza: "home",
+  // Indumentaria
+  calzado: "tshirt",
+  accesorios: "tag",
+  // Educación
+  instituto: "book",
+  colegio: "book",
+  librería: "book",
+  libreria: "book",
+  libros: "book",
+  cursos: "book",
+  // Viajes
+  alojamiento: "home",
+  traslado: "car",
+  // Finanzas
+  bonificación: "cash",
+  bonificacion: "cash",
+  devolución: "cash",
+  devolucion: "cash",
+  impuestos: "cash",
+  inversiones: "investments",
 };
 
 /**

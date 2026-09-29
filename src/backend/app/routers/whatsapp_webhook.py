@@ -1,15 +1,19 @@
 """WhatsApp webhook endpoints for Meta Cloud API.
 
 Handles:
-- GET  /webhook/whatsapp  — Meta verification challenge
-- POST /webhook/whatsapp  — Incoming messages
+- GET  /webhook/whatsapp             — Meta verification challenge
+- POST /webhook/whatsapp             — Incoming messages
+- POST /webhook/whatsapp/delete-user — Meta data deletion callback
 """
 
 import asyncio
+import base64
 import hashlib
 import hmac
+import json
 import logging
 import os
+import secrets
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
@@ -94,8 +98,6 @@ async def receive_webhook(request: Request):
         return JSONResponse(content={"error": "Invalid signature"}, status_code=403)
 
     try:
-        import json
-
         body = json.loads(raw_body)
     except Exception:
         return JSONResponse(content={"status": "ok"})
@@ -159,3 +161,132 @@ async def _process_webhook(body: dict) -> None:
 
     except Exception as e:
         logger.error("[WA_WEBHOOK] Error processing webhook: %s", e, exc_info=True)
+
+
+# ---------------------------------------------------------------------------
+# Meta Data Deletion Callback
+# ---------------------------------------------------------------------------
+# When a user requests deletion of their WhatsApp data through Meta settings,
+# Meta sends a POST to this endpoint with a signed_request. We verify it,
+# delete the user's data, and return a confirmation URL + code.
+#
+# https://developers.facebook.com/docs/whatsapp/cloud-api/guides/manage-data-deletion-requests
+
+
+def _parse_signed_request(signed_request: str) -> dict | None:
+    """Verify and decode Meta's signed_request payload.
+
+    Format: base64url(hmac_sig) + '.' + base64url(json_payload)
+    Returns the decoded payload dict, or None if verification fails.
+    """
+    if not APP_SECRET:
+        # Dev mode: decode without verification
+        try:
+            _, payload_b64 = signed_request.split(".", 1)
+            # Add padding if needed
+            payload_b64 += "=" * (4 - len(payload_b64) % 4)
+            return json.loads(base64.urlsafe_b64decode(payload_b64))
+        except Exception:
+            return None
+
+    try:
+        sig_b64, payload_b64 = signed_request.split(".", 1)
+    except ValueError:
+        return None
+
+    # Decode signature
+    try:
+        sig_b64 += "=" * (4 - len(sig_b64) % 4)
+        received_sig = base64.urlsafe_b64decode(sig_b64)
+    except Exception:
+        return None
+
+    # Compute expected signature
+    expected_sig = hmac.new(APP_SECRET.encode(), payload_b64.encode(), hashlib.sha256).digest()
+
+    if not hmac.compare_digest(received_sig, expected_sig):
+        return None
+
+    # Decode payload
+    try:
+        payload_b64 += "=" * (4 - len(payload_b64) % 4)
+        return json.loads(base64.urlsafe_b64decode(payload_b64))
+    except Exception:
+        return None
+
+
+@router.post(
+    "/whatsapp/delete-user",
+    summary="Meta data deletion callback",
+    description=(
+        "Handles Meta's data deletion callback for WhatsApp users. "
+        "Verifies the signed_request, deletes the user's account and all data, "
+        "and returns a confirmation URL and code."
+    ),
+)
+async def delete_user_callback(request: Request):
+    """Handle Meta's data deletion callback.
+
+    Meta sends a form-encoded POST with a 'signed_request' field when a user
+    requests deletion of their WhatsApp data. We verify the request, find the
+    user by their WhatsApp phone hash, and delete all their data.
+
+    Returns:
+        JSON with 'url' (confirmation page) and 'confirmation_code'.
+    """
+    # Parse form body
+    form = await request.form()
+    signed_request = form.get("signed_request")
+
+    if not signed_request:
+        logger.warning("[WA_DELETE] Missing signed_request parameter")
+        return JSONResponse(content={"error": "Missing signed_request"}, status_code=400)
+
+    # Verify and decode
+    payload = _parse_signed_request(str(signed_request))
+    if not payload:
+        logger.warning("[WA_DELETE] Invalid signed_request")
+        return JSONResponse(content={"error": "Invalid signed_request"}, status_code=403)
+
+    user_id = payload.get("user_id")
+    if not user_id:
+        logger.warning("[WA_DELETE] No user_id in signed_request payload")
+        return JSONResponse(content={"error": "Missing user_id in payload"}, status_code=400)
+
+    logger.info("[WA_DELETE] Deletion request for WhatsApp user_id=%s", user_id)
+
+    # Find and delete the user
+    from app.database import SessionLocal
+    from app.models import User
+    from app.services.account_deletion import delete_user_and_all_data
+    from app.services.encryption import compute_hmac
+
+    db = SessionLocal()
+    try:
+        phone_hash = compute_hmac(str(user_id))
+        user = db.query(User).filter(User.whatsapp_phone_hash == phone_hash).first()
+
+        if not user:
+            # User may have already been deleted or never linked
+            logger.info(
+                "[WA_DELETE] No user found for WhatsApp user_id=%s — returning success",
+                user_id,
+            )
+        else:
+            delete_user_and_all_data(db, user)
+            logger.info("[WA_DELETE] Deleted user %s for WhatsApp user_id=%s", user.id, user_id)
+    except Exception as e:
+        logger.error("[WA_DELETE] Error deleting user: %s", e, exc_info=True)
+        return JSONResponse(content={"error": "Internal error during deletion"}, status_code=500)
+    finally:
+        db.close()
+
+    # Generate a confirmation code for Meta
+    confirmation_code = secrets.token_hex(16)
+
+    return JSONResponse(
+        content={
+            "url": "https://oikonomia.ar/privacy",
+            "confirmation_code": confirmation_code,
+        }
+    )
