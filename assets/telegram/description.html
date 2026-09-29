@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=640, height=360">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  width: 640px;
+  height: 360px;
+  overflow: hidden;
+  background: linear-gradient(145deg, #1A1A2E 0%, #16213E 45%, #0F3460 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+.container {
+  width: 640px;
+  height: 360px;
+  position: relative;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Subtle grid */
+.grid-pattern {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image:
+    linear-gradient(rgba(108,99,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(108,99,255,0.03) 1px, transparent 1px);
+  background-size: 24px 24px;
+  z-index: 0;
+}
+
+/* Blobs */
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(50px);
+  z-index: 0;
+}
+.blob-1 { width: 220px; height: 220px; background: rgba(108,99,255,0.12); top: -80px; right: -30px; }
+.blob-2 { width: 160px; height: 160px; background: rgba(255,217,61,0.07); bottom: -40px; left: 80px; }
+
+/* Left - Character */
+.left-section {
+  width: 260px;
+  height: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
+}
+.mini-character {
+  position: relative;
+  transform: scale(0.72);
+}
+.mini-head {
+  width: 130px;
+  height: 135px;
+  background: #FFD8B4;
+  border-radius: 50% 50% 48% 48%;
+  position: relative;
+  margin: 0 auto;
+  box-shadow: inset -5px -5px 12px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.15);
+}
+.mini-hair {
+  position: absolute;
+  top: -4px;
+  left: 8px;
+  width: 120px;
+  height: 65px;
+  background: #3D2A1E;
+  border-radius: 60px 58px 8px 16px;
+  z-index: 3;
+}
+.mini-hair::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  right: -2px;
+  width: 22px;
+  height: 40px;
+  background: #3D2A1E;
+  border-radius: 0 14px 12px 0;
+}
+.mini-eyes {
+  position: absolute;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 24px;
+  z-index: 4;
+}
+.mini-eye {
+  width: 18px;
+  height: 20px;
+  background: #2D2D2D;
+  border-radius: 50%;
+  position: relative;
+}
+.mini-eye::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  background: white;
+  border-radius: 50%;
+}
+.mini-eyebrows {
+  position: absolute;
+  top: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 30px;
+  z-index: 5;
+}
+.mini-eyebrow {
+  width: 26px;
+  height: 5px;
+  background: #3D2A1E;
+  border-radius: 3px;
+}
+.mini-smile {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 14px;
+  border-bottom: 3px solid #D4695A;
+  border-radius: 0 0 20px 20px;
+  z-index: 4;
+}
+.mini-cheeks {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 62px;
+  z-index: 4;
+}
+.mini-cheek {
+  width: 16px;
+  height: 9px;
+  background: #FFB5A0;
+  border-radius: 50%;
+  opacity: 0.35;
+}
+.mini-body {
+  width: 112px;
+  height: 80px;
+  background: linear-gradient(180deg, #2D2B55 0%, #1F1E3A 100%);
+  border-radius: 28px 28px 20px 20px;
+  position: relative;
+  margin: -10px auto 0;
+  z-index: 2;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+}
+.mini-collar {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 14px;
+  background: #3A3868;
+  border-radius: 0 0 10px 10px;
+}
+.mini-arm-left, .mini-arm-right {
+  position: absolute;
+  width: 30px;
+  height: 58px;
+  background: #252445;
+  border-radius: 15px;
+  top: 6px;
+  z-index: 1;
+}
+.mini-arm-left { left: -16px; transform: rotate(10deg); }
+.mini-arm-right { right: -16px; transform: rotate(-15deg); }
+.mini-hand {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  background: #FFD8B4;
+  border-radius: 50%;
+  bottom: -3px;
+}
+.mini-hand-l { left: 4px; }
+.mini-hand-r { right: 4px; }
+
+/* Phone in right hand */
+.phone {
+  position: absolute;
+  right: -38px;
+  top: 12px;
+  width: 30px;
+  height: 48px;
+  background: #1A1A2E;
+  border-radius: 5px;
+  border: 2px solid #444;
+  z-index: 4;
+}
+.phone-screen {
+  width: 24px;
+  height: 38px;
+  background: linear-gradient(180deg, #6C63FF 0%, #3F3D56 100%);
+  margin: 2px auto;
+  border-radius: 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.phone-line { width: 14px; height: 1.5px; background: rgba(255,255,255,0.5); border-radius: 1px; }
+.phone-line.short { width: 10px; }
+
+/* Chat bubbles */
+.chat-bubble {
+  position: absolute;
+  background: rgba(255,255,255,0.95);
+  padding: 6px 10px;
+  border-radius: 10px 10px 10px 3px;
+  font-size: 10px;
+  color: #333;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.12);
+  z-index: 6;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.cb1 { top: 25px; left: -15px; }
+.cb2 { bottom: 70px; left: -30px; }
+.cb3 { top: 50px; right: -55px; }
+
+/* Right - Content */
+.right-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 30px 30px 30px 10px;
+  z-index: 2;
+}
+.bot-name {
+  font-size: 38px;
+  font-weight: 800;
+  color: white;
+  margin-bottom: 4px;
+  line-height: 1;
+  letter-spacing: -0.5px;
+}
+.bot-name .accent { color: #FFD93D; }
+.tagline {
+  font-size: 12.5px;
+  color: rgba(255,255,255,0.5);
+  margin-bottom: 22px;
+  font-weight: 400;
+}
+.features {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.feature {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.feature-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+.fi-green { background: rgba(76,175,80,0.15); }
+.fi-blue { background: rgba(33,150,243,0.15); }
+.fi-purple { background: rgba(156,39,176,0.15); }
+.fi-orange { background: rgba(255,152,0,0.15); }
+.feature-text {
+  font-size: 12px;
+  color: rgba(255,255,255,0.82);
+  font-weight: 500;
+}
+.cta {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cta-button {
+  background: linear-gradient(135deg, #6C63FF, #5A52E0);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 3px 16px rgba(108,99,255,0.35);
+}
+
+/* Decorative */
+.float-coin {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  background: linear-gradient(135deg, #FFD93D, #E8B800);
+  border-radius: 50%;
+  border: 2px solid #D4A800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 12px;
+  color: #8B6914;
+  z-index: 1;
+  animation: floatSlow 4s ease-in-out infinite;
+}
+.fc1 { top: 25px; right: 180px; animation-delay: 0s; }
+.fc2 { bottom: 40px; right: 130px; animation-delay: 1.5s; width: 20px; height: 20px; font-size: 10px; }
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* Accent lines */
+.accent-line {
+  position: absolute;
+  height: 2px;
+  border-radius: 1px;
+  z-index: 1;
+}
+.al1 { top: 50px; right: 140px; width: 35px; background: linear-gradient(90deg, rgba(108,99,255,0.3), transparent); }
+.al2 { bottom: 60px; left: 230px; width: 25px; background: linear-gradient(90deg, transparent, rgba(255,217,61,0.25)); }
+
+.bottom-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #6C63FF, #FFD93D, #6C63FF);
+  z-index: 10;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="grid-pattern"></div>
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+
+  <div class="float-coin fc1">$</div>
+  <div class="float-coin fc2">$</div>
+  <div class="accent-line al1"></div>
+  <div class="accent-line al2"></div>
+
+  <div class="left-section">
+    <div class="mini-character">
+      <div class="mini-head">
+        <div class="mini-hair"></div>
+        <div class="mini-eyebrows">
+          <div class="mini-eyebrow"></div>
+          <div class="mini-eyebrow"></div>
+        </div>
+        <div class="mini-eyes">
+          <div class="mini-eye"></div>
+          <div class="mini-eye"></div>
+        </div>
+        <div class="mini-cheeks">
+          <div class="mini-cheek"></div>
+          <div class="mini-cheek"></div>
+        </div>
+        <div class="mini-smile"></div>
+      </div>
+      <div class="mini-body">
+        <div class="mini-collar"></div>
+        <div class="mini-arm-left"><div class="mini-hand mini-hand-l"></div></div>
+        <div class="mini-arm-right">
+          <div class="mini-hand mini-hand-r">
+            <div class="phone">
+              <div class="phone-screen">
+                <div class="phone-line"></div>
+                <div class="phone-line short"></div>
+                <div class="phone-line"></div>
+                <div class="phone-line short"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="chat-bubble cb1">☕ café $3.500</div>
+      <div class="chat-bubble cb2">🛒 super $45.000</div>
+      <div class="chat-bubble cb3">📊 resumen</div>
+    </div>
+  </div>
+
+  <div class="right-section">
+    <div class="bot-name">Niko<span class="accent">Fin</span></div>
+    <div class="tagline">Tu asistente financiero personal en Telegram</div>
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon fi-green">💬</div>
+        <div class="feature-text">Registrá gastos con un mensaje</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon fi-blue">🏷️</div>
+        <div class="feature-text">Categorización automática con IA</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon fi-purple">📊</div>
+        <div class="feature-text">Resúmenes y análisis de gastos</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon fi-orange">💳</div>
+        <div class="feature-text">Seguimiento de cuotas y tarjetas</div>
+      </div>
+    </div>
+    <div class="cta">
+      <div class="cta-button">
+        <span>@NikoFin_bot</span>
+        <span>→</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-bar"></div>
+</div>
+</body>
+</html>
