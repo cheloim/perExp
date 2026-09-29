@@ -1,7 +1,7 @@
 import { useState, useEffect, Suspense, lazy } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ExpenseModal } from "../components/ExpenseModals";
-import { createExpense } from "../api/client";
+import { createExpense, getStoredToken } from "../api/client";
 import { hapticLight, hideBackButton } from "../services/telegramWebApp";
 import SymbolicIcon from "../components/SymbolicIcon";
 import type { IconName } from "../components/SymbolicIcon";
@@ -34,6 +34,7 @@ export default function QuickViewLayout({ onSwitchToFull }: { onSwitchToFull: ()
   const [activeTab, setActiveTab] = useState<Tab>("summary");
   const [newExpenseOpen, setNewExpenseOpen] = useState(false);
   const queryClient = useQueryClient();
+  const isAuthenticated = !!getStoredToken();
 
   const createMut = useMutation({
     mutationFn: (data: ExpenseCreate) => createExpense(data),
@@ -75,25 +76,46 @@ export default function QuickViewLayout({ onSwitchToFull }: { onSwitchToFull: ()
 
       {/* Content */}
       <main className="flex-1 overflow-y-auto pb-safe">
-        <Suspense
-          fallback={
-            <div className="flex items-center justify-center py-20 text-[var(--text-secondary)] text-sm">
-              Cargando...
-            </div>
-          }
-        >
-          <TabContent tab={activeTab} />
-        </Suspense>
+        {!isAuthenticated ? (
+          <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+            <SymbolicIcon name="key" size={48} className="text-[var(--text-tertiary)] mb-4" />
+            <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+              Vinculá tu cuenta
+            </h2>
+            <p className="text-sm text-[var(--text-secondary)] mb-6 max-w-xs">
+              Para usar Oikonomia desde Telegram, primero iniciá sesión en la plataforma y vinculá
+              tu cuenta de Telegram desde Configuración.
+            </p>
+            <button
+              onClick={onSwitchToFull}
+              className="px-6 py-2.5 rounded-full bg-[var(--color-primary)] text-white text-sm font-medium active:scale-95 transition-transform"
+            >
+              Ir a la plataforma
+            </button>
+          </div>
+        ) : (
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center py-20 text-[var(--text-secondary)] text-sm">
+                Cargando...
+              </div>
+            }
+          >
+            <TabContent tab={activeTab} />
+          </Suspense>
+        )}
       </main>
 
-      {/* FAB */}
-      <button
-        onClick={() => setNewExpenseOpen(true)}
-        className="fixed bottom-20 right-4 z-50 w-14 h-14 rounded-full bg-[var(--color-primary)] text-white shadow-lg flex items-center justify-center text-2xl font-light active:scale-95 transition-transform"
-        aria-label="Agregar gasto"
-      >
-        +
-      </button>
+      {/* FAB — only when authenticated */}
+      {isAuthenticated && (
+        <button
+          onClick={() => setNewExpenseOpen(true)}
+          className="fixed bottom-20 right-4 z-50 w-14 h-14 rounded-full bg-[var(--color-primary)] text-white shadow-lg flex items-center justify-center text-2xl font-light active:scale-95 transition-transform"
+          aria-label="Agregar gasto"
+        >
+          +
+        </button>
+      )}
 
       {/* Bottom pills */}
       <nav className="sticky bottom-0 z-40 bg-[var(--color-base)] border-t border-[var(--border-color)] pb-safe">
@@ -117,8 +139,8 @@ export default function QuickViewLayout({ onSwitchToFull }: { onSwitchToFull: ()
         </div>
       </nav>
 
-      {/* Expense modal */}
-      {newExpenseOpen && (
+      {/* Expense modal — only when authenticated */}
+      {isAuthenticated && newExpenseOpen && (
         <ExpenseModal
           onClose={() => setNewExpenseOpen(false)}
           onSave={(data) => createMut.mutate(data)}
