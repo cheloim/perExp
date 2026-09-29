@@ -156,3 +156,6 @@ def get_authorization_url(redirect_uri: str, state: str = "") -> str:
     if state:
         params["state"] = state
     return f"{_AUTH_ENDPOINT}?{urlencode(params)}"
+
+
+# OIDC endpoints deployed
