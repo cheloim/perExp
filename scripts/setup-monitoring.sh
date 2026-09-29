@@ -66,7 +66,20 @@ case "$1" in
     ;;
   heal)
     # Check if Alloy is actually responding (not just "running")
-    if ! podman exec ${PROJECT}_alloy_1 wget -qO- http://localhost:12345/metrics >/dev/null 2>&1; then
+    # Use curl from host since wget isn't available in Alloy container
+    # Grace period: wait 60s after container start before restarting
+    if ! curl -sf http://localhost:12345/metrics >/dev/null 2>&1; then
+      # Check if containers were recently started (within 60s)
+      STARTED=$(podman inspect ${PROJECT}_alloy_1 --format '{{.State.StartedAt}}' 2>/dev/null)
+      if [ -n "$STARTED" ]; then
+        STARTED_EPOCH=$(date -d "$STARTED" +%s 2>/dev/null || echo 0)
+        NOW_EPOCH=$(date +%s)
+        AGE=$((NOW_EPOCH - STARTED_EPOCH))
+        if [ "$AGE" -lt 60 ]; then
+          echo "$(date -Iseconds) Alloy not responding but containers just started (${AGE}s ago) — skipping restart"
+          exit 0
+        fi
+      fi
       echo "$(date -Iseconds) Alloy not responding — restarting all monitoring containers"
       podman-compose -p $PROJECT -f $COMPOSE_FILE down 2>/dev/null
       podman rm -f $(podman ps -a --filter name=${PROJECT} -q) 2>/dev/null
