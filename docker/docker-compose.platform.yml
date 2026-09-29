@@ -98,8 +98,7 @@ services:
   platform-frontend:
     image: ${FRONTEND_IMAGE}:${IMAGE_TAG}
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:80/ > /dev/null || exit 1"]
       interval: 30s
