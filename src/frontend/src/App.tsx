@@ -183,11 +183,14 @@ export default function App() {
   }
 
   if (!telegramReady) return null;
-  if (!getStoredToken()) return <Navigate to="/login" replace />;
 
+  // In Telegram MiniApp: always show QuickView, even without token
+  // (QuickViewLayout handles its own login prompt for unauthenticated users)
   if (isTelegramWebApp() && quickView) {
     return <QuickViewLayout onSwitchToFull={() => setQuickView(false)} />;
   }
+
+  if (!getStoredToken()) return <Navigate to="/login" replace />;
 
   return (
     <NotificationsProvider>
