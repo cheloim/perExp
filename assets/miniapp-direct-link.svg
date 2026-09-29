@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3584e4"/>
+      <stop offset="50%" style="stop-color:#1a5fb4"/>
+      <stop offset="100%" style="stop-color:#1c71d8"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:white;stop-opacity:0.15"/>
+      <stop offset="100%" style="stop-color:white;stop-opacity:0.05"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="640" height="360" fill="url(#bg)"/>
+  <!-- Decorative circles -->
+  <circle cx="560" cy="60" r="120" fill="white" opacity="0.05"/>
+  <circle cx="80" cy="320" r="80" fill="white" opacity="0.05"/>
+  <!-- Card mockup -->
+  <rect x="60" y="80" width="220" height="200" rx="16" fill="url(#card)" stroke="white" stroke-width="1" stroke-opacity="0.2"/>
+  <!-- Balance text -->
+  <text x="80" y="120" font-family="Inter, system-ui, sans-serif" font-size="14" fill="white" opacity="0.7">Balance mensual</text>
+  <text x="80" y="158" font-family="Inter, system-ui, sans-serif" font-size="32" font-weight="700" fill="white">$245.800</text>
+  <!-- Mini chart bars -->
+  <rect x="80" y="185" width="20" height="40" rx="4" fill="white" opacity="0.3"/>
+  <rect x="108" y="175" width="20" height="50" rx="4" fill="white" opacity="0.4"/>
+  <rect x="136" y="190" width="20" height="35" rx="4" fill="white" opacity="0.3"/>
+  <rect x="164" y="170" width="20" height="55" rx="4" fill="white" opacity="0.5"/>
+  <rect x="192" y="180" width="20" height="45" rx="4" fill="white" opacity="0.4"/>
+  <rect x="220" y="165" width="20" height="60" rx="4" fill="white" opacity="0.6"/>
+  <!-- Category list mockup -->
+  <rect x="80" y="240" width="12" height="12" rx="6" fill="#ffbe6f"/>
+  <text x="100" y="251" font-family="Inter, system-ui, sans-serif" font-size="12" fill="white" opacity="0.8">Supermercado · $42.500</text>
+  <rect x="80" y="258" width="12" height="12" rx="6" fill="#8ff0a4"/>
+  <text x="100" y="269" font-family="Inter, system-ui, sans-serif" font-size="12" fill="white" opacity="0.8">Transporte · $18.200</text>
+  <!-- Right side: branding -->
+  <text x="380" y="140" font-family="Inter, system-ui, sans-serif" font-size="42" font-weight="700" fill="white">Oikonomia</text>
+  <text x="380" y="170" font-family="Inter, system-ui, sans-serif" font-size="16" fill="white" opacity="0.8">Tu dinero, simplificado.</text>
+  <!-- Feature pills -->
+  <rect x="380" y="195" width="200" height="36" rx="18" fill="white" fill-opacity="0.15"/>
+  <text x="398" y="218" font-family="Inter, system-ui, sans-serif" font-size="13" fill="white" opacity="0.9">📊  Dashboard inteligente</text>
+  <rect x="380" y="240" width="200" height="36" rx="18" fill="white" fill-opacity="0.15"/>
+  <text x="398" y="263" font-family="Inter, system-ui, sans-serif" font-size="13" fill="white" opacity="0.9">🤖  Bot de Telegram</text>
+  <rect x="380" y="285" width="200" height="36" rx="18" fill="white" fill-opacity="0.15"/>
+  <text x="398" y="308" font-family="Inter, system-ui, sans-serif" font-size="13" fill="white" opacity="0.9">💡  Análisis con IA</text>
+</svg>

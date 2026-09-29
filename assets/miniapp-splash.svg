@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3584e4"/>
+      <stop offset="100%" style="stop-color:#1a5fb4"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="100" fill="url(#bg)"/>
+  <!-- Coin circle -->
+  <circle cx="256" cy="220" r="120" fill="none" stroke="white" stroke-width="8" opacity="0.9"/>
+  <!-- Dollar sign -->
+  <text x="256" y="245" text-anchor="middle" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="120" font-weight="700" fill="white" opacity="0.95">$</text>
+  <!-- Chart line (growth) -->
+  <polyline points="160,340 220,310 260,330 320,280 360,290" fill="none" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+  <!-- Arrow up -->
+  <polyline points="340,290 360,280 355,300" fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+  <!-- App name -->
+  <text x="256" y="420" text-anchor="middle" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="48" font-weight="600" fill="white" letter-spacing="2">OIKONOMIA</text>
+  <!-- Tagline -->
+  <text x="256" y="460" text-anchor="middle" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="20" font-weight="400" fill="white" opacity="0.7" letter-spacing="1">Finanzas personales</text>
+</svg>
