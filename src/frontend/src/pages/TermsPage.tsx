@@ -51,9 +51,7 @@ export default function TermsPage() {
                 Podés vincular tu cuenta con Telegram o WhatsApp para registrar gastos desde esos
                 canales.
               </li>
-              <li>
-                Debés tener al menos 16 años para crear una cuenta.
-              </li>
+              <li>Debés tener al menos 16 años para crear una cuenta.</li>
             </ul>
           </Section>
 
@@ -79,10 +77,7 @@ export default function TermsPage() {
             </p>
             <p className="mt-2">
               El tratamiento de tus datos personales se rige por nuestra{" "}
-              <a
-                href="/privacy"
-                className="text-[var(--color-primary)] hover:underline"
-              >
+              <a href="/privacy" className="text-[var(--color-primary)] hover:underline">
                 Política de Privacidad
               </a>
               .
@@ -122,8 +117,8 @@ export default function TermsPage() {
                 <strong>WhatsApp:</strong> bot para registro de gastos.
               </li>
               <li>
-                <strong>Google Gemini:</strong> procesamiento de lenguaje natural para categorización
-                y análisis.
+                <strong>Google Gemini:</strong> procesamiento de lenguaje natural para
+                categorización y análisis.
               </li>
               <li>
                 <strong>Resend:</strong> envío de emails transaccionales.
@@ -168,10 +163,10 @@ export default function TermsPage() {
 
           <Section title="10. Modificaciones">
             <p>
-              Nos reservamos el derecho de modificar estos términos en cualquier momento. Los cambios
-              se publicarán en esta página con la fecha de última actualización. El uso continuado
-              del servicio después de la publicación de cambios constituye tu aceptación de los
-              mismos.
+              Nos reservamos el derecho de modificar estos términos en cualquier momento. Los
+              cambios se publicarán en esta página con la fecha de última actualización. El uso
+              continuado del servicio después de la publicación de cambios constituye tu aceptación
+              de los mismos.
             </p>
           </Section>
 
