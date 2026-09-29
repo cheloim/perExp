@@ -79,6 +79,22 @@ export function isTelegramWebApp(): boolean {
   return typeof window !== "undefined" && !!window.Telegram?.WebApp?.initData;
 }
 
+/**
+ * Fast check: are we *probably* inside Telegram?
+ * Works before the async SDK script loads — checks URL hash and user agent.
+ * Use this to decide whether to wait for the SDK.
+ */
+export function isLikelyTelegram(): boolean {
+  if (typeof window === "undefined") return false;
+  if (window.Telegram?.WebApp) return true;
+  const ua = navigator.userAgent || "";
+  if (ua.indexOf("Telegram") !== -1) return true;
+  if (window.location.hash && window.location.hash.indexOf("tgWebAppData") !== -1) return true;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("tgWebAppData")) return true;
+  return false;
+}
+
 export function isDarkMode(): boolean {
   const params = new URLSearchParams(window.location.search);
   if (params.get("dark") === "1") return true;
