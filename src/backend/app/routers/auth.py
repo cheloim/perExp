@@ -455,6 +455,44 @@ def telegram_webapp_login(
 
 
 @router.post(
+    "/telegram/link-webapp",
+    summary="Link Telegram account via MiniApp initData",
+    description="Links the authenticated user's Telegram account using initData from the MiniApp context.",
+)
+def telegram_webapp_link(
+    body: TelegramWebAppRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    tg_user = verify_telegram_webapp(body.init_data)
+    if not tg_user:
+        raise HTTPException(status_code=401, detail="Datos de Telegram inválidos o expirados")
+
+    tg_id = tg_user.get("id")
+    if not tg_id:
+        raise HTTPException(status_code=400, detail="Falta ID de usuario de Telegram")
+
+    chat_hash = compute_hmac(str(tg_id))
+
+    # Check if already linked to another user
+    existing = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
+    if existing and existing.id != current_user.id:
+        raise HTTPException(
+            status_code=409,
+            detail="Esta cuenta de Telegram ya está vinculada a otro usuario.",
+        )
+
+    # Link
+    current_user.telegram_chat_hash = chat_hash
+    db.commit()
+    db.refresh(current_user)
+
+    _log_audit(db, current_user.id, "telegram_webapp_link", request)
+    return {"status": "linked", "telegram_id": str(tg_id)}
+
+
+@router.post(
     "/telegram/login-widget",
     response_model=Token,
     summary="Login via Telegram Login Widget",

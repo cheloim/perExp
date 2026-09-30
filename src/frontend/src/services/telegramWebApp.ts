@@ -123,8 +123,19 @@ export async function telegramAutoLogin(): Promise<boolean> {
   if (!wa?.initData) return false;
 
   const existingToken = localStorage.getItem("auth_token");
-  if (existingToken) return false;
 
+  // Already authenticated — try to auto-link Telegram if not linked yet
+  if (existingToken) {
+    try {
+      await telegramWebAppLink(wa.initData);
+      // Successfully linked — Telegram SSO will work on next visit
+    } catch {
+      // Already linked or error — either way, user is authenticated
+    }
+    return true;
+  }
+
+  // Not authenticated — try Telegram SSO login
   try {
     const { access_token } = await telegramWebAppLogin(wa.initData);
     storeToken(access_token);
@@ -132,6 +143,14 @@ export async function telegramAutoLogin(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Link the current user's Telegram account via MiniApp initData.
+ */
+export async function telegramWebAppLink(initData: string): Promise<void> {
+  const { telegramWebAppLink: linkApi } = await import("../api/client");
+  await linkApi(initData);
 }
 
 // ── Theme ───────────────────────────────────────────────────────────────────

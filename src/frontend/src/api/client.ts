@@ -111,6 +111,9 @@ export const telegramOidcLogin = (code: string, redirectUri: string) =>
 export const telegramOidcLink = (code: string, redirectUri: string) =>
   api.post("/auth/telegram/link", { code, redirect_uri: redirectUri }).then((r) => r.data);
 
+export const telegramWebAppLink = (initData: string) =>
+  api.post("/auth/telegram/link-webapp", { init_data: initData }).then((r) => r.data);
+
 export const getMe = () => api.get<User>("/auth/me").then((r) => r.data);
 
 export const markOnboardingCompleted = () =>
