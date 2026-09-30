@@ -120,27 +120,35 @@ export function initTelegramWebApp(): void {
 
 export async function telegramAutoLogin(): Promise<boolean> {
   const wa = window.Telegram?.WebApp;
-  if (!wa?.initData) return false;
+  if (!wa?.initData) {
+    console.warn("[TG-SSO] No initData available from Telegram SDK");
+    return false;
+  }
 
+  console.log("[TG-SSO] initData present, length:", wa.initData.length);
   const existingToken = localStorage.getItem("auth_token");
 
   // Already authenticated — try to auto-link Telegram if not linked yet
   if (existingToken) {
+    console.log("[TG-SSO] User already authenticated, attempting auto-link");
     try {
       await telegramWebAppLink(wa.initData);
-      // Successfully linked — Telegram SSO will work on next visit
-    } catch {
-      // Already linked or error — either way, user is authenticated
+      console.log("[TG-SSO] Auto-link succeeded");
+    } catch (e) {
+      console.warn("[TG-SSO] Auto-link failed (may already be linked):", e);
     }
     return true;
   }
 
   // Not authenticated — try Telegram SSO login
+  console.log("[TG-SSO] No token, attempting Telegram SSO login");
   try {
     const { access_token } = await telegramWebAppLogin(wa.initData);
     storeToken(access_token);
+    console.log("[TG-SSO] Login succeeded");
     return true;
-  } catch {
+  } catch (e) {
+    console.warn("[TG-SSO] Login failed:", e);
     return false;
   }
 }
