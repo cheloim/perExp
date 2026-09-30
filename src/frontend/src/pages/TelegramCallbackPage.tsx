@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { storeToken } from "../api/client";
+import { getStoredToken, storeToken } from "../api/client";
 
 /**
  * Handles the redirect from Telegram's OIDC authorization endpoint.
@@ -15,7 +15,9 @@ export default function TelegramCallbackPage() {
   useEffect(() => {
     const token = searchParams.get("token");
     const errorParam = searchParams.get("error");
+    const tgId = searchParams.get("tg_id");
 
+    // Success — store token and redirect
     if (token) {
       storeToken(token);
       navigate("/", { replace: true });
@@ -23,6 +25,23 @@ export default function TelegramCallbackPage() {
     }
 
     if (errorParam) {
+      // Telegram not linked — try to auto-link if user is already authenticated
+      if (errorParam === "telegram_not_linked" && tgId) {
+        const existingToken = getStoredToken();
+        if (existingToken) {
+          // User is authenticated (e.g., via Google) — they need to link via MiniApp
+          setError(
+            "Tu cuenta de Telegram no está vinculada. Abrí la MiniApp de Telegram desde el bot para vincular automáticamente, o vinculá desde Configuración → Telegram Bot.",
+          );
+          return;
+        }
+        // Not authenticated — need to log in first
+        setError(
+          "Tu cuenta de Telegram no está vinculada. Iniciá sesión con Google o email, y luego vinculá tu Telegram desde la MiniApp.",
+        );
+        return;
+      }
+
       const errorMessages: Record<string, string> = {
         telegram_oidc_failed: "No se pudo conectar con Telegram. Intentá de nuevo.",
         telegram_token_invalid: "El token de Telegram es inválido o expiró.",
@@ -48,12 +67,20 @@ export default function TelegramCallbackPage() {
             Error de autenticación
           </h1>
           <p className="text-sm text-[var(--text-secondary)] mb-6">{error}</p>
-          <button
-            onClick={() => navigate("/login", { replace: true })}
-            className="gnome-btn-primary-round px-6 py-2"
-          >
-            Volver al login
-          </button>
+          <div className="flex flex-col gap-3 items-center">
+            <button
+              onClick={() => navigate("/login", { replace: true })}
+              className="gnome-btn-primary-round px-6 py-2"
+            >
+              Volver al login
+            </button>
+            <button
+              onClick={() => navigate("/", { replace: true })}
+              className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+            >
+              Ir al inicio
+            </button>
+          </div>
         </div>
       </div>
     );
