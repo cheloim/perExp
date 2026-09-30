@@ -147,8 +147,12 @@ export async function telegramAutoLogin(): Promise<boolean> {
     storeToken(access_token);
     console.log("[TG-SSO] Login succeeded");
     return true;
-  } catch (e) {
-    console.warn("[TG-SSO] Login failed:", e);
+  } catch (e: unknown) {
+    const detail =
+      e && typeof e === "object" && "response" in e
+        ? (e as { response?: { data?: { detail?: string } } }).response?.data?.detail
+        : String(e);
+    console.warn("[TG-SSO] Login failed:", detail);
     return false;
   }
 }

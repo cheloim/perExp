@@ -610,51 +610,43 @@ async def telegram_oidc_callback(
         raise HTTPException(status_code=400, detail="Missing authorization code")
 
     frontend_url = os.getenv("FRONTEND_URL", "https://platform.oikonomia.ar")
+    callback_url = f"{frontend_url}/auth/telegram/callback"
+    from fastapi.responses import RedirectResponse
+
     from app.services.telegram_oidc import exchange_code, verify_id_token
 
     # Exchange code for tokens
-    token_data = await exchange_code(code, f"{frontend_url}/auth/telegram/callback")
+    token_data = await exchange_code(code, callback_url)
     if not token_data or not token_data.get("id_token"):
-        # Redirect to frontend with error
-        from fastapi.responses import RedirectResponse
-
-        return RedirectResponse(url=f"{frontend_url}/login?error=telegram_oidc_failed")
+        logger.warning("Telegram OIDC token exchange failed: %s", token_data)
+        return RedirectResponse(url=f"{callback_url}?error=telegram_oidc_failed")
 
     # Verify id_token
     claims = await verify_id_token(token_data["id_token"])
     if not claims:
-        from fastapi.responses import RedirectResponse
-
-        return RedirectResponse(url=f"{frontend_url}/login?error=telegram_token_invalid")
+        return RedirectResponse(url=f"{callback_url}?error=telegram_token_invalid")
 
     tg_id = claims.get("sub")
     if not tg_id:
-        from fastapi.responses import RedirectResponse
-
-        return RedirectResponse(url=f"{frontend_url}/login?error=telegram_no_id")
+        return RedirectResponse(url=f"{callback_url}?error=telegram_no_id")
 
     # Find linked user
     chat_hash = compute_hmac(str(tg_id))
     user = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
     if not user:
-        from fastapi.responses import RedirectResponse
-
-        return RedirectResponse(url=f"{frontend_url}/login?error=telegram_not_linked")
+        # Telegram not linked — redirect with tg_id so frontend can offer linking
+        return RedirectResponse(url=f"{callback_url}?error=telegram_not_linked&tg_id={tg_id}")
 
     if not user.is_active or user.is_blocked:
-        from fastapi.responses import RedirectResponse
-
-        return RedirectResponse(url=f"{frontend_url}/login?error=telegram_account_issue")
+        return RedirectResponse(url=f"{callback_url}?error=telegram_account_issue")
 
     _log_audit(db, user.id, "telegram_oidc_login", request)
     _record_login(db, user)
     LOGIN_ATTEMPTS.labels(method="telegram_oidc", status="success").inc()
 
     # Redirect to frontend with token
-    from fastapi.responses import RedirectResponse
-
     access_token = create_access_token(user.id)
-    return RedirectResponse(url=f"{frontend_url}/auth/telegram/callback?token={access_token}")
+    return RedirectResponse(url=f"{callback_url}?token={access_token}")
 
 
 @router.post(
