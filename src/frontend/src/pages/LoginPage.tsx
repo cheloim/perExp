@@ -187,7 +187,7 @@ function LoginForm({
   // Telegram OIDC login
   const handleTelegramOidc = useCallback(() => {
     const clientId = import.meta.env.VITE_TELEGRAM_OIDC_CLIENT_ID || "";
-    const redirectUri = `${window.location.origin}/auth/telegram/callback`;
+    const redirectUri = `${window.location.origin}/api/auth/telegram/callback`;
     const state = Math.random().toString(36).substring(2);
     sessionStorage.setItem("telegram_oidc_state", state);
     const params = new URLSearchParams({

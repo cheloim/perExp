@@ -29,6 +29,7 @@ services:
       SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS}
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       FRONTEND_URL: https://${PLATFORM_DOMAIN}
+      BASE_URL: https://${PLATFORM_DOMAIN}
       CORS_ORIGINS: https://${DOMAIN_NAME},https://www.${DOMAIN_NAME},https://${PLATFORM_DOMAIN}
       TELEGRAM_BOT_ENABLED: "false"
       TZ: America/Argentina/Buenos_Aires
