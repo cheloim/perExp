@@ -55,11 +55,14 @@
       // Avoids a synchronous 300-500ms blocking request for all other users.
       (function () {
         var ua = navigator.userAgent || "";
+        var params = new URLSearchParams(window.location.search);
         var isTg =
           window.Telegram && window.Telegram.WebApp
             ? true
             : ua.indexOf("Telegram") !== -1 ||
-              (window.location.hash && window.location.hash.indexOf("tgWebAppData") !== -1);
+              (window.location.hash && window.location.hash.indexOf("tgWebAppData") !== -1) ||
+              params.get("tgWebAppData") !== null ||
+              params.get("miniapp") === "1";
         if (isTg) {
           var s = document.createElement("script");
           s.src = "https://telegram.org/js/telegram-web-app.js";
