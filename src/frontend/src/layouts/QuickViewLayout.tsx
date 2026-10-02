@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ExpenseModal } from "../components/ExpenseModals";
 import { createExpense, getStoredToken, getTelegramDeepLink } from "../api/client";
 import { hapticLight, hideBackButton } from "../services/telegramWebApp";
+import { useTheme } from "../context/ThemeContext";
 import SymbolicIcon from "../components/SymbolicIcon";
 import type { IconName } from "../components/SymbolicIcon";
 import type { ExpenseCreate } from "../types";
@@ -90,6 +91,7 @@ export default function QuickViewLayout({ onSwitchToFull }: { onSwitchToFull: ()
   const [newExpenseOpen, setNewExpenseOpen] = useState(false);
   const queryClient = useQueryClient();
   const isAuthenticated = !!getStoredToken();
+  const { theme, toggleTheme } = useTheme();
 
   const createMut = useMutation({
     mutationFn: (data: ExpenseCreate) => createExpense(data),
@@ -120,12 +122,21 @@ export default function QuickViewLayout({ onSwitchToFull }: { onSwitchToFull: ()
             </div>
             <span className="text-sm font-semibold text-[var(--text-primary)]">Oikonomia</span>
           </div>
-          <button
-            onClick={onSwitchToFull}
-            className="text-xs font-medium px-3 py-1.5 rounded-full border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition-colors"
-          >
-            Plataforma completa
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleTheme}
+              className="p-1.5 rounded-full text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition-colors"
+              aria-label={theme === "dark" ? "Modo claro" : "Modo oscuro"}
+            >
+              <SymbolicIcon name={theme === "dark" ? "sun" : "moon"} size={16} />
+            </button>
+            <button
+              onClick={onSwitchToFull}
+              className="text-xs font-medium px-3 py-1.5 rounded-full border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition-colors"
+            >
+              Plataforma completa
+            </button>
+          </div>
         </div>
       </header>
 
@@ -167,7 +178,7 @@ export default function QuickViewLayout({ onSwitchToFull }: { onSwitchToFull: ()
               className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
                 activeTab === tab.id
                   ? "bg-[var(--color-primary)] text-white"
-                  : "text-[var(--text-primary)] opacity-60 hover:opacity-100 hover:bg-[var(--color-base-alt)]"
+                  : "text-[var(--color-sidebar-icon)] hover:text-[var(--text-primary)] hover:bg-[var(--color-base-alt)]"
               }`}
             >
               <span className="text-base">
