@@ -50,26 +50,8 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <script>
-      // Load Telegram Web App script only inside Telegram Mini Apps.
-      // Avoids a synchronous 300-500ms blocking request for all other users.
-      (function () {
-        var ua = navigator.userAgent || "";
-        var params = new URLSearchParams(window.location.search);
-        var isTg =
-          window.Telegram && window.Telegram.WebApp
-            ? true
-            : ua.indexOf("Telegram") !== -1 ||
-              (window.location.hash && window.location.hash.indexOf("tgWebAppData") !== -1) ||
-              params.get("tgWebAppData") !== null ||
-              params.get("miniapp") === "1";
-        if (isTg) {
-          var s = document.createElement("script");
-          s.src = "https://telegram.org/js/telegram-web-app.js";
-          document.head.appendChild(s);
-        }
-      })();
-    </script>
+    <!-- Always load Telegram WebApp SDK (~50KB). Outside Telegram, initData will be empty. -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body>
     <div id="root"></div>
