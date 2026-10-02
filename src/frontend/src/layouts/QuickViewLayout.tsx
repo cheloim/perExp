@@ -83,17 +83,21 @@ export default function QuickViewLayout({ onSwitchToFull }: { onSwitchToFull: ()
             </div>
             <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">¡Hola! 👋</h2>
             <p className="text-sm text-[var(--text-secondary)] mb-6 max-w-xs">
-              Iniciá sesión en la plataforma para vincular tu cuenta de Telegram automáticamente. La
-              próxima vez que abras Oikonomia desde Telegram, el ingreso será automático.
+              Para usar Oikonomia desde Telegram, primero iniciá sesión en la plataforma web. Tu
+              cuenta de Telegram se vinculará automáticamente.
             </p>
             <button
-              onClick={onSwitchToFull}
+              onClick={() => window.open("https://platform.oikonomia.ar", "_blank")}
               className="px-6 py-2.5 rounded-full bg-[var(--color-primary)] text-white text-sm font-medium active:scale-95 transition-transform"
             >
-              Iniciar sesión
+              Ir a la plataforma
             </button>
             <p className="text-xs text-[var(--text-tertiary)] mt-4 max-w-xs">
-              Una vez que inicies sesión, tu cuenta de Telegram se vinculará automáticamente.
+              Abrí{" "}
+              <span className="font-medium text-[var(--text-secondary)]">
+                platform.oikonomia.ar
+              </span>{" "}
+              en tu navegador, iniciá sesión, y volvé a abrir esta MiniApp.
             </p>
           </div>
         ) : (

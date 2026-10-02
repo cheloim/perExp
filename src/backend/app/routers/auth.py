@@ -438,6 +438,15 @@ def telegram_webapp_login(
     chat_hash = compute_hmac(str(tg_id))
     user = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
     if not user:
+        # Diagnostic: log the user ID and hash for debugging
+        linked_users = db.query(User).filter(User.telegram_chat_hash.isnot(None)).count()
+        logger.warning(
+            "Telegram WebApp login: user not found. tg_id=%s (type=%s), hash_prefix=%s, linked_users_in_db=%s",
+            tg_id,
+            type(tg_id).__name__,
+            chat_hash[:16],
+            linked_users,
+        )
         raise HTTPException(
             status_code=404,
             detail="Tu cuenta de Telegram no está vinculada. Vinculala desde Configuración → Telegram Bot.",
@@ -638,6 +647,15 @@ async def telegram_oidc_callback(
     chat_hash = compute_hmac(str(tg_id))
     user = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
     if not user:
+        # Diagnostic: log the sub claim and hash for debugging
+        linked_users = db.query(User).filter(User.telegram_chat_hash.isnot(None)).count()
+        logger.warning(
+            "Telegram OIDC: user not found. sub=%s (type=%s), hash_prefix=%s, linked_users_in_db=%s",
+            tg_id,
+            type(tg_id).__name__,
+            chat_hash[:16],
+            linked_users,
+        )
         # Telegram not linked — redirect with tg_id so frontend can offer linking
         return RedirectResponse(url=f"{frontend_callback}?error=telegram_not_linked&tg_id={tg_id}")
 
