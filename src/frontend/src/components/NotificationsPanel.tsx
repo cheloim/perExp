@@ -6,6 +6,8 @@ import type { Notification } from "../types";
 import InvitationDisclaimer from "./InvitationDisclaimer";
 import { useUploadProgress } from "../context/UploadProgressContext";
 import { useNotifications } from "../context/NotificationsContext";
+import SymbolicIcon from "./SymbolicIcon";
+import type { IconName } from "./SymbolicIcon";
 
 interface Props {
   onClose: () => void;
@@ -20,6 +22,81 @@ function timeAgo(dateStr: string): string {
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `Hace ${hours}h`;
   return `Hace ${Math.floor(hours / 24)}d`;
+}
+
+/** Returns icon name and color class for a notification type */
+function getNotifIcon(n: Notification): { icon: IconName; color: string } {
+  switch (n.type) {
+    case "import_ready":
+      return { icon: "check", color: "text-green-500" };
+    case "import_failed":
+      return { icon: "warning", color: "text-red-500" };
+    case "uncategorized_expense":
+    case "uncategorized_expenses":
+      return { icon: "warning", color: "text-amber-500" };
+    case "category_suggestions":
+      return { icon: "sparkles", color: "text-purple-500" };
+    case "auto_recurring_detected":
+      return { icon: "installments", color: "text-indigo-500" };
+    case "budget_warning":
+      return {
+        icon: "warning",
+        color: n.data?.status === "exceeded" ? "text-red-500" : "text-amber-500",
+      };
+    case "monthly_report_ready":
+    case "monthly_report_queued":
+      return { icon: "book", color: "text-blue-500" };
+    case "group_invitation":
+      return { icon: "users", color: "text-[var(--color-primary)]" };
+    default:
+      return { icon: "bell", color: "text-[var(--text-tertiary)]" };
+  }
+}
+
+/** Returns the border color for a notification type */
+function getNotifBorderColor(n: Notification): string {
+  switch (n.type) {
+    case "import_ready":
+      return "border-l-green-500";
+    case "import_failed":
+      return "border-l-red-500";
+    case "uncategorized_expense":
+    case "uncategorized_expenses":
+      return "border-l-amber-500";
+    case "category_suggestions":
+      return "border-l-purple-500";
+    case "auto_recurring_detected":
+      return "border-l-indigo-500";
+    case "budget_warning":
+      return n.data?.status === "exceeded" ? "border-l-red-500" : "border-l-amber-500";
+    case "monthly_report_ready":
+    case "monthly_report_queued":
+      return "border-l-blue-500";
+    default:
+      return "";
+  }
+}
+
+/** Returns the action label for clickable notifications */
+function getActionLabel(n: Notification): string | null {
+  switch (n.type) {
+    case "import_ready":
+    case "import_failed":
+      return "Ver importación →";
+    case "uncategorized_expense":
+    case "uncategorized_expenses":
+      return "Ver gastos sin categoría →";
+    case "category_suggestions":
+      return "Ver sugerencias →";
+    case "auto_recurring_detected":
+      return "Ver programados →";
+    case "budget_warning":
+      return "Ver presupuestos →";
+    case "monthly_report_ready":
+      return "Descargar reporte →";
+    default:
+      return null;
+  }
 }
 
 export default function NotificationsPanel({ onClose }: Props) {
@@ -148,23 +225,11 @@ export default function NotificationsPanel({ onClose }: Props) {
         role="dialog"
         aria-label="Notificaciones"
       >
+        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)]">
           <div className="flex items-center gap-2 text-[var(--text-primary)] font-semibold">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 20 20"
-              fill="none"
-              className="text-[var(--color-primary)]"
-            >
-              <path
-                d="M8 16a2 2 0 01-2-2h4a2 2 0 01-2 2v-3H8v3zM15 6a4 4 0 00-8 0v3h8V6z"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinejoin="round"
-              />
-            </svg>
-            Notificaciones
+            <SymbolicIcon name="bell" size={18} className="text-[var(--color-primary)]" />
+            <span>Notificaciones</span>
           </div>
           <div className="flex items-center gap-2">
             {unreadCount > 0 && (
@@ -194,8 +259,9 @@ export default function NotificationsPanel({ onClose }: Props) {
         </div>
 
         <div className="overflow-y-auto flex-1">
+          {/* Connection indicator */}
           {!connected && (
-            <div className="px-4 py-3 bg-[var(--color-primary)]/5 border-b border-[var(--border-color)]">
+            <div className="px-4 py-2 bg-[var(--color-primary)]/5 border-b border-[var(--border-color)]">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                 <p className="text-[var(--text-tertiary)] text-xs">Conectando...</p>
@@ -203,6 +269,7 @@ export default function NotificationsPanel({ onClose }: Props) {
             </div>
           )}
 
+          {/* Upload progress */}
           {uploads.map((upload) => (
             <div
               key={upload.id}
@@ -215,85 +282,17 @@ export default function NotificationsPanel({ onClose }: Props) {
               }`}
             >
               <div className="flex items-center gap-2 mb-1.5">
-                {/* Status icon */}
-                <span className="flex-shrink-0">
-                  {upload.status === "uploading" && (
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 16 16"
-                      fill="none"
-                      className="text-[var(--color-primary)]"
-                    >
-                      <path
-                        d="M8 2v8M5 7l3 3 3-3"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                      <path
-                        d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  )}
-                  {upload.status === "queued" && (
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 16 16"
-                      fill="none"
-                      className="text-amber-500"
-                    >
-                      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
-                      <path
-                        d="M8 4.5V8l2.5 1.5"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  )}
-                  {upload.status === "processing" && (
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 16 16"
-                      fill="none"
-                      className="text-[var(--color-primary)] animate-spin"
-                    >
-                      <circle
-                        cx="8"
-                        cy="8"
-                        r="6"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeDasharray="28"
-                        strokeDashoffset="8"
-                      />
-                    </svg>
-                  )}
-                  {upload.status === "failed" && (
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 16 16"
-                      fill="none"
-                      className="text-red-500"
-                    >
-                      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
-                      <path
-                        d="M6 6l4 4M10 6l-4 4"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  )}
-                </span>
+                <SymbolicIcon
+                  name={upload.status === "failed" ? "warning" : "upload"}
+                  size={16}
+                  className={
+                    upload.status === "failed"
+                      ? "text-red-500"
+                      : upload.status === "queued"
+                        ? "text-amber-500"
+                        : "text-[var(--color-primary)]"
+                  }
+                />
                 <p className="text-[var(--text-primary)] text-sm font-medium flex-1 truncate">
                   {upload.filename}
                 </p>
@@ -334,7 +333,7 @@ export default function NotificationsPanel({ onClose }: Props) {
               )}
 
               <p className="text-[var(--text-tertiary)] text-xs">
-                {upload.status === "uploading" && `Subiendo archivo...`}
+                {upload.status === "uploading" && "Subiendo archivo..."}
                 {upload.status === "queued" && "En cola — esperando turno..."}
                 {upload.status === "processing" && "Procesando con IA..."}
                 {upload.status === "failed" && `Error: ${upload.error || "Falló el upload"}`}
@@ -342,27 +341,28 @@ export default function NotificationsPanel({ onClose }: Props) {
             </div>
           ))}
 
+          {/* Empty state */}
           {notifications.length === 0 && uploads.length === 0 && (
-            <p className="text-[var(--text-tertiary)] text-sm text-center py-8">
-              Sin notificaciones
-            </p>
+            <div className="flex flex-col items-center justify-center py-12 px-4">
+              <SymbolicIcon
+                name="bell"
+                size={40}
+                className="text-[var(--text-tertiary)] opacity-40 mb-3"
+              />
+              <p className="text-[var(--text-secondary)] text-sm font-medium">¡Todo al día! ✨</p>
+              <p className="text-[var(--text-tertiary)] text-xs mt-1">
+                No tenés notificaciones pendientes
+              </p>
+            </div>
           )}
+
+          {/* Notifications list */}
           {notifications.map((n) => {
-            const isImportNotif = n.type === "import_ready" || n.type === "import_failed";
-            const isUncategorizedNotif =
-              n.type === "uncategorized_expense" || n.type === "uncategorized_expenses";
-            const isCategorySuggestion = n.type === "category_suggestions";
-            const isRecurringDetected = n.type === "auto_recurring_detected";
-            const isBudgetWarning = n.type === "budget_warning";
-            const isClickable =
-              isImportNotif ||
-              isUncategorizedNotif ||
-              isCategorySuggestion ||
-              isRecurringDetected ||
-              isBudgetWarning ||
-              n.type === "monthly_report_ready" ||
-              n.type === "monthly_report_queued";
-            const isFailed = n.type === "import_failed";
+            const { icon, color } = getNotifIcon(n);
+            const borderColor = getNotifBorderColor(n);
+            const actionLabel = getActionLabel(n);
+            const isClickable = !!actionLabel || n.type === "group_invitation";
+
             return (
               <div
                 key={n.id}
@@ -379,245 +379,111 @@ export default function NotificationsPanel({ onClose }: Props) {
                   isClickable
                     ? "cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
                     : ""
-                } ${
-                  isImportNotif
-                    ? "border-l-4 " + (isFailed ? "border-l-red-500" : "border-l-green-500")
-                    : ""
-                } ${isUncategorizedNotif ? "border-l-4 border-l-amber-500" : ""} ${
-                  isCategorySuggestion ? "border-l-4 border-l-purple-500" : ""
-                }                 ${isRecurringDetected ? "border-l-4 border-l-indigo-500" : ""} ${
-                  isBudgetWarning
-                    ? `border-l-4 ${n.data?.status === "exceeded" ? "border-l-red-500" : "border-l-amber-500"}`
-                    : ""
-                } ${
-                  n.type === "monthly_report_ready" || n.type === "monthly_report_queued"
-                    ? "border-l-4 border-l-blue-500"
-                    : ""
-                }`}
+                } ${borderColor ? `border-l-4 ${borderColor}` : ""}`}
                 role={isClickable ? "button" : undefined}
                 tabIndex={isClickable ? 0 : undefined}
               >
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <div className="flex items-center gap-2 min-w-0">
-                    {/* Notification icon */}
-                    <span className="flex-shrink-0">
-                      {isImportNotif && !isFailed && (
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 16 16"
-                          fill="none"
-                          className="text-green-500"
-                        >
-                          <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
-                          <path
-                            d="M5.5 8l2 2 3-3.5"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      )}
-                      {isFailed && (
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 16 16"
-                          fill="none"
-                          className="text-red-500"
-                        >
-                          <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
-                          <path
-                            d="M6 6l4 4M10 6l-4 4"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                      )}
-                      {n.type === "group_invitation" && (
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 16 16"
-                          fill="none"
-                          className="text-[var(--color-primary)]"
-                        >
-                          <circle cx="6" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.5" />
-                          <path
-                            d="M2 13c0-2.2 1.8-4 4-4s4 1.8 4 4"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                          />
-                          <path
-                            d="M11 6v4M9 8h4"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                      )}
-                      {isUncategorizedNotif && (
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 16 16"
-                          fill="none"
-                          className="text-amber-500"
-                        >
-                          <path
-                            d="M8 1.5l6.5 13H1.5L8 1.5z"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinejoin="round"
-                          />
-                          <path
-                            d="M8 6.5v3"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                          />
-                          <circle cx="8" cy="12" r="0.75" fill="currentColor" />
-                        </svg>
-                      )}
-                      {isCategorySuggestion && <span className="text-sm">✨</span>}
-                      {isBudgetWarning && (
-                        <span className="text-sm">
-                          {n.data?.status === "exceeded" ? "🔴" : "🟡"}
-                        </span>
-                      )}
-                      {n.type === "monthly_report_ready" && (
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 16 16"
-                          fill="none"
-                          className="text-blue-500"
-                        >
-                          <path
-                            d="M4 1.5h8a1 1 0 011 1v11a1 1 0 01-1 1H4a1 1 0 01-1-1v-11a1 1 0 011-1z"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                          />
-                          <path
-                            d="M5 5h6M5 8h6M5 11h3"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                      )}
-                    </span>
-                    <p className="text-[var(--text-primary)] text-sm font-medium leading-tight truncate">
-                      {n.title}
+                <div className="flex items-start gap-2.5">
+                  {/* Icon */}
+                  <span className="flex-shrink-0 mt-0.5">
+                    <SymbolicIcon name={icon} size={16} className={color} />
+                  </span>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2 mb-0.5">
+                      <p className="text-[var(--text-primary)] text-sm font-medium leading-tight truncate">
+                        {n.title}
+                      </p>
+                      <span className="text-[var(--text-tertiary)] text-xs whitespace-nowrap flex-shrink-0">
+                        {timeAgoValues.get(n.id) ?? timeAgo(n.created_at)}
+                      </span>
+                    </div>
+                    <p className="text-[var(--text-secondary)] text-xs line-clamp-2 mb-1.5">
+                      {n.body}
                     </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[var(--text-tertiary)] text-xs whitespace-nowrap">
-                      {timeAgoValues.get(n.id) ?? timeAgo(n.created_at)}
-                    </span>
-                    {isImportNotif ? (
+
+                    {/* Action link */}
+                    {actionLabel && (
+                      <p className="text-[var(--color-primary)] text-xs font-medium">
+                        {actionLabel}
+                      </p>
+                    )}
+
+                    {/* Group invitation buttons */}
+                    {n.type === "group_invitation" &&
+                      (() => {
+                        const data = n.data;
+                        const hasPendingInvite = data.member_id && !n.read;
+                        if (!hasPendingInvite) return null;
+                        return (
+                          <div className="flex gap-2 mt-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAccept(n);
+                              }}
+                              className="text-xs px-3 py-1 rounded-md bg-[var(--color-primary)] hover:brightness-110 text-white transition-colors"
+                            >
+                              ✓ Aceptar
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setConfirmReject(n.id);
+                              }}
+                              disabled={reject.isPending}
+                              className="text-xs px-3 py-1 rounded-md border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition-colors disabled:opacity-50"
+                            >
+                              ✕ Rechazar
+                            </button>
+                          </div>
+                        );
+                      })()}
+
+                    {/* Monthly report download */}
+                    {n.type === "monthly_report_ready" && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          const jobId = "job_id" in n.data ? (n.data.job_id as number) : undefined;
-                          if (jobId) {
-                            setConfirmDelete({ jobId, notifId: n.id });
+                          const month = n.data.month;
+                          if (month) {
+                            handleMarkRead(n.id);
+                            downloadReportPdf(month as string);
                           }
                         }}
-                        className="text-[var(--text-tertiary)] hover:text-red-500 transition-colors"
-                        title="Eliminar importación"
+                        className="text-[var(--color-primary)] text-xs font-medium hover:underline"
                       >
-                        ✕
-                      </button>
-                    ) : (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteNotification(n.id);
-                          refresh();
-                        }}
-                        className="text-[var(--text-tertiary)] hover:text-red-500 transition-colors"
-                        title="Eliminar notificación"
-                      >
-                        ✕
+                        Descargar reporte →
                       </button>
                     )}
                   </div>
-                </div>
-                <p className="text-[var(--text-secondary)] text-xs mb-2 line-clamp-2">{n.body}</p>
 
-                {isImportNotif && (
-                  <p className="text-[var(--color-primary)] text-xs font-medium">
-                    Ver importación →
-                  </p>
-                )}
-
-                {isUncategorizedNotif && (
-                  <p className="text-[var(--color-primary)] text-xs font-medium">
-                    Ver gastos sin categoría →
-                  </p>
-                )}
-
-                {isRecurringDetected && (
-                  <p className="text-[var(--color-primary)] text-xs font-medium">
-                    Ver programados →
-                  </p>
-                )}
-
-                {isBudgetWarning && (
-                  <p className="text-[var(--color-primary)] text-xs font-medium">
-                    Ver presupuestos →
-                  </p>
-                )}
-
-                {n.type === "monthly_report_ready" && (
+                  {/* Delete button */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      const month = n.data.month;
-                      if (month) {
-                        handleMarkRead(n.id);
-                        downloadReportPdf(month as string);
+                      if (n.type === "import_ready" || n.type === "import_failed") {
+                        const jobId = "job_id" in n.data ? (n.data.job_id as number) : undefined;
+                        if (jobId) setConfirmDelete({ jobId, notifId: n.id });
+                      } else {
+                        deleteNotification(n.id);
+                        refresh();
                       }
                     }}
-                    className="text-[var(--color-primary)] text-xs font-medium hover:underline"
+                    className="flex-shrink-0 text-[var(--text-tertiary)] hover:text-red-500 transition-colors p-0.5"
+                    title="Eliminar notificación"
                   >
-                    Descargar imagen →
+                    <SymbolicIcon name="trash" size={14} />
                   </button>
-                )}
-
-                {n.type === "group_invitation" &&
-                  (() => {
-                    const data = n.data;
-                    const hasPendingInvite = data.member_id && !n.read;
-                    if (!hasPendingInvite) return null;
-                    return (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleAccept(n)}
-                          className="text-xs px-3 py-1 rounded-md bg-[var(--color-primary)] hover:brightness-110 text-white transition-colors"
-                        >
-                          ✓ Aceptar
-                        </button>
-                        <button
-                          onClick={() => setConfirmReject(n.id)}
-                          disabled={reject.isPending}
-                          className="text-xs px-3 py-1 rounded-md border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition-colors disabled:opacity-50"
-                        >
-                          ✕ Rechazar
-                        </button>
-                      </div>
-                    );
-                  })()}
+                </div>
               </div>
             );
           })}
         </div>
       </div>
 
+      {/* Confirm dialogs */}
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">

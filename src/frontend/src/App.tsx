@@ -541,12 +541,7 @@ function MainLayout() {
           )}
 
           {/* Mobile bottom nav — Adwaita ViewSwitcherBar */}
-          <MobileNav
-            tabs={TABS}
-            showMore={showMoreNav}
-            onToggleMore={setShowMoreNav}
-            onOpenUserPanel={() => setUserPanelOpen(true)}
-          />
+          <MobileNav tabs={TABS} showMore={showMoreNav} onToggleMore={setShowMoreNav} />
 
           {/* FABs and Speed Dial */}
           <SpeedDial
