@@ -853,9 +853,12 @@ class TelegramStatusResponse(BaseModel):
     connected: bool
 
 
-def _generate_telegram_key() -> str:
+def _generate_telegram_key() -> tuple[str, datetime]:
+    """Generate a 12-char linking key with 2-minute expiration."""
     alphabet = string.ascii_letters + string.digits
-    return "".join(secrets.choice(alphabet) for _ in range(12))
+    key = "".join(secrets.choice(alphabet) for _ in range(12))
+    expires = datetime.utcnow() + timedelta(minutes=2)
+    return key, expires
 
 
 @router.get(
@@ -869,7 +872,9 @@ def get_telegram_key(
     db: Session = Depends(get_db),
 ):
     if not current_user.telegram_key:
-        current_user.telegram_key = _generate_telegram_key()
+        key, expires = _generate_telegram_key()
+        current_user.telegram_key = key
+        current_user.telegram_key_expires = expires
         db.commit()
         db.refresh(current_user)
     return TelegramKeyResponse(telegram_key=current_user.telegram_key)
@@ -891,7 +896,9 @@ def regenerate_telegram_key(
 
         send_disconnect_notification(current_user.telegram_chat_id)
 
-    current_user.telegram_key = _generate_telegram_key()
+    key, expires = _generate_telegram_key()
+    current_user.telegram_key = key
+    current_user.telegram_key_expires = expires
     current_user.telegram_chat_id = None
     current_user.telegram_chat_hash = None
     db.commit()
@@ -909,6 +916,41 @@ def get_telegram_status(
     current_user: User = Depends(get_current_user),
 ):
     return TelegramStatusResponse(connected=bool(current_user.telegram_chat_id))
+
+
+class TelegramDeepLinkResponse(BaseModel):
+    deep_link: str
+    telegram_key: str
+    expires_in_seconds: int
+
+
+@router.get(
+    "/me/telegram-deep-link",
+    response_model=TelegramDeepLinkResponse,
+    summary="Get Telegram deep link for auto-linking",
+    description="Returns a t.me deep link that opens the bot with the linking code pre-filled. Code expires in 2 minutes.",
+)
+def get_telegram_deep_link(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    bot_username = os.getenv("TELEGRAM_BOT_USERNAME", "NikoFin_bot")
+
+    # Generate fresh key with expiration
+    key, expires = _generate_telegram_key()
+    current_user.telegram_key = key
+    current_user.telegram_key_expires = expires
+    db.commit()
+    db.refresh(current_user)
+
+    deep_link = f"https://t.me/{bot_username}?start={key}"
+    expires_in = int((expires - datetime.utcnow()).total_seconds())
+
+    return TelegramDeepLinkResponse(
+        deep_link=deep_link,
+        telegram_key=key,
+        expires_in_seconds=max(expires_in, 0),
+    )
 
 
 @router.post(
