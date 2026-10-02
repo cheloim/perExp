@@ -4,7 +4,7 @@ import { getDashboard, getExpenses, getTagSummary } from "../../api/client";
 import SymbolicIcon from "../../components/SymbolicIcon";
 import { getCategoryIcon } from "../../utils/categoryIcon";
 import { formatCurrency, toUpperCase } from "../../utils/format";
-import { isDarkMode } from "../../services/telegramWebApp";
+import { useTheme } from "../../context/ThemeContext";
 
 const now = new Date();
 const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -50,6 +50,10 @@ export default function QuickSummary() {
     queryFn: () => getExpenses({ month: currentMonth, limit: 20 }),
   });
 
+  // Detect dark mode for text color (must be before any early returns)
+  const { theme } = useTheme();
+  const dark = theme === "dark";
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20 text-[var(--text-secondary)] text-sm">
@@ -62,9 +66,6 @@ export default function QuickSummary() {
   const byCurrency = dash?.by_currency ?? [];
   const arsTotal = byCurrency.find((c) => c.currency === "ARS")?.total ?? 0;
   const usdTotal = byCurrency.find((c) => c.currency === "USD")?.total ?? 0;
-
-  // Detect dark mode for text color
-  const dark = isDarkMode();
   const amountColor = dark ? "#ffffff" : "#1c1b1f";
 
   // MoM comparison (only ARS for consistency with platform)
