@@ -172,6 +172,9 @@ function applyTelegramTheme(): void {
   const wa = window.Telegram?.WebApp;
   if (!wa) return;
 
+  // Don't override user's manual theme choice
+  if (localStorage.getItem("theme")) return;
+
   const tp = wa.themeParams;
   if (!tp) return;
 
