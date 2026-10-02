@@ -992,6 +992,64 @@ def _send_photo_via_api(chat_id: str, image_bytes: bytes, caption: str = None) -
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = str(update.effective_chat.id)
+
+    # Handle deep link: /start CODIGO (auto-linking from web)
+    if context.args and len(context.args) == 1:
+        key = context.args[0].strip()
+        db = SessionLocal()
+        try:
+            user = db.query(User).filter(User.telegram_key == key).first()
+            if user:
+                from app.services.encryption import compute_hmac
+
+                # Check if key has expired (2 minutes)
+                if user.telegram_key_expires and datetime.utcnow() > user.telegram_key_expires:
+                    await update.message.reply_text(
+                        "⏰ El código expiró. Generá uno nuevo desde la plataforma.",
+                        parse_mode="HTML",
+                    )
+                    return ConversationHandler.END
+
+                user.telegram_chat_id = chat_id
+                user.telegram_chat_hash = compute_hmac(chat_id)
+                user.telegram_key = None
+                user.telegram_key_expires = None
+                db.commit()
+                db.refresh(user)
+
+                frontend_url = os.getenv("FRONTEND_URL", "")
+                reply_markup = None
+                if frontend_url:
+                    reply_markup = ReplyKeyboardMarkup(
+                        [
+                            [
+                                KeyboardButton(
+                                    "📱 Abrir Oikonomia", web_app=WebAppInfo(url=frontend_url)
+                                )
+                            ]
+                        ],
+                        resize_keyboard=True,
+                    )
+                await update.message.reply_text(
+                    f"🎉 ¡Listo, <b>{user.full_name}</b>! Tu cuenta está conectada.\n\n"
+                    "Ahora podés:\n"
+                    "• Mandarme gastos directamente\n"
+                    "• Usar el botón de abajo para abrir Oikonomia\n"
+                    "• Escribir /ayuda para ver todos los comandos",
+                    parse_mode="HTML",
+                    reply_markup=reply_markup,
+                )
+                return ConversationHandler.END
+            else:
+                await update.message.reply_text(
+                    "❌ Código inválido o ya usado. Generá uno nuevo desde la plataforma.",
+                    parse_mode="HTML",
+                )
+                return ConversationHandler.END
+        finally:
+            db.close()
+
+    # No deep link argument — existing behavior
     db = SessionLocal()
     try:
         from app.services.encryption import compute_hmac

@@ -1,7 +1,7 @@
 import { useState, useEffect, Suspense, lazy } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ExpenseModal } from "../components/ExpenseModals";
-import { createExpense, getStoredToken } from "../api/client";
+import { createExpense, getStoredToken, getTelegramDeepLink } from "../api/client";
 import { hapticLight, hideBackButton } from "../services/telegramWebApp";
 import SymbolicIcon from "../components/SymbolicIcon";
 import type { IconName } from "../components/SymbolicIcon";
@@ -18,6 +18,61 @@ const TABS: { id: Tab; label: string; icon: IconName }[] = [
 const QuickSummary = lazy(() => import("../pages/quick/QuickSummary"));
 const QuickBudget = lazy(() => import("../pages/quick/QuickBudget"));
 const QuickUpcoming = lazy(() => import("../pages/quick/QuickUpcoming"));
+
+function TelegramLinkPrompt() {
+  const [deepLink, setDeepLink] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleLink = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getTelegramDeepLink();
+      setDeepLink(data.deep_link);
+      // Open the deep link in Telegram
+      window.open(data.deep_link, "_blank");
+    } catch {
+      setError("No se pudo generar el código. Iniciá sesión en la plataforma primero.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+      <div className="w-16 h-16 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center mb-4">
+        <SymbolicIcon name="telegram" size={32} className="text-[var(--color-primary)]" />
+      </div>
+      <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">¡Hola! 👋</h2>
+      <p className="text-sm text-[var(--text-secondary)] mb-6 max-w-xs">
+        Para usar Oikonomia desde Telegram, vinculá tu cuenta con un click.
+      </p>
+      <button
+        onClick={handleLink}
+        disabled={loading}
+        className="px-6 py-2.5 rounded-full bg-[var(--color-primary)] text-white text-sm font-medium active:scale-95 transition-transform disabled:opacity-50"
+      >
+        {loading ? "Generando..." : "Vincular Telegram"}
+      </button>
+      {error && <p className="text-xs text-red-500 mt-3 max-w-xs">{error}</p>}
+      {deepLink && (
+        <p className="text-xs text-[var(--text-tertiary)] mt-4 max-w-xs">
+          Se abrió Telegram con el código de vinculación. Si no se abrió,{" "}
+          <a href={deepLink} className="text-[var(--color-primary)] underline">
+            hacé click acá
+          </a>
+          .
+        </p>
+      )}
+      <p className="text-xs text-[var(--text-tertiary)] mt-4 max-w-xs">
+        ¿No tenés cuenta? Abrí{" "}
+        <span className="font-medium text-[var(--text-secondary)]">platform.oikonomia.ar</span> en
+        tu navegador.
+      </p>
+    </div>
+  );
+}
 
 function TabContent({ tab }: { tab: Tab }) {
   switch (tab) {
@@ -77,29 +132,7 @@ export default function QuickViewLayout({ onSwitchToFull }: { onSwitchToFull: ()
       {/* Content */}
       <main className="flex-1 overflow-y-auto pb-safe">
         {!isAuthenticated ? (
-          <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-            <div className="w-16 h-16 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center mb-4">
-              <SymbolicIcon name="telegram" size={32} className="text-[var(--color-primary)]" />
-            </div>
-            <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">¡Hola! 👋</h2>
-            <p className="text-sm text-[var(--text-secondary)] mb-6 max-w-xs">
-              Para usar Oikonomia desde Telegram, primero iniciá sesión en la plataforma web. Tu
-              cuenta de Telegram se vinculará automáticamente.
-            </p>
-            <button
-              onClick={() => window.open("https://platform.oikonomia.ar", "_blank")}
-              className="px-6 py-2.5 rounded-full bg-[var(--color-primary)] text-white text-sm font-medium active:scale-95 transition-transform"
-            >
-              Ir a la plataforma
-            </button>
-            <p className="text-xs text-[var(--text-tertiary)] mt-4 max-w-xs">
-              Abrí{" "}
-              <span className="font-medium text-[var(--text-secondary)]">
-                platform.oikonomia.ar
-              </span>{" "}
-              en tu navegador, iniciá sesión, y volvé a abrir esta MiniApp.
-            </p>
-          </div>
+          <TelegramLinkPrompt />
         ) : (
           <Suspense
             fallback={

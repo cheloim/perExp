@@ -114,6 +114,15 @@ export const telegramOidcLink = (code: string, redirectUri: string) =>
 export const telegramWebAppLink = (initData: string) =>
   api.post("/auth/telegram/link-webapp", { init_data: initData }).then((r) => r.data);
 
+export const getTelegramDeepLink = () =>
+  api
+    .get<{
+      deep_link: string;
+      telegram_key: string;
+      expires_in_seconds: number;
+    }>("/auth/me/telegram-deep-link")
+    .then((r) => r.data);
+
 export const getMe = () => api.get<User>("/auth/me").then((r) => r.data);
 
 export const markOnboardingCompleted = () =>
