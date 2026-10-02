@@ -10,6 +10,7 @@ import {
   leaveGroup,
   getTelegramKey,
   getTelegramStatus,
+  getTelegramDeepLink,
   regenerateTelegramKey,
   getMyInviteCode,
   generateInviteCode,
@@ -332,6 +333,22 @@ export default function UserPanel({ open, onClose }: Props) {
       queryClient.invalidateQueries({ queryKey: ["telegram-status"] });
     },
   });
+
+  const [deepLinkLoading, setDeepLinkLoading] = useState(false);
+  const [deepLinkError, setDeepLinkError] = useState<string | null>(null);
+
+  const handleTelegramDeepLink = async () => {
+    setDeepLinkLoading(true);
+    setDeepLinkError(null);
+    try {
+      const data = await getTelegramDeepLink();
+      window.open(data.deep_link, "_blank");
+    } catch {
+      setDeepLinkError("No se pudo generar el código. Intentá de nuevo.");
+    } finally {
+      setDeepLinkLoading(false);
+    }
+  };
 
   const handleCopyKey = () => {
     if (!tgKeyData?.telegram_key) return;
@@ -1048,41 +1065,55 @@ export default function UserPanel({ open, onClose }: Props) {
                         Bot desconectado
                       </span>
                     </div>
-                    <p className="text-xs text-[var(--text-tertiary)]">
-                      Abrí{" "}
-                      <a
-                        href="https://t.me/NikoFin_bot"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline"
-                      >
-                        @NikoFin_bot
-                      </a>{" "}
-                      y enviá{" "}
-                      <span className="font-mono bg-[var(--color-base-alt)] px-1 rounded">
-                        /start
-                      </span>
-                    </p>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="flex-1 font-mono text-sm bg-[var(--color-base-alt)] rounded-md px-3 py-2 tracking-widest text-[var(--text-primary)] select-all">
-                          {tgKeyData?.telegram_key ?? "············"}
-                        </span>
+
+                    {/* Deep link — one-click linking */}
+                    <button
+                      onClick={handleTelegramDeepLink}
+                      disabled={deepLinkLoading}
+                      className="w-full py-2.5 rounded-lg bg-[var(--color-primary)] text-white text-sm font-medium hover:brightness-110 active:scale-[0.98] transition disabled:opacity-50"
+                    >
+                      {deepLinkLoading ? "Generando…" : "🔗 Vincular con Telegram"}
+                    </button>
+                    {deepLinkError && <p className="text-xs text-red-500">{deepLinkError}</p>}
+
+                    {/* Fallback: manual key */}
+                    <details className="group">
+                      <summary className="text-xs text-[var(--text-tertiary)] cursor-pointer hover:text-[var(--text-secondary)] transition">
+                        Vinculación manual
+                      </summary>
+                      <div className="mt-2 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="flex-1 font-mono text-sm bg-[var(--color-base-alt)] rounded-md px-3 py-2 tracking-widest text-[var(--text-primary)] select-all">
+                            {tgKeyData?.telegram_key ?? "············"}
+                          </span>
+                          <button
+                            onClick={handleCopyKey}
+                            className="px-3 py-2 rounded-md border border-[var(--border-color)] text-xs text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
+                          >
+                            {keyCopied ? "✓" : "Copiar"}
+                          </button>
+                        </div>
+                        <p className="text-xs text-[var(--text-tertiary)]">
+                          Abrí{" "}
+                          <a
+                            href="https://t.me/NikoFin_bot"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline"
+                          >
+                            @NikoFin_bot
+                          </a>{" "}
+                          y enviá el código
+                        </p>
                         <button
-                          onClick={handleCopyKey}
-                          className="px-3 py-2 rounded-md border border-[var(--border-color)] text-xs text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
+                          onClick={() => setShowRegenTelegramConfirm(true)}
+                          disabled={regenerateKeyMut.isPending}
+                          className="w-full py-1.5 rounded-md border border-[var(--border-color)] text-xs text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition disabled:opacity-50"
                         >
-                          {keyCopied ? "✓" : "Copiar"}
+                          {regenerateKeyMut.isPending ? "Regenerando…" : "Regenerar clave"}
                         </button>
                       </div>
-                      <button
-                        onClick={() => setShowRegenTelegramConfirm(true)}
-                        disabled={regenerateKeyMut.isPending}
-                        className="w-full py-1.5 rounded-md border border-[var(--border-color)] text-xs text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition disabled:opacity-50"
-                      >
-                        {regenerateKeyMut.isPending ? "Regenerando…" : "Regenerar clave"}
-                      </button>
-                    </div>
+                    </details>
                   </div>
                 )}
               </div>
