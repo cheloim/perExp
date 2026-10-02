@@ -1043,6 +1043,13 @@ async def handle_auth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         from app.services.encryption import compute_hmac
 
         user.telegram_chat_hash = compute_hmac(chat_id)
+        logger.info(
+            "Telegram link: user_id=%s, chat_id=%s (type=%s), hash_prefix=%s",
+            user.id,
+            chat_id,
+            type(chat_id).__name__,
+            user.telegram_chat_hash[:16],
+        )
         user.telegram_key = None  # Invalidate key after use
         db.commit()
         db.refresh(user)

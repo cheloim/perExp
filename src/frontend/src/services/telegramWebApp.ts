@@ -76,7 +76,8 @@ declare global {
 export function isTelegramWebApp(): boolean {
   const params = new URLSearchParams(window.location.search);
   if (params.get("miniapp") === "1") return true;
-  return typeof window !== "undefined" && !!window.Telegram?.WebApp?.initData;
+  // Check for Telegram WebApp object (not just initData — SDK may load without initData)
+  return typeof window !== "undefined" && !!window.Telegram?.WebApp;
 }
 
 /**
