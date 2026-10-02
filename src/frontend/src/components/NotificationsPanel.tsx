@@ -221,7 +221,7 @@ export default function NotificationsPanel({ onClose }: Props) {
       <div className="fixed inset-0 z-30 bg-black/10" onClick={onClose} aria-hidden="true" />
 
       <div
-        className="fixed bottom-[calc(3.5rem+var(--browser-bottom-inset,0px))] left-4 z-40 w-80 max-w-[calc(100vw-2rem)] bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-gnome-lg flex flex-col max-h-[480px]"
+        className="fixed bottom-0 left-0 right-0 md:bottom-[calc(3.5rem+var(--browser-bottom-inset,0px))] md:left-4 md:right-auto md:w-80 md:max-w-[calc(100vw-2rem)] bg-[var(--color-surface)] border border-[var(--border-color)] md:rounded-lg shadow-gnome-lg flex flex-col max-h-[70vh] md:max-h-[480px]"
         role="dialog"
         aria-label="Notificaciones"
       >
