@@ -580,7 +580,8 @@ async def telegram_oidc_login(
     if not claims:
         raise HTTPException(status_code=401, detail="Token de Telegram inválido o expirado")
 
-    tg_id = claims.get("sub")
+    # Telegram OIDC: 'sub' is the OIDC identifier, 'id' is the actual Telegram user ID
+    tg_id = claims.get("id") or claims.get("sub")
     if not tg_id:
         raise HTTPException(status_code=400, detail="Falta ID de usuario de Telegram")
 
@@ -639,7 +640,9 @@ async def telegram_oidc_callback(
     if not claims:
         return RedirectResponse(url=f"{frontend_callback}?error=telegram_token_invalid")
 
-    tg_id = claims.get("sub")
+    # Telegram OIDC: 'sub' is the OIDC identifier, 'id' is the actual Telegram user ID
+    # The bot stores chat_id = effective_chat.id, which is the same as the 'id' claim
+    tg_id = claims.get("id") or claims.get("sub")
     if not tg_id:
         return RedirectResponse(url=f"{frontend_callback}?error=telegram_no_id")
 
@@ -647,12 +650,12 @@ async def telegram_oidc_callback(
     chat_hash = compute_hmac(str(tg_id))
     user = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
     if not user:
-        # Diagnostic: log the sub claim and hash for debugging
+        # Diagnostic: log the identifier and hash for debugging
         linked_users = db.query(User).filter(User.telegram_chat_hash.isnot(None)).count()
         logger.warning(
-            "Telegram OIDC: user not found. sub=%s (type=%s), hash_prefix=%s, linked_users_in_db=%s",
-            tg_id,
-            type(tg_id).__name__,
+            "Telegram OIDC: user not found. id=%s, sub=%s, hash_prefix=%s, linked_users_in_db=%s",
+            claims.get("id"),
+            claims.get("sub"),
             chat_hash[:16],
             linked_users,
         )
@@ -694,7 +697,8 @@ async def telegram_oidc_link(
     if not claims:
         raise HTTPException(status_code=401, detail="Token de Telegram inválido o expirado")
 
-    tg_id = claims.get("sub")
+    # Telegram OIDC: 'sub' is the OIDC identifier, 'id' is the actual Telegram user ID
+    tg_id = claims.get("id") or claims.get("sub")
     if not tg_id:
         raise HTTPException(status_code=400, detail="Falta ID de usuario de Telegram")
 
