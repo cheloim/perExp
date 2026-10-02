@@ -126,9 +126,9 @@ export default function App() {
       }
     };
 
-    // Poll for SDK availability
+    // Poll for initData availability (not just SDK presence)
     const interval = setInterval(() => {
-      if (window.Telegram?.WebApp) {
+      if (window.Telegram?.WebApp?.initData) {
         clearInterval(interval);
         resolve();
       }
