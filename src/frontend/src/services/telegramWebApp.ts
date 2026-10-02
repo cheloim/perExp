@@ -76,8 +76,8 @@ declare global {
 export function isTelegramWebApp(): boolean {
   const params = new URLSearchParams(window.location.search);
   if (params.get("miniapp") === "1") return true;
-  // Detect Telegram context (SDK presence). initData check is in telegramAutoLogin().
-  return typeof window !== "undefined" && !!window.Telegram?.WebApp;
+  // initData is required for auto-login — without it, we can't authenticate
+  return typeof window !== "undefined" && !!window.Telegram?.WebApp?.initData;
 }
 
 /**
