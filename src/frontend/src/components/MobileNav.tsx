@@ -7,7 +7,6 @@ interface MobileNavProps {
   tabs: SidebarTab[];
   showMore: boolean;
   onToggleMore: (show: boolean) => void;
-  onOpenUserPanel: () => void;
 }
 
 /**
@@ -15,12 +14,7 @@ interface MobileNavProps {
  * GNOME HIG: "switch to the bottom window edge if the window becomes too narrow"
  * Shows first 4 tabs + "Más" menu for remaining items.
  */
-export default function MobileNav({
-  tabs,
-  showMore,
-  onToggleMore,
-  onOpenUserPanel,
-}: MobileNavProps) {
+export default function MobileNav({ tabs, showMore, onToggleMore }: MobileNavProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close "Más" menu on Escape key (GNOME HIG: Esc = cancel)
@@ -82,19 +76,6 @@ export default function MobileNav({
               role="menu"
               aria-label="Menú de navegación adicional"
             >
-              {/* User account button */}
-              <button
-                onClick={() => {
-                  onToggleMore(false);
-                  onOpenUserPanel();
-                }}
-                role="menuitem"
-                className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--text-primary)] hover:bg-[var(--color-base-alt)] transition-colors w-full"
-              >
-                <span className="w-5 h-5">{sidebarIcons.user}</span>
-                <span>Mi cuenta</span>
-              </button>
-              <div className="border-t border-[var(--border-color)] my-1" />
               {tabs.slice(4).map((tab) => (
                 <NavLink
                   key={tab.path}
