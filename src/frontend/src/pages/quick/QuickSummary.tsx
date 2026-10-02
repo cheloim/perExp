@@ -4,7 +4,6 @@ import { getDashboard, getExpenses, getTagSummary } from "../../api/client";
 import SymbolicIcon from "../../components/SymbolicIcon";
 import { getCategoryIcon } from "../../utils/categoryIcon";
 import { formatCurrency, toUpperCase } from "../../utils/format";
-import { useTheme } from "../../context/ThemeContext";
 
 const now = new Date();
 const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -50,10 +49,6 @@ export default function QuickSummary() {
     queryFn: () => getExpenses({ month: currentMonth, limit: 20 }),
   });
 
-  // Detect dark mode for text color (must be before any early returns)
-  const { theme } = useTheme();
-  const dark = theme === "dark";
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20 text-[var(--text-secondary)] text-sm">
@@ -66,7 +61,6 @@ export default function QuickSummary() {
   const byCurrency = dash?.by_currency ?? [];
   const arsTotal = byCurrency.find((c) => c.currency === "ARS")?.total ?? 0;
   const usdTotal = byCurrency.find((c) => c.currency === "USD")?.total ?? 0;
-  const amountColor = dark ? "#ffffff" : "#1c1b1f";
 
   // MoM comparison (only ARS for consistency with platform)
   const categories = dash?.by_category ?? [];
@@ -79,7 +73,12 @@ export default function QuickSummary() {
         ? `↑ ${Math.abs(Math.round(momPct))}%`
         : `↓ ${Math.abs(Math.round(momPct))}%`;
   // Red when spending increased (bad), green when decreased (good)
-  const momColor = momPct > 0 ? "#e01b24" : momPct < 0 ? "#26a269" : "#71717a";
+  const momClass =
+    momPct > 0
+      ? "text-[var(--color-danger)]"
+      : momPct < 0
+        ? "text-[var(--color-success)]"
+        : "text-[var(--text-tertiary)]";
 
   // Category comparison data (current vs previous)
   const catComparison = categories
@@ -127,8 +126,8 @@ export default function QuickSummary() {
         <button type="button" className={kpiBtn("gasto")} onClick={() => setSelectedKpi("gasto")}>
           <SymbolicIcon name="card" size={20} className="flex-shrink-0 opacity-60" />
           <div className="min-w-0">
-            <div className="text-[10px] opacity-60">Gasto mes</div>
-            <div className="text-base font-bold truncate" style={{ color: amountColor }}>
+            <div className="text-[10px] text-[var(--text-tertiary)]">Gasto mes</div>
+            <div className="text-base font-bold truncate text-[var(--text-primary)]">
               {formatCurrency(arsTotal)}
             </div>
             {usdTotal > 0 && (
@@ -148,9 +147,7 @@ export default function QuickSummary() {
           />
           <div className="min-w-0">
             <div className="text-[10px] text-[var(--text-secondary)]">vs mes anterior</div>
-            <div className="text-base font-bold truncate" style={{ color: momColor }}>
-              {momLabel}
-            </div>
+            <div className={`text-base font-bold truncate ${momClass}`}>{momLabel}</div>
           </div>
         </button>
       </div>
