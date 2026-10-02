@@ -178,7 +178,7 @@ export default function QuickViewLayout({ onSwitchToFull }: { onSwitchToFull: ()
               className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
                 activeTab === tab.id
                   ? "bg-[var(--color-primary)] text-white"
-                  : "text-[var(--color-sidebar-icon)] hover:text-[var(--text-primary)] hover:bg-[var(--color-base-alt)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--color-base-alt)]"
               }`}
             >
               <span className="text-base">
