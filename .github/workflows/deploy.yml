@@ -1,4 +1,4 @@
-name: Deploy to Linode
+name: Deploy
 
 on:
   push:
@@ -238,10 +238,10 @@ jobs:
       - name: Bootstrap server (install, DNS, stop old containers, firewall)
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
           script: |
             set -e
 
@@ -266,7 +266,7 @@ jobs:
             sudo chown -R $USER:$USER /opt/creditcardanalyzer
 
             echo "=== Verifying DNS resolution ==="
-            RESOLVED_IP=$(python3 -c "import socket; print(socket.gethostbyname('${{ vars.DOMAIN_NAME }}'))" 2>/dev/null)
+            RESOLVED_IP=$(python3 -c "import socket; print(socket.gethostbyname('${{ vars.DOMAIN_NAME }}'))" 2>/dev/null || echo "FAILED")
             SERVER_IP=$(curl -s --connect-timeout 5 https://api.ipify.org || curl -s --connect-timeout 5 https://ifconfig.me)
 
             echo "Domain: ${{ vars.DOMAIN_NAME }}"
@@ -275,10 +275,10 @@ jobs:
             echo "Server IP: $SERVER_IP"
 
             if [ "$RESOLVED_IP" != "$SERVER_IP" ]; then
-              echo "ERROR: DNS not pointing to this server ($RESOLVED_IP != $SERVER_IP)"
-              exit 1
+              echo "::warning::DNS not pointing to this server yet ($RESOLVED_IP != $SERVER_IP) — deploy will continue"
+            else
+              echo "DNS OK: ${{ vars.DOMAIN_NAME }} -> $SERVER_IP"
             fi
-            echo "DNS OK: ${{ vars.DOMAIN_NAME }} -> $SERVER_IP"
 
             echo "=== Ensuring directories exist ==="
             sudo mkdir -p /opt/creditcardanalyzer /opt/creditcardanalyzer/backups
@@ -322,10 +322,10 @@ jobs:
       - name: Setup SSL certificates, permissions, and renewal timer
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
           script: |
             set -e
 
@@ -465,10 +465,10 @@ jobs:
       - name: Deploy .env to server
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
           script: |
             echo "${{ steps.env-file.outputs.env_b64 }}" | base64 -d > /opt/creditcardanalyzer/.env
             chmod 600 /opt/creditcardanalyzer/.env
@@ -477,10 +477,10 @@ jobs:
       - name: Copy compose and config files via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
           source: "docker/docker-compose.infra.yml,docker/docker-compose.nginx.yml,docker/docker-compose.platform.yml,docker/docker-compose.bots.yml,docker/docker-compose.monitoring.yml,docker/docker-compose.web-landing.yml,docker/nginx/nginx.conf,docker/nginx/maintenance/,config/alloy/config.alloy,config/blackbox/blackbox.yml"
           target: /opt/creditcardanalyzer
           strip_components: 1
@@ -488,10 +488,10 @@ jobs:
       - name: Substitute domain variables in nginx.conf
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
           script: |
             DOMAIN_NAME="${{ vars.DOMAIN_NAME }}"
             PLATFORM_DOMAIN="${{ vars.PLATFORM_DOMAIN }}"
@@ -502,10 +502,10 @@ jobs:
       - name: Validate required env vars
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
           script: |
             cd /opt/creditcardanalyzer
             REQUIRED="POSTGRES_PASSWORD LLM_API_KEY SECRET_KEY TELEGRAM_BOT_TOKEN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET EMAIL_API_KEY ADMIN_EMAIL INVESTMENTS_LLM_API_KEY MESSAGES_BOT_LLM_API_KEY GRAFANA_CLOUD_PROMETHEUS_URL GRAFANA_CLOUD_PROMETHEUS_USER GRAFANA_CLOUD_PROMETHEUS_PASSWORD GRAFANA_CLOUD_LOKI_URL GRAFANA_CLOUD_LOKI_USER GRAFANA_CLOUD_LOKI_PASSWORD"
@@ -532,10 +532,10 @@ jobs:
       - name: Validate docker-compose syntax
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
           script: |
             cd /opt/creditcardanalyzer
             export PATH="$HOME/.local/bin:$PATH"
@@ -565,10 +565,10 @@ jobs:
       - name: Validate nginx config
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
           script: |
             echo "Validating nginx.conf..."
             podman run --rm \
@@ -585,10 +585,10 @@ jobs:
       - name: Pull and verify images
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
           script: |
             cd /opt/creditcardanalyzer
             export PATH="$HOME/.local/bin:$PATH"
@@ -623,10 +623,10 @@ jobs:
       - name: Backup database
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
           script: |
             # Check if DB container is running (compose-agnostic)
             DB_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_db_' | head -1)
@@ -675,10 +675,10 @@ jobs:
       - name: Run database migrations
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
           script: |
             cd /opt/creditcardanalyzer
             export PATH="$HOME/.local/bin:$PATH"
@@ -782,10 +782,10 @@ jobs:
       - name: Ensure infra is running
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
           script: |
             cd /opt/creditcardanalyzer
             export PATH="$HOME/.local/bin:$PATH"
@@ -887,10 +887,10 @@ jobs:
       - name: Save platform rollback snapshot
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
           script: |
             cd /opt/creditcardanalyzer
             # Get backend container name dynamically (agnostic to project name)
@@ -912,10 +912,10 @@ jobs:
         uses: appleboy/ssh-action@v1
         timeout-minutes: 12
         with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
           command_timeout: 10m
           script: |
             cd /opt/creditcardanalyzer
@@ -969,10 +969,10 @@ jobs:
         if: always() && steps.restart.outcome == 'failure'
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
           script: |
             cd /opt/creditcardanalyzer
             export PATH="$HOME/.local/bin:$PATH"
@@ -1019,10 +1019,10 @@ jobs:
       - name: Restart bot services
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
           command_timeout: 2m
           script: |
             cd /opt/creditcardanalyzer
@@ -1059,10 +1059,10 @@ jobs:
       - name: Restart nginx
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
           command_timeout: 2m
           script: |
             cd /opt/creditcardanalyzer
@@ -1116,10 +1116,10 @@ jobs:
       - name: Restart landing
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
           command_timeout: 2m
           script: |
             cd /opt/creditcardanalyzer
@@ -1148,10 +1148,10 @@ jobs:
       - name: Restart monitoring
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
           command_timeout: 3m
           script: |
             cd /opt/creditcardanalyzer
@@ -1209,24 +1209,32 @@ jobs:
       - name: Global health check
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
           script: |
             echo "Waiting for services to stabilize..."
 
-            # Wait for platform with retry (up to 45s)
+            # Check platform via localhost (always works regardless of DNS)
             PLATFORM_STATUS="000"
             for i in $(seq 1 15); do
-              PLATFORM_STATUS=$(curl -sk -o /dev/null -w "%{http_code}" https://${{ vars.PLATFORM_DOMAIN }}/api/docs 2>/dev/null)
-              if [ "$PLATFORM_STATUS" != "000" ]; then
-                echo "Platform responding after ${i} attempt(s): $PLATFORM_STATUS"
+              PLATFORM_STATUS=$(curl -sk -o /dev/null -w "%{http_code}" http://localhost:8000/docs 2>/dev/null)
+              if [ "$PLATFORM_STATUS" = "200" ]; then
+                echo "Platform backend healthy after ${i} attempt(s): $PLATFORM_STATUS"
                 break
               fi
               echo "Attempt $i/15: waiting for platform... retrying in 3s"
               sleep 3
             done
+
+            # Also check via domain (non-fatal if DNS not propagated)
+            DOMAIN_STATUS=$(curl -sk -o /dev/null -w "%{http_code}" https://${{ vars.PLATFORM_DOMAIN }}/api/docs 2>/dev/null || echo "000")
+            if [ "$DOMAIN_STATUS" = "200" ]; then
+              echo "Domain ${{ vars.PLATFORM_DOMAIN }} responding: $DOMAIN_STATUS"
+            else
+              echo "::warning::Domain ${{ vars.PLATFORM_DOMAIN }} not responding yet (status: $DOMAIN_STATUS) — DNS may not be propagated"
+            fi
 
             echo ""
             echo "=== Container Status ==="
@@ -1243,17 +1251,18 @@ jobs:
 
             ERRORS=0
 
-            # Check landing site (non-fatal if not deployed)
-            LANDING_STATUS=$(curl -sk -o /dev/null -w "%{http_code}" https://${{ vars.DOMAIN_NAME }}/ 2>/dev/null)
+            # Check landing site (non-fatal — DNS may not be propagated)
+            LANDING_STATUS=$(curl -sk -o /dev/null -w "%{http_code}" https://${{ vars.DOMAIN_NAME }}/ 2>/dev/null || echo "000")
             echo "Landing (${{ vars.DOMAIN_NAME }}): $LANDING_STATUS"
             if [ "$LANDING_STATUS" = "000" ]; then
-              echo "::warning::Landing site unreachable"
+              echo "::warning::Landing site unreachable (DNS may not be propagated)"
             fi
 
-            # Check platform (critical)
-            echo "Platform (${{ vars.PLATFORM_DOMAIN }}): $PLATFORM_STATUS"
-            if [ "$PLATFORM_STATUS" != "200" ]; then
-              echo "::error::Platform health check returned $PLATFORM_STATUS"
+            # Check platform (critical) — via localhost (DNS-independent)
+            LOCAL_STATUS=$(curl -sk -o /dev/null -w "%{http_code}" http://localhost:8000/docs 2>/dev/null)
+            echo "Platform (localhost:8000): $LOCAL_STATUS"
+            if [ "$LOCAL_STATUS" != "200" ]; then
+              echo "::error::Platform health check returned $LOCAL_STATUS"
               ERRORS=$((ERRORS + 1))
             fi
 
@@ -1328,10 +1337,10 @@ jobs:
       - name: Cleanup old images
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT }}
           script: |
             echo "Cleaning up old images..."
             # Remove dangling images only, keep tagged versions for rollback
