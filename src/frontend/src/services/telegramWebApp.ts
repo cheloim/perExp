@@ -175,6 +175,11 @@ function applyTelegramTheme(): void {
   // Don't override user's manual theme choice
   if (localStorage.getItem("theme")) return;
 
+  // Skip Telegram theme in MiniApp — CSS class-based theme handles dark/light mode.
+  // This prevents Telegram from overriding CSS variables that cause contrast issues
+  // on KPI numbers, bottom bar icons, and other elements.
+  if (wa.initData) return;
+
   const tp = wa.themeParams;
   if (!tp) return;
 
