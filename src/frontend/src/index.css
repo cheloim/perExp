@@ -72,28 +72,28 @@
   --font-family: "Inter", "Cantarell", "Ubuntu", system-ui, -apple-system, sans-serif;
 
   /* ── Surface colors (Adwaita-aligned) ── */
-  --color-base: #f6f5f4;
-  --color-base-alt: #deddda;
-  --color-base-container: #ffffff;
-  --color-surface: #ffffff;
-  --color-on-surface: #3d3846;
-  --color-sidebar: #faf9f7;
-  --color-on-sidebar: #3d3846;
-  --color-primary: #3584e4;
-  --color-on-primary: #ffffff;
-  --color-success: #26a269;
-  --color-warning: #e8a100;
-  --color-danger: #e01b24;
-  --color-error: #e01b24;
-  --color-sidebar-icon: #77767b;
-  --color-sidebar-icon-active: #1c71d8;
-  --color-sidebar-indicator: #3584e4;
-  --color-sidebar-text-active: #1c71d8;
+  --color-base: #f6f5f4 !important;
+  --color-base-alt: #deddda !important;
+  --color-base-container: #ffffff !important;
+  --color-surface: #ffffff !important;
+  --color-on-surface: #3d3846 !important;
+  --color-sidebar: #faf9f7 !important;
+  --color-on-sidebar: #3d3846 !important;
+  --color-primary: #3584e4 !important;
+  --color-on-primary: #ffffff !important;
+  --color-success: #26a269 !important;
+  --color-warning: #e8a100 !important;
+  --color-danger: #e01b24 !important;
+  --color-error: #e01b24 !important;
+  --color-sidebar-icon: #77767b !important;
+  --color-sidebar-icon-active: #1c71d8 !important;
+  --color-sidebar-indicator: #3584e4 !important;
+  --color-sidebar-text-active: #1c71d8 !important;
 
-  --text-primary: #1c1b1f;
-  --text-secondary: #5e5c64;
-  --text-tertiary: #71717a;
-  --border-color: rgba(0, 0, 0, 0.1);
+  --text-primary: #1c1b1f !important;
+  --text-secondary: #5e5c64 !important;
+  --text-tertiary: #71717a !important;
+  --border-color: rgba(0, 0, 0, 0.1) !important;
 
   --shadow-sm: 0 1px 2px rgb(0 0 6 / 6%), 0 1px 3px rgb(0 0 6 / 4%);
   --shadow-md: 0 2px 4px rgb(0 0 6 / 8%), 0 1px 6px rgb(0 0 6 / 4%);
@@ -191,28 +191,28 @@
 }
 
 .dark {
-  --color-base: #303030;
-  --color-base-alt: #383838;
-  --color-base-container: #424242;
-  --color-surface: #424242;
-  --color-on-surface: #ffffff;
-  --color-sidebar: #2a2a2a;
-  --color-on-sidebar: #ffffff;
-  --color-primary: #62a0ea;
-  --color-on-primary: #ffffff;
-  --color-success: #33d17a;
-  --color-warning: #f5c211;
-  --color-danger: #ed333b;
-  --color-error: #ff7b63;
-  --color-sidebar-icon: #9a9996;
-  --color-sidebar-icon-active: #62a0ea;
-  --color-sidebar-indicator: #62a0ea;
-  --color-sidebar-text-active: #62a0ea;
+  --color-base: #303030 !important;
+  --color-base-alt: #383838 !important;
+  --color-base-container: #424242 !important;
+  --color-surface: #424242 !important;
+  --color-on-surface: #ffffff !important;
+  --color-sidebar: #2a2a2a !important;
+  --color-on-sidebar: #ffffff !important;
+  --color-primary: #62a0ea !important;
+  --color-on-primary: #ffffff !important;
+  --color-success: #33d17a !important;
+  --color-warning: #f5c211 !important;
+  --color-danger: #ed333b !important;
+  --color-error: #ff7b63 !important;
+  --color-sidebar-icon: #9a9996 !important;
+  --color-sidebar-icon-active: #62a0ea !important;
+  --color-sidebar-indicator: #62a0ea !important;
+  --color-sidebar-text-active: #62a0ea !important;
 
-  --text-primary: #ffffff;
-  --text-secondary: #b5b5b5;
-  --text-tertiary: #a1a1aa;
-  --border-color: rgba(255, 255, 255, 0.1);
+  --text-primary: #ffffff !important;
+  --text-secondary: #b5b5b5 !important;
+  --text-tertiary: #a1a1aa !important;
+  --border-color: rgba(255, 255, 255, 0.1) !important;
 
   --shadow-sm: 0 1px 2px rgb(0 0 6 / 20%), 0 1px 3px rgb(0 0 6 / 15%);
   --shadow-md: 0 2px 4px rgb(0 0 6 / 25%), 0 1px 6px rgb(0 0 6 / 15%);
