@@ -53,10 +53,8 @@ jobs:
             USER_UID=$(id -u)
             if [ "$USER_UID" -ge 1000 ]; then
                 sudo mkdir -p /etc/systemd/system/user@${USER_UID}.service.d
-                sudo tee /etc/systemd/system/user@${USER_UID}.service.d/delegate.conf > /dev/null << 'DELEGATE'
-                [Service]
-                Delegate=cpu cpuset io memory pids
-                DELEGATE
+                echo "[Service]" | sudo tee /etc/systemd/system/user@${USER_UID}.service.d/delegate.conf > /dev/null
+                echo "Delegate=cpu cpuset io memory pids" | sudo tee -a /etc/systemd/system/user@${USER_UID}.service.d/delegate.conf > /dev/null
                 sudo systemctl daemon-reload
                 echo "CPU controller delegation enabled for uid $USER_UID"
                 # Restart podman user session to pick up new delegation
