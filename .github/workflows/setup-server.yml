@@ -85,6 +85,7 @@ jobs:
 
             echo "=== Ensuring shared network exists ==="
             export PATH="$HOME/.local/bin:$PATH"
+            NETWORK_NAME="oikonomia"
             podman network create "$NETWORK_NAME" 2>/dev/null || true
             echo "Network $NETWORK_NAME ready"
 
@@ -140,7 +141,7 @@ jobs:
             podman-compose --version 2>/dev/null && echo "OK" || { echo "MISSING"; ERRORS=$((ERRORS+1)); }
 
             echo -n "  firewall ports: "
-            firewall-cmd --list-ports 2>/dev/null || { echo "MISSING"; ERRORS=$((ERRORS+1)); }
+            sudo firewall-cmd --list-ports 2>/dev/null || { echo "MISSING"; ERRORS=$((ERRORS+1)); }
 
             echo -n "  podman network: "
             podman network ls | grep -q oikonomia && echo "oikonomia OK" || { echo "MISSING"; ERRORS=$((ERRORS+1)); }
