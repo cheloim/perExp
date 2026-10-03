@@ -84,34 +84,21 @@ jobs:
     outputs:
       platform: ${{ steps.set-platform.outputs.platform }}
     steps:
-      - name: Detect server architecture
-        id: arch
-        uses: appleboy/ssh-action@v1
-        continue-on-error: true
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ vars.SSH_PORT || '43422' }}
-          script: |
-            ARCH=$(uname -m)
-            echo "ARCH_RESULT=$ARCH"
-
-      - name: Set platform output
+      - name: Set platform from server architecture
         id: set-platform
         run: |
-          # Extract arch from SSH stdout
-          RAW="${{ steps.arch.outputs.stdout }}"
-          ARCH=$(echo "$RAW" | grep "ARCH_RESULT=" | cut -d= -f2 | tr -d '[:space:]')
-          if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+          # Use SERVER_ARCH variable if set, otherwise default to linux/amd64
+          ARCH="${{ vars.SERVER_ARCH }}"
+          if [ -z "$ARCH" ]; then
+            ARCH="amd64"
+            echo "::warning::SERVER_ARCH variable not set. Set it to 'arm64' or 'amd64' in GitHub repository variables. Defaulting to amd64."
+          fi
+          if [ "$ARCH" = "arm64" ] || [ "$ARCH" = "aarch64" ]; then
             PLATFORM="linux/arm64"
-          elif [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
-            PLATFORM="linux/amd64"
           else
             PLATFORM="linux/amd64"
-            echo "::warning::Could not detect server architecture (got: '$ARCH'), defaulting to $PLATFORM"
           fi
-          echo "Detected platform: $PLATFORM"
+          echo "Server architecture: $ARCH -> Build platform: $PLATFORM"
           echo "platform=$PLATFORM" >> $GITHUB_OUTPUT
 
   test:
