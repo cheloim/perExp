@@ -62,7 +62,6 @@ export default {
         gnomeDark3: "#3d3846",
         gnomeDark4: "#241f31",
         gnomeDark5: "#000000",
-        base: "var(--color-base)",
         baseAlt: "var(--color-base-alt)",
         baseContainer: "var(--color-base-container)",
         surface: "var(--color-surface)",
