@@ -306,24 +306,26 @@ jobs:
             if ! command -v firewall-cmd &> /dev/null; then
                 echo "Installing firewalld..."
                 sudo dnf install -y firewalld
-                sudo systemctl enable --now firewalld
-            fi
-
-            if ! firewall-cmd --list-ports | grep -q "80/tcp"; then
-                echo "Opening port 80..."
+                # Add SSH port BEFORE starting firewalld to avoid locking ourselves out
+                SSH_PORT="${{ vars.SSH_PORT || '43422' }}"
+                sudo firewall-cmd --permanent --add-port=${SSH_PORT}/tcp
                 sudo firewall-cmd --permanent --add-port=80/tcp
-            else
-                echo "Port 80 already open, skipping"
-            fi
-
-            if ! firewall-cmd --list-ports | grep -q "443/tcp"; then
-                echo "Opening port 443..."
                 sudo firewall-cmd --permanent --add-port=443/tcp
+                sudo systemctl enable --now firewalld
+                echo "Firewall started with ports ${SSH_PORT}, 80, 443 open"
             else
-                echo "Port 443 already open, skipping"
+                # firewalld already installed — ensure ports are open
+                if ! firewall-cmd --list-ports | grep -q "80/tcp"; then
+                    echo "Opening port 80..."
+                    sudo firewall-cmd --permanent --add-port=80/tcp
+                fi
+                if ! firewall-cmd --list-ports | grep -q "443/tcp"; then
+                    echo "Opening port 443..."
+                    sudo firewall-cmd --permanent --add-port=443/tcp
+                fi
+                sudo firewall-cmd --reload
+                echo "Firewall ports: $(firewall-cmd --list-ports)"
             fi
-            sudo firewall-cmd --reload
-            echo "Firewall ports: $(firewall-cmd --list-ports)"
 
       - name: Setup SSL certificates, permissions, and renewal timer
         uses: appleboy/ssh-action@v1
