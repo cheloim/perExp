@@ -515,111 +515,6 @@ jobs:
             echo "Current backups:"
             ls -lh $BACKUP_DIR/db_*.sql.gz 2>/dev/null | tail -5
 
-  migrate:
-    runs-on: ubuntu-latest
-    needs: [deploy-infra, detect-changes]
-    if: |
-      always() && needs.deploy-infra.result == 'success' &&
-      (needs.detect-changes.outputs.backend == 'true' || inputs.action == 'full')
-
-    steps:
-      - name: Run database migrations
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ vars.SSH_PORT || '43422' }}
-          script: |
-            cd /opt/creditcardanalyzer
-            export PATH="$HOME/.local/bin:$PATH"
-            set -a
-            source .env
-            set +a
-
-            echo "=== Step 0: Verify SECRET_KEY ==="
-            KEY_CHECK=$(podman-compose -p oikonomia-platform -f docker-compose.platform.yml run --rm backend python -c "
-            from app.services.encryption import verify_key_works
-            if verify_key_works():
-                print('KEY_VALID')
-            else:
-                print('KEY_INVALID')
-            " 2>&1)
-
-            if echo "$KEY_CHECK" | grep -q "KEY_INVALID"; then
-              echo "::error::SECRET_KEY cannot encrypt/decrypt! Aborting deployment."
-              exit 1
-            fi
-            echo "SECRET_KEY verified successfully"
-
-            echo "=== Step 0: Ensure database tables exist ==="
-            podman-compose -p oikonomia-platform -f docker-compose.platform.yml run --rm backend python -c "
-            from app.database import Base, engine
-            Base.metadata.create_all(bind=engine)
-            print('Tables ensured')
-            " 2>&1
-            echo "Tables ready"
-
-            echo "=== Step 1: Database structure migration ==="
-            # Auto-discover and run migration scripts in a single container
-            # Write a temp script to avoid nested shell quoting issues
-            podman-compose -p oikonomia-platform -f docker-compose.platform.yml run --rm backend sh -c '
-              set -e
-              SCRIPTS=$(ls -1 scripts/migrate_*.py scripts/backfill_*.py scripts/cleanup_*.py 2>/dev/null | xargs -n1 basename | sed "s/\.py$//" | sort)
-              echo "Found migrations: $SCRIPTS"
-              for script in $SCRIPTS; do
-                echo "--- Running: $script ---"
-                python -m scripts.$script 2>&1 || echo "EXIT_CODE=$?"
-              done
-            ' 2>&1 || {
-              echo "::error::Migration failed! Rolling back database..."
-              LATEST=$(ls -t /opt/creditcardanalyzer/backups/db_*.sql.gz | head -1)
-              if [ -n "$LATEST" ]; then
-                echo "Restoring from: $LATEST"
-                DB_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_db_' | head -1)
-                gunzip -c "$LATEST" | podman exec -i "$DB_CONTAINER" psql -U expenses_user expenses
-                echo "Database restored from backup"
-              else
-                echo "::error::No backup found!"
-              fi
-              exit 1
-            }
-
-            echo "=== Step 2: Dry-run encryption migration ==="
-            DRY_RUN=$(podman-compose -p oikonomia-platform -f docker-compose.platform.yml run --rm backend python scripts/dry_run_migration.py 2>&1)
-            echo "$DRY_RUN"
-
-            if echo "$DRY_RUN" | grep -q "Status: FAIL"; then
-              echo "::error::Dry-run failed! Aborting deployment."
-              exit 1
-            fi
-
-            echo "=== Step 3: Run encryption migration ==="
-            if ! podman-compose -p oikonomia-platform -f docker-compose.platform.yml run --rm backend python scripts/migrate_encrypt_fields.py; then
-              echo "::error::Encryption migration failed!"
-              exit 1
-            fi
-
-            echo "=== Step 4: Verify encryption ==="
-            VERIFY=$(podman-compose -p oikonomia-platform -f docker-compose.platform.yml run --rm backend python scripts/verify_encryption.py 2>&1)
-            echo "$VERIFY"
-
-            if echo "$VERIFY" | grep -q "Status: FAIL"; then
-              echo "::error::Verification failed! Rolling back database..."
-              LATEST=$(ls -t /opt/creditcardanalyzer/backups/db_*.sql.gz | head -1)
-              if [ -n "$LATEST" ]; then
-                echo "Restoring from: $LATEST"
-                DB_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_db_' | head -1)
-                gunzip -c "$LATEST" | podman exec -i "$DB_CONTAINER" psql -U expenses_user expenses
-                echo "Database restored from backup"
-              else
-                echo "::error::No backup found!"
-              fi
-              exit 1
-            fi
-
-            echo "=== Migration complete and verified ==="
-
   # ── Disaggregated deploy jobs ─────────────────────────────
 
   deploy-infra:
@@ -736,7 +631,7 @@ jobs:
 
   deploy-platform:
     runs-on: ubuntu-latest
-    needs: [migrate, detect-changes]
+    needs: [deploy-infra, detect-changes]
     if: always() && !cancelled() && (needs.detect-changes.outputs.platform == 'true' || inputs.action == 'full')
 
     steps:
@@ -868,7 +763,7 @@ jobs:
 
   deploy-bots:
     runs-on: ubuntu-latest
-    needs: [migrate, detect-changes]
+    needs: [deploy-infra, detect-changes]
     if: always() && !cancelled() && (needs.detect-changes.outputs.bots == 'true' || needs.detect-changes.outputs.platform == 'true' || inputs.action == 'full')
 
     steps:
@@ -994,7 +889,7 @@ jobs:
 
   deploy-nginx:
     runs-on: ubuntu-latest
-    needs: [migrate, deploy-platform, setup-certs, detect-changes]
+    needs: [deploy-infra, deploy-platform, setup-certs, detect-changes]
     if: always() && !cancelled() && (needs.detect-changes.outputs.nginx == 'true' || needs.detect-changes.outputs.platform == 'true' || inputs.action == 'full')
 
     steps:
@@ -1051,7 +946,7 @@ jobs:
 
   deploy-landing:
     runs-on: ubuntu-latest
-    needs: [migrate, detect-changes]
+    needs: [deploy-infra, detect-changes]
     if: always() && !cancelled() && (needs.detect-changes.outputs.landing == 'true' || inputs.action == 'full')
 
     steps:
@@ -1083,7 +978,7 @@ jobs:
 
   deploy-monitoring:
     runs-on: ubuntu-latest
-    needs: [migrate, detect-changes]
+    needs: [deploy-infra, detect-changes]
     if: always() && !cancelled() && (needs.detect-changes.outputs.monitoring == 'true' || inputs.action == 'full')
 
     steps:

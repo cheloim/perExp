@@ -61,6 +61,16 @@ jobs:
                 systemctl --user daemon-reload 2>/dev/null || true
             fi
 
+            # Allow rootless podman to bind privileged ports (80, 443)
+            echo "=== Configuring unprivileged ports ==="
+            if ! grep -q "ip_unprivileged_port_start=80" /etc/sysctl.conf 2>/dev/null; then
+                echo "net.ipv4.ip_unprivileged_port_start=80" | sudo tee -a /etc/sysctl.conf > /dev/null
+                sudo sysctl -p
+                echo "Unprivileged port start set to 80"
+            else
+                echo "Already configured, skipping"
+            fi
+
             echo "=== Configuring firewall ==="
             SSH_PORT="${{ vars.SSH_PORT || '43422' }}"
             if ! command -v firewall-cmd &> /dev/null; then
