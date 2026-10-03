@@ -372,7 +372,8 @@ jobs:
 
             if [ ! -f "$CERT_FILE" ]; then
                 echo "Requesting SSL certificate..."
-                podman run --rm \
+                # Use sudo because rootless podman can't bind port 80
+                sudo podman run --rm \
                   -v /opt/creditcardanalyzer/certbot/conf:/etc/letsencrypt:Z \
                   -v /opt/creditcardanalyzer/certbot/work:/var/lib/letsencrypt:Z \
                   -v /opt/creditcardanalyzer/certbot/logs:/var/log/letsencrypt:Z \
@@ -384,6 +385,8 @@ jobs:
                   --email mmendoza0989@gmail.com \
                   --agree-tos --non-interactive
                 echo "SSL certificate obtained"
+                # Fix ownership so rootless podman can read the certs later
+                sudo chown -R $USER:$USER /opt/creditcardanalyzer/certbot/conf
             fi
 
             echo "=== Fixing cert permissions ==="
@@ -393,7 +396,7 @@ jobs:
             echo "Cert permissions fixed"
 
             echo "=== Setting up certbot renewal timer ==="
-            cat > /etc/systemd/system/certbot-renew.service << 'UNIT'
+            sudo tee /etc/systemd/system/certbot-renew.service > /dev/null << 'UNIT'
             [Unit]
             Description=Certbot SSL Certificate Renewal
             After=network-online.target
@@ -407,7 +410,7 @@ jobs:
               docker.io/certbot/certbot renew --quiet
             UNIT
 
-            cat > /etc/systemd/system/certbot-renew.timer << 'UNIT'
+            sudo tee /etc/systemd/system/certbot-renew.timer > /dev/null << 'UNIT'
             [Unit]
             Description=Run certbot renewal twice daily
 
@@ -420,8 +423,8 @@ jobs:
             WantedBy=timers.target
             UNIT
 
-            systemctl daemon-reload
-            systemctl enable --now certbot-renew.timer
+            sudo systemctl daemon-reload
+            sudo systemctl enable --now certbot-renew.timer
             echo "Certbot renewal timer installed"
 
   write-config:
