@@ -47,6 +47,22 @@ jobs:
                 echo "podman-compose already installed, skipping"
             fi
 
+            # Enable CPU controller for rootless podman (cgroup v2)
+            # Required by compose files that set deploy.resources.limits (cpus)
+            echo "=== Configuring cgroup delegation for rootless podman ==="
+            USER_UID=$(id -u)
+            if [ "$USER_UID" -ge 1000 ]; then
+                sudo mkdir -p /etc/systemd/system/user@${USER_UID}.service.d
+                sudo tee /etc/systemd/system/user@${USER_UID}.service.d/delegate.conf > /dev/null << 'DELEGATE'
+                [Service]
+                Delegate=cpu cpuset io memory pids
+                DELEGATE
+                sudo systemctl daemon-reload
+                echo "CPU controller delegation enabled for uid $USER_UID"
+                # Restart podman user session to pick up new delegation
+                systemctl --user daemon-reload 2>/dev/null || true
+            fi
+
             echo "=== Configuring firewall ==="
             SSH_PORT="${{ vars.SSH_PORT || '43422' }}"
             if ! command -v firewall-cmd &> /dev/null; then
