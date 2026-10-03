@@ -303,16 +303,19 @@ jobs:
             echo "Directories ready"
 
             echo "=== Configuring firewall ==="
+            SSH_PORT="${{ vars.SSH_PORT || '43422' }}"
             if ! command -v firewall-cmd &> /dev/null; then
                 echo "Installing firewalld..."
                 sudo dnf install -y firewalld
-                # Add SSH port BEFORE starting firewalld to avoid locking ourselves out
-                SSH_PORT="${{ vars.SSH_PORT || '43422' }}"
-                sudo firewall-cmd --permanent --add-port=${SSH_PORT}/tcp
-                sudo firewall-cmd --permanent --add-port=80/tcp
-                sudo firewall-cmd --permanent --add-port=443/tcp
+                # Use firewall-offline-cmd to write rules BEFORE starting the daemon
+                # (firewall-cmd --permanent requires a running daemon, offline-cmd does not)
+                sudo firewall-offline-cmd --zone=public --add-port=${SSH_PORT}/tcp
+                sudo firewall-offline-cmd --zone=public --add-port=80/tcp
+                sudo firewall-offline-cmd --zone=public --add-port=443/tcp
+                echo "Ports ${SSH_PORT}, 80, 443 written to firewall config"
+                # Now start — rules are already in the zone file
                 sudo systemctl enable --now firewalld
-                echo "Firewall started with ports ${SSH_PORT}, 80, 443 open"
+                echo "Firewall started. Ports: $(firewall-cmd --list-ports)"
             else
                 # firewalld already installed — ensure ports are open
                 if ! firewall-cmd --list-ports | grep -q "80/tcp"; then
