@@ -611,6 +611,11 @@ jobs:
             NETWORK_NAME="${NETWORK_NAME:-oikonomia}"
             podman network create "$NETWORK_NAME" 2>/dev/null || true
 
+            # Ensure external volumes exist (required by compose infra)
+            echo "Ensuring external volumes exist..."
+            podman volume create creditcardanalyzer_postgres_data 2>/dev/null || true
+            podman volume create creditcardanalyzer_redis_data 2>/dev/null || true
+
             # Stop ALL containers with old project prefix (legacy cleanup)
             echo "Cleaning up legacy containers..."
             for OLD in $(podman ps -a --format '{{.Names}}' | grep '^creditcardanalyzer_' 2>/dev/null); do
