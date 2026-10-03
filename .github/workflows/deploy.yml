@@ -302,7 +302,13 @@ jobs:
 
             echo "Directories ready"
 
-            echo "=== Opening firewall ports ==="
+            echo "=== Configuring firewall ==="
+            if ! command -v firewall-cmd &> /dev/null; then
+                echo "Installing firewalld..."
+                sudo dnf install -y firewalld
+                sudo systemctl enable --now firewalld
+            fi
+
             if ! firewall-cmd --list-ports | grep -q "80/tcp"; then
                 echo "Opening port 80..."
                 sudo firewall-cmd --permanent --add-port=80/tcp
