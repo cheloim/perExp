@@ -119,6 +119,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -134,6 +137,7 @@ jobs:
         with:
           context: ./src/backend
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: |
             ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
             ${{ env.BACKEND_IMAGE }}:latest
@@ -154,6 +158,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -169,6 +176,7 @@ jobs:
         with:
           context: ./src/frontend
           push: true
+          platforms: linux/amd64,linux/arm64
           build-args: |
             VITE_APP_ENV=production
             VITE_GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
@@ -203,6 +211,10 @@ jobs:
             echo "Skipping landing build — ./src/landing not found"
           fi
 
+      - name: Set up QEMU
+        if: steps.check-landing.outputs.exists == 'true'
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         if: steps.check-landing.outputs.exists == 'true'
         uses: docker/setup-buildx-action@v4
@@ -221,6 +233,7 @@ jobs:
         with:
           context: ./src/landing
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: |
             ${{ env.LANDING_IMAGE }}:${{ github.sha }}
             ${{ env.LANDING_IMAGE }}:latest

@@ -128,6 +128,40 @@ jobs:
 
             echo ""
             echo "=== Server setup complete ==="
+            echo ""
+            echo "=== Verification ==="
+            ERRORS=0
+
+            echo -n "  podman: "
+            podman --version 2>/dev/null && echo "OK" || { echo "MISSING"; ERRORS=$((ERRORS+1)); }
+
+            echo -n "  podman-compose: "
+            export PATH="$HOME/.local/bin:$PATH"
+            podman-compose --version 2>/dev/null && echo "OK" || { echo "MISSING"; ERRORS=$((ERRORS+1)); }
+
+            echo -n "  firewall ports: "
+            firewall-cmd --list-ports 2>/dev/null || { echo "MISSING"; ERRORS=$((ERRORS+1)); }
+
+            echo -n "  podman network: "
+            podman network ls | grep -q oikonomia && echo "oikonomia OK" || { echo "MISSING"; ERRORS=$((ERRORS+1)); }
+
+            echo -n "  directories: "
+            test -d /opt/creditcardanalyzer && test -d /opt/creditcardanalyzer/certbot/conf && echo "OK" || { echo "MISSING"; ERRORS=$((ERRORS+1)); }
+
+            echo -n "  certbot timer: "
+            systemctl is-enabled certbot-renew.timer 2>/dev/null && echo "OK" || { echo "MISSING"; ERRORS=$((ERRORS+1)); }
+
+            echo -n "  podman socket: "
+            systemctl is-active podman.socket 2>/dev/null && echo "OK" || { echo "MISSING"; ERRORS=$((ERRORS+1)); }
+
+            echo ""
+            if [ "$ERRORS" -gt 0 ]; then
+              echo "::error::$ERRORS verification check(s) failed"
+              exit 1
+            fi
+            echo "All checks passed"
+            echo ""
             echo "Next steps:"
-            echo "  1. Verify DNS points to this server"
-            echo "  2. Run the Deploy workflow to build and deploy"
+            echo "  1. Open port $SSH_PORT in Oracle Cloud Security List (VCN → Security Lists → Add Ingress Rule)"
+            echo "  2. Verify DNS points to this server"
+            echo "  3. Run the Deploy workflow to build and deploy"
