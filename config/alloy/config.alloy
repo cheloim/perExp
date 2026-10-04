@@ -44,8 +44,8 @@ prometheus.scrape "nginx" {
   forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
 }
 
-prometheus.scrape "cadvisor" {
-  targets         = [{"__address__" = "localhost:8080", "job" = "cadvisor"}]
+prometheus.scrape "podman" {
+  targets         = [{"__address__" = "localhost:9882", "job" = "podman"}]
   scrape_interval = "15s"
   forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
 }
