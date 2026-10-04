@@ -20,6 +20,10 @@ def _cron_from_env(env_key: str, default_hour: int, default_minute: int, **kwarg
 
 
 celery_app.conf.beat_schedule = {
+    "celery-beat-heartbeat": {
+        "task": "celery-beat-heartbeat",
+        "schedule": crontab(minute="*"),  # every minute
+    },
     "execute-due-installments-daily": {
         "task": "app.tasks.scheduled_expenses.execute_due_installments",
         "schedule": _cron_from_env("SCHEDULE_DUE_INSTALLMENTS", 2, 0),

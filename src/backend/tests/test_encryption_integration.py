@@ -155,7 +155,7 @@ class TestAccountEncryption:
         account = Account(
             name="Banco Nación Cuenta Corriente",
             name_hmac=compute_hmac("banco nacion cuenta corriente"),
-            account_type="banco",
+            type="banco",
             user_id=test_user.id,
         )
         db.add(account)
@@ -173,7 +173,7 @@ class TestAccountEncryption:
         account = Account(
             name="Banco Nación Cuenta Corriente",
             name_hmac=compute_hmac("banco nacion cuenta corriente"),
-            account_type="banco",
+            type="banco",
             user_id=test_user.id,
         )
         db.add(account)
@@ -188,7 +188,7 @@ class TestAccountEncryption:
         account1 = Account(
             name="Banco Nación",
             name_hmac=compute_hmac("banco nacion"),
-            account_type="banco",
+            type="banco",
             user_id=test_user.id,
         )
         db.add(account1)

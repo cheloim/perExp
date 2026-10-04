@@ -1,85 +1,14 @@
-// ── Grafana Cloud credentials (env vars from .env) ────────
+// ── Alloy config: logs only (metrics scraped by Prometheus directly) ──
 
-prometheus.remote_write "grafana_cloud" {
+// ── Loki: write logs to local Loki ─────────────────────
+
+loki.write "local" {
   endpoint {
-    url = env("GRAFANA_CLOUD_PROMETHEUS_URL")
-
-    basic_auth {
-      username = env("GRAFANA_CLOUD_PROMETHEUS_USER")
-      password = env("GRAFANA_CLOUD_PROMETHEUS_PASSWORD")
-    }
+    url = "http://localhost:3100/loki/api/v1/push"
   }
 }
 
-// ── Scrape all exporters (localhost — all on host network) ──
-
-prometheus.scrape "backend" {
-  targets         = [{"__address__" = "localhost:8000", "job" = "oikonomia-backend"}]
-  metrics_path    = "/metrics"
-  scrape_interval = "15s"
-  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
-}
-
-prometheus.scrape "postgres" {
-  targets         = [{"__address__" = "localhost:9187", "job" = "postgres"}]
-  scrape_interval = "15s"
-  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
-}
-
-prometheus.scrape "redis" {
-  targets         = [{"__address__" = "localhost:9121", "job" = "redis"}]
-  scrape_interval = "15s"
-  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
-}
-
-prometheus.scrape "node" {
-  targets         = [{"__address__" = "localhost:9100", "job" = "node"}]
-  scrape_interval = "15s"
-  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
-}
-
-prometheus.scrape "nginx" {
-  targets         = [{"__address__" = "localhost:9113", "job" = "nginx"}]
-  scrape_interval = "15s"
-  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
-}
-
-prometheus.scrape "podman" {
-  targets         = [{"__address__" = "localhost:9882", "job" = "podman"}]
-  scrape_interval = "15s"
-  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
-}
-
-prometheus.scrape "alloy" {
-  targets         = [{"__address__" = "localhost:12345", "job" = "alloy"}]
-  scrape_interval = "15s"
-  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
-}
-
-prometheus.scrape "blackbox" {
-  targets         = [
-    {"__address__" = "localhost:9115", "__param_target" = "https://oikonomia.ar", "instance" = "https://oikonomia.ar", "job" = "blackbox"},
-    {"__address__" = "localhost:9115", "__param_target" = "https://platform.oikonomia.ar", "instance" = "https://platform.oikonomia.ar", "job" = "blackbox"},
-  ]
-  metrics_path    = "/probe"
-  scrape_interval = "60s"
-  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
-}
-
-// ── Loki: write logs to Grafana Cloud ─────────────────────
-
-loki.write "grafana_cloud" {
-  endpoint {
-    url = env("GRAFANA_CLOUD_LOKI_URL")
-
-    basic_auth {
-      username = env("GRAFANA_CLOUD_LOKI_USER")
-      password = env("GRAFANA_CLOUD_LOKI_PASSWORD")
-    }
-  }
-}
-
-// ── Journal logs → Grafana Cloud Loki ─────────────────────
+// ── Journal logs → local Loki ──────────────────────────
 
 loki.source.journal "containers" {
   max_age       = "12h"
@@ -89,7 +18,7 @@ loki.source.journal "containers" {
 
 // Fix log levels: re-label blackbox probe failures as warnings, not errors
 loki.process "log_level_fix" {
-  forward_to = [loki.write.grafana_cloud.receiver]
+  forward_to = [loki.write.local.receiver]
 
   // If container is blackbox-exporter and message contains "Probe failed",
   // downgrade level from ERROR to WARNING

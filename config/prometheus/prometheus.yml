@@ -1,0 +1,43 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "oikonomia-backend"
+    static_configs:
+      - targets: ["localhost:8000"]
+    metrics_path: /metrics
+
+  - job_name: "postgres"
+    static_configs:
+      - targets: ["localhost:9187"]
+
+  - job_name: "redis"
+    static_configs:
+      - targets: ["localhost:9121"]
+
+  - job_name: "node"
+    static_configs:
+      - targets: ["localhost:9100"]
+
+  - job_name: "nginx"
+    static_configs:
+      - targets: ["localhost:9113"]
+
+  - job_name: "cadvisor"
+    static_configs:
+      - targets: ["localhost:8080"]
+
+  - job_name: "blackbox"
+    metrics_path: /probe
+    static_configs:
+      - targets:
+          - https://oikonomia.ar
+          - https://platform.oikonomia.ar
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: localhost:9115

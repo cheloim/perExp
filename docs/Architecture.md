@@ -176,3 +176,40 @@ Return { url, confirmation_code } to Meta
 6. **Shared account deletion** — Single deletion service used by both authenticated API endpoint and Meta's WhatsApp data deletion callback.
 
 7. **Field-level encryption** — PII fields use AES encryption with companion HMAC columns for indexed lookups. Never query by encrypted value.
+
+## Monitoring & Observability
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Monitoring Stack                          │
+│                                                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │  Prometheus   │  │    Grafana    │  │     Loki      │      │
+│  │  :9090        │  │    :3000      │  │    :3100      │      │
+│  │  30d metrics  │  │  5 dashboards│  │  15d logs     │      │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
+│         │                  │                  │              │
+│         │ scrape           │ query            │ push         │
+│         ▼                  ▼                  ▼              │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │  Alloy (collector) — logs only, metrics scraped direct│   │
+│  └──────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+         ▲
+         │ scrape (15s)
+         │
+┌────────┼────────────────────────────────────────────────────┐
+│  Exporters (host network)                                    │
+│  backend:8000  postgres:9187  redis:9121                     │
+│  node:9100  nginx:9113  blackbox:9115  cadvisor:8080         │
+└──────────────────────────────────────────────────────────────┘
+```
+
+Health endpoints:
+- `GET /health` — liveness (always 200)
+- `GET /health/ready` — readiness (DB, Redis, Celery, Bots)
+- `GET /metrics` — Prometheus exposition format
+
+Dashboards: `status`, `application`, `system`, `database`, `logs`
+
+See [Monitoring.md](Monitoring.md) for full documentation.

@@ -8,6 +8,7 @@ import unittest
 import urllib.parse
 
 os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-testing"
+os.environ.setdefault("TELEGRAM_BOT_TOKEN", "test-bot-token:1234567890")
 os.environ["TELEGRAM_BOT_TOKEN"] = "test-bot-token:1234567890"
 
 from app.services.auth import verify_telegram_login_widget, verify_telegram_webapp
