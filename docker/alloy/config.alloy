@@ -1,0 +1,76 @@
+// ── Alloy config: logs only (metrics scraped by Prometheus directly) ──
+
+// ── Loki: write logs to local Loki ─────────────────────
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+// ── Journal logs → local Loki ──────────────────────────
+
+loki.source.journal "containers" {
+  max_age       = "12h"
+  relabel_rules = discovery.relabel.journal_rules.rules
+  forward_to    = [loki.process.log_level_fix.receiver]
+}
+
+// Fix log levels: re-label blackbox probe failures as warnings, not errors
+loki.process "log_level_fix" {
+  forward_to = [loki.write.local.receiver]
+
+  // If container is blackbox-exporter and message contains "Probe failed",
+  // downgrade level from ERROR to WARNING
+  stage.match {
+    selector = "{service_name=~\".*blackbox.*\"}"
+    stage.regex {
+      expression = ".*Probe failed.*"
+    }
+    stage.labels {
+      values = { detected_level = "warning" }
+    }
+  }
+
+  // If container is nginx-exporter and message contains "error getting stats" or "round trip failed",
+  // downgrade level from ERROR to WARNING (scrape issues, not system errors)
+  stage.match {
+    selector = "{service_name=~\".*nginx-exporter.*\"}"
+    stage.regex {
+      expression = ".*(error getting stats|round trip failed|no such host).*"
+    }
+    stage.labels {
+      values = { detected_level = "warning" }
+    }
+  }
+}
+
+discovery.relabel "journal_rules" {
+  targets = []
+
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+
+  rule {
+    source_labels = ["__journal__cmdline"]
+    regex         = ".*\\s-n\\s+(\\S+).*"
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__journal__priority_keyword"]
+    target_label  = "level"
+  }
+
+  rule {
+    source_labels = ["__journal__hostname"]
+    target_label  = "host"
+  }
+
+  rule {
+    target_label = "job"
+    replacement  = "systemd-journal"
+  }
+}
