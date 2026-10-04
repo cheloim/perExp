@@ -7,11 +7,6 @@ services:
       timeout: 3s
       start_period: 5s
       retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-          cpus: "0.25"
     restart: unless-stopped
 
 networks:

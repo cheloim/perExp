@@ -15,11 +15,6 @@ services:
       LLM_API_KEY: ${LLM_API_KEY}
       MESSAGES_BOT_LLM_API_KEY: ${MESSAGES_BOT_LLM_API_KEY}
       TZ: America/Argentina/Buenos_Aires
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: "0.5"
     restart: unless-stopped
 
 networks:
