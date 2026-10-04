@@ -563,7 +563,7 @@ jobs:
               podman rm -f "oikonomia-nginx_${SVC}_1" 2>/dev/null || true
             done
             # Clean up monitoring containers (they have no persistent data)
-            for SVC in postgres-exporter redis-exporter node-exporter nginx-exporter blackbox-exporter alloy cadvisor; do
+            for SVC in postgres-exporter redis-exporter node-exporter nginx-exporter blackbox-exporter alloy podman-exporter; do
               podman stop "oikonomia-monitoring_${SVC}_1" 2>/dev/null || true
               podman rm -f "oikonomia-monitoring_${SVC}_1" 2>/dev/null || true
             done

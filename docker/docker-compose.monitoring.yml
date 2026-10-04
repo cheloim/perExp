@@ -69,20 +69,16 @@ services:
       - label=disable
     restart: unless-stopped
 
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.47.0
+  podman-exporter:
+    image: quay.io/navidys/prometheus-podman-exporter:latest
     network_mode: host
+    command:
+      - "--collector.enable-all"
     volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/containers/:/var/lib/containers:ro
-      - /dev/disk/:/dev/disk:ro
-    security_opt:
-      - label=disable
+      - /run/user/1000/podman/podman.sock:/run/podman/podman.sock:ro
+    environment:
+      CONTAINER_HOST: unix:///run/podman/podman.sock
     restart: unless-stopped
-    profiles:
-      - x86_64
 
 volumes:
   alloy_data:
