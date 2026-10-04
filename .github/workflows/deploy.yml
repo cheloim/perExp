@@ -840,7 +840,7 @@ jobs:
             # Clean up old domain certbot data if domain changed
             for old_dir in /opt/creditcardanalyzer/certbot/conf/live/*/; do
               old_domain=$(basename "$old_dir")
-              if [ "$old_domain" != "$DOMAIN" ] && [ "$old_domain" != "$PLATFORM" ] && [ -n "$old_domain" ]; then
+              if [ "$old_domain" != "$DOMAIN" ] && [ "$old_domain" != "$PLATFORM" ] && [ -n "$old_domain" ] && [ "$old_domain" != "README" ]; then
                 echo "Removing old cert for domain: $old_domain"
                 rm -rf "/opt/creditcardanalyzer/certbot/conf/live/$old_domain"
                 rm -rf "/opt/creditcardanalyzer/certbot/conf/archive/$old_domain"
@@ -848,44 +848,80 @@ jobs:
               fi
             done
 
+            NEED_CERTBOT=false
             if [ -f "$CERT_FILE" ]; then
+                ISSUER=$(openssl x509 -in "$CERT_FILE" -noout -issuer 2>/dev/null)
                 EXPIRY=$(openssl x509 -in "$CERT_FILE" -noout -enddate | cut -d= -f2)
                 EXPIRY_EPOCH=$(date -d "$EXPIRY" +%s)
                 NOW_EPOCH=$(date +%s)
                 DAYS_LEFT=$(( (EXPIRY_EPOCH - NOW_EPOCH) / 86400 ))
 
-                if [ "$DAYS_LEFT" -lt 14 ]; then
-                    echo "Certificate expires in $DAYS_LEFT days, forcing renewal..."
-                    rm -f "$CERT_FILE"
+                # Check if cert is self-signed (issuer contains our domain)
+                if echo "$ISSUER" | grep -q "CN=$DOMAIN"; then
+                    echo "Self-signed cert detected, will replace with Let's Encrypt..."
+                    NEED_CERTBOT=true
+                elif [ "$DAYS_LEFT" -lt 14 ]; then
+                    echo "Certificate expires in $DAYS_LEFT days, will renew..."
+                    NEED_CERTBOT=true
                 else
                     echo "SSL certificate OK ($DAYS_LEFT days remaining), skipping"
                     exit 0
                 fi
+            else
+                NEED_CERTBOT=true
             fi
 
-            # ── Request certificate ──
-            echo "Requesting SSL certificate..."
-            sudo podman run --rm \
-              -v /opt/creditcardanalyzer/certbot/conf:/etc/letsencrypt:Z \
-              -v /opt/creditcardanalyzer/certbot/work:/var/lib/letsencrypt:Z \
-              -v /opt/creditcardanalyzer/certbot/logs:/var/log/letsencrypt:Z \
-              -p 80:80 \
-              docker.io/certbot/certbot certonly --standalone --expand \
-              -d $DOMAIN \
-              -d www.$DOMAIN \
-              -d $PLATFORM \
-              --email mmendoza0989@gmail.com \
-              --agree-tos --non-interactive
-            echo "SSL certificate obtained"
+            if [ "$NEED_CERTBOT" = "true" ]; then
+              # Stop nginx to free port 80 for certbot standalone
+              cd /opt/creditcardanalyzer
+              export PATH="$HOME/.local/bin:$PATH"
+              set -a; source .env; set +a
+              podman-compose -p oikonomia-nginx -f docker-compose.nginx.yml stop nginx 2>/dev/null || true
+              sleep 2
 
-            # Fix ownership so rootless podman can read the certs later
-            sudo chown -R $USER:$USER /opt/creditcardanalyzer/certbot/conf
+              # Remove self-signed certs if they exist
+              rm -rf "/opt/creditcardanalyzer/certbot/conf/live/$DOMAIN"
+              rm -rf "/opt/creditcardanalyzer/certbot/conf/archive/$DOMAIN"
+              rm -f "/opt/creditcardanalyzer/certbot/conf/renewal/$DOMAIN.conf"
+              rm -rf "/opt/creditcardanalyzer/certbot/conf/live/$PLATFORM"
+              rm -rf "/opt/creditcardanalyzer/certbot/conf/archive/$PLATFORM"
+              rm -f "/opt/creditcardanalyzer/certbot/conf/renewal/$PLATFORM.conf"
 
-            echo "=== Fixing cert permissions ==="
-            chmod 755 /opt/creditcardanalyzer/certbot/conf/archive 2>/dev/null || true
-            chmod 755 /opt/creditcardanalyzer/certbot/conf/archive/$DOMAIN 2>/dev/null || true
-            chmod 644 /opt/creditcardanalyzer/certbot/conf/archive/$DOMAIN/*.pem 2>/dev/null || true
-            echo "SSL setup complete"
+              # Request certificate
+              echo "Requesting SSL certificate..."
+              sudo podman run --rm \
+                -v /opt/creditcardanalyzer/certbot/conf:/etc/letsencrypt:Z \
+                -v /opt/creditcardanalyzer/certbot/work:/var/lib/letsencrypt:Z \
+                -v /opt/creditcardanalyzer/certbot/logs:/var/log/letsencrypt:Z \
+                -p 80:80 \
+                docker.io/certbot/certbot certonly --standalone --expand \
+                -d $DOMAIN \
+                -d www.$DOMAIN \
+                -d $PLATFORM \
+                --email mmendoza0989@gmail.com \
+                --agree-tos --non-interactive
+              echo "SSL certificate obtained"
+
+              # Fix ownership
+              sudo chown -R $USER:$USER /opt/creditcardanalyzer/certbot/conf
+
+              # Create relative symlink for platform domain (certbot stores all under first domain)
+              cd /opt/creditcardanalyzer/certbot/conf/live
+              if [ ! -e "$PLATFORM" ] && [ -d "$DOMAIN" ]; then
+                ln -s "$DOMAIN" "$PLATFORM"
+                echo "Symlink created: $PLATFORM -> $DOMAIN"
+              fi
+
+              # Fix permissions
+              chmod 755 /opt/creditcardanalyzer/certbot/conf/archive 2>/dev/null || true
+              chmod 755 /opt/creditcardanalyzer/certbot/conf/archive/$DOMAIN 2>/dev/null || true
+              chmod 644 /opt/creditcardanalyzer/certbot/conf/archive/$DOMAIN/*.pem 2>/dev/null || true
+
+              # Restart nginx
+              cd /opt/creditcardanalyzer
+              podman-compose -p oikonomia-nginx -f docker-compose.nginx.yml up -d
+              echo "SSL setup complete"
+            fi
 
   deploy-nginx:
     runs-on: ubuntu-latest

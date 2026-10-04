@@ -133,19 +133,23 @@ jobs:
             echo "=== Generating self-signed fallback certificates ==="
             DOMAIN="${{ vars.DOMAIN_NAME }}"
             PLATFORM="${{ vars.PLATFORM_DOMAIN }}"
-            for CERT_DOMAIN in "$DOMAIN" "$PLATFORM"; do
-                CERT_DIR="/opt/creditcardanalyzer/certbot/conf/live/$CERT_DOMAIN"
-                if [ ! -f "$CERT_DIR/fullchain.pem" ]; then
-                    sudo mkdir -p "$CERT_DIR"
-                    sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-                        -keyout "$CERT_DIR/privkey.pem" \
-                        -out "$CERT_DIR/fullchain.pem" \
-                        -subj "/CN=$CERT_DOMAIN" 2>/dev/null
-                    echo "Self-signed cert created for $CERT_DOMAIN"
-                else
-                    echo "Certificate for $CERT_DOMAIN already exists, skipping"
-                fi
-            done
+            CERT_DIR="/opt/creditcardanalyzer/certbot/conf/live/$DOMAIN"
+            if [ ! -f "$CERT_DIR/fullchain.pem" ]; then
+                sudo mkdir -p "$CERT_DIR"
+                sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                    -keyout "$CERT_DIR/privkey.pem" \
+                    -out "$CERT_DIR/fullchain.pem" \
+                    -subj "/CN=$DOMAIN" 2>/dev/null
+                echo "Self-signed cert created for $DOMAIN"
+            else
+                echo "Certificate for $DOMAIN already exists, skipping"
+            fi
+            # Create relative symlink for platform domain (certbot stores all domains under one dir)
+            if [ ! -e "/opt/creditcardanalyzer/certbot/conf/live/$PLATFORM" ]; then
+                cd /opt/creditcardanalyzer/certbot/conf/live
+                sudo ln -s "$DOMAIN" "$PLATFORM"
+                echo "Symlink created: $PLATFORM -> $DOMAIN"
+            fi
             sudo chown -R $USER:$USER /opt/creditcardanalyzer/certbot/conf
 
             echo "=== Setting up certbot renewal timer ==="
