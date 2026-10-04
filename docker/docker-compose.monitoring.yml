@@ -75,12 +75,15 @@ services:
     command:
       - "--collector.enable-all"
       - "--web.listen-address=:9882"
+      - "--timeout=30s"
     volumes:
       - /run/user/1000/podman:/run/podman:ro
     environment:
       CONTAINER_HOST: unix:///run/podman/podman.sock
       HOME: /tmp
     user: "1000:1000"
+    security_opt:
+      - label=disable
     restart: unless-stopped
 
 volumes:
