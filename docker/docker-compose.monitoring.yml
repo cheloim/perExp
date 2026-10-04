@@ -81,6 +81,8 @@ services:
     security_opt:
       - label=disable
     restart: unless-stopped
+    profiles:
+      - x86_64
 
 volumes:
   alloy_data:
