@@ -1,6 +1,12 @@
 name: Run Migrations
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/backend/scripts/migrate_*.py'
+      - 'src/backend/scripts/backfill_*.py'
+      - 'src/backend/scripts/cleanup_*.py'
   workflow_dispatch:
     inputs:
       dry_run:
