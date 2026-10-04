@@ -67,6 +67,12 @@ services:
       - ./src/backend/scripts:/app/scripts:z
     ports:
       - "8001:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     depends_on:
       db:
         condition: service_healthy
@@ -103,6 +109,12 @@ services:
       target: dev
     user: "1000:1000"
     command: celery -A app.celery_app worker --loglevel=info --concurrency=2
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.celery_app inspect ping --timeout 5 2>/dev/null | grep -q OK || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     secrets:
       - creditcard_backend_dev_postgres_password
       - creditcard_backend_dev_llm_api_key
@@ -139,6 +151,12 @@ services:
       target: dev
     user: "1000:1000"
     command: celery -A app.celery_app beat --loglevel=info
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import redis,os; r=redis.from_url(os.getenv('REDIS_URL','redis://localhost:6379/1')); exit(0 if r.get('celery_beat:heartbeat') else 1)\""]
+      interval: 120s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
     secrets:
       - creditcard_backend_dev_postgres_password
       - creditcard_backend_dev_llm_api_key

@@ -2,6 +2,12 @@ services:
   telegram_bot:
     image: ${BACKEND_IMAGE}:${IMAGE_TAG}
     command: python bot_entrypoint.py
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import redis,os; r=redis.from_url(os.getenv('REDIS_URL','redis://localhost:6379/0')); exit(0 if r.get('bot:heartbeat') else 1)\""]
+      interval: 90s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     environment:
       DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses
       REDIS_URL: redis://redis:6379/0
