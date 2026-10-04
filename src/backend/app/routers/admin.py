@@ -702,20 +702,31 @@ def generate_all_reports(
 @router.get(
     "/system/health",
     summary="System health check",
-    description="Check connectivity and status of Redis, PostgreSQL, and Celery workers.",
+    description="Check connectivity and status of Redis, PostgreSQL, Celery, Telegram bot, and app metrics.",
 )
 def system_health(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
+    import time as _time
+
+    from app.routers.health import _start_time
+
+    result = {
+        "version": "1.0.0",
+        "uptime_seconds": int(_time.time() - _start_time),
+        "environment": os.getenv("APP_ENV", "development"),
+    }
+
     # Redis
     redis_ok = False
     redis_latency = 0
+    redis_memory = None
     try:
         r = _get_redis()
-        import time
-
-        start = time.time()
+        start = _time.time()
         r.ping()
-        redis_latency = int((time.time() - start) * 1000)
+        redis_latency = int((_time.time() - start) * 1000)
         redis_ok = True
+        info = r.info("memory")
+        redis_memory = info.get("used_memory_human")
     except Exception:
         pass
 
@@ -740,10 +751,41 @@ def system_health(admin: User = Depends(get_current_admin), db: Session = Depend
     except Exception:
         pass
 
+    # Celery Beat
+    beat_status = "unknown"
+    beat_heartbeat = None
+    try:
+        r = _get_redis()
+        hb = r.get("celery_beat:heartbeat")
+        if hb:
+            beat_heartbeat = hb.decode() if isinstance(hb, bytes) else hb
+            beat_status = "ok"
+        else:
+            beat_status = "no_heartbeat"
+    except Exception:
+        beat_status = "error"
+
+    # Telegram bot
+    bot_alive = any(t.name == "telegram-bot" and t.is_alive() for t in __import__("threading").enumerate())
+    bot_status = "running" if bot_alive else "not_running"
+
+    # Metrics summary
+    metrics_summary = {}
+    try:
+        from app.metrics import get_usage_stats
+
+        metrics_summary = get_usage_stats(window=300)
+    except Exception:
+        pass
+
     return {
-        "redis": {"connected": redis_ok, "latency_ms": redis_latency},
+        "redis": {"connected": redis_ok, "latency_ms": redis_latency, "memory": redis_memory},
         "database": {"connected": db_ok, "users_count": users_count},
         "celery": {"workers": celery_workers, "worker_count": len(celery_workers)},
+        "celery_beat": {"status": beat_status, "last_heartbeat": beat_heartbeat},
+        "telegram_bot": {"status": bot_status, "thread_alive": bot_alive},
+        "metrics": metrics_summary,
+        **result,
     }
 
 

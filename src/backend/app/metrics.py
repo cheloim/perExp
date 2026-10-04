@@ -65,6 +65,11 @@ CELERY_WORKER_HEALTH = Gauge(
     "Whether celery workers are reachable (1=healthy, 0=down)",
 )
 
+CELERY_BEAT_HEALTH = Gauge(
+    "oikonomia_celery_beat_healthy",
+    "Whether celery beat is alive based on Redis heartbeat (1=healthy, 0=down)",
+)
+
 # ── Business counters (incremented on events) ────────────────
 
 LOGIN_ATTEMPTS = Counter(
@@ -236,6 +241,13 @@ def update_business_metrics() -> None:
                 CELERY_WORKER_HEALTH.set(1 if ping else 0)
             except Exception:
                 CELERY_WORKER_HEALTH.set(0)
+
+            # Celery Beat: check Redis heartbeat
+            try:
+                beat_heartbeat = r.get("celery_beat:heartbeat")
+                CELERY_BEAT_HEALTH.set(1 if beat_heartbeat else 0)
+            except Exception:
+                CELERY_BEAT_HEALTH.set(0)
 
             _business_metrics_last_update = time.time()
         finally:
