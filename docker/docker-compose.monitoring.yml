@@ -79,7 +79,7 @@ services:
     environment:
       CONTAINER_HOST: unix:///run/podman/podman.sock
       HOME: /tmp
-    user: "1000:1000"
+    userns: keep-id
     restart: unless-stopped
 
 volumes:
