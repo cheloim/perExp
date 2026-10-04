@@ -63,7 +63,46 @@ jobs:
 
       - name: MyPy
         run: mypy app/
-        continue-on-error: true
+
+  test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: expenses_test
+          POSTGRES_USER: expenses_user
+          POSTGRES_PASSWORD: test_password_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: src/backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run all tests
+        env:
+          SECRET_KEY: test-secret-key-for-ci-that-is-at-least-32-chars
+          TEST_DATABASE_URL: postgresql://expenses_user:test_password_ci@localhost:5432/expenses_test
+        run: python -m pytest tests/ -v --tb=short
 
   specs:
     name: Spec Validation & Codegen
