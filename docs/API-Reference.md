@@ -16,6 +16,39 @@ Authorization: Bearer {access_token}
 
 ## Routers
 
+### Health (`/health`)
+
+| Method | Endpoint         | Auth  | Description                                          |
+| ------ | ---------------- | ----- | ---------------------------------------------------- |
+| `GET`  | `/health`        | No    | Liveness — version, uptime, timestamp (always 200)   |
+| `GET`  | `/health/ready`  | No    | Readiness — DB, Redis, Celery, Bots (503 if critical) |
+
+**Liveness** (`/health`): Returns 200 if the process is alive. Does not check dependencies. Use for container liveness probes and uptime monitoring.
+
+**Readiness** (`/health/ready`): Checks critical services (DB, Redis, Celery workers). Returns 200 if healthy/degraded, 503 if unhealthy. Also checks optional services (Telegram bot, Celery Beat). Use for load balancer readiness and blackbox monitoring.
+
+Response structure:
+```json
+{
+  "status": "healthy",
+  "version": "1.0.0",
+  "uptime_seconds": 12345,
+  "timestamp": "2026-10-04T12:00:00Z",
+  "checks": {
+    "database": {"status": "ok", "latency_ms": 2},
+    "redis": {"status": "ok", "latency_ms": 1},
+    "celery_workers": {"status": "ok", "worker_count": 1},
+    "celery_beat": {"status": "ok", "last_heartbeat": "..."},
+    "telegram_bot": {"status": "ok", "thread_alive": true}
+  }
+}
+```
+
+Status values:
+- `healthy`: all services OK
+- `degraded`: critical services OK, optional services down
+- `unhealthy`: critical services down (DB, Redis, or Celery)
+
 ### Auth (`/auth`)
 
 | Method | Endpoint                           | Description                |
