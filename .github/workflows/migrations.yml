@@ -1,0 +1,167 @@
+name: Run Migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (show what would run without executing)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  contents: read
+
+jobs:
+  run-migrations:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Run migration scripts
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT || '43422' }}
+          command_timeout: 10m
+          script: |
+            cd /opt/creditcardanalyzer
+            export PATH="$HOME/.local/bin:$PATH"
+            set -a; source .env; set +a
+
+            DRY_RUN="${{ inputs.dry_run }}"
+            DB_CONTAINER=$(podman ps --format '{{.Names}}' | grep '_db_' | head -1)
+
+            if [ -z "$DB_CONTAINER" ]; then
+              echo "::error::Database container not running"
+              exit 1
+            fi
+
+            # ── Ensure tracking table exists ──
+            podman exec $DB_CONTAINER psql -U expenses_user -d expenses -c "
+              CREATE TABLE IF NOT EXISTS schema_migrations (
+                id SERIAL PRIMARY KEY,
+                script_name VARCHAR(255) NOT NULL UNIQUE,
+                status INTEGER NOT NULL DEFAULT 0,
+                output TEXT,
+                executed_at TIMESTAMP DEFAULT NOW(),
+                created_at TIMESTAMP DEFAULT NOW()
+              );
+            " 2>&1
+
+            # ── Scan for migration scripts ──
+            SCRIPTS=$(find scripts -maxdepth 1 \( -name 'migrate_*.py' -o -name 'backfill_*.py' -o -name 'cleanup_*.py' \) 2>/dev/null | sort)
+
+            if [ -z "$SCRIPTS" ]; then
+              echo "No migration scripts found in scripts/"
+              echo ""
+              echo "=== Migration History ==="
+              podman exec $DB_CONTAINER psql -U expenses_user -d expenses -c \
+                "SELECT script_name, 
+                  CASE status 
+                    WHEN 0 THEN 'pending' 
+                    WHEN 1 THEN 'success' 
+                    WHEN 2 THEN 'error' 
+                  END as status,
+                  executed_at 
+                FROM schema_migrations 
+                ORDER BY id;" 2>&1 || echo "(no history)"
+              exit 0
+            fi
+
+            echo "=== Migration scripts found ==="
+            echo "$SCRIPTS"
+            echo ""
+
+            # ── Get already executed scripts ──
+            EXECUTED=$(podman exec $DB_CONTAINER psql -U expenses_user -d expenses -t -c \
+              "SELECT script_name FROM schema_migrations WHERE status = 1;" 2>/dev/null | tr -d ' ' | grep -v '^$' || echo "")
+
+            # ── Run new scripts ──
+            PENDING_COUNT=0
+            SUCCESS_COUNT=0
+            ERROR_COUNT=0
+
+            for script_path in $SCRIPTS; do
+              script_name=$(basename "$script_path" .py)
+
+              # Skip if already executed successfully
+              if echo "$EXECUTED" | grep -q "^${script_name}$"; then
+                echo "✓ $script_name (already executed, skipping)"
+                continue
+              fi
+
+              PENDING_COUNT=$((PENDING_COUNT + 1))
+
+              if [ "$DRY_RUN" = "true" ]; then
+                echo "→ $script_name (dry run, would execute)"
+                continue
+              fi
+
+              echo ""
+              echo "=== Running: $script_name ==="
+
+              # Register as pending
+              podman exec $DB_CONTAINER psql -U expenses_user -d expenses -c "
+                INSERT INTO schema_migrations (script_name, status)
+                VALUES ('$script_name', 0)
+                ON CONFLICT (script_name) DO UPDATE SET status = 0, executed_at = NOW();
+              " 2>&1
+
+              # Execute and capture output (don't fail the workflow)
+              OUTPUT=$(podman-compose -p oikonomia-platform -f docker-compose.platform.yml \
+                run --rm backend python -m scripts.$script_name 2>&1) || true
+              EXIT_CODE=${PIPESTATUS[0]:-$?}
+
+              if echo "$OUTPUT" | grep -qiE "error|traceback|exception|fail"; then
+                STATUS=2
+                ERROR_COUNT=$((ERROR_COUNT + 1))
+                echo "✗ $script_name failed"
+              else
+                STATUS=1
+                SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+                echo "✓ $script_name completed"
+              fi
+
+              # Escape output for SQL (truncate to 500 chars)
+              ESCAPED_OUTPUT=$(echo "$OUTPUT" | sed "s/'/''/g" | head -50 | cut -c1-500)
+
+              # Record result
+              podman exec $DB_CONTAINER psql -U expenses_user -d expenses -c "
+                UPDATE schema_migrations 
+                SET status = $STATUS, 
+                    output = '$ESCAPED_OUTPUT',
+                    executed_at = NOW()
+                WHERE script_name = '$script_name';
+              " 2>&1
+            done
+
+            echo ""
+            echo "=== Summary ==="
+            echo "  Pending: $PENDING_COUNT"
+            echo "  Success: $SUCCESS_COUNT"
+            echo "  Errors:  $ERROR_COUNT"
+
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "  (Dry run — nothing executed)"
+            fi
+
+            echo ""
+            echo "=== Migration History ==="
+            podman exec $DB_CONTAINER psql -U expenses_user -d expenses -c \
+              "SELECT script_name, 
+                CASE status 
+                  WHEN 0 THEN 'pending' 
+                  WHEN 1 THEN 'success' 
+                  WHEN 2 THEN 'error' 
+                END as status,
+                executed_at 
+              FROM schema_migrations 
+              ORDER BY id;" 2>&1
