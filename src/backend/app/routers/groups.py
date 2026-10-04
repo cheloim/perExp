@@ -9,6 +9,9 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Group, GroupMember, Notification, User
 from app.services.auth import get_current_user
+from app.services.group_helpers import get_group_user_ids as _get_group_user_ids
+from app.services.group_helpers import get_user_group as _get_user_group
+from app.services.group_helpers import remove_member as _remove_member_fn
 
 router = APIRouter(prefix="/groups", tags=["groups"])
 
@@ -44,25 +47,17 @@ class FamilyGroupResponse(BaseModel):
 
 
 def _get_user_group(user_id: int, db: Session) -> GroupMember | None:
-    return (
-        db.query(GroupMember)
-        .filter(GroupMember.user_id == user_id, GroupMember.status == "accepted")
-        .order_by(GroupMember.id.desc())
-        .first()
-    )
+    """Backward-compatible alias. Use app.services.group_helpers.get_user_group directly."""
+    from app.services.group_helpers import get_user_group
+
+    return get_user_group(user_id, db)
 
 
 def get_group_user_ids(user_id: int, db: Session) -> list[int]:
     """Return all user_ids in the same family group (accepted members). Falls back to [user_id]."""
-    membership = _get_user_group(user_id, db)
-    if not membership:
-        return [user_id]
-    members = (
-        db.query(GroupMember.user_id)
-        .filter(GroupMember.group_id == membership.group_id, GroupMember.status == "accepted")
-        .all()
-    )
-    return [m.user_id for m in members]
+    from app.services.group_helpers import get_group_user_ids
+
+    return get_group_user_ids(user_id, db)
 
 
 @router.get(

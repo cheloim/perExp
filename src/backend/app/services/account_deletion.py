@@ -34,11 +34,11 @@ def delete_user_and_all_data(db: Session, user: User) -> None:
 
     # Leave family group first (if in one)
     try:
-        from app.routers.groups import _get_user_group, _remove_member
+        from app.services.group_helpers import get_user_group, remove_member
 
-        membership = _get_user_group(user_id, db)
+        membership = get_user_group(user_id, db)
         if membership:
-            _remove_member(db, user_id, user_id)
+            remove_member(db, user_id, user_id)
     except Exception:
         logger.warning("Could not leave family group for user %s", user_id)
 
