@@ -74,12 +74,12 @@ services:
     network_mode: host
     command:
       - "--collector.enable-all"
+      - "--web.listen-address=:9882"
     volumes:
-      - /run/user/1000/podman:/run/podman:ro
+      - /run/user/1000/podman:/run/podman:ro,Z
     environment:
       CONTAINER_HOST: unix:///run/podman/podman.sock
       HOME: /tmp
-    userns: keep-id
     restart: unless-stopped
 
 volumes:
