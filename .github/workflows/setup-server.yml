@@ -48,7 +48,7 @@ jobs:
             fi
 
             # Enable CPU controller for rootless podman (cgroup v2)
-            # Required by compose files that set deploy.resources.limits (cpus)
+            # Required by podman-compose to create pods
             echo "=== Configuring cgroup delegation for rootless podman ==="
             USER_UID=$(id -u)
             if [ "$USER_UID" -ge 1000 ]; then
@@ -57,8 +57,19 @@ jobs:
                 echo "Delegate=cpu cpuset io memory pids" | sudo tee -a /etc/systemd/system/user@${USER_UID}.service.d/delegate.conf > /dev/null
                 sudo systemctl daemon-reload
                 echo "CPU controller delegation enabled for uid $USER_UID"
-                # Restart podman user session to pick up new delegation
-                systemctl --user daemon-reload 2>/dev/null || true
+            fi
+
+            # Check if reboot is needed (cgroup delegation or sysctl changes)
+            NEED_REBOOT=false
+            if [ ! -f /var/run/oikonomia-setup-done ]; then
+                NEED_REBOOT=true
+            fi
+
+            if [ "$NEED_REBOOT" = true ]; then
+                echo "=== Rebooting to apply cgroup + sysctl changes ==="
+                echo "Server will reboot. Setup-server will wait for it to come back."
+                sudo touch /var/run/oikonomia-setup-done
+                sudo reboot
             fi
 
             # Allow rootless podman to bind privileged ports (80, 443)
