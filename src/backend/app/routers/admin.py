@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 import secrets
 from datetime import UTC, datetime, timedelta
 
@@ -766,7 +767,9 @@ def system_health(admin: User = Depends(get_current_admin), db: Session = Depend
         beat_status = "error"
 
     # Telegram bot
-    bot_alive = any(t.name == "telegram-bot" and t.is_alive() for t in __import__("threading").enumerate())
+    bot_alive = any(
+        t.name == "telegram-bot" and t.is_alive() for t in __import__("threading").enumerate()
+    )
     bot_status = "running" if bot_alive else "not_running"
 
     # Metrics summary

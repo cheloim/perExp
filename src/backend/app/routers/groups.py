@@ -9,9 +9,6 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Group, GroupMember, Notification, User
 from app.services.auth import get_current_user
-from app.services.group_helpers import get_group_user_ids as _get_group_user_ids
-from app.services.group_helpers import get_user_group as _get_user_group
-from app.services.group_helpers import remove_member as _remove_member_fn
 
 router = APIRouter(prefix="/groups", tags=["groups"])
 

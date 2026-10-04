@@ -8,7 +8,10 @@ describe("API Client utilities", () => {
   let inMemoryToken: string | null = null;
 
   function getStoredToken() {
-    return inMemoryToken || (typeof localStorage !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null);
+    return (
+      inMemoryToken ||
+      (typeof localStorage !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null)
+    );
   }
   function storeToken(token: string) {
     inMemoryToken = token;
@@ -41,10 +44,12 @@ describe("API Client utilities", () => {
 });
 
 describe("Query parameter building", () => {
-  function buildParams(params?: Record<string, string | number | boolean | undefined | null>): string {
+  function buildParams(
+    params?: Record<string, string | number | boolean | undefined | null>,
+  ): string {
     if (!params) return "";
     const entries = Object.entries(params).filter(
-      ([, v]) => v !== undefined && v !== null && v !== ""
+      ([, v]) => v !== undefined && v !== null && v !== "",
     );
     if (entries.length === 0) return "";
     return "?" + entries.map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join("&");

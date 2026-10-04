@@ -1,7 +1,5 @@
 """Category domain model."""
 
-from datetime import datetime
-
 from sqlalchemy import Column, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 

@@ -16,29 +16,6 @@ Import from this module for backward compatibility:
 """
 
 # Core
-from app.models.base import Group, GroupMember, User
-
-# Financial
-from app.models.financial import Account, Card, CardClosing, Expense, ExpenseTag, Tag
-
-# Categories
-from app.models.categories import Category
-
-# Budgets
-from app.models.budgets import Budget, BudgetEvent, BudgetGroup
-
-# Investments
-from app.models.investments import Investment, Setting
-
-# Imports & Scheduling
-from app.models.imports import ImportJob, RecurringExpense, ScheduledExpense
-
-# AI
-from app.models.ai import AnalysisHistory, CategorySuggestion, MerchantPreference
-
-# Notifications
-from app.models.notifications import Notification
-
 # Admin
 from app.models.admin import (
     AuditLog,
@@ -47,6 +24,28 @@ from app.models.admin import (
     MonthlyReport,
     PlatformLog,
 )
+
+# AI
+from app.models.ai import AnalysisHistory, CategorySuggestion, MerchantPreference
+from app.models.base import Group, GroupMember, User
+
+# Budgets
+from app.models.budgets import Budget, BudgetEvent, BudgetGroup
+
+# Categories
+from app.models.categories import Category
+
+# Financial
+from app.models.financial import Account, Card, CardClosing, Expense, ExpenseTag, Tag
+
+# Imports & Scheduling
+from app.models.imports import ImportJob, RecurringExpense, ScheduledExpense
+
+# Investments
+from app.models.investments import Investment, Setting
+
+# Notifications
+from app.models.notifications import Notification
 
 __all__ = [
     "User",

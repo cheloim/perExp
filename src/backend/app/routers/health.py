@@ -119,7 +119,9 @@ def health_ready(db: Session = Depends(get_db)):
         checks["celery_beat"] = {"status": "unknown"}
 
     # Telegram bot (thread alive or Redis heartbeat)
-    bot_alive = any(t.name == "telegram-bot" and t.is_alive() for t in __import__("threading").enumerate())
+    bot_alive = any(
+        t.name == "telegram-bot" and t.is_alive() for t in __import__("threading").enumerate()
+    )
     if bot_alive:
         checks["telegram_bot"] = {"status": "ok", "thread_alive": True}
     else:
