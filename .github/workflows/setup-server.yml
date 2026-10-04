@@ -39,6 +39,11 @@ jobs:
                 echo "podman already installed, skipping"
             fi
 
+            # Enable linger so rootless containers survive SSH logout
+            echo "=== Enabling loginctl linger ==="
+            sudo loginctl enable-linger $USER
+            echo "Linger enabled for $USER"
+
             if ! command -v podman-compose &> /dev/null; then
                 echo "Installing podman-compose..."
                 sudo dnf install -y python3-pip
