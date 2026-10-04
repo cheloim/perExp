@@ -895,6 +895,9 @@ jobs:
               rm -rf "/opt/creditcardanalyzer/certbot/conf/live/$PLATFORM"
               rm -rf "/opt/creditcardanalyzer/certbot/conf/archive/$PLATFORM"
               rm -f "/opt/creditcardanalyzer/certbot/conf/renewal/$PLATFORM.conf"
+              rm -rf "/opt/creditcardanalyzer/certbot/conf/live/grafana.$DOMAIN"
+              rm -rf "/opt/creditcardanalyzer/certbot/conf/archive/grafana.$DOMAIN"
+              rm -f "/opt/creditcardanalyzer/certbot/conf/renewal/grafana.$DOMAIN.conf"
 
               # Request certificate
               echo "Requesting SSL certificate..."
@@ -907,6 +910,7 @@ jobs:
                 -d $DOMAIN \
                 -d www.$DOMAIN \
                 -d $PLATFORM \
+                -d grafana.$DOMAIN \
                 --email mmendoza0989@gmail.com \
                 --agree-tos --non-interactive
               echo "SSL certificate obtained"
@@ -919,6 +923,13 @@ jobs:
               if [ ! -e "$PLATFORM" ] && [ -d "$DOMAIN" ]; then
                 ln -s "$DOMAIN" "$PLATFORM"
                 echo "Symlink created: $PLATFORM -> $DOMAIN"
+              fi
+
+              # Create relative symlink for grafana subdomain
+              GRAFANA_DOMAIN="grafana.$DOMAIN"
+              if [ ! -e "$GRAFANA_DOMAIN" ] && [ -d "$DOMAIN" ]; then
+                ln -s "$DOMAIN" "$GRAFANA_DOMAIN"
+                echo "Symlink created: $GRAFANA_DOMAIN -> $DOMAIN"
               fi
 
               # Fix permissions
