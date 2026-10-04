@@ -83,11 +83,11 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       platform: ${{ steps.set-platform.outputs.platform }}
+      runner: ${{ steps.set-platform.outputs.runner }}
     steps:
       - name: Set platform from server architecture
         id: set-platform
         run: |
-          # Use SERVER_ARCH variable if set, otherwise default to linux/amd64
           ARCH="${{ vars.SERVER_ARCH }}"
           if [ -z "$ARCH" ]; then
             ARCH="amd64"
@@ -95,11 +95,14 @@ jobs:
           fi
           if [ "$ARCH" = "arm64" ] || [ "$ARCH" = "aarch64" ]; then
             PLATFORM="linux/arm64"
+            RUNNER="ubuntu-24.04-arm"
           else
             PLATFORM="linux/amd64"
+            RUNNER="ubuntu-latest"
           fi
-          echo "Server architecture: $ARCH -> Build platform: $PLATFORM"
+          echo "Server architecture: $ARCH -> Build platform: $PLATFORM (runner: $RUNNER)"
           echo "platform=$PLATFORM" >> $GITHUB_OUTPUT
+          echo "runner=$RUNNER" >> $GITHUB_OUTPUT
 
   test:
     if: github.event_name == 'push' || inputs.action == 'full'
@@ -131,7 +134,7 @@ jobs:
     if: |
       always() && !cancelled() && needs.test.result == 'success' &&
       (inputs.action == 'full' || needs.detect-changes.outputs.platform == 'true')
-    runs-on: ubuntu-latest
+    runs-on: ${{ needs.detect-arch.outputs.runner }}
     needs: [test, detect-changes, detect-arch]
     permissions:
       contents: read
@@ -140,9 +143,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -170,7 +170,7 @@ jobs:
     if: |
       always() && !cancelled() && needs.test.result == 'success' &&
       (inputs.action == 'full' || needs.detect-changes.outputs.platform == 'true')
-    runs-on: ubuntu-latest
+    runs-on: ${{ needs.detect-arch.outputs.runner }}
     needs: [test, detect-changes, detect-arch]
     permissions:
       contents: read
@@ -179,9 +179,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -213,7 +210,7 @@ jobs:
     if: |
       always() && !cancelled() && needs.test.result == 'success' &&
       (inputs.action == 'full' || needs.detect-changes.outputs.landing == 'true')
-    runs-on: ubuntu-latest
+    runs-on: ${{ needs.detect-arch.outputs.runner }}
     needs: [test, detect-changes, detect-arch]
     permissions:
       contents: read
@@ -232,10 +229,6 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
             echo "Skipping landing build — ./src/landing not found"
           fi
-
-      - name: Set up QEMU
-        if: steps.check-landing.outputs.exists == 'true'
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         if: steps.check-landing.outputs.exists == 'true'
