@@ -2,21 +2,28 @@
 
 import os
 
+# Override DATABASE_URL BEFORE any app imports to use test database
+TEST_DATABASE_URL = os.getenv(
+    "TEST_DATABASE_URL",
+    "postgresql://expenses_user:pPwsrqtfBm1exxVE32GiTu8HdT2H34@localhost:5432/expenses_test",
+)
+os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-# Use separate test database
-TEST_DATABASE_URL = os.getenv(
-    "TEST_DATABASE_URL",
-    "postgresql://expenses_user:expenses_secure_pass_2026@localhost:5433/expenses_test",
-)
-
 
 @pytest.fixture(scope="session")
 def engine():
-    """Create test database engine."""
-    return create_engine(TEST_DATABASE_URL)
+    """Create test database engine and ensure tables exist."""
+    from app.database import Base
+
+    eng = create_engine(TEST_DATABASE_URL)
+    # Drop and recreate all tables to match current models
+    Base.metadata.drop_all(bind=eng)
+    Base.metadata.create_all(bind=eng)
+    return eng
 
 
 @pytest.fixture(scope="function")
