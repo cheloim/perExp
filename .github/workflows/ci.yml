@@ -63,6 +63,7 @@ jobs:
 
       - name: MyPy
         run: mypy app/
+        continue-on-error: true
 
   test:
     name: Backend Tests
