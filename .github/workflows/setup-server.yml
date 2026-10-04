@@ -61,14 +61,14 @@ jobs:
 
             # Check if reboot is needed (cgroup delegation or sysctl changes)
             NEED_REBOOT=false
-            if [ ! -f /var/run/oikonomia-setup-done ]; then
+            if [ ! -f /opt/creditcardanalyzer/.setup-done ]; then
                 NEED_REBOOT=true
             fi
 
             if [ "$NEED_REBOOT" = true ]; then
                 echo "=== Rebooting to apply cgroup + sysctl changes ==="
-                echo "Server will reboot. Setup-server will wait for it to come back."
-                sudo touch /var/run/oikonomia-setup-done
+                echo "Server will reboot. Run setup-server again after it comes back."
+                sudo touch /opt/creditcardanalyzer/.setup-done
                 sudo reboot
             fi
 
