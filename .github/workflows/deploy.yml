@@ -849,13 +849,20 @@ jobs:
             # Clean up old domain certbot data if domain changed
             for old_dir in /opt/creditcardanalyzer/certbot/conf/live/*/; do
               old_domain=$(basename "$old_dir")
-              if [ "$old_domain" != "$DOMAIN" ] && [ "$old_domain" != "$PLATFORM" ] && [ -n "$old_domain" ] && [ "$old_domain" != "README" ]; then
+              if [ "$old_domain" != "$DOMAIN" ] && [ "$old_domain" != "$PLATFORM" ] && [ "$old_domain" != "grafana.$DOMAIN" ] && [ -n "$old_domain" ] && [ "$old_domain" != "README" ]; then
                 echo "Removing old cert for domain: $old_domain"
                 rm -rf "/opt/creditcardanalyzer/certbot/conf/live/$old_domain"
                 rm -rf "/opt/creditcardanalyzer/certbot/conf/archive/$old_domain"
                 rm -f "/opt/creditcardanalyzer/certbot/conf/renewal/${old_domain}.conf"
               fi
             done
+
+            # Always ensure grafana symlink exists
+            if [ ! -e "/opt/creditcardanalyzer/certbot/conf/live/grafana.$DOMAIN" ] && [ -d "/opt/creditcardanalyzer/certbot/conf/live/$DOMAIN" ]; then
+              cd /opt/creditcardanalyzer/certbot/conf/live
+              ln -s "$DOMAIN" "grafana.$DOMAIN"
+              echo "Symlink created: grafana.$DOMAIN -> $DOMAIN"
+            fi
 
             NEED_CERTBOT=false
             if [ -f "$CERT_FILE" ]; then
