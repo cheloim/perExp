@@ -62,7 +62,7 @@ def _create_expense(db, user, amount, category_id=None, date_=None, is_income=Fa
     from app.services.encryption import compute_hmac
 
     if date_ is None:
-        date_ = date.today()
+        date_ = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date()
 
     desc = f"test expense {amount}"
     expense = Expense(
@@ -270,8 +270,8 @@ def test_build_period_summary_month(db):
     uid_list = [user.id]
     cat = _create_category(db, user, "Servicios")
 
-    today = date.today()
-    _create_expense(db, user, 5000, category_id=cat.id, date_=today)
+    today_bue = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date()
+    _create_expense(db, user, 5000, category_id=cat.id, date_=today_bue)
 
     report = build_period_summary(user.id, uid_list, "month", db)
 
@@ -308,11 +308,11 @@ def test_build_upcoming_scheduled_empty(db):
 def test_build_upcoming_scheduled_with_items(db):
     user = _create_user(db, "sched@test.com")
     uid_list = [user.id]
-    today = date.today()
+    today_bue = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date()
 
-    _create_scheduled_expense(db, user, 5000, "Netflix", today + timedelta(days=3))
+    _create_scheduled_expense(db, user, 5000, "Netflix", today_bue + timedelta(days=3))
     _create_scheduled_expense(
-        db, user, 10000, "Cuota 1/3", today + timedelta(days=5), installment_total=3
+        db, user, 10000, "Cuota 1/3", today_bue + timedelta(days=5), installment_total=3
     )
 
     report = build_upcoming_scheduled(uid_list, 30, db)
@@ -325,9 +325,9 @@ def test_build_upcoming_scheduled_with_items(db):
 def test_build_upcoming_scheduled_ignores_past(db):
     user = _create_user(db, "past@test.com")
     uid_list = [user.id]
-    today = date.today()
+    today_bue = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date()
 
-    _create_scheduled_expense(db, user, 5000, "Vencido", today - timedelta(days=1))
+    _create_scheduled_expense(db, user, 5000, "Vencido", today_bue - timedelta(days=1))
 
     report = build_upcoming_scheduled(uid_list, 30, db)
 
@@ -337,9 +337,9 @@ def test_build_upcoming_scheduled_ignores_past(db):
 def test_build_upcoming_scheduled_ignores_non_pending(db):
     user = _create_user(db, "exec@test.com")
     uid_list = [user.id]
-    today = date.today()
+    today_bue = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date()
 
-    se = _create_scheduled_expense(db, user, 5000, "Ya ejecutado", today + timedelta(days=3))
+    se = _create_scheduled_expense(db, user, 5000, "Ya ejecutado", today_bue + timedelta(days=3))
     se.status = "EXECUTED"
     db.flush()
 
@@ -365,10 +365,10 @@ def test_build_upcoming_recurring_empty(db):
 def test_build_upcoming_recurring_with_items(db):
     user = _create_user(db, "rec@test.com")
     uid_list = [user.id]
-    today = date.today()
+    today_bue = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date()
 
-    _create_recurring_expense(db, user, 3000, "Spotify", today + timedelta(days=2))
-    _create_recurring_expense(db, user, 8000, "Netflix", today + timedelta(days=10))
+    _create_recurring_expense(db, user, 3000, "Spotify", today_bue + timedelta(days=2))
+    _create_recurring_expense(db, user, 8000, "Netflix", today_bue + timedelta(days=10))
 
     report = build_upcoming_recurring(uid_list, 30, db)
 
@@ -382,9 +382,9 @@ def test_build_upcoming_recurring_with_items(db):
 def test_build_upcoming_recurring_ignores_far_future(db):
     user = _create_user(db, "far@test.com")
     uid_list = [user.id]
-    today = date.today()
+    today_bue = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date()
 
-    _create_recurring_expense(db, user, 1000, "Lejano", today + timedelta(days=60))
+    _create_recurring_expense(db, user, 1000, "Lejano", today_bue + timedelta(days=60))
 
     report = build_upcoming_recurring(uid_list, 30, db)
 
@@ -394,9 +394,9 @@ def test_build_upcoming_recurring_ignores_far_future(db):
 def test_build_upcoming_recurring_ignores_inactive(db):
     user = _create_user(db, "inactive@test.com")
     uid_list = [user.id]
-    today = date.today()
+    today_bue = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date()
 
-    rec = _create_recurring_expense(db, user, 1000, "Pausado", today + timedelta(days=3))
+    rec = _create_recurring_expense(db, user, 1000, "Pausado", today_bue + timedelta(days=3))
     rec.is_active = False
     db.flush()
 
