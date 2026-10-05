@@ -75,16 +75,14 @@ export default function LoginPage() {
   const [forceToken, setForceToken] = useState("");
   const [mfaToken, setMfaToken] = useState("");
 
-  // Handle return_to for OAuth redirect flow (e.g., Grafana SSO)
+  // Handle OAuth resume token (from Grafana SSO flow)
   const [searchParams] = useSearchParams();
-  const returnTo = searchParams.get("return_to")
-    ? decodeURIComponent(searchParams.get("return_to")!)
-    : null;
+  const oauthResume = searchParams.get("oauth_resume");
 
   const handleSuccess = () => {
-    if (returnTo) {
-      // Redirect to the OAuth authorize endpoint (external URL)
-      window.location.href = returnTo;
+    if (oauthResume) {
+      // Redirect to the OAuth resume endpoint which continues the authorize flow
+      window.location.href = `/api/auth/oauth/grafana/resume?token=${oauthResume}`;
     } else {
       navigate("/");
     }
