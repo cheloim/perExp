@@ -118,10 +118,13 @@ async def grafana_authorize(
     if not user:
         # Build return URL using public BASE_URL
         # Note: /api/ prefix is needed because frontend nginx proxies /api/ → backend
+        from urllib.parse import quote
+
         base_url = os.getenv("BASE_URL", FRONTEND_URL).rstrip("/")
         authorize_path = f"/api/auth/oauth/grafana/authorize?redirect_uri={redirect_uri}&state={state}&client_id={client_id}&response_type={response_type}&scope={scope}"
         return_to = f"{base_url}{authorize_path}"
-        login_url = f"{FRONTEND_URL}/login?return_to={return_to}"
+        # URL-encode return_to so & characters don't get parsed as separate query params
+        login_url = f"{FRONTEND_URL}/login?return_to={quote(return_to, safe='')}"
         return RedirectResponse(url=login_url)
 
     # Check admin access
