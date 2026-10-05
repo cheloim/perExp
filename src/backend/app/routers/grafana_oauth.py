@@ -66,9 +66,9 @@ def _get_user_from_session(request: Request, db: Session) -> User | None:
     if auth_header.startswith("Bearer "):
         token = auth_header[7:]
 
-    # Try cookie
+    # Try cookie (set by login endpoint)
     if not token:
-        token = request.cookies.get("access_token")
+        token = request.cookies.get("oikonomia_auth")
 
     if not token:
         return None
