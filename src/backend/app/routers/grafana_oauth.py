@@ -92,6 +92,27 @@ def _get_user_from_session(request: Request, db: Session) -> User | None:
 # ── Endpoints ─────────────────────────────────────────────────
 
 
+def _store_oauth_resume(params: dict, ttl: int = 600) -> str:
+    """Store OAuth resume parameters in Redis, return short token."""
+    import uuid
+
+    token = uuid.uuid4().hex[:16]
+    r = _get_redis()
+    r.setex(f"grafana_oauth_resume:{token}", ttl, json.dumps(params))
+    return token
+
+
+def _consume_oauth_resume(token: str) -> dict | None:
+    """Retrieve and delete OAuth resume parameters (single-use)."""
+    r = _get_redis()
+    key = f"grafana_oauth_resume:{token}"
+    data = r.get(key)
+    if data:
+        r.delete(key)
+        return json.loads(data)
+    return None
+
+
 @router.get("/auth/oauth/grafana/authorize")
 async def grafana_authorize(
     request: Request,
@@ -106,8 +127,14 @@ async def grafana_authorize(
 
     Grafana redirects here. If user is logged in and is admin,
     generate an auth code and redirect back to Grafana.
-    Otherwise redirect to Oikonomia login page.
+    Otherwise redirect to Oikonomia login page with a short resume token.
     """
+    logger.info(
+        "Grafana OAuth authorize: client_id=%s redirect_uri=%s",
+        client_id,
+        redirect_uri[:50],
+    )
+
     # Validate client_id
     if client_id and client_id != GRAFANA_CLIENT_ID:
         raise HTTPException(400, "Invalid client_id")
@@ -116,15 +143,19 @@ async def grafana_authorize(
     user = _get_user_from_session(request, db)
 
     if not user:
-        # Build return URL using public BASE_URL
-        # Note: /api/ prefix is needed because frontend nginx proxies /api/ → backend
-        from urllib.parse import quote
-
-        base_url = os.getenv("BASE_URL", FRONTEND_URL).rstrip("/")
-        authorize_path = f"/api/auth/oauth/grafana/authorize?redirect_uri={redirect_uri}&state={state}&client_id={client_id}&response_type={response_type}&scope={scope}"
-        return_to = f"{base_url}{authorize_path}"
-        # URL-encode return_to so & characters don't get parsed as separate query params
-        login_url = f"{FRONTEND_URL}/login?return_to={quote(return_to, safe='')}"
+        # Store OAuth params in Redis with a short token
+        # This avoids passing a long, complex URL as a query parameter
+        resume_token = _store_oauth_resume(
+            {
+                "redirect_uri": redirect_uri,
+                "state": state,
+                "client_id": client_id,
+                "response_type": response_type,
+                "scope": scope,
+            }
+        )
+        login_url = f"{FRONTEND_URL}/login?oauth_resume={resume_token}"
+        logger.info("User not logged in, redirecting to login with resume token")
         return RedirectResponse(url=login_url)
 
     # Check admin access
@@ -153,7 +184,35 @@ async def grafana_authorize(
     if state:
         callback_url += f"&state={state}"
 
+    logger.info("Admin user authenticated, redirecting to Grafana with code")
     return RedirectResponse(url=callback_url)
+
+
+@router.get("/auth/oauth/grafana/resume")
+async def grafana_resume(
+    request: Request,
+    token: str,
+    db: Session = Depends(get_db),
+):
+    """Resume OAuth flow after login.
+
+    Called by the frontend after the user logs in. Reads the stored
+    OAuth parameters and continues the authorize flow.
+    """
+    params = _consume_oauth_resume(token)
+    if not params:
+        raise HTTPException(400, "Invalid or expired resume token")
+
+    # Re-invoke the authorize flow with stored parameters
+    return await grafana_authorize(
+        request=request,
+        redirect_uri=params["redirect_uri"],
+        state=params.get("state", ""),
+        client_id=params.get("client_id", ""),
+        response_type=params.get("response_type", "code"),
+        scope=params.get("scope", ""),
+        db=db,
+    )
 
 
 @router.post("/auth/oauth/grafana/token")
