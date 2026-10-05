@@ -116,8 +116,11 @@ async def grafana_authorize(
     user = _get_user_from_session(request, db)
 
     if not user:
-        # Redirect to Oikonomia login with return URL
-        return_to = str(request.url)
+        # Build return URL using public BASE_URL instead of request.url
+        # request.url gives internal localhost:8000 which doesn't work from browser
+        base_url = os.getenv("BASE_URL", FRONTEND_URL).rstrip("/")
+        authorize_path = f"/auth/oauth/grafana/authorize?redirect_uri={redirect_uri}&state={state}&client_id={client_id}&response_type={response_type}&scope={scope}"
+        return_to = f"{base_url}{authorize_path}"
         login_url = f"{FRONTEND_URL}/login?return_to={return_to}"
         return RedirectResponse(url=login_url)
 
