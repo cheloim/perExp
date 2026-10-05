@@ -5,7 +5,7 @@ import secrets
 import string
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -53,6 +53,39 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 logger = logging.getLogger(__name__)
 
+# ── Cookie configuration ─────────────────────────────────────
+
+AUTH_COOKIE_NAME = "oikonomia_auth"
+AUTH_COOKIE_MAX_AGE = 7 * 24 * 3600  # 7 days (matches JWT expiry)
+
+
+def _set_auth_cookie(response, token: str) -> None:
+    """Set HTTP-only auth cookie alongside the JSON response.
+
+    The cookie is sent automatically by the browser when redirecting
+    to the same domain (e.g., Grafana OAuth flow).
+    """
+    response.set_cookie(
+        key=AUTH_COOKIE_NAME,
+        value=token,
+        max_age=AUTH_COOKIE_MAX_AGE,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        path="/",
+    )
+
+
+def _clear_auth_cookie(response) -> None:
+    """Clear the auth cookie (logout)."""
+    response.delete_cookie(
+        key=AUTH_COOKIE_NAME,
+        path="/",
+        httponly=True,
+        secure=True,
+        samesite="lax",
+    )
+
 
 def _get_client_ip(request: Request) -> str:
     forwarded = request.headers.get("X-Forwarded-For")
@@ -93,7 +126,7 @@ def _record_login(db: Session, user: User):
     summary="Login with email and password",
     description="Authenticates a user by email and password. Returns an MFA partial token if MFA is enabled, a force-change token if password change is required, or a full access token on success.",
 )
-def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
+def login(body: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
     # Rate limit check
     client_ip = _get_client_ip(request)
     allowed, retry_after = check_rate_limit(client_ip, "login")
@@ -175,7 +208,9 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
     _log_audit(db, user.id, "login_success", request)
     _record_login(db, user)
     LOGIN_ATTEMPTS.labels(method="password", status="success").inc()
-    return Token(access_token=create_access_token(user.id), token_type="bearer")
+    token = create_access_token(user.id)
+    _set_auth_cookie(response, token)
+    return Token(access_token=token, token_type="bearer")
 
 
 @router.post(
@@ -184,7 +219,9 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
     summary="Complete MFA login",
     description="Verifies a TOTP code using a partial MFA token and returns a full access token.",
 )
-def login_mfa(body: MFALoginRequest, request: Request, db: Session = Depends(get_db)):
+def login_mfa(
+    body: MFALoginRequest, request: Request, response: Response, db: Session = Depends(get_db)
+):
     # Validate the partial token
     import jwt
     from jwt import PyJWTError as JWTError
@@ -230,7 +267,9 @@ def login_mfa(body: MFALoginRequest, request: Request, db: Session = Depends(get
 
     _log_audit(db, user.id, "login_success", request, details="mfa_verified")
     _record_login(db, user)
-    return Token(access_token=create_access_token(user.id), token_type="bearer")
+    token = create_access_token(user.id)
+    _set_auth_cookie(response, token)
+    return Token(access_token=token, token_type="bearer")
 
 
 @router.post(
@@ -240,7 +279,7 @@ def login_mfa(body: MFALoginRequest, request: Request, db: Session = Depends(get
     summary="Register a new user",
     description="Creates a new user account, applies the base category hierarchy, and sends a verification email.",
 )
-def register(body: UserCreate, request: Request, db: Session = Depends(get_db)):
+def register(body: UserCreate, request: Request, response: Response, db: Session = Depends(get_db)):
     # Rate limit check
     client_ip = _get_client_ip(request)
     allowed, retry_after = check_rate_limit(client_ip, "register")
@@ -282,7 +321,9 @@ def register(body: UserCreate, request: Request, db: Session = Depends(get_db)):
         send_verification_email(user.email, verification_token, base_url)
 
     _log_audit(db, user.id, "register", request)
-    return Token(access_token=create_access_token(user.id), token_type="bearer")
+    token = create_access_token(user.id)
+    _set_auth_cookie(response, token)
+    return Token(access_token=token, token_type="bearer")
 
 
 @router.post(
@@ -335,6 +376,7 @@ def resend_verification(body: ForgotPasswordRequest, db: Session = Depends(get_d
 async def oauth_callback(
     body: OAuthRequest,
     request: Request,
+    response: Response,
     db: Session = Depends(get_db),
 ):
     if body.provider != "google":
@@ -404,7 +446,9 @@ async def oauth_callback(
     _log_audit(db, user.id, "oauth_login", request, details=f"{body.provider}_callback")
     _record_login(db, user)
     LOGIN_ATTEMPTS.labels(method="google", status="success").inc()
-    return Token(access_token=create_access_token(user.id), token_type="bearer")
+    token = create_access_token(user.id)
+    _set_auth_cookie(response, token)
+    return Token(access_token=token, token_type="bearer")
 
 
 @router.post(
@@ -416,6 +460,7 @@ async def oauth_callback(
 def telegram_webapp_login(
     body: TelegramWebAppRequest,
     request: Request,
+    response: Response,
     db: Session = Depends(get_db),
 ):
     client_ip = _get_client_ip(request)
@@ -460,7 +505,9 @@ def telegram_webapp_login(
     _log_audit(db, user.id, "telegram_webapp_login", request)
     _record_login(db, user)
     LOGIN_ATTEMPTS.labels(method="telegram", status="success").inc()
-    return Token(access_token=create_access_token(user.id), token_type="bearer")
+    token = create_access_token(user.id)
+    _set_auth_cookie(response, token)
+    return Token(access_token=token, token_type="bearer")
 
 
 @router.post(
@@ -510,6 +557,7 @@ def telegram_webapp_link(
 def telegram_widget_login(
     body: TelegramLoginWidgetRequest,
     request: Request,
+    response: Response,
     db: Session = Depends(get_db),
 ):
     client_ip = _get_client_ip(request)
@@ -545,7 +593,9 @@ def telegram_widget_login(
 
     _log_audit(db, user.id, "telegram_widget_login", request)
     LOGIN_ATTEMPTS.labels(method="telegram_widget", status="success").inc()
-    return Token(access_token=create_access_token(user.id), token_type="bearer")
+    token = create_access_token(user.id)
+    _set_auth_cookie(response, token)
+    return Token(access_token=token, token_type="bearer")
 
 
 @router.post(
@@ -557,6 +607,7 @@ def telegram_widget_login(
 async def telegram_oidc_login(
     body: TelegramOidcRequest,
     request: Request,
+    response: Response,
     db: Session = Depends(get_db),
 ):
     client_ip = _get_client_ip(request)
@@ -602,7 +653,9 @@ async def telegram_oidc_login(
     _log_audit(db, user.id, "telegram_oidc_login", request)
     _record_login(db, user)
     LOGIN_ATTEMPTS.labels(method="telegram_oidc", status="success").inc()
-    return Token(access_token=create_access_token(user.id), token_type="bearer")
+    token = create_access_token(user.id)
+    _set_auth_cookie(response, token)
+    return Token(access_token=token, token_type="bearer")
 
 
 @router.get(
@@ -809,6 +862,7 @@ def change_password(
 def force_change_password(
     body: ForceChangePasswordRequest,
     request: Request,
+    response: Response,
     db: Session = Depends(get_db),
 ):
     """Force password change using a short-lived token (no current password required)."""
@@ -846,7 +900,9 @@ def force_change_password(
     db.commit()
 
     _log_audit(db, user.id, "force_password_changed", request)
-    return Token(access_token=create_access_token(user.id), token_type="bearer")
+    token = create_access_token(user.id)
+    _set_auth_cookie(response, token)
+    return Token(access_token=token, token_type="bearer")
 
 
 class TelegramKeyResponse(BaseModel):
@@ -963,7 +1019,9 @@ def get_telegram_deep_link(
     summary="Refresh access token",
     description="Issues a new access token for the currently authenticated user.",
 )
-def refresh_token(request: Request, current_user: User = Depends(get_current_user)):
+def refresh_token(
+    request: Request, response: Response, current_user: User = Depends(get_current_user)
+):
     ip = _get_client_ip(request)
     allowed, retry_after = check_rate_limit(ip, "token_refresh")
     if not allowed:
@@ -971,7 +1029,15 @@ def refresh_token(request: Request, current_user: User = Depends(get_current_use
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Demasiados intentos. Probá en {retry_after} segundos.",
         )
-    return Token(access_token=create_access_token(current_user.id), token_type="bearer")
+    token = create_access_token(current_user.id)
+    _set_auth_cookie(response, token)
+    return Token(access_token=token, token_type="bearer")
+
+
+@router.post("/logout", summary="Logout", description="Clears the auth cookie.")
+def logout(response: Response):
+    _clear_auth_cookie(response)
+    return {"detail": "Sesión cerrada"}
 
 
 class WhatsNewDismissRequest(BaseModel):
