@@ -26,7 +26,8 @@ services:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-oikonomia2026}
       GF_AUTH_ANONYMOUS_ENABLED: "false"
-      GF_AUTH_BASIC_ENABLED: "true"
+      GF_AUTH_BASIC_ENABLED: "false"
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
       GF_SERVER_ROOT_URL: "https://grafana.${DOMAIN_NAME:-oikonomia.ar}"
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/status.json
       # OAuth2 via Oikonomia backend
@@ -35,12 +36,12 @@ services:
       GF_AUTH_GENERIC_OAUTH_CLIENT_ID: ${GRAFANA_OAUTH_CLIENT_ID:-grafana-oikonomia}
       GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: ${GRAFANA_OAUTH_CLIENT_SECRET:-}
       GF_AUTH_GENERIC_OAUTH_SCOPES: "openid profile email"
-      GF_AUTH_GENERIC_OAUTH_AUTH_URL: "https://platform.${DOMAIN_NAME:-oikonomia.ar}/auth/oauth/grafana/authorize"
-      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: "https://platform.${DOMAIN_NAME:-oikonomia.ar}/auth/oauth/grafana/token"
-      GF_AUTH_GENERIC_OAUTH_API_URL: "https://platform.${DOMAIN_NAME:-oikonomia.ar}/auth/oauth/grafana/userinfo"
+      GF_AUTH_GENERIC_OAUTH_AUTH_URL: "https://platform.${DOMAIN_NAME:-oikonomia.ar}/api/auth/oauth/grafana/authorize"
+      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: "https://platform.${DOMAIN_NAME:-oikonomia.ar}/api/auth/oauth/grafana/token"
+      GF_AUTH_GENERIC_OAUTH_API_URL: "https://platform.${DOMAIN_NAME:-oikonomia.ar}/api/auth/oauth/grafana/userinfo"
       GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH: "role"
       GF_AUTH_GENERIC_OAUTH_ALLOW_ASSIGN_GRAFANA_ADMIN: "true"
-      GF_AUTH_OAUTH_AUTO_LOGIN: "false"
+      GF_AUTH_OAUTH_AUTO_LOGIN: "true"
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro,z
