@@ -116,10 +116,10 @@ async def grafana_authorize(
     user = _get_user_from_session(request, db)
 
     if not user:
-        # Build return URL using public BASE_URL instead of request.url
-        # request.url gives internal localhost:8000 which doesn't work from browser
+        # Build return URL using public BASE_URL
+        # Note: /api/ prefix is needed because frontend nginx proxies /api/ → backend
         base_url = os.getenv("BASE_URL", FRONTEND_URL).rstrip("/")
-        authorize_path = f"/auth/oauth/grafana/authorize?redirect_uri={redirect_uri}&state={state}&client_id={client_id}&response_type={response_type}&scope={scope}"
+        authorize_path = f"/api/auth/oauth/grafana/authorize?redirect_uri={redirect_uri}&state={state}&client_id={client_id}&response_type={response_type}&scope={scope}"
         return_to = f"{base_url}{authorize_path}"
         login_url = f"{FRONTEND_URL}/login?return_to={return_to}"
         return RedirectResponse(url=login_url)
@@ -154,21 +154,21 @@ async def grafana_authorize(
 
 
 @router.post("/auth/oauth/grafana/token")
-async def grafana_token(request: Request):
+async def grafana_token(request: Request, db: Session = Depends(get_db)):
     """OAuth2 Token endpoint.
 
-    Grafana calls this to exchange the authorization code for an access token.
+    Supports:
+    - grant_type=authorization_code: exchange code for access token
+    - grant_type=refresh_token: refresh an expired access token
     """
-    # Parse form data
+    import jwt as pyjwt
+
+    from app.services.auth import ALGORITHM, JWT_SECRET
+
     form = await request.form()
     grant_type = form.get("grant_type", "")
-    code = form.get("code", "")
     client_id = form.get("client_id", "")
     client_secret = form.get("client_secret", "")
-
-    # Validate grant type
-    if grant_type != "authorization_code":
-        raise HTTPException(400, "Unsupported grant_type")
 
     # Validate client credentials
     if client_id != GRAFANA_CLIENT_ID:
@@ -176,16 +176,46 @@ async def grafana_token(request: Request):
     if GRAFANA_CLIENT_SECRET and client_secret != GRAFANA_CLIENT_SECRET:
         raise HTTPException(401, "Invalid client_secret")
 
-    # Consume auth code
-    user_data = _consume_auth_code(code)
-    if not user_data:
-        raise HTTPException(400, "Invalid or expired authorization code")
+    user_data = None
 
-    # Generate access token (simple JWT)
-    import jwt as pyjwt
+    if grant_type == "authorization_code":
+        code = form.get("code", "")
+        user_data = _consume_auth_code(code)
+        if not user_data:
+            raise HTTPException(400, "Invalid or expired authorization code")
 
-    from app.services.auth import ALGORITHM, JWT_SECRET
+    elif grant_type == "refresh_token":
+        refresh_token = form.get("refresh_token", "")
+        if not refresh_token:
+            raise HTTPException(400, "Missing refresh_token")
+        # Validate the refresh token (which is actually the expired access token)
+        try:
+            # Allow expired tokens for refresh
+            payload = pyjwt.decode(
+                refresh_token, JWT_SECRET, algorithms=[ALGORITHM], options={"verify_exp": False}
+            )
+        except Exception:
+            raise HTTPException(401, "Invalid refresh_token")
 
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(401, "Invalid token payload")
+
+        # Verify user still exists and is admin
+        user = db.get(User, int(user_id))
+        if not user or not user.is_active or not user.is_admin:
+            raise HTTPException(401, "User not found, inactive, or not admin")
+
+        user_data = {
+            "user_id": user.id,
+            "email": user.email,
+            "name": user.full_name,
+            "role": "Admin",
+        }
+    else:
+        raise HTTPException(400, f"Unsupported grant_type: {grant_type}")
+
+    # Generate access token
     access_token = pyjwt.encode(
         {
             "sub": str(user_data["user_id"]),
@@ -201,9 +231,10 @@ async def grafana_token(request: Request):
 
     return {
         "access_token": access_token,
+        "refresh_token": access_token,  # Same token, Grafana sends it back for refresh
         "token_type": "Bearer",
         "expires_in": 3600,
-        "id_token": access_token,  # Grafana expects id_token for OIDC
+        "id_token": access_token,
     }
 
 

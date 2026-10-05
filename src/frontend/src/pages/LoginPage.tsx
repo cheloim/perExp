@@ -75,8 +75,20 @@ export default function LoginPage() {
   const [forceToken, setForceToken] = useState("");
   const [mfaToken, setMfaToken] = useState("");
 
-  // Check for ?mfa=required from OAuth callback
+  // Handle return_to for OAuth redirect flow (e.g., Grafana SSO)
   const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get("return_to");
+
+  const handleSuccess = () => {
+    if (returnTo) {
+      // Redirect to the OAuth authorize endpoint (external URL)
+      window.location.href = returnTo;
+    } else {
+      navigate("/");
+    }
+  };
+
+  // Check for ?mfa=required from OAuth callback
   useEffect(() => {
     if (searchParams.get("mfa") === "required") {
       const savedToken = getStoredToken();
@@ -121,25 +133,25 @@ export default function LoginPage() {
               setMfaToken(token);
               setMode("mfa");
             }}
-            onSuccess={() => navigate("/")}
+            onSuccess={handleSuccess}
             authRedirectError={authRedirectError}
           />
         )}
         {mode === "register" && (
-          <RegisterForm onLogin={() => setMode("login")} onSuccess={() => navigate("/")} />
+          <RegisterForm onLogin={() => setMode("login")} onSuccess={handleSuccess} />
         )}
         {mode === "forgot" && <ForgotPasswordForm onBack={() => setMode("login")} />}
         {mode === "force-change" && (
           <ForceChangeForm
             token={forceToken}
-            onSuccess={() => navigate("/")}
+            onSuccess={handleSuccess}
             onBack={() => setMode("login")}
           />
         )}
         {mode === "mfa" && (
           <MfaForm
             token={mfaToken}
-            onSuccess={() => navigate("/")}
+            onSuccess={handleSuccess}
             onBack={() => setMode("login")}
           />
         )}
