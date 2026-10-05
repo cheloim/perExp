@@ -149,11 +149,7 @@ export default function LoginPage() {
           />
         )}
         {mode === "mfa" && (
-          <MfaForm
-            token={mfaToken}
-            onSuccess={handleSuccess}
-            onBack={() => setMode("login")}
-          />
+          <MfaForm token={mfaToken} onSuccess={handleSuccess} onBack={() => setMode("login")} />
         )}
       </div>
     </div>
