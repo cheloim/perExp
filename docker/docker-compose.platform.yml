@@ -33,6 +33,8 @@ services:
       BASE_URL: https://${PLATFORM_DOMAIN}
       CORS_ORIGINS: https://${DOMAIN_NAME},https://www.${DOMAIN_NAME},https://${PLATFORM_DOMAIN}
       TELEGRAM_BOT_ENABLED: "false"
+      GRAFANA_OAUTH_CLIENT_ID: ${GRAFANA_OAUTH_CLIENT_ID:-grafana-oikonomia}
+      GRAFANA_OAUTH_CLIENT_SECRET: ${GRAFANA_OAUTH_CLIENT_SECRET}
       TZ: America/Argentina/Buenos_Aires
     restart: unless-stopped
 
