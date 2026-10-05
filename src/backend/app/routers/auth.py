@@ -219,7 +219,9 @@ def login(body: LoginRequest, request: Request, response: Response, db: Session 
     summary="Complete MFA login",
     description="Verifies a TOTP code using a partial MFA token and returns a full access token.",
 )
-def login_mfa(body: MFALoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
+def login_mfa(
+    body: MFALoginRequest, request: Request, response: Response, db: Session = Depends(get_db)
+):
     # Validate the partial token
     import jwt
     from jwt import PyJWTError as JWTError
@@ -1017,7 +1019,9 @@ def get_telegram_deep_link(
     summary="Refresh access token",
     description="Issues a new access token for the currently authenticated user.",
 )
-def refresh_token(request: Request, response: Response, current_user: User = Depends(get_current_user)):
+def refresh_token(
+    request: Request, response: Response, current_user: User = Depends(get_current_user)
+):
     ip = _get_client_ip(request)
     allowed, retry_after = check_rate_limit(ip, "token_refresh")
     if not allowed:
