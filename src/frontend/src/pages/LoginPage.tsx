@@ -77,7 +77,9 @@ export default function LoginPage() {
 
   // Handle return_to for OAuth redirect flow (e.g., Grafana SSO)
   const [searchParams] = useSearchParams();
-  const returnTo = searchParams.get("return_to");
+  const returnTo = searchParams.get("return_to")
+    ? decodeURIComponent(searchParams.get("return_to")!)
+    : null;
 
   const handleSuccess = () => {
     if (returnTo) {
