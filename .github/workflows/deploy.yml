@@ -341,7 +341,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ vars.SSH_PORT || '43422' }}
-          source: "docker/docker-compose.infra.yml,docker/docker-compose.nginx.yml,docker/docker-compose.platform.yml,docker/docker-compose.bots.yml,docker/docker-compose.monitoring.yml,docker/docker-compose.web-landing.yml,docker/nginx/nginx.conf,docker/nginx/maintenance/,config/alloy/config.alloy,config/blackbox/blackbox.yml"
+          source: "docker/docker-compose.infra.yml,docker/docker-compose.nginx.yml,docker/docker-compose.platform.yml,docker/docker-compose.bots.yml,docker/docker-compose.monitoring.yml,docker/docker-compose.web-landing.yml,docker/nginx/nginx.conf,docker/nginx/maintenance/,config/alloy/config.alloy,config/blackbox/blackbox.yml,docker/prometheus/,docker/grafana/,docker/loki/"
           target: /opt/creditcardanalyzer
           strip_components: 1
 
@@ -1070,6 +1070,10 @@ jobs:
 
             # Start monitoring
             echo "Starting monitoring..."
+            # Create external volumes if they don't exist
+            podman volume create oikonomia_prometheus_data 2>/dev/null || true
+            podman volume create oikonomia_grafana_data 2>/dev/null || true
+            podman volume create oikonomia_loki_data 2>/dev/null || true
             podman-compose -p oikonomia-monitoring -f docker-compose.monitoring.yml up -d
 
             # Update systemd health check script to use correct project name
