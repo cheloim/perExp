@@ -323,6 +323,15 @@ def register(body: UserCreate, request: Request, response: Response, db: Session
     _log_audit(db, user.id, "register", request)
     token = create_access_token(user.id)
     _set_auth_cookie(response, token)
+
+    # Sync user to Grafana (background, non-blocking)
+    try:
+        from app.services.grafana_sync import sync_user_to_grafana
+
+        sync_user_to_grafana(user.email, user.full_name, user.is_admin)
+    except Exception:
+        pass  # non-critical
+
     return Token(access_token=token, token_type="bearer")
 
 
