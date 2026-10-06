@@ -315,10 +315,7 @@ def sync_grafana_users(admin: User = Depends(get_current_admin), db: Session = D
     from app.services.grafana_sync import sync_all_admins
 
     users = db.query(User).filter(User.is_active == True).all()  # noqa: E712
-    user_list = [
-        {"email": u.email, "name": u.full_name, "is_admin": u.is_admin}
-        for u in users
-    ]
+    user_list = [{"email": u.email, "name": u.full_name, "is_admin": u.is_admin} for u in users]
     result = sync_all_admins(user_list)
     return result
 
