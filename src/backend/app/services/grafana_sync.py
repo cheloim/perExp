@@ -41,10 +41,10 @@ def sync_user_to_grafana(email: str, name: str, is_admin: bool = False) -> bool:
             )
 
             if resp.status_code == 200:
-                # User exists — update role
+                # User exists — update role via org users endpoint
                 user_id = resp.json()["id"]
                 client.patch(
-                    f"/api/users/{user_id}",
+                    f"/api/org/users/{user_id}",
                     json={"role": role},
                     auth=_grafana_admin_auth(),
                 )
@@ -72,7 +72,7 @@ def sync_user_to_grafana(email: str, name: str, is_admin: bool = False) -> bool:
                 if resp2.status_code == 200:
                     user_id = resp2.json()["id"]
                     client.patch(
-                        f"/api/users/{user_id}",
+                        f"/api/org/users/{user_id}",
                         json={"role": role},
                         auth=_grafana_admin_auth(),
                     )
