@@ -26,7 +26,7 @@ services:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-oikonomia2026}
       GF_AUTH_ANONYMOUS_ENABLED: "false"
-      GF_AUTH_BASIC_ENABLED: "false"
+      GF_AUTH_BASIC_ENABLED: "true"
       GF_AUTH_DISABLE_LOGIN_FORM: "true"
       GF_SERVER_ROOT_URL: "https://grafana.${DOMAIN_NAME:-oikonomia.ar}"
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/status.json
@@ -35,7 +35,7 @@ services:
       GF_AUTH_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GF_AUTH_GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       GF_AUTH_GOOGLE_ALLOW_SIGN_UP: "false"
-      GF_AUTH_GOOGLE_AUTO_LOGIN: "true"
+      GF_AUTH_GOOGLE_AUTO_LOGIN: "false"
       GF_USERS_AUTO_ASSIGN_ORG: "true"
       GF_USERS_AUTO_ASSIGN_ORG_ROLE: "Viewer"
     volumes:
