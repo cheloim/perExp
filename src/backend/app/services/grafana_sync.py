@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 GRAFANA_URL = os.getenv("GRAFANA_INTERNAL_URL", "http://localhost:3000")
 GRAFANA_ADMIN_USER = os.getenv("GF_SECURITY_ADMIN_USER", "admin")
-GRAFANA_ADMIN_PASSWORD = os.getenv("GRAFANA_ADMIN_PASSWORD", "oikonomia2026")
+GRAFANA_ADMIN_PASSWORD = os.getenv("GF_AUTH_ADMIN_PASSWORD", os.getenv("GRAFANA_ADMIN_PASSWORD", "oikonomia2026"))
 
 
 def _grafana_admin_auth() -> tuple[str, str]:
@@ -41,19 +41,21 @@ def sync_user_to_grafana(email: str, name: str, is_admin: bool = False) -> bool:
             )
 
             if resp.status_code == 200:
-                # User exists — update role
+                # User exists — update role via org users endpoint
                 user_id = resp.json()["id"]
                 client.patch(
-                    f"/api/users/{user_id}",
+                    f"/api/org/users/{user_id}",
                     json={"role": role},
                     auth=_grafana_admin_auth(),
                 )
+                # Note: isGrafanaAdmin cannot be set via API
+                # It requires direct DB modification or CLI
                 logger.info("Grafana: updated %s role to %s", email, role)
                 return True
 
             if resp.status_code == 404:
                 # User doesn't exist — create
-                client.post(
+                create_resp = client.post(
                     "/api/admin/users",
                     json={
                         "email": email,
@@ -63,21 +65,20 @@ def sync_user_to_grafana(email: str, name: str, is_admin: bool = False) -> bool:
                     },
                     auth=_grafana_admin_auth(),
                 )
-                # Set role after creation
-                resp2 = client.get(
-                    "/api/users/lookup",
-                    params={"loginOrEmail": email},
-                    auth=_grafana_admin_auth(),
-                )
-                if resp2.status_code == 200:
-                    user_id = resp2.json()["id"]
-                    client.patch(
-                        f"/api/users/{user_id}",
-                        json={"role": role},
-                        auth=_grafana_admin_auth(),
-                    )
-                logger.info("Grafana: created %s as %s", email, role)
-                return True
+                if create_resp.status_code == 200:
+                    user_id = create_resp.json().get("id")
+                    if user_id:
+                        # Set org role
+                        client.patch(
+                            f"/api/org/users/{user_id}",
+                            json={"role": role},
+                            auth=_grafana_admin_auth(),
+                        )
+                    logger.info("Grafana: created %s as %s", email, role)
+                    return True
+                else:
+                    logger.warning("Grafana: failed to create %s: %s", email, create_resp.text)
+                    return False
 
             logger.warning("Grafana: unexpected status %d for %s", resp.status_code, email)
             return False
