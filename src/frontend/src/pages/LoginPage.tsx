@@ -76,13 +76,29 @@ export default function LoginPage() {
   const [mfaToken, setMfaToken] = useState("");
 
   // Handle OAuth resume token (from Grafana SSO flow)
+  // Store in sessionStorage so it persists across URL changes
   const [searchParams] = useSearchParams();
-  const oauthResume = searchParams.get("oauth_resume");
+  const [oauthResume, setOauthResume] = useState<string | null>(null);
+
+  useEffect(() => {
+    const param = searchParams.get("oauth_resume");
+    if (param) {
+      sessionStorage.setItem("oauth_resume", param);
+      setOauthResume(param);
+    } else {
+      const stored = sessionStorage.getItem("oauth_resume");
+      if (stored) {
+        setOauthResume(stored);
+      }
+    }
+  }, [searchParams]);
 
   const handleSuccess = () => {
-    if (oauthResume) {
+    const token = oauthResume || sessionStorage.getItem("oauth_resume");
+    if (token) {
+      sessionStorage.removeItem("oauth_resume");
       // Redirect to the OAuth resume endpoint which continues the authorize flow
-      window.location.href = `/api/auth/oauth/grafana/resume?token=${oauthResume}`;
+      window.location.href = `/api/auth/oauth/grafana/resume?token=${token}`;
     } else {
       navigate("/");
     }
