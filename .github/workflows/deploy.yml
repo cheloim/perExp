@@ -343,7 +343,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ vars.SSH_PORT || '43422' }}
-          source: "docker/docker-compose.infra.yml,docker/docker-compose.nginx.yml,docker/docker-compose.platform.yml,docker/docker-compose.bots.yml,docker/docker-compose.monitoring.yml,docker/docker-compose.web-landing.yml,docker/nginx/nginx.conf,docker/nginx/maintenance/,config/alloy/config.alloy,config/blackbox/blackbox.yml,docker/prometheus/,docker/grafana/,docker/loki/"
+          source: "docker/docker-compose.infra.yml,docker/docker-compose.nginx.yml,docker/docker-compose.platform.yml,docker/docker-compose.bots.yml,docker/docker-compose.monitoring.yml,docker/docker-compose.web-landing.yml,docker/nginx/nginx.conf,docker/nginx/maintenance/,config/alloy/config.alloy,config/blackbox/blackbox.yml,docker/prometheus/,docker/grafana/,docker/loki/,docker/journal-export.service"
           target: /opt/creditcardanalyzer
           strip_components: 1
 
@@ -576,15 +576,9 @@ jobs:
               podman stop "oikonomia-bots_${SVC}_1" 2>/dev/null || true
               podman rm -f "oikonomia-bots_${SVC}_1" 2>/dev/null || true
             done
-            for SVC in nginx; do
-              podman stop "oikonomia-nginx_${SVC}_1" 2>/dev/null || true
-              podman rm -f "oikonomia-nginx_${SVC}_1" 2>/dev/null || true
-            done
-            # Clean up monitoring containers (they have no persistent data)
-            for SVC in postgres-exporter redis-exporter node-exporter nginx-exporter blackbox-exporter alloy podman-exporter; do
-              podman stop "oikonomia-monitoring_${SVC}_1" 2>/dev/null || true
-              podman rm -f "oikonomia-monitoring_${SVC}_1" 2>/dev/null || true
-            done
+            # NOTE: nginx, monitoring exporters, and alloy are NEVER killed during cleanup.
+            # Nginx stays up to serve the maintenance page during platform restarts.
+            # Monitoring stays up to keep observability during deploys.
 
             # Verify cleanup — no legacy containers should remain
             REMAINING=$(podman ps -a --format '{{.Names}}' | grep -c '^creditcardanalyzer_' 2>/dev/null || echo "0")
@@ -954,11 +948,11 @@ jobs:
 
   deploy-nginx:
     runs-on: ubuntu-latest
-    needs: [deploy-infra, deploy-platform, setup-certs, detect-changes]
+    needs: [deploy-infra, setup-certs, detect-changes]
     if: always() && !cancelled() && (needs.detect-changes.outputs.nginx == 'true' || needs.detect-changes.outputs.platform == 'true' || inputs.action == 'full')
 
     steps:
-      - name: Restart nginx
+      - name: Update nginx config (rolling restart)
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -971,25 +965,13 @@ jobs:
             export PATH="$HOME/.local/bin:$PATH"
             set -a; source .env; set +a
 
-            # Wait for platform-frontend to be resolvable before restarting nginx
-            echo "Waiting for platform-frontend to be ready..."
-            for i in $(seq 1 15); do
-              FE_STATUS=$(podman inspect oikonomia-platform_platform-frontend_1 --format '{{.State.Status}}' 2>/dev/null || echo "missing")
-              if [ "$FE_STATUS" = "running" ]; then
-                echo "Frontend container running after ${i} attempt(s)"
-                break
-              fi
-              echo "Attempt $i/15: frontend=$FE_STATUS, retrying in 3s..."
-              sleep 3
-            done
-
-            echo "Restarting nginx..."
-            # Stop ONLY nginx service (compose handles container names)
-            podman-compose -p oikonomia-nginx -f docker-compose.nginx.yml stop nginx 2>/dev/null || true
-            # Start nginx
+            echo "Updating nginx (rolling restart)..."
+            # up -d is idempotent: if config unchanged, container stays running.
+            # If config changed, compose does rolling replacement (new starts, old stops).
+            # No manual stop needed — zero downtime.
             podman-compose -p oikonomia-nginx -f docker-compose.nginx.yml up -d
 
-            # Wait for nginx to be ready
+            # Verify nginx is healthy
             NGINX_OK=false
             for i in $(seq 1 15); do
               STATUS=$(curl -sk -o /dev/null -w "%{http_code}" https://127.0.0.1/ 2>/dev/null)
@@ -1007,7 +989,7 @@ jobs:
               podman logs $(podman ps --format '{{.Names}}' | grep -E '_nginx_' | head -1) --tail 20 2>&1 || true
               exit 1
             fi
-            echo "Nginx restarted"
+            echo "Nginx updated"
 
   deploy-landing:
     runs-on: ubuntu-latest
@@ -1044,10 +1026,10 @@ jobs:
   deploy-monitoring:
     runs-on: ubuntu-latest
     needs: [deploy-infra, detect-changes]
-    if: always() && !cancelled() && (needs.detect-changes.outputs.monitoring == 'true' || inputs.action == 'full')
+    if: always() && !cancelled()
 
     steps:
-      - name: Restart monitoring
+      - name: Ensure monitoring stack is running
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -1060,49 +1042,98 @@ jobs:
             export PATH="$HOME/.local/bin:$PATH"
             set -a; source .env; set +a
 
-            echo "Restarting monitoring..."
+            echo "Ensuring monitoring stack is running..."
 
-            # Stop ALL old monitoring containers (legacy + current) to free ports
-            echo "Cleaning up old monitoring containers..."
-            for OLD in $(podman ps -a --format '{{.Names}}' | grep -E '^(creditcardanalyzer_|oikonomia-monitoring_)'); do
-              echo "  Stopping: $OLD"
-              podman stop "$OLD" 2>/dev/null || true
-              podman rm -f "$OLD" 2>/dev/null || true
-            done
-
-            # Verify cleanup — no monitoring containers should remain
-            sleep 2
-            REMAINING=$(podman ps -a --format '{{.Names}}' | grep -cE '^(creditcardanalyzer_|oikonomia-monitoring_)' 2>/dev/null || echo "0")
-            if [ "$REMAINING" -gt 0 ]; then
-              echo "::warning::$REMAINING monitoring containers still remain after cleanup"
-            fi
-
-            # Start monitoring
-            echo "Starting monitoring..."
             # Create external volumes if they don't exist
             podman volume create oikonomia_prometheus_data 2>/dev/null || true
             podman volume create oikonomia_grafana_data 2>/dev/null || true
             podman volume create oikonomia_loki_data 2>/dev/null || true
+            podman volume create oikonomia-monitoring_alloy_data 2>/dev/null || true
+
+            # up -d is idempotent: running containers are untouched.
+            # Only creates/starts containers that are missing.
             podman-compose -p oikonomia-monitoring -f docker-compose.monitoring.yml up -d
 
-            # Update systemd health check script to use correct project name
-            # This prevents the timer from recreating containers with old names
-            if [ -f /usr/local/bin/oikonomia-monitoring.sh ]; then
-              sed -i 's|podman-compose -f docker-compose|podman-compose -p oikonomia-monitoring -f docker-compose|g' /usr/local/bin/oikonomia-monitoring.sh
-              systemctl daemon-reload 2>/dev/null || true
-              echo "Updated systemd monitoring script"
-            fi
-
             # Connect nginx-exporter to oikonomia network so it can reach nginx:8080
-            echo "Connecting nginx-exporter to oikonomia network..."
-            sleep 3
             NGINX_EXPORTER=$(podman ps --format '{{.Names}}' | grep -E '_nginx-exporter_' | head -1)
             if [ -n "$NGINX_EXPORTER" ]; then
               podman network connect oikonomia "$NGINX_EXPORTER" 2>/dev/null || true
-              podman restart "$NGINX_EXPORTER" 2>/dev/null || true
-              echo "Nginx-exporter connected to oikonomia network"
             fi
-            echo "Monitoring restarted"
+
+            # Ensure Prometheus has --web.enable-lifecycle (needed for hot reload)
+            # If not, force-recreate to pick up the new flag
+            PROMETHEUS_ARGS=$(podman inspect oikonomia-monitoring_prometheus_1 --format '{{.Config.Cmd}}' 2>/dev/null || echo "")
+            if echo "$PROMETHEUS_ARGS" | grep -q "enable-lifecycle"; then
+              echo "Prometheus lifecycle API enabled, reloading config..."
+              curl -s -X POST http://localhost:9090/-/reload 2>&1 || echo "Reload failed"
+            else
+              echo "Prometheus needs restart to enable lifecycle API..."
+              podman-compose -p oikonomia-monitoring -f docker-compose.monitoring.yml up -d --force-recreate prometheus
+              sleep 5
+            fi
+
+            # Install journal-export service for Alloy
+            echo "Setting up journal-export service..."
+            mkdir -p ~/.config/systemd/user
+            mkdir -p /opt/creditcardanalyzer/logs
+            cp /opt/creditcardanalyzer/docker/journal-export.service ~/.config/systemd/user/ 2>/dev/null || true
+            systemctl --user daemon-reload 2>/dev/null || true
+            systemctl --user enable journal-export.service 2>/dev/null || true
+            systemctl --user start journal-export.service 2>/dev/null || true
+
+            # Restart Alloy to pick up correct config (file-based, not journal-based)
+            echo "Restarting Alloy with file-based config..."
+            podman restart oikonomia-monitoring_alloy_1 2>/dev/null || true
+
+            # Verify all expected monitoring containers are running
+            echo "Verifying monitoring containers..."
+            EXPECTED="prometheus grafana loki postgres-exporter redis-exporter node-exporter nginx-exporter blackbox-exporter alloy podman-exporter"
+            MISSING=""
+            for SVC in $EXPECTED; do
+              CONTAINER="oikonomia-monitoring_${SVC}_1"
+              STATUS=$(podman inspect "$CONTAINER" --format '{{.State.Status}}' 2>/dev/null || echo "missing")
+              if [ "$STATUS" != "running" ]; then
+                MISSING="$MISSING $SVC"
+                echo "::warning::$SVC is not running (status: $STATUS)"
+              fi
+            done
+
+            if [ -n "$MISSING" ]; then
+              echo "::error::Missing monitoring containers:$MISSING"
+              echo "Attempting to start missing containers..."
+              podman-compose -p oikonomia-monitoring -f docker-compose.monitoring.yml up -d
+              sleep 5
+              # Re-verify
+              STILL_MISSING=""
+              for SVC in $EXPECTED; do
+                CONTAINER="oikonomia-monitoring_${SVC}_1"
+                STATUS=$(podman inspect "$CONTAINER" --format '{{.State.Status}}' 2>/dev/null || echo "missing")
+                if [ "$STATUS" != "running" ]; then
+                  STILL_MISSING="$STILL_MISSING $SVC"
+                fi
+              done
+              if [ -n "$STILL_MISSING" ]; then
+                echo "::error::Still missing after retry:$STILL_MISSING"
+                exit 1
+              fi
+            fi
+
+            # Verify Prometheus targets are UP
+            echo "Verifying Prometheus targets..."
+            sleep 10
+            DOWN_TARGETS=$(curl -s http://localhost:9090/api/v1/targets | python3 -c "
+            import sys,json
+            d=json.load(sys.stdin)
+            down = [t['labels'].get('job','?') + ' -> ' + t['labels'].get('instance','?') for t in d.get('data',{}).get('activeTargets',[]) if t.get('health') != 'up']
+            print(','.join(down))
+            " 2>/dev/null || echo "")
+            if [ -n "$DOWN_TARGETS" ]; then
+              echo "::warning::Prometheus targets still down: $DOWN_TARGETS"
+            else
+              echo "All Prometheus targets UP"
+            fi
+
+            echo "Monitoring stack verified"
 
   # ── Health check (global) ──────────────────────────────────
 
