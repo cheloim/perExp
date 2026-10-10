@@ -58,7 +58,7 @@
       },
       "datasource": {
         "type": "loki",
-        "uid": ""
+        "uid": "P8E80F9AEF21F6940"
       }
     },
     {
@@ -93,7 +93,7 @@
       },
       "datasource": {
         "type": "loki",
-        "uid": ""
+        "uid": "P8E80F9AEF21F6940"
       }
     },
     {
@@ -128,7 +128,7 @@
       },
       "datasource": {
         "type": "loki",
-        "uid": ""
+        "uid": "P8E80F9AEF21F6940"
       }
     },
     {
@@ -163,7 +163,7 @@
       },
       "datasource": {
         "type": "loki",
-        "uid": ""
+        "uid": "P8E80F9AEF21F6940"
       }
     },
     {
@@ -198,7 +198,7 @@
       },
       "datasource": {
         "type": "loki",
-        "uid": ""
+        "uid": "P8E80F9AEF21F6940"
       }
     },
     {
@@ -233,7 +233,7 @@
       },
       "datasource": {
         "type": "loki",
-        "uid": ""
+        "uid": "P8E80F9AEF21F6940"
       }
     },
     {
@@ -268,7 +268,7 @@
       },
       "datasource": {
         "type": "loki",
-        "uid": ""
+        "uid": "P8E80F9AEF21F6940"
       }
     },
     {
@@ -303,7 +303,7 @@
       },
       "datasource": {
         "type": "loki",
-        "uid": ""
+        "uid": "P8E80F9AEF21F6940"
       }
     },
     {
@@ -338,7 +338,7 @@
       },
       "datasource": {
         "type": "loki",
-        "uid": ""
+        "uid": "P8E80F9AEF21F6940"
       }
     }
   ],
