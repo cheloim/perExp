@@ -11,6 +11,7 @@ services:
       - "--storage.tsdb.retention.time=30d"
       - "--storage.tsdb.retention.size=5GB"
       - "--web.listen-address=:9090"
+      - "--web.enable-lifecycle"
     deploy:
       resources:
         limits:
