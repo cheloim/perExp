@@ -1,39 +1,84 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "links": [
-    { "title": "Application", "url": "/d/oikonomia-api", "type": "link" },
-    { "title": "Errors", "url": "/d/oikonomia-errors", "type": "link" },
-    { "title": "System", "url": "/d/oikonomia-system", "type": "link" }
+    {
+      "title": "Application",
+      "url": "/d/oikonomia-api",
+      "type": "link"
+    },
+    {
+      "title": "Errors",
+      "url": "/d/oikonomia-errors",
+      "type": "link"
+    },
+    {
+      "title": "System",
+      "url": "/d/oikonomia-system",
+      "type": "link"
+    }
   ],
   "panels": [
     {
       "title": "Log Volume by Container",
       "type": "timeseries",
-      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "targets": [
         {
           "expr": "sum(rate({job=\"systemd-journal\"}[5m])) by (container)",
           "legendFormat": "{{container}}",
-          "refId": "A"
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          }
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "short", "color": { "mode": "palette-classic" }, "custom": { "stacking": { "mode": "normal" } } }
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        }
       },
-      "datasource": { "type": "loki", "uid": "" }
+      "datasource": {
+        "type": "loki",
+        "uid": ""
+      }
     },
     {
       "title": "Error Logs (all containers)",
       "type": "logs",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 6 },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 6
+      },
       "targets": [
         {
           "expr": "{job=\"systemd-journal\"} |~ \"(?i)(error|exception|fatal|panic|traceback)\"",
           "legendFormat": "",
-          "refId": "A"
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          }
         }
       ],
       "options": {
@@ -46,17 +91,29 @@
         "sortOrder": "Descending",
         "dedupStrategy": "none"
       },
-      "datasource": { "type": "loki", "uid": "" }
+      "datasource": {
+        "type": "loki",
+        "uid": ""
+      }
     },
     {
       "title": "Backend Logs",
       "type": "logs",
-      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 16 },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
       "targets": [
         {
           "expr": "{container=~\".*backend.*\"}",
           "legendFormat": "",
-          "refId": "A"
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          }
         }
       ],
       "options": {
@@ -69,17 +126,29 @@
         "sortOrder": "Descending",
         "dedupStrategy": "none"
       },
-      "datasource": { "type": "loki", "uid": "" }
+      "datasource": {
+        "type": "loki",
+        "uid": ""
+      }
     },
     {
       "title": "Nginx Logs",
       "type": "logs",
-      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 16 },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
       "targets": [
         {
           "expr": "{container=~\".*nginx_1.*\"}",
           "legendFormat": "",
-          "refId": "A"
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          }
         }
       ],
       "options": {
@@ -92,17 +161,29 @@
         "sortOrder": "Descending",
         "dedupStrategy": "none"
       },
-      "datasource": { "type": "loki", "uid": "" }
+      "datasource": {
+        "type": "loki",
+        "uid": ""
+      }
     },
     {
       "title": "Celery Worker Logs",
       "type": "logs",
-      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 26 },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      },
       "targets": [
         {
           "expr": "{container=~\".*celery_worker.*\"}",
           "legendFormat": "",
-          "refId": "A"
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          }
         }
       ],
       "options": {
@@ -115,17 +196,29 @@
         "sortOrder": "Descending",
         "dedupStrategy": "none"
       },
-      "datasource": { "type": "loki", "uid": "" }
+      "datasource": {
+        "type": "loki",
+        "uid": ""
+      }
     },
     {
       "title": "Alloy Logs",
       "type": "logs",
-      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 26 },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 26
+      },
       "targets": [
         {
           "expr": "{container=~\".*alloy.*\"}",
           "legendFormat": "",
-          "refId": "A"
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          }
         }
       ],
       "options": {
@@ -138,17 +231,29 @@
         "sortOrder": "Descending",
         "dedupStrategy": "none"
       },
-      "datasource": { "type": "loki", "uid": "" }
+      "datasource": {
+        "type": "loki",
+        "uid": ""
+      }
     },
     {
       "title": "Database Logs",
       "type": "logs",
-      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 36 },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 36
+      },
       "targets": [
         {
           "expr": "{container=~\".*_db_.*\"}",
           "legendFormat": "",
-          "refId": "A"
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          }
         }
       ],
       "options": {
@@ -161,17 +266,29 @@
         "sortOrder": "Descending",
         "dedupStrategy": "none"
       },
-      "datasource": { "type": "loki", "uid": "" }
+      "datasource": {
+        "type": "loki",
+        "uid": ""
+      }
     },
     {
       "title": "Telegram Bot Logs",
       "type": "logs",
-      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 36 },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 36
+      },
       "targets": [
         {
           "expr": "{container=~\".*telegram_bot.*\"}",
           "legendFormat": "",
-          "refId": "A"
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          }
         }
       ],
       "options": {
@@ -184,17 +301,29 @@
         "sortOrder": "Descending",
         "dedupStrategy": "none"
       },
-      "datasource": { "type": "loki", "uid": "" }
+      "datasource": {
+        "type": "loki",
+        "uid": ""
+      }
     },
     {
       "title": "Telegram Bot Logs",
       "type": "logs",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 46 },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 46
+      },
       "targets": [
         {
           "expr": "{job=\"systemd-journal\"} |~ \"$search\"",
           "legendFormat": "",
-          "refId": "A"
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          }
         }
       ],
       "options": {
@@ -207,23 +336,35 @@
         "sortOrder": "Descending",
         "dedupStrategy": "none"
       },
-      "datasource": { "type": "loki", "uid": "" }
+      "datasource": {
+        "type": "loki",
+        "uid": ""
+      }
     }
   ],
   "schemaVersion": 39,
-  "tags": ["oikonomia", "logs", "loki"],
+  "tags": [
+    "oikonomia",
+    "logs",
+    "loki"
+  ],
   "templating": {
     "list": [
       {
         "name": "search",
         "type": "textbox",
         "label": "Search",
-        "current": { "value": ".*" },
+        "current": {
+          "value": ".*"
+        },
         "options": []
       }
     ]
   },
-  "time": { "from": "now-1h", "to": "now" },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
   "title": "Oikonomia - Logs",
   "uid": "oikonomia-logs",
   "version": 2

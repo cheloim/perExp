@@ -41,6 +41,7 @@ services:
       GF_AUTH_GENERIC_OAUTH_API_URL: "https://platform.${DOMAIN_NAME:-oikonomia.ar}/api/auth/oauth/grafana/userinfo"
       GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH: "role"
       GF_AUTH_GENERIC_OAUTH_ALLOW_ASSIGN_GRAFANA_ADMIN: "true"
+      GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP: "true"
       GF_AUTH_OAUTH_AUTO_LOGIN: "false"
       GF_USERS_AUTO_ASSIGN_ORG: "true"
       GF_USERS_AUTO_ASSIGN_ORG_ROLE: "Viewer"
@@ -123,8 +124,7 @@ services:
 
   alloy:
     image: docker.io/grafana/alloy:latest
-    ports:
-      - "12345:12345"
+    network_mode: host
     command:
       - "run"
       - "--storage.path=/var/lib/alloy/data"
@@ -134,8 +134,10 @@ services:
     volumes:
       - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
       - alloy_data:/var/lib/alloy/data
+      - ${LOGS_DIR:-/opt/creditcardanalyzer/logs}:/logs:ro
     security_opt:
       - label=disable
+    user: "0:0"
     restart: unless-stopped
 
   podman-exporter:
