@@ -1285,10 +1285,15 @@ async def _handle_bank_notification(
         )
         # Fetch assigned tags (excluding category mirrors)
         expense_tags = []
-        if tag_ids:
-            from app.models import Tag
+        if expense.id:
+            from app.models import ExpenseTag
 
-            expense_tags = db.query(Tag).filter(Tag.id.in_(tag_ids)).all()
+            expense_tags = (
+                db.query(Tag)
+                .join(ExpenseTag, ExpenseTag.tag_id == Tag.id)
+                .filter(ExpenseTag.expense_id == expense.id, Tag.group_name != "categoria")
+                .all()
+            )
         context.user_data["last_expense_id"] = expense.id
         context.user_data["last_expense_time"] = time.time()
 
@@ -1436,10 +1441,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 else None
             )
             expense_tags = []
-            if tag_ids:
-                from app.models import Tag
+            if expense.id:
+                from app.models import ExpenseTag
 
-                expense_tags = db.query(Tag).filter(Tag.id.in_(tag_ids)).all()
+                expense_tags = (
+                    db.query(Tag)
+                    .join(ExpenseTag, ExpenseTag.tag_id == Tag.id)
+                    .filter(ExpenseTag.expense_id == expense.id, Tag.group_name != "categoria")
+                    .all()
+                )
 
             keyboard = InlineKeyboardMarkup(
                 [
