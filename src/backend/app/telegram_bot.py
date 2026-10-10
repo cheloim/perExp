@@ -3475,8 +3475,7 @@ async def handle_edit_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
         except ExpenseEditError as e:
             await query.edit_message_text(
-                f"❌ {e}\n\n"
-                f"Probá de nuevo con /editar.",
+                f"❌ {e}\n\nProbá de nuevo con /editar.",
             )
 
     finally:
