@@ -330,9 +330,18 @@ class TestMatchCardFromText(unittest.TestCase):
 
     def test_no_card_name_returns_none(self):
         """Without a card name, no matching attempt is made."""
-        # _match_card_from_text requires a card_name, so None card_name is not passed
-        # This tests the guard: callers should check text_card_name before calling
-        pass
+        result = _match_card_from_text(PROD_CARDS, None, None, None)
+        self.assertIsNone(result)
+
+    def test_empty_string_returns_none(self):
+        """Empty string card name must not match all cards (issue #379)."""
+        result = _match_card_from_text(PROD_CARDS, "", None, None)
+        self.assertIsNone(result)
+
+    def test_empty_string_with_bank_returns_none(self):
+        """Empty string card name with bank must not match."""
+        result = _match_card_from_text(PROD_CARDS, "", "Santander", None)
+        self.assertIsNone(result)
 
 
 class TestIsBankNotification(unittest.TestCase):

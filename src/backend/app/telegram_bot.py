@@ -221,11 +221,13 @@ def _find_or_create_tag(db, user_id: int, tag_name: str, card_id=None, account_i
 
 def _match_card_from_text(
     cards: list,
-    text_card_name: str,
+    text_card_name: str | None,
     text_bank: str | None,
     text_card_type: str | None,
 ) -> "Card | None":
     """Match a card from user's cards using accent-insensitive substring matching."""
+    if not text_card_name:
+        return None
     text_lower = _strip_accents(text_card_name)
     for card in cards:
         card_lower = _strip_accents(card.card_name)
@@ -1383,7 +1385,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         account_id = None
         tag_ids = []
 
-        matched_card = _match_card_from_text(cards, text_card_name or "", text_bank, text_card_type)
+        matched_card = _match_card_from_text(cards, text_card_name, text_bank, text_card_type)
         if not matched_card and text_bank and not text_card_name:
             for card in cards:
                 if card.bank and card.bank.lower() == text_bank.lower():
