@@ -5,7 +5,7 @@ global:
 scrape_configs:
   - job_name: "oikonomia-backend"
     static_configs:
-      - targets: ["host.containers.internal:8001"]
+      - targets: ["host.containers.internal:8000"]
     metrics_path: /metrics
 
   - job_name: "postgres"
