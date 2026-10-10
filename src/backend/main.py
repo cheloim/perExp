@@ -12,6 +12,20 @@ load_dotenv(os.path.join(BACKEND_DIR, ".env"))
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+class _SuppressHealthFilter(logging.Filter):
+    """Drop uvicorn access log lines for internal health/metrics probes."""
+
+    _SUPPRESSED = ("/health", "/metrics")
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        msg = record.getMessage()
+        return not any(path in msg for path in self._SUPPRESSED)
+
+
+# Silence noisy internal requests from uvicorn access log
+logging.getLogger("uvicorn.access").addFilter(_SuppressHealthFilter())
+
 from app.services.platform_log_handler import PlatformLogHandler
 
 _platform_log_handler = PlatformLogHandler()
