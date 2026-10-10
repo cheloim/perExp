@@ -34,7 +34,7 @@
       },
       "targets": [
         {
-          "expr": "pg_stat_activity_count{datname=\"expenses\",state=\"active\"}",
+          "expr": "pg_stat_database_numbackends{datname=\"expenses\"}",
           "legendFormat": "Active",
           "refId": "A"
         }
@@ -73,7 +73,7 @@
       },
       "targets": [
         {
-          "expr": "pg_stat_activity_count{datname=\"expenses\"}",
+          "expr": "pg_settings_max_connections{datname=\"expenses\"}",
           "legendFormat": "Total",
           "refId": "A"
         }
@@ -179,7 +179,7 @@
           "refId": "A"
         },
         {
-          "expr": "rate(pg_stat_database_xact_rollback{datname=\"expenses\"}[5m])",
+          "expr": "rate(pg_stat_database_xact_commit{datname=\"expenses\"}[5m])",
           "legendFormat": "Rollbacks",
           "refId": "B"
         }
@@ -261,7 +261,7 @@
       },
       "targets": [
         {
-          "expr": "pg_stat_activity_count{datname=\"expenses\"} by (state)",
+          "expr": "pg_stat_activity_count{datname=\"expenses\"} > 0",
           "legendFormat": "{{state}}",
           "refId": "A"
         }

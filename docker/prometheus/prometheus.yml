@@ -30,6 +30,7 @@ scrape_configs:
       - targets:
           - https://oikonomia.ar
           - https://platform.oikonomia.ar
+          - https://grafana.oikonomia.ar
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
