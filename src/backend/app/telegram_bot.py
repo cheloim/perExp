@@ -502,6 +502,13 @@ def _save_expense(
 
         sync_category_tag(db, expense, expense.category_id)
 
+        # Create payment tag in this session if card/account is set but
+        # caller didn't pass tag_ids (avoids cross-session visibility bug)
+        if not tag_ids and (card_id is not None or account_id is not None):
+            tag = _find_or_create_tag(db, user_id, "", card_id=card_id, account_id=account_id)
+            if tag:
+                tag_ids = [tag.id]
+
         if tag_ids:
             # Validate tags exist before inserting to avoid FK violations
             valid_tag_ids = []
@@ -1244,15 +1251,12 @@ async def _handle_bank_notification(
 
         if card:
             card_id = card.id
-            tag = _find_or_create_tag(db, user_id, "", card_id=card.id)
-            tag_ids.append(tag.id)
         elif parsed.get("card_type") == "debito" and parsed.get("bank"):
             account = _match_account_from_text(parsed["bank"], user_id, db)
             if account:
                 account_id = account.id
-                tag = _find_or_create_tag(db, user_id, "", account_id=account.id)
-                tag_ids.append(tag.id)
 
+        # Fallback tag from bank+card_name text when no card/account matched
         if not card_id and not account_id:
             bank_info = parsed.get("bank", "")
             card_name_info = parsed.get("card_name", "")
@@ -1383,7 +1387,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # Match card/account once from the message text (applies to all expenses)
         card_id = None
         account_id = None
-        tag_ids = []
 
         matched_card = _match_card_from_text(cards, text_card_name, text_bank, text_card_type)
         if not matched_card and text_bank and not text_card_name:
@@ -1394,14 +1397,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         if matched_card:
             card_id = matched_card.id
-            tag = _find_or_create_tag(db, user_id, "", card_id=matched_card.id)
-            tag_ids.append(tag.id)
         else:
             matched_account = _match_account_from_text(text, user_id, db)
             if matched_account:
                 account_id = matched_account.id
-                tag = _find_or_create_tag(db, user_id, "", account_id=matched_account.id)
-                tag_ids.append(tag.id)
 
         saved_expenses = []
         for parsed_item in parsed_list:
@@ -1415,7 +1414,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 predicted_category_id=predicted_category_id,
                 card_id=card_id,
                 account_id=account_id,
-                tag_ids=tag_ids,
             )
             saved_expenses.append(expense)
 
@@ -3174,7 +3172,7 @@ async def cmd_editar(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     db = SessionLocal()
     try:
         uid_list = get_group_user_ids(user.id, db)
-        cutoff = datetime.now(BUE) - timedelta(hours=EDITABLE_WINDOW_HOURS)
+        cutoff = datetime.utcnow() - timedelta(hours=EDITABLE_WINDOW_HOURS)
 
         editable = (
             db.query(Expense)
@@ -3466,7 +3464,10 @@ async def handle_edit_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE
                 parse_mode="HTML",
             )
         except ExpenseEditError as e:
-            await query.edit_message_text(f"❌ {e}")
+            await query.edit_message_text(
+                f"❌ {e}\n\n"
+                f"Probá de nuevo con /editar.",
+            )
 
     finally:
         db.close()
