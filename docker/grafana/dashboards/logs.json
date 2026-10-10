@@ -307,7 +307,7 @@
       }
     },
     {
-      "title": "Telegram Bot Logs",
+      "title": "Log Search",
       "type": "logs",
       "gridPos": {
         "h": 10,
