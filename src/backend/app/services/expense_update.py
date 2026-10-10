@@ -137,9 +137,22 @@ def update_expense_checked(
                 f"Este gasto tiene {hours_ago:.0f}h y solo se pueden editar los últimos {EDITABLE_WINDOW_HOURS}h."
             )
 
-    # 3. Block linked expenses (only structural fields for installments)
+    # 3. Block linked expenses (only structural fields for budget/recurring/installments)
     if expense.budget_event_id is not None:
-        raise ExpenseEditError("No se puede editar un gasto vinculado a un presupuesto/evento.")
+        blocked_fields = {"amount", "date", "description"} & set(changes.keys())
+        if blocked_fields:
+            for field in blocked_fields:
+                changes.pop(field, None)
+            logger.info(
+                "Stripped blocked fields %s from budget-linked expense %s edit",
+                blocked_fields,
+                expense.id,
+            )
+            if not changes:
+                raise ExpenseEditError(
+                    f"No se puede editar {', '.join(sorted(blocked_fields))} de un gasto vinculado a presupuesto. "
+                    f"Podés editar: categoría, cuenta, notas."
+                )
     if expense.installment_group_id is not None and (expense.installment_total or 0) > 1:
         blocked_fields = {
             "amount",
@@ -166,7 +179,20 @@ def update_expense_checked(
                     f"Podés editar: categoría, cuenta. Usá la gestión de cuotas para cambios estructurales."
                 )
     if expense.recurring_expense_id is not None:
-        raise ExpenseEditError("No se puede editar un gasto recurrente. Editá la suscripción.")
+        blocked_fields = {"amount", "date", "description"} & set(changes.keys())
+        if blocked_fields:
+            for field in blocked_fields:
+                changes.pop(field, None)
+            logger.info(
+                "Stripped blocked fields %s from recurring expense %s edit",
+                blocked_fields,
+                expense.id,
+            )
+            if not changes:
+                raise ExpenseEditError(
+                    f"No se puede editar {', '.join(sorted(blocked_fields))} de un gasto recurrente. "
+                    f"Editá la suscripción para cambios estructurales."
+                )
 
     # Capture old values for audit
     old_values = {}

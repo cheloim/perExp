@@ -193,6 +193,92 @@ def test_block_recurring(db):
         update_expense_checked(db, user.id, expense, {"amount": 2000})
 
 
+def test_budget_event_allows_non_structural_edit(db):
+    """Budget-linked expenses allow editing non-structural fields (issue #366)."""
+    from app.models import BudgetEvent
+
+    user = _create_user(db, "be-nonstructural@test.com")
+    be = BudgetEvent(
+        user_id=user.id,
+        name="Test Event",
+        start_date=date.today(),
+        end_date=date.today(),
+        total_amount=10000,
+    )
+    db.add(be)
+    db.flush()
+    cat = _create_category(db, user, "New Category")
+    expense = _create_expense(db, user, budget_event_id=be.id)
+
+    # Non-structural edit (category_id) should succeed
+    updated = update_expense_checked(
+        db, user.id, expense, {"category_id": cat.id}, commit=False
+    )
+    assert updated.category_id == cat.id
+
+
+def test_recurring_allows_non_structural_edit(db):
+    """Recurring-linked expenses allow editing non-structural fields (issue #366)."""
+    from app.models import RecurringExpense
+
+    user = _create_user(db, "rec-nonstructural@test.com")
+    re = RecurringExpense(
+        user_id=user.id,
+        merchant_key="test_merchant2",
+        description="Test Recurring 2",
+        amount=5000,
+    )
+    db.add(re)
+    db.flush()
+    cat = _create_category(db, user, "New Category")
+    expense = _create_expense(db, user, recurring_expense_id=re.id)
+
+    # Non-structural edit (category_id) should succeed
+    updated = update_expense_checked(
+        db, user.id, expense, {"category_id": cat.id}, commit=False
+    )
+    assert updated.category_id == cat.id
+
+
+def test_budget_event_structural_only_raises(db):
+    """Budget-linked: if ONLY structural fields are sent, raise error (issue #366)."""
+    from app.models import BudgetEvent
+
+    user = _create_user(db, "be-structural@test.com")
+    be = BudgetEvent(
+        user_id=user.id,
+        name="Test Event",
+        start_date=date.today(),
+        end_date=date.today(),
+        total_amount=10000,
+    )
+    db.add(be)
+    db.flush()
+    expense = _create_expense(db, user, budget_event_id=be.id)
+
+    with pytest.raises(ExpenseEditError, match="presupuesto"):
+        update_expense_checked(db, user.id, expense, {"amount": 2000}, commit=False)
+
+
+def test_recurring_structural_only_raises(db):
+    """Recurring-linked: if ONLY structural fields are sent, raise error (issue #366)."""
+    from app.models import RecurringExpense
+
+    user = _create_user(db, "rec-structural@test.com")
+    re = RecurringExpense(
+        user_id=user.id,
+        merchant_key="test_merchant3",
+        description="Test Recurring 3",
+        amount=5000,
+    )
+    db.add(re)
+    db.flush()
+    expense = _create_expense(db, user, recurring_expense_id=re.id)
+
+    with pytest.raises(ExpenseEditError, match="recurrente"):
+        update_expense_checked(db, user.id, expense, {"amount": 2000}, commit=False)
+
+
 # ── Tests: HMAC recompute ───────────────────────────────────────────
 
 
