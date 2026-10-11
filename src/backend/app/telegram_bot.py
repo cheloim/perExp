@@ -1294,6 +1294,7 @@ async def _handle_bank_notification(
 
         card_id = None
         account_id = None
+        matched_tag_ids = []
         payment_tag_name = None
 
         if card:
@@ -1311,13 +1312,14 @@ async def _handle_bank_notification(
             if matched_tag:
                 card_id = matched_tag.card_id
                 account_id = matched_tag.account_id
+                matched_tag_ids = [matched_tag.id]
                 logger.info(
                     "[BANK_PARSE] matched cuenta tag: id=%d card_id=%s account_id=%s",
                     matched_tag.id, card_id, account_id,
                 )
 
-        # Fallback tag name from bank+card_name text when no card/account matched
-        if not card_id and not account_id:
+        # Fallback tag name from bank+card_name text when nothing matched
+        if not card_id and not account_id and not matched_tag_ids:
             bank_info = parsed.get("bank", "")
             card_name_info = parsed.get("card_name", "")
             tag_name = f"{bank_info} {card_name_info}".strip()
@@ -1334,6 +1336,7 @@ async def _handle_bank_notification(
             predicted_category_id=predicted_category_id,
             card_id=card_id,
             account_id=account_id,
+            tag_ids=matched_tag_ids or None,
             payment_tag_name=payment_tag_name,
         )
 
@@ -1455,6 +1458,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # Match card/account once from the message text (applies to all expenses)
         card_id = None
         account_id = None
+        matched_tag_ids = []
+        payment_tag_name = None
 
         matched_card = _match_card_from_text(cards, text_card_name, text_bank, text_card_type)
         if not matched_card and text_bank and not text_card_name:
@@ -1473,9 +1478,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             if matched_tag:
                 card_id = matched_tag.card_id
                 account_id = matched_tag.account_id
+                matched_tag_ids = [matched_tag.id]
                 logger.info(
-                    "[CARD_DETECT] matched cuenta tag: id=%d name_hmac=%s card_id=%s account_id=%s",
-                    matched_tag.id, matched_tag.name_hmac[:8], card_id, account_id,
+                    "[CARD_DETECT] matched cuenta tag: id=%d card_id=%s account_id=%s",
+                    matched_tag.id, card_id, account_id,
                 )
             else:
                 matched_account = _match_account_from_text(text, user_id, db)
@@ -1483,7 +1489,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     account_id = matched_account.id
                     logger.info("[CARD_DETECT] matched account: id=%d name=%r", account_id, matched_account.name)
                 else:
-                    logger.info("[CARD_DETECT] no card/account matched")
+                    # Last fallback: create tag from extracted text
+                    if text_card_name or text_bank:
+                        payment_tag_name = f"{text_bank or ''} {text_card_name or ''}".strip()
+                    logger.info("[CARD_DETECT] no card/account matched, payment_tag_name=%r", payment_tag_name)
 
         saved_expenses = []
         for parsed_item in parsed_list:
@@ -1497,6 +1506,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 predicted_category_id=predicted_category_id,
                 card_id=card_id,
                 account_id=account_id,
+                tag_ids=matched_tag_ids or None,
+                payment_tag_name=payment_tag_name,
             )
             saved_expenses.append(expense)
 
