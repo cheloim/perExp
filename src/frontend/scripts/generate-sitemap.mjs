@@ -8,7 +8,7 @@ const FRONTEND_DIR = resolve(__dirname, "..");
 const BASE_URL = "https://oikonomia.ar";
 
 const routes = JSON.parse(
-  readFileSync(resolve(FRONTEND_DIR, "src/data/publicRoutes.json"), "utf-8")
+  readFileSync(resolve(FRONTEND_DIR, "src/data/publicRoutes.json"), "utf-8"),
 );
 
 const buildDate = new Date().toISOString().split("T")[0];

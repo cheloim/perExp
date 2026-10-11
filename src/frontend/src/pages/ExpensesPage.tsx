@@ -331,8 +331,21 @@ export default function ExpensesPage() {
       const saved = pendingDeletes.current.get(id);
       if (saved?.expense) {
         queryClient.setQueryData<Expense[]>(
-          ["expenses-list", filterCategory, filterUncategorized, filterPerson, filterDateFrom, filterDateTo, filterTagId],
-          (old) => old ? [...old, saved.expense].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) : [saved.expense],
+          [
+            "expenses-list",
+            filterCategory,
+            filterUncategorized,
+            filterPerson,
+            filterDateFrom,
+            filterDateTo,
+            filterTagId,
+          ],
+          (old) =>
+            old
+              ? [...old, saved.expense].sort(
+                  (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+                )
+              : [saved.expense],
         );
       }
       pendingDeletes.current.delete(id);
@@ -340,15 +353,28 @@ export default function ExpensesPage() {
   });
 
   const { show: showUndo, ToastContainer } = useUndoToast();
-  const pendingDeletes = useRef<Map<number, { timer: ReturnType<typeof setTimeout>; expense: Expense }>>(new Map());
+  const pendingDeletes = useRef<
+    Map<number, { timer: ReturnType<typeof setTimeout>; expense: Expense }>
+  >(new Map());
 
   const handleDelete = (id: number, description: string) => {
     // Optimistic: remove from list immediately
-    const queryKey = ["expenses-list", filterCategory, filterUncategorized, filterPerson, filterDateFrom, filterDateTo, filterTagId];
+    const queryKey = [
+      "expenses-list",
+      filterCategory,
+      filterUncategorized,
+      filterPerson,
+      filterDateFrom,
+      filterDateTo,
+      filterTagId,
+    ];
     const current = queryClient.getQueryData<Expense[]>(queryKey) ?? [];
     const removed = current.find((e) => e.id === id);
 
-    queryClient.setQueryData<Expense[]>(queryKey, current.filter((e) => e.id !== id));
+    queryClient.setQueryData<Expense[]>(
+      queryKey,
+      current.filter((e) => e.id !== id),
+    );
 
     const timer = setTimeout(() => {
       deleteMut.mutate(id);
@@ -368,7 +394,9 @@ export default function ExpensesPage() {
           const existing = queryClient.getQueryData<Expense[]>(queryKey) ?? [];
           queryClient.setQueryData<Expense[]>(
             queryKey,
-            [...existing, entry.expense].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+            [...existing, entry.expense].sort(
+              (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+            ),
           );
         }
       },
