@@ -326,27 +326,50 @@ export default function ExpensesPage() {
     onSuccess: () => {
       invalidate();
     },
+    onError: (_err, id) => {
+      // Restore on API failure
+      const saved = pendingDeletes.current.get(id);
+      if (saved?.expense) {
+        queryClient.setQueryData<Expense[]>(
+          ["expenses-list", filterCategory, filterUncategorized, filterPerson, filterDateFrom, filterDateTo, filterTagId],
+          (old) => old ? [...old, saved.expense].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) : [saved.expense],
+        );
+      }
+      pendingDeletes.current.delete(id);
+    },
   });
 
   const { show: showUndo, ToastContainer } = useUndoToast();
-  const pendingDeletes = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const pendingDeletes = useRef<Map<number, { timer: ReturnType<typeof setTimeout>; expense: Expense }>>(new Map());
 
   const handleDelete = (id: number, description: string) => {
+    // Optimistic: remove from list immediately
+    const queryKey = ["expenses-list", filterCategory, filterUncategorized, filterPerson, filterDateFrom, filterDateTo, filterTagId];
+    const current = queryClient.getQueryData<Expense[]>(queryKey) ?? [];
+    const removed = current.find((e) => e.id === id);
+
+    queryClient.setQueryData<Expense[]>(queryKey, current.filter((e) => e.id !== id));
+
     const timer = setTimeout(() => {
       deleteMut.mutate(id);
       pendingDeletes.current.delete(id);
-    }, 5000);
-    pendingDeletes.current.set(id, timer);
+    }, 3000);
+    pendingDeletes.current.set(id, { timer, expense: removed! });
 
     showUndo(
       `"${description}" eliminado`,
-      () => {}, // close callback
+      () => {},
       () => {
-        // Undo: cancel the pending delete
-        const t = pendingDeletes.current.get(id);
-        if (t) {
-          clearTimeout(t);
+        // Undo: restore expense and cancel API call
+        const entry = pendingDeletes.current.get(id);
+        if (entry) {
+          clearTimeout(entry.timer);
           pendingDeletes.current.delete(id);
+          const existing = queryClient.getQueryData<Expense[]>(queryKey) ?? [];
+          queryClient.setQueryData<Expense[]>(
+            queryKey,
+            [...existing, entry.expense].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+          );
         }
       },
     );

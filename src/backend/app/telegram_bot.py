@@ -460,6 +460,7 @@ def _save_expense(
     account_id: int | None = None,
     card_id: int | None = None,
     tag_ids: list[int] | None = None,
+    payment_tag_name: str | None = None,
 ) -> Expense:
     db = SessionLocal()
     try:
@@ -506,6 +507,10 @@ def _save_expense(
         # caller didn't pass tag_ids (avoids cross-session visibility bug)
         if not tag_ids and (card_id is not None or account_id is not None):
             tag = _find_or_create_tag(db, user_id, "", card_id=card_id, account_id=account_id)
+            if tag:
+                tag_ids = [tag.id]
+        elif not tag_ids and payment_tag_name:
+            tag = _find_or_create_tag(db, user_id, payment_tag_name)
             if tag:
                 tag_ids = [tag.id]
 
@@ -1247,7 +1252,7 @@ async def _handle_bank_notification(
 
         card_id = None
         account_id = None
-        tag_ids = []
+        payment_tag_name = None
 
         if card:
             card_id = card.id
@@ -1256,14 +1261,13 @@ async def _handle_bank_notification(
             if account:
                 account_id = account.id
 
-        # Fallback tag from bank+card_name text when no card/account matched
+        # Fallback tag name from bank+card_name text when no card/account matched
         if not card_id and not account_id:
             bank_info = parsed.get("bank", "")
             card_name_info = parsed.get("card_name", "")
             tag_name = f"{bank_info} {card_name_info}".strip()
             if tag_name:
-                tag = _find_or_create_tag(db, user_id, tag_name)
-                tag_ids.append(tag.id)
+                payment_tag_name = tag_name
 
         predicted_category_id, cats = _instant_categorize(parsed, user_id, db)
 
@@ -1275,7 +1279,7 @@ async def _handle_bank_notification(
             predicted_category_id=predicted_category_id,
             card_id=card_id,
             account_id=account_id,
-            tag_ids=tag_ids,
+            payment_tag_name=payment_tag_name,
         )
 
         cat = (
@@ -3575,6 +3579,7 @@ async def _run_bot(token: str) -> None:
         fallbacks=[
             MessageHandler(filters.COMMAND, cancel),
             CallbackQueryHandler(cancel_callback, pattern=r"^cancel$"),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
         ],
         per_message=False,
     )
