@@ -58,7 +58,7 @@ services:
     restart: unless-stopped
 
   loki:
-    image: docker.io/grafana/loki:latest
+    image: docker.io/grafana/loki:3.0.0
     ports:
       - "3100:3100"
     volumes:

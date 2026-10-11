@@ -3,7 +3,7 @@ Description=Export journal logs to file for Alloy
 After=default.target
 
 [Service]
-ExecStart=/bin/bash -c 'journalctl -f -o json --no-pager >> /opt/creditcardanalyzer/logs/journal.log'
+ExecStart=/bin/bash -c 'journalctl -f -o json --no-pager --since -6h >> /opt/creditcardanalyzer/logs/journal.log'
 Restart=always
 RestartSec=5
 
