@@ -19,26 +19,32 @@ loki.source.file "journal_export" {
 loki.process "parse" {
   forward_to = [loki.write.local.receiver]
 
+  // 1. Parse journal JSON to extract fields
   stage.json {
     expressions = {
-      message     = "MESSAGE",
-      container   = "CONTAINER_NAME",
-      unit        = "_SYSTEMD_UNIT",
-      priority    = "PRIORITY",
-      pid         = "_PID",
+      msg       = "MESSAGE",
+      container = "CONTAINER_NAME",
+      priority  = "PRIORITY",
     }
   }
 
+  // 2. Replace log body with just the MESSAGE field
+  //    Without this, Loki shows the full journal JSON
+  stage.output {
+    source = "msg"
+  }
+
+  // 3. Map journal priority number to level label
   stage.template {
-    source = "level"
+    source   = "level"
     template = "{{ if eq .priority \"3\" }}error{{ else if eq .priority \"4\" }}warning{{ else if eq .priority \"6\" }}info{{ else if eq .priority \"7\" }}debug{{ else }}unknown{{ end }}"
   }
 
+  // 4. Set labels for querying in Grafana
   stage.labels {
     values = {
-      level     = "level",
       container = "container",
-      unit      = "unit",
+      level     = "level",
     }
   }
 }
