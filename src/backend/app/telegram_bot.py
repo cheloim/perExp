@@ -498,6 +498,10 @@ def _save_expense(
         )
         db.add(expense)
         db.flush()  # Assign ID without committing
+        logger.info(
+            "[SAVE_EXPENSE] id=%d card_id=%s account_id=%s tag_ids=%s payment_tag_name=%s",
+            expense.id, card_id, account_id, tag_ids, payment_tag_name,
+        )
 
         from app.services.tag_sync import sync_category_tag
 
@@ -1376,6 +1380,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return ConversationHandler.END
 
     text_card_name, text_bank, text_card_type = _extract_card_from_text(text)
+    logger.info(
+        "[CARD_DETECT] text=%r card_name=%r bank=%r card_type=%r",
+        text, text_card_name, text_bank, text_card_type,
+    )
 
     # Clean card/bank words from descriptions
     for parsed_item in parsed_list:
@@ -1406,10 +1414,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         if matched_card:
             card_id = matched_card.id
+            logger.info("[CARD_DETECT] matched card: id=%d name=%r", card_id, matched_card.card_name)
         else:
             matched_account = _match_account_from_text(text, user_id, db)
             if matched_account:
                 account_id = matched_account.id
+                logger.info("[CARD_DETECT] matched account: id=%d name=%r", account_id, matched_account.name)
+            else:
+                logger.info("[CARD_DETECT] no card/account matched")
 
         saved_expenses = []
         for parsed_item in parsed_list:
