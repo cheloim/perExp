@@ -1046,13 +1046,18 @@ jobs:
 
             echo "=== Monitoring deploy ==="
 
-            # ── 1. Cleanup: kill duplicate journalctl processes ──
+            # ── 1. Cleanup: kill orphan duplicate journalctl processes ──
+            # NOTE: use "[j]ournalctl" trick so pgrep does NOT match this
+            # deploy shell itself (its cmdline contains the script text).
+            # Plus $$/PPID guard as a second layer. Without this, xargs kill
+            # sends TERM to our own shell → exit 143.
             echo "Killing duplicate journalctl processes..."
-            JOURNAL_PIDS=$(pgrep -f "journalctl -f" 2>/dev/null || true)
-            if [ -n "$JOURNAL_PIDS" ]; then
-              echo "$JOURNAL_PIDS" | xargs kill 2>/dev/null || true
-              sleep 2
-            fi
+            for PID in $(pgrep -f "[j]ournalctl -f -o json" 2>/dev/null || true); do
+              if [ "$PID" != "$$" ] && [ "$PID" != "$PPID" ]; then
+                kill "$PID" 2>/dev/null || true
+              fi
+            done
+            sleep 2
 
             # ── 2. journal.log rotation ──
             echo "Setting up journal.log rotation..."
