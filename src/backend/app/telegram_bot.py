@@ -538,7 +538,11 @@ def _save_expense(
         db.flush()  # Assign ID without committing
         logger.info(
             "[SAVE_EXPENSE] id=%d card_id=%s account_id=%s tag_ids=%s payment_tag_name=%s",
-            expense.id, card_id, account_id, tag_ids, payment_tag_name,
+            expense.id,
+            card_id,
+            account_id,
+            tag_ids,
+            payment_tag_name,
         )
 
         from app.services.tag_sync import sync_category_tag
@@ -1315,7 +1319,9 @@ async def _handle_bank_notification(
                 matched_tag_ids = [matched_tag.id]
                 logger.info(
                     "[BANK_PARSE] matched cuenta tag: id=%d card_id=%s account_id=%s",
-                    matched_tag.id, card_id, account_id,
+                    matched_tag.id,
+                    card_id,
+                    account_id,
                 )
 
         # Fallback tag name from bank+card_name text when nothing matched
@@ -1436,7 +1442,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     text_card_name, text_bank, text_card_type = _extract_card_from_text(text)
     logger.info(
         "[CARD_DETECT] text=%r card_name=%r bank=%r card_type=%r",
-        text, text_card_name, text_bank, text_card_type,
+        text,
+        text_card_name,
+        text_bank,
+        text_card_type,
     )
 
     # Clean card/bank words from descriptions
@@ -1470,7 +1479,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         if matched_card:
             card_id = matched_card.id
-            logger.info("[CARD_DETECT] matched card: id=%d name=%r", card_id, matched_card.card_name)
+            logger.info(
+                "[CARD_DETECT] matched card: id=%d name=%r", card_id, matched_card.card_name
+            )
         else:
             # Fallback: match against 'cuenta' tags via HMAC (platform stores
             # payment methods as tags, not in the cards/accounts tables)
@@ -1481,18 +1492,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 matched_tag_ids = [matched_tag.id]
                 logger.info(
                     "[CARD_DETECT] matched cuenta tag: id=%d card_id=%s account_id=%s",
-                    matched_tag.id, card_id, account_id,
+                    matched_tag.id,
+                    card_id,
+                    account_id,
                 )
             else:
                 matched_account = _match_account_from_text(text, user_id, db)
                 if matched_account:
                     account_id = matched_account.id
-                    logger.info("[CARD_DETECT] matched account: id=%d name=%r", account_id, matched_account.name)
+                    logger.info(
+                        "[CARD_DETECT] matched account: id=%d name=%r",
+                        account_id,
+                        matched_account.name,
+                    )
                 else:
                     # Last fallback: create tag from extracted text
                     if text_card_name or text_bank:
                         payment_tag_name = f"{text_bank or ''} {text_card_name or ''}".strip()
-                    logger.info("[CARD_DETECT] no card/account matched, payment_tag_name=%r", payment_tag_name)
+                    logger.info(
+                        "[CARD_DETECT] no card/account matched, payment_tag_name=%r",
+                        payment_tag_name,
+                    )
 
         saved_expenses = []
         for parsed_item in parsed_list:
