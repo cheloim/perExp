@@ -28,23 +28,33 @@ loki.process "parse" {
     }
   }
 
-  // 2. Replace log body with just the MESSAGE field
-  //    Without this, Loki shows the full journal JSON
+  // 2. Replace raw JSON log body with just the MESSAGE field
   stage.output {
     source = "msg"
   }
 
-  // 3. Map journal priority number to level label
-  stage.template {
-    source   = "level"
-    template = "{{ if eq .priority \"3\" }}error{{ else if eq .priority \"4\" }}warning{{ else if eq .priority \"6\" }}info{{ else if eq .priority \"7\" }}debug{{ else }}unknown{{ end }}"
+  // 3. Extract real level from message content.
+  //    Many containers write INFO/WARNING/LOG to stderr (PRIORITY=3).
+  //    We detect the real level from the message to override PRIORITY.
+  stage.regex {
+    expression = "(?i)(?P<msg_level>INFO|WARNING|WARN|ERROR|DEBUG|CRITICAL|LOG)"
   }
 
-  // 4. Set labels for querying in Grafana
+  // 4. Smart level mapping:
+  //    - Monitoring containers (loki, alloy, exporters) always get info
+  //    - If message says INFO/LOG/DEBUG but PRIORITY=3 (stderr) → info
+  //    - If message says WARNING/WARN but PRIORITY=3 → warning
+  //    - Otherwise use PRIORITY: 3=error, 4=warning, 6=info, 7=debug
+  stage.template {
+    source   = "level"
+    template = "{{ if or (contains \"loki\" .container) (contains \"alloy\" .container) (contains \"exporter\" .container) }}info{{ else if and (eq .priority \"3\") (or (eq .msg_level \"INFO\") (eq .msg_level \"LOG\") (eq .msg_level \"DEBUG\")) }}info{{ else if and (eq .priority \"3\") (or (eq .msg_level \"WARNING\") (eq .msg_level \"WARN\") (eq .msg_level \"CRITICAL\")) }}warning{{ else if eq .priority \"3\" }}error{{ else if eq .priority \"4\" }}warning{{ else if eq .priority \"6\" }}info{{ else if eq .priority \"7\" }}debug{{ else }}unknown{{ end }}"
+  }
+
+  // 5. Set labels for querying in Grafana
   stage.labels {
     values = {
-      container = "container",
       level     = "level",
+      container = "container",
     }
   }
 }

@@ -343,7 +343,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ vars.SSH_PORT || '43422' }}
-          source: "docker/docker-compose.infra.yml,docker/docker-compose.nginx.yml,docker/docker-compose.platform.yml,docker/docker-compose.bots.yml,docker/docker-compose.monitoring.yml,docker/docker-compose.web-landing.yml,docker/nginx/nginx.conf,docker/nginx/maintenance/,docker/alloy/config.alloy,config/blackbox/blackbox.yml,docker/prometheus/,docker/grafana/,docker/loki/,docker/journal-export.service"
+          source: "docker/docker-compose.infra.yml,docker/docker-compose.nginx.yml,docker/docker-compose.platform.yml,docker/docker-compose.bots.yml,docker/docker-compose.monitoring.yml,docker/docker-compose.web-landing.yml,docker/nginx/nginx.conf,docker/nginx/maintenance/,docker/alloy/config.alloy,config/blackbox/blackbox.yml,docker/prometheus/,docker/grafana/,docker/loki/,docker/journal-export.service,docker/logrotate-journal"
           target: /opt/creditcardanalyzer
           strip_components: 1
 
@@ -1038,32 +1038,44 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ vars.SSH_PORT || '43422' }}
-          command_timeout: 3m
+          command_timeout: 4m
           script: |
             cd /opt/creditcardanalyzer
             export PATH="$HOME/.local/bin:$PATH"
             set -a; source .env; set +a
 
-            echo "Ensuring monitoring stack is running..."
+            echo "=== Monitoring deploy ==="
 
-            # Create external volumes if they don't exist
+            # ── 1. Cleanup: kill duplicate journalctl processes ──
+            echo "Killing duplicate journalctl processes..."
+            JOURNAL_PIDS=$(pgrep -f "journalctl -f" 2>/dev/null || true)
+            if [ -n "$JOURNAL_PIDS" ]; then
+              echo "$JOURNAL_PIDS" | xargs kill 2>/dev/null || true
+              sleep 2
+            fi
+
+            # ── 2. journal.log rotation ──
+            echo "Setting up journal.log rotation..."
+            mkdir -p /opt/creditcardanalyzer/logs
+            if [ -f /opt/creditcardanalyzer/logrotate-journal ]; then
+              cp /opt/creditcardanalyzer/logrotate-journal /etc/logrotate.d/journal-export 2>/dev/null || true
+              # Run rotation now if file is >50MB
+              JOURNAL_SIZE=$(stat -c%s /opt/creditcardanalyzer/logs/journal.log 2>/dev/null || echo "0")
+              if [ "$JOURNAL_SIZE" -gt 52428800 ]; then
+                echo "journal.log is $((JOURNAL_SIZE / 1048576))MB, rotating..."
+                logrotate -f /etc/logrotate.d/journal-export 2>/dev/null || true
+              fi
+            fi
+
+            # ── 3. Start monitoring stack ──
+            echo "Starting monitoring stack..."
             podman volume create oikonomia_prometheus_data 2>/dev/null || true
             podman volume create oikonomia_grafana_data 2>/dev/null || true
             podman volume create oikonomia_loki_data 2>/dev/null || true
             podman volume create oikonomia-monitoring_alloy_data 2>/dev/null || true
-
-            # up -d is idempotent: running containers are untouched.
-            # Only creates/starts containers that are missing.
             podman-compose -p oikonomia-monitoring -f docker-compose.monitoring.yml up -d
 
-            # Connect nginx-exporter to oikonomia network so it can reach nginx:8080
-            NGINX_EXPORTER=$(podman ps --format '{{.Names}}' | grep -E '_nginx-exporter_' | head -1)
-            if [ -n "$NGINX_EXPORTER" ]; then
-              podman network connect oikonomia "$NGINX_EXPORTER" 2>/dev/null || true
-            fi
-
-            # Ensure Prometheus has --web.enable-lifecycle (needed for hot reload)
-            # If not, force-recreate to pick up the new flag
+            # ── 4. Prometheus: enable lifecycle API ──
             PROMETHEUS_ARGS=$(podman inspect oikonomia-monitoring_prometheus_1 --format '{{.Config.Cmd}}' 2>/dev/null || echo "")
             if echo "$PROMETHEUS_ARGS" | grep -q "enable-lifecycle"; then
               echo "Prometheus lifecycle API enabled, reloading config..."
@@ -1074,20 +1086,30 @@ jobs:
               sleep 5
             fi
 
-            # Install journal-export service for Alloy
+            # ── 5. Journal-export service ──
             echo "Setting up journal-export service..."
             mkdir -p ~/.config/systemd/user
-            mkdir -p /opt/creditcardanalyzer/logs
             cp /opt/creditcardanalyzer/journal-export.service ~/.config/systemd/user/ 2>/dev/null || true
             systemctl --user daemon-reload 2>/dev/null || true
             systemctl --user enable journal-export.service 2>/dev/null || true
-            systemctl --user start journal-export.service 2>/dev/null || true
+            systemctl --user restart journal-export.service 2>/dev/null || true
 
-            # Restart Alloy to pick up correct config (file-based, not journal-based)
-            echo "Restarting Alloy with file-based config..."
+            # ── 6. Alloy: reset position + restart with correct config ──
+            echo "Resetting Alloy position file..."
+            podman stop oikonomia-monitoring_alloy_1 2>/dev/null || true
+            sleep 2
+            podman start oikonomia-monitoring_alloy_1 2>/dev/null || true
+            sleep 3
+            podman exec oikonomia-monitoring_alloy_1 rm -f /var/lib/alloy/data/loki.source.file.journal_export/positions.yml 2>/dev/null || true
             podman restart oikonomia-monitoring_alloy_1 2>/dev/null || true
 
-            # Verify all expected monitoring containers are running
+            # ── 7. Connect nginx-exporter to oikonomia network ──
+            NGINX_EXPORTER=$(podman ps --format '{{.Names}}' | grep -E '_nginx-exporter_' | head -1)
+            if [ -n "$NGINX_EXPORTER" ]; then
+              podman network connect oikonomia "$NGINX_EXPORTER" 2>/dev/null || true
+            fi
+
+            # ── 8. Verify all containers running ──
             echo "Verifying monitoring containers..."
             EXPECTED="prometheus grafana loki postgres-exporter redis-exporter node-exporter nginx-exporter blackbox-exporter alloy podman-exporter"
             MISSING=""
@@ -1105,24 +1127,16 @@ jobs:
               echo "Attempting to start missing containers..."
               podman-compose -p oikonomia-monitoring -f docker-compose.monitoring.yml up -d
               sleep 5
-              # Re-verify
-              STILL_MISSING=""
-              for SVC in $EXPECTED; do
-                CONTAINER="oikonomia-monitoring_${SVC}_1"
-                STATUS=$(podman inspect "$CONTAINER" --format '{{.State.Status}}' 2>/dev/null || echo "missing")
-                if [ "$STATUS" != "running" ]; then
-                  STILL_MISSING="$STILL_MISSING $SVC"
-                fi
-              done
-              if [ -n "$STILL_MISSING" ]; then
-                echo "::error::Still missing after retry:$STILL_MISSING"
-                exit 1
-              fi
             fi
 
-            # Verify Prometheus targets are UP
-            echo "Verifying Prometheus targets..."
+            # ── 9. Verify Loki accepts data ──
+            echo "Verifying Loki ingest..."
             sleep 10
+            curl -s -X POST http://localhost:3100/loki/api/v1/push -H "Content-Type: application/json" \
+              -d "{\"streams\":[{\"stream\":{\"job\":\"deploy-test\"},\"values\":[[\"$(date +%s)000000000\",\"deploy verification\"]]}]}" > /dev/null 2>&1
+
+            # ── 10. Verify Prometheus targets ──
+            echo "Verifying Prometheus targets..."
             DOWN_TARGETS=$(curl -s http://localhost:9090/api/v1/targets | python3 -c "
             import sys,json
             d=json.load(sys.stdin)

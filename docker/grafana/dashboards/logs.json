@@ -72,7 +72,7 @@
       },
       "targets": [
         {
-          "expr": "{job=\"systemd-journal\"} |~ \"(?i)(error|exception|fatal|panic|traceback)\"",
+          "expr": "{job=\"systemd-journal\", level=\"error\"} !~ \"(scheduler_processor|context canceled)\"",
           "legendFormat": "",
           "refId": "A",
           "datasource": {
