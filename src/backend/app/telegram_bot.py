@@ -276,6 +276,44 @@ ACCOUNT_TYPE_KEYWORDS = {
 }
 
 
+def _match_cuenta_tag_from_text(
+    card_name: str | None,
+    bank: str | None,
+    user_id: int,
+    db,
+) -> "Tag | None":
+    """Match a 'cuenta' tag by computing HMAC candidates from extracted card_name/bank.
+
+    The platform stores payment methods as tags with group_name='cuenta' and
+    encrypted names. Matching uses name_hmac (same as get_or_create_payment_tag).
+    """
+    from app.services.encryption import compute_hmac
+
+    if not card_name and not bank:
+        return None
+
+    candidates = set()
+    if card_name and bank:
+        candidates.add(f"{bank} {card_name}".strip().lower())
+        candidates.add(f"{card_name} {bank}".strip().lower())
+    if card_name:
+        candidates.add(card_name.strip().lower())
+    if bank:
+        candidates.add(bank.strip().lower())
+
+    hmacs = [compute_hmac(c) for c in candidates]
+    tag = (
+        db.query(Tag)
+        .filter(
+            Tag.user_id == user_id,
+            Tag.group_name == "cuenta",
+            Tag.name_hmac.in_(hmacs),
+        )
+        .first()
+    )
+    return tag
+
+
 def _match_account_from_text(text: str, user_id: int, db) -> "Account | None":
     """Try to match an account from natural language text."""
     lower = text.lower()
@@ -1261,6 +1299,19 @@ async def _handle_bank_notification(
             if account:
                 account_id = account.id
 
+        # Fallback: match against 'cuenta' tags via HMAC
+        if not card_id and not account_id:
+            matched_tag = _match_cuenta_tag_from_text(
+                parsed.get("card_name"), parsed.get("bank"), user_id, db
+            )
+            if matched_tag:
+                card_id = matched_tag.card_id
+                account_id = matched_tag.account_id
+                logger.info(
+                    "[BANK_PARSE] matched cuenta tag: id=%d card_id=%s account_id=%s",
+                    matched_tag.id, card_id, account_id,
+                )
+
         # Fallback tag name from bank+card_name text when no card/account matched
         if not card_id and not account_id:
             bank_info = parsed.get("bank", "")
@@ -1407,9 +1458,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if matched_card:
             card_id = matched_card.id
         else:
-            matched_account = _match_account_from_text(text, user_id, db)
-            if matched_account:
-                account_id = matched_account.id
+            # Fallback: match against 'cuenta' tags via HMAC (platform stores
+            # payment methods as tags, not in the cards/accounts tables)
+            matched_tag = _match_cuenta_tag_from_text(text_card_name, text_bank, user_id, db)
+            if matched_tag:
+                card_id = matched_tag.card_id
+                account_id = matched_tag.account_id
+                logger.info(
+                    "[CARD_DETECT] matched cuenta tag: id=%d name_hmac=%s card_id=%s account_id=%s",
+                    matched_tag.id, matched_tag.name_hmac[:8], card_id, account_id,
+                )
+            else:
+                matched_account = _match_account_from_text(text, user_id, db)
+                if matched_account:
+                    account_id = matched_account.id
 
         saved_expenses = []
         for parsed_item in parsed_list:
