@@ -21,6 +21,12 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ["dist/", "node_modules/", "*.config.js", "src/api/client-generated.ts", "src/types/generated/**"],
+    ignores: [
+      "dist/",
+      "node_modules/",
+      "*.config.js",
+      "src/api/client-generated.ts",
+      "src/types/generated/**",
+    ],
   },
 );
