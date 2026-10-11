@@ -9,7 +9,10 @@ services:
       - ./certbot/conf:/etc/letsencrypt:ro,z
       - ./nginx/maintenance:/usr/share/nginx/maintenance:ro
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- --no-check-certificate https://127.0.0.1/ || exit 1"]
+      # Check that nginx is responding, NOT that upstream is healthy.
+      # 200/301/302 = upstream alive, 502/503/504 = upstream down but nginx is serving maintenance.
+      # Only "000" (connection refused) means nginx itself is down.
+      test: ["CMD-SHELL", "curl -s -o /dev/null -w '%{http_code}' --max-time 3 --insecure https://127.0.0.1/ | grep -qE '^[235]'"]
       interval: 30s
       timeout: 5s
       start_period: 10s

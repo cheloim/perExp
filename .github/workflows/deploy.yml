@@ -69,7 +69,7 @@ jobs:
               - 'docker/docker-compose.platform.yml'
             monitoring:
               - 'docker/docker-compose.monitoring.yml'
-              - 'config/alloy/**'
+              - 'docker/alloy/**'
               - 'config/blackbox/**'
             nginx:
               - 'docker/nginx/**'
@@ -343,7 +343,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ vars.SSH_PORT || '43422' }}
-          source: "docker/docker-compose.infra.yml,docker/docker-compose.nginx.yml,docker/docker-compose.platform.yml,docker/docker-compose.bots.yml,docker/docker-compose.monitoring.yml,docker/docker-compose.web-landing.yml,docker/nginx/nginx.conf,docker/nginx/maintenance/,config/alloy/config.alloy,config/blackbox/blackbox.yml,docker/prometheus/,docker/grafana/,docker/loki/,docker/journal-export.service"
+          source: "docker/docker-compose.infra.yml,docker/docker-compose.nginx.yml,docker/docker-compose.platform.yml,docker/docker-compose.bots.yml,docker/docker-compose.monitoring.yml,docker/docker-compose.web-landing.yml,docker/nginx/nginx.conf,docker/nginx/maintenance/,docker/alloy/config.alloy,config/blackbox/blackbox.yml,docker/prometheus/,docker/grafana/,docker/loki/,docker/journal-export.service"
           target: /opt/creditcardanalyzer
           strip_components: 1
 
@@ -949,7 +949,9 @@ jobs:
   deploy-nginx:
     runs-on: ubuntu-latest
     needs: [deploy-infra, setup-certs, detect-changes]
-    if: always() && !cancelled() && (needs.detect-changes.outputs.nginx == 'true' || needs.detect-changes.outputs.platform == 'true' || inputs.action == 'full')
+    # Only run when nginx config changed. Nginx re-resolves upstream IPs automatically
+    # via the resolver directive, so platform changes don't need nginx restarts.
+    if: always() && !cancelled() && (needs.detect-changes.outputs.nginx == 'true' || inputs.action == 'full')
 
     steps:
       - name: Update nginx config (rolling restart)
@@ -971,16 +973,16 @@ jobs:
             # No manual stop needed — zero downtime.
             podman-compose -p oikonomia-nginx -f docker-compose.nginx.yml up -d
 
-            # Verify nginx is healthy
+            # Verify nginx is responding (any HTTP response = healthy)
             NGINX_OK=false
             for i in $(seq 1 15); do
               STATUS=$(curl -sk -o /dev/null -w "%{http_code}" https://127.0.0.1/ 2>/dev/null)
-              if [ "$STATUS" = "301" ] || [ "$STATUS" = "200" ]; then
-                echo "Nginx healthy after ${i} attempt(s) (status: $STATUS)"
+              if [ "$STATUS" != "000" ]; then
+                echo "Nginx responding after ${i} attempt(s) (status: $STATUS)"
                 NGINX_OK=true
                 break
               fi
-              echo "Attempt $i/15: got $STATUS, retrying in 3s..."
+              echo "Attempt $i/15: no response, retrying in 3s..."
               sleep 3
             done
 
@@ -1076,7 +1078,7 @@ jobs:
             echo "Setting up journal-export service..."
             mkdir -p ~/.config/systemd/user
             mkdir -p /opt/creditcardanalyzer/logs
-            cp /opt/creditcardanalyzer/docker/journal-export.service ~/.config/systemd/user/ 2>/dev/null || true
+            cp /opt/creditcardanalyzer/journal-export.service ~/.config/systemd/user/ 2>/dev/null || true
             systemctl --user daemon-reload 2>/dev/null || true
             systemctl --user enable journal-export.service 2>/dev/null || true
             systemctl --user start journal-export.service 2>/dev/null || true
