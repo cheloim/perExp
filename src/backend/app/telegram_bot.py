@@ -292,12 +292,25 @@ def _match_cuenta_tag_from_text(
     if not card_name and not bank:
         return None
 
+    # Strip card type words — platform tags are stored as "Bank CardName"
+    # without "Crédito"/"Débito" (e.g., "Santander Visa" not "Santander Visa Crédito")
+    card_base = card_name
+    if card_base:
+        card_base = re.sub(
+            r"\s*(?:cr[eé]dito|d[eé]bito)\s*", " ", card_base, flags=re.IGNORECASE
+        ).strip()
+
     candidates = set()
     if card_name and bank:
         candidates.add(f"{bank} {card_name}".strip().lower())
         candidates.add(f"{card_name} {bank}".strip().lower())
+    if card_base and bank and card_base != card_name:
+        candidates.add(f"{bank} {card_base}".strip().lower())
+        candidates.add(f"{card_base} {bank}".strip().lower())
     if card_name:
         candidates.add(card_name.strip().lower())
+    if card_base and card_base != card_name:
+        candidates.add(card_base.strip().lower())
     if bank:
         candidates.add(bank.strip().lower())
 
@@ -556,7 +569,9 @@ def _save_expense(
             if tag:
                 tag_ids = [tag.id]
         elif not tag_ids and payment_tag_name:
-            tag = _find_or_create_tag(db, user_id, payment_tag_name)
+            from app.services.tag_sync import get_or_create_payment_tag
+
+            tag = get_or_create_payment_tag(db, user_id, name_hint=payment_tag_name)
             if tag:
                 tag_ids = [tag.id]
 
