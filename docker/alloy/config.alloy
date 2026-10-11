@@ -29,15 +29,17 @@ loki.process "parse" {
   }
 
   // 2. Replace log body with just the MESSAGE field
-  //    Without this, Loki shows the full journal JSON
   stage.output {
     source = "msg"
   }
 
-  // 3. Map journal priority number to level label
+  // 3. Map journal priority to level, downgrading monitoring containers.
+  //    Loki and Alloy write to stderr which journald marks as PRIORITY=3 (error),
+  //    but their actual log level is usually info/warn. Downgrade monitoring
+  //    container "errors" to info to reduce noise in the dashboard.
   stage.template {
     source   = "level"
-    template = "{{ if eq .priority \"3\" }}error{{ else if eq .priority \"4\" }}warning{{ else if eq .priority \"6\" }}info{{ else if eq .priority \"7\" }}debug{{ else }}unknown{{ end }}"
+    template = "{{ if and (eq .priority \"3\") (or (contains \"loki\" .container) (contains \"alloy\" .container) (contains \"exporter\" .container)) }}info{{ else if eq .priority \"3\" }}error{{ else if eq .priority \"4\" }}warning{{ else if eq .priority \"6\" }}info{{ else if eq .priority \"7\" }}debug{{ else }}unknown{{ end }}"
   }
 
   // 4. Set labels for querying in Grafana
