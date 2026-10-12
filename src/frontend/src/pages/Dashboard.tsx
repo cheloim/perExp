@@ -22,6 +22,9 @@ import {
   getInvestments,
   getMyGroup,
   createExpense,
+  updateExpense,
+  getCategories,
+  getTags,
   getUsdRate,
   getCreditCardPasivos,
   getInstallmentsMonthlyLoad,
@@ -36,6 +39,7 @@ import { getCategoryIcon } from "../utils/categoryIcon";
 import SymbolicIcon from "../components/SymbolicIcon";
 import { ExpenseModal } from "../components/ExpenseModals";
 import EmptyState from "../components/ui/EmptyState";
+import QuickEditPopover from "../components/QuickEditPopover";
 
 const FALLBACK_COLORS = [
   "#3b82f6", // blue
@@ -123,6 +127,11 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Expense | null | undefined>(undefined);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [quickEdit, setQuickEdit] = useState<{
+    expenseId: number;
+    type: "category" | "cuenta";
+    rect: DOMRect;
+  } | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [daysFilter, setDaysFilter] = useState(7);
   // Performance: defer off-screen queries after initial render
@@ -169,6 +178,83 @@ export default function Dashboard() {
       }),
     staleTime: 30_000,
     placeholderData: (prev) => prev,
+  });
+
+  // Categories + cuenta tags for quick-edit popover (Tier 3: deferred)
+  const { data: categoriesList = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: getCategories,
+    staleTime: 300_000,
+    enabled: deferred,
+  });
+
+  const { data: tagsList = [] } = useQuery({
+    queryKey: ["tags"],
+    queryFn: getTags,
+    staleTime: 300_000,
+    enabled: deferred,
+  });
+
+  const invalidateDashboard = () => {
+    queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    queryClient.invalidateQueries({ queryKey: ["card-summary"] });
+    queryClient.invalidateQueries({ queryKey: ["tag-summary"] });
+    queryClient.invalidateQueries({ queryKey: ["expenses-month"] });
+    queryClient.invalidateQueries({ queryKey: ["uncategorized-count"] });
+    queryClient.invalidateQueries({ queryKey: ["expenses-list"] });
+  };
+
+  const quickUpdateMut = useMutation({
+    mutationFn: async ({
+      id,
+      field,
+      value,
+    }: {
+      id: number;
+      field: "category_id" | "cuenta";
+      value: number | null;
+    }) => {
+      if (field === "category_id") {
+        return updateExpense(id, { category_id: value });
+      }
+      const exp = monthExpenses.find((e) => e.id === id);
+      const keepTagIds = (exp?.tags ?? [])
+        .filter((t) => t.group_name !== "cuenta")
+        .map((t) => t.id);
+      const newTagIds = value != null ? [...keepTagIds, value] : keepTagIds;
+      return updateExpense(id, { tag_ids: newTagIds });
+    },
+    onMutate: async ({ id, field, value }) => {
+      await queryClient.cancelQueries({ queryKey: ["expenses-month", month] });
+      const queryKey = ["expenses-month", month];
+      const previous = queryClient.getQueryData<Expense[]>(queryKey);
+      queryClient.setQueryData<Expense[]>(queryKey, (old) =>
+        (old ?? []).map((e) => {
+          if (e.id !== id) return e;
+          if (field === "category_id") {
+            const cat = categoriesList.find((c) => c.id === value);
+            return {
+              ...e,
+              category_id: value,
+              category_name: cat?.name ?? null,
+              category_color: cat?.color ?? null,
+            };
+          }
+          const keepTags = (e.tags ?? []).filter((t) => t.group_name !== "cuenta");
+          const newTag = value != null ? tagsList.find((t) => t.id === value) : undefined;
+          return { ...e, tags: newTag ? [...keepTags, newTag] : keepTags };
+        }),
+      );
+      return { previous, queryKey };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(ctx.queryKey, ctx.previous);
+      setSaveError("Error al actualizar");
+    },
+    onSettled: () => {
+      invalidateDashboard();
+      setQuickEdit(null);
+    },
   });
 
   // Scheduled expenses for current month (Tier 3: deferred)
@@ -727,10 +813,63 @@ export default function Dashboard() {
                       <p className="text-sm font-medium text-primary truncate">
                         {toUpperCase(exp.description)}
                       </p>
-                      <p className="text-xs text-tertiary">
-                        {formatDateDMYSlash(exp.date)}
-                        {exp.category_name ? ` · ${exp.category_name}` : ""}
-                        {exp.card ? ` · ${exp.card}` : ""}
+                      <p className="text-xs text-tertiary flex items-center gap-1 flex-wrap">
+                        <span>{formatDateDMYSlash(exp.date)}</span>
+                        <span>·</span>
+                        {exp.category_name ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setSaveError(null);
+                              setQuickEdit({ expenseId: exp.id, type: "category", rect });
+                            }}
+                            className="hover:text-primary hover:underline transition rounded"
+                            title="Cambiar categoría"
+                          >
+                            {exp.category_name}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setSaveError(null);
+                              setQuickEdit({ expenseId: exp.id, type: "category", rect });
+                            }}
+                            className="text-[var(--color-warning,#e5a50a)] hover:underline font-medium transition rounded"
+                            title="Asignar categoría"
+                          >
+                            Sin categoría
+                          </button>
+                        )}
+                        {exp.card ? (
+                          <>
+                            <span>·</span>
+                            <span className="truncate max-w-[90px]">{exp.card}</span>
+                          </>
+                        ) : null}
+                        {(() => {
+                          const cuentaTag = exp.tags?.find((t) => t.group_name === "cuenta");
+                          if (!cuentaTag) return null;
+                          return (
+                            <>
+                              <span>·</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setSaveError(null);
+                                  setQuickEdit({ expenseId: exp.id, type: "cuenta", rect });
+                                }}
+                                className="hover:text-primary hover:underline transition rounded truncate max-w-[90px]"
+                                title="Cambiar cuenta"
+                              >
+                                {cuentaTag.name}
+                              </button>
+                            </>
+                          );
+                        })()}
                       </p>
                     </div>
                   </div>
@@ -1092,6 +1231,67 @@ export default function Dashboard() {
           onSave={handleSave}
           saveError={saveError}
           isSaving={createMut.isPending}
+        />
+      )}
+
+      {saveError && editing === undefined && !quickEdit && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9998] flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--color-surface)] border border-[var(--red-3,#e01b24)]/40 shadow-lg text-sm text-[var(--text-primary)]">
+          <span>{saveError}</span>
+          <button
+            type="button"
+            onClick={() => setSaveError(null)}
+            className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition"
+            aria-label="Cerrar error"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {quickEdit && (
+        <QuickEditPopover
+          triggerRect={quickEdit.rect}
+          onClose={() => setQuickEdit(null)}
+          value={
+            quickEdit.type === "category"
+              ? String(monthExpenses.find((e) => e.id === quickEdit.expenseId)?.category_id ?? "")
+              : String(
+                  monthExpenses
+                    .find((e) => e.id === quickEdit.expenseId)
+                    ?.tags?.find((t) => t.group_name === "cuenta")?.id ?? "",
+                )
+          }
+          searchPlaceholder={
+            quickEdit.type === "category" ? "Buscar categoría..." : "Buscar cuenta..."
+          }
+          clearLabel={quickEdit.type === "category" ? "Sin categoría" : "Sin cuenta"}
+          options={
+            quickEdit.type === "category"
+              ? categoriesList.map((c) => ({
+                  value: String(c.id),
+                  label: c.name,
+                  color: c.color,
+                }))
+              : tagsList
+                  .filter((t) => t.group_name === "cuenta")
+                  .map((t) => ({ value: String(t.id), label: t.name, color: t.color }))
+          }
+          onSelect={(val) => {
+            const id = quickEdit.expenseId;
+            if (quickEdit.type === "category") {
+              quickUpdateMut.mutate({
+                id,
+                field: "category_id",
+                value: val === "__clear__" ? null : parseInt(val),
+              });
+            } else {
+              quickUpdateMut.mutate({
+                id,
+                field: "cuenta",
+                value: val === "__clear__" ? null : parseInt(val),
+              });
+            }
+          }}
         />
       )}
     </div>
