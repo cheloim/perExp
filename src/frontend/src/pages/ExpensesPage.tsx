@@ -26,6 +26,7 @@ import { ExpenseModal } from "../components/ExpenseModals";
 import ExpenseDetailModal from "../components/ExpenseDetailModal";
 import EmptyState from "../components/ui/EmptyState";
 import SymbolicIcon from "../components/SymbolicIcon";
+import QuickEditPopover from "../components/QuickEditPopover";
 import { getCategoryIcon } from "../utils/categoryIcon";
 import {
   PieChart,
@@ -222,6 +223,11 @@ export default function ExpensesPage() {
     description: string;
   } | null>(null);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [quickEdit, setQuickEdit] = useState<{
+    expenseId: number;
+    type: "category" | "cuenta";
+    rect: DOMRect;
+  } | null>(null);
 
   const clearBulkState = () => {
     setDrawerOpen(false);
@@ -319,6 +325,78 @@ export default function ExpensesPage() {
       setSaveError(null);
     },
     onError: (e: Error) => setSaveError(e.message),
+  });
+
+  const quickUpdateMut = useMutation({
+    mutationFn: async ({
+      id,
+      field,
+      value,
+    }: {
+      id: number;
+      field: "category_id" | "cuenta";
+      value: number | null;
+    }) => {
+      if (field === "category_id") {
+        return updateExpense(id, { category_id: value });
+      }
+      // "cuenta" = tag swap. Build new tag_ids preserving non-cuenta tags.
+      const exp = expenses.find((e) => e.id === id);
+      const keepTagIds = (exp?.tags ?? [])
+        .filter((t) => t.group_name !== "cuenta")
+        .map((t) => t.id);
+      const newTagIds = value != null ? [...keepTagIds, value] : keepTagIds;
+      return updateExpense(id, { tag_ids: newTagIds });
+    },
+    onMutate: async ({ id, field, value }) => {
+      await queryClient.cancelQueries({ queryKey: ["expenses-list"] });
+      const queryKey = [
+        "expenses-list",
+        filterCategory,
+        filterUncategorized,
+        filterPerson,
+        filterDateFrom,
+        filterDateTo,
+        filterTagId,
+        filterUntagged,
+        filterCuentaId,
+        filterSinCuenta,
+        visibleCount,
+      ];
+      const previous = queryClient.getQueryData<Expense[]>(queryKey);
+      queryClient.setQueryData<Expense[]>(queryKey, (old) =>
+        (old ?? []).map((e) => {
+          if (e.id !== id) return e;
+          if (field === "category_id") {
+            const cat = categories.find((c) => c.id === value);
+            return {
+              ...e,
+              category_id: value,
+              category_name: cat?.name ?? null,
+              category_color: cat?.color ?? null,
+            };
+          }
+          // cuenta tag swap
+          const keepTags = (e.tags ?? []).filter((t) => t.group_name !== "cuenta");
+          const newTag = value != null ? tags.find((t) => t.id === value) : undefined;
+          return {
+            ...e,
+            tags: newTag ? [...keepTags, newTag] : keepTags,
+          };
+        }),
+      );
+      return { previous, queryKey };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(ctx.queryKey, ctx.previous);
+      }
+      setSaveError("Error al actualizar");
+    },
+    onSettled: () => {
+      invalidate();
+      setQuickEdit(null);
+    },
   });
 
   const deleteMut = useMutation({
@@ -1076,6 +1154,20 @@ export default function ExpensesPage() {
                           onClick={() =>
                             selectMode ? toggleSelect(exp.id) : setDetailExpense(exp)
                           }
+                          onContextMenu={(e) => {
+                            if (selectMode) return;
+                            e.preventDefault();
+                            setQuickEdit({
+                              expenseId: exp.id,
+                              type: "category",
+                              rect: DOMRect.fromRect({
+                                x: e.clientX,
+                                y: e.clientY,
+                                width: 0,
+                                height: 0,
+                              }),
+                            });
+                          }}
                         >
                           {selectMode && (
                             <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
@@ -1194,8 +1286,14 @@ export default function ExpensesPage() {
                             {/* Mobile: category + cuenta chip + otros tags under title */}
                             <div className="text-xs flex gap-1.5 items-center flex-wrap md:hidden">
                               {exp.category_name ? (
-                                <span
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium"
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setQuickEdit({ expenseId: exp.id, type: "category", rect });
+                                  }}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium hover:ring-1 hover:ring-[var(--color-primary)]/40 transition"
                                   style={{
                                     backgroundColor: (exp.category_color || "#9a9996") + "1F",
                                     color: "var(--text-primary)",
@@ -1206,13 +1304,19 @@ export default function ExpensesPage() {
                                     style={{ backgroundColor: exp.category_color || "#9a9996" }}
                                   />
                                   {exp.category_name}
-                                </span>
+                                </button>
                               ) : null}
                               {(() => {
                                 const cuentaTag = exp.tags?.find((t) => t.group_name === "cuenta");
                                 return cuentaTag ? (
-                                  <span
-                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px]"
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const rect = e.currentTarget.getBoundingClientRect();
+                                      setQuickEdit({ expenseId: exp.id, type: "cuenta", rect });
+                                    }}
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] hover:ring-1 hover:ring-[var(--color-primary)]/40 transition"
                                     style={{
                                       backgroundColor: cuentaTag.color + "1F",
                                       color: "var(--text-primary)",
@@ -1223,7 +1327,7 @@ export default function ExpensesPage() {
                                       style={{ backgroundColor: cuentaTag.color }}
                                     />
                                     {cuentaTag.name}
-                                  </span>
+                                  </button>
                                 ) : null;
                               })()}
                               {exp.tags
@@ -1274,94 +1378,121 @@ export default function ExpensesPage() {
                             </div>
                           </td>
                           <td className="px-4 py-3 hidden sm:table-cell">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDetailExpense(exp);
-                              }}
-                              className="text-left"
-                            >
-                              {exp.category_name ? (
+                            {exp.category_name ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setQuickEdit({ expenseId: exp.id, type: "category", rect });
+                                }}
+                                className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium max-w-[110px] hover:ring-1 hover:ring-[var(--color-primary)]/40 transition"
+                                style={{
+                                  backgroundColor: (exp.category_color || "#9a9996") + "1F",
+                                  color: "var(--text-primary)",
+                                }}
+                                title="Cambiar categoría"
+                              >
                                 <span
-                                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium max-w-[110px]"
-                                  style={{
-                                    backgroundColor: (exp.category_color || "#9a9996") + "1F",
-                                    color: "var(--text-primary)",
-                                  }}
-                                >
-                                  <span
-                                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                                    style={{ backgroundColor: exp.category_color || "#9a9996" }}
-                                  />
-                                  <span className="truncate">{exp.category_name}</span>
-                                </span>
-                              ) : showSuggestions && suggestionsByExpenseId.has(exp.id) ? (
-                                <span className="inline-flex items-center gap-1.5">
-                                  <span className="text-[var(--text-tertiary)]">—</span>
-                                  <button
-                                    onClick={async (e) => {
-                                      e.stopPropagation();
-                                      const s = suggestionsByExpenseId.get(exp.id)!;
-                                      await approveSuggestion(s.id);
-                                      invalidate();
-                                      refetchSuggestions();
-                                    }}
-                                    className={`px-2 py-1 rounded text-xs font-medium transition ${
-                                      suggestionsByExpenseId.get(exp.id)!.confidence >= 0.7
-                                        ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20"
-                                        : "bg-purple-500/5 text-purple-400/70 dark:text-purple-500/50 hover:bg-purple-500/10"
-                                    }`}
-                                    title={`Sugerencia: ${
-                                      suggestionsByExpenseId.get(exp.id)!.parent_name
-                                        ? suggestionsByExpenseId.get(exp.id)!.parent_name + " > "
-                                        : ""
-                                    }${
-                                      suggestionsByExpenseId.get(exp.id)!.category_name
-                                    } (${Math.round(
-                                      suggestionsByExpenseId.get(exp.id)!.confidence * 100,
-                                    )}%)`}
-                                  >
-                                    ✨ {suggestionsByExpenseId.get(exp.id)!.category_name}
-                                  </button>
-                                  <button
-                                    onClick={async (e) => {
-                                      e.stopPropagation();
-                                      const s = suggestionsByExpenseId.get(exp.id)!;
-                                      await rejectSuggestion(s.id);
-                                      refetchSuggestions();
-                                    }}
-                                    className="text-[var(--text-tertiary)] hover:text-red-500 transition text-xs"
-                                    title="Descartar sugerencia"
-                                  >
-                                    ✗
-                                  </button>
-                                </span>
-                              ) : (
+                                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                  style={{ backgroundColor: exp.category_color || "#9a9996" }}
+                                />
+                                <span className="truncate">{exp.category_name}</span>
+                              </button>
+                            ) : showSuggestions && suggestionsByExpenseId.has(exp.id) ? (
+                              <span className="inline-flex items-center gap-1.5">
                                 <span className="text-[var(--text-tertiary)]">—</span>
-                              )}
-                            </button>
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    const s = suggestionsByExpenseId.get(exp.id)!;
+                                    await approveSuggestion(s.id);
+                                    invalidate();
+                                    refetchSuggestions();
+                                  }}
+                                  className={`px-2 py-1 rounded text-xs font-medium transition ${
+                                    suggestionsByExpenseId.get(exp.id)!.confidence >= 0.7
+                                      ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20"
+                                      : "bg-purple-500/5 text-purple-400/70 dark:text-purple-500/50 hover:bg-purple-500/10"
+                                  }`}
+                                  title={`Sugerencia: ${
+                                    suggestionsByExpenseId.get(exp.id)!.parent_name
+                                      ? suggestionsByExpenseId.get(exp.id)!.parent_name + " > "
+                                      : ""
+                                  }${
+                                    suggestionsByExpenseId.get(exp.id)!.category_name
+                                  } (${Math.round(
+                                    suggestionsByExpenseId.get(exp.id)!.confidence * 100,
+                                  )}%)`}
+                                >
+                                  ✨ {suggestionsByExpenseId.get(exp.id)!.category_name}
+                                </button>
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    const s = suggestionsByExpenseId.get(exp.id)!;
+                                    await rejectSuggestion(s.id);
+                                    refetchSuggestions();
+                                  }}
+                                  className="text-[var(--text-tertiary)] hover:text-red-500 transition text-xs"
+                                  title="Descartar sugerencia"
+                                >
+                                  ✗
+                                </button>
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setQuickEdit({ expenseId: exp.id, type: "category", rect });
+                                }}
+                                className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition text-xs px-1 py-0.5 rounded hover:bg-[var(--color-base-alt)]"
+                                title="Asignar categoría"
+                              >
+                                —
+                              </button>
+                            )}
                           </td>
                           {/* Cuenta column */}
                           <td className="px-3 py-3 hidden md:table-cell">
                             {(() => {
                               const cuentaTag = exp.tags?.find((t) => t.group_name === "cuenta");
                               return cuentaTag ? (
-                                <span
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px]"
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setQuickEdit({ expenseId: exp.id, type: "cuenta", rect });
+                                  }}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] hover:ring-1 hover:ring-[var(--color-primary)]/40 transition"
                                   style={{
                                     backgroundColor: cuentaTag.color + "1F",
                                     color: "var(--text-primary)",
                                   }}
+                                  title="Cambiar cuenta"
                                 >
                                   <span
                                     className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                                     style={{ backgroundColor: cuentaTag.color }}
                                   />
                                   <span className="truncate max-w-[90px]">{cuentaTag.name}</span>
-                                </span>
+                                </button>
                               ) : (
-                                <span className="text-[var(--text-tertiary)] text-xs">—</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setQuickEdit({ expenseId: exp.id, type: "cuenta", rect });
+                                  }}
+                                  className="text-[var(--text-tertiary)] text-xs hover:text-[var(--text-primary)] transition px-1 py-0.5 rounded hover:bg-[var(--color-base-alt)]"
+                                  title="Asignar cuenta"
+                                >
+                                  —
+                                </button>
                               );
                             })()}
                           </td>
@@ -1554,6 +1685,47 @@ export default function ExpensesPage() {
       )}
 
       {ToastContainer}
+
+      {quickEdit && (
+        <QuickEditPopover
+          triggerRect={quickEdit.rect}
+          onClose={() => setQuickEdit(null)}
+          value={
+            quickEdit.type === "category"
+              ? String(expenses.find((e) => e.id === quickEdit.expenseId)?.category_id ?? "")
+              : String(
+                  expenses
+                    .find((e) => e.id === quickEdit.expenseId)
+                    ?.tags?.find((t) => t.group_name === "cuenta")?.id ?? "",
+                )
+          }
+          searchPlaceholder={
+            quickEdit.type === "category" ? "Buscar categoría..." : "Buscar cuenta..."
+          }
+          clearLabel={quickEdit.type === "category" ? "Sin categoría" : "Sin cuenta"}
+          options={
+            quickEdit.type === "category"
+              ? categories.map((c) => ({
+                  value: String(c.id),
+                  label: c.name,
+                  color: c.color,
+                }))
+              : tags
+                  .filter((t) => t.group_name === "cuenta")
+                  .map((t) => ({ value: String(t.id), label: t.name, color: t.color }))
+          }
+          onSelect={(val) => {
+            const id = quickEdit.expenseId;
+            if (quickEdit.type === "category") {
+              const catId = val === "__clear__" ? null : parseInt(val);
+              quickUpdateMut.mutate({ id, field: "category_id", value: catId });
+            } else {
+              const tagId = val === "__clear__" ? null : parseInt(val);
+              quickUpdateMut.mutate({ id, field: "cuenta", value: tagId });
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
