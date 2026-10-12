@@ -87,3 +87,22 @@ def test_del_prefix_scoped():
         assert n >= 1
         assert "v1:dash:AAA:summary:all:-:-:-:month" not in store
         assert "v1:dash:BBB:summary:all:-:-:-:month" in store
+
+
+def test_key_prefix_bucketing():
+    assert cache._key_prefix("v1:dash:abc:summary:all:-:-:-:month") == "v1:dash"
+    assert cache._key_prefix("v1:uncat:42") == "v1:uncat"
+    assert cache._key_prefix("nokeys") == "nokeys"
+
+
+def test_disabled_prefix_bypasses_redis(monkeypatch):
+    _reset()
+    monkeypatch.setenv("CACHE_DISABLED_PREFIXES", "v1:uncat")
+    fake = MagicMock()
+    with patch.object(cache, "_get_redis", return_value=fake):
+        assert cache.get_json("v1:uncat:42") is None
+        cache.set_json("v1:uncat:42", {"count": 1}, ttl=30)
+        fake.get.assert_not_called()
+        fake.setex.assert_not_called()
+        assert "v1:uncat:42" not in cache._L1
+    monkeypatch.delenv("CACHE_DISABLED_PREFIXES")

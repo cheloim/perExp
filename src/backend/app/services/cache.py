@@ -20,6 +20,42 @@ import time
 
 logger = logging.getLogger(__name__)
 
+try:
+    from prometheus_client import Counter as _Counter
+
+    CACHE_REQUESTS = _Counter(
+        "oikonomia_cache_requests_total",
+        "API cache lookups by key prefix and result",
+        ["prefix", "result"],
+    )
+except Exception:  # pragma: no cover — metrics backend optional in tests
+    CACHE_REQUESTS = None
+
+
+def _count(prefix: str, result: str) -> None:
+    try:
+        if CACHE_REQUESTS is not None:
+            CACHE_REQUESTS.labels(prefix=prefix, result=result).inc()
+    except Exception:
+        pass
+
+
+def _key_prefix(key: str) -> str:
+    """Bucket a cache key for metrics/kill-switch: 'v1:dash:...' -> 'v1:dash'."""
+    parts = key.split(":")
+    return ":".join(parts[:2]) if len(parts) >= 2 else key
+
+
+def _disabled_prefixes() -> list[str]:
+    import os
+
+    return [p.strip() for p in os.getenv("CACHE_DISABLED_PREFIXES", "").split(",") if p.strip()]
+
+
+def _is_disabled(key: str) -> bool:
+    return any(key.startswith(p) for p in _disabled_prefixes())
+
+
 # Reuse broker URL by default; allow a dedicated cache DB via env.
 # e.g. REDIS_CACHE_URL=redis://redis:6379/2 isolates cache from Celery broker /0.
 _L1: dict[str, tuple[float, object]] = {}
@@ -102,30 +138,42 @@ def _decode(blob: bytes) -> object:
 
 def get_json(key: str):
     """Return cached value or None on miss/error. Never raises."""
+    prefix = _key_prefix(key)
+    if _is_disabled(key):
+        _count(prefix, "disabled")
+        return None
     l1 = _l1_get(key)
     if l1 is not None:
+        _count(prefix, "hit_l1")
         return l1
     if _circuit_open():
+        _count(prefix, "circuit_open")
         return None
     try:
         blob = _get_redis().get(key)
     except Exception as e:
         logger.warning("cache get %s failed, falling back to DB: %s", key, e)
         _trip_circuit()
+        _count(prefix, "error")
         return None
     if blob is None:
+        _count(prefix, "miss")
         return None
     try:
         value = _decode(blob)
     except Exception as e:
         logger.warning("cache decode %s failed: %s", key, e)
+        _count(prefix, "error")
         return None
     _l1_set(key, value)
+    _count(prefix, "hit_redis")
     return value
 
 
 def set_json(key: str, value: object, ttl: int) -> None:
     """Best-effort store. Never raises."""
+    if _is_disabled(key):
+        return
     _l1_set(key, value)
     if _circuit_open():
         return

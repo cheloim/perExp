@@ -57,6 +57,7 @@ services:
       PYTHONPATH: /app
       DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD_DEV}@db:5432/expenses
       REDIS_URL: redis://redis:6379/1
+      REDIS_CACHE_URL: redis://redis:6379/2
       PYTHONUNBUFFERED: "1"
       SMTP_FROM: ${SMTP_FROM:-NikoFin}
       SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-noreply@resend.dev}
