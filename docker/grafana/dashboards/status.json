@@ -1280,7 +1280,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{status=~\"4..\"}[5m])) / sum(rate(http_requests_total[5m]))",
+          "expr": "(((sum(rate(http_requests_total{status=~\"4..\"}[5m])) or vector(0)) / (sum(rate(http_requests_total[5m])) or vector(0))) > 0) or vector(0)",
           "legendFormat": "4xx",
           "refId": "A",
           "datasource": {
@@ -1353,7 +1353,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{status=~\"[45]..\"}[5m])) / sum(rate(http_requests_total[5m]))",
+          "expr": "(((sum(rate(http_requests_total{status=~\"[45]..\"}[5m])) or vector(0)) / (sum(rate(http_requests_total[5m])) or vector(0))) > 0) or vector(0)",
           "legendFormat": "errors",
           "refId": "A",
           "datasource": {
