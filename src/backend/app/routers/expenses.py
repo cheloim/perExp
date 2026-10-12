@@ -33,6 +33,19 @@ def _assign_tags(
     return assign_tags_validated(db, expense_id, tag_ids, user_id, uid_list)
 
 
+def _invalidate_expense_cache(user_id: int, db: Session) -> None:
+    """Best-effort cache invalidation after expense/card/tag writes."""
+    try:
+        from app.services.cache import del_prefix, group_hash, invalidate_group
+
+        gh = group_hash(get_group_user_ids(user_id, db))
+        invalidate_group(gh)
+        del_prefix(f"v1:uncat:{user_id}")
+        del_prefix(f"v1:aitrends:{user_id}")
+    except Exception:
+        pass
+
+
 def _derive_account_from_tags(tags: list[Tag]) -> tuple[int | None, int | None]:
     """Derive card_id/account_id from tags with linked card/account. First match wins."""
     card_id = None
@@ -223,7 +236,13 @@ def get_uncategorized_count(
     """Check for uncategorized expenses and create notification if any exist."""
     import json
 
+    from app.services.cache import get_json, set_json
+
     uid_list = get_group_user_ids(current_user.id, db)
+    cache_key = f"v1:uncat:{current_user.id}"
+    cached = get_json(cache_key)
+    if cached is not None:
+        return cached
 
     count = (
         db.query(func.count(Expense.id))
@@ -258,7 +277,9 @@ def get_uncategorized_count(
             db.add(notification)
             db.commit()
 
-    return {"count": count}
+    result = {"count": count}
+    set_json(cache_key, result, ttl=30)
+    return result
 
 
 @router.get(
@@ -269,7 +290,14 @@ def get_uncategorized_count(
 def get_distinct_values(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
+    from app.services.cache import get_json, group_hash, set_json
+
     uid_list = get_group_user_ids(current_user.id, db)
+    gh = group_hash(uid_list)
+    key = f"v1:cards:{gh}:distinct"
+    cached = get_json(key)
+    if cached is not None:
+        return cached
 
     cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
 
@@ -277,11 +305,13 @@ def get_distinct_values(
     persons = sorted({c.holder for c in cards if c.holder})
     card_names = sorted({c.card_name for c in cards if c.card_name})
 
-    return {
+    result = {
         "banks": banks,
         "persons": persons,
         "cards": card_names,
     }
+    set_json(key, result, ttl=600)
+    return result
 
 
 @router.get(
@@ -290,7 +320,14 @@ def get_distinct_values(
     description="Returns card options grouped by person and bank, with holder names deduplicated via fuzzy matching.",
 )
 def get_card_options(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from app.services.cache import get_json, group_hash, set_json
+
     uid_list = get_group_user_ids(current_user.id, db)
+    gh = group_hash(uid_list)
+    key = f"v1:cards:{gh}:options"
+    cached = get_json(key)
+    if cached is not None:
+        return cached
     cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
 
     if not cards:
@@ -347,7 +384,9 @@ def get_card_options(db: Session = Depends(get_db), current_user: User = Depends
         for person, banks in structure.items()
     }
 
-    return {"persons": sorted(by_person), "by_person": by_person}
+    result = {"persons": sorted(by_person), "by_person": by_person}
+    set_json(key, result, ttl=600)
+    return result
 
 
 @router.get(
@@ -506,6 +545,7 @@ def create_expense(
         check_budget_threshold_on_expense(db, current_user.id, db_exp.category_id, db_exp.amount)
 
     EXPENSES_CREATED.labels(user_id=str(current_user.id)).inc()
+    _invalidate_expense_cache(current_user.id, db)
     return db_exp
 
 
@@ -589,6 +629,7 @@ def update_expense(
     db.commit()
     db.refresh(db_exp)
 
+    _invalidate_expense_cache(current_user.id, db)
     return db_exp
 
 
@@ -611,6 +652,7 @@ def bulk_delete_expenses(
         .delete(synchronize_session=False)
     )
     db.commit()
+    _invalidate_expense_cache(current_user.id, db)
     return {"deleted": deleted}
 
 
@@ -629,6 +671,7 @@ def delete_all_expenses(
     count = db.query(Expense).filter(Expense.user_id == current_user.id).count()
     db.query(Expense).filter(Expense.user_id == current_user.id).delete()
     db.commit()
+    _invalidate_expense_cache(current_user.id, db)
     return {"deleted": count}
 
 
@@ -647,6 +690,7 @@ def delete_expense(
         raise HTTPException(404, "Gasto no encontrado")
     db.delete(db_exp)
     db.commit()
+    _invalidate_expense_cache(current_user.id, db)
     return {"ok": True}
 
 
@@ -687,6 +731,7 @@ def bulk_update_expenses(
         for e in affected:
             sync_category_tag(db, e, e.category_id)
 
+    _invalidate_expense_cache(current_user.id, db)
     return {"updated": updated}
 
 
@@ -731,6 +776,7 @@ def bulk_update_category(
     for e in affected:
         sync_category_tag(db, e, e.category_id)
 
+    _invalidate_expense_cache(current_user.id, db)
     return {"updated": updated}
 
 
@@ -778,6 +824,7 @@ def bulk_update_tags(
             ).delete(synchronize_session=False)
 
     db.commit()
+    _invalidate_expense_cache(current_user.id, db)
     return {"updated": len(expense_ids)}
 
 

@@ -32,8 +32,10 @@ def get_spending_for_category(
     start = date(year, month, 1)
     end = date(year, month, monthrange(year, month)[1])
 
+    from sqlalchemy import func
+
     total = (
-        db.query(Expense)
+        db.query(func.coalesce(func.sum(func.abs(Expense.amount)), 0.0))
         .filter(
             Expense.user_id.in_(uid_list),
             Expense.category_id.in_(cat_ids),
@@ -41,10 +43,9 @@ def get_spending_for_category(
             Expense.date <= end,
             Expense.is_income == False,
         )
-        .with_entities(Expense.amount)
-        .all()
+        .scalar()
     )
-    return sum(abs(t[0]) for t in total)
+    return float(total)
 
 
 def get_spending_for_group(
@@ -69,8 +70,10 @@ def get_spending_for_group(
     start = date(year, month, 1)
     end = date(year, month, monthrange(year, month)[1])
 
+    from sqlalchemy import func
+
     total = (
-        db.query(Expense)
+        db.query(func.coalesce(func.sum(func.abs(Expense.amount)), 0.0))
         .filter(
             Expense.user_id.in_(uid_list),
             Expense.category_id.in_(cat_ids),
@@ -78,10 +81,9 @@ def get_spending_for_group(
             Expense.date <= end,
             Expense.is_income == False,
         )
-        .with_entities(Expense.amount)
-        .all()
+        .scalar()
     )
-    return sum(abs(t[0]) for t in total)
+    return float(total)
 
 
 def get_spending_for_event(
@@ -94,8 +96,10 @@ def get_spending_for_event(
     if not cat_ids:
         return 0.0
 
+    from sqlalchemy import func
+
     total = (
-        db.query(Expense)
+        db.query(func.coalesce(func.sum(func.abs(Expense.amount)), 0.0))
         .filter(
             Expense.user_id.in_(uid_list),
             Expense.category_id.in_(cat_ids),
@@ -103,10 +107,9 @@ def get_spending_for_event(
             Expense.date <= end_date,
             Expense.is_income == False,
         )
-        .with_entities(Expense.amount)
-        .all()
+        .scalar()
     )
-    return sum(abs(t[0]) for t in total)
+    return float(total)
 
 
 def get_avg_monthly_spending(category_id: int, uid_list: list[int], db: Session) -> float:

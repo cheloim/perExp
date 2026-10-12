@@ -60,3 +60,15 @@ def test_user(db):
     db.add(user)
     db.flush()
     return user
+
+
+@pytest.fixture(autouse=True)
+def _clear_cache():
+    """Isolate cache between tests (L1 + circuit)."""
+    from app.services import cache
+
+    cache._L1.clear()
+    cache._circuit_open_until = 0.0
+    yield
+    cache._L1.clear()
+    cache._circuit_open_until = 0.0

@@ -24,85 +24,133 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
 
     uid_list = get_group_user_ids(user_id, db)
 
-    expenses = (
-        db.query(Expense)
-        .filter(
-            Expense.user_id.in_(uid_list), Expense.date >= target_start, Expense.date <= target_end
-        )
-        .all()
+    from sqlalchemy import func
+
+    month_filter = [
+        Expense.user_id.in_(uid_list),
+        Expense.date >= target_start,
+        Expense.date <= target_end,
+    ]
+    total_expenses = (
+        db.query(func.coalesce(func.sum(func.abs(Expense.amount)), 0.0))
+        .filter(*month_filter, Expense.is_income == False)  # noqa: E712
+        .scalar()
+    )
+    total_income = (
+        db.query(func.coalesce(func.sum(func.abs(Expense.amount)), 0.0))
+        .filter(*month_filter, Expense.is_income == True)  # noqa: E712
+        .scalar()
+    )
+    count = (
+        db.query(func.count(Expense.id))
+        .filter(*month_filter, Expense.is_income == False)  # noqa: E712
+        .scalar()
     )
 
-    total_expenses = sum(abs(e.amount) for e in expenses if not e.is_income)
-    total_income = sum(abs(e.amount) for e in expenses if e.is_income)
-    count = sum(1 for e in expenses if not e.is_income)
+    # Single preload of categories involved (no per-row .first())
+    cat_ids_in_month = {
+        r[0]
+        for r in db.query(Expense.category_id)
+        .filter(*month_filter, Expense.category_id.isnot(None))
+        .distinct()
+        .all()
+    }
+    cats = (
+        db.query(Category).filter(Category.id.in_(cat_ids_in_month)).all()
+        if cat_ids_in_month
+        else []
+    )
+    cat_by_id = {c.id: c for c in cats}
+    parent_ids = {c.parent_id for c in cats if c.parent_id}
+    if parent_ids:
+        for p in db.query(Category).filter(Category.id.in_(parent_ids)).all():
+            cat_by_id[p.id] = p
 
-    # By category (all, for pie chart)
+    def _cat_label(cat_id: int | None) -> tuple[str, str]:
+        if not cat_id or cat_id not in cat_by_id:
+            return "Sin categoría", "#6b7280"
+        cat = cat_by_id[cat_id]
+        name, color = cat.name, cat.color or "#6b7280"
+        if cat.parent_id and cat.parent_id in cat_by_id:
+            name = f"{cat_by_id[cat.parent_id].name} > {cat.name}"
+        return name, color
+
+    # By category (all, for pie chart) — aggregated in SQL
+    cat_rows = (
+        db.query(
+            Expense.category_id,
+            func.coalesce(func.sum(func.abs(Expense.amount)), 0.0),
+            func.count(Expense.id),
+        )
+        .filter(*month_filter, Expense.is_income == False)  # noqa: E712
+        .group_by(Expense.category_id)
+        .all()
+    )
     by_cat = defaultdict(lambda: {"total": 0.0, "count": 0, "name": "", "color": ""})
-    for e in expenses:
-        if e.is_income:
-            continue
-        cat_name = "Sin categoría"
-        cat_color = "#6b7280"
-        if e.category_id:
-            cat = db.query(Category).filter(Category.id == e.category_id).first()
-            if cat:
-                cat_name = cat.name
-                cat_color = cat.color or "#6b7280"
-                if cat.parent_id:
-                    parent = db.query(Category).filter(Category.id == cat.parent_id).first()
-                    if parent:
-                        cat_name = f"{parent.name} > {cat.name}"
-        by_cat[e.category_id or 0]["total"] += abs(e.amount)
-        by_cat[e.category_id or 0]["count"] += 1
-        by_cat[e.category_id or 0]["name"] = cat_name
-        by_cat[e.category_id or 0]["color"] = cat_color
+    for cat_id, cat_total, cat_count in cat_rows:
+        name, color = _cat_label(cat_id)
+        by_cat[cat_id or 0]["total"] = float(cat_total)
+        by_cat[cat_id or 0]["count"] = cat_count
+        by_cat[cat_id or 0]["name"] = name
+        by_cat[cat_id or 0]["color"] = color
 
     all_categories = sorted(by_cat.values(), key=lambda x: x["total"], reverse=True)
     top_categories = all_categories[:5]
 
-    # Previous month for comparison
+    # Previous month for comparison — SQL scalars (no row hydration)
     prev_start = add_months(target_start, -1)
     prev_end = date(
         prev_start.year, prev_start.month, monthrange(prev_start.year, prev_start.month)[1]
     )
-    prev_expenses = (
-        db.query(Expense)
-        .filter(Expense.user_id.in_(uid_list), Expense.date >= prev_start, Expense.date <= prev_end)
-        .all()
+    prev_filter = [
+        Expense.user_id.in_(uid_list),
+        Expense.date >= prev_start,
+        Expense.date <= prev_end,
+    ]
+    previous_total = (
+        db.query(func.coalesce(func.sum(func.abs(Expense.amount)), 0.0))
+        .filter(*prev_filter, Expense.is_income == False)  # noqa: E712
+        .scalar()
     )
-    previous_total = sum(abs(e.amount) for e in prev_expenses if not e.is_income)
-    previous_income = sum(abs(e.amount) for e in prev_expenses if e.is_income)
+    previous_income = (
+        db.query(func.coalesce(func.sum(func.abs(Expense.amount)), 0.0))
+        .filter(*prev_filter, Expense.is_income == True)  # noqa: E712
+        .scalar()
+    )
 
-    # Same month last year for comparison
+    # Same month last year for comparison — SQL scalars
     last_year_start = date(y - 1, m, 1)
     last_year_end = date(y - 1, m, monthrange(y - 1, m)[1])
-    ly_expenses = (
-        db.query(Expense)
-        .filter(
-            Expense.user_id.in_(uid_list),
-            Expense.date >= last_year_start,
-            Expense.date <= last_year_end,
+    ly_filter = [
+        Expense.user_id.in_(uid_list),
+        Expense.date >= last_year_start,
+        Expense.date <= last_year_end,
+    ]
+    last_year_total = (
+        db.query(func.coalesce(func.sum(func.abs(Expense.amount)), 0.0))
+        .filter(*ly_filter, Expense.is_income == False)  # noqa: E712
+        .scalar()
+    )
+    last_year_income = (
+        db.query(func.coalesce(func.sum(func.abs(Expense.amount)), 0.0))
+        .filter(*ly_filter, Expense.is_income == True)  # noqa: E712
+        .scalar()
+    )
+
+    # Category comparison vs last month — SQL grouped
+    prev_cat_rows = (
+        db.query(
+            Expense.category_id,
+            func.coalesce(func.sum(func.abs(Expense.amount)), 0.0),
         )
+        .filter(*prev_filter, Expense.is_income == False)  # noqa: E712
+        .group_by(Expense.category_id)
         .all()
     )
-    last_year_total = sum(abs(e.amount) for e in ly_expenses if not e.is_income)
-    last_year_income = sum(abs(e.amount) for e in ly_expenses if e.is_income)
-
-    # Category comparison vs last month
     prev_by_cat = defaultdict(float)
-    for e in prev_expenses:
-        if e.is_income:
-            continue
-        cat_name = "Sin categoría"
-        if e.category_id:
-            cat = db.query(Category).filter(Category.id == e.category_id).first()
-            if cat:
-                cat_name = cat.name
-                if cat.parent_id:
-                    parent = db.query(Category).filter(Category.id == cat.parent_id).first()
-                    if parent:
-                        cat_name = f"{parent.name} > {cat.name}"
-        prev_by_cat[cat_name] += abs(e.amount)
+    for cat_id, cat_total in prev_cat_rows:
+        name, _ = _cat_label(cat_id)
+        prev_by_cat[name] += float(cat_total)
 
     category_comparison = []
     for cat in all_categories[:8]:
@@ -125,40 +173,64 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     if previous_total > 0:
         mom_change = ((total_expenses - previous_total) / previous_total) * 100
 
-    # Trend history (6 months)
+    # Trend history (6 months) — single GROUP BY
+    trend_start = add_months(target_start, -5).replace(day=1)
+    trend_end = date(
+        target_start.year, target_start.month, monthrange(target_start.year, target_start.month)[1]
+    )
+    trend_rows = (
+        db.query(
+            func.to_char(Expense.date, "YYYY-MM"),
+            Expense.is_income,
+            func.coalesce(func.sum(func.abs(Expense.amount)), 0.0),
+        )
+        .filter(
+            Expense.user_id.in_(uid_list),
+            Expense.date >= trend_start,
+            Expense.date <= trend_end,
+        )
+        .group_by(func.to_char(Expense.date, "YYYY-MM"), Expense.is_income)
+        .all()
+    )
+    trend_map: dict = {}
+    for mkey, is_inc, tot in trend_rows:
+        d = trend_map.setdefault(mkey, {"expenses": 0.0, "income": 0.0})
+        d["income" if is_inc else "expenses"] = float(tot)
     trend_history = []
     for i in range(5, -1, -1):
         m_hist = add_months(target_start, -i)
-        m_start = date(m_hist.year, m_hist.month, 1)
-        m_end = date(m_hist.year, m_hist.month, monthrange(m_hist.year, m_hist.month)[1])
-        hist_expenses = (
-            db.query(Expense)
-            .filter(Expense.user_id.in_(uid_list), Expense.date >= m_start, Expense.date <= m_end)
-            .all()
-        )
-        hist_total = sum(abs(e.amount) for e in hist_expenses if not e.is_income)
-        hist_income = sum(abs(e.amount) for e in hist_expenses if e.is_income)
+        mkey = m_hist.strftime("%Y-%m")
+        vals = trend_map.get(mkey, {"expenses": 0.0, "income": 0.0})
         trend_history.append(
             {
-                "month": m_hist.strftime("%Y-%m"),
-                "expenses": round(hist_total, 2),
-                "income": round(hist_income, 2),
+                "month": mkey,
+                "expenses": round(vals["expenses"], 2),
+                "income": round(vals["income"], 2),
             }
         )
 
-    # Top 5 expenses (individual transactions)
-    top_expenses = sorted(
-        [e for e in expenses if not e.is_income],
-        key=lambda e: abs(e.amount),
-        reverse=True,
-    )[:5]
+    # Detail rows for current month (top-5, accounts/cards/tags, patterns).
+    # Narrow window only; aggregates above already avoid full hydration.
+    from sqlalchemy.orm import selectinload
+
+    expenses = (
+        db.query(Expense)
+        .options(selectinload(Expense.tags))
+        .filter(*month_filter, Expense.is_income == False)  # noqa: E712
+        .all()
+    )
+    prev_expenses = (
+        db.query(Expense)
+        .options(selectinload(Expense.tags))
+        .filter(*prev_filter, Expense.is_income == False)  # noqa: E712
+        .all()
+    )
+
+    # Top 5 expenses (individual transactions) — top-N in Python over 1 month
+    top_expenses = sorted(expenses, key=lambda e: abs(e.amount), reverse=True)[:5]
     top_expenses_data = []
     for e in top_expenses:
-        cat_name = "Sin categoría"
-        if e.category_id:
-            cat = db.query(Category).filter(Category.id == e.category_id).first()
-            if cat:
-                cat_name = cat.name
+        cat_name, _ = _cat_label(e.category_id)
         top_expenses_data.append(
             {
                 "date": e.date.strftime("%d/%m"),

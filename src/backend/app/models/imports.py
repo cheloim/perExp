@@ -41,6 +41,12 @@ class ScheduledExpense(Base):
     __table_args__ = (
         Index("ix_scheduled_expenses_user_id", "user_id"),
         Index("ix_scheduled_expenses_user_status", "user_id", "status"),
+        Index(
+            "ix_scheduled_expenses_user_status_date",
+            "user_id",
+            "status",
+            "scheduled_date",
+        ),
     )
 
     id = Column(Integer, primary_key=True, index=True)
