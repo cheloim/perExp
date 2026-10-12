@@ -130,6 +130,31 @@ def get_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    from app.services.cache import dash_summary_key, get_json, group_hash, set_json
+
+    uid_list = get_group_user_ids(current_user.id, db)
+    gh = group_hash(uid_list)
+    cache_key = (
+        dash_summary_key(gh, month, person, category_id, bank, group_by) + f":{search or '-'}"
+    )
+    cached = get_json(cache_key)
+    if cached is not None:
+        return cached
+    result = _compute_summary(month, group_by, search, person, category_id, bank, db, current_user)
+    set_json(cache_key, result, ttl=90)
+    return result
+
+
+def _compute_summary(
+    month: str | None = None,
+    group_by: str = "month",
+    search: str | None = None,
+    person: str | None = None,
+    category_id: int | None = None,
+    bank: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     uid_list = get_group_user_ids(current_user.id, db)
 
     base_q = (
@@ -143,7 +168,11 @@ def get_summary(
         .all()
     )
     cards_by_id, _ = _load_cards_and_accounts(uid_list, expenses, db)
-    categories = db.query(Category).all()
+    categories = db.query(Category).filter(Category.user_id.in_(uid_list)).all()
+    # Include parent categories that may belong to another group member
+    parent_ids = {c.parent_id for c in categories if c.parent_id}
+    if parent_ids:
+        categories += db.query(Category).filter(Category.id.in_(parent_ids)).all()
     cat_map = {c.id: c for c in categories}
     total = sum(e.amount for e in expenses if not e.is_income)
 
@@ -480,14 +509,26 @@ async def get_monthly_report(
     )
 
     def _query_totals(start: date, end: date):
-        expenses = (
-            db.query(Expense)
-            .filter(Expense.user_id.in_(uid_list), Expense.date >= start, Expense.date <= end)
-            .all()
+        base_filter = [
+            Expense.user_id.in_(uid_list),
+            Expense.date >= start,
+            Expense.date <= end,
+        ]
+        total_expenses = (
+            db.query(func.coalesce(func.sum(func.abs(Expense.amount)), 0.0))
+            .filter(*base_filter, Expense.is_income == False)  # noqa: E712
+            .scalar()
         )
-        total_expenses = sum(abs(e.amount) for e in expenses if not e.is_income)
-        total_income = sum(abs(e.amount) for e in expenses if e.is_income)
-        count = sum(1 for e in expenses if not e.is_income)
+        total_income = (
+            db.query(func.coalesce(func.sum(func.abs(Expense.amount)), 0.0))
+            .filter(*base_filter, Expense.is_income == True)  # noqa: E712
+            .scalar()
+        )
+        count = (
+            db.query(func.count(Expense.id))
+            .filter(*base_filter, Expense.is_income == False)  # noqa: E712
+            .scalar()
+        )
 
         # Pre-fetch all categories for the user to avoid N+1 queries
         all_cats = {
@@ -501,33 +542,40 @@ async def get_monthly_report(
             }
             all_cats.update(parents)
 
-        # By category (only expenses, not income)
+        # By category (only expenses, not income) — aggregated in SQL
+        cat_rows = (
+            db.query(
+                Expense.category_id,
+                func.coalesce(func.sum(func.abs(Expense.amount)), 0.0),
+                func.count(Expense.id),
+            )
+            .filter(*base_filter, Expense.is_income == False)  # noqa: E712
+            .group_by(Expense.category_id)
+            .all()
+        )
         by_cat = defaultdict(lambda: {"total": 0.0, "count": 0, "name": "", "color": ""})
-        for e in expenses:
-            if e.is_income:
-                continue
+        for cat_id, cat_total, cat_count in cat_rows:
             cat_name = "Sin categoría"
             cat_color = "#6b7280"
-            if e.category_id:
-                cat = all_cats.get(e.category_id)
+            if cat_id:
+                cat = all_cats.get(cat_id)
                 if cat:
                     cat_name = cat.name
                     cat_color = cat.color or "#6b7280"
-                    # Use parent name if it's a subcategory
                     if cat.parent_id:
                         parent = all_cats.get(cat.parent_id)
                         if parent:
                             cat_name = f"{parent.name} > {cat.name}"
-            by_cat[e.category_id or 0]["total"] += abs(e.amount)
-            by_cat[e.category_id or 0]["count"] += 1
-            by_cat[e.category_id or 0]["name"] = cat_name
-            by_cat[e.category_id or 0]["color"] = cat_color
+            by_cat[cat_id or 0]["total"] = float(cat_total)
+            by_cat[cat_id or 0]["count"] = cat_count
+            by_cat[cat_id or 0]["name"] = cat_name
+            by_cat[cat_id or 0]["color"] = cat_color
 
         top_categories = sorted(by_cat.values(), key=lambda x: x["total"], reverse=True)[:5]
 
         return {
-            "total_expenses": total_expenses,
-            "total_income": total_income,
+            "total_expenses": float(total_expenses),
+            "total_income": float(total_income),
             "count": count,
             "top_categories": top_categories,
         }
@@ -549,24 +597,37 @@ async def get_monthly_report(
             (current["total_expenses"] - previous["total_expenses"]) / previous["total_expenses"]
         ) * 100
 
-    # 6-month trend history for charts
+    # 6-month trend history for charts — single GROUP BY query
+    trend_start = add_months(target_start, -5).replace(day=1)
+    trend_rows = (
+        db.query(
+            func.to_char(Expense.date, "YYYY-MM"),
+            Expense.is_income,
+            func.coalesce(func.sum(func.abs(Expense.amount)), 0.0),
+        )
+        .filter(
+            Expense.user_id.in_(uid_list), Expense.date >= trend_start, Expense.date <= target_end
+        )
+        .group_by(func.to_char(Expense.date, "YYYY-MM"), Expense.is_income)
+        .all()
+    )
+    trend_map: dict = {}
+    for mkey, is_inc, tot in trend_rows:
+        d = trend_map.setdefault(mkey, {"expenses": 0.0, "income": 0.0})
+        if is_inc:
+            d["income"] = float(tot)
+        else:
+            d["expenses"] = float(tot)
     trend_history = []
     for i in range(5, -1, -1):
         m = add_months(target_start, -i)
-        m_start = date(m.year, m.month, 1)
-        m_end = date(m.year, m.month, monthrange(m.year, m.month)[1])
-        expenses = (
-            db.query(Expense)
-            .filter(Expense.user_id.in_(uid_list), Expense.date >= m_start, Expense.date <= m_end)
-            .all()
-        )
-        total_exp = sum(abs(e.amount) for e in expenses if not e.is_income)
-        total_inc = sum(abs(e.amount) for e in expenses if e.is_income)
+        mkey = m.strftime("%Y-%m")
+        vals = trend_map.get(mkey, {"expenses": 0.0, "income": 0.0})
         trend_history.append(
             {
-                "month": m.strftime("%Y-%m"),
-                "expenses": round(total_exp, 2),
-                "income": round(total_inc, 2),
+                "month": mkey,
+                "expenses": round(vals["expenses"], 2),
+                "income": round(vals["income"], 2),
             }
         )
 
@@ -622,13 +683,18 @@ El JSON debe tener esta estructura:
 Sé específico con los números. Respondé en español, de forma clara y amigable. Usá emojis para hacerlo más visual."""
 
             client = genai.Client(api_key=api_key)
-            response = await client.aio.models.generate_content(
-                model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
-                contents=llm_context,
-                config=genai_types.GenerateContentConfig(
-                    system_instruction=prompt,
-                    response_mime_type="application/json",
+            import asyncio
+
+            response = await asyncio.wait_for(
+                client.aio.models.generate_content(
+                    model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
+                    contents=llm_context,
+                    config=genai_types.GenerateContentConfig(
+                        system_instruction=prompt,
+                        response_mime_type="application/json",
+                    ),
                 ),
+                timeout=8.0,
             )
             analysis = json.loads(response.text)
         except Exception:
@@ -2022,10 +2088,18 @@ async def get_ai_trends(
 ):
     uid_list = get_group_user_ids(current_user.id, db)
 
-    # Cache for 5 minutes per user+month
-    cache_key = f"ai_trends:{current_user.id}:{month or 'all'}"
-    cached = _get_cached(cache_key, ttl_seconds=300)
+    # Cache for 5 minutes per user+month — Redis (shared) fronted by L1
+    cache_key = f"v1:aitrends:{current_user.id}:{month or 'all'}"
+    legacy_key = f"ai_trends:{current_user.id}:{month or 'all'}"
+    from app.services.cache import get_json as _redis_get
+    from app.services.cache import set_json as _redis_set
+
+    cached = _redis_get(cache_key)
     if cached is not None:
+        return cached
+    cached = _get_cached(legacy_key, ttl_seconds=300)
+    if cached is not None:
+        _redis_set(cache_key, cached, ttl=300)
         return cached
 
     from google import genai
@@ -2130,17 +2204,24 @@ Fecha actual: {today.isoformat()}
 
     client = genai.Client(api_key=api_key)
     try:
-        response = await client.aio.models.generate_content(
-            model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
-            contents=context,
-            config=genai_types.GenerateContentConfig(
-                system_instruction=AI_TRENDS_PROMPT,
-                response_mime_type="application/json",
+        import asyncio
+
+        response = await asyncio.wait_for(
+            client.aio.models.generate_content(
+                model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
+                contents=context,
+                config=genai_types.GenerateContentConfig(
+                    system_instruction=AI_TRENDS_PROMPT,
+                    response_mime_type="application/json",
+                ),
             ),
+            timeout=8.0,
         )
         result = json.loads(response.text)
     except json.JSONDecodeError:
         raise HTTPException(422, "La IA no pudo generar el análisis. Intentá más tarde.")
+    except TimeoutError:
+        raise HTTPException(504, "La IA tardó demasiado. Intentá más tarde.")
     except Exception as e:
         raise HTTPException(500, f"Error al llamar a la IA: {e}")
 
@@ -2161,5 +2242,6 @@ Fecha actual: {today.isoformat()}
     ]
     result["future_installments"] = {k: v for k, v in future_installments.items()}
 
-    _set_cached(cache_key, result)
+    _set_cached(legacy_key, result)
+    _redis_set(cache_key, result, ttl=300)
     return result

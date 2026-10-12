@@ -46,6 +46,11 @@ INDICES = [
     # Scheduled expenses
     ("ix_scheduled_expenses_user_id", "scheduled_expenses", ["user_id"]),
     ("ix_scheduled_expenses_user_status", "scheduled_expenses", ["user_id", "status"]),
+    (
+        "ix_scheduled_expenses_user_status_date",
+        "scheduled_expenses",
+        ["user_id", "status", "scheduled_date"],
+    ),
     ("ix_scheduled_expenses_card_id", "scheduled_expenses", ["card_id"]),
     ("ix_scheduled_expenses_account_id", "scheduled_expenses", ["account_id"]),
     # Recurring expenses

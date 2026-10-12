@@ -151,50 +151,43 @@ def update_business_metrics() -> None:
             # Categories
             CATEGORIES_TOTAL.set(db.query(Category).count())
 
-            # Per-user metrics
-            users = db.query(User.id).all()
-            for (user_id,) in users:
-                uid = str(user_id)
+            # Per-user metrics — batched GROUP BY (was N×6 queries per scrape)
+            for row in db.query(Expense.user_id, func.count()).group_by(Expense.user_id).all():
+                EXPENSES_TOTAL.labels(user_id=str(row[0])).set(row[1])
+            for row in (
+                db.query(Investment.user_id, func.count()).group_by(Investment.user_id).all()
+            ):
+                INVESTMENTS_TOTAL.labels(user_id=str(row[0])).set(row[1])
+            for row in (
+                db.query(RecurringExpense.user_id, func.count())
+                .group_by(RecurringExpense.user_id)
+                .all()
+            ):
+                RECURRING_EXPENSES_TOTAL.labels(user_id=str(row[0])).set(row[1])
 
-                EXPENSES_TOTAL.labels(user_id=uid).set(
-                    db.query(Expense).filter(Expense.user_id == user_id).count()
-                )
-                INVESTMENTS_TOTAL.labels(user_id=uid).set(
-                    db.query(Investment).filter(Investment.user_id == user_id).count()
-                )
-                RECURRING_EXPENSES_TOTAL.labels(user_id=uid).set(
-                    db.query(RecurringExpense).filter(RecurringExpense.user_id == user_id).count()
-                )
+            # Accounts by type
+            for uid, atype, count in (
+                db.query(Account.user_id, Account.type, func.count())
+                .group_by(Account.user_id, Account.type)
+                .all()
+            ):
+                ACCOUNTS_TOTAL.labels(user_id=str(uid), type=atype or "unknown").set(count)
 
-                # Accounts by type
-                account_types = (
-                    db.query(Account.type, func.count())
-                    .filter(Account.user_id == user_id)
-                    .group_by(Account.type)
-                    .all()
-                )
-                for atype, count in account_types:
-                    ACCOUNTS_TOTAL.labels(user_id=uid, type=atype or "unknown").set(count)
+            # Cards by type
+            for uid, ctype, count in (
+                db.query(Card.user_id, Card.card_type, func.count())
+                .group_by(Card.user_id, Card.card_type)
+                .all()
+            ):
+                CARDS_TOTAL.labels(user_id=str(uid), type=ctype or "unknown").set(count)
 
-                # Cards by type
-                card_types = (
-                    db.query(Card.card_type, func.count())
-                    .filter(Card.user_id == user_id)
-                    .group_by(Card.card_type)
-                    .all()
-                )
-                for ctype, count in card_types:
-                    CARDS_TOTAL.labels(user_id=uid, type=ctype or "unknown").set(count)
-
-                # Budget groups
-                budget_groups = (
-                    db.query(BudgetGroup.name, func.count())
-                    .filter(BudgetGroup.user_id == user_id)
-                    .group_by(BudgetGroup.name)
-                    .all()
-                )
-                for bname, count in budget_groups:
-                    BUDGET_GROUPS_TOTAL.labels(user_id=uid, group=bname).set(count)
+            # Budget groups
+            for uid, bname, count in (
+                db.query(BudgetGroup.user_id, BudgetGroup.name, func.count())
+                .group_by(BudgetGroup.user_id, BudgetGroup.name)
+                .all()
+            ):
+                BUDGET_GROUPS_TOTAL.labels(user_id=str(uid), group=bname).set(count)
 
             # Import jobs by status
             import_statuses = (
@@ -217,37 +210,55 @@ def update_business_metrics() -> None:
             bot_thread_alive = any(
                 t.name == "telegram-bot" and t.is_alive() for t in threading.enumerate()
             )
+            r = None
             if not bot_thread_alive:
                 # Check Redis heartbeat from standalone bot container
                 try:
                     import redis
 
                     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-                    r = redis.from_url(redis_url)
+                    r = redis.from_url(redis_url, socket_connect_timeout=0.5, socket_timeout=1.0)
                     heartbeat = r.get("bot:heartbeat")
                     TELEGRAM_BOT_HEALTH.set(1 if heartbeat else 0)
-                    r.close()
                 except Exception:
                     TELEGRAM_BOT_HEALTH.set(0)
+                finally:
+                    try:
+                        if r is not None:
+                            r.close()
+                    except Exception:
+                        pass
             else:
                 TELEGRAM_BOT_HEALTH.set(1)
 
-            # Celery: check if workers respond (ping is lighter than active)
+            # Celery: check if workers respond (ping is lighter than active).
+            # Short timeout: scrape must never block 5s on inspect.
             try:
                 from app.celery_app import celery_app
 
-                inspect = celery_app.control.inspect(timeout=5.0)
+                inspect = celery_app.control.inspect(timeout=2.0)
                 ping = inspect.ping()
                 CELERY_WORKER_HEALTH.set(1 if ping else 0)
             except Exception:
                 CELERY_WORKER_HEALTH.set(0)
 
-            # Celery Beat: check Redis heartbeat
+            # Celery Beat: check Redis heartbeat (reuse connection when possible)
             try:
+                import redis
+
+                if r is None:
+                    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+                    r = redis.from_url(redis_url, socket_connect_timeout=0.5, socket_timeout=1.0)
                 beat_heartbeat = r.get("celery_beat:heartbeat")
                 CELERY_BEAT_HEALTH.set(1 if beat_heartbeat else 0)
             except Exception:
                 CELERY_BEAT_HEALTH.set(0)
+            finally:
+                try:
+                    if r is not None:
+                        r.close()
+                except Exception:
+                    pass
 
             _business_metrics_last_update = time.time()
         finally:
@@ -288,9 +299,9 @@ class _MetricsState:
         count = len(recent)
         errs = sum(1 for e in recent if e["s"] >= 400)
         latencies = sorted(e["d"] for e in recent)
-        p50 = latencies[len(latencies) // 2] if latencies else 0
-        p95 = latencies[int(len(latencies) * 0.95)] if latencies else 0
-        p99 = latencies[int(len(latencies) * 0.99)] if latencies else 0
+        p50 = latencies[min(len(latencies) // 2, len(latencies) - 1)] if latencies else 0
+        p95 = latencies[min(int(len(latencies) * 0.95), len(latencies) - 1)] if latencies else 0
+        p99 = latencies[min(int(len(latencies) * 0.99), len(latencies) - 1)] if latencies else 0
         return {
             "window_seconds": window,
             "request_count": count,
@@ -325,8 +336,10 @@ def _metrics_middleware_factory():
         duration = (time.perf_counter() - start) * 1000  # ms
         status = response.status_code
 
-        # Prometheus
-        endpoint = path
+        # Prometheus — label by route template, not raw path (cardinality guard).
+        # Falls back to path only when route is unresolved.
+        route = request.scope.get("route")
+        endpoint = getattr(route, "path", None) or path
         REQUEST_COUNT.labels(method=method, endpoint=endpoint, status=status).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(duration / 1000)
 
