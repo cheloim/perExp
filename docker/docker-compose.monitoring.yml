@@ -125,7 +125,8 @@ services:
 
   alloy:
     image: docker.io/grafana/alloy:latest
-    network_mode: host
+    ports:
+      - "12345:12345"
     command:
       - "run"
       - "--storage.path=/var/lib/alloy/data"

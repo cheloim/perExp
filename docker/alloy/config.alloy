@@ -1,11 +1,13 @@
-// Alloy: read logs from journalctl export and push to local Loki
-// Alloy runs on host network, so Loki is at localhost:3100
+// Alloy: read logs from journalctl export and push to Loki.
+// All monitoring services share the compose network, so Loki is
+// reachable as http://loki:3100 via compose DNS (no hardcoded IPs,
+// no host-network coupling).
 // Rootless podman can't read /run/log/journal directly,
 // so we read from a journalctl export file instead.
 
 loki.write "local" {
   endpoint {
-    url = "http://localhost:3100/loki/api/v1/push"
+    url = "http://loki:3100/loki/api/v1/push"
   }
 }
 
