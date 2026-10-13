@@ -211,6 +211,7 @@ function CategoryGroupSection({
   onAddBudget,
   onCategoryClick,
   onCategoryEdit,
+  onEditGroup,
 }: {
   name: string;
   displayName: string;
@@ -220,6 +221,7 @@ function CategoryGroupSection({
   onAddBudget: () => void;
   onCategoryClick: (cat: BudgetSummaryItem) => void;
   onCategoryEdit: (cat: BudgetSummaryItem) => void;
+  onEditGroup: () => void;
 }) {
   const [expanded, setExpanded] = useState(true);
 
@@ -272,6 +274,26 @@ function CategoryGroupSection({
                   : `-${formatCurrency(Math.abs(totalRemaining))}`}
               </span>
             )}
+            <span
+              role="button"
+              tabIndex={0}
+              title={`Editar grupo ${displayName}`}
+              aria-label={`Editar grupo ${displayName}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditGroup();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onEditGroup();
+                }
+              }}
+              className="w-7 h-7 rounded-lg text-[var(--text-tertiary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 transition flex items-center justify-center"
+            >
+              <SymbolicIcon name="pencil" size={13} />
+            </span>
             <svg
               width="16"
               height="16"
@@ -1673,9 +1695,6 @@ export default function BudgetPage() {
           <p className="adw-caption adw-dim-label">{monthLabel} · montos en ARS</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <button onClick={() => setShowQuickConfig(true)} className="gnome-btn-secondary">
-            Configurar
-          </button>
           <button onClick={() => setShowNewEvent(true)} className="gnome-btn-primary">
             + Nuevo evento
           </button>
@@ -1733,30 +1752,6 @@ export default function BudgetPage() {
 
           {/* Category Groups */}
           <div className="mb-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="adw-caption-heading text-[var(--text-secondary)]">POR GRUPO</h2>
-              {groups.length > 0 && (
-                <button
-                  onClick={() => setEditingGroup(groups[0])}
-                  className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 rounded-lg px-3 py-1.5 transition-colors"
-                >
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                    <path d="m15 5 4 4" />
-                  </svg>
-                  Editar grupos
-                </button>
-              )}
-            </div>
             {summary && summary.categories.length > 0 ? (
               <>
                 {groups.map((g) => (
@@ -1770,8 +1765,17 @@ export default function BudgetPage() {
                     onAddBudget={() => setShowQuickConfig(true)}
                     onCategoryClick={setSelectedCategory}
                     onCategoryEdit={setEditingCategory}
+                    onEditGroup={() => setEditingGroup(groups[0])}
                   />
                 ))}
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setShowQuickConfig(true)}
+                    className="text-xs text-[var(--color-primary)] hover:underline font-medium"
+                  >
+                    Ver todo lo presupuestado →
+                  </button>
+                </div>
               </>
             ) : (
               <div className="card p-8 text-center">
