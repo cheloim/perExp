@@ -147,6 +147,7 @@ export interface BudgetSummaryItem {
   budget_amount: number;
   spent_amount: number;
   avg_monthly: number;
+  months_with_data: number;
   percentage: number;
   status: "ok" | "warning" | "exceeded" | "no_budget";
   has_budget: boolean;
@@ -177,6 +178,7 @@ export interface BudgetSuggestion {
   category_name: string;
   category_color: string;
   avg_monthly: number;
+  months_with_data: number;
   suggested: number;
   has_budget: boolean;
   current_budget: number;

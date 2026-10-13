@@ -37,6 +37,7 @@ class BudgetSummaryItem(BaseModel):
     budget_amount: float = 0
     spent_amount: float = 0
     avg_monthly: float = 0
+    months_with_data: int = 0
     percentage: float = 0
     status: str = "no_budget"  # ok | warning | exceeded | no_budget
     has_budget: bool = False
@@ -119,6 +120,7 @@ class BudgetSuggestion(BaseModel):
     category_name: str
     category_color: str = ""
     avg_monthly: float
+    months_with_data: int = 0
     suggested: float
     has_budget: bool
     current_budget: float = 0
