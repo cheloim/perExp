@@ -405,7 +405,7 @@ function MainLayout() {
             <div
               className={`w-full px-4 sm:px-6 lg:px-8 ${
                 location.pathname.startsWith("/import-jobs") ? "py-0" : "py-8 md:py-10"
-              }`}
+              } ${location.pathname.startsWith("/import-jobs") ? "" : "max-w-[1200px] mx-auto"}`}
             >
               <ErrorBoundary>
                 <Suspense

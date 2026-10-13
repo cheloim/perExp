@@ -50,6 +50,15 @@ def _make_expense(db, user, amount, category_id, date_):
     return expense
 
 
+def _make_budget(db, user, category_id, amount):
+    from app.models import Budget
+
+    budget = Budget(user_id=user.id, category_id=category_id, amount=amount)
+    db.add(budget)
+    db.flush()
+    return budget
+
+
 def _last_months(n):
     today = date.today()
     out = []
@@ -109,6 +118,36 @@ class TestSummaryIncludesEvidence:
         match = [s for s in result["suggestions"] if s["category_id"] == cat.id]
         assert len(match) == 1
         assert match[0]["months_with_data"] == 1
+
+
+class TestUpdateBudget:
+    def test_put_amount_only_returns_200(self, db):
+        from app.routers.budgets import update_budget
+        from app.schemas.budgets import BudgetUpdate
+
+        user = _make_user(db, "put@test.com")
+        cat = _make_category(db, user, "Supermercado")
+        budget = _make_budget(db, user, cat.id, 50000)
+
+        result = update_budget(budget.id, BudgetUpdate(amount=60000), db=db, current_user=user)
+
+        assert result.amount == 60000
+        assert result.is_active is True
+
+    def test_put_with_is_active_persists(self, db):
+        from app.routers.budgets import update_budget
+        from app.schemas.budgets import BudgetUpdate
+
+        user = _make_user(db, "putactive@test.com")
+        cat = _make_category(db, user, "Supermercado")
+        budget = _make_budget(db, user, cat.id, 50000)
+
+        result = update_budget(
+            budget.id, BudgetUpdate(amount=60000, is_active=False), db=db, current_user=user
+        )
+
+        assert result.amount == 60000
+        assert result.is_active is False
 
 
 class TestSummaryTrend:

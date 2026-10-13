@@ -13,6 +13,7 @@ import {
 import { Select } from "../components/ui/Select";
 import EmptyState from "../components/ui/EmptyState";
 import SymbolicIcon from "../components/SymbolicIcon";
+import { CurrencyInput } from "../components/ui/CurrencyInput";
 import { getCategoryIcon } from "../utils/categoryIcon";
 import type { BudgetGroup, BudgetEvent, BudgetSuggestion, BudgetSummaryItem } from "../types";
 import { formatCurrency } from "../utils/format";
@@ -51,6 +52,7 @@ function CategoryBar({
   avgMonthly = 0,
   monthsWithData = 3,
   onClick,
+  onEdit,
 }: {
   name: string;
   color: string;
@@ -59,6 +61,7 @@ function CategoryBar({
   avgMonthly?: number;
   monthsWithData?: number;
   onClick?: () => void;
+  onEdit?: () => void;
 }) {
   const limitedEvidence = monthsWithData < 3;
   // Only hide if no budget AND no spending at all
@@ -103,7 +106,7 @@ function CategoryBar({
 
   return (
     <div
-      className="py-3 px-4 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors cursor-pointer overflow-hidden"
+      className="group py-3 px-4 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors cursor-pointer overflow-hidden"
       onClick={onClick}
     >
       <div className="flex items-center justify-between mb-0.5">
@@ -139,6 +142,19 @@ function CategoryBar({
             </span>
           ) : (
             <span className="text-xs text-[var(--text-tertiary)] italic">Sin presupuesto</span>
+          )}
+          {onEdit && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              title="Editar presupuesto"
+              aria-label={`Editar presupuesto de ${name}`}
+              className="w-7 h-7 rounded-lg text-[var(--text-tertiary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition flex items-center justify-center"
+            >
+              <SymbolicIcon name="pencil" size={13} />
+            </button>
           )}
         </div>
       </div>
@@ -194,6 +210,7 @@ function CategoryGroupSection({
   allCategories,
   onAddBudget,
   onCategoryClick,
+  onCategoryEdit,
 }: {
   name: string;
   displayName: string;
@@ -202,6 +219,7 @@ function CategoryGroupSection({
   allCategories: BudgetSummaryItem[];
   onAddBudget: () => void;
   onCategoryClick: (cat: BudgetSummaryItem) => void;
+  onCategoryEdit: (cat: BudgetSummaryItem) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
 
@@ -283,6 +301,7 @@ function CategoryGroupSection({
                 avgMonthly={cat.avg_monthly}
                 monthsWithData={cat.months_with_data}
                 onClick={() => onCategoryClick(cat)}
+                onEdit={() => onCategoryEdit(cat)}
               />
             ))}
             <div className="px-5 py-3 border-t border-[var(--border-color)]">
@@ -496,6 +515,143 @@ function UnbudgetedSection() {
   );
 }
 
+// ─── Edit Budget Modal (single category: create / update / delete) ─
+
+function EditBudgetModal({
+  category,
+  onClose,
+}: {
+  category: BudgetSummaryItem;
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const { data: budgets = [] } = useQuery({
+    queryKey: ["budgets"],
+    queryFn: () => import("../api/client").then((m) => m.getBudgets()),
+  });
+  const existing = budgets.find((b) => b.category_id === category.category_id) ?? null;
+  const fallback =
+    existing?.amount ?? (category.avg_monthly > 0 ? Math.round(category.avg_monthly) : null);
+  const [amount, setAmount] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const value = amount ?? fallback;
+  const icon = getCategoryIcon(category.category_name);
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleEsc);
+    return () => document.removeEventListener("keydown", handleEsc);
+  }, [onClose]);
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["budgets"] });
+    qc.invalidateQueries({ queryKey: ["budget-summary"] });
+    qc.invalidateQueries({ queryKey: ["budget-suggestions"] });
+    qc.invalidateQueries({ queryKey: ["budget-groups"] });
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const { createBudget, updateBudget } = await import("../api/client");
+      if (!value || value <= 0) throw new Error("Ingresá un monto mayor a cero");
+      if (existing) return updateBudget(existing.id, { amount: value });
+      return createBudget({ category_id: category.category_id!, amount: value });
+    },
+    onSuccess: () => {
+      invalidate();
+      onClose();
+    },
+    onError: (e: unknown) => setError(e instanceof Error ? e.message : "No se pudo guardar"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const { deleteBudget } = await import("../api/client");
+      if (!existing) throw new Error("Sin presupuesto para eliminar");
+      return deleteBudget(existing.id);
+    },
+    onSuccess: () => {
+      invalidate();
+      onClose();
+    },
+    onError: () => setError("No se pudo eliminar"),
+  });
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div className="card w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-3 mb-1">
+          <span
+            className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center"
+            style={{ backgroundColor: `${category.category_color}20` }}
+          >
+            {icon ? (
+              <SymbolicIcon name={icon} size={16} />
+            ) : (
+              <span
+                className="w-2.5 h-2.5 rounded-full"
+                style={{ backgroundColor: category.category_color }}
+              />
+            )}
+          </span>
+          <div>
+            <h3 className="text-base font-semibold text-primary">{category.category_name}</h3>
+            <p className="adw-caption adw-dim-label">
+              {existing ? `Actual: ${formatCurrency(existing.amount)}` : "Sin presupuesto asignado"}
+              {category.avg_monthly > 0 && ` · prom ${formatCurrency(category.avg_monthly)}/mes`}
+            </p>
+          </div>
+        </div>
+        <div className="mt-4">
+          <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+            Límite mensual
+          </label>
+          <CurrencyInput value={value} onChange={(v) => setAmount(v)} placeholder="0,00" />
+          {category.avg_monthly > 0 && (
+            <button
+              onClick={() => setAmount(Math.round(category.avg_monthly))}
+              className="text-xs text-[var(--color-primary)] hover:underline font-medium mt-2"
+            >
+              Usar prom {formatCurrency(category.avg_monthly)}
+            </button>
+          )}
+        </div>
+        {error && <p className="text-xs text-[var(--color-danger)] mt-3">{error}</p>}
+        <div className="flex gap-2 mt-5">
+          {existing && (
+            <button
+              onClick={() => deleteMutation.mutate()}
+              disabled={deleteMutation.isPending || saveMutation.isPending}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--color-danger)] border border-[var(--color-danger)]/30 hover:bg-[var(--color-danger)]/10 disabled:opacity-50"
+            >
+              {deleteMutation.isPending ? "Eliminando..." : "Eliminar"}
+            </button>
+          )}
+          <div className="flex-1" />
+          <button
+            onClick={onClose}
+            className="px-4 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => saveMutation.mutate()}
+            disabled={saveMutation.isPending}
+            className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
+          >
+            {saveMutation.isPending ? "Guardando..." : "Guardar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Quick Config Modal ────────────────────────────────────────
 
 function QuickConfigModal({ onClose }: { onClose: () => void }) {
@@ -565,6 +721,47 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
   });
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Context per leaf from summary (spent MTD + avg + evidence)
+  const summaryMap = new Map<number, { spent: number; avg: number; months: number }>();
+  for (const p of summary?.categories ?? []) {
+    for (const ch of [p, ...p.children]) {
+      if (ch.category_id !== null && !summaryMap.has(ch.category_id)) {
+        summaryMap.set(ch.category_id, {
+          spent: ch.spent_amount,
+          avg: ch.avg_monthly,
+          months: ch.months_with_data,
+        });
+      }
+    }
+  }
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleEsc);
+    return () => document.removeEventListener("keydown", handleEsc);
+  }, [onClose]);
+
+  const deleteBudgetMutation = useMutation({
+    mutationFn: async (categoryId: number) => {
+      const { deleteBudget } = await import("../api/client");
+      const existing = budgets.find((b) => b.category_id === categoryId);
+      if (!existing) throw new Error("Sin presupuesto para eliminar");
+      return deleteBudget(existing.id);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["budgets"] });
+      qc.invalidateQueries({ queryKey: ["budget-summary"] });
+      qc.invalidateQueries({ queryKey: ["budget-suggestions"] });
+    },
+  });
+
+  const totalAssigned = categoriesWithSpending.reduce(
+    (s, c) => s + (amounts[c.id] || budgetAmounts.get(c.id) || 0),
+    0,
+  );
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const { createBudget, updateCategoryGroup } = await import("../api/client");
@@ -616,8 +813,14 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
   const totalCategories = filteredCategories.length;
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="card w-full max-w-2xl p-6 max-h-[80vh] overflow-y-auto">
+    <div
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="card w-full max-w-2xl p-6 max-h-[80vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h3 className="text-base font-semibold text-primary mb-2">
           Configurar presupuestos por categoría
         </h3>
@@ -651,72 +854,117 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
                   </h4>
                 )}
                 {/* Children rows */}
-                {group.children.map((cat) => (
-                  <div
-                    key={cat.id}
-                    className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors"
-                  >
+                {group.children.map((cat) => {
+                  const ctx = summaryMap.get(cat.id);
+                  return (
                     <div
-                      className="w-3 h-3 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: cat.color }}
-                    />
-                    <span className="text-sm font-medium text-primary min-w-[120px] truncate">
-                      {cat.name}
-                    </span>
-                    <Select
-                      value={groupAssignments[cat.id] || ""}
-                      onChange={(v) =>
-                        setGroupAssignments({
-                          ...groupAssignments,
-                          [cat.id]: v,
-                        })
-                      }
-                      options={[
-                        { value: "", label: "Sin grupo" },
-                        { value: "necesidades", label: "Necesidades" },
-                        { value: "gustos", label: "Gustos" },
-                        { value: "ahorro", label: "Ahorro" },
-                      ]}
-                    />
-                    <input
-                      type="number"
-                      value={amounts[cat.id] || budgetAmounts.get(cat.id) || ""}
-                      onChange={(e) =>
-                        setAmounts({
-                          ...amounts,
-                          [cat.id]: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      placeholder={
-                        budgetAmounts.has(cat.id) ? formatCurrency(budgetAmounts.get(cat.id)!) : "0"
-                      }
-                      className="input flex-1 !py-1.5"
-                    />
-                    {budgetedCatIds.has(cat.id) && (
-                      <span className="text-[10px] text-[var(--color-success)] flex-shrink-0">
-                        ✓
-                      </span>
-                    )}
-                  </div>
-                ))}
+                      key={cat.id}
+                      className="py-2 px-3 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: cat.color }}
+                        />
+                        <span className="text-sm font-medium text-primary min-w-[120px] truncate">
+                          {cat.name}
+                        </span>
+                        <Select
+                          value={groupAssignments[cat.id] ?? cat.budget_group ?? ""}
+                          onChange={(v) =>
+                            setGroupAssignments({
+                              ...groupAssignments,
+                              [cat.id]: v,
+                            })
+                          }
+                          options={[
+                            { value: "", label: "Sin grupo" },
+                            { value: "necesidades", label: "Necesidades" },
+                            { value: "gustos", label: "Gustos" },
+                            { value: "ahorro", label: "Ahorro" },
+                          ]}
+                        />
+                        <input
+                          type="number"
+                          value={amounts[cat.id] || budgetAmounts.get(cat.id) || ""}
+                          onChange={(e) =>
+                            setAmounts({
+                              ...amounts,
+                              [cat.id]: parseFloat(e.target.value) || 0,
+                            })
+                          }
+                          placeholder={
+                            budgetAmounts.has(cat.id)
+                              ? formatCurrency(budgetAmounts.get(cat.id)!)
+                              : "0"
+                          }
+                          className="input flex-1 !py-1.5"
+                          aria-label={`Presupuesto para ${cat.name}`}
+                        />
+                        {budgetedCatIds.has(cat.id) ? (
+                          <button
+                            onClick={() => deleteBudgetMutation.mutate(cat.id)}
+                            disabled={deleteBudgetMutation.isPending}
+                            title={`Eliminar presupuesto de ${cat.name}`}
+                            aria-label={`Eliminar presupuesto de ${cat.name}`}
+                            className="text-[var(--text-tertiary)] hover:text-[var(--color-danger)] text-base px-1 flex-shrink-0 disabled:opacity-50"
+                          >
+                            ×
+                          </button>
+                        ) : (
+                          <span
+                            className="text-[10px] text-[var(--text-tertiary)] flex-shrink-0"
+                            title="Sin presupuesto asignado"
+                          >
+                            —
+                          </span>
+                        )}
+                      </div>
+                      {ctx && (ctx.spent > 0 || ctx.avg > 0) && (
+                        <div className="flex items-center gap-2 mt-1 ml-6 text-[11px] text-[var(--text-tertiary)]">
+                          <span>
+                            gastado {formatCurrency(ctx.spent)}
+                            {ctx.avg > 0 && <> · prom {formatCurrency(ctx.avg)}</>}
+                            {ctx.months < 3 && " · poco historial"}
+                          </span>
+                          {ctx.avg > 0 && (
+                            <button
+                              onClick={() =>
+                                setAmounts({ ...amounts, [cat.id]: Math.round(ctx.avg) })
+                              }
+                              className="text-[var(--color-primary)] hover:underline font-medium"
+                            >
+                              usar prom
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             ))}
           </div>
         )}
-        <div className="flex gap-2 mt-4">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending}
-            className="flex-1 px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {saveMutation.isPending ? "Guardando..." : "Guardar"}
-          </button>
+        <div className="sticky bottom-0 bg-[var(--color-surface)] pt-3 pb-1 mt-4 border-t border-[var(--border-color)]">
+          <p className="text-xs text-[var(--text-secondary)] mb-2 text-center">
+            Total asignado: <strong>{formatCurrency(totalAssigned)}</strong>
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending}
+              className="flex-1 px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saveMutation.isPending ? "Guardando..." : "Guardar"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1356,6 +1604,7 @@ export default function BudgetPage() {
   const [showQuickConfig, setShowQuickConfig] = useState(false);
   const [editingGroup, setEditingGroup] = useState<BudgetGroup | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<BudgetSummaryItem | null>(null);
+  const [editingCategory, setEditingCategory] = useState<BudgetSummaryItem | null>(null);
   const [linkingEvent, setLinkingEvent] = useState<BudgetEvent | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<BudgetEvent | null>(null);
 
@@ -1410,6 +1659,14 @@ export default function BudgetPage() {
   const dailyAvg = dayOfMonth > 0 ? totalSpent / dayOfMonth : 0;
   const budgetPace = daysInMonth > 0 ? totalBudget / daysInMonth : 0;
   const paceOk = budgetPace <= 0 || dailyAvg <= budgetPace * 1.1;
+  const expectedToday = budgetPace * dayOfMonth;
+  const paceRatio = expectedToday > 0 ? totalSpent / expectedToday : 0;
+  const paceColor =
+    paceRatio <= 1
+      ? "var(--color-success)"
+      : paceRatio <= 1.1
+        ? "var(--color-warning)"
+        : "var(--color-danger)";
   const spentPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
   const monthLabelRaw = now.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
   const monthLabel = monthLabelRaw.charAt(0).toUpperCase() + monthLabelRaw.slice(1);
@@ -1445,12 +1702,12 @@ export default function BudgetPage() {
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
         <div>
           <h1 className="adw-title-2 text-primary">Presupuesto</h1>
           <p className="adw-caption adw-dim-label">{monthLabel} · montos en ARS</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button onClick={() => setShowQuickConfig(true)} className="gnome-btn-secondary">
             Configurar
           </button>
@@ -1491,6 +1748,18 @@ export default function BudgetPage() {
                 {formatCurrency(dailyAvg)}
                 <span className="adw-caption adw-dim-label font-normal">/día</span>
               </p>
+              <p className="adw-caption adw-dim-label mt-1">
+                esperado a hoy {formatCurrency(expectedToday)} · real {formatCurrency(totalSpent)}
+              </p>
+              <div className="h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden mt-2">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(paceRatio * 100, 100)}%`,
+                    backgroundColor: paceColor,
+                  }}
+                />
+              </div>
               <p className={`adw-caption mt-1 ${paceOk ? "text-success" : "text-warning"}`}>
                 {paceOk ? "dentro de banda" : "por encima del ritmo"}
               </p>
@@ -1535,6 +1804,7 @@ export default function BudgetPage() {
                     allCategories={summary.categories}
                     onAddBudget={() => setShowQuickConfig(true)}
                     onCategoryClick={setSelectedCategory}
+                    onCategoryEdit={setEditingCategory}
                   />
                 ))}
               </>
@@ -1670,6 +1940,9 @@ export default function BudgetPage() {
       {editingGroup && <EditGroupModal onClose={() => setEditingGroup(null)} />}
       {selectedCategory && (
         <CategorySidePanel category={selectedCategory} onClose={() => setSelectedCategory(null)} />
+      )}
+      {editingCategory && (
+        <EditBudgetModal category={editingCategory} onClose={() => setEditingCategory(null)} />
       )}
       {linkingEvent && (
         <LinkExpensesModal event={linkingEvent} onClose={() => setLinkingEvent(null)} />
