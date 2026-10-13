@@ -533,8 +533,10 @@ function EditBudgetModal({
   const fallback =
     existing?.amount ?? (category.avg_monthly > 0 ? Math.round(category.avg_monthly) : null);
   const [amount, setAmount] = useState<number | null>(null);
+  const [group, setGroup] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const value = amount ?? fallback;
+  const groupValue = group ?? category.budget_group ?? "necesidades";
   const icon = getCategoryIcon(category.category_name);
 
   useEffect(() => {
@@ -550,12 +552,16 @@ function EditBudgetModal({
     qc.invalidateQueries({ queryKey: ["budget-summary"] });
     qc.invalidateQueries({ queryKey: ["budget-suggestions"] });
     qc.invalidateQueries({ queryKey: ["budget-groups"] });
+    qc.invalidateQueries({ queryKey: ["categories"] });
   };
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const { createBudget, updateBudget } = await import("../api/client");
+      const { createBudget, updateBudget, updateCategoryGroup } = await import("../api/client");
       if (!value || value <= 0) throw new Error("Ingresá un monto mayor a cero");
+      if (group && group !== category.budget_group && category.category_id !== null) {
+        await updateCategoryGroup(category.category_id, group);
+      }
       if (existing) return updateBudget(existing.id, { amount: value });
       return createBudget({ category_id: category.category_id!, amount: value });
     },
@@ -607,19 +613,35 @@ function EditBudgetModal({
             </p>
           </div>
         </div>
-        <div className="mt-4">
-          <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
-            Límite mensual
-          </label>
-          <CurrencyInput value={value} onChange={(v) => setAmount(v)} placeholder="0,00" />
-          {category.avg_monthly > 0 && (
-            <button
-              onClick={() => setAmount(Math.round(category.avg_monthly))}
-              className="text-xs text-[var(--color-primary)] hover:underline font-medium mt-2"
-            >
-              Usar prom {formatCurrency(category.avg_monthly)}
-            </button>
-          )}
+        <div className="mt-4 space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+              Límite mensual
+            </label>
+            <CurrencyInput value={value} onChange={(v) => setAmount(v)} placeholder="0,00" />
+            {category.avg_monthly > 0 && (
+              <button
+                onClick={() => setAmount(Math.round(category.avg_monthly))}
+                className="text-xs text-[var(--color-primary)] hover:underline font-medium mt-2"
+              >
+                Usar prom {formatCurrency(category.avg_monthly)}
+              </button>
+            )}
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+              Grupo
+            </label>
+            <Select
+              value={groupValue}
+              onChange={(v) => setGroup(v)}
+              options={[
+                { value: "necesidades", label: "Necesidades" },
+                { value: "gustos", label: "Gustos" },
+                { value: "ahorro", label: "Ahorro" },
+              ]}
+            />
+          </div>
         </div>
         {error && <p className="text-xs text-[var(--color-danger)] mt-3">{error}</p>}
         <div className="flex gap-2 mt-5">
@@ -654,8 +676,15 @@ function EditBudgetModal({
 
 // ─── Quick Config Modal ────────────────────────────────────────
 
-function QuickConfigModal({ onClose }: { onClose: () => void }) {
-  const qc = useQueryClient();
+// ─── Overview Modal: everything budgeted + unassigned with spending ─
+
+function QuickConfigModal({
+  onClose,
+  onEditCategory,
+}: {
+  onClose: () => void;
+  onEditCategory: (cat: BudgetSummaryItem) => void;
+}) {
   const { data: allCategories = [] } = useQuery({
     queryKey: ["categories"],
     queryFn: () => import("../api/client").then((m) => m.getCategories()),
@@ -668,72 +697,7 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
     queryKey: ["budget-summary"],
     queryFn: () => import("../api/client").then((m) => m.getBudgetSummary()),
   });
-
-  // Build set of category IDs that already have budgets
-  const budgetedCatIds = new Set(budgets.map((b) => b.category_id));
-  const budgetAmounts = new Map(budgets.map((b) => [b.category_id, b.amount]));
-
-  // Get category IDs that have spending (from summary, including children)
-  const spentCatIds = new Set(
-    summary?.categories
-      .flatMap((c) => [c.category_id, ...c.children.map((ch) => ch.category_id)])
-      .filter((id): id is number => id !== null) ?? [],
-  );
-
-  // Get ALL leaf categories (no children in the full list)
-  const leafCategories = allCategories.filter(
-    (c) => !allCategories.some((p) => p.id === c.parent_id),
-  );
-
-  // Filter to leaves that have spending
-  const categoriesWithSpending = leafCategories.filter((c) => spentCatIds.has(c.id));
-
-  // Group by parent for display
-  const groupedByParent = new Map<
-    string,
-    {
-      parent: (typeof allCategories)[0] | null;
-      children: typeof leafCategories;
-    }
-  >();
-  for (const cat of categoriesWithSpending) {
-    const parentId = String(cat.parent_id ?? "root");
-    if (!groupedByParent.has(parentId)) {
-      const parent = cat.parent_id
-        ? (allCategories.find((c) => c.id === cat.parent_id) ?? null)
-        : null;
-      groupedByParent.set(parentId, { parent, children: [] });
-    }
-    groupedByParent.get(parentId)!.children.push(cat);
-  }
-
-  const [amounts, setAmounts] = useState<Record<number, number>>(() => {
-    const initial: Record<number, number> = {};
-    for (const b of budgets) initial[b.category_id] = b.amount;
-    return initial;
-  });
-  const [groupAssignments, setGroupAssignments] = useState<Record<number, string>>(() => {
-    const initial: Record<number, string> = {};
-    for (const c of categoriesWithSpending) {
-      initial[c.id] = c.budget_group || "";
-    }
-    return initial;
-  });
   const [searchQuery, setSearchQuery] = useState("");
-
-  // Context per leaf from summary (spent MTD + avg + evidence)
-  const summaryMap = new Map<number, { spent: number; avg: number; months: number }>();
-  for (const p of summary?.categories ?? []) {
-    for (const ch of [p, ...p.children]) {
-      if (ch.category_id !== null && !summaryMap.has(ch.category_id)) {
-        summaryMap.set(ch.category_id, {
-          spent: ch.spent_amount,
-          avg: ch.avg_monthly,
-          months: ch.months_with_data,
-        });
-      }
-    }
-  }
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -743,74 +707,187 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
     return () => document.removeEventListener("keydown", handleEsc);
   }, [onClose]);
 
-  const deleteBudgetMutation = useMutation({
-    mutationFn: async (categoryId: number) => {
-      const { deleteBudget } = await import("../api/client");
-      const existing = budgets.find((b) => b.category_id === categoryId);
-      if (!existing) throw new Error("Sin presupuesto para eliminar");
-      return deleteBudget(existing.id);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["budgets"] });
-      qc.invalidateQueries({ queryKey: ["budget-summary"] });
-      qc.invalidateQueries({ queryKey: ["budget-suggestions"] });
-    },
-  });
+  const catById = new Map(allCategories.map((c) => [c.id, c]));
+  const parentNameOf = (cat: (typeof allCategories)[number]) =>
+    cat.parent_id ? (catById.get(cat.parent_id)?.name ?? null) : null;
 
-  const totalAssigned = categoriesWithSpending.reduce(
-    (s, c) => s + (amounts[c.id] || budgetAmounts.get(c.id) || 0),
-    0,
-  );
-
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const { createBudget, updateCategoryGroup } = await import("../api/client");
-      const promises = [];
-      for (const [catId, amount] of Object.entries(amounts)) {
-        if (amount > 0) {
-          promises.push(createBudget({ category_id: parseInt(catId), amount }));
-        }
-      }
-      for (const [catId, group] of Object.entries(groupAssignments)) {
-        if (group) {
-          promises.push(updateCategoryGroup(parseInt(catId), group));
-        }
-      }
-      return Promise.all(promises);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["budgets"] });
-      qc.invalidateQueries({ queryKey: ["budget-summary"] });
-      qc.invalidateQueries({ queryKey: ["budget-groups"] });
-      onClose();
-    },
-  });
-
-  // Filter by search
-  const filteredCategories = searchQuery
-    ? categoriesWithSpending.filter((c) => c.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    : categoriesWithSpending;
-
-  // Group filtered categories by parent for display
-  const filteredGrouped = new Map<
-    string,
-    {
-      parent: (typeof allCategories)[0] | null;
-      children: typeof leafCategories;
-    }
+  // Context per category from summary (spent MTD + avg + evidence + status)
+  const summaryMap = new Map<
+    number,
+    { spent: number; avg: number; months: number; budget: number; status: string }
   >();
-  for (const cat of filteredCategories) {
-    const parentId = String(cat.parent_id ?? "root");
-    if (!filteredGrouped.has(parentId)) {
-      const parent = cat.parent_id
-        ? (allCategories.find((c) => c.id === cat.parent_id) ?? null)
-        : null;
-      filteredGrouped.set(parentId, { parent, children: [] });
+  for (const p of summary?.categories ?? []) {
+    for (const ch of [p, ...p.children]) {
+      if (ch.category_id !== null && !summaryMap.has(ch.category_id)) {
+        summaryMap.set(ch.category_id, {
+          spent: ch.spent_amount,
+          avg: ch.avg_monthly,
+          months: ch.months_with_data,
+          budget: ch.budget_amount,
+          status: ch.status,
+        });
+      }
     }
-    filteredGrouped.get(parentId)!.children.push(cat);
   }
 
-  const totalCategories = filteredCategories.length;
+  type Row = {
+    key: number;
+    name: string;
+    parent: string | null;
+    color: string;
+    budget: number;
+    spent: number;
+    avg: number;
+    months: number;
+    status: string;
+    group: string;
+    hasBudget: boolean;
+  };
+
+  const budgetedRows: Row[] = [];
+  for (const b of budgets) {
+    const cat = catById.get(b.category_id);
+    const ctx = summaryMap.get(b.category_id);
+    budgetedRows.push({
+      key: b.category_id,
+      name: cat?.name ?? "Categoría eliminada",
+      parent: cat ? parentNameOf(cat) : null,
+      color: cat?.color ?? "#71717a",
+      budget: b.amount,
+      spent: ctx?.spent ?? 0,
+      avg: ctx?.avg ?? 0,
+      months: ctx?.months ?? 0,
+      status: ctx?.status ?? (b.amount > 0 ? "ok" : "no_budget"),
+      group: cat?.budget_group ?? "necesidades",
+      hasBudget: true,
+    });
+  }
+
+  const budgetedIds = new Set(budgets.map((b) => b.category_id));
+  const unassignedRows: Row[] = [];
+  for (const cat of allCategories) {
+    const isLeaf = !allCategories.some((p) => p.parent_id === cat.id);
+    if (!isLeaf || budgetedIds.has(cat.id)) continue;
+    const ctx = summaryMap.get(cat.id);
+    if (!ctx || (ctx.spent <= 0 && ctx.avg <= 0)) continue;
+    unassignedRows.push({
+      key: cat.id,
+      name: cat.name,
+      parent: parentNameOf(cat),
+      color: cat.color,
+      budget: 0,
+      spent: ctx.spent,
+      avg: ctx.avg,
+      months: ctx.months,
+      status: "no_budget",
+      group: cat.budget_group || "necesidades",
+      hasBudget: false,
+    });
+  }
+
+  const q = searchQuery.trim().toLowerCase();
+  const match = (r: Row) =>
+    !q || r.name.toLowerCase().includes(q) || (r.parent ?? "").toLowerCase().includes(q);
+  const budgeted = budgetedRows.filter(match).sort((a, b) => b.budget - a.budget);
+  const unassigned = unassignedRows.filter(match).sort((a, b) => b.avg - a.avg);
+  const totalAssigned = budgetedRows.reduce((s, r) => s + r.budget, 0);
+
+  const toEditItem = (r: Row): BudgetSummaryItem => ({
+    category_id: r.key,
+    category_name: r.name,
+    category_color: r.color,
+    budget_group: r.group,
+    budget_amount: r.budget,
+    spent_amount: r.spent,
+    avg_monthly: r.avg,
+    months_with_data: r.months,
+    percentage: 0,
+    status: r.status as BudgetSummaryItem["status"],
+    has_budget: r.hasBudget,
+    children: [],
+  });
+
+  const statusColor = (s: string) =>
+    s === "exceeded"
+      ? "var(--color-danger)"
+      : s === "warning"
+        ? "var(--color-warning)"
+        : s === "ok"
+          ? "var(--color-success)"
+          : "var(--text-tertiary)";
+
+  const renderRow = (r: Row) => {
+    const icon = getCategoryIcon(r.name);
+    const remaining = r.budget - r.spent;
+    return (
+      <div
+        key={r.key}
+        className="py-2.5 px-3 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors"
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span
+              className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center"
+              style={{ backgroundColor: `${r.color}20` }}
+            >
+              {icon ? (
+                <SymbolicIcon name={icon} size={14} />
+              ) : (
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: r.color }} />
+              )}
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-[var(--text-primary)] truncate">
+                {r.parent ? `${r.parent} > ${r.name}` : r.name}
+              </p>
+              <p className="text-[11px] text-[var(--text-tertiary)]">
+                {r.hasBudget ? (
+                  <>
+                    {formatCurrency(r.budget)} presup. · gastado {formatCurrency(r.spent)}
+                    {r.avg > 0 && <> · prom {formatCurrency(r.avg)}</>}
+                    {r.months < 3 && " · poco historial"}
+                  </>
+                ) : (
+                  <>
+                    gastado {formatCurrency(r.spent)}
+                    {r.avg > 0 && <> · prom {formatCurrency(r.avg)}</>}
+                    {r.months < 3 && " · poco historial"}
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {r.hasBudget && (
+              <span
+                className="text-xs font-semibold"
+                style={{
+                  color: remaining < 0 ? "var(--color-danger)" : "var(--color-success)",
+                }}
+              >
+                {remaining >= 0
+                  ? `${formatCurrency(remaining)} rest.`
+                  : `-${formatCurrency(Math.abs(remaining))}`}
+              </span>
+            )}
+            <span
+              className="w-2 h-2 rounded-full inline-block"
+              title={r.status}
+              style={{ backgroundColor: statusColor(r.status) }}
+            />
+            <button
+              onClick={() => onEditCategory(toEditItem(r))}
+              title={r.hasBudget ? `Editar ${r.name}` : `Asignar presupuesto a ${r.name}`}
+              aria-label={r.hasBudget ? `Editar ${r.name}` : `Asignar presupuesto a ${r.name}`}
+              className="h-7 px-2 rounded-lg text-xs font-medium text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 transition-colors"
+            >
+              {r.hasBudget ? "Editar" : "Asignar"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div
@@ -821,11 +898,10 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
         className="card w-full max-w-2xl p-6 max-h-[80vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-base font-semibold text-primary mb-2">
-          Configurar presupuestos por categoría
-        </h3>
-        <p className="text-xs text-[var(--text-secondary)] mb-4">
-          Definí el límite mensual y el grupo para cada categoría con gastos
+        <h3 className="text-base font-semibold text-primary mb-1">Todo lo presupuestado</h3>
+        <p className="adw-caption adw-dim-label mb-4">
+          {budgeted.length} con presupuesto · {unassigned.length} con gasto sin asignar · total{" "}
+          {formatCurrency(totalAssigned)}
         </p>
         <div className="mb-4">
           <input
@@ -836,133 +912,41 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
             className="input w-full text-sm"
           />
         </div>
-        {totalCategories === 0 ? (
+        {budgeted.length === 0 && unassigned.length === 0 ? (
           <EmptyState
             icon="cash"
-            title="Sin gastos este mes"
-            description="Todavía no hay categorías con gastos. Registrá un gasto para empezar a presupuestar."
+            title="Sin presupuestos ni gastos"
+            description="Creá tu primer presupuesto desde una categoría con gasto o desde cero."
             action={{ label: "Cerrar", onClick: onClose }}
           />
         ) : (
-          <div className="space-y-4">
-            {Array.from(filteredGrouped.entries()).map(([parentId, group]) => (
-              <div key={parentId ?? "root"}>
-                {/* Parent header */}
-                {group.parent && (
-                  <h4 className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wide mb-2">
-                    {group.parent.name}
-                  </h4>
-                )}
-                {/* Children rows */}
-                {group.children.map((cat) => {
-                  const ctx = summaryMap.get(cat.id);
-                  return (
-                    <div
-                      key={cat.id}
-                      className="py-2 px-3 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-3 h-3 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: cat.color }}
-                        />
-                        <span className="text-sm font-medium text-primary min-w-[120px] truncate">
-                          {cat.name}
-                        </span>
-                        <Select
-                          value={groupAssignments[cat.id] ?? cat.budget_group ?? ""}
-                          onChange={(v) =>
-                            setGroupAssignments({
-                              ...groupAssignments,
-                              [cat.id]: v,
-                            })
-                          }
-                          options={[
-                            { value: "", label: "Sin grupo" },
-                            { value: "necesidades", label: "Necesidades" },
-                            { value: "gustos", label: "Gustos" },
-                            { value: "ahorro", label: "Ahorro" },
-                          ]}
-                        />
-                        <input
-                          type="number"
-                          value={amounts[cat.id] || budgetAmounts.get(cat.id) || ""}
-                          onChange={(e) =>
-                            setAmounts({
-                              ...amounts,
-                              [cat.id]: parseFloat(e.target.value) || 0,
-                            })
-                          }
-                          placeholder={
-                            budgetAmounts.has(cat.id)
-                              ? formatCurrency(budgetAmounts.get(cat.id)!)
-                              : "0"
-                          }
-                          className="input flex-1 !py-1.5"
-                          aria-label={`Presupuesto para ${cat.name}`}
-                        />
-                        {budgetedCatIds.has(cat.id) ? (
-                          <button
-                            onClick={() => deleteBudgetMutation.mutate(cat.id)}
-                            disabled={deleteBudgetMutation.isPending}
-                            title={`Eliminar presupuesto de ${cat.name}`}
-                            aria-label={`Eliminar presupuesto de ${cat.name}`}
-                            className="text-[var(--text-tertiary)] hover:text-[var(--color-danger)] text-base px-1 flex-shrink-0 disabled:opacity-50"
-                          >
-                            ×
-                          </button>
-                        ) : (
-                          <span
-                            className="text-[10px] text-[var(--text-tertiary)] flex-shrink-0"
-                            title="Sin presupuesto asignado"
-                          >
-                            —
-                          </span>
-                        )}
-                      </div>
-                      {ctx && (ctx.spent > 0 || ctx.avg > 0) && (
-                        <div className="flex items-center gap-2 mt-1 ml-6 text-[11px] text-[var(--text-tertiary)]">
-                          <span>
-                            gastado {formatCurrency(ctx.spent)}
-                            {ctx.avg > 0 && <> · prom {formatCurrency(ctx.avg)}</>}
-                            {ctx.months < 3 && " · poco historial"}
-                          </span>
-                          {ctx.avg > 0 && (
-                            <button
-                              onClick={() =>
-                                setAmounts({ ...amounts, [cat.id]: Math.round(ctx.avg) })
-                              }
-                              className="text-[var(--color-primary)] hover:underline font-medium"
-                            >
-                              usar prom
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+          <>
+            {budgeted.length > 0 && (
+              <div className="mb-5">
+                <p className="adw-caption-heading adw-dim-label px-1 mb-1.5">PRESUPUESTADAS</p>
+                <div className="rounded-xl border border-[var(--border-color)] overflow-hidden">
+                  {budgeted.map(renderRow)}
+                </div>
               </div>
-            ))}
-          </div>
+            )}
+            {unassigned.length > 0 && (
+              <div>
+                <p className="adw-caption-heading adw-dim-label px-1 mb-1.5">SIN ASIGNAR</p>
+                <div className="rounded-xl border border-[var(--border-color)] overflow-hidden">
+                  {unassigned.map(renderRow)}
+                </div>
+              </div>
+            )}
+          </>
         )}
         <div className="sticky bottom-0 bg-[var(--color-surface)] pt-3 pb-1 mt-4 border-t border-[var(--border-color)]">
-          <p className="text-xs text-[var(--text-secondary)] mb-2 text-center">
-            Total asignado: <strong>{formatCurrency(totalAssigned)}</strong>
-          </p>
           <div className="flex gap-2">
+            <div className="flex-1" />
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
+              className="px-6 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
             >
-              Cancelar
-            </button>
-            <button
-              onClick={() => saveMutation.mutate()}
-              disabled={saveMutation.isPending}
-              className="flex-1 px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saveMutation.isPending ? "Guardando..." : "Guardar"}
+              Cerrar
             </button>
           </div>
         </div>
@@ -970,7 +954,6 @@ function QuickConfigModal({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
-
 // ─── Edit Group Modal ──────────────────────────────────────────
 
 function EditGroupModal({ onClose }: { onClose: () => void }) {
@@ -980,32 +963,29 @@ function EditGroupModal({ onClose }: { onClose: () => void }) {
     queryFn: getBudgetGroups,
   });
 
-  const [groupData, setGroupData] = useState<
-    Record<string, { percentage: number; amount: number }>
-  >(() => {
-    const initial: Record<string, { percentage: number; amount: number }> = {};
-    for (const g of allGroups) {
-      initial[g.name] = { percentage: g.percentage, amount: g.amount };
-    }
-    return initial;
-  });
+  // Amounts are the source of truth; percentages derive from the total
+  // assigned. `edited` only holds user-typed values so async loads can't
+  // go stale.
+  const [edited, setEdited] = useState<Record<string, number>>({});
 
-  const totalPercentage = Object.values(groupData).reduce((s, g) => s + g.percentage, 0);
+  const amountOf = (name: string) => {
+    if (edited[name] !== undefined) return edited[name];
+    return allGroups.find((g) => g.name === name)?.amount ?? 0;
+  };
+  const total = allGroups.reduce((s, g) => s + amountOf(g.name), 0);
+  const pctOf = (name: string) => (total > 0 ? (amountOf(name) / total) * 100 : 0);
 
   const updateMutation = useMutation({
     mutationFn: async () => {
       const { updateBudgetGroup } = await import("../api/client");
       const promises = [];
-      for (const [name, data] of Object.entries(groupData)) {
-        const grp = allGroups.find((g) => g.name === name);
-        if (grp) {
-          promises.push(
-            updateBudgetGroup(grp.id, {
-              percentage: data.percentage,
-              amount: data.amount,
-            }),
-          );
-        }
+      for (const g of allGroups) {
+        promises.push(
+          updateBudgetGroup(g.id, {
+            percentage: Math.round(pctOf(g.name) * 10) / 10,
+            amount: amountOf(g.name),
+          }),
+        );
       }
       return Promise.all(promises);
     },
@@ -1016,67 +996,52 @@ function EditGroupModal({ onClose }: { onClose: () => void }) {
     },
   });
 
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleEsc);
+    return () => document.removeEventListener("keydown", handleEsc);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="text-base font-semibold text-primary mb-4">Editar grupos</h3>
+    <div
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div className="card w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-base font-semibold text-primary mb-1">Editar grupos</h3>
+        <p className="adw-caption adw-dim-label mb-4">
+          Definí los montos; el porcentaje se calcula sobre el total asignado
+        </p>
         <div className="space-y-4">
           {allGroups.map((g) => (
             <div key={g.name} className="p-3 rounded-lg border border-[var(--border-color)]">
-              <p className="text-sm font-medium text-primary mb-2">{g.display_name}</p>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="block text-[10px] text-[var(--text-secondary)] mb-1">
-                    % Ingreso
-                  </label>
-                  <input
-                    type="number"
-                    value={groupData[g.name]?.percentage || 0}
-                    onChange={(e) => {
-                      const p = parseFloat(e.target.value) || 0;
-                      const total =
-                        (groupData[g.name]?.amount || 0) /
-                        ((groupData[g.name]?.percentage || 1) / 100);
-                      setGroupData({
-                        ...groupData,
-                        [g.name]: {
-                          percentage: p,
-                          amount: Math.round((total * p) / 100),
-                        },
-                      });
-                    }}
-                    min="0"
-                    max="100"
-                    className="input w-full text-xs"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-[10px] text-[var(--text-secondary)] mb-1">
-                    Monto
-                  </label>
-                  <input
-                    type="number"
-                    value={groupData[g.name]?.amount || 0}
-                    onChange={(e) =>
-                      setGroupData({
-                        ...groupData,
-                        [g.name]: {
-                          ...groupData[g.name],
-                          amount: parseFloat(e.target.value) || 0,
-                        },
-                      })
-                    }
-                    className="input w-full text-xs"
-                  />
-                </div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-primary">{g.display_name}</p>
+                <span className="text-xs text-[var(--text-tertiary)]">
+                  = {pctOf(g.name).toFixed(1)}%
+                </span>
+              </div>
+              <div>
+                <label className="block text-[10px] text-[var(--text-secondary)] mb-1">
+                  Monto mensual
+                </label>
+                <input
+                  type="number"
+                  value={edited[g.name] ?? g.amount ?? ""}
+                  onChange={(e) =>
+                    setEdited({ ...edited, [g.name]: parseFloat(e.target.value) || 0 })
+                  }
+                  placeholder="0"
+                  className="input w-full text-xs"
+                />
               </div>
             </div>
           ))}
-          {totalPercentage !== 100 && (
-            <p className="text-xs text-[var(--color-warning)]">
-              Total: {totalPercentage}% (debería ser 100%)
-            </p>
-          )}
+          <p className="text-xs text-[var(--text-secondary)] text-center">
+            Total asignado: <strong>{formatCurrency(total)}</strong>
+          </p>
         </div>
         <div className="flex gap-2 mt-6">
           <button
@@ -1936,7 +1901,15 @@ export default function BudgetPage() {
 
       {/* Modals */}
       {showNewEvent && <NewEventModal onClose={() => setShowNewEvent(false)} />}
-      {showQuickConfig && <QuickConfigModal onClose={() => setShowQuickConfig(false)} />}
+      {showQuickConfig && (
+        <QuickConfigModal
+          onClose={() => setShowQuickConfig(false)}
+          onEditCategory={(cat) => {
+            setShowQuickConfig(false);
+            setEditingCategory(cat);
+          }}
+        />
+      )}
       {editingGroup && <EditGroupModal onClose={() => setEditingGroup(null)} />}
       {selectedCategory && (
         <CategorySidePanel category={selectedCategory} onClose={() => setSelectedCategory(null)} />
