@@ -70,6 +70,7 @@ class BudgetGroupUpdate(BaseModel):
     display_name: str | None = None
     percentage: float | None = None
     amount: float | None = None
+    is_active: bool | None = None
 
 
 class BudgetGroupCategory(BaseModel):
@@ -108,6 +109,7 @@ class BudgetEventUpdate(BaseModel):
     end_date: date | None = None
     total_amount: float | None = None
     categories: list[dict[str, Any]] | None = None
+    is_active: bool | None = None
 
 
 class BudgetEventResponse(BaseModel):
