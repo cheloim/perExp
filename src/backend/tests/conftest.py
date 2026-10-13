@@ -21,6 +21,7 @@ from sqlalchemy.orm import sessionmaker
 @pytest.fixture(scope="session")
 def engine():
     """Create test database engine and ensure tables exist."""
+    import app.models  # noqa: F401 — register all tables before create_all
     from app.database import Base
 
     eng = create_engine(TEST_DATABASE_URL)
