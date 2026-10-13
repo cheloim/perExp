@@ -141,84 +141,35 @@ def _get_avg_monthly_spending(category_id: int, uid_list: list[int], db: Session
     return sum(monthly_totals) / len(monthly_totals) if monthly_totals else 0
 
 
-def _build_category_summary(
-    category: Category,
-    budgets_map: dict,
-    year: int,
-    month: int,
-    uid_list: list[int],
-    db: Session,
-) -> BudgetSummaryItem | None:
-    """Build summary for a category and its children."""
-    budget = budgets_map.get(category.id)
-    budget_amount = budget.amount if budget else 0
-    alert_threshold = budget.alert_threshold if budget else 0.8
+def _get_months_with_spending(category_id: int, uid_list: list[int], db: Session) -> int:
+    """Count how many of the last 3 months have spending (evidence for averages)."""
+    today = date.today()
+    cat_ids = [category_id]
+    children = db.query(Category).filter(Category.parent_id == category_id).all()
+    cat_ids.extend([c.id for c in children])
 
-    spent = _get_spending_for_category(category.id, year, month, uid_list, db)
-    avg_monthly = _get_avg_monthly_spending(category.id, uid_list, db)
+    months = 0
+    for i in range(3):
+        month_date = today.replace(day=1) - timedelta(days=30 * i)
+        start = month_date.replace(day=1)
+        end = start.replace(day=monthrange(start.year, start.month)[1])
 
-    # Skip if no spending and no budget
-    if budget_amount == 0 and spent == 0:
-        return None
-
-    percentage = spent / budget_amount if budget_amount > 0 else 0
-
-    if budget_amount == 0:
-        status = "no_budget"
-    elif percentage >= 1.0:
-        status = "exceeded"
-    elif percentage >= alert_threshold:
-        status = "warning"
-    else:
-        status = "ok"
-
-    children_items = []
-    for child in category.children:
-        child_budget = budgets_map.get(child.id)
-        child_budget_amount = child_budget.amount if child_budget else 0
-        child_spent = _get_spending_for_category(child.id, year, month, uid_list, db)
-
-        if child_budget_amount == 0 and child_spent == 0:
-            continue
-
-        child_pct = child_spent / child_budget_amount if child_budget_amount > 0 else 0
-        child_status = (
-            "no_budget"
-            if child_budget_amount == 0
-            else "exceeded"
-            if child_pct >= 1.0
-            else "warning"
-            if child_pct >= (child_budget.alert_threshold if child_budget else 0.8)
-            else "ok"
-        )
-        children_items.append(
-            BudgetSummaryItem(
-                category_id=child.id,
-                category_name=child.name,
-                category_color=child.color,
-                budget_group=child.budget_group or "necesidades",
-                budget_amount=child_budget_amount,
-                spent_amount=round(child_spent, 2),
-                avg_monthly=round(_get_avg_monthly_spending(child.id, uid_list, db), 2),
-                percentage=round(child_pct, 4),
-                status=child_status,
-                has_budget=child_budget is not None,
+        total = (
+            db.query(Expense)
+            .filter(
+                Expense.user_id.in_(uid_list),
+                Expense.category_id.in_(cat_ids),
+                Expense.date >= start,
+                Expense.date <= end,
+                Expense.is_income == False,
             )
+            .with_entities(func.sum(Expense.amount))
+            .scalar()
+            or 0
         )
-
-    return BudgetSummaryItem(
-        category_id=category.id,
-        category_name=category.name,
-        category_color=category.color,
-        budget_group=category.budget_group or "necesidades",
-        budget_amount=budget_amount,
-        spent_amount=round(spent, 2),
-        avg_monthly=round(avg_monthly, 2),
-        percentage=round(percentage, 4),
-        status=status,
-        has_budget=budget is not None,
-        children=children_items,
-    )
+        if abs(total) > 0:
+            months += 1
+    return months
 
 
 # ─── Budget CRUD ──────────────────────────────────────────────────
@@ -481,6 +432,7 @@ def budget_summary(
                         budget_amount=child_budget_amount,
                         spent_amount=round(child_spent, 2),
                         avg_monthly=round(_get_avg_monthly_spending(child.id, uid_list, db), 2),
+                        months_with_data=_get_months_with_spending(child.id, uid_list, db),
                         percentage=round(child_pct, 4),
                         status=child_status,
                         has_budget=child_budget is not None,
@@ -507,6 +459,7 @@ def budget_summary(
             budget_amount=budget_amount,
             spent_amount=round(spent, 2),
             avg_monthly=round(_get_avg_monthly_spending(cat.id, uid_list, db), 2),
+            months_with_data=_get_months_with_spending(cat.id, uid_list, db),
             percentage=round(percentage, 4),
             status=status,
             has_budget=budget is not None,
@@ -597,6 +550,7 @@ def suggest_budgets(
                     "category_name": cat.name,
                     "category_color": cat.color,
                     "avg_monthly": round(avg_monthly, 2),
+                    "months_with_data": sum(1 for t in monthly_totals if t > 0),
                     "suggested": suggested,
                     "has_budget": existing is not None,
                     "current_budget": existing.amount if existing else None,
