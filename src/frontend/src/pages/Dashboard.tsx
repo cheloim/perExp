@@ -31,7 +31,6 @@ import {
   getTopMerchants,
   getUncategorizedCount,
   getMe,
-  getCategoryTrend,
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
 import { formatCurrency, toUpperCase, formatDateDMYSlash, MONTHS_ES_SHORT } from "../utils/format";
@@ -300,14 +299,6 @@ export default function Dashboard() {
   const { data: monthlyLoad = [] } = useQuery({
     queryKey: ["installments-monthly-load"],
     queryFn: getInstallmentsMonthlyLoad,
-    staleTime: 60_000,
-    enabled: deferred,
-  });
-
-  // Category trend for sparklines (12 months) (Tier 3: deferred)
-  const { data: catTrendData } = useQuery({
-    queryKey: ["category-trend", 12],
-    queryFn: () => getCategoryTrend(12),
     staleTime: 60_000,
     enabled: deferred,
   });
@@ -683,21 +674,19 @@ export default function Dashboard() {
                 </PieChart>
               </ResponsiveContainer>
 
-              {/* Enriched legend */}
-              <div className="flex-1 w-full space-y-1 overflow-y-auto min-h-0 pb-2 scrollbar-none">
+              {/* Enriched legend (same pattern as Gastos por Cuenta) */}
+              <div className="flex-1 w-full space-y-1.5 min-h-0 pb-2">
                 {categories.map((cat, i) => {
                   const color =
                     cat.category_color || categoryColorMap.get(cat.category_name) || "#94a3b8";
                   const isSelected = selectedCategory === cat.category_name;
                   const prevTotal = cat.previous_total ?? 0;
                   const variation = prevTotal > 0 ? ((cat.total - prevTotal) / prevTotal) * 100 : 0;
-                  const catMonthly = (catTrendData?.rows ?? []).map(
-                    (r: Record<string, number | string>) => (r[cat.category_name] as number) ?? 0,
-                  );
                   return (
                     <button
                       key={i}
                       onClick={() => handleCategorySelect(cat.category_name)}
+                      title={cat.category_name}
                       className={`flex items-center gap-2.5 w-full text-left rounded-lg px-2.5 py-1.5 transition-all ${
                         isSelected
                           ? "bg-primary/10 ring-1 ring-primary"
@@ -722,9 +711,6 @@ export default function Dashboard() {
                       <span className="text-xs text-tertiary whitespace-nowrap">
                         {formatCurrency(cat.total)}
                       </span>
-                      {catMonthly.length > 1 && (
-                        <Sparkline data={catMonthly} width={50} height={12} color={color} />
-                      )}
                     </button>
                   );
                 })}
