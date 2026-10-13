@@ -21,6 +21,20 @@ loki.source.file "journal_export" {
 loki.process "parse" {
   forward_to = [loki.write.local.receiver]
 
+  // 0. Drop torn lines (rotation/truncation can split a JSON record;
+  //    a fragment never parses and would otherwise glue raw JSON
+  //    onto the previous entry via the multiline stage below).
+  //    A valid journal line always starts with "{" and ends with "}".
+  stage.drop {
+    source     = ""
+    expression = "^[^{]"
+  }
+
+  stage.drop {
+    source     = ""
+    expression = "[^}]$"
+  }
+
   // 1. Parse journal JSON to extract fields
   stage.json {
     expressions = {
@@ -33,6 +47,26 @@ loki.process "parse" {
   // 2. Replace raw JSON log body with just the MESSAGE field
   stage.output {
     source = "msg"
+  }
+
+  // 3. Reassemble multi-line logs (e.g. Python tracebacks) into ONE entry.
+  //    journald splits every newline into its own entry, which scatters a
+  //    33-line traceback across 33 Loki entries (shown reversed in Grafana).
+  //    Any line matching firstline starts a new entry; anything else is
+  //    appended to the in-progress one. Calibrated 2026-10-13 against the
+  //    real formats in journal.log:
+  //      DATE  "2026-10-13 01:32:14..." (app logs, health checks)
+  //      LEVEL "INFO: ..."/"ERROR: ..." (uvicorn)
+  //      NGINX "10.89.0.200 - - [...]" (nginx + frontend access logs)
+  //      LOGFMT "level=info ts=..." (loki) / "logger=..." (grafana)
+  //      OTHER "time=... level=WARN ..." (blackbox) / "ts=... level=..." (loki)
+  //    Traceback bodies ("  File ...", "| ...", "^^^", source lines) never
+  //    match firstline, so they glue to their header line. Labels of the
+  //    first line win, so container/level stay correct for the whole trace.
+  stage.multiline {
+    firstline = "^(?:\\d{4}-\\d{2}-\\d{2}|INFO:|ERROR:|WARNING:|level=|logger=|time=|ts=|\\d{1,3}(?:\\.\\d{1,3}){3} -)"
+    max_wait_time = "3s"
+    max_lines     = 200
   }
 
   // 3. Extract real level from message content.

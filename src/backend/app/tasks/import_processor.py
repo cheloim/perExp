@@ -123,9 +123,7 @@ def process_import_job(job_id: int):
 
     except Exception as e:
         logger.error("[IMPORT JOB] Job %d failed: %s", job_id, e)
-        import traceback
-
-        traceback.print_exc()
+        logger.exception("[IMPORT JOB] Traceback for job %d failure", job_id)
 
         job.status = "FAILED"
         job.error_message = str(e)

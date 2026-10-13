@@ -1055,9 +1055,7 @@ def generate_single_report(self, user_id: int, month_str: str):
 
     except Exception as e:
         logger.error(f"[MONTHLY REPORT] Error generating report for user {user_id}: {e}")
-        import traceback
-
-        traceback.print_exc()
+        logger.exception("[MONTHLY REPORT] Traceback for report failure")
 
         # Mark as failed
         try:

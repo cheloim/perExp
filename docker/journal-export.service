@@ -3,7 +3,11 @@ Description=Export journal logs to file for Alloy
 After=default.target
 
 [Service]
-ExecStart=/bin/bash -c 'journalctl -f -o json --no-pager --since -6h >> /opt/creditcardanalyzer/logs/journal.log'
+# NOTE: no --since flag on purpose. A --since window replays history on
+# every service restart, appending MASSIVE duplicates to journal.log
+# (same __CURSOR repeated N times). Pure -f tails live entries only;
+# the few seconds lost across a restart are acceptable and self-healing.
+ExecStart=/bin/bash -c 'journalctl -f -o json --no-pager >> /opt/creditcardanalyzer/logs/journal.log'
 Restart=always
 RestartSec=5
 

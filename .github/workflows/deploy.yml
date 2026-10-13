@@ -1065,6 +1065,15 @@ jobs:
                 kill "$PID" 2>/dev/null || true
               fi
             done
+            # Kill the legacy export-logs.sh exporter if still running.
+            # It was superseded by journal-export.service and duplicates
+            # every entry (same __CURSOR appended twice). Same self-match
+            # guard via "[e]xport-logs".
+            for PID in $(pgrep -f "[e]xport-logs\.sh" 2>/dev/null || true); do
+              if [ "$PID" != "$$" ] && [ "$PID" != "$PPID" ]; then
+                kill "$PID" 2>/dev/null || true
+              fi
+            done
             sleep 2
 
             # ── 2. journal.log rotation ──
