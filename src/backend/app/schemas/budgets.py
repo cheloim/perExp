@@ -15,6 +15,7 @@ class BudgetUpdate(BaseModel):
     amount: float | None = None
     alert_threshold: float | None = None
     rollover: bool | None = None
+    is_active: bool | None = None
 
 
 class BudgetResponse(BaseModel):
