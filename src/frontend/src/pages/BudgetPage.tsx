@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getBudgetSummary,
@@ -239,105 +240,98 @@ function CategoryGroupSection({
   if (visibleSubcategories.length === 0) return null;
 
   return (
-    <>
-      <p className="adw-caption-heading adw-dim-label px-1 mb-1.5">
-        {displayName.toUpperCase()} · {visibleSubcategories.length}{" "}
-        {visibleSubcategories.length === 1 ? "SUBCATEGORÍA" : "SUBCATEGORÍAS"}
-        {totalBudget > 0 && <> · {formatCurrency(totalRemaining)} REST.</>}
-      </p>
-      <div className="rounded-xl border border-[var(--border-color)] overflow-hidden bg-[var(--color-surface)]">
-        {/* Group Header */}
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="w-full flex items-center justify-between px-5 py-4 hover:bg-[var(--color-base-alt)] transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className="w-3.5 h-3.5 rounded-full flex-shrink-0"
-              style={{ backgroundColor: color }}
-            />
-            <h3 className="text-sm font-semibold text-primary">{displayName}</h3>
-            <span className="text-xs text-[var(--text-tertiary)] bg-[var(--color-base-alt)] px-2 py-0.5 rounded-full">
-              {visibleSubcategories.length}{" "}
-              {visibleSubcategories.length === 1 ? "subcategoría" : "subcategorías"}
-            </span>
-          </div>
-          <div className="flex items-center gap-4">
-            {totalBudget > 0 && (
-              <span
-                className={`text-xs font-semibold ${
-                  totalRemaining < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"
-                }`}
-              >
-                {totalRemaining >= 0
-                  ? `${formatCurrency(totalRemaining)} rest.`
-                  : `-${formatCurrency(Math.abs(totalRemaining))}`}
-              </span>
-            )}
+    <div className="rounded-xl border border-[var(--border-color)] overflow-hidden bg-[var(--color-surface)]">
+      {/* Group Header */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-[var(--color-base-alt)] transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div
+            className="w-3.5 h-3.5 rounded-full flex-shrink-0"
+            style={{ backgroundColor: color }}
+          />
+          <h3 className="text-sm font-semibold text-primary">{displayName}</h3>
+          <span className="text-xs text-[var(--text-tertiary)] bg-[var(--color-base-alt)] px-2 py-0.5 rounded-full">
+            {visibleSubcategories.length}{" "}
+            {visibleSubcategories.length === 1 ? "subcategoría" : "subcategorías"}
+          </span>
+        </div>
+        <div className="flex items-center gap-4">
+          {totalBudget > 0 && (
             <span
-              role="button"
-              tabIndex={0}
-              title={`Editar grupo ${displayName}`}
-              aria-label={`Editar grupo ${displayName}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onEditGroup();
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onEditGroup();
-                }
-              }}
-              className="w-7 h-7 rounded-lg text-[var(--text-tertiary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 transition flex items-center justify-center"
-            >
-              <SymbolicIcon name="pencil" size={13} />
-            </span>
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className={`text-[var(--text-tertiary)] transition-transform ${
-                expanded ? "rotate-180" : ""
+              className={`text-xs font-semibold ${
+                totalRemaining < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"
               }`}
             >
-              <path d="m6 9 6 6 6-6" />
-            </svg>
-          </div>
-        </button>
+              {totalRemaining >= 0
+                ? `${formatCurrency(totalRemaining)} rest.`
+                : `-${formatCurrency(Math.abs(totalRemaining))}`}
+            </span>
+          )}
+          <span
+            role="button"
+            tabIndex={0}
+            title={`Editar grupo ${displayName}`}
+            aria-label={`Editar grupo ${displayName}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditGroup();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                onEditGroup();
+              }
+            }}
+            className="w-7 h-7 rounded-lg text-[var(--text-tertiary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 transition flex items-center justify-center"
+          >
+            <SymbolicIcon name="pencil" size={13} />
+          </span>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className={`text-[var(--text-tertiary)] transition-transform ${
+              expanded ? "rotate-180" : ""
+            }`}
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </div>
+      </button>
 
-        {/* Subcategories List */}
-        {expanded && (
-          <div className="border-t border-[var(--border-color)] bg-[var(--color-base)]/50">
-            {visibleSubcategories.map((cat) => (
-              <CategoryBar
-                key={cat.category_id}
-                name={cat.category_name}
-                color={cat.category_color}
-                spent={cat.spent_amount}
-                budget={cat.budget_amount}
-                avgMonthly={cat.avg_monthly}
-                monthsWithData={cat.months_with_data}
-                onClick={() => onCategoryClick(cat)}
-                onEdit={() => onCategoryEdit(cat)}
-              />
-            ))}
-            <div className="px-5 py-3 border-t border-[var(--border-color)]">
-              <button
-                onClick={onAddBudget}
-                className="text-xs text-[var(--color-primary)] hover:underline font-medium"
-              >
-                + Agregar presupuesto
-              </button>
-            </div>
+      {/* Subcategories List */}
+      {expanded && (
+        <div className="border-t border-[var(--border-color)] bg-[var(--color-base)]/50">
+          {visibleSubcategories.map((cat) => (
+            <CategoryBar
+              key={cat.category_id}
+              name={cat.category_name}
+              color={cat.category_color}
+              spent={cat.spent_amount}
+              budget={cat.budget_amount}
+              avgMonthly={cat.avg_monthly}
+              monthsWithData={cat.months_with_data}
+              onClick={() => onCategoryClick(cat)}
+              onEdit={() => onCategoryEdit(cat)}
+            />
+          ))}
+          <div className="px-5 py-3 border-t border-[var(--border-color)]">
+            <button
+              onClick={onAddBudget}
+              className="text-xs text-[var(--color-primary)] hover:underline font-medium"
+            >
+              + Agregar presupuesto
+            </button>
           </div>
-        )}
-      </div>
-    </>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -696,6 +690,167 @@ function EditBudgetModal({
   );
 }
 
+// ─── Help Panel (right slide-over, toggled by ?) ────────────────
+
+function BudgetHelpPanel({ groups, onClose }: { groups: BudgetGroup[]; onClose: () => void }) {
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  const { data: suggestionsData } = useQuery({
+    queryKey: ["budget-suggestions"],
+    queryFn: getBudgetSuggestions,
+  });
+  const { data: allCategories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => import("../api/client").then((m) => m.getCategories()),
+  });
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleEsc);
+    return () => document.removeEventListener("keydown", handleEsc);
+  }, [onClose]);
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["budgets"] });
+    qc.invalidateQueries({ queryKey: ["budget-summary"] });
+    qc.invalidateQueries({ queryKey: ["budget-suggestions"] });
+    qc.invalidateQueries({ queryKey: ["budget-groups"] });
+  };
+
+  const pending = (suggestionsData?.suggestions ?? []).filter((s) => !s.has_budget);
+  const groupOf = (categoryId: number) =>
+    allCategories.find((c) => c.id === categoryId)?.budget_group ?? "necesidades";
+
+  const createMany = useMutation({
+    mutationFn: async (items: BudgetSuggestion[]) => {
+      const { createBudget } = await import("../api/client");
+      return Promise.all(
+        items.map((s) => createBudget({ category_id: s.category_id, amount: s.suggested })),
+      );
+    },
+    onSuccess: () => invalidate(),
+  });
+
+  const block = "text-xs text-[var(--text-secondary)] mt-1 leading-relaxed";
+  const example =
+    "mt-1.5 rounded-lg px-2.5 py-2 text-[11px] text-[var(--text-secondary)] bg-[var(--color-base)] border border-[var(--border-color)]";
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-[var(--color-surface)] border-l border-[var(--border-color)] shadow-xl overflow-y-auto animate-slide-in">
+        <div className="sticky top-0 z-10 bg-[var(--color-surface)] border-b border-[var(--border-color)] px-5 py-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-primary">Ayuda de presupuestos</h2>
+            <button
+              onClick={onClose}
+              aria-label="Cerrar ayuda"
+              className="w-8 h-8 rounded-lg hover:bg-[var(--color-base-alt)] flex items-center justify-center transition-colors text-lg text-[var(--text-tertiary)]"
+            >
+              ×
+            </button>
+          </div>
+          <p className="adw-caption adw-dim-label mt-0.5">
+            Lo esencial con ejemplos. El detalle vive en la Guía completa.
+          </p>
+        </div>
+
+        <div className="px-5 py-4 space-y-5">
+          <section>
+            <p className="text-sm font-semibold text-primary">¿Qué es un presupuesto?</p>
+            <p className={block}>
+              Un límite mensual por categoría. Si te acercás, la fila te avisa antes de que se
+              descontrole.
+            </p>
+            <p className={example}>
+              Ej: Supermercado $120.000 → a los $96.000 (80%) ves <strong>Cuidado</strong>.
+            </p>
+          </section>
+
+          <section>
+            <p className="text-sm font-semibold text-primary">Necesidades · Gustos · Ahorro</p>
+            <p className={block}>
+              Reparto orientativo 50/30/20 de tus ingresos, no una regla exacta.
+            </p>
+            <p className={example}>
+              Ej con $500.000: Necesidades ~$250.000 (super, transporte, salud) · Gustos ~$150.000
+              (salidas, delivery) · Ahorro ~$100.000.
+            </p>
+          </section>
+
+          <section>
+            <p className="text-sm font-semibold text-primary">Armá el tuyo en 3 pasos</p>
+            <p className={block}>
+              1. Asigná desde Sin asignar con un click (usa tu promedio). 2. Ajustá montos con el
+              lápiz de cada fila. 3. Mirá el ritmo diario.
+            </p>
+          </section>
+
+          <section>
+            <p className="text-sm font-semibold text-primary">Generar desde promedios</p>
+            <p className={block}>
+              Creá todo lo sugerido de una vez, o completá por grupo. Con poco historial verás{" "}
+              <em>evidencia limitada</em>: úsalo como punto de partida y ajustá el mes que viene.
+            </p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <button
+                onClick={() => createMany.mutate(pending)}
+                disabled={pending.length === 0 || createMany.isPending}
+                className="px-3 py-1.5 text-xs font-medium text-[var(--color-primary)] border border-[var(--color-primary)]/30 rounded-lg hover:bg-[var(--color-primary)]/10 transition-colors disabled:opacity-50"
+              >
+                {createMany.isPending ? "Creando..." : `Crear desde promedios (${pending.length})`}
+              </button>
+              {groups.map((g) => {
+                const items = pending.filter((s) => groupOf(s.category_id) === g.name);
+                if (items.length === 0) return null;
+                return (
+                  <button
+                    key={g.name}
+                    onClick={() => createMany.mutate(items)}
+                    disabled={createMany.isPending}
+                    className="px-3 py-1.5 text-xs font-medium text-[var(--color-primary)] border border-[var(--color-primary)]/30 rounded-lg hover:bg-[var(--color-primary)]/10 transition-colors disabled:opacity-50"
+                  >
+                    Completar {g.display_name} ({items.length})
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <section>
+            <p className="text-sm font-semibold text-primary">Cómo leer cada fila</p>
+            <p className={block}>
+              Restante en verde = vas bien; Excedido en rojo = pasaste el límite. La barra y el %
+              son contra tu presupuesto; el "prom" es tu media de 3 meses.
+            </p>
+          </section>
+
+          <section>
+            <p className="text-sm font-semibold text-primary">Ritmo diario y eventos</p>
+            <p className={block}>
+              El ritmo compara tu gasto por día contra el ideal según tu presupuesto. Dentro de
+              banda = vas a cerrar bien el mes. Los eventos (vacaciones, mudanza) son presupuestos
+              con fecha.
+            </p>
+          </section>
+
+          <button
+            onClick={() => {
+              onClose();
+              navigate("/guide/budgeting");
+            }}
+            className="text-xs text-[var(--color-primary)] hover:underline font-medium"
+          >
+            Guía completa de presupuestos →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Quick Config Modal ────────────────────────────────────────
 
 // ─── Overview Modal: everything budgeted + unassigned with spending ─
@@ -1034,7 +1189,8 @@ function EditGroupModal({ onClose }: { onClose: () => void }) {
       <div className="card w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-base font-semibold text-primary mb-1">Editar grupos</h3>
         <p className="adw-caption adw-dim-label mb-4">
-          Definí los montos; el porcentaje se calcula sobre el total asignado
+          Definí los montos. Como guía, la relación entre grupos conviene que ronde el 50/30/20 de
+          tus ingresos (no hace falta que sea exacta).
         </p>
         <div className="space-y-4">
           {allGroups.map((g) => (
@@ -1042,7 +1198,7 @@ function EditGroupModal({ onClose }: { onClose: () => void }) {
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-medium text-primary">{g.display_name}</p>
                 <span className="text-xs text-[var(--text-tertiary)]">
-                  = {pctOf(g.name).toFixed(1)}%
+                  ~= {pctOf(g.name).toFixed(1)}%
                 </span>
               </div>
               <div>
@@ -1592,6 +1748,7 @@ export default function BudgetPage() {
   const [editingGroup, setEditingGroup] = useState<BudgetGroup | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<BudgetSummaryItem | null>(null);
   const [editingCategory, setEditingCategory] = useState<BudgetSummaryItem | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
   const [linkingEvent, setLinkingEvent] = useState<BudgetEvent | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<BudgetEvent | null>(null);
 
@@ -1695,6 +1852,20 @@ export default function BudgetPage() {
           <p className="adw-caption adw-dim-label">{monthLabel} · montos en ARS</p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setShowHelp((v) => !v)}
+            title="Ayuda sobre presupuestos"
+            aria-label="Ayuda sobre presupuestos"
+            aria-expanded={showHelp}
+            aria-controls="budget-help-panel"
+            className={`w-11 h-11 rounded-full border border-[var(--border-color)] bg-[var(--color-surface)] text-lg font-semibold transition-colors shadow-sm ${
+              showHelp
+                ? "text-[var(--color-primary)] border-[var(--color-primary)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--color-primary)] hover:border-[var(--color-primary)]"
+            }`}
+          >
+            ?
+          </button>
           <button onClick={() => setShowNewEvent(true)} className="gnome-btn-primary">
             + Nuevo evento
           </button>
@@ -1920,6 +2091,11 @@ export default function BudgetPage() {
       )}
       {editingCategory && (
         <EditBudgetModal category={editingCategory} onClose={() => setEditingCategory(null)} />
+      )}
+      {showHelp && (
+        <div id="budget-help-panel">
+          <BudgetHelpPanel groups={groups} onClose={() => setShowHelp(false)} />
+        </div>
       )}
       {linkingEvent && (
         <LinkExpensesModal event={linkingEvent} onClose={() => setLinkingEvent(null)} />
