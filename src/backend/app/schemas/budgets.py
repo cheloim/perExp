@@ -50,6 +50,12 @@ class BudgetSummaryResponse(BaseModel):
     total_spent: float
     total_percentage: float
     categories: list[BudgetSummaryItem]
+    trend_6m: list["BudgetTrendPoint"] = []
+
+
+class BudgetTrendPoint(BaseModel):
+    month: str
+    total: float = 0
 
 
 class BudgetGroupCreate(BaseModel):

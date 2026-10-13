@@ -472,12 +472,41 @@ def budget_summary(
 
     total_percentage = total_spent / total_budget if total_budget > 0 else 0
 
+    # 6-month spending trend (single range query, grouped in Python)
+    today = date.today()
+    base_idx = today.year * 12 + today.month - 1
+    trend_months = []
+    for i in range(5, -1, -1):
+        idx = base_idx - i
+        trend_months.append((idx // 12, idx % 12 + 1))
+    trend_start = date(trend_months[0][0], trend_months[0][1], 1)
+    recent = (
+        db.query(Expense)
+        .filter(
+            Expense.user_id.in_(uid_list),
+            Expense.date >= trend_start,
+            Expense.date <= today,
+            Expense.is_income == False,
+        )
+        .with_entities(Expense.date, Expense.amount)
+        .all()
+    )
+    trend_totals: dict[tuple[int, int], float] = {}
+    for exp_date, amount in recent:
+        key = (exp_date.year, exp_date.month)
+        trend_totals[key] = trend_totals.get(key, 0.0) + abs(amount or 0)
+    trend_6m = [
+        {"month": f"{yy}-{mm:02d}", "total": round(trend_totals.get((yy, mm), 0.0), 2)}
+        for yy, mm in trend_months
+    ]
+
     return BudgetSummaryResponse(
         month=f"{y}-{m:02d}",
         total_budget=round(total_budget, 2),
         total_spent=round(total_spent, 2),
         total_percentage=round(total_percentage, 4),
         categories=categories_summary,
+        trend_6m=trend_6m,
     )
 
 
