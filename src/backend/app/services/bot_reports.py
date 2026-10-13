@@ -740,6 +740,13 @@ def build_weekly_report_data(user_id: int, start: date, end: date, db) -> dict:
         }
     tag_list = sorted(tag_breakdown.values(), key=lambda x: x["total"], reverse=True)
 
+    # 10. Evidence-based context (budget as context, no questionnaires)
+    from app.services.date_utils import add_months
+    from app.services.report_context import get_monthly_budget_lines, get_report_context
+
+    month_anchor = date(today_bue.year, today_bue.month, 1)
+    weekly_ctx = get_report_context(uid_list, db, add_months(month_anchor, -1))
+
     return {
         "week_start": start.strftime("%d/%m"),
         "week_end": end.strftime("%d/%m/%Y"),
@@ -758,6 +765,10 @@ def build_weekly_report_data(user_id: int, start: date, end: date, db) -> dict:
         "upcoming_combined_total": sum(e.get("amount", 0) for e in upcoming_expenses)
         + sum(r.get("amount", 0) for r in recurring_items),
         "tag_breakdown": tag_list,
+        "budget_vs_real": get_monthly_budget_lines(user_id, uid_list, db, today_bue),
+        "compra_mensual": weekly_ctx["compras_mensuales"],
+        "history_months": weekly_ctx["history_months"],
+        "limited_history": weekly_ctx["limited"],
     }
 
 

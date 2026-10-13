@@ -34,6 +34,16 @@ def _generate_weekly_llm_analysis(report_data: dict) -> dict:
         categories = report_data.get("categories", [])
         cat_text = ", ".join([f"{c['name']}: ${c['total']:,.0f}" for c in categories[:5]])
 
+        from app.services.report_context import (
+            format_compra_mensual_lines,
+            weekly_prompt_rules,
+        )
+
+        budget_lines = report_data.get("budget_vs_real", [])
+        compra_lines = format_compra_mensual_lines(report_data.get("compra_mensual", []))
+        history_months = report_data.get("history_months", 0)
+        limited = report_data.get("limited_history", True)
+
         llm_context = f"""RESUMEN SEMANAL - NikoFin
 
 GASTO SEMANAL: ${total:,.2f}
@@ -42,6 +52,14 @@ TRANSACCIONES: {report_data.get("transaction_count", 0)}
 
 TOP CATEGORÍAS:
 {cat_text}
+
+BUDGET VS REAL (mes en curso contra media 3m):
+{chr(10).join(budget_lines) or "  Sin presupuestos"}
+
+COMPRA MENSUAL DETECTADA:
+{chr(10).join(compra_lines) or "  Sin patrón mensual"}
+
+EVIDENCIA HISTORIAL: {history_months} meses con datos
 
 Fecha: {date.today().isoformat()}"""
 
@@ -52,7 +70,8 @@ Incluye:
 3. Un consejo concreto de ahorro (1 línea)
 
 Responde en español, amigable, sin emojis. Máximo 80 palabras.
-Devolve SOLO el texto del análisis, sin formato JSON."""
+Devolve SOLO el texto del análisis, sin formato JSON.
+""" + weekly_prompt_rules(limited)
 
         client = genai.Client(api_key=api_key)
 

@@ -466,6 +466,66 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
         "weekday": round(weekday_total, 2),
     }
 
+    # Budget data
+    from app.models import Budget, BudgetEvent, BudgetGroup
+    from app.services.budget_helpers import (
+        get_avg_monthly_spending,
+        get_spending_for_category,
+        get_spending_for_event,
+        get_spending_for_group,
+    )
+
+    uid_list = get_group_user_ids(user_id, db)
+    year_int = int(month_str[:4])
+    month_int = int(month_str[5:7])
+
+    budgets = db.query(Budget).filter(Budget.user_id == user_id, Budget.is_active == True).all()
+    budget_items = []
+    total_budget = 0.0
+    total_spent = 0.0
+    for b in budgets:
+        spent = get_spending_for_category(b.category_id, year_int, month_int, uid_list, db)
+        pct = round((spent / b.amount * 100) if b.amount > 0 else 0, 1)
+        avg = get_avg_monthly_spending(b.category_id, uid_list, db)
+        cat = db.query(Category).filter(Category.id == b.category_id).first()
+        status = "exceeded" if pct >= 100 else "warning" if pct >= 80 else "ok"
+        budget_items.append(
+            {
+                "category_name": cat.name if cat else "Sin categoría",
+                "budget_amount": b.amount,
+                "spent": spent,
+                "percentage": pct,
+                "status": status,
+                "avg_monthly": avg,
+            }
+        )
+        total_budget += b.amount
+        total_spent += spent
+
+    budget_summary = {
+        "total_budget": total_budget,
+        "total_spent": total_spent,
+        "total_percentage": round((total_spent / total_budget * 100) if total_budget > 0 else 0, 1),
+    }
+
+    # Evidence-based report context (budget as context, no questionnaires)
+    from app.services.report_context import (
+        build_budget_vs_real_lines,
+        format_compra_mensual_lines,
+        get_report_context,
+        monthly_prompt_rules,
+    )
+
+    ref_today = date.today()
+    ctx_end = target_start
+    if target_start.year == ref_today.year and target_start.month == ref_today.month:
+        # Current (partial) month must not count as a window month
+        ctx_end = add_months(target_start, -1)
+    report_ctx = get_report_context(uid_list, db, ctx_end)
+    budget_vs_real_lines = build_budget_vs_real_lines(budget_items)
+    compra_mensual_lines = format_compra_mensual_lines(report_ctx["compras_mensuales"])
+    limited_history = report_ctx["limited"]
+
     # LLM analysis
     analysis = None
     import os
@@ -557,6 +617,14 @@ OTROS TAGS:
 CUOTAS FUTURAS ({len(future_installments)} cuotas, ${sum(fi["amount"] for fi in future_installments):,.2f} total):
 {chr(10).join(future_lines) or "  Sin cuotas futuras"}
 
+BUDGET VS REAL (presupuesto contra media 3m):
+{chr(10).join(budget_vs_real_lines) or "  Sin presupuestos"}
+
+COMPRA MENSUAL DETECTADA:
+{chr(10).join(compra_mensual_lines) or "  Sin patrón mensual (evidencia insuficiente o sin repetición)"}
+
+EVIDENCIA HISTORIAL: {report_ctx["history_months"]} meses con datos
+
 HISTORIAL (6 meses):
 {chr(10).join(trend_lines)}
 
@@ -580,6 +648,8 @@ Sé especifico con numeros. Español, claro, amigable. Sin emojis.
 El resume debe ser un texto corrido y detallado, no solo oraciones sueltas.
 Usa alerts para gastos criticos o inusuales.
 Usa flags para tendencias preocupantes a monitorear."""
+
+            prompt = prompt + "\n" + monthly_prompt_rules(limited_history)
 
             client = genai.Client(api_key=api_key)
 
@@ -764,48 +834,6 @@ Usa flags para tendencias preocupantes a monitorear."""
             "trend_comment": "",
         }
 
-    # Budget data
-    from app.models import Budget, BudgetEvent, BudgetGroup
-    from app.services.budget_helpers import (
-        get_avg_monthly_spending,
-        get_spending_for_category,
-        get_spending_for_event,
-        get_spending_for_group,
-    )
-
-    uid_list = get_group_user_ids(user_id, db)
-    year_int = int(month_str[:4])
-    month_int = int(month_str[5:7])
-
-    budgets = db.query(Budget).filter(Budget.user_id == user_id, Budget.is_active == True).all()
-    budget_items = []
-    total_budget = 0.0
-    total_spent = 0.0
-    for b in budgets:
-        spent = get_spending_for_category(b.category_id, year_int, month_int, uid_list, db)
-        pct = round((spent / b.amount * 100) if b.amount > 0 else 0, 1)
-        avg = get_avg_monthly_spending(b.category_id, uid_list, db)
-        cat = db.query(Category).filter(Category.id == b.category_id).first()
-        status = "exceeded" if pct >= 100 else "warning" if pct >= 80 else "ok"
-        budget_items.append(
-            {
-                "category_name": cat.name if cat else "Sin categoría",
-                "budget_amount": b.amount,
-                "spent": spent,
-                "percentage": pct,
-                "status": status,
-                "avg_monthly": avg,
-            }
-        )
-        total_budget += b.amount
-        total_spent += spent
-
-    budget_summary = {
-        "total_budget": total_budget,
-        "total_spent": total_spent,
-        "total_percentage": round((total_spent / total_budget * 100) if total_budget > 0 else 0, 1),
-    }
-
     # Budget groups (50/30/20)
     budget_groups = (
         db.query(BudgetGroup)
@@ -943,6 +971,10 @@ Usa flags para tendencias preocupantes a monitorear."""
         "budget_summary": budget_summary,
         "budget_groups": budget_group_items,
         "budget_events": budget_event_items,
+        "compra_mensual": report_ctx["compras_mensuales"],
+        "history_months": report_ctx["history_months"],
+        "limited_history": limited_history,
+        "budget_vs_real": budget_vs_real_lines,
     }
 
 
