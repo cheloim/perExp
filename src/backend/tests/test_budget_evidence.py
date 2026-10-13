@@ -109,3 +109,28 @@ class TestSummaryIncludesEvidence:
         match = [s for s in result["suggestions"] if s["category_id"] == cat.id]
         assert len(match) == 1
         assert match[0]["months_with_data"] == 1
+
+
+class TestSummaryTrend:
+    def test_trend_has_6_zero_filled_months(self, db):
+        from datetime import date
+
+        from app.routers.budgets import budget_summary
+
+        user = _make_user(db, "trend@test.com")
+        cat = _make_category(db, user, "Supermercado")
+        months = _last_months(3)
+        _make_expense(db, user, 10000, cat.id, months[0])
+        _make_expense(db, user, 20000, cat.id, months[2])
+
+        summary = budget_summary(month=None, db=db, current_user=user)
+
+        assert len(summary.trend_6m) == 6
+        today = date.today()
+        assert summary.trend_6m[-1].month == f"{today.year}-{today.month:02d}"
+        totals = {t.month: t.total for t in summary.trend_6m}
+        d0 = months[0]
+        d2 = months[2]
+        assert totals[f"{d0.year}-{d0.month:02d}"] == 10000
+        assert totals[f"{d2.year}-{d2.month:02d}"] == 20000
+        assert sum(1 for v in totals.values() if v == 0) == 4

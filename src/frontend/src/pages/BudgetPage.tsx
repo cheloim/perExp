@@ -12,8 +12,34 @@ import {
 } from "../api/client";
 import { Select } from "../components/ui/Select";
 import EmptyState from "../components/ui/EmptyState";
+import SymbolicIcon from "../components/SymbolicIcon";
+import { getCategoryIcon } from "../utils/categoryIcon";
 import type { BudgetGroup, BudgetEvent, BudgetSuggestion, BudgetSummaryItem } from "../types";
 import { formatCurrency } from "../utils/format";
+
+// ─── Trend Spark (6-month spending bars, mock parity, no chart lib) ──
+
+function TrendSpark({ values }: { values: number[] }) {
+  if (values.length === 0) return null;
+  const max = Math.max(...values, 1);
+  return (
+    <div className="flex items-end gap-[3px] h-7 mt-2" aria-hidden="true">
+      {values.map((v, i) => (
+        <div
+          key={i}
+          className="flex-1 rounded-sm"
+          style={{
+            height: `${Math.max(8, (v / max) * 100)}%`,
+            backgroundColor:
+              i === values.length - 1
+                ? "var(--color-warning)"
+                : "color-mix(in srgb, var(--color-primary) 35%, transparent)",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 // ─── Category Bar with Gradient ────────────────────────────────
 
@@ -41,179 +67,118 @@ function CategoryBar({
   // Calculate remaining and percentage
   const remaining = budget > 0 ? budget - spent : 0;
   const pct = budget > 0 ? (spent / budget) * 100 : 0;
-  const isOverBudget = pct > 110;
 
-  // Status badge logic (Adwaita tokens, no hardcoded hex)
-  let statusBadge: { label: string; color: string; bg: string } | null = null;
+  // Status: dot + label (Adwaita tokens, no hardcoded hex, no emojis)
+  let status: { label: string; color: string } | null = null;
   if (budget > 0) {
     if (pct >= 100) {
-      statusBadge = {
-        label: "Excedido",
-        color: "var(--color-danger)",
-        bg: "var(--color-danger)/10",
-      };
+      status = { label: "Excedido", color: "var(--color-danger)" };
     } else if (pct >= 90) {
-      statusBadge = {
-        label: "Alerta",
-        color: "var(--color-warning)",
-        bg: "var(--color-warning)/10",
-      };
+      status = { label: "Alerta", color: "var(--color-warning)" };
     } else if (pct >= 80) {
-      statusBadge = {
-        label: "Cuidado",
-        color: "var(--color-warning)",
-        bg: "var(--color-warning)/10",
-      };
+      status = { label: "Cuidado", color: "var(--color-warning)" };
     } else if (pct >= 60) {
-      statusBadge = {
-        label: "Normal",
-        color: "var(--color-warning)",
-        bg: "var(--color-warning)/10",
-      };
+      status = { label: "Normal", color: "var(--color-warning)" };
     } else {
-      statusBadge = {
-        label: "Bien",
-        color: "var(--color-success)",
-        bg: "var(--color-success)/10",
-      };
+      status = { label: "Bien", color: "var(--color-success)" };
     }
   }
 
-  // Bar color — 0-60 green, 60-80 yellow, 80-90 orange, 90-100 red
+  const overAvg = budget === 0 && avgMonthly > 0 && spent / avgMonthly >= 1;
+  const nearAvg = budget === 0 && avgMonthly > 0 && spent / avgMonthly >= 0.8;
   const barColor =
-    pct >= 100
+    pct >= 100 || overAvg
       ? "var(--color-danger)"
-      : pct >= 90
-        ? "var(--color-danger)"
-        : pct >= 80
-          ? "var(--color-warning)"
-          : pct >= 60
-            ? "var(--color-warning)"
-            : "var(--color-success)";
+      : pct >= 80 || nearAvg
+        ? "var(--color-warning)"
+        : "var(--color-success)";
 
-  // No budget case — use avg monthly as reference
-  if (budget === 0) {
-    const refAmount = avgMonthly > 0 ? avgMonthly : spent;
-    const noBudgetPct = refAmount > 0 ? (spent / refAmount) * 100 : 0;
-    const noBudgetBarColor =
-      noBudgetPct >= 100
-        ? "var(--color-danger)"
-        : noBudgetPct >= 90
-          ? "var(--color-danger)"
-          : noBudgetPct >= 80
-            ? "var(--color-warning)"
-            : noBudgetPct >= 60
-              ? "var(--color-warning)"
-              : "var(--color-success)";
+  const icon = getCategoryIcon(name);
+  const barPct =
+    budget > 0
+      ? Math.min(pct, 100)
+      : avgMonthly > 0
+        ? Math.min((spent / avgMonthly) * 100, 100)
+        : 0;
 
-    return (
-      <div
-        className="py-3 px-4 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors cursor-pointer overflow-hidden"
-        onClick={onClick}
-      >
-        <div className="flex items-center justify-between mb-1.5">
-          <div className="flex items-center gap-2">
-            <div
-              className="w-3 h-3 rounded-full flex-shrink-0"
-              style={{ backgroundColor: color }}
-            />
-            <span className="text-sm font-medium text-[var(--text-primary)]">{name}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            {limitedEvidence && (
-              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full text-[var(--text-tertiary)] bg-[var(--color-base-alt)]">
-                evidencia limitada
-              </span>
-            )}
-            <span className="text-xs text-[var(--text-tertiary)] italic">Sin presupuesto</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all"
-              style={{
-                width: `${Math.min(noBudgetPct, 100)}%`,
-                backgroundColor: noBudgetBarColor,
-              }}
-            />
-          </div>
-          <span className="text-xs text-[var(--text-secondary)] whitespace-nowrap font-medium">
-            {formatCurrency(spent)}
-            {avgMonthly > 0 && (
-              <span className="text-[var(--text-tertiary)] font-normal">
-                {" "}
-                / prom {formatCurrency(avgMonthly)}
-              </span>
-            )}
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  // With budget — show remaining prominently
   return (
     <div
-      className="py-3 px-4 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors cursor-pointer"
-      style={
-        isOverBudget
-          ? {
-              backgroundColor: "color-mix(in srgb, var(--color-danger) 10%, transparent)",
-            }
-          : undefined
-      }
+      className="py-3 px-4 rounded-lg hover:bg-[var(--color-base-alt)] transition-colors cursor-pointer overflow-hidden"
       onClick={onClick}
     >
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-          <span className="text-sm font-medium text-[var(--text-primary)]">{name}</span>
+      <div className="flex items-center justify-between mb-0.5">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span
+            className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center"
+            style={{ backgroundColor: `${color}20` }}
+          >
+            {icon ? (
+              <SymbolicIcon name={icon} size={14} />
+            ) : (
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+            )}
+          </span>
+          <span className="text-sm font-medium text-[var(--text-primary)] truncate">{name}</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {limitedEvidence && (
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full text-[var(--text-tertiary)] bg-[var(--color-base-alt)]">
               evidencia limitada
             </span>
           )}
-          {statusBadge && (
+          {status ? (
             <span
-              className="text-[10px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1.5"
-              style={{
-                color: statusBadge.color,
-                backgroundColor: `color-mix(in srgb, ${statusBadge.color} 10%, transparent)`,
-              }}
+              className="text-xs font-semibold inline-flex items-center gap-1.5"
+              style={{ color: status.color }}
             >
               <span
                 className="w-2 h-2 rounded-full inline-block"
-                style={{ backgroundColor: statusBadge.color }}
+                style={{ backgroundColor: status.color }}
               />
-              {statusBadge.label}
+              {status.label}
             </span>
+          ) : (
+            <span className="text-xs text-[var(--text-tertiary)] italic">Sin presupuesto</span>
           )}
         </div>
       </div>
-      <div className="flex items-center gap-3">
+      <p className="text-xs text-[var(--text-secondary)] mb-2 ml-9">
+        {budget > 0 ? (
+          <>
+            {remaining >= 0 ? (
+              <>
+                {formatCurrency(remaining)} restantes de {formatCurrency(budget)}
+              </>
+            ) : (
+              <span className="text-[var(--color-danger)]">
+                {formatCurrency(Math.abs(remaining))} sobre {formatCurrency(budget)}
+              </span>
+            )}
+          </>
+        ) : (
+          <>
+            {formatCurrency(spent)} gastados
+            {limitedEvidence && " · poco historial, punto de partida"}
+          </>
+        )}
+      </p>
+      <div className="flex items-center gap-3 ml-9">
         <div className="flex-1 h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden">
           <div
             className="h-full rounded-full transition-all"
-            style={{
-              width: `${Math.min(pct, 100)}%`,
-              backgroundColor: barColor,
-            }}
+            style={{ width: `${barPct}%`, backgroundColor: barColor }}
           />
         </div>
-        <span
-          className={`text-xs font-semibold whitespace-nowrap ${
-            remaining < 0 ? "text-[var(--color-danger)]" : "text-[var(--text-primary)]"
-          }`}
-        >
-          {remaining >= 0
-            ? `${formatCurrency(remaining)} rest.`
-            : `-${formatCurrency(Math.abs(remaining))}`}
-        </span>
-        <span className="text-xs text-[var(--text-tertiary)] whitespace-nowrap">
-          {Math.round(pct)}%
+        <span className="text-xs text-[var(--text-secondary)] whitespace-nowrap">
+          <b className="text-[var(--text-primary)] font-semibold">
+            {budget > 0 ? `${Math.round(pct)}%` : formatCurrency(spent)}
+          </b>
+          {avgMonthly > 0 && (
+            <span className="text-[var(--text-tertiary)]">
+              {" "}
+              · prom {formatCurrency(avgMonthly)}
+            </span>
+          )}
         </span>
       </div>
     </div>
@@ -254,77 +219,84 @@ function CategoryGroupSection({
   if (visibleSubcategories.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-[var(--border-color)] overflow-hidden bg-[var(--color-surface)]">
-      {/* Group Header */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-5 py-4 hover:bg-[var(--color-base-alt)] transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <div
-            className="w-3.5 h-3.5 rounded-full flex-shrink-0"
-            style={{ backgroundColor: color }}
-          />
-          <h3 className="text-sm font-semibold text-primary">{displayName}</h3>
-          <span className="text-xs text-[var(--text-tertiary)] bg-[var(--color-base-alt)] px-2 py-0.5 rounded-full">
-            {visibleSubcategories.length}{" "}
-            {visibleSubcategories.length === 1 ? "subcategoría" : "subcategorías"}
-          </span>
-        </div>
-        <div className="flex items-center gap-4">
-          {totalBudget > 0 && (
-            <span
-              className={`text-xs font-semibold ${
-                totalRemaining < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"
+    <>
+      <p className="adw-caption-heading adw-dim-label px-1 mb-1.5">
+        {displayName.toUpperCase()} · {visibleSubcategories.length}{" "}
+        {visibleSubcategories.length === 1 ? "SUBCATEGORÍA" : "SUBCATEGORÍAS"}
+        {totalBudget > 0 && <> · {formatCurrency(totalRemaining)} REST.</>}
+      </p>
+      <div className="rounded-xl border border-[var(--border-color)] overflow-hidden bg-[var(--color-surface)]">
+        {/* Group Header */}
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full flex items-center justify-between px-5 py-4 hover:bg-[var(--color-base-alt)] transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className="w-3.5 h-3.5 rounded-full flex-shrink-0"
+              style={{ backgroundColor: color }}
+            />
+            <h3 className="text-sm font-semibold text-primary">{displayName}</h3>
+            <span className="text-xs text-[var(--text-tertiary)] bg-[var(--color-base-alt)] px-2 py-0.5 rounded-full">
+              {visibleSubcategories.length}{" "}
+              {visibleSubcategories.length === 1 ? "subcategoría" : "subcategorías"}
+            </span>
+          </div>
+          <div className="flex items-center gap-4">
+            {totalBudget > 0 && (
+              <span
+                className={`text-xs font-semibold ${
+                  totalRemaining < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"
+                }`}
+              >
+                {totalRemaining >= 0
+                  ? `${formatCurrency(totalRemaining)} rest.`
+                  : `-${formatCurrency(Math.abs(totalRemaining))}`}
+              </span>
+            )}
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className={`text-[var(--text-tertiary)] transition-transform ${
+                expanded ? "rotate-180" : ""
               }`}
             >
-              {totalRemaining >= 0
-                ? `${formatCurrency(totalRemaining)} rest.`
-                : `-${formatCurrency(Math.abs(totalRemaining))}`}
-            </span>
-          )}
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className={`text-[var(--text-tertiary)] transition-transform ${
-              expanded ? "rotate-180" : ""
-            }`}
-          >
-            <path d="m6 9 6 6 6-6" />
-          </svg>
-        </div>
-      </button>
-
-      {/* Subcategories List */}
-      {expanded && (
-        <div className="border-t border-[var(--border-color)] bg-[var(--color-base)]/50">
-          {visibleSubcategories.map((cat) => (
-            <CategoryBar
-              key={cat.category_id}
-              name={cat.category_name}
-              color={cat.category_color}
-              spent={cat.spent_amount}
-              budget={cat.budget_amount}
-              avgMonthly={cat.avg_monthly}
-              monthsWithData={cat.months_with_data}
-              onClick={() => onCategoryClick(cat)}
-            />
-          ))}
-          <div className="px-5 py-3 border-t border-[var(--border-color)]">
-            <button
-              onClick={onAddBudget}
-              className="text-xs text-[var(--color-primary)] hover:underline font-medium"
-            >
-              + Agregar presupuesto
-            </button>
+              <path d="m6 9 6 6 6-6" />
+            </svg>
           </div>
-        </div>
-      )}
-    </div>
+        </button>
+
+        {/* Subcategories List */}
+        {expanded && (
+          <div className="border-t border-[var(--border-color)] bg-[var(--color-base)]/50">
+            {visibleSubcategories.map((cat) => (
+              <CategoryBar
+                key={cat.category_id}
+                name={cat.category_name}
+                color={cat.category_color}
+                spent={cat.spent_amount}
+                budget={cat.budget_amount}
+                avgMonthly={cat.avg_monthly}
+                monthsWithData={cat.months_with_data}
+                onClick={() => onCategoryClick(cat)}
+              />
+            ))}
+            <div className="px-5 py-3 border-t border-[var(--border-color)]">
+              <button
+                onClick={onAddBudget}
+                className="text-xs text-[var(--color-primary)] hover:underline font-medium"
+              >
+                + Agregar presupuesto
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -355,11 +327,11 @@ function EventCard({
 
   return (
     <div
-      className="card p-5 cursor-pointer hover:shadow-md transition-shadow"
+      className="card p-4 cursor-pointer hover:shadow-md transition-shadow"
       onClick={() => onClick(event)}
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-2">
         <div>
           <h4 className="text-base font-semibold text-primary">{event.name}</h4>
           <p className="text-xs text-[var(--text-tertiary)]">
@@ -400,7 +372,7 @@ function EventCard({
       </div>
 
       {/* Progress bar */}
-      <div className="h-3 bg-[var(--color-base-alt)] rounded-full overflow-hidden mb-3">
+      <div className="h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden mb-2">
         <div
           className="h-full rounded-full transition-all"
           style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }}
@@ -452,48 +424,73 @@ function UnbudgetedSection() {
   if (items.length === 0) return null;
 
   return (
-    <div className="card p-5 mb-6">
-      <h2 className="adw-caption-heading text-[var(--text-secondary)]">SIN ASIGNAR</h2>
-      <p className="adw-caption adw-dim-label mt-1 mb-2">
-        Categorías con gasto pero sin presupuesto
+    <div className="mb-6">
+      <p className="adw-caption-heading adw-dim-label px-1 mb-1.5">
+        SIN ASIGNAR · {items.length} {items.length === 1 ? "CATEGORÍA" : "CATEGORÍAS"}
       </p>
-      <div className="divide-y divide-[var(--border-color)]">
-        {items.map((s) => (
-          <div key={s.category_id} className="py-3">
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-2">
-                <div
-                  className="w-3 h-3 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: s.category_color }}
-                />
-                <span className="text-sm font-medium text-[var(--text-primary)]">
-                  {s.category_name}
-                </span>
-                {s.months_with_data < 3 && (
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full text-[var(--text-tertiary)] bg-[var(--color-base-alt)]">
-                    evidencia limitada
+      <div className="rounded-xl border border-[var(--border-color)] overflow-hidden bg-[var(--color-surface)]">
+        {items.map((s) => {
+          const icon = getCategoryIcon(s.category_name);
+          return (
+            <div
+              key={s.category_id}
+              className="py-3 px-4 border-b border-[var(--border-color)] last:border-b-0"
+            >
+              <div className="flex items-center justify-between mb-0.5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span
+                    className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center"
+                    style={{ backgroundColor: `${s.category_color}20` }}
+                  >
+                    {icon ? (
+                      <SymbolicIcon name={icon} size={14} />
+                    ) : (
+                      <span
+                        className="w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: s.category_color }}
+                      />
+                    )}
                   </span>
-                )}
+                  <span className="text-sm font-medium text-[var(--text-primary)] truncate">
+                    {s.category_name}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {s.months_with_data < 3 && (
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full text-[var(--text-tertiary)] bg-[var(--color-base-alt)]">
+                      evidencia limitada
+                    </span>
+                  )}
+                  <span className="text-xs text-[var(--text-tertiary)] italic">
+                    sin presupuesto
+                  </span>
+                </div>
               </div>
-              <span className="text-xs text-[var(--text-secondary)]">
+              <p className="text-xs text-[var(--text-secondary)] mb-2 ml-9">
                 prom {formatCurrency(s.avg_monthly)}/mes
-              </span>
-            </div>
-            <div className="flex items-center justify-between pl-5">
-              <span className="text-xs text-[var(--text-secondary)]">
-                Sugerido <strong>{formatCurrency(s.suggested)}</strong>
                 {s.months_with_data < 3 && " · poco historial"}
-              </span>
-              <button
-                onClick={() => applyMutation.mutate(s)}
-                disabled={applyMutation.isPending}
-                className="text-xs text-[var(--color-primary)] hover:underline font-medium disabled:opacity-50"
+              </p>
+              <div
+                className="flex items-center justify-between gap-2 ml-9 rounded-lg px-3 py-2"
+                style={{
+                  backgroundColor: "color-mix(in srgb, var(--color-primary) 6%, transparent)",
+                  border: "1px dashed color-mix(in srgb, var(--color-primary) 40%, transparent)",
+                }}
               >
-                Asignar
-              </button>
+                <span className="text-xs text-[var(--text-secondary)]">
+                  Sugerido <strong>{formatCurrency(s.suggested)}</strong>
+                </span>
+                <button
+                  onClick={() => applyMutation.mutate(s)}
+                  disabled={applyMutation.isPending}
+                  className="text-xs text-[var(--color-primary)] hover:underline font-medium disabled:opacity-50"
+                >
+                  Asignar
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -1416,6 +1413,7 @@ export default function BudgetPage() {
   const spentPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
   const monthLabelRaw = now.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
   const monthLabel = monthLabelRaw.charAt(0).toUpperCase() + monthLabelRaw.slice(1);
+  const trendValues = (summary?.trend_6m ?? []).map((t) => t.total);
 
   // Group categories by macro group
   const groupColors: Record<string, string> = {
@@ -1479,11 +1477,13 @@ export default function BudgetPage() {
               <p className="adw-caption adw-dim-label mt-1">
                 de {formatCurrency(totalBudget)} presupuestados
               </p>
+              <TrendSpark values={trendValues} />
             </div>
             <div className="card p-4">
               <p className="adw-caption adw-dim-label mb-1">GASTADO VS PRESUPUESTO</p>
               <p className="text-lg font-bold text-primary">{formatCurrency(totalSpent)}</p>
               <p className="adw-caption adw-dim-label mt-1">{spentPct}% del presupuesto</p>
+              <TrendSpark values={trendValues} />
             </div>
             <div className="card p-4">
               <p className="adw-caption adw-dim-label mb-1">RITMO DIARIO</p>
@@ -1555,13 +1555,13 @@ export default function BudgetPage() {
 
           <UnbudgetedSection />
 
-          {/* Events — full width */}
+          {/* Events */}
           {events.length > 0 && (
-            <div className="card p-5 mb-6">
-              <h2 className="text-sm font-semibold text-[var(--text-secondary)] mb-3">
-                Eventos temporales
+            <div className="mb-6">
+              <h2 className="adw-caption-heading text-[var(--text-secondary)] mb-2">
+                EVENTOS TEMPORALES
               </h2>
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 {events.map((event) => (
                   <EventCard
                     key={event.id}

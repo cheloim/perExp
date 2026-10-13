@@ -160,6 +160,12 @@ export interface BudgetSummaryResponse {
   total_spent: number;
   total_percentage: number;
   categories: BudgetSummaryItem[];
+  trend_6m: BudgetTrendPoint[];
+}
+
+export interface BudgetTrendPoint {
+  month: string;
+  total: number;
 }
 
 export interface BudgetEvent {
