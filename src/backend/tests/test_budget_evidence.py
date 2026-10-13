@@ -150,6 +150,92 @@ class TestUpdateBudget:
         assert result.is_active is False
 
 
+class TestUpdateGroupAndEvent:
+    def _make_group(self, db, user):
+        from app.models import BudgetGroup
+
+        group = BudgetGroup(
+            user_id=user.id,
+            name="necesidades",
+            display_name="Necesidades",
+            percentage=50,
+            amount=200000,
+        )
+        db.add(group)
+        db.flush()
+        return group
+
+    def _make_event(self, db, user):
+        from datetime import date
+
+        from app.models import BudgetEvent
+
+        event = BudgetEvent(
+            user_id=user.id,
+            name="Vacaciones",
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 1, 15),
+            total_amount=400000,
+        )
+        db.add(event)
+        db.flush()
+        return event
+
+    def test_put_group_percentage_only(self, db):
+        from app.routers.budgets import update_budget_group
+        from app.schemas.budgets import BudgetGroupUpdate
+
+        user = _make_user(db, "putgroup@test.com")
+        group = self._make_group(db, user)
+
+        result = update_budget_group(
+            group.id, BudgetGroupUpdate(percentage=60), db=db, current_user=user
+        )
+
+        assert result.percentage == 60
+        assert result.is_active is True
+
+    def test_put_group_with_is_active(self, db):
+        from app.routers.budgets import update_budget_group
+        from app.schemas.budgets import BudgetGroupUpdate
+
+        user = _make_user(db, "putgroupactive@test.com")
+        group = self._make_group(db, user)
+
+        result = update_budget_group(
+            group.id, BudgetGroupUpdate(is_active=False), db=db, current_user=user
+        )
+
+        assert result.is_active is False
+
+    def test_put_event_name_only(self, db):
+        from app.routers.budgets import update_budget_event
+        from app.schemas.budgets import BudgetEventUpdate
+
+        user = _make_user(db, "putevent@test.com")
+        event = self._make_event(db, user)
+
+        result = update_budget_event(
+            event.id, BudgetEventUpdate(name="Viaje"), db=db, current_user=user
+        )
+
+        assert result.name == "Viaje"
+        assert result.is_active is True
+
+    def test_put_event_with_is_active(self, db):
+        from app.routers.budgets import update_budget_event
+        from app.schemas.budgets import BudgetEventUpdate
+
+        user = _make_user(db, "puteventactive@test.com")
+        event = self._make_event(db, user)
+
+        result = update_budget_event(
+            event.id, BudgetEventUpdate(is_active=False), db=db, current_user=user
+        )
+
+        assert result.is_active is False
+
+
 class TestSummaryTrend:
     def test_trend_has_6_zero_filled_months(self, db):
         from datetime import date
