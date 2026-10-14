@@ -133,6 +133,8 @@ export default function Dashboard() {
   } | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [daysFilter, setDaysFilter] = useState(7);
+  // Issue #385: hide empty cuentas (zero this month) by default; toggle to show all
+  const [showEmptyAccounts, setShowEmptyAccounts] = useState(false);
   // Performance: defer off-screen queries after initial render
   const [deferred, setDeferred] = useState(false);
   useEffect(() => {
@@ -884,12 +886,26 @@ export default function Dashboard() {
         <div className="card p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-primary">Gastos por Cuenta</h2>
-            <button
-              onClick={() => navigate("/expenses")}
-              className="text-xs text-secondary hover:text-primary transition-colors"
-            >
-              Ver detalle →
-            </button>
+            <div className="flex items-center gap-3">
+              <label
+                className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary transition-colors cursor-pointer select-none"
+                title="Mostrar cuentas sin gastos este mes"
+              >
+                <input
+                  type="checkbox"
+                  checked={showEmptyAccounts}
+                  onChange={(e) => setShowEmptyAccounts(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-[var(--color-primary)] cursor-pointer"
+                />
+                Vacías
+              </label>
+              <button
+                onClick={() => navigate("/expenses")}
+                className="text-xs text-secondary hover:text-primary transition-colors"
+              >
+                Ver detalle →
+              </button>
+            </div>
           </div>
           {tagData.length === 0 ? (
             <EmptyState
@@ -905,15 +921,17 @@ export default function Dashboard() {
                   const monthEntry = t.monthly?.find((m) => m.month === currentMonth);
                   return { ...t, current_amount: monthEntry?.total ?? 0 };
                 });
-                const total = withCurrent.reduce((s, t) => s + t.current_amount, 0);
                 const sorted = [...withCurrent].sort((a, b) => {
                   if (a.tag_id == null) return 1;
                   if (b.tag_id == null) return -1;
                   return b.current_amount - a.current_amount;
                 });
                 const visible = sorted.filter((t) => t.current_amount > 0);
+                // Issue #385: hide zero-amount cuentas unless the user opts in
+                const displayed = showEmptyAccounts ? sorted : visible;
+                const total = displayed.reduce((s, t) => s + t.current_amount, 0);
 
-                if (visible.length === 0 && sorted.every((t) => t.current_amount === 0)) {
+                if (displayed.length === 0) {
                   return (
                     <EmptyState
                       icon="tag"
@@ -928,7 +946,7 @@ export default function Dashboard() {
                     <ResponsiveContainer width="100%" height={240} className="max-w-[260px]">
                       <PieChart>
                         <Pie
-                          data={visible.map((t) => ({
+                          data={displayed.map((t) => ({
                             name: t.tag_name,
                             value: t.current_amount,
                             color: t.tag_color,
@@ -950,7 +968,7 @@ export default function Dashboard() {
                           }}
                           style={{ cursor: "pointer" }}
                         >
-                          {visible.map((t, i) => (
+                          {displayed.map((t, i) => (
                             <Cell key={i} fill={t.tag_color} />
                           ))}
                         </Pie>
@@ -973,7 +991,7 @@ export default function Dashboard() {
                     </ResponsiveContainer>
 
                     <div className="flex-1 w-full space-y-1.5">
-                      {sorted.map((t, i) => {
+                      {displayed.map((t, i) => {
                         const isNull = t.tag_id == null;
                         return (
                           <button
