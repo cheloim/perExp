@@ -565,6 +565,10 @@ def suggest_budgets(
         if avg_monthly > 0:
             # Suggest 90% of average (10% reduction for savings)
             suggested = round(avg_monthly * 0.9, -2)  # Round to nearest 100
+            if suggested <= 0:
+                # Tiny averages round down to $0, which creates useless
+                # invisible budgets — skip instead of suggesting nothing.
+                continue
 
             # Check if budget already exists
             existing = (

@@ -719,18 +719,31 @@ function BudgetHelpPanel({ groups, onClose }: { groups: BudgetGroup[]; onClose: 
     qc.invalidateQueries({ queryKey: ["budget-groups"] });
   };
 
-  const pending = (suggestionsData?.suggestions ?? []).filter((s) => !s.has_budget);
+  const pending = (suggestionsData?.suggestions ?? []).filter(
+    (s) => !s.has_budget && s.suggested > 0,
+  );
   const groupOf = (categoryId: number) =>
     allCategories.find((c) => c.id === categoryId)?.budget_group ?? "necesidades";
+
+  const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
 
   const createMany = useMutation({
     mutationFn: async (items: BudgetSuggestion[]) => {
       const { createBudget } = await import("../api/client");
-      return Promise.all(
+      const results = await Promise.allSettled(
         items.map((s) => createBudget({ category_id: s.category_id, amount: s.suggested })),
       );
+      const done = results.filter((r) => r.status === "fulfilled").length;
+      if (done === 0) throw new Error("No se pudo crear ningún presupuesto");
+      return done;
     },
-    onSuccess: () => invalidate(),
+    onSuccess: (done) => {
+      invalidate();
+      setFeedback({ ok: true, text: `Se crearon ${done} presupuesto${done === 1 ? "" : "s"}.` });
+    },
+    onError: () => {
+      setFeedback({ ok: false, text: "Algo falló al crear. Probá de nuevo." });
+    },
   });
 
   const block = "text-xs text-[var(--text-secondary)] mt-1 leading-relaxed";
@@ -770,6 +783,18 @@ function BudgetHelpPanel({ groups, onClose }: { groups: BudgetGroup[]; onClose: 
           </section>
 
           <section>
+            <p className="text-sm font-semibold text-primary">¿Para qué sirven?</p>
+            <p className={block}>
+              Para saber a mitad de mes si vas a llegar, decidir dónde recortar y separar ahorro con
+              meta.
+            </p>
+            <p className={example}>
+              Con presupuesto tenés: avisos al 80/100% · ritmo diario · reportes contra tu límite.
+              Sin presupuesto, solo ves gastos y promedios.
+            </p>
+          </section>
+
+          <section>
             <p className="text-sm font-semibold text-primary">Necesidades · Gustos · Ahorro</p>
             <p className={block}>
               Reparto orientativo 50/30/20 de tus ingresos, no una regla exacta.
@@ -796,7 +821,10 @@ function BudgetHelpPanel({ groups, onClose }: { groups: BudgetGroup[]; onClose: 
             </p>
             <div className="flex flex-wrap gap-2 mt-2">
               <button
-                onClick={() => createMany.mutate(pending)}
+                onClick={() => {
+                  setFeedback(null);
+                  createMany.mutate(pending);
+                }}
                 disabled={pending.length === 0 || createMany.isPending}
                 className="px-3 py-1.5 text-xs font-medium text-[var(--color-primary)] border border-[var(--color-primary)]/30 rounded-lg hover:bg-[var(--color-primary)]/10 transition-colors disabled:opacity-50"
               >
@@ -805,18 +833,66 @@ function BudgetHelpPanel({ groups, onClose }: { groups: BudgetGroup[]; onClose: 
               {groups.map((g) => {
                 const items = pending.filter((s) => groupOf(s.category_id) === g.name);
                 if (items.length === 0) return null;
+                const first = items[0];
                 return (
-                  <button
-                    key={g.name}
-                    onClick={() => createMany.mutate(items)}
-                    disabled={createMany.isPending}
-                    className="px-3 py-1.5 text-xs font-medium text-[var(--color-primary)] border border-[var(--color-primary)]/30 rounded-lg hover:bg-[var(--color-primary)]/10 transition-colors disabled:opacity-50"
-                  >
-                    Completar {g.display_name} ({items.length})
-                  </button>
+                  <div key={g.name}>
+                    <button
+                      onClick={() => {
+                        setFeedback(null);
+                        createMany.mutate(items);
+                      }}
+                      disabled={createMany.isPending}
+                      title={`Ej: ${first.category_name} ${formatCurrency(first.suggested)}`}
+                      className="px-3 py-1.5 text-xs font-medium text-[var(--color-primary)] border border-[var(--color-primary)]/30 rounded-lg hover:bg-[var(--color-primary)]/10 transition-colors disabled:opacity-50"
+                    >
+                      Completar {g.display_name} ({items.length})
+                    </button>
+                    <p className="text-[11px] text-[var(--text-tertiary)] mt-1">
+                      Ej: {first.category_name} {formatCurrency(first.suggested)}
+                    </p>
+                  </div>
                 );
               })}
             </div>
+            {pending.slice(0, 3).length > 0 && (
+              <div
+                aria-hidden="true"
+                className="mt-2 rounded-lg px-2.5 py-2 border border-dashed border-[var(--color-primary)]/40 bg-[var(--color-primary)]/5"
+              >
+                <p className="text-[11px] font-semibold text-[var(--text-tertiary)] mb-1">
+                  Se crearían así:
+                </p>
+                {pending.slice(0, 3).map((s) => (
+                  <div
+                    key={s.category_id}
+                    className="flex items-center justify-between text-xs py-0.5"
+                  >
+                    <span className="inline-flex items-center gap-2 text-[var(--text-primary)]">
+                      <span
+                        className="w-3 h-3 rounded-full inline-block"
+                        style={{ backgroundColor: s.category_color }}
+                      />
+                      {s.category_name}
+                    </span>
+                    <strong>{formatCurrency(s.suggested)}</strong>
+                  </div>
+                ))}
+                {pending.length > 3 && (
+                  <p className="text-[11px] text-[var(--text-tertiary)] mt-1">
+                    +{pending.length - 3} más
+                  </p>
+                )}
+              </div>
+            )}
+            {feedback && (
+              <p
+                className={`text-xs font-medium mt-2 ${
+                  feedback.ok ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"
+                }`}
+              >
+                {feedback.text}
+              </p>
+            )}
           </section>
 
           <section>
