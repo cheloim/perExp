@@ -119,6 +119,18 @@ class TestSummaryIncludesEvidence:
         assert len(match) == 1
         assert match[0]["months_with_data"] == 1
 
+    def test_tiny_average_yields_no_suggestion(self, db):
+        from app.routers.budgets import suggest_budgets
+
+        user = _make_user(db, "tiny@test.com")
+        cat = _make_category(db, user, "Quiosco")
+        months = _last_months(3)
+        _make_expense(db, user, 30, cat.id, months[0])
+
+        result = suggest_budgets(db=db, current_user=user)
+
+        assert [s for s in result["suggestions"] if s["category_id"] == cat.id] == []
+
 
 class TestUpdateBudget:
     def test_put_amount_only_returns_200(self, db):
