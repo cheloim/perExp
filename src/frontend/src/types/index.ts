@@ -283,6 +283,7 @@ export interface CategorySummary {
   total: number;
   count: number;
   previous_total?: number;
+  previous_mtd_total?: number;
 }
 
 export interface PeriodSummary {
@@ -295,6 +296,8 @@ export interface CurrencySummary {
   currency: string;
   total: number;
   count: number;
+  previous_total?: number;
+  previous_mtd_total?: number;
 }
 
 export interface CardBySummary {
@@ -318,6 +321,10 @@ export interface DashboardSummary {
   total_expenses: number;
   total_amount: number;
   total_by_account: number;
+  previous_total?: number;
+  previous_mtd_total?: number;
+  is_current_month?: boolean;
+  mtd_cutoff_day?: number | null;
   by_category: CategorySummary[];
   by_income: CategorySummary[];
   by_period: PeriodSummary[];

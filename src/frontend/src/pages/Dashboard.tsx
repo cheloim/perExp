@@ -461,11 +461,17 @@ export default function Dashboard() {
   const currentMonthLoad = monthlyLoad.find((m) => m.is_current);
   const cuotasComprometidas = currentMonthLoad?.total ?? 0;
 
-  // MoM comparison: total this month vs total of all previous_total in categories
-  const prevMonthTotal = (dashData?.by_category ?? []).reduce(
-    (s, c) => s + (c.previous_total ?? 0),
-    0,
-  );
+  // MoM comparison: total this month vs previous month.
+  // Issue #393: for the current month compare against the previous month cut
+  // at the same day (MTD) — full-vs-full would look artificially low mid-month.
+  const useMtd = dashData?.is_current_month === true;
+  const prevMonthTotal = useMtd
+    ? (dashData?.previous_mtd_total ??
+      (dashData?.by_category ?? []).reduce(
+        (s, c) => s + (c.previous_mtd_total ?? c.previous_total ?? 0),
+        0,
+      ))
+    : (dashData?.by_category ?? []).reduce((s, c) => s + (c.previous_total ?? 0), 0);
   const momVariation =
     prevMonthTotal > 0 ? ((totalSpent - prevMonthTotal) / prevMonthTotal) * 100 : 0;
 
@@ -563,7 +569,9 @@ export default function Dashboard() {
           <p className="text-xs text-tertiary mt-1">{currentMonthLoad?.count ?? 0} cuotas</p>
         </div>
         <div className="card p-5">
-          <p className="text-[10px] text-tertiary uppercase mb-1">vs Mes anterior</p>
+          <p className="text-[10px] text-tertiary uppercase mb-1">
+            {useMtd ? "vs mismo día mes ant." : "vs Mes anterior"}
+          </p>
           <p
             className={`text-lg font-bold ${
               momVariation > 0 ? "text-danger" : momVariation < 0 ? "text-success" : "text-tertiary"
@@ -574,6 +582,9 @@ export default function Dashboard() {
           </p>
           <p className="text-xs text-tertiary mt-1">
             {momVariation > 0 ? "Gastaste más" : momVariation < 0 ? "Gastaste menos" : "Sin cambio"}
+            {useMtd && dashData?.mtd_cutoff_day != null
+              ? ` · al día ${dashData.mtd_cutoff_day}`
+              : ""}
           </p>
         </div>
         {(savingsArs > 0 || totalUsd > 0) && (

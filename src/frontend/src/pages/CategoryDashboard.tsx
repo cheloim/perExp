@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
@@ -97,6 +97,15 @@ export default function CategoryDashboard() {
   const categories = summary?.by_category ?? [];
   const grandTotal = useMemo(() => categories.reduce((s, c) => s + c.total, 0), [categories]);
 
+  // Issue #393: current month compares against the previous month cut at the
+  // same day (MTD); closed months use the full previous month.
+  const useMtd = summary?.is_current_month === true;
+  const pickPrev = useCallback(
+    (c: { previous_total?: number; previous_mtd_total?: number }) =>
+      useMtd ? (c.previous_mtd_total ?? c.previous_total ?? 0) : (c.previous_total ?? 0),
+    [useMtd],
+  );
+
   const activeCat = selectedCategoryName
     ? (categories.find((c) => c.category_name === selectedCategoryName) ?? null)
     : null;
@@ -119,9 +128,11 @@ export default function CategoryDashboard() {
       previous_total:
         (parentEntry?.previous_total ?? 0) +
         children.reduce((s, c) => s + (c.previous_total ?? 0), 0),
+      previous_mtd_total:
+        (parentEntry ? pickPrev(parentEntry) : 0) + children.reduce((s, c) => s + pickPrev(c), 0),
       childIds: allIds,
     };
-  }, [selectedCategoryName, categories, activeCat]);
+  }, [selectedCategoryName, categories, activeCat, pickPrev]);
 
   const activeSelection = useMemo(() => {
     if (activeCat) {
@@ -131,11 +142,12 @@ export default function CategoryDashboard() {
         total: activeCat.total,
         count: activeCat.count,
         previous_total: activeCat.previous_total ?? 0,
+        previous_mtd_total: pickPrev(activeCat),
         childIds: activeCat.category_id != null ? [activeCat.category_id] : [],
       };
     }
     return activeGroup;
-  }, [activeCat, activeGroup]);
+  }, [activeCat, activeGroup, pickPrev]);
 
   const displayTotal = activeSelection ? activeSelection.total : (summary?.total_amount ?? 0);
   const displayCount = activeSelection ? activeSelection.count : (summary?.total_expenses ?? 0);
@@ -144,9 +156,9 @@ export default function CategoryDashboard() {
   const previousTotal = useMemo(
     () =>
       activeSelection
-        ? (activeSelection.previous_total ?? 0)
-        : (summary?.by_category?.reduce((s, c) => s + (c.previous_total ?? 0), 0) ?? 0),
-    [activeSelection, summary],
+        ? pickPrev(activeSelection)
+        : (summary?.by_category?.reduce((s, c) => s + pickPrev(c), 0) ?? 0),
+    [activeSelection, summary, pickPrev],
   );
   const pctChange =
     previousTotal > 0 ? ((displayTotal - previousTotal) / previousTotal) * 100 : null;
@@ -432,7 +444,7 @@ export default function CategoryDashboard() {
                         activeSelection.previous_total) *
                         100,
                     ).toFixed(0)}
-                    % vs mes anterior
+                    % {useMtd ? "vs mismo día mes ant." : "vs mes anterior"}
                   </div>
                 ) : activeSelection.previous_total === 0 ? (
                   <div className="text-[var(--text-tertiary)]">Nuevo este mes</div>
