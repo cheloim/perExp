@@ -211,3 +211,87 @@ def test_income_excluded_from_previous_total(db, dashboard_user):
 
     # previous_total should only include the 8000 expense, not the 50000 income
     assert by_cat["Comida"]["previous_total"] == 8000
+
+
+def test_mtd_comparison_cuts_previous_month_at_same_day(db, dashboard_user):
+    """Issue #393: current month compares against prev month cut at the same day.
+
+    as_of=2026-10-14, month=2026-10:
+    - Sep 05 (day <= 14) counts in both previous_total and previous_mtd_total
+    - Sep 20 (day > 14) counts ONLY in previous_total
+    """
+    from app.routers.dashboard import _compute_summary as compute
+
+    food = _create_category(db, dashboard_user, "Comida", "#ef4444")
+
+    _create_expense(db, dashboard_user, 10000, "Supermercado", date(2026, 10, 5), food)
+    _create_expense(db, dashboard_user, 8000, "Restaurante", date(2026, 9, 5), food)
+    _create_expense(db, dashboard_user, 50000, "Banquete", date(2026, 9, 20), food)
+    db.flush()
+
+    result = compute(
+        month="2026-10", db=db, current_user=dashboard_user, as_of=date(2026, 10, 14)
+    )
+
+    assert result["is_current_month"] is True
+    assert result["mtd_cutoff_day"] == 14
+    by_cat = {c["category_name"]: c for c in result["by_category"]}
+    assert by_cat["Comida"]["previous_total"] == 58000
+    assert by_cat["Comida"]["previous_mtd_total"] == 8000
+    assert result["previous_mtd_total"] == 8000
+
+
+def test_closed_month_mtd_equals_full_previous(db, dashboard_user):
+    """Issue #393: for closed months MTD comparison falls back to full-vs-full."""
+    from app.routers.dashboard import _compute_summary as compute
+
+    food = _create_category(db, dashboard_user, "Comida", "#ef4444")
+
+    _create_expense(db, dashboard_user, 10000, "Supermercado", date(2026, 9, 5), food)
+    _create_expense(db, dashboard_user, 8000, "Restaurante", date(2026, 8, 5), food)
+    _create_expense(db, dashboard_user, 50000, "Banquete", date(2026, 8, 20), food)
+    db.flush()
+
+    result = compute(
+        month="2026-09", db=db, current_user=dashboard_user, as_of=date(2026, 10, 14)
+    )
+
+    assert result["is_current_month"] is False
+    assert result["mtd_cutoff_day"] is None
+    by_cat = {c["category_name"]: c for c in result["by_category"]}
+    assert by_cat["Comida"]["previous_total"] == 58000
+    assert by_cat["Comida"]["previous_mtd_total"] == 58000
+
+
+def test_by_currency_carries_previous_totals(db, dashboard_user):
+    """Issue #393 (item 3): by_currency exposes previous totals per currency.
+
+    Frontend MoM must compare ARS vs ARS, not ARS vs mixed currencies.
+    """
+    from app.routers.dashboard import _compute_summary as compute
+
+    food = _create_category(db, dashboard_user, "Comida", "#ef4444")
+
+    _create_expense(
+        db, dashboard_user, 10000, "Supermercado", date(2026, 10, 5), food, currency="ARS"
+    )
+    _create_expense(
+        db, dashboard_user, 100, "Importado", date(2026, 10, 6), food, currency="USD"
+    )
+    _create_expense(
+        db, dashboard_user, 8000, "Restaurante", date(2026, 9, 5), food, currency="ARS"
+    )
+    _create_expense(
+        db, dashboard_user, 50, "Importado prev", date(2026, 9, 6), food, currency="USD"
+    )
+    db.flush()
+
+    result = compute(
+        month="2026-10", db=db, current_user=dashboard_user, as_of=date(2026, 10, 14)
+    )
+
+    by_cur = {c["currency"]: c for c in result["by_currency"]}
+    assert by_cur["ARS"]["previous_total"] == 8000
+    assert by_cur["ARS"]["previous_mtd_total"] == 8000
+    assert by_cur["USD"]["previous_total"] == 50
+    assert by_cur["USD"]["previous_mtd_total"] == 50
