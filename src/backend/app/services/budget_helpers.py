@@ -1,9 +1,39 @@
 """Shared budget spending calculation helpers."""
 
+import json
 from calendar import monthrange
 from datetime import date
 
 from sqlalchemy.orm import Session
+
+DEFAULT_ALERT_LEVELS = [0.75, 0.90, 1.0]
+
+
+def parse_levels(raw: str | None, fallback: float | None = None) -> list[float]:
+    """Parse stored JSON levels, falling back to a single legacy threshold."""
+    if raw:
+        try:
+            parsed = json.loads(raw)
+            levels = sorted({float(v) for v in parsed if float(v) > 0})
+            if levels:
+                return levels
+        except (ValueError, TypeError):
+            pass
+    if fallback and fallback > 0:
+        return [float(fallback)]
+    return list(DEFAULT_ALERT_LEVELS)
+
+
+def get_alert_levels(budget_or_group) -> list[float]:
+    """Return sorted alert levels for a Budget or BudgetGroup."""
+    raw = getattr(budget_or_group, "alert_thresholds", None)
+    fallback = getattr(budget_or_group, "alert_threshold", None)
+    return parse_levels(raw, fallback)
+
+
+def levels_crossed(pct: float, levels: list[float]) -> list[float]:
+    """Return all levels at or below the current percentage."""
+    return [level for level in sorted(levels) if pct >= level]
 
 
 def get_group_user_ids(user_id: int, db: Session) -> list[int]:
@@ -198,7 +228,7 @@ def _check_budget_threshold(db: Session, user_id: int, category_id: int) -> None
         spent = get_spending_for_category(category_id, year, month, uid_list, db)
         pct = spent / budget.amount
 
-        if pct >= budget.alert_threshold:
+        for level in levels_crossed(pct, get_alert_levels(budget)):
             existing = (
                 db.query(Notification)
                 .filter(
@@ -206,30 +236,33 @@ def _check_budget_threshold(db: Session, user_id: int, category_id: int) -> None
                     Notification.type == "budget_warning",
                     Notification.data.contains(f'"category_id": {category_id}'),
                     Notification.data.contains(f'"month": "{month_key}"'),
+                    Notification.data.contains(f'"level": {level}'),
                     Notification.read == False,  # noqa: E712
                 )
                 .first()
             )
 
-            if not existing:
-                is_exceeded = pct >= 1.0
-                status = "exceeded" if is_exceeded else "warning"
-                notify_user(
-                    db,
-                    user_id,
-                    "budget_warning",
-                    f"{'🔴 Excedido' if is_exceeded else '🟡 Alerta'}: {cat.name}",
-                    f"Presupuesto ${budget.amount:,.0f} | Gastado ${spent:,.0f} ({pct:.0%})",
-                    {
-                        "category_id": category_id,
-                        "category_name": cat.name,
-                        "month": month_key,
-                        "budget_amount": budget.amount,
-                        "spent_amount": spent,
-                        "percentage": pct,
-                        "status": status,
-                    },
-                )
+            if existing:
+                continue
+            is_exceeded = pct >= 1.0 or level >= 1.0
+            status = "exceeded" if is_exceeded else "warning"
+            notify_user(
+                db,
+                user_id,
+                "budget_warning",
+                f"{'🔴 Excedido' if is_exceeded else '🟡 Alerta'}: {cat.name}",
+                f"Presupuesto ${budget.amount:,.0f} | Gastado ${spent:,.0f} ({pct:.0%})",
+                {
+                    "category_id": category_id,
+                    "category_name": cat.name,
+                    "month": month_key,
+                    "budget_amount": budget.amount,
+                    "spent_amount": spent,
+                    "percentage": pct,
+                    "status": status,
+                    "level": level,
+                },
+            )
 
     # ── Macro group budget ──
     if not cat.budget_group:
@@ -251,39 +284,40 @@ def _check_budget_threshold(db: Session, user_id: int, category_id: int) -> None
     group_spent = get_spending_for_group(cat.budget_group, year, month, uid_list, db)
     pct = group_spent / group.amount
 
-    if pct < 0.80:
-        return
-
-    existing = (
-        db.query(Notification)
-        .filter(
-            Notification.user_id == user_id,
-            Notification.type == "budget_warning",
-            Notification.data.contains(f'"group_name": "{cat.budget_group}"'),
-            Notification.data.contains(f'"month": "{month_key}"'),
-            Notification.read == False,  # noqa: E712
-        )
-        .first()
-    )
-
-    if existing:
-        return
-
     display_names = {"necesidades": "Necesidades", "gustos": "Gustos", "ahorro": "Ahorro"}
-    is_exceeded = pct >= 1.0
-    status = "exceeded" if is_exceeded else "warning"
-    notify_user(
-        db,
-        user_id,
-        "budget_warning",
-        f"{'🔴 Excedido' if is_exceeded else '🟡 Alerta'}: {display_names.get(cat.budget_group, cat.budget_group)}",
-        f"Presupuesto ${group.amount:,.0f} | Gastado ${group_spent:,.0f} ({pct:.0%})",
-        {
-            "group_name": cat.budget_group,
-            "month": month_key,
-            "budget_amount": group.amount,
-            "spent_amount": group_spent,
-            "percentage": pct,
-            "status": status,
-        },
-    )
+
+    for level in levels_crossed(pct, get_alert_levels(group)):
+        existing = (
+            db.query(Notification)
+            .filter(
+                Notification.user_id == user_id,
+                Notification.type == "budget_warning",
+                Notification.data.contains(f'"group_name": "{cat.budget_group}"'),
+                Notification.data.contains(f'"month": "{month_key}"'),
+                Notification.data.contains(f'"level": {level}'),
+                Notification.read == False,  # noqa: E712
+            )
+            .first()
+        )
+
+        if existing:
+            continue
+
+        is_exceeded = pct >= 1.0 or level >= 1.0
+        status = "exceeded" if is_exceeded else "warning"
+        notify_user(
+            db,
+            user_id,
+            "budget_warning",
+            f"{'🔴 Excedido' if is_exceeded else '🟡 Alerta'}: {display_names.get(cat.budget_group, cat.budget_group)}",
+            f"Presupuesto ${group.amount:,.0f} | Gastado ${group_spent:,.0f} ({pct:.0%})",
+            {
+                "group_name": cat.budget_group,
+                "month": month_key,
+                "budget_amount": group.amount,
+                "spent_amount": group_spent,
+                "percentage": pct,
+                "status": status,
+                "level": level,
+            },
+        )

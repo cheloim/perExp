@@ -32,6 +32,36 @@ router = APIRouter(prefix="/budgets", tags=["budgets"])
 # Feature flag: Ahorro (savings) group — disabled until Income module is ready
 BUDGET_AHORRO_ENABLED = os.getenv("BUDGET_AHORRO_ENABLED", "false").lower() == "true"
 
+DEFAULT_ALERT_LEVELS = [0.75, 0.90, 1.0]
+
+
+def _normalize_levels(levels: list[float] | None) -> list[float] | None:
+    """Validate and normalize alert levels. Returns None when not provided."""
+    if levels is None:
+        return None
+    if not 1 <= len(levels) <= 5:
+        raise HTTPException(400, "alert_thresholds must contain 1-5 levels")
+    cleaned = sorted({float(v) for v in levels})
+    if any(v <= 0 or v > 2 for v in cleaned):
+        raise HTTPException(400, "alert_thresholds levels must be in (0, 2]")
+    return cleaned
+
+
+def _levels_to_db(levels: list[float] | None) -> str | None:
+    return json.dumps(levels) if levels is not None else None
+
+
+def _levels_from_db(raw: str | None, fallback: float = 0.80) -> list[float]:
+    if raw:
+        try:
+            parsed = json.loads(raw)
+            levels = sorted({float(v) for v in parsed if float(v) > 0})
+            if levels:
+                return levels
+        except (ValueError, TypeError):
+            pass
+    return [float(fallback)] if fallback and fallback > 0 else list(DEFAULT_ALERT_LEVELS)
+
 
 def _get_group_user_ids(user_id: int, db: Session) -> list[int]:
     """Get all user IDs in the same family group."""
@@ -205,6 +235,7 @@ def list_budgets(
                 category_color=cat.color if cat else "",
                 amount=b.amount,
                 alert_threshold=b.alert_threshold,
+                alert_thresholds=_levels_from_db(b.alert_thresholds, b.alert_threshold),
                 rollover=b.rollover,
                 is_active=b.is_active,
             )
@@ -236,6 +267,10 @@ def create_budget(
     if existing:
         existing.amount = data.amount
         existing.alert_threshold = data.alert_threshold
+        levels = _normalize_levels(data.alert_thresholds)
+        if levels is not None:
+            existing.alert_thresholds = _levels_to_db(levels)
+            existing.alert_threshold = levels[0]
         existing.rollover = data.rollover
         existing.is_active = True
         db.commit()
@@ -247,15 +282,18 @@ def create_budget(
             category_color=cat.color,
             amount=existing.amount,
             alert_threshold=existing.alert_threshold,
+            alert_thresholds=_levels_from_db(existing.alert_thresholds, existing.alert_threshold),
             rollover=existing.rollover,
             is_active=existing.is_active,
         )
 
+    levels = _normalize_levels(data.alert_thresholds)
     budget = Budget(
         user_id=current_user.id,
         category_id=data.category_id,
         amount=data.amount,
-        alert_threshold=data.alert_threshold,
+        alert_threshold=levels[0] if levels is not None else data.alert_threshold,
+        alert_thresholds=_levels_to_db(levels),
         rollover=data.rollover,
     )
     db.add(budget)
@@ -269,6 +307,7 @@ def create_budget(
         category_color=cat.color,
         amount=budget.amount,
         alert_threshold=budget.alert_threshold,
+        alert_thresholds=_levels_from_db(budget.alert_thresholds, budget.alert_threshold),
         rollover=budget.rollover,
         is_active=budget.is_active,
     )
@@ -297,6 +336,10 @@ def update_budget(
         budget.amount = data.amount
     if data.alert_threshold is not None:
         budget.alert_threshold = data.alert_threshold
+    levels = _normalize_levels(data.alert_thresholds)
+    if levels is not None:
+        budget.alert_thresholds = _levels_to_db(levels)
+        budget.alert_threshold = levels[0]
     if data.rollover is not None:
         budget.rollover = data.rollover
     if data.is_active is not None:
@@ -313,6 +356,7 @@ def update_budget(
         category_color=cat.color if cat else "",
         amount=budget.amount,
         alert_threshold=budget.alert_threshold,
+        alert_thresholds=_levels_from_db(budget.alert_thresholds, budget.alert_threshold),
         rollover=budget.rollover,
         is_active=budget.is_active,
     )
@@ -686,6 +730,7 @@ def list_budget_groups(
                 spent=round(spent, 2),
                 committed=round(committed, 2),
                 available=round(group.amount - committed, 2),
+                alert_thresholds=_levels_from_db(group.alert_thresholds, 0.80),
                 categories=cat_items,
                 is_active=group.is_active,
             )
@@ -724,7 +769,19 @@ def create_budget_group(
     db.add(group)
     db.commit()
     db.refresh(group)
-    return group
+    return BudgetGroupResponse(
+        id=group.id,
+        name=group.name,
+        display_name=group.display_name,
+        percentage=group.percentage,
+        amount=group.amount,
+        spent=0,
+        committed=0,
+        available=group.amount,
+        alert_thresholds=_levels_from_db(group.alert_thresholds, 0.80),
+        categories=[],
+        is_active=group.is_active,
+    )
 
 
 @router.put(
@@ -752,6 +809,9 @@ def update_budget_group(
         group.percentage = data.percentage
     if data.amount is not None:
         group.amount = data.amount
+    group_levels = _normalize_levels(data.alert_thresholds)
+    if group_levels is not None:
+        group.alert_thresholds = _levels_to_db(group_levels)
     if data.is_active is not None:
         group.is_active = data.is_active
 
@@ -815,6 +875,7 @@ def update_budget_group(
         spent=round(spent, 2),
         committed=round(committed, 2),
         available=round(group.amount - committed, 2),
+        alert_thresholds=_levels_from_db(group.alert_thresholds, 0.80),
         categories=cat_items,
         is_active=group.is_active,
     )
