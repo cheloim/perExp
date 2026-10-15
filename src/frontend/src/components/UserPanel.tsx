@@ -1237,8 +1237,26 @@ export default function UserPanel({ open, onClose }: Props) {
                   </div>
                   {settings?.budget_alerts_enabled !== "false" && (
                     <p className="text-[10px] text-[var(--text-tertiary)]">
-                      Recibí alertas cuando tus gastos superan el 80% o 100% del presupuesto
+                      Recibí alertas cuando tus gastos cruzan los niveles configurados (75%, 90%,
+                      100% por defecto)
                     </p>
+                  )}
+                  {settings?.budget_alerts_enabled !== "false" && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-[var(--text-primary)]">Canal de avisos</span>
+                      <select
+                        value={String(settings?.notify_channel ?? "both")}
+                        onChange={(e) =>
+                          settingMut.mutate({ key: "notify_channel", value: e.target.value })
+                        }
+                        className="px-2 py-1 rounded-md border border-[var(--border-color)] text-xs text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      >
+                        <option value="both">App + Telegram</option>
+                        <option value="inapp">Solo app</option>
+                        <option value="telegram">Solo Telegram</option>
+                        <option value="none">Silenciar todo</option>
+                      </select>
+                    </div>
                   )}
                 </div>
               </div>

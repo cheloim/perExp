@@ -306,6 +306,7 @@ export const createBudget = (data: {
   category_id: number;
   amount: number;
   alert_threshold?: number;
+  alert_thresholds?: number[];
   rollover?: boolean;
 }) => api.post<Budget>("/budgets", data).then((r) => r.data);
 
@@ -314,6 +315,7 @@ export const updateBudget = (
   data: {
     amount?: number;
     alert_threshold?: number;
+    alert_thresholds?: number[];
     rollover?: boolean;
     is_active?: boolean;
   },
@@ -341,7 +343,7 @@ export const createBudgetGroup = (data: {
 
 export const updateBudgetGroup = (
   id: number,
-  data: { percentage?: number; amount?: number; is_active?: boolean },
+  data: { percentage?: number; amount?: number; alert_thresholds?: number[]; is_active?: boolean },
 ) => api.put<BudgetGroup>(`/budgets/groups/${id}`, data).then((r) => r.data);
 
 export const initBudgetGroups = (monthly_income: number) =>

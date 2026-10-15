@@ -114,6 +114,7 @@ export interface Budget {
   category_color: string;
   amount: number;
   alert_threshold: number;
+  alert_thresholds: number[] | null;
   rollover: boolean;
   is_active: boolean;
 }
@@ -127,6 +128,7 @@ export interface BudgetGroup {
   spent: number;
   committed: number;
   available: number;
+  alert_thresholds: number[] | null;
   categories: BudgetGroupCategory[];
   is_active: boolean;
 }
