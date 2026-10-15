@@ -497,6 +497,12 @@ export const getMonthlyReport = (params?: { month?: string }) =>
       previous_total: number;
       previous_income: number;
       mom_change: number;
+      is_current_month?: boolean;
+      mtd_cutoff_day?: number | null;
+      previous_mtd_total?: number;
+      previous_mtd_income?: number;
+      mtd_change?: number;
+      projected_total?: number | null;
       trend_history: { month: string; expenses: number; income: number }[];
       analysis: {
         summary: string;

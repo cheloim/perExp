@@ -229,9 +229,7 @@ def test_mtd_comparison_cuts_previous_month_at_same_day(db, dashboard_user):
     _create_expense(db, dashboard_user, 50000, "Banquete", date(2026, 9, 20), food)
     db.flush()
 
-    result = compute(
-        month="2026-10", db=db, current_user=dashboard_user, as_of=date(2026, 10, 14)
-    )
+    result = compute(month="2026-10", db=db, current_user=dashboard_user, as_of=date(2026, 10, 14))
 
     assert result["is_current_month"] is True
     assert result["mtd_cutoff_day"] == 14
@@ -252,9 +250,7 @@ def test_closed_month_mtd_equals_full_previous(db, dashboard_user):
     _create_expense(db, dashboard_user, 50000, "Banquete", date(2026, 8, 20), food)
     db.flush()
 
-    result = compute(
-        month="2026-09", db=db, current_user=dashboard_user, as_of=date(2026, 10, 14)
-    )
+    result = compute(month="2026-09", db=db, current_user=dashboard_user, as_of=date(2026, 10, 14))
 
     assert result["is_current_month"] is False
     assert result["mtd_cutoff_day"] is None
@@ -275,23 +271,76 @@ def test_by_currency_carries_previous_totals(db, dashboard_user):
     _create_expense(
         db, dashboard_user, 10000, "Supermercado", date(2026, 10, 5), food, currency="ARS"
     )
-    _create_expense(
-        db, dashboard_user, 100, "Importado", date(2026, 10, 6), food, currency="USD"
-    )
-    _create_expense(
-        db, dashboard_user, 8000, "Restaurante", date(2026, 9, 5), food, currency="ARS"
-    )
+    _create_expense(db, dashboard_user, 100, "Importado", date(2026, 10, 6), food, currency="USD")
+    _create_expense(db, dashboard_user, 8000, "Restaurante", date(2026, 9, 5), food, currency="ARS")
     _create_expense(
         db, dashboard_user, 50, "Importado prev", date(2026, 9, 6), food, currency="USD"
     )
     db.flush()
 
-    result = compute(
-        month="2026-10", db=db, current_user=dashboard_user, as_of=date(2026, 10, 14)
-    )
+    result = compute(month="2026-10", db=db, current_user=dashboard_user, as_of=date(2026, 10, 14))
 
     by_cur = {c["currency"]: c for c in result["by_currency"]}
     assert by_cur["ARS"]["previous_total"] == 8000
     assert by_cur["ARS"]["previous_mtd_total"] == 8000
     assert by_cur["USD"]["previous_total"] == 50
     assert by_cur["USD"]["previous_mtd_total"] == 50
+
+
+def test_monthly_report_closed_month_has_no_mtd_split(db, dashboard_user, monkeypatch):
+    """Issue #393 (item 4): closed months report full-vs-full, no projection."""
+    import asyncio
+
+    from app.routers.dashboard import get_monthly_report
+
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+
+    _create_expense(db, dashboard_user, 10000, "Supermercado", date(2026, 8, 5))
+    _create_expense(db, dashboard_user, 8000, "Restaurante", date(2026, 7, 5))
+    db.flush()
+
+    result = asyncio.run(get_monthly_report(month="2026-08", db=db, current_user=dashboard_user))
+
+    assert result["is_current_month"] is False
+    assert result["mtd_cutoff_day"] is None
+    assert result["previous_mtd_total"] == result["previous_total"] == 8000
+    assert result["projected_total"] is None
+
+
+def test_monthly_report_current_month_mtd_and_projection(db, dashboard_user, monkeypatch):
+    """Issue #393 (item 4): current month compares MTD and projects month-end."""
+    import asyncio
+    from calendar import monthrange
+    from datetime import date as date_cls
+
+    from app.routers.dashboard import get_monthly_report
+
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+
+    today = date_cls.today()
+    cur_key = today.strftime("%Y-%m")
+    prev_year, prev_month = (
+        (today.year, today.month - 1) if today.month > 1 else (today.year - 1, 12)
+    )
+    prev_last = monthrange(prev_year, prev_month)[1]
+    cutoff = min(today.day, prev_last)
+
+    _create_expense(db, dashboard_user, 12000, "Supermercado", today.replace(day=1))
+    _create_expense(db, dashboard_user, 8000, "Restaurante", date(prev_year, prev_month, 1))
+    after_cutoff_day = min(cutoff + 1, prev_last)
+    _create_expense(
+        db, dashboard_user, 50000, "Banquete", date(prev_year, prev_month, after_cutoff_day)
+    )
+    db.flush()
+
+    result = asyncio.run(get_monthly_report(month=cur_key, db=db, current_user=dashboard_user))
+
+    assert result["is_current_month"] is True
+    assert result["mtd_cutoff_day"] == today.day
+    if after_cutoff_day > cutoff:
+        assert result["previous_mtd_total"] == 8000
+        assert result["previous_total"] == 58000
+    else:  # today is the last day of the month: MTD == full month
+        assert result["previous_mtd_total"] == result["previous_total"] == 58000
+    days_in_month = monthrange(today.year, today.month)[1]
+    assert result["projected_total"] == round(12000 / today.day * days_in_month, 2)
