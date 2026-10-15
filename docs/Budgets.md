@@ -2,7 +2,14 @@
 
 ## Overview
 
-The budget system lets you set monthly spending limits per category, organized into macro groups (50/30/20). It tracks spending against budgets, sends alerts when approaching limits, and supports temporary "event" budgets for vacations or special occasions.
+The budget system lets you set monthly spending limits per category, organized into macro groups (50/30/20). It tracks spending against budgets, sends escalated alerts when spending crosses configurable levels (75%/90%/100% by default), and supports temporary "event" budgets for vacations or special occasions.
+
+### Consumption Alerts (issue #171)
+
+- **Levels:** each category budget and macro group has `alert_thresholds` (default `[0.75, 0.90, 1.0]`). One notification fires per crossed level per month — no repeats for the same level.
+- **Triggers:** realtime on expense creation (API + Telegram bot) plus a daily Celery task (`check_budget_alerts`, 10:00 UTC) for anything missed.
+- **Channels:** resolved per user via `notify_user()` — `inapp` (SSE stream + toast + panel), `telegram` (bot proactive message), `both` (default), or `none`. Users pick the channel in the profile panel (`notify_channel` setting) and can disable budget alerts entirely (`budget_alerts_enabled`).
+- **Scope:** gasto vs. presupuesto only. No email channel, no native Web Push (in-app realtime is the "push" surface).
 
 ## Key Concepts
 

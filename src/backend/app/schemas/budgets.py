@@ -8,12 +8,14 @@ class BudgetCreate(BaseModel):
     category_id: int
     amount: float
     alert_threshold: float = 0.80
+    alert_thresholds: list[float] | None = None
     rollover: bool = False
 
 
 class BudgetUpdate(BaseModel):
     amount: float | None = None
     alert_threshold: float | None = None
+    alert_thresholds: list[float] | None = None
     rollover: bool | None = None
     is_active: bool | None = None
 
@@ -25,6 +27,7 @@ class BudgetResponse(BaseModel):
     category_color: str = ""
     amount: float
     alert_threshold: float
+    alert_thresholds: list[float] | None = None
     rollover: bool
     is_active: bool
     model_config = {"from_attributes": True}
@@ -70,6 +73,7 @@ class BudgetGroupUpdate(BaseModel):
     display_name: str | None = None
     percentage: float | None = None
     amount: float | None = None
+    alert_thresholds: list[float] | None = None
     is_active: bool | None = None
 
 
@@ -90,6 +94,7 @@ class BudgetGroupResponse(BaseModel):
     spent: float = 0
     committed: float = 0
     available: float = 0
+    alert_thresholds: list[float] | None = None
     categories: list[BudgetGroupCategory] = []
     is_active: bool
     model_config = {"from_attributes": True}

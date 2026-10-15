@@ -550,8 +550,12 @@ function EditBudgetModal({
     existing?.amount ?? (category.avg_monthly > 0 ? Math.round(category.avg_monthly) : null);
   const [amount, setAmount] = useState<number | null>(null);
   const [group, setGroup] = useState<string | null>(null);
+  const [levelsText, setLevelsText] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const value = amount ?? fallback;
+  const levelsFallback =
+    existing?.alert_thresholds?.map((l) => Math.round(l * 100)).join(", ") ?? "75, 90, 100";
+  const levelsValue = levelsText ?? levelsFallback;
   const groupValue = group ?? category.budget_group ?? "necesidades";
   const icon = getCategoryIcon(category.category_name);
 
@@ -575,11 +579,19 @@ function EditBudgetModal({
     mutationFn: async () => {
       const { createBudget, updateBudget, updateCategoryGroup } = await import("../api/client");
       if (!value || value <= 0) throw new Error("Ingresá un monto mayor a cero");
+      const levels = levelsValue
+        .split(",")
+        .map((s) => Number(s.trim()))
+        .filter((n) => Number.isFinite(n));
+      if (levels.length < 1 || levels.length > 5 || levels.some((n) => n <= 0 || n > 200)) {
+        throw new Error("Niveles inválidos: ej. 75, 90, 100 (1-5 valores entre 1 y 200)");
+      }
+      const alert_thresholds = [...new Set(levels)].sort((a, b) => a - b).map((n) => n / 100);
       if (group && group !== category.budget_group && category.category_id !== null) {
         await updateCategoryGroup(category.category_id, group);
       }
-      if (existing) return updateBudget(existing.id, { amount: value });
-      return createBudget({ category_id: category.category_id!, amount: value });
+      if (existing) return updateBudget(existing.id, { amount: value, alert_thresholds });
+      return createBudget({ category_id: category.category_id!, amount: value, alert_thresholds });
     },
     onSuccess: () => {
       invalidate();
@@ -643,6 +655,21 @@ function EditBudgetModal({
                 Usar prom {formatCurrency(category.avg_monthly)}
               </button>
             )}
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+              Niveles de alerta (% del límite)
+            </label>
+            <input
+              type="text"
+              value={levelsValue}
+              onChange={(e) => setLevelsText(e.target.value)}
+              placeholder="75, 90, 100"
+              className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+            />
+            <p className="text-[10px] text-[var(--text-tertiary)] mt-1">
+              Recibís un aviso cada vez que el gasto cruza uno de estos niveles
+            </p>
           </div>
           <div>
             <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
