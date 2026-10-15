@@ -59,13 +59,18 @@ export default function QuickSummary() {
 
   // Per-currency totals for the KPI
   const byCurrency = dash?.by_currency ?? [];
-  const arsTotal = byCurrency.find((c) => c.currency === "ARS")?.total ?? 0;
+  const arsEntry = byCurrency.find((c) => c.currency === "ARS");
+  const arsTotal = arsEntry?.total ?? 0;
   const usdTotal = byCurrency.find((c) => c.currency === "USD")?.total ?? 0;
 
-  // MoM comparison (only ARS for consistency with platform)
-  const categories = dash?.by_category ?? [];
-  const prevTotal = categories.reduce((s, c) => s + (c.previous_total ?? 0), 0);
-  const momPct = prevTotal > 0 ? ((arsTotal - prevTotal) / prevTotal) * 100 : 0;
+  // MoM comparison, currency-consistent (ARS vs ARS, issue #393 item 3).
+  // For the current month compare against the previous month cut at the
+  // same day (MTD); closed months use the full previous month.
+  const useMtd = dash?.is_current_month === true;
+  const prevArs = useMtd
+    ? (arsEntry?.previous_mtd_total ?? arsEntry?.previous_total ?? 0)
+    : (arsEntry?.previous_total ?? 0);
+  const momPct = prevArs > 0 ? ((arsTotal - prevArs) / prevArs) * 100 : 0;
   const momLabel =
     Math.abs(momPct) < 1
       ? "≈ igual"
@@ -80,12 +85,15 @@ export default function QuickSummary() {
         ? "text-[var(--color-success)]"
         : "text-[var(--text-tertiary)]";
 
-  // Category comparison data (current vs previous)
+  // Category comparison data (current vs previous/MTD)
+  const categories = dash?.by_category ?? [];
   const catComparison = categories
     .filter((c) => (c.total ?? 0) > 0 || (c.previous_total ?? 0) > 0)
     .map((c) => {
       const cur = c.total ?? 0;
-      const prev = c.previous_total ?? 0;
+      const prev = useMtd
+        ? (c.previous_mtd_total ?? c.previous_total ?? 0)
+        : (c.previous_total ?? 0);
       const changePct = prev > 0 ? ((cur - prev) / prev) * 100 : cur > 0 ? 100 : 0;
       return {
         id: c.category_id ?? c.category_name,
@@ -146,7 +154,9 @@ export default function QuickSummary() {
             className="text-[var(--text-tertiary)] flex-shrink-0"
           />
           <div className="min-w-0">
-            <div className="text-[10px] text-[var(--text-secondary)]">vs mes anterior</div>
+            <div className="text-[10px] text-[var(--text-secondary)]">
+              {useMtd ? "vs mismo día mes ant." : "vs mes anterior"}
+            </div>
             <div className={`text-base font-bold truncate ${momClass}`}>{momLabel}</div>
           </div>
         </button>

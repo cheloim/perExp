@@ -154,8 +154,10 @@ def _compute_summary(
     bank: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    as_of: date | None = None,
 ):
     uid_list = get_group_user_ids(current_user.id, db)
+    today = as_of or date.today()
 
     base_q = (
         db.query(Expense)
@@ -230,15 +232,24 @@ def _compute_summary(
                 "total": 0.0,
                 "count": 0,
                 "previous_total": 0.0,
+                "previous_mtd_total": 0.0,
             }
         by_category[cat_key]["total"] += e.amount
         by_category[cat_key]["count"] += 1
 
+    is_current_month = False
+    mtd_cutoff: int | None = None
+    prev_expenses: list = []
     if month:
         try:
             y, m = int(month[:4]), int(month[5:7])
             pm = m - 1 if m > 1 else 12
             py = y if m > 1 else y - 1
+            # Issue #393: when viewing the current month, compare against the
+            # previous month cut at the same day (MTD). Full-vs-full would make
+            # any in-progress month look artificially low.
+            is_current_month = f"{y}-{m:02d}" == today.strftime("%Y-%m")
+            mtd_cutoff = min(today.day, monthrange(py, pm)[1]) if is_current_month else None
             prev_expenses = _apply_filters(
                 base_q, f"{py}-{pm:02d}", search, person, category_id, bank, uid_list, db
             ).all()
@@ -264,6 +275,7 @@ def _compute_summary(
                             "total": 0.0,
                             "count": 0,
                             "previous_total": 0.0,
+                            "previous_mtd_total": 0.0,
                         }
                     elif prev_cat_key in cat_map:
                         cat = cat_map[prev_cat_key]
@@ -278,8 +290,12 @@ def _compute_summary(
                             "total": 0.0,
                             "count": 0,
                             "previous_total": 0.0,
+                            "previous_mtd_total": 0.0,
                         }
+                by_category[prev_cat_key].setdefault("previous_mtd_total", 0.0)
                 by_category[prev_cat_key]["previous_total"] += e.amount
+                if mtd_cutoff is None or e.date.day <= mtd_cutoff:
+                    by_category[prev_cat_key]["previous_mtd_total"] += e.amount
         except (ValueError, IndexError):
             pass
 
@@ -351,9 +367,34 @@ def _compute_summary(
     for e in expenses:
         cur = e.currency or "ARS"
         if cur not in by_currency:
-            by_currency[cur] = {"currency": cur, "total": 0.0, "count": 0}
+            by_currency[cur] = {
+                "currency": cur,
+                "total": 0.0,
+                "count": 0,
+                "previous_total": 0.0,
+                "previous_mtd_total": 0.0,
+            }
         by_currency[cur]["total"] += e.amount
         by_currency[cur]["count"] += 1
+
+    # Issue #393 (item 3): previous spending per currency, so the frontend can
+    # compare ARS vs ARS instead of ARS vs a mixed-currency total.
+    # Same expense-only rule as per-category previous_total.
+    for e in prev_expenses:
+        if e.is_income:
+            continue
+        cur = e.currency or "ARS"
+        if cur not in by_currency:
+            by_currency[cur] = {
+                "currency": cur,
+                "total": 0.0,
+                "count": 0,
+                "previous_total": 0.0,
+                "previous_mtd_total": 0.0,
+            }
+        by_currency[cur]["previous_total"] += e.amount
+        if mtd_cutoff is None or e.date.day <= mtd_cutoff:
+            by_currency[cur]["previous_mtd_total"] += e.amount
 
     def expense_to_dict(e: Expense) -> dict:
         cat = cat_map.get(e.category_id) if e.category_id else None
@@ -373,7 +414,6 @@ def _compute_summary(
             "notes": e.notes or "",
         }
 
-    today = date.today()
     six_months_ago = add_months(today, -6)
 
     hist_expenses = (
@@ -462,6 +502,10 @@ def _compute_summary(
         "total_amount": total,
         "total_by_account": total_by_account,
         "total_expenses": sum(1 for e in expenses if not e.is_income),
+        "previous_total": sum(c.get("previous_total", 0.0) for c in by_category.values()),
+        "previous_mtd_total": sum(c.get("previous_mtd_total", 0.0) for c in by_category.values()),
+        "is_current_month": is_current_month,
+        "mtd_cutoff_day": mtd_cutoff,
         "by_category": sorted(by_category.values(), key=lambda x: x["total"], reverse=True),
         "by_income": sorted(by_income.values(), key=lambda x: x["total"], reverse=True),
         "by_period": sorted(by_period.values(), key=lambda x: x["period"]),
@@ -507,6 +551,12 @@ async def get_monthly_report(
     prev_end = date(
         prev_start.year, prev_start.month, monthrange(prev_start.year, prev_start.month)[1]
     )
+
+    # Issue #393 (item 4): when reporting the current month, also compare
+    # against the previous month cut at the same day (MTD) and project pace.
+    today = date.today()
+    is_current_month = target_start.strftime("%Y-%m") == today.strftime("%Y-%m")
+    mtd_cutoff = today.day if is_current_month else None
 
     def _query_totals(start: date, end: date):
         base_filter = [
@@ -583,6 +633,14 @@ async def get_monthly_report(
     current = _query_totals(target_start, target_end)
     previous = _query_totals(prev_start, prev_end)
 
+    # MTD slice of the previous month (same-day comparison). For closed months
+    # the MTD window is the whole month, so it equals the full comparison.
+    if is_current_month:
+        prev_mtd_end = date(prev_start.year, prev_start.month, min(today.day, prev_end.day))
+        previous_mtd = _query_totals(prev_start, prev_mtd_end)
+    else:
+        previous_mtd = previous
+
     # Savings rate
     savings_rate = 0.0
     if current["total_income"] > 0:
@@ -596,6 +654,18 @@ async def get_monthly_report(
         mom_change = (
             (current["total_expenses"] - previous["total_expenses"]) / previous["total_expenses"]
         ) * 100
+
+    # MTD change (same-day pace) + month-end projection at current pace
+    mtd_change = 0.0
+    projected_total = None
+    if is_current_month:
+        if previous_mtd["total_expenses"] > 0:
+            mtd_change = (
+                (current["total_expenses"] - previous_mtd["total_expenses"])
+                / previous_mtd["total_expenses"]
+            ) * 100
+        days_in_month = monthrange(target_start.year, target_start.month)[1]
+        projected_total = round(current["total_expenses"] / today.day * days_in_month, 2)
 
     # 6-month trend history for charts — single GROUP BY query
     trend_start = add_months(target_start, -5).replace(day=1)
@@ -634,7 +704,6 @@ async def get_monthly_report(
     # LLM analysis
     analysis = None
     api_key = os.getenv("LLM_API_KEY")
-    today = date.today()
     if api_key:
         try:
             from google import genai
@@ -661,6 +730,8 @@ RESUMEN DEL MES:
 - Tasa de ahorro: {savings_rate:.1f}%
 - Cantidad de transacciones: {current["count"]}
 - Variación vs mes anterior: {mom_change:+.1f}%
+{"- Variación mismo día mes anterior (MTD): " + f"{mtd_change:+.1f}%" if is_current_month else ""}
+{"- Proyección fin de mes (ritmo actual): $" + f"{projected_total:,.0f}" if is_current_month and projected_total is not None else ""}
 
 TOP CATEGORÍAS:
 {chr(10).join(cat_lines) or "  Sin datos"}
@@ -710,6 +781,12 @@ Sé específico con los números. Respondé en español, de forma clara y amigab
         "previous_total": previous["total_expenses"],
         "previous_income": previous["total_income"],
         "mom_change": round(mom_change, 1),
+        "is_current_month": is_current_month,
+        "mtd_cutoff_day": mtd_cutoff,
+        "previous_mtd_total": previous_mtd["total_expenses"],
+        "previous_mtd_income": previous_mtd["total_income"],
+        "mtd_change": round(mtd_change, 1),
+        "projected_total": projected_total,
         "trend_history": trend_history,
         "analysis": analysis,
     }
