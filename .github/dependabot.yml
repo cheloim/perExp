@@ -1,0 +1,33 @@
+# Dependabot: grouped, monthly, one PR per major.
+#
+# The security alerts are what matter here — this file keeps them from piling
+# up for months at a time. Grouping minor and patch updates keeps the PR count
+# low; majors come one at a time because they are the ones that need reading.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/src/frontend"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    groups:
+      frontend-minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "pip"
+    directory: "/src/backend"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    groups:
+      backend-minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns: ["*"]
