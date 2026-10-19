@@ -30,8 +30,8 @@ jobs:
 
       - name: Prettier
         run: |
-          node_modules/.bin/prettier --write src/
-          git diff --exit-code src/ || (echo "::error::Run 'npx prettier --write src/' locally" && exit 1)
+          node_modules/.bin/prettier --write src/ e2e/ playwright.config.ts
+          git diff --exit-code src/ e2e/ playwright.config.ts || (echo "::error::Run 'npx prettier --write src/ e2e/ playwright.config.ts' locally" && exit 1)
 
       - name: TypeScript
         run: npm run typecheck
@@ -124,6 +124,49 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+  frontend-e2e:
+    name: Frontend E2E (Playwright)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22.16.0"
+          cache: "npm"
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - run: npm ci
+
+      # Browsers live outside the npm cache, so cache them separately —
+      # a cold download of chromium is the slow part of this job.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('src/frontend/package-lock.json') }}
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # No backend here: e2e/helpers.ts intercepts every /api request at the
+      # network layer, so the suite must not need the FastAPI service.
+      - name: Run e2e suite
+        run: npm run test:e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            src/frontend/test-results/
+            src/frontend/playwright-report/
+          retention-days: 7
 
   specs:
     name: Spec Validation & Codegen

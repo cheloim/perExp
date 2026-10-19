@@ -378,6 +378,15 @@ function MainLayout() {
   }, []);
 
   const toggleDrawer = (open: boolean) => {
+    // Paired with the "ai-assistant:open-end" mark in AIAssistant; together they
+    // produce the "ai-assistant:open" measure the perf budget asserts against.
+    if (open) {
+      try {
+        performance.mark("ai-assistant:open-start");
+      } catch {
+        /* performance API unavailable — perf reporting is best-effort */
+      }
+    }
     setAiDrawerOpen(open);
     persistDrawerState(open);
   };

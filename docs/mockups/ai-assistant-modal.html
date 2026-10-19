@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Asistente IA — mockup aprobado (issue #415)</title>
+<style>
+  :root{
+    --bg:#fafafa; --sidebar:#ebebeb; --card:#ffffff; --border:#e0e0e0;
+    --primary:#3584e4; --text:#2e3436; --text2:#5e5c5e; --text3:#9a9a9a;
+    --alt:#f6f5f4;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;background:#8a8a8a;padding:24px;color:var(--text)}
+
+  .toolbar{max-width:1240px;margin:0 auto 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .toolbar h1{font-size:15px;color:#fff;font-weight:600;margin-right:auto}
+  .seg{display:flex;background:#767676;border-radius:8px;padding:3px;gap:3px}
+  .seg button{border:0;background:transparent;color:#e6e6e6;font:inherit;font-size:12.5px;font-weight:500;padding:6px 14px;border-radius:6px;cursor:pointer;transition:.12s}
+  .seg button.on{background:#fff;color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  .note{max-width:1240px;margin:0 auto 14px;font-size:12.5px;color:#f0f0f0;background:rgba(0,0,0,.22);padding:8px 12px;border-radius:7px}
+
+  .stage{max-width:1240px;margin:0 auto;position:relative}
+
+  /* ── app chrome ── */
+  .app{position:relative;height:660px;background:var(--bg);border-radius:12px;overflow:hidden;display:flex;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+  .sidebar{width:208px;background:var(--sidebar);padding:14px 10px;flex-shrink:0;border-right:1px solid var(--border)}
+  .brand{display:flex;align-items:center;gap:9px;padding:4px 8px 16px}
+  .brand .logo{width:26px;height:26px;border-radius:7px;background:var(--primary);color:#fff;display:grid;place-items:center;font-weight:700;font-size:11px}
+  .brand span{font-weight:600;font-size:13.5px}
+  .nav{display:flex;flex-direction:column;gap:1px}
+  .nav div{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:7px;font-size:12.5px;color:var(--text2)}
+  .nav div.on{background:rgba(53,132,228,.12);color:var(--primary);font-weight:500}
+  .nav .ic{width:16px;height:16px;border-radius:4px;background:currentColor;opacity:.32;flex-shrink:0}
+  .nav div.on .ic{opacity:.85}
+
+  .main{flex:1;display:flex;flex-direction:column;min-width:0}
+  .topbar{height:50px;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 22px;gap:10px;flex-shrink:0}
+  .topbar h2{font-size:15px;font-weight:600}
+  .topbar .sp{margin-left:auto;display:flex;gap:8px}
+  .topbar .sp i{width:28px;height:28px;border-radius:8px;background:var(--alt);display:block}
+
+  .content{flex:1;overflow:hidden;padding:20px 22px}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-bottom:16px}
+  .stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 15px}
+  .stat .lab{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);font-weight:600}
+  .stat .val{font-size:21px;font-weight:600;margin:6px 0 3px;letter-spacing:-.02em}
+  .stat .sub{font-size:11.5px;color:var(--text2)}
+  .stat .up{color:#c01c28;font-weight:500}
+  .stat .dn{color:#2ec27e;font-weight:500}
+
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:15px 16px}
+  .panel h3{font-size:13px;font-weight:600;margin-bottom:12px}
+  .bars{display:flex;align-items:flex-end;gap:9px;height:104px}
+  .bars i{flex:1;background:linear-gradient(180deg,#7aa9ec,#3584e4);border-radius:5px 5px 0 0;display:block;opacity:.9}
+  .xl{display:flex;gap:9px;margin-top:7px}
+  .xl span{flex:1;text-align:center;font-size:10px;color:var(--text3)}
+
+  /* ── FAB ── */
+  .fab{position:absolute;right:22px;bottom:22px;width:46px;height:46px;border-radius:14px;background:var(--primary);display:grid;place-items:center;box-shadow:0 6px 18px rgba(53,132,228,.42);z-index:4}
+  .fab svg{width:21px;height:21px;fill:#fff}
+
+  /* ── sheet ── */
+  .sheet{position:absolute;background:var(--card);display:flex;flex-direction:column;z-index:6;box-shadow:0 -10px 44px rgba(0,0,0,.28);transition:none}
+  .grip{display:flex;justify-content:center;padding:11px 0 6px;flex-shrink:0}
+  .grip i{width:36px;height:4px;border-radius:99px;background:#d6d6d6}
+  .shead{display:flex;align-items:center;gap:10px;padding:2px 18px 13px;flex-shrink:0;border-bottom:1px solid #f0f0f0}
+  .shead .dot{width:8px;height:8px;border-radius:99px;background:#2ec27e}
+  .shead h4{font-size:14.5px;font-weight:600}
+  .shead .acts{margin-left:auto;display:flex;gap:7px}
+  .pill{background:var(--alt);border:1px solid var(--border);border-radius:99px;padding:5px 12px;font-size:11.5px;color:var(--text2);white-space:nowrap}
+
+  .thread{flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:11px}
+  .msg{max-width:80%;font-size:13px;line-height:1.55;padding:10px 13px}
+  .u{align-self:flex-end;background:var(--primary);color:#fff;border-radius:15px 15px 4px 15px}
+  .b{align-self:flex-start;background:var(--alt);border-radius:15px 15px 15px 4px;color:var(--text)}
+  .b .hdr{font-weight:600;display:block;margin-bottom:3px}
+  .b .muted{color:var(--text2)}
+  .b .mono{font-family:ui-monospace,Menlo,monospace;font-weight:600}
+
+  .followups{display:flex;gap:7px;flex-wrap:wrap;padding:0 18px 13px;flex-shrink:0}
+  .fu{border:1px solid #c8dcf5;background:#f0f6ff;color:#1a5fb4;border-radius:9px;padding:7px 12px;font-size:12px;cursor:pointer}
+
+  .inline-acts{display:flex;gap:8px;padding:0 18px 14px;flex-shrink:0}
+  .ia{display:flex;align-items:center;gap:7px;background:var(--alt);border:1px solid var(--border);border-radius:9px;padding:8px 12px;font-size:12px;color:var(--text2);cursor:pointer}
+  .ia b{color:var(--primary);font-weight:600}
+
+  .composer{border-top:1px solid var(--border);padding:14px 18px 16px;flex-shrink:0;background:var(--card)}
+  .box{display:flex;align-items:flex-end;gap:10px;background:var(--alt);border:1px solid transparent;border-radius:15px;padding:10px 10px 10px 14px;transition:.15s}
+  .box:focus-within{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(53,132,228,.16)}
+  .box .txt{flex:1;min-width:0}
+  .box .txt .val{font-size:13.5px;color:var(--text);line-height:1.45}
+  .box .txt .ph{font-size:13.5px;color:var(--text3)}
+  .box .hint{font-size:10.5px;color:var(--text3);margin-top:7px;display:flex;align-items:center;gap:6px}
+  .box .hint kbd{background:#e6e6e6;border-radius:4px;padding:1px 5px;font-size:9.5px;font-family:inherit;font-weight:600;color:var(--text2)}
+  .send{width:32px;height:32px;border-radius:99px;background:var(--primary);display:grid;place-items:center;flex-shrink:0;box-shadow:0 2px 6px rgba(53,132,228,.4)}
+  .send svg{width:15px;height:15px;fill:#fff}
+  .send.stop{background:#c01c28}
+  .meta{display:flex;align-items:center;gap:10px;margin-top:9px;font-size:10.5px;color:var(--text3)}
+  .meta .cnt{margin-left:auto}
+  .meta .bar{width:70px;height:3px;border-radius:99px;background:#e0e0e0;overflow:hidden}
+  .meta .bar i{display:block;height:100%;width:62%;background:var(--primary);border-radius:99px}
+
+  .scrim{position:absolute;inset:0;background:rgba(0,0,0,.30);z-index:5;border-radius:12px}
+  .dim{filter:saturate(.75)}
+
+  /* positions */
+  .p-d1{left:0;right:0;bottom:0;height:70%;border-radius:16px 16px 0 0}
+  .p-d2{right:22px;bottom:22px;width:400px;height:520px;border-radius:16px;z-index:7}
+  .p-d3{left:50%;top:50%;transform:translate(-50%,-50%);width:76%;height:78%;border-radius:18px;box-shadow:0 22px 60px rgba(0,0,0,.34)}
+</style>
+</head>
+<body>
+
+<div class="note" style="margin-bottom:16px">
+  <b>Mockup interactivo — stand-in de Figma.</b> Este archivo es el diseño aprobado para
+  issue #415. Como el repo no usa una herramienta de diseño, el mockup vive acá y se
+  versiona con el código. <b>D3 · Tarjeta centrada</b> es la variante elegida
+  (76% de ancho × 78% de alto sobre fondo oscurecido); D1 y D2 quedan para comparar.
+  La implementación real está en <code>src/frontend/src/components/AIAssistant.tsx</code>.
+</div>
+
+<div class="toolbar">
+  <h1>Asistente IA — D3 · Tarjeta centrada (aprobado en #415)</h1>
+  <div class="seg">
+    <button id="b-d1" onclick="pick('d1')">D1 · Ancho completo</button>
+    <button id="b-d2" onclick="pick('d2')">D2 · Dock derecha</button>
+    <button id="b-d3" class="on" onclick="pick('d3')">D3 · Tarjeta centrada</button>
+    <button id="b-off" onclick="pick('off')">Cerrado</button>
+  </div>
+</div>
+
+<div class="note" id="note"></div>
+
+<div class="stage">
+<div class="app">
+  <div class="sidebar" id="chrome">
+    <div class="brand"><div class="logo">O</div><span>Oikonomia</span></div>
+    <div class="nav">
+      <div class="on"><i class="ic"></i>Inicio</div>
+      <div><i class="ic"></i>Gastos</div>
+      <div><i class="ic"></i>Categorías</div>
+      <div><i class="ic"></i>Presupuesto</div>
+      <div><i class="ic"></i>Programados</div>
+      <div><i class="ic"></i>Inversiones</div>
+      <div><i class="ic"></i>Clasificación</div>
+    </div>
+  </div>
+
+  <div class="main" id="chrome2">
+    <div class="topbar"><h2>Inicio</h2><div class="sp"><i></i><i></i></div></div>
+    <div class="content">
+      <div class="stats">
+        <div class="stat"><div class="lab">Gastado este mes</div><div class="val">$312.400</div><div class="sub"><span class="up">↑ 18%</span> vs. febrero</div></div>
+        <div class="stat"><div class="lab">Presupuesto</div><div class="val">$400.000</div><div class="sub">Quedan $87.600 · 22%</div></div>
+        <div class="stat"><div class="lab">Gastos registrados</div><div class="val">47</div><div class="sub"><span class="dn">↓ 5</span> vs. febrero</div></div>
+      </div>
+      <div class="panel">
+        <h3>Gasto por categoría</h3>
+        <div class="bars"><i style="height:78%"></i><i style="height:54%"></i><i style="height:41%"></i><i style="height:33%"></i><i style="height:26%"></i><i style="height:19%"></i><i style="height:12%"></i></div>
+        <div class="xl"><span>Comida</span><span>Transporte</span><span>Salud</span><span>Ropa</span><span>Ocio</span><span>Casa</span><span>Otros</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scrim" id="scrim" style="display:none"></div>
+
+  <div class="sheet" id="sheet">
+    <div class="grip"><i></i></div>
+    <div class="shead">
+      <span class="dot"></span><h4>Asistente de Gastos</h4>
+      <div class="acts"><span class="pill">Historial (2)</span><span class="pill">Nueva</span><span class="pill">Cerrar</span></div>
+    </div>
+
+    <div class="thread">
+      <div class="msg b">
+        <span class="hdr">↑ Tendencia alcista</span>
+        Llevás <span class="mono">$312.400</span> en 47 gastos este mes, un <span class="mono">18%</span> más que en febrero.
+        <span class="muted">La subida se concentra en Comida y Transporte.</span>
+      </div>
+      <div class="inline-acts">
+        <span class="ia">Ver gastos de <b>Comida</b> →</span>
+        <span class="ia">Comparar con <b>febrero</b> →</span>
+      </div>
+      <div class="msg u">¿Cuánto llevo en deliverys?</div>
+      <div class="msg b">
+        <span class="hdr">💡 Sugerencia</span>
+        <span class="mono">$64.800</span> en 12 deliverys. Cerrando 3 por semana ahorrarías <span class="mono">~$46.000</span> al mes.
+      </div>
+    </div>
+
+    <div class="followups">
+      <span class="fu">¿Dónde más puedo recortar?</span>
+      <span class="fu">Compará con enero</span>
+      <span class="fu">¿Cómo voy contra el presupuesto?</span>
+    </div>
+
+    <div class="composer">
+      <div class="box">
+        <div class="txt">
+          <div class="val">Compara el gasto en supermercado<br>de los últimos 3 meses</div>
+          <div class="hint"><kbd>Enter</kbd> envía <span>·</span> <kbd>Shift</kbd>+<kbd>Enter</kbd> salto de línea</div>
+        </div>
+        <div class="send stop" title="Cancelar respuesta">
+          <svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/></svg>
+        </div>
+      </div>
+      <div class="meta">
+        <span>Enviando respuesta…</span>
+        <div class="bar"><i></i></div>
+        <span class="cnt">68 / 2000</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="fab" id="fab"><svg viewBox="0 0 24 24"><path d="M10 2l2.5 5 5.5.8-4 3.9.95 5.5L10 14.75l-4.95 2.45.95-5.5-4-3.9 5.5-.8L10 2z"/></svg></div>
+</div>
+</div>
+
+<script>
+const NOTES={
+ d1:'<b>D1 · Ancho completo, 70% de alto.</b> La hoja cubre todo el ancho y deja un 30% de la app visible arriba. Máximo espacio para respuestas con tablas o comparativas largas — pero perdés de vista el dashboard mientras conversás.',
+ d2:'<b>D2 · Dock inferior derecha, 400px.</b> No tapa el dashboard: seguís viendo las categorías y los números mientras el chat está abierto. El costo: respuestas largas o con listas quedan apretadas y hacen scroll.',
+ d3:'<b>D3 · Tarjeta centrada en ambos ejes.</b> 76% de ancho, 78% de alto, flotando sobre el fondo oscurecido. Es el modo expandido actual pero con el lenguaje de la hoja (grip, composer flotante, sugerencias). No tapa nada en una esquina fija: aparece en el centro y lo cierrás con Esc o el botón.',
+ off:'<b>Estado cerrado.</b> El asistente vive en la estrella de la esquina inferior derecha. Al tocarla sube la hoja. Con el fix de #416, este primer clic abre la hoja directo — sin burbuja intermedia.'
+};
+function pick(k){
+  const sheet=document.getElementById('sheet'),scrim=document.getElementById('scrim');
+  ['d1','d2','d3','off'].forEach(x=>document.getElementById('b-'+x).classList.toggle('on',x===k));
+  document.getElementById('note').innerHTML=NOTES[k];
+  if(k==='off'){sheet.style.display='none';scrim.style.display='none';document.getElementById('chrome').classList.remove('dim');return;}
+  sheet.style.display='flex';sheet.className='sheet p-'+k;
+  scrim.style.display=(k==='d3')?'block':'none';
+  document.getElementById('chrome').classList.toggle('dim',k==='d2');
+}
+pick('d3');
+</script>
+</body>
+</html>

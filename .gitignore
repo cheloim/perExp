@@ -44,3 +44,7 @@ backend/alembic.ini
 agent/
 graphify-out/
 skills-lock.json
+
+# Playwright artifacts (src/frontend)
+src/frontend/test-results/
+src/frontend/playwright-report/

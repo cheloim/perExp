@@ -53,7 +53,10 @@ NikoFin's frontend is a React 18 SPA built with TypeScript, Vite, and TanStack Q
 
 ### AI
 
-- **AIAssistant.tsx**: Expense analysis chat (SSE streaming)
+- **AIAssistant.tsx**: Expense analysis chat (SSE streaming). Modal rediseñado en #415
+  (tarjeta centrada 76%×78%) — ver [accesibilidad](Asistente-IA-Accesibilidad.md),
+  [performance](Asistente-IA-Performance.md) y el
+  [mockup aprobado](mockups/ai-assistant-modal.html) (HTML interactivo, stand-in de Figma).
 - **InvestmentsAssistant.tsx**: Investment analysis chat
 
 ### Investments

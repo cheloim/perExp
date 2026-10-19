@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
 import { getDashboardAITrends } from "../api/client";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { formatAIResponse } from "../utils/formatText";
@@ -126,26 +126,49 @@ function TrashIcon() {
 }
 
 /**
+ * Dev-only render counter for `Bubble`.
+ *
+ * Lets e2e/assistant-perf.spec.ts assert that a streaming chunk renders ONE
+ * bubble instead of all of them — a deterministic count rather than a timing
+ * assertion, which would just flake in CI. `import.meta.env.DEV` is statically
+ * false in a production build, so this compiles away and never ships.
+ */
+const countBubbleRender = () => {
+  if (!import.meta.env.DEV) return;
+  const w = window as unknown as { __BUBBLE_RENDERS__?: number };
+  w.__BUBBLE_RENDERS__ = (w.__BUBBLE_RENDERS__ ?? 0) + 1;
+};
+
+/**
  * One chat bubble. Memoized so that a streaming update to the LAST message
  * does not re-run formatAIResponse on every message already on screen.
+ *
+ * The memo is effective because the streaming reducer copies the array but
+ * keeps the untouched message objects identical (`u = [...prev]` then replaces
+ * only the tail), so `msg` and `streaming` both compare equal for every bubble
+ * except the one receiving the chunk. e2e/assistant-perf.spec.ts asserts the
+ * resulting call count stays flat as history grows.
  */
-const Bubble = ({ msg, streaming }: { msg: ChatMessage; streaming: boolean }) => (
-  <div className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-    <div
-      className={`max-w-[85%] px-4 py-3 rounded-xl text-sm leading-relaxed whitespace-pre-wrap ${
-        msg.role === "user"
-          ? "bg-[var(--color-primary)] text-white rounded-br-sm"
-          : msg.error
-            ? "bg-danger/10 border border-danger/30 text-danger rounded-bl-sm"
-            : "bg-[var(--color-base-alt)] text-[var(--text-primary)] rounded-bl-sm"
-      }`}
-    >
-      {msg.role === "assistant" && msg.text && !msg.error
-        ? formatAIResponse(msg.text)
-        : msg.text || (streaming ? <ThinkingDots /> : "")}
+const Bubble = memo(({ msg, streaming }: { msg: ChatMessage; streaming: boolean }) => {
+  countBubbleRender();
+  return (
+    <div className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+      <div
+        className={`max-w-[85%] px-4 py-3 rounded-xl text-sm leading-relaxed whitespace-pre-wrap ${
+          msg.role === "user"
+            ? "bg-[var(--color-primary-strong)] text-[var(--color-on-primary-strong)] rounded-br-sm"
+            : msg.error
+              ? "bg-danger/10 border border-danger/30 text-danger rounded-bl-sm"
+              : "bg-[var(--color-base-alt)] text-[var(--text-primary)] rounded-bl-sm"
+        }`}
+      >
+        {msg.role === "assistant" && msg.text && !msg.error
+          ? formatAIResponse(msg.text)
+          : msg.text || (streaming ? <ThinkingDots /> : "")}
+      </div>
     </div>
-  </div>
-);
+  );
+});
 
 function SessionCard({
   session,
@@ -361,6 +384,27 @@ export default function AIAssistant({ open, onToggle }: { open: boolean; onToggl
 
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 100);
+  }, [open]);
+
+  /**
+   * Open-time instrumentation (issue #415 asks for a measurable number).
+   *
+   * `ai-assistant:open-start` is marked in the click handler's render pass;
+   * `ai-assistant:open-end` fires on the first paint after the card is in the
+   * DOM. The resulting `ai-assistant:open` measure is what the e2e perf budget
+   * asserts against and what the perf doc reports.
+   */
+  useEffect(() => {
+    if (!open) return;
+    const done = () => {
+      performance.mark("ai-assistant:open-end");
+      const entries = performance.measure("ai-assistant:open", "ai-assistant:open-start");
+      // Surfaced on window so the e2e perf spec can read the real number.
+      (window as unknown as Record<string, unknown>).__AI_ASSISTANT_OPEN_MS__ = entries.duration;
+    };
+    // Double rAF: the first frame commits the DOM, the second confirms paint.
+    const raf2 = requestAnimationFrame(() => requestAnimationFrame(done));
+    return () => cancelAnimationFrame(raf2);
   }, [open]);
 
   useEffect(() => {
@@ -633,7 +677,7 @@ export default function AIAssistant({ open, onToggle }: { open: boolean; onToggl
           onClick={() => setShowHistory(false)}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
             !showHistory
-              ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
+              ? "bg-[var(--color-primary-strong)] text-[var(--color-on-primary-strong)]"
               : "bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)]"
           }`}
           aria-pressed={!showHistory}
@@ -644,7 +688,7 @@ export default function AIAssistant({ open, onToggle }: { open: boolean; onToggl
           onClick={() => setShowHistory(true)}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
             showHistory
-              ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
+              ? "bg-[var(--color-primary-strong)] text-[var(--color-on-primary-strong)]"
               : "bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)]"
           }`}
           aria-pressed={showHistory}
@@ -718,14 +762,14 @@ export default function AIAssistant({ open, onToggle }: { open: boolean; onToggl
                     setInput(s);
                     inputRef.current?.focus();
                   }}
-                  className="text-left text-sm px-3.5 py-2.5 rounded-xl bg-[var(--color-primary)]/8 hover:bg-[var(--color-primary)]/15 text-[var(--color-primary)] transition-colors"
+                  className="text-left text-sm px-3.5 py-2.5 rounded-xl bg-[var(--color-primary-strong)]/8 hover:bg-[var(--color-primary-strong)]/15 text-[var(--color-primary-strong)] transition-colors"
                 >
                   {s}
                 </button>
               ))}
             </div>
           </div>
-          <button onClick={analyzeMonth} className="gnome-btn-primary text-sm">
+          <button onClick={analyzeMonth} className="gnome-btn-primary-strong text-sm">
             ✨ Analizar gastos del mes
           </button>
         </div>
@@ -843,15 +887,15 @@ export default function AIAssistant({ open, onToggle }: { open: boolean; onToggl
             className="w-full bg-transparent border-0 outline-none resize-none text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] leading-relaxed py-0.5"
           />
           <p className="text-[10px] text-[var(--text-tertiary)] mt-1 hidden sm:block">
-            <kbd className="px-1 py-px rounded bg-[var(--color-base)] border border-[var(--border-color)]">
+            <kbd className="px-1 py-px rounded bg-[var(--color-base)] border border-[var(--border-color)] text-[var(--text-secondary)]">
               Enter
             </kbd>{" "}
             envía ·{" "}
-            <kbd className="px-1 py-px rounded bg-[var(--color-base)] border border-[var(--border-color)]">
+            <kbd className="px-1 py-px rounded bg-[var(--color-base)] border border-[var(--border-color)] text-[var(--text-secondary)]">
               Shift
             </kbd>
             +
-            <kbd className="px-1 py-px rounded bg-[var(--color-base)] border border-[var(--border-color)]">
+            <kbd className="px-1 py-px rounded bg-[var(--color-base)] border border-[var(--border-color)] text-[var(--text-secondary)]">
               Enter
             </kbd>{" "}
             salto de línea
@@ -865,7 +909,7 @@ export default function AIAssistant({ open, onToggle }: { open: boolean; onToggl
           className={`flex items-center justify-center w-9 h-9 rounded-full transition-all flex-shrink-0 disabled:opacity-40 ${
             streaming
               ? "bg-danger text-white hover:brightness-110"
-              : "bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 active:scale-95"
+              : "bg-[var(--color-primary-strong)] text-[var(--color-on-primary-strong)] hover:brightness-110 active:scale-95"
           }`}
         >
           {streaming ? (
