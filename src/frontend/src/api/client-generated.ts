@@ -176,21 +176,23 @@ export const register = (
   );
 };
 
+export const getRegisterMutationKey = () => ["register"] as const;
+
 export const getRegisterMutationOptions = <TError = ErrorType<void>, TContext = unknown>(options?: {
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof register>>,
     TError,
-    { data: BodyType<RegisterRequest> },
+    RegisterMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof register>>,
   TError,
-  { data: BodyType<RegisterRequest> },
+  RegisterMutationVariables,
   TContext
 > => {
-  const mutationKey = ["register"];
+  const mutationKey = getRegisterMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -199,7 +201,7 @@ export const getRegisterMutationOptions = <TError = ErrorType<void>, TContext = 
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof register>>,
-    { data: BodyType<RegisterRequest> }
+    RegisterMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -212,6 +214,7 @@ export const getRegisterMutationOptions = <TError = ErrorType<void>, TContext = 
 export type RegisterMutationResult = NonNullable<Awaited<ReturnType<typeof register>>>;
 export type RegisterMutationBody = BodyType<RegisterRequest>;
 export type RegisterMutationError = ErrorType<void>;
+export type RegisterMutationVariables = { data: BodyType<RegisterRequest> };
 
 /**
  * @summary Register new user
@@ -221,7 +224,7 @@ export const useRegister = <TError = ErrorType<void>, TContext = unknown>(
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof register>>,
       TError,
-      { data: BodyType<RegisterRequest> },
+      RegisterMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -230,7 +233,7 @@ export const useRegister = <TError = ErrorType<void>, TContext = unknown>(
 ): UseMutationResult<
   Awaited<ReturnType<typeof register>>,
   TError,
-  { data: BodyType<RegisterRequest> },
+  RegisterMutationVariables,
   TContext
 > => {
   return useMutation(getRegisterMutationOptions(options), queryClient);
@@ -256,31 +259,32 @@ export const login = (
   );
 };
 
+export const getLoginMutationKey = () => ["login"] as const;
+
 export const getLoginMutationOptions = <TError = ErrorType<void>, TContext = unknown>(options?: {
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof login>>,
     TError,
-    { data: BodyType<LoginRequest> },
+    LoginMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof login>>,
   TError,
-  { data: BodyType<LoginRequest> },
+  LoginMutationVariables,
   TContext
 > => {
-  const mutationKey = ["login"];
+  const mutationKey = getLoginMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
     : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof login>>,
-    { data: BodyType<LoginRequest> }
-  > = (props) => {
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof login>>, LoginMutationVariables> = (
+    props,
+  ) => {
     const { data } = props ?? {};
 
     return login(data, requestOptions);
@@ -292,6 +296,7 @@ export const getLoginMutationOptions = <TError = ErrorType<void>, TContext = unk
 export type LoginMutationResult = NonNullable<Awaited<ReturnType<typeof login>>>;
 export type LoginMutationBody = BodyType<LoginRequest>;
 export type LoginMutationError = ErrorType<void>;
+export type LoginMutationVariables = { data: BodyType<LoginRequest> };
 
 /**
  * @summary Login with email and password
@@ -301,7 +306,7 @@ export const useLogin = <TError = ErrorType<void>, TContext = unknown>(
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof login>>,
       TError,
-      { data: BodyType<LoginRequest> },
+      LoginMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -310,7 +315,7 @@ export const useLogin = <TError = ErrorType<void>, TContext = unknown>(
 ): UseMutationResult<
   Awaited<ReturnType<typeof login>>,
   TError,
-  { data: BodyType<LoginRequest> },
+  LoginMutationVariables,
   TContext
 > => {
   return useMutation(getLoginMutationOptions(options), queryClient);
@@ -336,6 +341,8 @@ export const loginMfa = (
   );
 };
 
+export const getLoginMfaMutationKey = () => ["loginMfa"] as const;
+
 export const getLoginMfaMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -343,17 +350,17 @@ export const getLoginMfaMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof loginMfa>>,
     TError,
-    { data: BodyType<LoginMfaBody> },
+    LoginMfaMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof loginMfa>>,
   TError,
-  { data: BodyType<LoginMfaBody> },
+  LoginMfaMutationVariables,
   TContext
 > => {
-  const mutationKey = ["loginMfa"];
+  const mutationKey = getLoginMfaMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -362,7 +369,7 @@ export const getLoginMfaMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof loginMfa>>,
-    { data: BodyType<LoginMfaBody> }
+    LoginMfaMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -375,6 +382,7 @@ export const getLoginMfaMutationOptions = <
 export type LoginMfaMutationResult = NonNullable<Awaited<ReturnType<typeof loginMfa>>>;
 export type LoginMfaMutationBody = BodyType<LoginMfaBody>;
 export type LoginMfaMutationError = ErrorType<unknown>;
+export type LoginMfaMutationVariables = { data: BodyType<LoginMfaBody> };
 
 /**
  * @summary Complete MFA login with TOTP code
@@ -384,7 +392,7 @@ export const useLoginMfa = <TError = ErrorType<unknown>, TContext = unknown>(
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof loginMfa>>,
       TError,
-      { data: BodyType<LoginMfaBody> },
+      LoginMfaMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -393,7 +401,7 @@ export const useLoginMfa = <TError = ErrorType<unknown>, TContext = unknown>(
 ): UseMutationResult<
   Awaited<ReturnType<typeof loginMfa>>,
   TError,
-  { data: BodyType<LoginMfaBody> },
+  LoginMfaMutationVariables,
   TContext
 > => {
   return useMutation(getLoginMfaMutationOptions(options), queryClient);
@@ -419,6 +427,8 @@ export const oauthLogin = (
   );
 };
 
+export const getOauthLoginMutationKey = () => ["oauthLogin"] as const;
+
 export const getOauthLoginMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -426,17 +436,17 @@ export const getOauthLoginMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof oauthLogin>>,
     TError,
-    { data: BodyType<OauthLoginBody> },
+    OauthLoginMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof oauthLogin>>,
   TError,
-  { data: BodyType<OauthLoginBody> },
+  OauthLoginMutationVariables,
   TContext
 > => {
-  const mutationKey = ["oauthLogin"];
+  const mutationKey = getOauthLoginMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -445,7 +455,7 @@ export const getOauthLoginMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof oauthLogin>>,
-    { data: BodyType<OauthLoginBody> }
+    OauthLoginMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -458,6 +468,7 @@ export const getOauthLoginMutationOptions = <
 export type OauthLoginMutationResult = NonNullable<Awaited<ReturnType<typeof oauthLogin>>>;
 export type OauthLoginMutationBody = BodyType<OauthLoginBody>;
 export type OauthLoginMutationError = ErrorType<unknown>;
+export type OauthLoginMutationVariables = { data: BodyType<OauthLoginBody> };
 
 /**
  * @summary Login/register via OAuth provider
@@ -467,7 +478,7 @@ export const useOauthLogin = <TError = ErrorType<unknown>, TContext = unknown>(
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof oauthLogin>>,
       TError,
-      { data: BodyType<OauthLoginBody> },
+      OauthLoginMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -476,7 +487,7 @@ export const useOauthLogin = <TError = ErrorType<unknown>, TContext = unknown>(
 ): UseMutationResult<
   Awaited<ReturnType<typeof oauthLogin>>,
   TError,
-  { data: BodyType<OauthLoginBody> },
+  OauthLoginMutationVariables,
   TContext
 > => {
   return useMutation(getOauthLoginMutationOptions(options), queryClient);
@@ -502,6 +513,8 @@ export const refreshToken = (
   );
 };
 
+export const getRefreshTokenMutationKey = () => ["refreshToken"] as const;
+
 export const getRefreshTokenMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -509,17 +522,17 @@ export const getRefreshTokenMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof refreshToken>>,
     TError,
-    { data: BodyType<RefreshTokenBody> },
+    RefreshTokenMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof refreshToken>>,
   TError,
-  { data: BodyType<RefreshTokenBody> },
+  RefreshTokenMutationVariables,
   TContext
 > => {
-  const mutationKey = ["refreshToken"];
+  const mutationKey = getRefreshTokenMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -528,7 +541,7 @@ export const getRefreshTokenMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof refreshToken>>,
-    { data: BodyType<RefreshTokenBody> }
+    RefreshTokenMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -541,6 +554,7 @@ export const getRefreshTokenMutationOptions = <
 export type RefreshTokenMutationResult = NonNullable<Awaited<ReturnType<typeof refreshToken>>>;
 export type RefreshTokenMutationBody = BodyType<RefreshTokenBody>;
 export type RefreshTokenMutationError = ErrorType<unknown>;
+export type RefreshTokenMutationVariables = { data: BodyType<RefreshTokenBody> };
 
 /**
  * @summary Refresh access token
@@ -550,7 +564,7 @@ export const useRefreshToken = <TError = ErrorType<unknown>, TContext = unknown>
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof refreshToken>>,
       TError,
-      { data: BodyType<RefreshTokenBody> },
+      RefreshTokenMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -559,7 +573,7 @@ export const useRefreshToken = <TError = ErrorType<unknown>, TContext = unknown>
 ): UseMutationResult<
   Awaited<ReturnType<typeof refreshToken>>,
   TError,
-  { data: BodyType<RefreshTokenBody> },
+  RefreshTokenMutationVariables,
   TContext
 > => {
   return useMutation(getRefreshTokenMutationOptions(options), queryClient);
@@ -585,6 +599,8 @@ export const forgotPassword = (
   );
 };
 
+export const getForgotPasswordMutationKey = () => ["forgotPassword"] as const;
+
 export const getForgotPasswordMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -592,17 +608,17 @@ export const getForgotPasswordMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof forgotPassword>>,
     TError,
-    { data: BodyType<ForgotPasswordBody> },
+    ForgotPasswordMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof forgotPassword>>,
   TError,
-  { data: BodyType<ForgotPasswordBody> },
+  ForgotPasswordMutationVariables,
   TContext
 > => {
-  const mutationKey = ["forgotPassword"];
+  const mutationKey = getForgotPasswordMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -611,7 +627,7 @@ export const getForgotPasswordMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof forgotPassword>>,
-    { data: BodyType<ForgotPasswordBody> }
+    ForgotPasswordMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -624,6 +640,7 @@ export const getForgotPasswordMutationOptions = <
 export type ForgotPasswordMutationResult = NonNullable<Awaited<ReturnType<typeof forgotPassword>>>;
 export type ForgotPasswordMutationBody = BodyType<ForgotPasswordBody>;
 export type ForgotPasswordMutationError = ErrorType<unknown>;
+export type ForgotPasswordMutationVariables = { data: BodyType<ForgotPasswordBody> };
 
 /**
  * @summary Request password reset email
@@ -633,7 +650,7 @@ export const useForgotPassword = <TError = ErrorType<unknown>, TContext = unknow
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof forgotPassword>>,
       TError,
-      { data: BodyType<ForgotPasswordBody> },
+      ForgotPasswordMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -642,7 +659,7 @@ export const useForgotPassword = <TError = ErrorType<unknown>, TContext = unknow
 ): UseMutationResult<
   Awaited<ReturnType<typeof forgotPassword>>,
   TError,
-  { data: BodyType<ForgotPasswordBody> },
+  ForgotPasswordMutationVariables,
   TContext
 > => {
   return useMutation(getForgotPasswordMutationOptions(options), queryClient);
@@ -668,6 +685,8 @@ export const resetPassword = (
   );
 };
 
+export const getResetPasswordMutationKey = () => ["resetPassword"] as const;
+
 export const getResetPasswordMutationOptions = <
   TError = ErrorType<void>,
   TContext = unknown,
@@ -675,17 +694,17 @@ export const getResetPasswordMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof resetPassword>>,
     TError,
-    { data: BodyType<ResetPasswordBody> },
+    ResetPasswordMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof resetPassword>>,
   TError,
-  { data: BodyType<ResetPasswordBody> },
+  ResetPasswordMutationVariables,
   TContext
 > => {
-  const mutationKey = ["resetPassword"];
+  const mutationKey = getResetPasswordMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -694,7 +713,7 @@ export const getResetPasswordMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof resetPassword>>,
-    { data: BodyType<ResetPasswordBody> }
+    ResetPasswordMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -707,6 +726,7 @@ export const getResetPasswordMutationOptions = <
 export type ResetPasswordMutationResult = NonNullable<Awaited<ReturnType<typeof resetPassword>>>;
 export type ResetPasswordMutationBody = BodyType<ResetPasswordBody>;
 export type ResetPasswordMutationError = ErrorType<void>;
+export type ResetPasswordMutationVariables = { data: BodyType<ResetPasswordBody> };
 
 /**
  * @summary Reset password with token
@@ -716,7 +736,7 @@ export const useResetPassword = <TError = ErrorType<void>, TContext = unknown>(
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof resetPassword>>,
       TError,
-      { data: BodyType<ResetPasswordBody> },
+      ResetPasswordMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -725,7 +745,7 @@ export const useResetPassword = <TError = ErrorType<void>, TContext = unknown>(
 ): UseMutationResult<
   Awaited<ReturnType<typeof resetPassword>>,
   TError,
-  { data: BodyType<ResetPasswordBody> },
+  ResetPasswordMutationVariables,
   TContext
 > => {
   return useMutation(getResetPasswordMutationOptions(options), queryClient);
@@ -751,6 +771,8 @@ export const changePassword = (
   );
 };
 
+export const getChangePasswordMutationKey = () => ["changePassword"] as const;
+
 export const getChangePasswordMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -758,17 +780,17 @@ export const getChangePasswordMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof changePassword>>,
     TError,
-    { data: BodyType<ChangePasswordBody> },
+    ChangePasswordMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof changePassword>>,
   TError,
-  { data: BodyType<ChangePasswordBody> },
+  ChangePasswordMutationVariables,
   TContext
 > => {
-  const mutationKey = ["changePassword"];
+  const mutationKey = getChangePasswordMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -777,7 +799,7 @@ export const getChangePasswordMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof changePassword>>,
-    { data: BodyType<ChangePasswordBody> }
+    ChangePasswordMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -790,6 +812,7 @@ export const getChangePasswordMutationOptions = <
 export type ChangePasswordMutationResult = NonNullable<Awaited<ReturnType<typeof changePassword>>>;
 export type ChangePasswordMutationBody = BodyType<ChangePasswordBody>;
 export type ChangePasswordMutationError = ErrorType<unknown>;
+export type ChangePasswordMutationVariables = { data: BodyType<ChangePasswordBody> };
 
 /**
  * @summary Change password (authenticated)
@@ -799,7 +822,7 @@ export const useChangePassword = <TError = ErrorType<unknown>, TContext = unknow
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof changePassword>>,
       TError,
-      { data: BodyType<ChangePasswordBody> },
+      ChangePasswordMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -808,7 +831,7 @@ export const useChangePassword = <TError = ErrorType<unknown>, TContext = unknow
 ): UseMutationResult<
   Awaited<ReturnType<typeof changePassword>>,
   TError,
-  { data: BodyType<ChangePasswordBody> },
+  ChangePasswordMutationVariables,
   TContext
 > => {
   return useMutation(getChangePasswordMutationOptions(options), queryClient);
@@ -931,6 +954,8 @@ export const deleteAccount = (
   return customInstance<void>({ url: `/auth/me`, method: "DELETE", signal }, options);
 };
 
+export const getDeleteAccountMutationKey = () => ["deleteAccount"] as const;
+
 export const getDeleteAccountMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -938,7 +963,7 @@ export const getDeleteAccountMutationOptions = <
   mutation?: UseMutationOptions<Awaited<ReturnType<typeof deleteAccount>>, TError, void, TContext>;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<Awaited<ReturnType<typeof deleteAccount>>, TError, void, TContext> => {
-  const mutationKey = ["deleteAccount"];
+  const mutationKey = getDeleteAccountMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -987,6 +1012,8 @@ export const completeOnboarding = (
   );
 };
 
+export const getCompleteOnboardingMutationKey = () => ["completeOnboarding"] as const;
+
 export const getCompleteOnboardingMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -999,7 +1026,7 @@ export const getCompleteOnboardingMutationOptions = <
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<Awaited<ReturnType<typeof completeOnboarding>>, TError, void, TContext> => {
-  const mutationKey = ["completeOnboarding"];
+  const mutationKey = getCompleteOnboardingMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -1057,6 +1084,8 @@ export const verifyEmail = (
   );
 };
 
+export const getVerifyEmailMutationKey = () => ["verifyEmail"] as const;
+
 export const getVerifyEmailMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -1064,17 +1093,17 @@ export const getVerifyEmailMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof verifyEmail>>,
     TError,
-    { data: BodyType<VerifyEmailBody> },
+    VerifyEmailMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof verifyEmail>>,
   TError,
-  { data: BodyType<VerifyEmailBody> },
+  VerifyEmailMutationVariables,
   TContext
 > => {
-  const mutationKey = ["verifyEmail"];
+  const mutationKey = getVerifyEmailMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -1083,7 +1112,7 @@ export const getVerifyEmailMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof verifyEmail>>,
-    { data: BodyType<VerifyEmailBody> }
+    VerifyEmailMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -1096,6 +1125,7 @@ export const getVerifyEmailMutationOptions = <
 export type VerifyEmailMutationResult = NonNullable<Awaited<ReturnType<typeof verifyEmail>>>;
 export type VerifyEmailMutationBody = BodyType<VerifyEmailBody>;
 export type VerifyEmailMutationError = ErrorType<unknown>;
+export type VerifyEmailMutationVariables = { data: BodyType<VerifyEmailBody> };
 
 /**
  * @summary Verify email with token
@@ -1105,7 +1135,7 @@ export const useVerifyEmail = <TError = ErrorType<unknown>, TContext = unknown>(
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof verifyEmail>>,
       TError,
-      { data: BodyType<VerifyEmailBody> },
+      VerifyEmailMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -1114,7 +1144,7 @@ export const useVerifyEmail = <TError = ErrorType<unknown>, TContext = unknown>(
 ): UseMutationResult<
   Awaited<ReturnType<typeof verifyEmail>>,
   TError,
-  { data: BodyType<VerifyEmailBody> },
+  VerifyEmailMutationVariables,
   TContext
 > => {
   return useMutation(getVerifyEmailMutationOptions(options), queryClient);
@@ -1133,6 +1163,8 @@ export const resendVerification = (
   );
 };
 
+export const getResendVerificationMutationKey = () => ["resendVerification"] as const;
+
 export const getResendVerificationMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -1145,7 +1177,7 @@ export const getResendVerificationMutationOptions = <
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<Awaited<ReturnType<typeof resendVerification>>, TError, void, TContext> => {
-  const mutationKey = ["resendVerification"];
+  const mutationKey = getResendVerificationMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -1306,6 +1338,8 @@ export const regenerateTelegramKey = (
   );
 };
 
+export const getRegenerateTelegramKeyMutationKey = () => ["regenerateTelegramKey"] as const;
+
 export const getRegenerateTelegramKeyMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -1323,7 +1357,7 @@ export const getRegenerateTelegramKeyMutationOptions = <
   void,
   TContext
 > => {
-  const mutationKey = ["regenerateTelegramKey"];
+  const mutationKey = getRegenerateTelegramKeyMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -1486,6 +1520,8 @@ export const mfaSetup = (
   return customInstance<MfaSetup200>({ url: `/mfa/setup`, method: "POST", signal }, options);
 };
 
+export const getMfaSetupMutationKey = () => ["mfaSetup"] as const;
+
 export const getMfaSetupMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -1493,7 +1529,7 @@ export const getMfaSetupMutationOptions = <
   mutation?: UseMutationOptions<Awaited<ReturnType<typeof mfaSetup>>, TError, void, TContext>;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<Awaited<ReturnType<typeof mfaSetup>>, TError, void, TContext> => {
-  const mutationKey = ["mfaSetup"];
+  const mutationKey = getMfaSetupMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -1544,6 +1580,8 @@ export const mfaEnable = (
   );
 };
 
+export const getMfaEnableMutationKey = () => ["mfaEnable"] as const;
+
 export const getMfaEnableMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -1551,17 +1589,17 @@ export const getMfaEnableMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof mfaEnable>>,
     TError,
-    { data: BodyType<MfaEnableBody> },
+    MfaEnableMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof mfaEnable>>,
   TError,
-  { data: BodyType<MfaEnableBody> },
+  MfaEnableMutationVariables,
   TContext
 > => {
-  const mutationKey = ["mfaEnable"];
+  const mutationKey = getMfaEnableMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -1570,7 +1608,7 @@ export const getMfaEnableMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof mfaEnable>>,
-    { data: BodyType<MfaEnableBody> }
+    MfaEnableMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -1583,6 +1621,7 @@ export const getMfaEnableMutationOptions = <
 export type MfaEnableMutationResult = NonNullable<Awaited<ReturnType<typeof mfaEnable>>>;
 export type MfaEnableMutationBody = BodyType<MfaEnableBody>;
 export type MfaEnableMutationError = ErrorType<unknown>;
+export type MfaEnableMutationVariables = { data: BodyType<MfaEnableBody> };
 
 /**
  * @summary Enable MFA with TOTP verification
@@ -1592,7 +1631,7 @@ export const useMfaEnable = <TError = ErrorType<unknown>, TContext = unknown>(
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof mfaEnable>>,
       TError,
-      { data: BodyType<MfaEnableBody> },
+      MfaEnableMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -1601,7 +1640,7 @@ export const useMfaEnable = <TError = ErrorType<unknown>, TContext = unknown>(
 ): UseMutationResult<
   Awaited<ReturnType<typeof mfaEnable>>,
   TError,
-  { data: BodyType<MfaEnableBody> },
+  MfaEnableMutationVariables,
   TContext
 > => {
   return useMutation(getMfaEnableMutationOptions(options), queryClient);
@@ -1627,6 +1666,8 @@ export const mfaDisable = (
   );
 };
 
+export const getMfaDisableMutationKey = () => ["mfaDisable"] as const;
+
 export const getMfaDisableMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -1634,17 +1675,17 @@ export const getMfaDisableMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof mfaDisable>>,
     TError,
-    { data: BodyType<MfaDisableBody> },
+    MfaDisableMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof mfaDisable>>,
   TError,
-  { data: BodyType<MfaDisableBody> },
+  MfaDisableMutationVariables,
   TContext
 > => {
-  const mutationKey = ["mfaDisable"];
+  const mutationKey = getMfaDisableMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -1653,7 +1694,7 @@ export const getMfaDisableMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof mfaDisable>>,
-    { data: BodyType<MfaDisableBody> }
+    MfaDisableMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -1666,6 +1707,7 @@ export const getMfaDisableMutationOptions = <
 export type MfaDisableMutationResult = NonNullable<Awaited<ReturnType<typeof mfaDisable>>>;
 export type MfaDisableMutationBody = BodyType<MfaDisableBody>;
 export type MfaDisableMutationError = ErrorType<unknown>;
+export type MfaDisableMutationVariables = { data: BodyType<MfaDisableBody> };
 
 /**
  * @summary Disable MFA
@@ -1675,7 +1717,7 @@ export const useMfaDisable = <TError = ErrorType<unknown>, TContext = unknown>(
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof mfaDisable>>,
       TError,
-      { data: BodyType<MfaDisableBody> },
+      MfaDisableMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -1684,7 +1726,7 @@ export const useMfaDisable = <TError = ErrorType<unknown>, TContext = unknown>(
 ): UseMutationResult<
   Awaited<ReturnType<typeof mfaDisable>>,
   TError,
-  { data: BodyType<MfaDisableBody> },
+  MfaDisableMutationVariables,
   TContext
 > => {
   return useMutation(getMfaDisableMutationOptions(options), queryClient);
@@ -1817,6 +1859,8 @@ export const createAccount = (
   );
 };
 
+export const getCreateAccountMutationKey = () => ["createAccount"] as const;
+
 export const getCreateAccountMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -1824,17 +1868,17 @@ export const getCreateAccountMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof createAccount>>,
     TError,
-    { data: BodyType<AccountCreate> },
+    CreateAccountMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createAccount>>,
   TError,
-  { data: BodyType<AccountCreate> },
+  CreateAccountMutationVariables,
   TContext
 > => {
-  const mutationKey = ["createAccount"];
+  const mutationKey = getCreateAccountMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -1843,7 +1887,7 @@ export const getCreateAccountMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createAccount>>,
-    { data: BodyType<AccountCreate> }
+    CreateAccountMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -1856,6 +1900,7 @@ export const getCreateAccountMutationOptions = <
 export type CreateAccountMutationResult = NonNullable<Awaited<ReturnType<typeof createAccount>>>;
 export type CreateAccountMutationBody = BodyType<AccountCreate>;
 export type CreateAccountMutationError = ErrorType<unknown>;
+export type CreateAccountMutationVariables = { data: BodyType<AccountCreate> };
 
 /**
  * @summary Create a new account
@@ -1865,7 +1910,7 @@ export const useCreateAccount = <TError = ErrorType<unknown>, TContext = unknown
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof createAccount>>,
       TError,
-      { data: BodyType<AccountCreate> },
+      CreateAccountMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -1874,7 +1919,7 @@ export const useCreateAccount = <TError = ErrorType<unknown>, TContext = unknown
 ): UseMutationResult<
   Awaited<ReturnType<typeof createAccount>>,
   TError,
-  { data: BodyType<AccountCreate> },
+  CreateAccountMutationVariables,
   TContext
 > => {
   return useMutation(getCreateAccountMutationOptions(options), queryClient);
@@ -1901,6 +1946,8 @@ export const updateAccount = (
   );
 };
 
+export const getUpdateAccountMutationKey = () => ["updateAccount"] as const;
+
 export const getUpdateAccountMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -1908,17 +1955,17 @@ export const getUpdateAccountMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof updateAccount>>,
     TError,
-    { accountId: number; data: BodyType<AccountUpdate> },
+    UpdateAccountMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof updateAccount>>,
   TError,
-  { accountId: number; data: BodyType<AccountUpdate> },
+  UpdateAccountMutationVariables,
   TContext
 > => {
-  const mutationKey = ["updateAccount"];
+  const mutationKey = getUpdateAccountMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -1927,7 +1974,7 @@ export const getUpdateAccountMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof updateAccount>>,
-    { accountId: number; data: BodyType<AccountUpdate> }
+    UpdateAccountMutationVariables
   > = (props) => {
     const { accountId, data } = props ?? {};
 
@@ -1940,6 +1987,7 @@ export const getUpdateAccountMutationOptions = <
 export type UpdateAccountMutationResult = NonNullable<Awaited<ReturnType<typeof updateAccount>>>;
 export type UpdateAccountMutationBody = BodyType<AccountUpdate>;
 export type UpdateAccountMutationError = ErrorType<unknown>;
+export type UpdateAccountMutationVariables = { accountId: number; data: BodyType<AccountUpdate> };
 
 /**
  * @summary Update an account
@@ -1949,7 +1997,7 @@ export const useUpdateAccount = <TError = ErrorType<unknown>, TContext = unknown
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof updateAccount>>,
       TError,
-      { accountId: number; data: BodyType<AccountUpdate> },
+      UpdateAccountMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -1958,7 +2006,7 @@ export const useUpdateAccount = <TError = ErrorType<unknown>, TContext = unknown
 ): UseMutationResult<
   Awaited<ReturnType<typeof updateAccount>>,
   TError,
-  { accountId: number; data: BodyType<AccountUpdate> },
+  UpdateAccountMutationVariables,
   TContext
 > => {
   return useMutation(getUpdateAccountMutationOptions(options), queryClient);
@@ -1975,6 +2023,8 @@ export const deleteAccount1 = (
   return customInstance<void>({ url: `/accounts/${accountId}`, method: "DELETE", signal }, options);
 };
 
+export const getDeleteAccount1MutationKey = () => ["deleteAccount1"] as const;
+
 export const getDeleteAccount1MutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -1982,17 +2032,17 @@ export const getDeleteAccount1MutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof deleteAccount1>>,
     TError,
-    { accountId: number },
+    DeleteAccount1MutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteAccount1>>,
   TError,
-  { accountId: number },
+  DeleteAccount1MutationVariables,
   TContext
 > => {
-  const mutationKey = ["deleteAccount1"];
+  const mutationKey = getDeleteAccount1MutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -2001,7 +2051,7 @@ export const getDeleteAccount1MutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteAccount1>>,
-    { accountId: number }
+    DeleteAccount1MutationVariables
   > = (props) => {
     const { accountId } = props ?? {};
 
@@ -2014,6 +2064,7 @@ export const getDeleteAccount1MutationOptions = <
 export type DeleteAccount1MutationResult = NonNullable<Awaited<ReturnType<typeof deleteAccount1>>>;
 
 export type DeleteAccount1MutationError = ErrorType<unknown>;
+export type DeleteAccount1MutationVariables = { accountId: number };
 
 /**
  * @summary Delete an account
@@ -2023,7 +2074,7 @@ export const useDeleteAccount1 = <TError = ErrorType<unknown>, TContext = unknow
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof deleteAccount1>>,
       TError,
-      { accountId: number },
+      DeleteAccount1MutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -2032,7 +2083,7 @@ export const useDeleteAccount1 = <TError = ErrorType<unknown>, TContext = unknow
 ): UseMutationResult<
   Awaited<ReturnType<typeof deleteAccount1>>,
   TError,
-  { accountId: number },
+  DeleteAccount1MutationVariables,
   TContext
 > => {
   return useMutation(getDeleteAccount1MutationOptions(options), queryClient);
@@ -2165,6 +2216,8 @@ export const createCard = (
   );
 };
 
+export const getCreateCardMutationKey = () => ["createCard"] as const;
+
 export const getCreateCardMutationOptions = <
   TError = ErrorType<void>,
   TContext = unknown,
@@ -2172,17 +2225,17 @@ export const getCreateCardMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof createCard>>,
     TError,
-    { data: BodyType<CardCreate> },
+    CreateCardMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createCard>>,
   TError,
-  { data: BodyType<CardCreate> },
+  CreateCardMutationVariables,
   TContext
 > => {
-  const mutationKey = ["createCard"];
+  const mutationKey = getCreateCardMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -2191,7 +2244,7 @@ export const getCreateCardMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createCard>>,
-    { data: BodyType<CardCreate> }
+    CreateCardMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -2204,6 +2257,7 @@ export const getCreateCardMutationOptions = <
 export type CreateCardMutationResult = NonNullable<Awaited<ReturnType<typeof createCard>>>;
 export type CreateCardMutationBody = BodyType<CardCreate>;
 export type CreateCardMutationError = ErrorType<void>;
+export type CreateCardMutationVariables = { data: BodyType<CardCreate> };
 
 /**
  * @summary Create a new card
@@ -2213,7 +2267,7 @@ export const useCreateCard = <TError = ErrorType<void>, TContext = unknown>(
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof createCard>>,
       TError,
-      { data: BodyType<CardCreate> },
+      CreateCardMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -2222,7 +2276,7 @@ export const useCreateCard = <TError = ErrorType<void>, TContext = unknown>(
 ): UseMutationResult<
   Awaited<ReturnType<typeof createCard>>,
   TError,
-  { data: BodyType<CardCreate> },
+  CreateCardMutationVariables,
   TContext
 > => {
   return useMutation(getCreateCardMutationOptions(options), queryClient);
@@ -2241,6 +2295,8 @@ export const syncCardHolders = (
   );
 };
 
+export const getSyncCardHoldersMutationKey = () => ["syncCardHolders"] as const;
+
 export const getSyncCardHoldersMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -2253,7 +2309,7 @@ export const getSyncCardHoldersMutationOptions = <
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<Awaited<ReturnType<typeof syncCardHolders>>, TError, void, TContext> => {
-  const mutationKey = ["syncCardHolders"];
+  const mutationKey = getSyncCardHoldersMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -2312,6 +2368,8 @@ export const updateCard = (
   );
 };
 
+export const getUpdateCardMutationKey = () => ["updateCard"] as const;
+
 export const getUpdateCardMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -2319,17 +2377,17 @@ export const getUpdateCardMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof updateCard>>,
     TError,
-    { cardId: number; data: BodyType<CardUpdate> },
+    UpdateCardMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof updateCard>>,
   TError,
-  { cardId: number; data: BodyType<CardUpdate> },
+  UpdateCardMutationVariables,
   TContext
 > => {
-  const mutationKey = ["updateCard"];
+  const mutationKey = getUpdateCardMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -2338,7 +2396,7 @@ export const getUpdateCardMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof updateCard>>,
-    { cardId: number; data: BodyType<CardUpdate> }
+    UpdateCardMutationVariables
   > = (props) => {
     const { cardId, data } = props ?? {};
 
@@ -2351,6 +2409,7 @@ export const getUpdateCardMutationOptions = <
 export type UpdateCardMutationResult = NonNullable<Awaited<ReturnType<typeof updateCard>>>;
 export type UpdateCardMutationBody = BodyType<CardUpdate>;
 export type UpdateCardMutationError = ErrorType<unknown>;
+export type UpdateCardMutationVariables = { cardId: number; data: BodyType<CardUpdate> };
 
 /**
  * @summary Update a card
@@ -2360,7 +2419,7 @@ export const useUpdateCard = <TError = ErrorType<unknown>, TContext = unknown>(
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof updateCard>>,
       TError,
-      { cardId: number; data: BodyType<CardUpdate> },
+      UpdateCardMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -2369,7 +2428,7 @@ export const useUpdateCard = <TError = ErrorType<unknown>, TContext = unknown>(
 ): UseMutationResult<
   Awaited<ReturnType<typeof updateCard>>,
   TError,
-  { cardId: number; data: BodyType<CardUpdate> },
+  UpdateCardMutationVariables,
   TContext
 > => {
   return useMutation(getUpdateCardMutationOptions(options), queryClient);
@@ -2386,6 +2445,8 @@ export const deleteCard = (
   return customInstance<void>({ url: `/cards/${cardId}`, method: "DELETE", signal }, options);
 };
 
+export const getDeleteCardMutationKey = () => ["deleteCard"] as const;
+
 export const getDeleteCardMutationOptions = <
   TError = ErrorType<void>,
   TContext = unknown,
@@ -2393,26 +2454,27 @@ export const getDeleteCardMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof deleteCard>>,
     TError,
-    { cardId: number },
+    DeleteCardMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteCard>>,
   TError,
-  { cardId: number },
+  DeleteCardMutationVariables,
   TContext
 > => {
-  const mutationKey = ["deleteCard"];
+  const mutationKey = getDeleteCardMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
     : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCard>>, { cardId: number }> = (
-    props,
-  ) => {
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteCard>>,
+    DeleteCardMutationVariables
+  > = (props) => {
     const { cardId } = props ?? {};
 
     return deleteCard(cardId, requestOptions);
@@ -2424,6 +2486,7 @@ export const getDeleteCardMutationOptions = <
 export type DeleteCardMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCard>>>;
 
 export type DeleteCardMutationError = ErrorType<void>;
+export type DeleteCardMutationVariables = { cardId: number };
 
 /**
  * @summary Delete a card
@@ -2433,7 +2496,7 @@ export const useDeleteCard = <TError = ErrorType<void>, TContext = unknown>(
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof deleteCard>>,
       TError,
-      { cardId: number },
+      DeleteCardMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -2442,7 +2505,7 @@ export const useDeleteCard = <TError = ErrorType<void>, TContext = unknown>(
 ): UseMutationResult<
   Awaited<ReturnType<typeof deleteCard>>,
   TError,
-  { cardId: number },
+  DeleteCardMutationVariables,
   TContext
 > => {
   return useMutation(getDeleteCardMutationOptions(options), queryClient);
@@ -2575,6 +2638,8 @@ export const createCategory = (
   );
 };
 
+export const getCreateCategoryMutationKey = () => ["createCategory"] as const;
+
 export const getCreateCategoryMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -2582,17 +2647,17 @@ export const getCreateCategoryMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof createCategory>>,
     TError,
-    { data: BodyType<CategoryCreate> },
+    CreateCategoryMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createCategory>>,
   TError,
-  { data: BodyType<CategoryCreate> },
+  CreateCategoryMutationVariables,
   TContext
 > => {
-  const mutationKey = ["createCategory"];
+  const mutationKey = getCreateCategoryMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -2601,7 +2666,7 @@ export const getCreateCategoryMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createCategory>>,
-    { data: BodyType<CategoryCreate> }
+    CreateCategoryMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -2614,6 +2679,7 @@ export const getCreateCategoryMutationOptions = <
 export type CreateCategoryMutationResult = NonNullable<Awaited<ReturnType<typeof createCategory>>>;
 export type CreateCategoryMutationBody = BodyType<CategoryCreate>;
 export type CreateCategoryMutationError = ErrorType<unknown>;
+export type CreateCategoryMutationVariables = { data: BodyType<CategoryCreate> };
 
 /**
  * @summary Create a new category
@@ -2623,7 +2689,7 @@ export const useCreateCategory = <TError = ErrorType<unknown>, TContext = unknow
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof createCategory>>,
       TError,
-      { data: BodyType<CategoryCreate> },
+      CreateCategoryMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -2632,7 +2698,7 @@ export const useCreateCategory = <TError = ErrorType<unknown>, TContext = unknow
 ): UseMutationResult<
   Awaited<ReturnType<typeof createCategory>>,
   TError,
-  { data: BodyType<CategoryCreate> },
+  CreateCategoryMutationVariables,
   TContext
 > => {
   return useMutation(getCreateCategoryMutationOptions(options), queryClient);
@@ -2658,6 +2724,8 @@ export const suggestCategory = (
   );
 };
 
+export const getSuggestCategoryMutationKey = () => ["suggestCategory"] as const;
+
 export const getSuggestCategoryMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -2665,17 +2733,17 @@ export const getSuggestCategoryMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof suggestCategory>>,
     TError,
-    { data: BodyType<SuggestCategoryBody> },
+    SuggestCategoryMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof suggestCategory>>,
   TError,
-  { data: BodyType<SuggestCategoryBody> },
+  SuggestCategoryMutationVariables,
   TContext
 > => {
-  const mutationKey = ["suggestCategory"];
+  const mutationKey = getSuggestCategoryMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -2684,7 +2752,7 @@ export const getSuggestCategoryMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof suggestCategory>>,
-    { data: BodyType<SuggestCategoryBody> }
+    SuggestCategoryMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -2699,6 +2767,7 @@ export type SuggestCategoryMutationResult = NonNullable<
 >;
 export type SuggestCategoryMutationBody = BodyType<SuggestCategoryBody>;
 export type SuggestCategoryMutationError = ErrorType<unknown>;
+export type SuggestCategoryMutationVariables = { data: BodyType<SuggestCategoryBody> };
 
 /**
  * @summary Get LLM-based category suggestion
@@ -2708,7 +2777,7 @@ export const useSuggestCategory = <TError = ErrorType<unknown>, TContext = unkno
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof suggestCategory>>,
       TError,
-      { data: BodyType<SuggestCategoryBody> },
+      SuggestCategoryMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -2717,7 +2786,7 @@ export const useSuggestCategory = <TError = ErrorType<unknown>, TContext = unkno
 ): UseMutationResult<
   Awaited<ReturnType<typeof suggestCategory>>,
   TError,
-  { data: BodyType<SuggestCategoryBody> },
+  SuggestCategoryMutationVariables,
   TContext
 > => {
   return useMutation(getSuggestCategoryMutationOptions(options), queryClient);
@@ -2744,6 +2813,8 @@ export const updateCategory = (
   );
 };
 
+export const getUpdateCategoryMutationKey = () => ["updateCategory"] as const;
+
 export const getUpdateCategoryMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -2751,17 +2822,17 @@ export const getUpdateCategoryMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof updateCategory>>,
     TError,
-    { catId: number; data: BodyType<CategoryCreate> },
+    UpdateCategoryMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof updateCategory>>,
   TError,
-  { catId: number; data: BodyType<CategoryCreate> },
+  UpdateCategoryMutationVariables,
   TContext
 > => {
-  const mutationKey = ["updateCategory"];
+  const mutationKey = getUpdateCategoryMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -2770,7 +2841,7 @@ export const getUpdateCategoryMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof updateCategory>>,
-    { catId: number; data: BodyType<CategoryCreate> }
+    UpdateCategoryMutationVariables
   > = (props) => {
     const { catId, data } = props ?? {};
 
@@ -2783,6 +2854,7 @@ export const getUpdateCategoryMutationOptions = <
 export type UpdateCategoryMutationResult = NonNullable<Awaited<ReturnType<typeof updateCategory>>>;
 export type UpdateCategoryMutationBody = BodyType<CategoryCreate>;
 export type UpdateCategoryMutationError = ErrorType<unknown>;
+export type UpdateCategoryMutationVariables = { catId: number; data: BodyType<CategoryCreate> };
 
 /**
  * @summary Update a category
@@ -2792,7 +2864,7 @@ export const useUpdateCategory = <TError = ErrorType<unknown>, TContext = unknow
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof updateCategory>>,
       TError,
-      { catId: number; data: BodyType<CategoryCreate> },
+      UpdateCategoryMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -2801,7 +2873,7 @@ export const useUpdateCategory = <TError = ErrorType<unknown>, TContext = unknow
 ): UseMutationResult<
   Awaited<ReturnType<typeof updateCategory>>,
   TError,
-  { catId: number; data: BodyType<CategoryCreate> },
+  UpdateCategoryMutationVariables,
   TContext
 > => {
   return useMutation(getUpdateCategoryMutationOptions(options), queryClient);
@@ -2818,6 +2890,8 @@ export const deleteCategory = (
   return customInstance<void>({ url: `/categories/${catId}`, method: "DELETE", signal }, options);
 };
 
+export const getDeleteCategoryMutationKey = () => ["deleteCategory"] as const;
+
 export const getDeleteCategoryMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -2825,17 +2899,17 @@ export const getDeleteCategoryMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof deleteCategory>>,
     TError,
-    { catId: number },
+    DeleteCategoryMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteCategory>>,
   TError,
-  { catId: number },
+  DeleteCategoryMutationVariables,
   TContext
 > => {
-  const mutationKey = ["deleteCategory"];
+  const mutationKey = getDeleteCategoryMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -2844,7 +2918,7 @@ export const getDeleteCategoryMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteCategory>>,
-    { catId: number }
+    DeleteCategoryMutationVariables
   > = (props) => {
     const { catId } = props ?? {};
 
@@ -2857,6 +2931,7 @@ export const getDeleteCategoryMutationOptions = <
 export type DeleteCategoryMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCategory>>>;
 
 export type DeleteCategoryMutationError = ErrorType<unknown>;
+export type DeleteCategoryMutationVariables = { catId: number };
 
 /**
  * @summary Delete a category
@@ -2866,7 +2941,7 @@ export const useDeleteCategory = <TError = ErrorType<unknown>, TContext = unknow
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof deleteCategory>>,
       TError,
-      { catId: number },
+      DeleteCategoryMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -2875,7 +2950,7 @@ export const useDeleteCategory = <TError = ErrorType<unknown>, TContext = unknow
 ): UseMutationResult<
   Awaited<ReturnType<typeof deleteCategory>>,
   TError,
-  { catId: number },
+  DeleteCategoryMutationVariables,
   TContext
 > => {
   return useMutation(getDeleteCategoryMutationOptions(options), queryClient);
@@ -3011,6 +3086,8 @@ export const createCardClosing = (
   );
 };
 
+export const getCreateCardClosingMutationKey = () => ["createCardClosing"] as const;
+
 export const getCreateCardClosingMutationOptions = <
   TError = ErrorType<void>,
   TContext = unknown,
@@ -3018,17 +3095,17 @@ export const getCreateCardClosingMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof createCardClosing>>,
     TError,
-    { data: BodyType<CardClosingCreate> },
+    CreateCardClosingMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createCardClosing>>,
   TError,
-  { data: BodyType<CardClosingCreate> },
+  CreateCardClosingMutationVariables,
   TContext
 > => {
-  const mutationKey = ["createCardClosing"];
+  const mutationKey = getCreateCardClosingMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -3037,7 +3114,7 @@ export const getCreateCardClosingMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createCardClosing>>,
-    { data: BodyType<CardClosingCreate> }
+    CreateCardClosingMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -3052,6 +3129,7 @@ export type CreateCardClosingMutationResult = NonNullable<
 >;
 export type CreateCardClosingMutationBody = BodyType<CardClosingCreate>;
 export type CreateCardClosingMutationError = ErrorType<void>;
+export type CreateCardClosingMutationVariables = { data: BodyType<CardClosingCreate> };
 
 /**
  * @summary Create card closing configuration
@@ -3061,7 +3139,7 @@ export const useCreateCardClosing = <TError = ErrorType<void>, TContext = unknow
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof createCardClosing>>,
       TError,
-      { data: BodyType<CardClosingCreate> },
+      CreateCardClosingMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -3070,7 +3148,7 @@ export const useCreateCardClosing = <TError = ErrorType<void>, TContext = unknow
 ): UseMutationResult<
   Awaited<ReturnType<typeof createCardClosing>>,
   TError,
-  { data: BodyType<CardClosingCreate> },
+  CreateCardClosingMutationVariables,
   TContext
 > => {
   return useMutation(getCreateCardClosingMutationOptions(options), queryClient);
@@ -3097,6 +3175,8 @@ export const updateCardClosing = (
   );
 };
 
+export const getUpdateCardClosingMutationKey = () => ["updateCardClosing"] as const;
+
 export const getUpdateCardClosingMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -3104,17 +3184,17 @@ export const getUpdateCardClosingMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof updateCardClosing>>,
     TError,
-    { id: number; data: BodyType<CardClosingUpdate> },
+    UpdateCardClosingMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof updateCardClosing>>,
   TError,
-  { id: number; data: BodyType<CardClosingUpdate> },
+  UpdateCardClosingMutationVariables,
   TContext
 > => {
-  const mutationKey = ["updateCardClosing"];
+  const mutationKey = getUpdateCardClosingMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -3123,7 +3203,7 @@ export const getUpdateCardClosingMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof updateCardClosing>>,
-    { id: number; data: BodyType<CardClosingUpdate> }
+    UpdateCardClosingMutationVariables
   > = (props) => {
     const { id, data } = props ?? {};
 
@@ -3138,6 +3218,7 @@ export type UpdateCardClosingMutationResult = NonNullable<
 >;
 export type UpdateCardClosingMutationBody = BodyType<CardClosingUpdate>;
 export type UpdateCardClosingMutationError = ErrorType<unknown>;
+export type UpdateCardClosingMutationVariables = { id: number; data: BodyType<CardClosingUpdate> };
 
 /**
  * @summary Update card closing configuration
@@ -3147,7 +3228,7 @@ export const useUpdateCardClosing = <TError = ErrorType<unknown>, TContext = unk
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof updateCardClosing>>,
       TError,
-      { id: number; data: BodyType<CardClosingUpdate> },
+      UpdateCardClosingMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -3156,7 +3237,7 @@ export const useUpdateCardClosing = <TError = ErrorType<unknown>, TContext = unk
 ): UseMutationResult<
   Awaited<ReturnType<typeof updateCardClosing>>,
   TError,
-  { id: number; data: BodyType<CardClosingUpdate> },
+  UpdateCardClosingMutationVariables,
   TContext
 > => {
   return useMutation(getUpdateCardClosingMutationOptions(options), queryClient);
@@ -3173,6 +3254,8 @@ export const deleteCardClosing = (
   return customInstance<void>({ url: `/card-closings/${id}`, method: "DELETE", signal }, options);
 };
 
+export const getDeleteCardClosingMutationKey = () => ["deleteCardClosing"] as const;
+
 export const getDeleteCardClosingMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -3180,17 +3263,17 @@ export const getDeleteCardClosingMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof deleteCardClosing>>,
     TError,
-    { id: number },
+    DeleteCardClosingMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteCardClosing>>,
   TError,
-  { id: number },
+  DeleteCardClosingMutationVariables,
   TContext
 > => {
-  const mutationKey = ["deleteCardClosing"];
+  const mutationKey = getDeleteCardClosingMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -3199,7 +3282,7 @@ export const getDeleteCardClosingMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteCardClosing>>,
-    { id: number }
+    DeleteCardClosingMutationVariables
   > = (props) => {
     const { id } = props ?? {};
 
@@ -3214,6 +3297,7 @@ export type DeleteCardClosingMutationResult = NonNullable<
 >;
 
 export type DeleteCardClosingMutationError = ErrorType<unknown>;
+export type DeleteCardClosingMutationVariables = { id: number };
 
 /**
  * @summary Delete card closing configuration
@@ -3223,7 +3307,7 @@ export const useDeleteCardClosing = <TError = ErrorType<unknown>, TContext = unk
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof deleteCardClosing>>,
       TError,
-      { id: number },
+      DeleteCardClosingMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -3232,7 +3316,7 @@ export const useDeleteCardClosing = <TError = ErrorType<unknown>, TContext = unk
 ): UseMutationResult<
   Awaited<ReturnType<typeof deleteCardClosing>>,
   TError,
-  { id: number },
+  DeleteCardClosingMutationVariables,
   TContext
 > => {
   return useMutation(getDeleteCardClosingMutationOptions(options), queryClient);
@@ -3376,6 +3460,8 @@ export const createExpense = (
   );
 };
 
+export const getCreateExpenseMutationKey = () => ["createExpense"] as const;
+
 export const getCreateExpenseMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -3383,17 +3469,17 @@ export const getCreateExpenseMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof createExpense>>,
     TError,
-    { data: BodyType<ExpenseCreate> },
+    CreateExpenseMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createExpense>>,
   TError,
-  { data: BodyType<ExpenseCreate> },
+  CreateExpenseMutationVariables,
   TContext
 > => {
-  const mutationKey = ["createExpense"];
+  const mutationKey = getCreateExpenseMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -3402,7 +3488,7 @@ export const getCreateExpenseMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createExpense>>,
-    { data: BodyType<ExpenseCreate> }
+    CreateExpenseMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -3415,6 +3501,7 @@ export const getCreateExpenseMutationOptions = <
 export type CreateExpenseMutationResult = NonNullable<Awaited<ReturnType<typeof createExpense>>>;
 export type CreateExpenseMutationBody = BodyType<ExpenseCreate>;
 export type CreateExpenseMutationError = ErrorType<unknown>;
+export type CreateExpenseMutationVariables = { data: BodyType<ExpenseCreate> };
 
 /**
  * @summary Create a new expense
@@ -3424,7 +3511,7 @@ export const useCreateExpense = <TError = ErrorType<unknown>, TContext = unknown
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof createExpense>>,
       TError,
-      { data: BodyType<ExpenseCreate> },
+      CreateExpenseMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -3433,7 +3520,7 @@ export const useCreateExpense = <TError = ErrorType<unknown>, TContext = unknown
 ): UseMutationResult<
   Awaited<ReturnType<typeof createExpense>>,
   TError,
-  { data: BodyType<ExpenseCreate> },
+  CreateExpenseMutationVariables,
   TContext
 > => {
   return useMutation(getCreateExpenseMutationOptions(options), queryClient);
@@ -3894,6 +3981,8 @@ export const bulkDeleteExpenses = (
   );
 };
 
+export const getBulkDeleteExpensesMutationKey = () => ["bulkDeleteExpenses"] as const;
+
 export const getBulkDeleteExpensesMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -3901,17 +3990,17 @@ export const getBulkDeleteExpensesMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof bulkDeleteExpenses>>,
     TError,
-    { data: BodyType<BulkDeleteExpensesBody> },
+    BulkDeleteExpensesMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof bulkDeleteExpenses>>,
   TError,
-  { data: BodyType<BulkDeleteExpensesBody> },
+  BulkDeleteExpensesMutationVariables,
   TContext
 > => {
-  const mutationKey = ["bulkDeleteExpenses"];
+  const mutationKey = getBulkDeleteExpensesMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -3920,7 +4009,7 @@ export const getBulkDeleteExpensesMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof bulkDeleteExpenses>>,
-    { data: BodyType<BulkDeleteExpensesBody> }
+    BulkDeleteExpensesMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -3935,6 +4024,7 @@ export type BulkDeleteExpensesMutationResult = NonNullable<
 >;
 export type BulkDeleteExpensesMutationBody = BodyType<BulkDeleteExpensesBody>;
 export type BulkDeleteExpensesMutationError = ErrorType<unknown>;
+export type BulkDeleteExpensesMutationVariables = { data: BodyType<BulkDeleteExpensesBody> };
 
 /**
  * @summary Delete multiple expenses by ID list
@@ -3944,7 +4034,7 @@ export const useBulkDeleteExpenses = <TError = ErrorType<unknown>, TContext = un
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof bulkDeleteExpenses>>,
       TError,
-      { data: BodyType<BulkDeleteExpensesBody> },
+      BulkDeleteExpensesMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -3953,7 +4043,7 @@ export const useBulkDeleteExpenses = <TError = ErrorType<unknown>, TContext = un
 ): UseMutationResult<
   Awaited<ReturnType<typeof bulkDeleteExpenses>>,
   TError,
-  { data: BodyType<BulkDeleteExpensesBody> },
+  BulkDeleteExpensesMutationVariables,
   TContext
 > => {
   return useMutation(getBulkDeleteExpensesMutationOptions(options), queryClient);
@@ -3979,6 +4069,8 @@ export const bulkCategoryExpenses = (
   );
 };
 
+export const getBulkCategoryExpensesMutationKey = () => ["bulkCategoryExpenses"] as const;
+
 export const getBulkCategoryExpensesMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -3986,17 +4078,17 @@ export const getBulkCategoryExpensesMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof bulkCategoryExpenses>>,
     TError,
-    { data: BodyType<BulkCategoryExpensesBody> },
+    BulkCategoryExpensesMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof bulkCategoryExpenses>>,
   TError,
-  { data: BodyType<BulkCategoryExpensesBody> },
+  BulkCategoryExpensesMutationVariables,
   TContext
 > => {
-  const mutationKey = ["bulkCategoryExpenses"];
+  const mutationKey = getBulkCategoryExpensesMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -4005,7 +4097,7 @@ export const getBulkCategoryExpensesMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof bulkCategoryExpenses>>,
-    { data: BodyType<BulkCategoryExpensesBody> }
+    BulkCategoryExpensesMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -4020,6 +4112,7 @@ export type BulkCategoryExpensesMutationResult = NonNullable<
 >;
 export type BulkCategoryExpensesMutationBody = BodyType<BulkCategoryExpensesBody>;
 export type BulkCategoryExpensesMutationError = ErrorType<unknown>;
+export type BulkCategoryExpensesMutationVariables = { data: BodyType<BulkCategoryExpensesBody> };
 
 /**
  * @summary Assign category to multiple expenses
@@ -4029,7 +4122,7 @@ export const useBulkCategoryExpenses = <TError = ErrorType<unknown>, TContext = 
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof bulkCategoryExpenses>>,
       TError,
-      { data: BodyType<BulkCategoryExpensesBody> },
+      BulkCategoryExpensesMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -4038,7 +4131,7 @@ export const useBulkCategoryExpenses = <TError = ErrorType<unknown>, TContext = 
 ): UseMutationResult<
   Awaited<ReturnType<typeof bulkCategoryExpenses>>,
   TError,
-  { data: BodyType<BulkCategoryExpensesBody> },
+  BulkCategoryExpensesMutationVariables,
   TContext
 > => {
   return useMutation(getBulkCategoryExpensesMutationOptions(options), queryClient);
@@ -4057,6 +4150,8 @@ export const detectInstallments = (
   );
 };
 
+export const getDetectInstallmentsMutationKey = () => ["detectInstallments"] as const;
+
 export const getDetectInstallmentsMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -4069,7 +4164,7 @@ export const getDetectInstallmentsMutationOptions = <
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<Awaited<ReturnType<typeof detectInstallments>>, TError, void, TContext> => {
-  const mutationKey = ["detectInstallments"];
+  const mutationKey = getDetectInstallmentsMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -4560,6 +4655,8 @@ export const updateExpense = (
   );
 };
 
+export const getUpdateExpenseMutationKey = () => ["updateExpense"] as const;
+
 export const getUpdateExpenseMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -4567,17 +4664,17 @@ export const getUpdateExpenseMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof updateExpense>>,
     TError,
-    { expId: number; data: BodyType<ExpenseUpdate> },
+    UpdateExpenseMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof updateExpense>>,
   TError,
-  { expId: number; data: BodyType<ExpenseUpdate> },
+  UpdateExpenseMutationVariables,
   TContext
 > => {
-  const mutationKey = ["updateExpense"];
+  const mutationKey = getUpdateExpenseMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -4586,7 +4683,7 @@ export const getUpdateExpenseMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof updateExpense>>,
-    { expId: number; data: BodyType<ExpenseUpdate> }
+    UpdateExpenseMutationVariables
   > = (props) => {
     const { expId, data } = props ?? {};
 
@@ -4599,6 +4696,7 @@ export const getUpdateExpenseMutationOptions = <
 export type UpdateExpenseMutationResult = NonNullable<Awaited<ReturnType<typeof updateExpense>>>;
 export type UpdateExpenseMutationBody = BodyType<ExpenseUpdate>;
 export type UpdateExpenseMutationError = ErrorType<unknown>;
+export type UpdateExpenseMutationVariables = { expId: number; data: BodyType<ExpenseUpdate> };
 
 /**
  * @summary Update an expense
@@ -4608,7 +4706,7 @@ export const useUpdateExpense = <TError = ErrorType<unknown>, TContext = unknown
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof updateExpense>>,
       TError,
-      { expId: number; data: BodyType<ExpenseUpdate> },
+      UpdateExpenseMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -4617,7 +4715,7 @@ export const useUpdateExpense = <TError = ErrorType<unknown>, TContext = unknown
 ): UseMutationResult<
   Awaited<ReturnType<typeof updateExpense>>,
   TError,
-  { expId: number; data: BodyType<ExpenseUpdate> },
+  UpdateExpenseMutationVariables,
   TContext
 > => {
   return useMutation(getUpdateExpenseMutationOptions(options), queryClient);
@@ -4634,6 +4732,8 @@ export const deleteExpense = (
   return customInstance<void>({ url: `/expenses/${expId}`, method: "DELETE", signal }, options);
 };
 
+export const getDeleteExpenseMutationKey = () => ["deleteExpense"] as const;
+
 export const getDeleteExpenseMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -4641,17 +4741,17 @@ export const getDeleteExpenseMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof deleteExpense>>,
     TError,
-    { expId: number },
+    DeleteExpenseMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteExpense>>,
   TError,
-  { expId: number },
+  DeleteExpenseMutationVariables,
   TContext
 > => {
-  const mutationKey = ["deleteExpense"];
+  const mutationKey = getDeleteExpenseMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -4660,7 +4760,7 @@ export const getDeleteExpenseMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteExpense>>,
-    { expId: number }
+    DeleteExpenseMutationVariables
   > = (props) => {
     const { expId } = props ?? {};
 
@@ -4673,6 +4773,7 @@ export const getDeleteExpenseMutationOptions = <
 export type DeleteExpenseMutationResult = NonNullable<Awaited<ReturnType<typeof deleteExpense>>>;
 
 export type DeleteExpenseMutationError = ErrorType<unknown>;
+export type DeleteExpenseMutationVariables = { expId: number };
 
 /**
  * @summary Delete an expense
@@ -4682,7 +4783,7 @@ export const useDeleteExpense = <TError = ErrorType<unknown>, TContext = unknown
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof deleteExpense>>,
       TError,
-      { expId: number },
+      DeleteExpenseMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -4691,7 +4792,7 @@ export const useDeleteExpense = <TError = ErrorType<unknown>, TContext = unknown
 ): UseMutationResult<
   Awaited<ReturnType<typeof deleteExpense>>,
   TError,
-  { expId: number },
+  DeleteExpenseMutationVariables,
   TContext
 > => {
   return useMutation(getDeleteExpenseMutationOptions(options), queryClient);
@@ -4827,6 +4928,8 @@ export const createInvestment = (
   );
 };
 
+export const getCreateInvestmentMutationKey = () => ["createInvestment"] as const;
+
 export const getCreateInvestmentMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -4834,17 +4937,17 @@ export const getCreateInvestmentMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof createInvestment>>,
     TError,
-    { data: BodyType<InvestmentCreate> },
+    CreateInvestmentMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createInvestment>>,
   TError,
-  { data: BodyType<InvestmentCreate> },
+  CreateInvestmentMutationVariables,
   TContext
 > => {
-  const mutationKey = ["createInvestment"];
+  const mutationKey = getCreateInvestmentMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -4853,7 +4956,7 @@ export const getCreateInvestmentMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createInvestment>>,
-    { data: BodyType<InvestmentCreate> }
+    CreateInvestmentMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -4868,6 +4971,7 @@ export type CreateInvestmentMutationResult = NonNullable<
 >;
 export type CreateInvestmentMutationBody = BodyType<InvestmentCreate>;
 export type CreateInvestmentMutationError = ErrorType<unknown>;
+export type CreateInvestmentMutationVariables = { data: BodyType<InvestmentCreate> };
 
 /**
  * @summary Add a new investment
@@ -4877,7 +4981,7 @@ export const useCreateInvestment = <TError = ErrorType<unknown>, TContext = unkn
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof createInvestment>>,
       TError,
-      { data: BodyType<InvestmentCreate> },
+      CreateInvestmentMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -4886,7 +4990,7 @@ export const useCreateInvestment = <TError = ErrorType<unknown>, TContext = unkn
 ): UseMutationResult<
   Awaited<ReturnType<typeof createInvestment>>,
   TError,
-  { data: BodyType<InvestmentCreate> },
+  CreateInvestmentMutationVariables,
   TContext
 > => {
   return useMutation(getCreateInvestmentMutationOptions(options), queryClient);
@@ -5023,6 +5127,8 @@ export const updateInvestment = (
   );
 };
 
+export const getUpdateInvestmentMutationKey = () => ["updateInvestment"] as const;
+
 export const getUpdateInvestmentMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -5030,17 +5136,17 @@ export const getUpdateInvestmentMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof updateInvestment>>,
     TError,
-    { id: number; data: BodyType<InvestmentUpdate> },
+    UpdateInvestmentMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof updateInvestment>>,
   TError,
-  { id: number; data: BodyType<InvestmentUpdate> },
+  UpdateInvestmentMutationVariables,
   TContext
 > => {
-  const mutationKey = ["updateInvestment"];
+  const mutationKey = getUpdateInvestmentMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -5049,7 +5155,7 @@ export const getUpdateInvestmentMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof updateInvestment>>,
-    { id: number; data: BodyType<InvestmentUpdate> }
+    UpdateInvestmentMutationVariables
   > = (props) => {
     const { id, data } = props ?? {};
 
@@ -5064,6 +5170,7 @@ export type UpdateInvestmentMutationResult = NonNullable<
 >;
 export type UpdateInvestmentMutationBody = BodyType<InvestmentUpdate>;
 export type UpdateInvestmentMutationError = ErrorType<unknown>;
+export type UpdateInvestmentMutationVariables = { id: number; data: BodyType<InvestmentUpdate> };
 
 /**
  * @summary Update an investment
@@ -5073,7 +5180,7 @@ export const useUpdateInvestment = <TError = ErrorType<unknown>, TContext = unkn
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof updateInvestment>>,
       TError,
-      { id: number; data: BodyType<InvestmentUpdate> },
+      UpdateInvestmentMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -5082,7 +5189,7 @@ export const useUpdateInvestment = <TError = ErrorType<unknown>, TContext = unkn
 ): UseMutationResult<
   Awaited<ReturnType<typeof updateInvestment>>,
   TError,
-  { id: number; data: BodyType<InvestmentUpdate> },
+  UpdateInvestmentMutationVariables,
   TContext
 > => {
   return useMutation(getUpdateInvestmentMutationOptions(options), queryClient);
@@ -5099,6 +5206,8 @@ export const deleteInvestment = (
   return customInstance<void>({ url: `/investments/${id}`, method: "DELETE", signal }, options);
 };
 
+export const getDeleteInvestmentMutationKey = () => ["deleteInvestment"] as const;
+
 export const getDeleteInvestmentMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -5106,17 +5215,17 @@ export const getDeleteInvestmentMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof deleteInvestment>>,
     TError,
-    { id: number },
+    DeleteInvestmentMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteInvestment>>,
   TError,
-  { id: number },
+  DeleteInvestmentMutationVariables,
   TContext
 > => {
-  const mutationKey = ["deleteInvestment"];
+  const mutationKey = getDeleteInvestmentMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -5125,7 +5234,7 @@ export const getDeleteInvestmentMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteInvestment>>,
-    { id: number }
+    DeleteInvestmentMutationVariables
   > = (props) => {
     const { id } = props ?? {};
 
@@ -5140,6 +5249,7 @@ export type DeleteInvestmentMutationResult = NonNullable<
 >;
 
 export type DeleteInvestmentMutationError = ErrorType<unknown>;
+export type DeleteInvestmentMutationVariables = { id: number };
 
 /**
  * @summary Delete an investment
@@ -5149,7 +5259,7 @@ export const useDeleteInvestment = <TError = ErrorType<unknown>, TContext = unkn
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof deleteInvestment>>,
       TError,
-      { id: number },
+      DeleteInvestmentMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -5158,7 +5268,7 @@ export const useDeleteInvestment = <TError = ErrorType<unknown>, TContext = unkn
 ): UseMutationResult<
   Awaited<ReturnType<typeof deleteInvestment>>,
   TError,
-  { id: number },
+  DeleteInvestmentMutationVariables,
   TContext
 > => {
   return useMutation(getDeleteInvestmentMutationOptions(options), queryClient);
@@ -5305,6 +5415,8 @@ export const createImportJob = (
   );
 };
 
+export const getCreateImportJobMutationKey = () => ["createImportJob"] as const;
+
 export const getCreateImportJobMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -5312,17 +5424,17 @@ export const getCreateImportJobMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof createImportJob>>,
     TError,
-    { data: BodyType<CreateImportJobBody> },
+    CreateImportJobMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createImportJob>>,
   TError,
-  { data: BodyType<CreateImportJobBody> },
+  CreateImportJobMutationVariables,
   TContext
 > => {
-  const mutationKey = ["createImportJob"];
+  const mutationKey = getCreateImportJobMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -5331,7 +5443,7 @@ export const getCreateImportJobMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createImportJob>>,
-    { data: BodyType<CreateImportJobBody> }
+    CreateImportJobMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -5346,6 +5458,7 @@ export type CreateImportJobMutationResult = NonNullable<
 >;
 export type CreateImportJobMutationBody = BodyType<CreateImportJobBody>;
 export type CreateImportJobMutationError = ErrorType<unknown>;
+export type CreateImportJobMutationVariables = { data: BodyType<CreateImportJobBody> };
 
 /**
  * @summary Upload file and create import job
@@ -5355,7 +5468,7 @@ export const useCreateImportJob = <TError = ErrorType<unknown>, TContext = unkno
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof createImportJob>>,
       TError,
-      { data: BodyType<CreateImportJobBody> },
+      CreateImportJobMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -5364,7 +5477,7 @@ export const useCreateImportJob = <TError = ErrorType<unknown>, TContext = unkno
 ): UseMutationResult<
   Awaited<ReturnType<typeof createImportJob>>,
   TError,
-  { data: BodyType<CreateImportJobBody> },
+  CreateImportJobMutationVariables,
   TContext
 > => {
   return useMutation(getCreateImportJobMutationOptions(options), queryClient);
@@ -5502,6 +5615,8 @@ export const deleteImportJob = (
   return customInstance<void>({ url: `/import-jobs/${jobId}`, method: "DELETE", signal }, options);
 };
 
+export const getDeleteImportJobMutationKey = () => ["deleteImportJob"] as const;
+
 export const getDeleteImportJobMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -5509,17 +5624,17 @@ export const getDeleteImportJobMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof deleteImportJob>>,
     TError,
-    { jobId: number },
+    DeleteImportJobMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteImportJob>>,
   TError,
-  { jobId: number },
+  DeleteImportJobMutationVariables,
   TContext
 > => {
-  const mutationKey = ["deleteImportJob"];
+  const mutationKey = getDeleteImportJobMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -5528,7 +5643,7 @@ export const getDeleteImportJobMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteImportJob>>,
-    { jobId: number }
+    DeleteImportJobMutationVariables
   > = (props) => {
     const { jobId } = props ?? {};
 
@@ -5543,6 +5658,7 @@ export type DeleteImportJobMutationResult = NonNullable<
 >;
 
 export type DeleteImportJobMutationError = ErrorType<unknown>;
+export type DeleteImportJobMutationVariables = { jobId: number };
 
 /**
  * @summary Delete import job
@@ -5552,7 +5668,7 @@ export const useDeleteImportJob = <TError = ErrorType<unknown>, TContext = unkno
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof deleteImportJob>>,
       TError,
-      { jobId: number },
+      DeleteImportJobMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -5561,7 +5677,7 @@ export const useDeleteImportJob = <TError = ErrorType<unknown>, TContext = unkno
 ): UseMutationResult<
   Awaited<ReturnType<typeof deleteImportJob>>,
   TError,
-  { jobId: number },
+  DeleteImportJobMutationVariables,
   TContext
 > => {
   return useMutation(getDeleteImportJobMutationOptions(options), queryClient);
@@ -5588,6 +5704,8 @@ export const updateImportPreview = (
   );
 };
 
+export const getUpdateImportPreviewMutationKey = () => ["updateImportPreview"] as const;
+
 export const getUpdateImportPreviewMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -5595,17 +5713,17 @@ export const getUpdateImportPreviewMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof updateImportPreview>>,
     TError,
-    { jobId: number; data: BodyType<UpdateImportPreviewBody> },
+    UpdateImportPreviewMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof updateImportPreview>>,
   TError,
-  { jobId: number; data: BodyType<UpdateImportPreviewBody> },
+  UpdateImportPreviewMutationVariables,
   TContext
 > => {
-  const mutationKey = ["updateImportPreview"];
+  const mutationKey = getUpdateImportPreviewMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -5614,7 +5732,7 @@ export const getUpdateImportPreviewMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof updateImportPreview>>,
-    { jobId: number; data: BodyType<UpdateImportPreviewBody> }
+    UpdateImportPreviewMutationVariables
   > = (props) => {
     const { jobId, data } = props ?? {};
 
@@ -5629,6 +5747,10 @@ export type UpdateImportPreviewMutationResult = NonNullable<
 >;
 export type UpdateImportPreviewMutationBody = BodyType<UpdateImportPreviewBody>;
 export type UpdateImportPreviewMutationError = ErrorType<unknown>;
+export type UpdateImportPreviewMutationVariables = {
+  jobId: number;
+  data: BodyType<UpdateImportPreviewBody>;
+};
 
 /**
  * @summary Update preview data
@@ -5638,7 +5760,7 @@ export const useUpdateImportPreview = <TError = ErrorType<unknown>, TContext = u
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof updateImportPreview>>,
       TError,
-      { jobId: number; data: BodyType<UpdateImportPreviewBody> },
+      UpdateImportPreviewMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -5647,7 +5769,7 @@ export const useUpdateImportPreview = <TError = ErrorType<unknown>, TContext = u
 ): UseMutationResult<
   Awaited<ReturnType<typeof updateImportPreview>>,
   TError,
-  { jobId: number; data: BodyType<UpdateImportPreviewBody> },
+  UpdateImportPreviewMutationVariables,
   TContext
 > => {
   return useMutation(getUpdateImportPreviewMutationOptions(options), queryClient);
@@ -5674,6 +5796,8 @@ export const confirmImportJob = (
   );
 };
 
+export const getConfirmImportJobMutationKey = () => ["confirmImportJob"] as const;
+
 export const getConfirmImportJobMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -5681,17 +5805,17 @@ export const getConfirmImportJobMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof confirmImportJob>>,
     TError,
-    { jobId: number; data: BodyType<ImportConfirmRequest> },
+    ConfirmImportJobMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof confirmImportJob>>,
   TError,
-  { jobId: number; data: BodyType<ImportConfirmRequest> },
+  ConfirmImportJobMutationVariables,
   TContext
 > => {
-  const mutationKey = ["confirmImportJob"];
+  const mutationKey = getConfirmImportJobMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -5700,7 +5824,7 @@ export const getConfirmImportJobMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof confirmImportJob>>,
-    { jobId: number; data: BodyType<ImportConfirmRequest> }
+    ConfirmImportJobMutationVariables
   > = (props) => {
     const { jobId, data } = props ?? {};
 
@@ -5715,6 +5839,10 @@ export type ConfirmImportJobMutationResult = NonNullable<
 >;
 export type ConfirmImportJobMutationBody = BodyType<ImportConfirmRequest>;
 export type ConfirmImportJobMutationError = ErrorType<unknown>;
+export type ConfirmImportJobMutationVariables = {
+  jobId: number;
+  data: BodyType<ImportConfirmRequest>;
+};
 
 /**
  * @summary Confirm import and create expenses
@@ -5724,7 +5852,7 @@ export const useConfirmImportJob = <TError = ErrorType<unknown>, TContext = unkn
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof confirmImportJob>>,
       TError,
-      { jobId: number; data: BodyType<ImportConfirmRequest> },
+      ConfirmImportJobMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -5733,7 +5861,7 @@ export const useConfirmImportJob = <TError = ErrorType<unknown>, TContext = unkn
 ): UseMutationResult<
   Awaited<ReturnType<typeof confirmImportJob>>,
   TError,
-  { jobId: number; data: BodyType<ImportConfirmRequest> },
+  ConfirmImportJobMutationVariables,
   TContext
 > => {
   return useMutation(getConfirmImportJobMutationOptions(options), queryClient);
@@ -6242,6 +6370,8 @@ export const createAnalysis = (
   );
 };
 
+export const getCreateAnalysisMutationKey = () => ["createAnalysis"] as const;
+
 export const getCreateAnalysisMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -6249,17 +6379,17 @@ export const getCreateAnalysisMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof createAnalysis>>,
     TError,
-    { data: BodyType<CreateAnalysisBody> },
+    CreateAnalysisMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createAnalysis>>,
   TError,
-  { data: BodyType<CreateAnalysisBody> },
+  CreateAnalysisMutationVariables,
   TContext
 > => {
-  const mutationKey = ["createAnalysis"];
+  const mutationKey = getCreateAnalysisMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -6268,7 +6398,7 @@ export const getCreateAnalysisMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createAnalysis>>,
-    { data: BodyType<CreateAnalysisBody> }
+    CreateAnalysisMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -6281,6 +6411,7 @@ export const getCreateAnalysisMutationOptions = <
 export type CreateAnalysisMutationResult = NonNullable<Awaited<ReturnType<typeof createAnalysis>>>;
 export type CreateAnalysisMutationBody = BodyType<CreateAnalysisBody>;
 export type CreateAnalysisMutationError = ErrorType<unknown>;
+export type CreateAnalysisMutationVariables = { data: BodyType<CreateAnalysisBody> };
 
 /**
  * @summary Submit spending analysis query
@@ -6290,7 +6421,7 @@ export const useCreateAnalysis = <TError = ErrorType<unknown>, TContext = unknow
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof createAnalysis>>,
       TError,
-      { data: BodyType<CreateAnalysisBody> },
+      CreateAnalysisMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -6299,7 +6430,7 @@ export const useCreateAnalysis = <TError = ErrorType<unknown>, TContext = unknow
 ): UseMutationResult<
   Awaited<ReturnType<typeof createAnalysis>>,
   TError,
-  { data: BodyType<CreateAnalysisBody> },
+  CreateAnalysisMutationVariables,
   TContext
 > => {
   return useMutation(getCreateAnalysisMutationOptions(options), queryClient);
@@ -6538,6 +6669,8 @@ export const createGroup = (
   );
 };
 
+export const getCreateGroupMutationKey = () => ["createGroup"] as const;
+
 export const getCreateGroupMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -6545,17 +6678,17 @@ export const getCreateGroupMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof createGroup>>,
     TError,
-    { data: BodyType<CreateGroupBody> },
+    CreateGroupMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createGroup>>,
   TError,
-  { data: BodyType<CreateGroupBody> },
+  CreateGroupMutationVariables,
   TContext
 > => {
-  const mutationKey = ["createGroup"];
+  const mutationKey = getCreateGroupMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -6564,7 +6697,7 @@ export const getCreateGroupMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createGroup>>,
-    { data: BodyType<CreateGroupBody> }
+    CreateGroupMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -6577,6 +6710,7 @@ export const getCreateGroupMutationOptions = <
 export type CreateGroupMutationResult = NonNullable<Awaited<ReturnType<typeof createGroup>>>;
 export type CreateGroupMutationBody = BodyType<CreateGroupBody>;
 export type CreateGroupMutationError = ErrorType<unknown>;
+export type CreateGroupMutationVariables = { data: BodyType<CreateGroupBody> };
 
 /**
  * @summary Create a new family group
@@ -6586,7 +6720,7 @@ export const useCreateGroup = <TError = ErrorType<unknown>, TContext = unknown>(
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof createGroup>>,
       TError,
-      { data: BodyType<CreateGroupBody> },
+      CreateGroupMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -6595,7 +6729,7 @@ export const useCreateGroup = <TError = ErrorType<unknown>, TContext = unknown>(
 ): UseMutationResult<
   Awaited<ReturnType<typeof createGroup>>,
   TError,
-  { data: BodyType<CreateGroupBody> },
+  CreateGroupMutationVariables,
   TContext
 > => {
   return useMutation(getCreateGroupMutationOptions(options), queryClient);
@@ -6621,6 +6755,8 @@ export const joinGroup = (
   );
 };
 
+export const getJoinGroupMutationKey = () => ["joinGroup"] as const;
+
 export const getJoinGroupMutationOptions = <
   TError = ErrorType<void>,
   TContext = unknown,
@@ -6628,17 +6764,17 @@ export const getJoinGroupMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof joinGroup>>,
     TError,
-    { data: BodyType<JoinGroupBody> },
+    JoinGroupMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof joinGroup>>,
   TError,
-  { data: BodyType<JoinGroupBody> },
+  JoinGroupMutationVariables,
   TContext
 > => {
-  const mutationKey = ["joinGroup"];
+  const mutationKey = getJoinGroupMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -6647,7 +6783,7 @@ export const getJoinGroupMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof joinGroup>>,
-    { data: BodyType<JoinGroupBody> }
+    JoinGroupMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -6660,6 +6796,7 @@ export const getJoinGroupMutationOptions = <
 export type JoinGroupMutationResult = NonNullable<Awaited<ReturnType<typeof joinGroup>>>;
 export type JoinGroupMutationBody = BodyType<JoinGroupBody>;
 export type JoinGroupMutationError = ErrorType<void>;
+export type JoinGroupMutationVariables = { data: BodyType<JoinGroupBody> };
 
 /**
  * @summary Join group via invite code
@@ -6669,7 +6806,7 @@ export const useJoinGroup = <TError = ErrorType<void>, TContext = unknown>(
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof joinGroup>>,
       TError,
-      { data: BodyType<JoinGroupBody> },
+      JoinGroupMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -6678,7 +6815,7 @@ export const useJoinGroup = <TError = ErrorType<void>, TContext = unknown>(
 ): UseMutationResult<
   Awaited<ReturnType<typeof joinGroup>>,
   TError,
-  { data: BodyType<JoinGroupBody> },
+  JoinGroupMutationVariables,
   TContext
 > => {
   return useMutation(getJoinGroupMutationOptions(options), queryClient);
@@ -6695,6 +6832,8 @@ export const removeGroupMember = (
   return customInstance<void>({ url: `/groups/members/${id}`, method: "DELETE", signal }, options);
 };
 
+export const getRemoveGroupMemberMutationKey = () => ["removeGroupMember"] as const;
+
 export const getRemoveGroupMemberMutationOptions = <
   TError = ErrorType<void>,
   TContext = unknown,
@@ -6702,17 +6841,17 @@ export const getRemoveGroupMemberMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof removeGroupMember>>,
     TError,
-    { id: number },
+    RemoveGroupMemberMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof removeGroupMember>>,
   TError,
-  { id: number },
+  RemoveGroupMemberMutationVariables,
   TContext
 > => {
-  const mutationKey = ["removeGroupMember"];
+  const mutationKey = getRemoveGroupMemberMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -6721,7 +6860,7 @@ export const getRemoveGroupMemberMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof removeGroupMember>>,
-    { id: number }
+    RemoveGroupMemberMutationVariables
   > = (props) => {
     const { id } = props ?? {};
 
@@ -6736,6 +6875,7 @@ export type RemoveGroupMemberMutationResult = NonNullable<
 >;
 
 export type RemoveGroupMemberMutationError = ErrorType<void>;
+export type RemoveGroupMemberMutationVariables = { id: number };
 
 /**
  * @summary Remove a member from the group (owner only)
@@ -6745,7 +6885,7 @@ export const useRemoveGroupMember = <TError = ErrorType<void>, TContext = unknow
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof removeGroupMember>>,
       TError,
-      { id: number },
+      RemoveGroupMemberMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -6754,7 +6894,7 @@ export const useRemoveGroupMember = <TError = ErrorType<void>, TContext = unknow
 ): UseMutationResult<
   Awaited<ReturnType<typeof removeGroupMember>>,
   TError,
-  { id: number },
+  RemoveGroupMemberMutationVariables,
   TContext
 > => {
   return useMutation(getRemoveGroupMemberMutationOptions(options), queryClient);
@@ -6773,6 +6913,8 @@ export const syncGroupHolders = (
   );
 };
 
+export const getSyncGroupHoldersMutationKey = () => ["syncGroupHolders"] as const;
+
 export const getSyncGroupHoldersMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -6785,7 +6927,7 @@ export const getSyncGroupHoldersMutationOptions = <
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<Awaited<ReturnType<typeof syncGroupHolders>>, TError, void, TContext> => {
-  const mutationKey = ["syncGroupHolders"];
+  const mutationKey = getSyncGroupHoldersMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -6951,6 +7093,8 @@ export const markNotificationRead = (
   return customInstance<void>({ url: `/notifications/${id}/read`, method: "PUT", signal }, options);
 };
 
+export const getMarkNotificationReadMutationKey = () => ["markNotificationRead"] as const;
+
 export const getMarkNotificationReadMutationOptions = <
   TError = ErrorType<void>,
   TContext = unknown,
@@ -6958,17 +7102,17 @@ export const getMarkNotificationReadMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof markNotificationRead>>,
     TError,
-    { id: number },
+    MarkNotificationReadMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof markNotificationRead>>,
   TError,
-  { id: number },
+  MarkNotificationReadMutationVariables,
   TContext
 > => {
-  const mutationKey = ["markNotificationRead"];
+  const mutationKey = getMarkNotificationReadMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -6977,7 +7121,7 @@ export const getMarkNotificationReadMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof markNotificationRead>>,
-    { id: number }
+    MarkNotificationReadMutationVariables
   > = (props) => {
     const { id } = props ?? {};
 
@@ -6992,6 +7136,7 @@ export type MarkNotificationReadMutationResult = NonNullable<
 >;
 
 export type MarkNotificationReadMutationError = ErrorType<void>;
+export type MarkNotificationReadMutationVariables = { id: number };
 
 /**
  * @summary Mark notification as read
@@ -7001,7 +7146,7 @@ export const useMarkNotificationRead = <TError = ErrorType<void>, TContext = unk
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof markNotificationRead>>,
       TError,
-      { id: number },
+      MarkNotificationReadMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -7010,7 +7155,7 @@ export const useMarkNotificationRead = <TError = ErrorType<void>, TContext = unk
 ): UseMutationResult<
   Awaited<ReturnType<typeof markNotificationRead>>,
   TError,
-  { id: number },
+  MarkNotificationReadMutationVariables,
   TContext
 > => {
   return useMutation(getMarkNotificationReadMutationOptions(options), queryClient);
@@ -7158,6 +7303,8 @@ export const createScheduledExpense = (
   );
 };
 
+export const getCreateScheduledExpenseMutationKey = () => ["createScheduledExpense"] as const;
+
 export const getCreateScheduledExpenseMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -7165,17 +7312,17 @@ export const getCreateScheduledExpenseMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof createScheduledExpense>>,
     TError,
-    { data: BodyType<ScheduledExpenseCreate> },
+    CreateScheduledExpenseMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createScheduledExpense>>,
   TError,
-  { data: BodyType<ScheduledExpenseCreate> },
+  CreateScheduledExpenseMutationVariables,
   TContext
 > => {
-  const mutationKey = ["createScheduledExpense"];
+  const mutationKey = getCreateScheduledExpenseMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -7184,7 +7331,7 @@ export const getCreateScheduledExpenseMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createScheduledExpense>>,
-    { data: BodyType<ScheduledExpenseCreate> }
+    CreateScheduledExpenseMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -7199,6 +7346,7 @@ export type CreateScheduledExpenseMutationResult = NonNullable<
 >;
 export type CreateScheduledExpenseMutationBody = BodyType<ScheduledExpenseCreate>;
 export type CreateScheduledExpenseMutationError = ErrorType<unknown>;
+export type CreateScheduledExpenseMutationVariables = { data: BodyType<ScheduledExpenseCreate> };
 
 /**
  * @summary Create a scheduled expense
@@ -7208,7 +7356,7 @@ export const useCreateScheduledExpense = <TError = ErrorType<unknown>, TContext 
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof createScheduledExpense>>,
       TError,
-      { data: BodyType<ScheduledExpenseCreate> },
+      CreateScheduledExpenseMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -7217,7 +7365,7 @@ export const useCreateScheduledExpense = <TError = ErrorType<unknown>, TContext 
 ): UseMutationResult<
   Awaited<ReturnType<typeof createScheduledExpense>>,
   TError,
-  { data: BodyType<ScheduledExpenseCreate> },
+  CreateScheduledExpenseMutationVariables,
   TContext
 > => {
   return useMutation(getCreateScheduledExpenseMutationOptions(options), queryClient);
@@ -7244,6 +7392,8 @@ export const updateScheduledExpense = (
   );
 };
 
+export const getUpdateScheduledExpenseMutationKey = () => ["updateScheduledExpense"] as const;
+
 export const getUpdateScheduledExpenseMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -7251,17 +7401,17 @@ export const getUpdateScheduledExpenseMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof updateScheduledExpense>>,
     TError,
-    { id: number; data: BodyType<ScheduledExpenseUpdate> },
+    UpdateScheduledExpenseMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof updateScheduledExpense>>,
   TError,
-  { id: number; data: BodyType<ScheduledExpenseUpdate> },
+  UpdateScheduledExpenseMutationVariables,
   TContext
 > => {
-  const mutationKey = ["updateScheduledExpense"];
+  const mutationKey = getUpdateScheduledExpenseMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -7270,7 +7420,7 @@ export const getUpdateScheduledExpenseMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof updateScheduledExpense>>,
-    { id: number; data: BodyType<ScheduledExpenseUpdate> }
+    UpdateScheduledExpenseMutationVariables
   > = (props) => {
     const { id, data } = props ?? {};
 
@@ -7285,6 +7435,10 @@ export type UpdateScheduledExpenseMutationResult = NonNullable<
 >;
 export type UpdateScheduledExpenseMutationBody = BodyType<ScheduledExpenseUpdate>;
 export type UpdateScheduledExpenseMutationError = ErrorType<unknown>;
+export type UpdateScheduledExpenseMutationVariables = {
+  id: number;
+  data: BodyType<ScheduledExpenseUpdate>;
+};
 
 /**
  * @summary Update a scheduled expense
@@ -7294,7 +7448,7 @@ export const useUpdateScheduledExpense = <TError = ErrorType<unknown>, TContext 
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof updateScheduledExpense>>,
       TError,
-      { id: number; data: BodyType<ScheduledExpenseUpdate> },
+      UpdateScheduledExpenseMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -7303,7 +7457,7 @@ export const useUpdateScheduledExpense = <TError = ErrorType<unknown>, TContext 
 ): UseMutationResult<
   Awaited<ReturnType<typeof updateScheduledExpense>>,
   TError,
-  { id: number; data: BodyType<ScheduledExpenseUpdate> },
+  UpdateScheduledExpenseMutationVariables,
   TContext
 > => {
   return useMutation(getUpdateScheduledExpenseMutationOptions(options), queryClient);
@@ -7323,6 +7477,8 @@ export const deleteScheduledExpense = (
   );
 };
 
+export const getDeleteScheduledExpenseMutationKey = () => ["deleteScheduledExpense"] as const;
+
 export const getDeleteScheduledExpenseMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -7330,17 +7486,17 @@ export const getDeleteScheduledExpenseMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof deleteScheduledExpense>>,
     TError,
-    { id: number },
+    DeleteScheduledExpenseMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteScheduledExpense>>,
   TError,
-  { id: number },
+  DeleteScheduledExpenseMutationVariables,
   TContext
 > => {
-  const mutationKey = ["deleteScheduledExpense"];
+  const mutationKey = getDeleteScheduledExpenseMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -7349,7 +7505,7 @@ export const getDeleteScheduledExpenseMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteScheduledExpense>>,
-    { id: number }
+    DeleteScheduledExpenseMutationVariables
   > = (props) => {
     const { id } = props ?? {};
 
@@ -7364,6 +7520,7 @@ export type DeleteScheduledExpenseMutationResult = NonNullable<
 >;
 
 export type DeleteScheduledExpenseMutationError = ErrorType<unknown>;
+export type DeleteScheduledExpenseMutationVariables = { id: number };
 
 /**
  * @summary Delete a scheduled expense
@@ -7373,7 +7530,7 @@ export const useDeleteScheduledExpense = <TError = ErrorType<unknown>, TContext 
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof deleteScheduledExpense>>,
       TError,
-      { id: number },
+      DeleteScheduledExpenseMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -7382,7 +7539,7 @@ export const useDeleteScheduledExpense = <TError = ErrorType<unknown>, TContext 
 ): UseMutationResult<
   Awaited<ReturnType<typeof deleteScheduledExpense>>,
   TError,
-  { id: number },
+  DeleteScheduledExpenseMutationVariables,
   TContext
 > => {
   return useMutation(getDeleteScheduledExpenseMutationOptions(options), queryClient);
@@ -7402,6 +7559,8 @@ export const executeScheduledExpense = (
   );
 };
 
+export const getExecuteScheduledExpenseMutationKey = () => ["executeScheduledExpense"] as const;
+
 export const getExecuteScheduledExpenseMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -7409,17 +7568,17 @@ export const getExecuteScheduledExpenseMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof executeScheduledExpense>>,
     TError,
-    { id: number },
+    ExecuteScheduledExpenseMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof executeScheduledExpense>>,
   TError,
-  { id: number },
+  ExecuteScheduledExpenseMutationVariables,
   TContext
 > => {
-  const mutationKey = ["executeScheduledExpense"];
+  const mutationKey = getExecuteScheduledExpenseMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -7428,7 +7587,7 @@ export const getExecuteScheduledExpenseMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof executeScheduledExpense>>,
-    { id: number }
+    ExecuteScheduledExpenseMutationVariables
   > = (props) => {
     const { id } = props ?? {};
 
@@ -7443,6 +7602,7 @@ export type ExecuteScheduledExpenseMutationResult = NonNullable<
 >;
 
 export type ExecuteScheduledExpenseMutationError = ErrorType<unknown>;
+export type ExecuteScheduledExpenseMutationVariables = { id: number };
 
 /**
  * @summary Manually execute a scheduled expense
@@ -7452,7 +7612,7 @@ export const useExecuteScheduledExpense = <TError = ErrorType<unknown>, TContext
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof executeScheduledExpense>>,
       TError,
-      { id: number },
+      ExecuteScheduledExpenseMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -7461,7 +7621,7 @@ export const useExecuteScheduledExpense = <TError = ErrorType<unknown>, TContext
 ): UseMutationResult<
   Awaited<ReturnType<typeof executeScheduledExpense>>,
   TError,
-  { id: number },
+  ExecuteScheduledExpenseMutationVariables,
   TContext
 > => {
   return useMutation(getExecuteScheduledExpenseMutationOptions(options), queryClient);
@@ -7594,6 +7754,8 @@ export const createBudget = (
   );
 };
 
+export const getCreateBudgetMutationKey = () => ["createBudget"] as const;
+
 export const getCreateBudgetMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -7601,17 +7763,17 @@ export const getCreateBudgetMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof createBudget>>,
     TError,
-    { data: BodyType<BudgetCreate> },
+    CreateBudgetMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createBudget>>,
   TError,
-  { data: BodyType<BudgetCreate> },
+  CreateBudgetMutationVariables,
   TContext
 > => {
-  const mutationKey = ["createBudget"];
+  const mutationKey = getCreateBudgetMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -7620,7 +7782,7 @@ export const getCreateBudgetMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createBudget>>,
-    { data: BodyType<BudgetCreate> }
+    CreateBudgetMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -7633,6 +7795,7 @@ export const getCreateBudgetMutationOptions = <
 export type CreateBudgetMutationResult = NonNullable<Awaited<ReturnType<typeof createBudget>>>;
 export type CreateBudgetMutationBody = BodyType<BudgetCreate>;
 export type CreateBudgetMutationError = ErrorType<unknown>;
+export type CreateBudgetMutationVariables = { data: BodyType<BudgetCreate> };
 
 /**
  * @summary Create a budget for a category
@@ -7642,7 +7805,7 @@ export const useCreateBudget = <TError = ErrorType<unknown>, TContext = unknown>
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof createBudget>>,
       TError,
-      { data: BodyType<BudgetCreate> },
+      CreateBudgetMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -7651,7 +7814,7 @@ export const useCreateBudget = <TError = ErrorType<unknown>, TContext = unknown>
 ): UseMutationResult<
   Awaited<ReturnType<typeof createBudget>>,
   TError,
-  { data: BodyType<BudgetCreate> },
+  CreateBudgetMutationVariables,
   TContext
 > => {
   return useMutation(getCreateBudgetMutationOptions(options), queryClient);
@@ -8002,6 +8165,8 @@ export const updateBudget = (
   );
 };
 
+export const getUpdateBudgetMutationKey = () => ["updateBudget"] as const;
+
 export const getUpdateBudgetMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -8009,17 +8174,17 @@ export const getUpdateBudgetMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof updateBudget>>,
     TError,
-    { budgetId: number; data: BodyType<BudgetCreate> },
+    UpdateBudgetMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof updateBudget>>,
   TError,
-  { budgetId: number; data: BodyType<BudgetCreate> },
+  UpdateBudgetMutationVariables,
   TContext
 > => {
-  const mutationKey = ["updateBudget"];
+  const mutationKey = getUpdateBudgetMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -8028,7 +8193,7 @@ export const getUpdateBudgetMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof updateBudget>>,
-    { budgetId: number; data: BodyType<BudgetCreate> }
+    UpdateBudgetMutationVariables
   > = (props) => {
     const { budgetId, data } = props ?? {};
 
@@ -8041,6 +8206,7 @@ export const getUpdateBudgetMutationOptions = <
 export type UpdateBudgetMutationResult = NonNullable<Awaited<ReturnType<typeof updateBudget>>>;
 export type UpdateBudgetMutationBody = BodyType<BudgetCreate>;
 export type UpdateBudgetMutationError = ErrorType<unknown>;
+export type UpdateBudgetMutationVariables = { budgetId: number; data: BodyType<BudgetCreate> };
 
 /**
  * @summary Update budget
@@ -8050,7 +8216,7 @@ export const useUpdateBudget = <TError = ErrorType<unknown>, TContext = unknown>
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof updateBudget>>,
       TError,
-      { budgetId: number; data: BodyType<BudgetCreate> },
+      UpdateBudgetMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -8059,7 +8225,7 @@ export const useUpdateBudget = <TError = ErrorType<unknown>, TContext = unknown>
 ): UseMutationResult<
   Awaited<ReturnType<typeof updateBudget>>,
   TError,
-  { budgetId: number; data: BodyType<BudgetCreate> },
+  UpdateBudgetMutationVariables,
   TContext
 > => {
   return useMutation(getUpdateBudgetMutationOptions(options), queryClient);
@@ -8076,6 +8242,8 @@ export const deleteBudget = (
   return customInstance<void>({ url: `/budgets/${budgetId}`, method: "DELETE", signal }, options);
 };
 
+export const getDeleteBudgetMutationKey = () => ["deleteBudget"] as const;
+
 export const getDeleteBudgetMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -8083,17 +8251,17 @@ export const getDeleteBudgetMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof deleteBudget>>,
     TError,
-    { budgetId: number },
+    DeleteBudgetMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteBudget>>,
   TError,
-  { budgetId: number },
+  DeleteBudgetMutationVariables,
   TContext
 > => {
-  const mutationKey = ["deleteBudget"];
+  const mutationKey = getDeleteBudgetMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -8102,7 +8270,7 @@ export const getDeleteBudgetMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteBudget>>,
-    { budgetId: number }
+    DeleteBudgetMutationVariables
   > = (props) => {
     const { budgetId } = props ?? {};
 
@@ -8115,6 +8283,7 @@ export const getDeleteBudgetMutationOptions = <
 export type DeleteBudgetMutationResult = NonNullable<Awaited<ReturnType<typeof deleteBudget>>>;
 
 export type DeleteBudgetMutationError = ErrorType<unknown>;
+export type DeleteBudgetMutationVariables = { budgetId: number };
 
 /**
  * @summary Delete budget
@@ -8124,7 +8293,7 @@ export const useDeleteBudget = <TError = ErrorType<unknown>, TContext = unknown>
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof deleteBudget>>,
       TError,
-      { budgetId: number },
+      DeleteBudgetMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -8133,7 +8302,7 @@ export const useDeleteBudget = <TError = ErrorType<unknown>, TContext = unknown>
 ): UseMutationResult<
   Awaited<ReturnType<typeof deleteBudget>>,
   TError,
-  { budgetId: number },
+  DeleteBudgetMutationVariables,
   TContext
 > => {
   return useMutation(getDeleteBudgetMutationOptions(options), queryClient);
@@ -8269,6 +8438,8 @@ export const createBudgetGroup = (
   );
 };
 
+export const getCreateBudgetGroupMutationKey = () => ["createBudgetGroup"] as const;
+
 export const getCreateBudgetGroupMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -8276,17 +8447,17 @@ export const getCreateBudgetGroupMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof createBudgetGroup>>,
     TError,
-    { data: BodyType<BudgetGroupCreate> },
+    CreateBudgetGroupMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createBudgetGroup>>,
   TError,
-  { data: BodyType<BudgetGroupCreate> },
+  CreateBudgetGroupMutationVariables,
   TContext
 > => {
-  const mutationKey = ["createBudgetGroup"];
+  const mutationKey = getCreateBudgetGroupMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -8295,7 +8466,7 @@ export const getCreateBudgetGroupMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createBudgetGroup>>,
-    { data: BodyType<BudgetGroupCreate> }
+    CreateBudgetGroupMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -8310,6 +8481,7 @@ export type CreateBudgetGroupMutationResult = NonNullable<
 >;
 export type CreateBudgetGroupMutationBody = BodyType<BudgetGroupCreate>;
 export type CreateBudgetGroupMutationError = ErrorType<unknown>;
+export type CreateBudgetGroupMutationVariables = { data: BodyType<BudgetGroupCreate> };
 
 /**
  * @summary Create a budget group
@@ -8319,7 +8491,7 @@ export const useCreateBudgetGroup = <TError = ErrorType<unknown>, TContext = unk
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof createBudgetGroup>>,
       TError,
-      { data: BodyType<BudgetGroupCreate> },
+      CreateBudgetGroupMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -8328,7 +8500,7 @@ export const useCreateBudgetGroup = <TError = ErrorType<unknown>, TContext = unk
 ): UseMutationResult<
   Awaited<ReturnType<typeof createBudgetGroup>>,
   TError,
-  { data: BodyType<BudgetGroupCreate> },
+  CreateBudgetGroupMutationVariables,
   TContext
 > => {
   return useMutation(getCreateBudgetGroupMutationOptions(options), queryClient);
@@ -8344,6 +8516,8 @@ export const initBudgetGroups = (
   return customInstance<void>({ url: `/budgets/groups/init`, method: "POST", signal }, options);
 };
 
+export const getInitBudgetGroupsMutationKey = () => ["initBudgetGroups"] as const;
+
 export const getInitBudgetGroupsMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -8356,7 +8530,7 @@ export const getInitBudgetGroupsMutationOptions = <
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<Awaited<ReturnType<typeof initBudgetGroups>>, TError, void, TContext> => {
-  const mutationKey = ["initBudgetGroups"];
+  const mutationKey = getInitBudgetGroupsMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -8415,6 +8589,8 @@ export const updateBudgetGroup = (
   );
 };
 
+export const getUpdateBudgetGroupMutationKey = () => ["updateBudgetGroup"] as const;
+
 export const getUpdateBudgetGroupMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -8422,17 +8598,17 @@ export const getUpdateBudgetGroupMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof updateBudgetGroup>>,
     TError,
-    { groupId: number; data: BodyType<BudgetGroupCreate> },
+    UpdateBudgetGroupMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof updateBudgetGroup>>,
   TError,
-  { groupId: number; data: BodyType<BudgetGroupCreate> },
+  UpdateBudgetGroupMutationVariables,
   TContext
 > => {
-  const mutationKey = ["updateBudgetGroup"];
+  const mutationKey = getUpdateBudgetGroupMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -8441,7 +8617,7 @@ export const getUpdateBudgetGroupMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof updateBudgetGroup>>,
-    { groupId: number; data: BodyType<BudgetGroupCreate> }
+    UpdateBudgetGroupMutationVariables
   > = (props) => {
     const { groupId, data } = props ?? {};
 
@@ -8456,6 +8632,10 @@ export type UpdateBudgetGroupMutationResult = NonNullable<
 >;
 export type UpdateBudgetGroupMutationBody = BodyType<BudgetGroupCreate>;
 export type UpdateBudgetGroupMutationError = ErrorType<unknown>;
+export type UpdateBudgetGroupMutationVariables = {
+  groupId: number;
+  data: BodyType<BudgetGroupCreate>;
+};
 
 /**
  * @summary Update budget group
@@ -8465,7 +8645,7 @@ export const useUpdateBudgetGroup = <TError = ErrorType<unknown>, TContext = unk
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof updateBudgetGroup>>,
       TError,
-      { groupId: number; data: BodyType<BudgetGroupCreate> },
+      UpdateBudgetGroupMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -8474,7 +8654,7 @@ export const useUpdateBudgetGroup = <TError = ErrorType<unknown>, TContext = unk
 ): UseMutationResult<
   Awaited<ReturnType<typeof updateBudgetGroup>>,
   TError,
-  { groupId: number; data: BodyType<BudgetGroupCreate> },
+  UpdateBudgetGroupMutationVariables,
   TContext
 > => {
   return useMutation(getUpdateBudgetGroupMutationOptions(options), queryClient);
@@ -8610,6 +8790,8 @@ export const createBudgetEvent = (
   );
 };
 
+export const getCreateBudgetEventMutationKey = () => ["createBudgetEvent"] as const;
+
 export const getCreateBudgetEventMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -8617,17 +8799,17 @@ export const getCreateBudgetEventMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof createBudgetEvent>>,
     TError,
-    { data: BodyType<BudgetEventCreate> },
+    CreateBudgetEventMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createBudgetEvent>>,
   TError,
-  { data: BodyType<BudgetEventCreate> },
+  CreateBudgetEventMutationVariables,
   TContext
 > => {
-  const mutationKey = ["createBudgetEvent"];
+  const mutationKey = getCreateBudgetEventMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -8636,7 +8818,7 @@ export const getCreateBudgetEventMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createBudgetEvent>>,
-    { data: BodyType<BudgetEventCreate> }
+    CreateBudgetEventMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -8651,6 +8833,7 @@ export type CreateBudgetEventMutationResult = NonNullable<
 >;
 export type CreateBudgetEventMutationBody = BodyType<BudgetEventCreate>;
 export type CreateBudgetEventMutationError = ErrorType<unknown>;
+export type CreateBudgetEventMutationVariables = { data: BodyType<BudgetEventCreate> };
 
 /**
  * @summary Create a budget event
@@ -8660,7 +8843,7 @@ export const useCreateBudgetEvent = <TError = ErrorType<unknown>, TContext = unk
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof createBudgetEvent>>,
       TError,
-      { data: BodyType<BudgetEventCreate> },
+      CreateBudgetEventMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -8669,7 +8852,7 @@ export const useCreateBudgetEvent = <TError = ErrorType<unknown>, TContext = unk
 ): UseMutationResult<
   Awaited<ReturnType<typeof createBudgetEvent>>,
   TError,
-  { data: BodyType<BudgetEventCreate> },
+  CreateBudgetEventMutationVariables,
   TContext
 > => {
   return useMutation(getCreateBudgetEventMutationOptions(options), queryClient);
@@ -8696,6 +8879,8 @@ export const updateBudgetEvent = (
   );
 };
 
+export const getUpdateBudgetEventMutationKey = () => ["updateBudgetEvent"] as const;
+
 export const getUpdateBudgetEventMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -8703,17 +8888,17 @@ export const getUpdateBudgetEventMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof updateBudgetEvent>>,
     TError,
-    { eventId: number; data: BodyType<BudgetEventCreate> },
+    UpdateBudgetEventMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof updateBudgetEvent>>,
   TError,
-  { eventId: number; data: BodyType<BudgetEventCreate> },
+  UpdateBudgetEventMutationVariables,
   TContext
 > => {
-  const mutationKey = ["updateBudgetEvent"];
+  const mutationKey = getUpdateBudgetEventMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -8722,7 +8907,7 @@ export const getUpdateBudgetEventMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof updateBudgetEvent>>,
-    { eventId: number; data: BodyType<BudgetEventCreate> }
+    UpdateBudgetEventMutationVariables
   > = (props) => {
     const { eventId, data } = props ?? {};
 
@@ -8737,6 +8922,10 @@ export type UpdateBudgetEventMutationResult = NonNullable<
 >;
 export type UpdateBudgetEventMutationBody = BodyType<BudgetEventCreate>;
 export type UpdateBudgetEventMutationError = ErrorType<unknown>;
+export type UpdateBudgetEventMutationVariables = {
+  eventId: number;
+  data: BodyType<BudgetEventCreate>;
+};
 
 /**
  * @summary Update budget event
@@ -8746,7 +8935,7 @@ export const useUpdateBudgetEvent = <TError = ErrorType<unknown>, TContext = unk
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof updateBudgetEvent>>,
       TError,
-      { eventId: number; data: BodyType<BudgetEventCreate> },
+      UpdateBudgetEventMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -8755,7 +8944,7 @@ export const useUpdateBudgetEvent = <TError = ErrorType<unknown>, TContext = unk
 ): UseMutationResult<
   Awaited<ReturnType<typeof updateBudgetEvent>>,
   TError,
-  { eventId: number; data: BodyType<BudgetEventCreate> },
+  UpdateBudgetEventMutationVariables,
   TContext
 > => {
   return useMutation(getUpdateBudgetEventMutationOptions(options), queryClient);
@@ -8775,6 +8964,8 @@ export const deleteBudgetEvent = (
   );
 };
 
+export const getDeleteBudgetEventMutationKey = () => ["deleteBudgetEvent"] as const;
+
 export const getDeleteBudgetEventMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -8782,17 +8973,17 @@ export const getDeleteBudgetEventMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof deleteBudgetEvent>>,
     TError,
-    { eventId: number },
+    DeleteBudgetEventMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof deleteBudgetEvent>>,
   TError,
-  { eventId: number },
+  DeleteBudgetEventMutationVariables,
   TContext
 > => {
-  const mutationKey = ["deleteBudgetEvent"];
+  const mutationKey = getDeleteBudgetEventMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -8801,7 +8992,7 @@ export const getDeleteBudgetEventMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof deleteBudgetEvent>>,
-    { eventId: number }
+    DeleteBudgetEventMutationVariables
   > = (props) => {
     const { eventId } = props ?? {};
 
@@ -8816,6 +9007,7 @@ export type DeleteBudgetEventMutationResult = NonNullable<
 >;
 
 export type DeleteBudgetEventMutationError = ErrorType<unknown>;
+export type DeleteBudgetEventMutationVariables = { eventId: number };
 
 /**
  * @summary Delete budget event
@@ -8825,7 +9017,7 @@ export const useDeleteBudgetEvent = <TError = ErrorType<unknown>, TContext = unk
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof deleteBudgetEvent>>,
       TError,
-      { eventId: number },
+      DeleteBudgetEventMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -8834,7 +9026,7 @@ export const useDeleteBudgetEvent = <TError = ErrorType<unknown>, TContext = unk
 ): UseMutationResult<
   Awaited<ReturnType<typeof deleteBudgetEvent>>,
   TError,
-  { eventId: number },
+  DeleteBudgetEventMutationVariables,
   TContext
 > => {
   return useMutation(getDeleteBudgetEventMutationOptions(options), queryClient);
@@ -8854,6 +9046,8 @@ export const linkBudgetEventExpenses = (
   );
 };
 
+export const getLinkBudgetEventExpensesMutationKey = () => ["linkBudgetEventExpenses"] as const;
+
 export const getLinkBudgetEventExpensesMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -8861,17 +9055,17 @@ export const getLinkBudgetEventExpensesMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof linkBudgetEventExpenses>>,
     TError,
-    { eventId: number },
+    LinkBudgetEventExpensesMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof linkBudgetEventExpenses>>,
   TError,
-  { eventId: number },
+  LinkBudgetEventExpensesMutationVariables,
   TContext
 > => {
-  const mutationKey = ["linkBudgetEventExpenses"];
+  const mutationKey = getLinkBudgetEventExpensesMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -8880,7 +9074,7 @@ export const getLinkBudgetEventExpensesMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof linkBudgetEventExpenses>>,
-    { eventId: number }
+    LinkBudgetEventExpensesMutationVariables
   > = (props) => {
     const { eventId } = props ?? {};
 
@@ -8895,6 +9089,7 @@ export type LinkBudgetEventExpensesMutationResult = NonNullable<
 >;
 
 export type LinkBudgetEventExpensesMutationError = ErrorType<unknown>;
+export type LinkBudgetEventExpensesMutationVariables = { eventId: number };
 
 /**
  * @summary Link matching expenses to budget event
@@ -8904,7 +9099,7 @@ export const useLinkBudgetEventExpenses = <TError = ErrorType<unknown>, TContext
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof linkBudgetEventExpenses>>,
       TError,
-      { eventId: number },
+      LinkBudgetEventExpensesMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -8913,7 +9108,7 @@ export const useLinkBudgetEventExpenses = <TError = ErrorType<unknown>, TContext
 ): UseMutationResult<
   Awaited<ReturnType<typeof linkBudgetEventExpenses>>,
   TError,
-  { eventId: number },
+  LinkBudgetEventExpensesMutationVariables,
   TContext
 > => {
   return useMutation(getLinkBudgetEventExpensesMutationOptions(options), queryClient);
@@ -9074,6 +9269,8 @@ export const setCategoryBudgetGroup = (
   );
 };
 
+export const getSetCategoryBudgetGroupMutationKey = () => ["setCategoryBudgetGroup"] as const;
+
 export const getSetCategoryBudgetGroupMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -9081,17 +9278,17 @@ export const getSetCategoryBudgetGroupMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof setCategoryBudgetGroup>>,
     TError,
-    { categoryId: number; data: BodyType<SetCategoryBudgetGroupBody> },
+    SetCategoryBudgetGroupMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof setCategoryBudgetGroup>>,
   TError,
-  { categoryId: number; data: BodyType<SetCategoryBudgetGroupBody> },
+  SetCategoryBudgetGroupMutationVariables,
   TContext
 > => {
-  const mutationKey = ["setCategoryBudgetGroup"];
+  const mutationKey = getSetCategoryBudgetGroupMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -9100,7 +9297,7 @@ export const getSetCategoryBudgetGroupMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof setCategoryBudgetGroup>>,
-    { categoryId: number; data: BodyType<SetCategoryBudgetGroupBody> }
+    SetCategoryBudgetGroupMutationVariables
   > = (props) => {
     const { categoryId, data } = props ?? {};
 
@@ -9115,6 +9312,10 @@ export type SetCategoryBudgetGroupMutationResult = NonNullable<
 >;
 export type SetCategoryBudgetGroupMutationBody = BodyType<SetCategoryBudgetGroupBody>;
 export type SetCategoryBudgetGroupMutationError = ErrorType<unknown>;
+export type SetCategoryBudgetGroupMutationVariables = {
+  categoryId: number;
+  data: BodyType<SetCategoryBudgetGroupBody>;
+};
 
 /**
  * @summary Set budget group for a category
@@ -9124,7 +9325,7 @@ export const useSetCategoryBudgetGroup = <TError = ErrorType<unknown>, TContext 
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof setCategoryBudgetGroup>>,
       TError,
-      { categoryId: number; data: BodyType<SetCategoryBudgetGroupBody> },
+      SetCategoryBudgetGroupMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -9133,7 +9334,7 @@ export const useSetCategoryBudgetGroup = <TError = ErrorType<unknown>, TContext 
 ): UseMutationResult<
   Awaited<ReturnType<typeof setCategoryBudgetGroup>>,
   TError,
-  { categoryId: number; data: BodyType<SetCategoryBudgetGroupBody> },
+  SetCategoryBudgetGroupMutationVariables,
   TContext
 > => {
   return useMutation(getSetCategoryBudgetGroupMutationOptions(options), queryClient);
@@ -9152,6 +9353,8 @@ export const autoAssignBudgetGroups = (
   );
 };
 
+export const getAutoAssignBudgetGroupsMutationKey = () => ["autoAssignBudgetGroups"] as const;
+
 export const getAutoAssignBudgetGroupsMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -9169,7 +9372,7 @@ export const getAutoAssignBudgetGroupsMutationOptions = <
   void,
   TContext
 > => {
-  const mutationKey = ["autoAssignBudgetGroups"];
+  const mutationKey = getAutoAssignBudgetGroupsMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -9347,6 +9550,8 @@ export const acceptSuggestion = (
   );
 };
 
+export const getAcceptSuggestionMutationKey = () => ["acceptSuggestion"] as const;
+
 export const getAcceptSuggestionMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -9354,17 +9559,17 @@ export const getAcceptSuggestionMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof acceptSuggestion>>,
     TError,
-    { id: number },
+    AcceptSuggestionMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof acceptSuggestion>>,
   TError,
-  { id: number },
+  AcceptSuggestionMutationVariables,
   TContext
 > => {
-  const mutationKey = ["acceptSuggestion"];
+  const mutationKey = getAcceptSuggestionMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -9373,7 +9578,7 @@ export const getAcceptSuggestionMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof acceptSuggestion>>,
-    { id: number }
+    AcceptSuggestionMutationVariables
   > = (props) => {
     const { id } = props ?? {};
 
@@ -9388,6 +9593,7 @@ export type AcceptSuggestionMutationResult = NonNullable<
 >;
 
 export type AcceptSuggestionMutationError = ErrorType<unknown>;
+export type AcceptSuggestionMutationVariables = { id: number };
 
 /**
  * @summary Accept a category suggestion
@@ -9397,7 +9603,7 @@ export const useAcceptSuggestion = <TError = ErrorType<unknown>, TContext = unkn
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof acceptSuggestion>>,
       TError,
-      { id: number },
+      AcceptSuggestionMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -9406,7 +9612,7 @@ export const useAcceptSuggestion = <TError = ErrorType<unknown>, TContext = unkn
 ): UseMutationResult<
   Awaited<ReturnType<typeof acceptSuggestion>>,
   TError,
-  { id: number },
+  AcceptSuggestionMutationVariables,
   TContext
 > => {
   return useMutation(getAcceptSuggestionMutationOptions(options), queryClient);
@@ -9426,6 +9632,8 @@ export const rejectSuggestion = (
   );
 };
 
+export const getRejectSuggestionMutationKey = () => ["rejectSuggestion"] as const;
+
 export const getRejectSuggestionMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -9433,17 +9641,17 @@ export const getRejectSuggestionMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof rejectSuggestion>>,
     TError,
-    { id: number },
+    RejectSuggestionMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof rejectSuggestion>>,
   TError,
-  { id: number },
+  RejectSuggestionMutationVariables,
   TContext
 > => {
-  const mutationKey = ["rejectSuggestion"];
+  const mutationKey = getRejectSuggestionMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -9452,7 +9660,7 @@ export const getRejectSuggestionMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof rejectSuggestion>>,
-    { id: number }
+    RejectSuggestionMutationVariables
   > = (props) => {
     const { id } = props ?? {};
 
@@ -9467,6 +9675,7 @@ export type RejectSuggestionMutationResult = NonNullable<
 >;
 
 export type RejectSuggestionMutationError = ErrorType<unknown>;
+export type RejectSuggestionMutationVariables = { id: number };
 
 /**
  * @summary Reject a category suggestion
@@ -9476,7 +9685,7 @@ export const useRejectSuggestion = <TError = ErrorType<unknown>, TContext = unkn
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof rejectSuggestion>>,
       TError,
-      { id: number },
+      RejectSuggestionMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -9485,7 +9694,7 @@ export const useRejectSuggestion = <TError = ErrorType<unknown>, TContext = unkn
 ): UseMutationResult<
   Awaited<ReturnType<typeof rejectSuggestion>>,
   TError,
-  { id: number },
+  RejectSuggestionMutationVariables,
   TContext
 > => {
   return useMutation(getRejectSuggestionMutationOptions(options), queryClient);
@@ -9623,6 +9832,8 @@ export const acceptRecurring = (
   );
 };
 
+export const getAcceptRecurringMutationKey = () => ["acceptRecurring"] as const;
+
 export const getAcceptRecurringMutationOptions = <
   TError = ErrorType<void>,
   TContext = unknown,
@@ -9630,17 +9841,17 @@ export const getAcceptRecurringMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof acceptRecurring>>,
     TError,
-    { id: number },
+    AcceptRecurringMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof acceptRecurring>>,
   TError,
-  { id: number },
+  AcceptRecurringMutationVariables,
   TContext
 > => {
-  const mutationKey = ["acceptRecurring"];
+  const mutationKey = getAcceptRecurringMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -9649,7 +9860,7 @@ export const getAcceptRecurringMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof acceptRecurring>>,
-    { id: number }
+    AcceptRecurringMutationVariables
   > = (props) => {
     const { id } = props ?? {};
 
@@ -9664,6 +9875,7 @@ export type AcceptRecurringMutationResult = NonNullable<
 >;
 
 export type AcceptRecurringMutationError = ErrorType<void>;
+export type AcceptRecurringMutationVariables = { id: number };
 
 /**
  * @summary Accept auto-detected recurring expense
@@ -9673,7 +9885,7 @@ export const useAcceptRecurring = <TError = ErrorType<void>, TContext = unknown>
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof acceptRecurring>>,
       TError,
-      { id: number },
+      AcceptRecurringMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -9682,7 +9894,7 @@ export const useAcceptRecurring = <TError = ErrorType<void>, TContext = unknown>
 ): UseMutationResult<
   Awaited<ReturnType<typeof acceptRecurring>>,
   TError,
-  { id: number },
+  AcceptRecurringMutationVariables,
   TContext
 > => {
   return useMutation(getAcceptRecurringMutationOptions(options), queryClient);
@@ -9702,6 +9914,8 @@ export const dismissRecurring = (
   );
 };
 
+export const getDismissRecurringMutationKey = () => ["dismissRecurring"] as const;
+
 export const getDismissRecurringMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -9709,17 +9923,17 @@ export const getDismissRecurringMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof dismissRecurring>>,
     TError,
-    { id: number },
+    DismissRecurringMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof dismissRecurring>>,
   TError,
-  { id: number },
+  DismissRecurringMutationVariables,
   TContext
 > => {
-  const mutationKey = ["dismissRecurring"];
+  const mutationKey = getDismissRecurringMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -9728,7 +9942,7 @@ export const getDismissRecurringMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof dismissRecurring>>,
-    { id: number }
+    DismissRecurringMutationVariables
   > = (props) => {
     const { id } = props ?? {};
 
@@ -9743,6 +9957,7 @@ export type DismissRecurringMutationResult = NonNullable<
 >;
 
 export type DismissRecurringMutationError = ErrorType<unknown>;
+export type DismissRecurringMutationVariables = { id: number };
 
 /**
  * @summary Dismiss auto-detected recurring expense
@@ -9752,7 +9967,7 @@ export const useDismissRecurring = <TError = ErrorType<unknown>, TContext = unkn
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof dismissRecurring>>,
       TError,
-      { id: number },
+      DismissRecurringMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -9761,7 +9976,7 @@ export const useDismissRecurring = <TError = ErrorType<unknown>, TContext = unkn
 ): UseMutationResult<
   Awaited<ReturnType<typeof dismissRecurring>>,
   TError,
-  { id: number },
+  DismissRecurringMutationVariables,
   TContext
 > => {
   return useMutation(getDismissRecurringMutationOptions(options), queryClient);
@@ -10023,6 +10238,8 @@ export const adminImpersonate = (
   );
 };
 
+export const getAdminImpersonateMutationKey = () => ["adminImpersonate"] as const;
+
 export const getAdminImpersonateMutationOptions = <
   TError = ErrorType<void>,
   TContext = unknown,
@@ -10030,17 +10247,17 @@ export const getAdminImpersonateMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof adminImpersonate>>,
     TError,
-    { data: BodyType<AdminImpersonateBody> },
+    AdminImpersonateMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof adminImpersonate>>,
   TError,
-  { data: BodyType<AdminImpersonateBody> },
+  AdminImpersonateMutationVariables,
   TContext
 > => {
-  const mutationKey = ["adminImpersonate"];
+  const mutationKey = getAdminImpersonateMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -10049,7 +10266,7 @@ export const getAdminImpersonateMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof adminImpersonate>>,
-    { data: BodyType<AdminImpersonateBody> }
+    AdminImpersonateMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -10064,6 +10281,7 @@ export type AdminImpersonateMutationResult = NonNullable<
 >;
 export type AdminImpersonateMutationBody = BodyType<AdminImpersonateBody>;
 export type AdminImpersonateMutationError = ErrorType<void>;
+export type AdminImpersonateMutationVariables = { data: BodyType<AdminImpersonateBody> };
 
 /**
  * @summary Start impersonation session
@@ -10073,7 +10291,7 @@ export const useAdminImpersonate = <TError = ErrorType<void>, TContext = unknown
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof adminImpersonate>>,
       TError,
-      { data: BodyType<AdminImpersonateBody> },
+      AdminImpersonateMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -10082,7 +10300,7 @@ export const useAdminImpersonate = <TError = ErrorType<void>, TContext = unknown
 ): UseMutationResult<
   Awaited<ReturnType<typeof adminImpersonate>>,
   TError,
-  { data: BodyType<AdminImpersonateBody> },
+  AdminImpersonateMutationVariables,
   TContext
 > => {
   return useMutation(getAdminImpersonateMutationOptions(options), queryClient);
@@ -10108,6 +10326,8 @@ export const whatsappWebhook = (
   );
 };
 
+export const getWhatsappWebhookMutationKey = () => ["whatsappWebhook"] as const;
+
 export const getWhatsappWebhookMutationOptions = <
   TError = ErrorType<void>,
   TContext = unknown,
@@ -10115,17 +10335,17 @@ export const getWhatsappWebhookMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof whatsappWebhook>>,
     TError,
-    { data: BodyType<WhatsappWebhookBody> },
+    WhatsappWebhookMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof whatsappWebhook>>,
   TError,
-  { data: BodyType<WhatsappWebhookBody> },
+  WhatsappWebhookMutationVariables,
   TContext
 > => {
-  const mutationKey = ["whatsappWebhook"];
+  const mutationKey = getWhatsappWebhookMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -10134,7 +10354,7 @@ export const getWhatsappWebhookMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof whatsappWebhook>>,
-    { data: BodyType<WhatsappWebhookBody> }
+    WhatsappWebhookMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
@@ -10149,6 +10369,7 @@ export type WhatsappWebhookMutationResult = NonNullable<
 >;
 export type WhatsappWebhookMutationBody = BodyType<WhatsappWebhookBody>;
 export type WhatsappWebhookMutationError = ErrorType<void>;
+export type WhatsappWebhookMutationVariables = { data: BodyType<WhatsappWebhookBody> };
 
 /**
  * @summary WhatsApp Business API incoming webhook
@@ -10158,7 +10379,7 @@ export const useWhatsappWebhook = <TError = ErrorType<void>, TContext = unknown>
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof whatsappWebhook>>,
       TError,
-      { data: BodyType<WhatsappWebhookBody> },
+      WhatsappWebhookMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
@@ -10167,7 +10388,7 @@ export const useWhatsappWebhook = <TError = ErrorType<void>, TContext = unknown>
 ): UseMutationResult<
   Awaited<ReturnType<typeof whatsappWebhook>>,
   TError,
-  { data: BodyType<WhatsappWebhookBody> },
+  WhatsappWebhookMutationVariables,
   TContext
 > => {
   return useMutation(getWhatsappWebhookMutationOptions(options), queryClient);

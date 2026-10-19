@@ -34,5 +34,5 @@
  */
 
 export type CreateImportJobBody = {
-  file: Blob;
+  file: Blob | File;
 };
