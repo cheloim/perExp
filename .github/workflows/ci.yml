@@ -7,6 +7,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   frontend:
     name: Frontend Lint & Typecheck
@@ -35,7 +39,6 @@ jobs:
 
       - name: TypeScript
         run: npm run typecheck
-        continue-on-error: true
 
   backend:
     name: Backend Lint & Typecheck
@@ -63,7 +66,6 @@ jobs:
 
       - name: MyPy
         run: mypy app/
-        continue-on-error: true
 
   test:
     name: Backend Tests

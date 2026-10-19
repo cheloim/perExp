@@ -6,7 +6,8 @@ set -e
 #   ./scripts/lint.sh          # Check mode (reports errors)
 #   ./scripts/lint.sh --fix    # Auto-fix mode
 #
-# This script runs all linters for frontend and backend.
+# This script runs static checks only (lint, format, typecheck) for frontend and backend.
+# Tests run via ./scripts/verify.sh.
 # See .sdd/guides/local-linting.md for details.
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -55,11 +56,6 @@ else
 fi
 
 run_linter "MyPy" "mypy app/" "$PROJECT_ROOT/src/backend"
-
-echo "=== Tests ==="
-run_linter "Unit Tests" \
-    "SECRET_KEY='test-secret-key-that-is-at-least-32-chars-long-for-testing' pytest tests/test_card_matching.py tests/test_encryption.py -v" \
-    "$PROJECT_ROOT/src/backend"
 
 if [ "$failed" -eq 0 ]; then
     echo -e "${GREEN}All linters passed${NC}"
