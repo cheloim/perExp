@@ -1,7 +1,7 @@
 feature: investments
 domain: Investment Portfolio
 type: full
-version: "1.1.0"
+version: "1.1.1"
 status: implemented
 owner: full-stack
 created: 2026-08-16
@@ -199,7 +199,10 @@ endpoints:
           as the spending assistant — see the analysis spec.
     response:
       status: 200
-      body: "text/event-stream — data: {\"text\": ...} frames, terminated by data: [DONE]"
+      body: >
+        text/event-stream — data: {"text": ...} frames, terminated by
+        data: [DONE]. A failure is a frame of its own: {"error": true, "text":
+        ...} — the client shows it and never stores it as a reply.
     errors:
       - status: 401
         description: "Unauthorized"
