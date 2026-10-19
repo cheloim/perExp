@@ -1,7 +1,7 @@
 feature: analysis
 domain: AI Spending Analysis
 type: full
-version: "1.1.1"
+version: "1.1.2"
 status: implemented
 owner: full-stack
 created: 2026-08-16
@@ -41,7 +41,9 @@ pre_evaluation:
         A vocabulary router on the client picks spending or investments from the
         words the user typed, so each message reaches the domain that can answer
         it and the LLM key that domain bills to. Ambiguous or off-topic messages
-        stay in the thread's own domain.
+        stay in the thread's own domain, and ordinary Spanish that shares a word
+        with a domain ("la bolsa de trabajo", "me robaron la cartera") is cut
+        out before the words are counted.
 
 users:
   - role: "authenticated_user"
@@ -103,7 +105,10 @@ endpoints:
           client that sends only a question still works.
     response:
       status: 200
-      body: "text/event-stream — data: {\"text\": ...} frames, terminated by data: [DONE]"
+      body: >
+        text/event-stream — data: {"text": ...} frames, terminated by
+        data: [DONE]. A failure is a frame of its own: {"error": true, "text":
+        ...} — the client shows it and never stores it as a reply.
     errors:
       - status: 401
         description: "Unauthorized"

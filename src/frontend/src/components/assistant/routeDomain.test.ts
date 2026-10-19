@@ -67,4 +67,27 @@ describe("routeDomain", () => {
     expect(routeDomain("", "investments")).toBe("investments");
     expect(routeDomain("   ", "spending")).toBe("spending");
   });
+
+  it("does not route on ordinary Spanish that shares a word with a domain", () => {
+    // The three that used to flip a thread on their own.
+    expect(routeDomain("me robaron la cartera en el subte", "spending")).toBe("spending");
+    expect(routeDomain("¿encontraste la bolsa de trabajo?", "spending")).toBe("spending");
+    expect(routeDomain("el bono de la ANSES me llegó ayer", "spending")).toBe("spending");
+    // …and the rest of the same family.
+    expect(routeDomain("celebramos la acción de gracias en familia", "investments")).toBe(
+      "investments",
+    );
+    expect(routeDomain("es una opción múltiple", "spending")).toBe("spending");
+    expect(routeDomain("voy a accionar el freno", "spending")).toBe("spending");
+    expect(routeDomain("el presupuesto nacional subió", "investments")).toBe("investments");
+    expect(routeDomain("tenencia de armas", "spending")).toBe("spending");
+  });
+
+  it("still routes the real question when one of those words is in it too", () => {
+    // The exclusion is a phrase, not a word: "gasté" still counts here.
+    expect(routeDomain("gasté mucho en la bolsa de trabajo", "investments")).toBe("spending");
+    // And a bare "bolsa" or "bono" is still the financial one.
+    expect(routeDomain("invertir en la bolsa", "spending")).toBe("investments");
+    expect(routeDomain("compré bonos del tesoro", "spending")).toBe("investments");
+  });
 });

@@ -13,12 +13,16 @@ import type { AssistantDomain } from "./types";
  * and a topic from neither domain stays in the domain it landed in so the
  * prompt can decline it there.
  *
- * Word forms that collide with ordinary Spanish will still misroute — "me
- * robaron la cartera", "la bolsa de trabajo", "el bono de la ANSES". That is
- * the price of a free router, and the cost is low: the other model answers a
+ * Ordinary Spanish that shares a word with one of the domains — "me robaron la
+ * cartera", "la bolsa de trabajo", "el bono de la ANSES" — is cut out before
+ * scoring. What is left of the price of a free router is a rare collision that
+ * is not in the exclusion list, and the cost is low: the other model answers a
  * question it can still answer. The misses that matter are the domain's own
  * verbs ("invertir") and its everyday assets ("el dólar"), which would send a
  * real question to the wrong prompt entirely — those are pinned in the tests.
+ *
+ * Terms are counted, not weighted: a word that earns two points would beat a
+ * thread's own tie, and the tie is what keeps the focus.
  */
 /**
  * Stems rather than full word forms, so one term covers a whole family —
@@ -96,6 +100,30 @@ const MATCHERS: Record<AssistantDomain, RegExp[]> = Object.fromEntries(
   ]),
 ) as Record<AssistantDomain, RegExp[]>;
 
+/**
+ * Ordinary Spanish that happens to contain a domain term. These are cut out of
+ * the message before scoring, not merely skipped as hits: "la bolsa de
+ * trabajo" must not score "bolsa", or it would win by being the only hit.
+ *
+ * One flat list, applied to both domains alike — a phrase like this must not
+ * score either side. Patterns are written without accents because matching
+ * happens on the normalized text.
+ */
+const EXCLUSIONS: RegExp[] = [
+  /\bbolsa de (trabajo|empleo)\b/g,
+  /\bcartera de (cuero|mano|piel|lona|viaje|tabaco)\b/g,
+  /\b(robaron|afanaron|sacaron|quitaron|llevaron|perdi) la cartera\b/g,
+  /\bbono de (la )?(anses|sueldo|natalidad|casamiento|aniversario)\b/g,
+  /\baccion(es)? de gracias\b/g,
+  /\b(plan de|poner en|dejar en|tomar|estar en|volver a) accion\b/g,
+  /\baccionar\b/g,
+  /\bopcion (multiple|unica)\b/g,
+  /\btenencia de (armas|drogas|animales)\b/g,
+  /\brendimiento (escolar|academico|del motor|del auto|universitario)\b/g,
+  /\bingreso (al|a la|al area)\b/g,
+  /\bpresupuesto (nacional|provincial|municipal|estatal|del estado|del congreso|publico)\b/g,
+];
+
 /** Lowercase and strip diacritics so "gasté", "Gasté" and "gaste" all match. */
 function normalize(text: string): string {
   return text
@@ -105,7 +133,8 @@ function normalize(text: string): string {
 }
 
 export function routeDomain(text: string, fallback: AssistantDomain): AssistantDomain {
-  const norm = normalize(text);
+  let norm = normalize(text);
+  for (const phrase of EXCLUSIONS) norm = norm.replace(phrase, " ");
   if (!norm.trim()) return fallback;
 
   const score = (domain: AssistantDomain) =>

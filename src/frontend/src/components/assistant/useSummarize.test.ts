@@ -73,4 +73,26 @@ describe("useSummarize", () => {
     });
     expect(result.current.summarizing).toBe(false);
   });
+
+  it("returns nothing when the server reports a failure, instead of throwing", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        fakeStream([
+          `data: ${JSON.stringify({ error: true, text: "LLM_API_KEY no configurada." })}\n\n`,
+        ]),
+      ),
+    );
+
+    const { result } = renderHook(() => useSummarize());
+    let out = "algo";
+    await act(async () => {
+      out = await result.current.summarize(MESSAGES, () => {});
+    });
+
+    // A summary failure is not worth an error bubble, and the failure text
+    // would otherwise be stored as if it were the conversation summarized.
+    expect(out).toBe("");
+    expect(result.current.summarizing).toBe(false);
+  });
 });

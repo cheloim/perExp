@@ -130,7 +130,9 @@ TOP 10 GASTOS MÁS ALTOS:
                     accumulated_text.append(chunk.text)
                     yield f"data: {json.dumps({'text': chunk.text})}\n\n"
         except Exception:
-            yield f"data: {json.dumps({'text': 'Error al procesar la solicitud'})}\n\n"
+            # Marked as an error frame: the text is not a reply, and the client
+            # must not store it in the thread as if the model had said it.
+            yield f"data: {json.dumps({'error': True, 'text': 'Error al procesar la solicitud'})}\n\n"
 
         if accumulated_text:
             hist_db = SessionLocal()
@@ -191,7 +193,7 @@ async def summarize_chat(
     if not api_key:
 
         async def _no_key():
-            yield f"data: {_json.dumps({'text': 'LLM_API_KEY no configurada.'})}\n\ndata: [DONE]\n\n"
+            yield f"data: {_json.dumps({'error': True, 'text': 'LLM_API_KEY no configurada.'})}\n\ndata: [DONE]\n\n"
 
         return _SR(_no_key(), media_type="text/event-stream")
 
@@ -218,7 +220,7 @@ async def summarize_chat(
                 if chunk.text:
                     yield f"data: {_json.dumps({'text': chunk.text})}\n\n"
         except Exception:
-            yield f"data: {_json.dumps({'text': 'Error al procesar la solicitud'})}\n\n"
+            yield f"data: {_json.dumps({'error': True, 'text': 'Error al procesar la solicitud'})}\n\n"
         yield "data: [DONE]\n\n"
 
     return _SR(
