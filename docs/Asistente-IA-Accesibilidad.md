@@ -100,8 +100,7 @@ principales con la misma herramienta.
 
 ```bash
 cd src/frontend
-npx playwright test e2e/assistant-a11y.spec.ts          # axe-core
-npx playwright test e2e/assistant-screenreader.spec.ts  # accessibility tree
+npx playwright test e2e/assistant-a11y.spec.ts   # axe-core
 ```
 
 ### axe-core
@@ -109,39 +108,12 @@ npx playwright test e2e/assistant-screenreader.spec.ts  # accessibility tree
 Las reglas que se aplican: `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, sobre el
 subárbol `[role="dialog"]`, en estado idle y en estado streaming.
 
-### Accessibility tree (CDP)
-
-`assistant-screenreader.spec.ts` lee el **árbol de accesibilidad computado** vía
-`Accessibility.getFullAXTree`, o sea los roles, nombres y propiedades que un
-lector de pantalla consume **después** de resolver ARIA — no los atributos que
-escribimos en JSX. Esto agarró cosas que axe no puede: un nombre accesible mal
-resuelto, una live region que existe en el DOM pero no está expuesta, un elemento
-cuyo rol computado es `generic` en vez de `button`.
-
-Lo que verifica:
-
-- el diálogo como `role=dialog` con `modal=true` computado
-- nombres accesibles del composer, Enviar/Cancelar, Cerrar, chips
-- que el grupo de follow-ups esté expuesto como `group` etiquetado **solo en el
-  estado suggestions**, y que **no** aparezca en idle
-- que la región de streaming exista como live region **antes** de que anuncie
-  nada (los lectores que registran live regions al insertarse nunca anunciarían
-  un cambio posterior)
-- que el texto "Analizando tus gastos…" esté en el árbol, no solo en el DOM
-- que el mensaje de error sea texto accesible y no solo estilo visual
-- `aria-pressed` de los tabs Chat/Historial
-
-Hallazgo de implementación: el árbol expone `pressed` como el **string**
-`"true"`/`"false"`, no como booleano. Las aserciones comparan sobre la forma
-string.
+La misma suite cubre la navegación por teclado: foco atrapado dentro del
+diálogo, `Tab` / `Shift+Tab` que nunca salen del modal, chips operables por
+teclado y la región `aria-live` que anuncia el streaming.
 
 ## Lo que estas pruebas NO cubren
 
-- **Lectores de pantalla reales.** El accessibility tree es un proxy: da los
-  valores computados, pero no verifica qué anuncia NVDA o VoiceOver, con qué
-  cadencia, ni cómo se comporta el diálogo bajo un cursor virtual. En particular
-  queda sin validar si el streaming es _usable_ — anunciar cada chunk puede ser
-  excesivamente hablador en la práctica. Requiere una pasada manual.
 - **Zoom al 200%.** No hay prueba de reflow.
 - **Movimiento reducido.** No hay preferencia `prefers-reduced-motion` en las
   animaciones del modal.
