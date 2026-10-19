@@ -1,23 +1,50 @@
 # Asistente IA — unificación de gastos e inversiones
 
-Estado: diseño aprobado en conversación (2026-10-19). Pendiente: verificación de
-builder y plan de implementación.
+Estado: **Etapa 1 implementada y en `main`** (rama `feature/assistant-unification`).
+Pendiente: Etapa 2 (UX y backend, "mantener el foco").
+
+## Etapa 1 — resultado medido
+
+|                        | Antes                                                 | Después                          |
+| ---------------------- | ----------------------------------------------------- | -------------------------------- |
+| Líneas de producto     | 1799 (`AIAssistant` 983 + `InvestmentsAssistant` 816) | 1312 (módulo `assistant/`, −27%) |
+| Líneas de test         | ~30 (`AIAssistant.test.tsx`, inversiones sin ninguno) | 1027, 7 archivos                 |
+| Tests unitarios        | 24                                                    | 70                               |
+| Tests e2e              | 39 passed / 1 skipped                                 | 57 passed / 1 skipped            |
+| Implementaciones de UI | 2                                                     | **1**                            |
+| Bugs compartibles      | se arreglaban en una copia y no en la otra            | se arreglan una vez              |
+
+`Bubble` sigue memoizado y los renders por chunk siguen en **6**, tanto con 4
+como con 40 mensajes en pantalla (O(1) por chunk, medido en
+`e2e/assistant-perf.spec.ts`).
+
+Tres bugs reales aparecieron al cablear la unificación, cada uno con su test:
+
+1. `updateSession` re-parseaba `localStorage` en cada escritura, así que **todos**
+   los objetos de mensaje se recreaban por chunk y el memo de `Bubble` no hacía
+   nada: 24 renders con 4 mensajes contra 32 con 40. Ahora el estado en memoria
+   es la fuente de verdad y el storage es un efecto secundario.
+2. `sendMessage` no tenía guarda síncrona de reentrada: Enter (keydown) y el
+   submit del formulario podían disparar dos envios en el mismo tick y dejar dos
+   burbujas.
+3. El seed de e2e escribía solo las claves legacy; con un store compartido, una
+   segunda corrida heredaba el `activeId` de la primera y le apendeaba a ese hilo.
 
 ## Intención y por qué
 
 Hoy hay **dos asistentes** que son copia casi exacta:
 
-| | `AIAssistant.tsx` | `InvestmentsAssistant.tsx` |
-|---|---|---|
-| Líneas | 983 | 816 |
-| Render | 1 modo: tarjeta centrada | 3 modos: FAB → panel `w-96` → overlay |
-| Endpoint | `POST /api/analysis/stream` | `POST /api/investments/chat/stream` |
-| Payload | `{month, question, debug_mode}` | `{question, context}` |
-| Storage | `ai_assistant_*` | `inv_assistant_*` |
-| Cancelar (`AbortController`) | sí | **no** |
-| `useFocusTrap` | sí | **no** |
-| Contraste AA | sí | **no** (3.76:1) |
-| `React.memo(Bubble)` | sí | no |
+|                              | `AIAssistant.tsx`               | `InvestmentsAssistant.tsx`            |
+| ---------------------------- | ------------------------------- | ------------------------------------- |
+| Líneas                       | 983                             | 816                                   |
+| Render                       | 1 modo: tarjeta centrada        | 3 modos: FAB → panel `w-96` → overlay |
+| Endpoint                     | `POST /api/analysis/stream`     | `POST /api/investments/chat/stream`   |
+| Payload                      | `{month, question, debug_mode}` | `{question, context}`                 |
+| Storage                      | `ai_assistant_*`                | `inv_assistant_*`                     |
+| Cancelar (`AbortController`) | sí                              | **no**                                |
+| `useFocusTrap`               | sí                              | **no**                                |
+| Contraste AA                 | sí                              | **no** (3.76:1)                       |
+| `React.memo(Bubble)`         | sí                              | no                                    |
 
 Similitud medida: 389 líneas idénticas, 43,2%.
 
@@ -87,15 +114,18 @@ usuario deje de pagar por nuestra arquitectura.
 ## Decisiones tomadas
 
 ### 1. Mantener el foco
+
 Cada respuesta sale de un prompt especializado. No se construye un generalista.
 Lo que cambia es que **deja de rebotar**: ante una pregunta de otro dominio responde
 o deriva con naturalidad, nunca recita una frase fija.
 
 ### 2. Un solo hilo
+
 Una conversación visible que sigue al cambiar de pantalla. Los mensajes se
 etiquetan por dominio para la UI; **el hilo en sí no tiene dominio**.
 
 ### 3. El foco es pegajoso
+
 No se re-elige desde cero en cada mensaje. Resolución, en orden:
 
 1. señal clara de un dominio en el mensaje → ese dominio, y **queda como foco**;
@@ -111,16 +141,19 @@ una conversación nueva. Si navegar cambiara la personalidad en medio de una cha
 volvería el problema original.
 
 ### 4. Router por reglas
+
 Vocabulario determinístico (cartera, CEDEAR, Merval, bono, FCI, rendimiento /
 gasto, tarjeta, presupuesto, cuota). Gratis y testeable. Un router con LLM queda
 para después, solo si las reglas fallan seguido.
 
 ### 5. Historial completo al backend
+
 Se mandan todos los turnos, no los filtrados por dominio: es lo que permite las
 referencias ("y de eso, ¿qué conviene?"). **El foco lo da el system prompt, no el
 recorte del historial.**
 
 ### 6. Un componente, no dos envoltorios
+
 El chrome (título, placeholder, sugerencias, slot de análisis) y el endpoint siguen
 el **dominio del último mensaje**, no la ruta. Por eso no puede haber un envoltorio
 elegido por ruta: sería el mismatch de ver tu conversación de gastos bajo el título
@@ -135,11 +168,13 @@ Esto sigue cumpliendo el anti-metas de "config con `if`s adentro": la divergenci
 a datos, no a condicionales.
 
 ### 7. Geometría única: 76% × 78%
+
 La del mockup D3 aprobado (`width: 76%; height: 78%`). El código quedó en
 `sm:max-w-2xl` (672px) × `sm:max-h-[78vh]`: más angosto de lo aprobado. Al unificar
 se corrige — los dos asistentes pasan a 76% × 78%.
 
 ### 8. Sesiones sin dominio, no un hilo eterno
+
 "Un solo hilo" significa que **la sesión no está atada a un dominio**: navegar o
 cambiar de tema no crea una sesión nueva. **No** significa una conversación infinita.
 Se conservan el botón de nueva conversación, el tab de Historial, las sesiones
@@ -147,17 +182,20 @@ pasadas y la rotación por inactividad. Las consultas de meses anteriores siguen
 visibles y consultables igual que hoy.
 
 ### 9. Migración del historial
+
 Los dos stores (`ai_assistant_*`, `inv_assistant_*`) se unen en una sola lista de
 sesiones, con los mensajes etiquetados por dominio. Orden: por la fecha del primer
 mensaje de cada sesión. No se pierde nada.
 
 ### 10. Fuera de alcance: rechazar sin frase enlatada
+
 Ante un tema que no es ni gastos ni inversiones (recetas, política, programación), el
 asistente **se niega, con sus propias palabras**: no responde el tema, pero tampoco
 recita una frase fija. Este es el criterio de aceptación de la reescritura de prompts
 y la rúbrica del set de evaluación.
 
 ### 11. La revisión de prompts no bloquea el merge
+
 El set de preguntas de evaluación y las respuestas antes/después se le pasan al
 maintainer antes del merge, pero no es gate.
 
