@@ -1,0 +1,60 @@
+import type { AssistantConfig, StreamArgs } from "./types";
+
+/** Sentinel user-prompt posted when the user hits "Analizar gastos del mes". */
+export const ANALYZE_PROMPT = "✨ Analizar gastos del mes";
+
+const SPENDING_CONFIG: AssistantConfig = {
+  domain: "spending",
+  title: "Asistente de Gastos",
+  triggerLabel: "Asistente IA",
+  placeholder: "Preguntá sobre tus gastos...",
+  suggestions: [
+    "¿Cuánto llevo gastado este mes?",
+    "Compará con el mes pasado",
+    "¿Dónde puedo recortar?",
+    "¿Cómo voy contra el presupuesto?",
+  ],
+  storage: {
+    sessions: "ai_assistant_sessions",
+    active: "ai_assistant_active",
+  },
+  streamUrl: "/api/analysis/stream",
+  buildBody: (args: StreamArgs) => ({
+    month: args.month ?? null,
+    question: args.question,
+    debug_mode: args.debugMode ?? false,
+  }),
+  analyzeSlot: { label: ANALYZE_PROMPT, prompt: ANALYZE_PROMPT },
+  rotateAfterIdleMinutes: 120,
+  openBudgetMs: 300,
+};
+
+const INVESTMENTS_CONFIG: AssistantConfig = {
+  domain: "investments",
+  title: "Asistente de Inversiones",
+  triggerLabel: "Abrir Asistente de Inversiones",
+  placeholder: "Preguntá sobre tus inversiones...",
+  suggestions: [
+    "¿Cómo viene mi cartera?",
+    "¿Cómo voy contra la inflación?",
+    "¿Dónde estoy más expuesto?",
+    "Compará mis rendimientos",
+  ],
+  storage: {
+    sessions: "inv_assistant_sessions",
+    active: "inv_assistant_active",
+  },
+  streamUrl: "/api/investments/chat/stream",
+  buildBody: (args: StreamArgs) => ({
+    question: args.question,
+    context: args.context ?? "",
+  }),
+  // No analyze slot: month analysis is a spending feature.
+  rotateAfterIdleMinutes: 0,
+  openBudgetMs: 300,
+};
+
+export const ASSISTANT_CONFIGS = {
+  spending: SPENDING_CONFIG,
+  investments: INVESTMENTS_CONFIG,
+};

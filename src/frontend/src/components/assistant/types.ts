@@ -43,7 +43,6 @@ export type AssistantConfig = {
   storage: StorageKeys;
   streamUrl: string;
   buildBody: (args: StreamArgs) => Record<string, unknown>;
-  buildContext?: () => string;
   analyzeSlot?: { label: string; prompt: string };
   rotateAfterIdleMinutes: number;
   openBudgetMs: number;
