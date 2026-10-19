@@ -40,6 +40,7 @@ backend/alembic.ini
 # Agent tooling (global config, not repo-specific)
 .agents/
 .claude/
+.superpowers/
 agent/
 graphify-out/
 skills-lock.json
