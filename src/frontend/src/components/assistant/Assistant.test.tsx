@@ -96,6 +96,30 @@ describe("Assistant", () => {
     expect(screen.getByRole("dialog")).toHaveAccessibleName("Asistente de Gastos");
   });
 
+  it("chrome follows the thread when a new session is started, not the mount snapshot", async () => {
+    seed([{ role: "user", text: "gasto", domain: "spending" }]);
+
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <Assistant open onToggle={() => {}} initialDomain="investments" />
+      </QueryClientProvider>,
+    );
+
+    // Seeded thread is spending, so the window wears spending chrome even on
+    // the investments route.
+    expect(screen.getByRole("dialog")).toHaveAccessibleName("Asistente de Gastos");
+
+    fireEvent.click(screen.getByRole("button", { name: "Nueva" }));
+
+    // A fresh session has no messages, so it falls back to the route's domain.
+    await waitFor(() =>
+      expect(screen.getByRole("dialog")).toHaveAccessibleName("Asistente de Inversiones"),
+    );
+    expect(screen.queryByRole("button", { name: "✨ Analizar gastos del mes" })).toBeNull();
+  });
+
   it("escape closes the dialog and persists the closed state", async () => {
     persistDrawerOpen(true);
     expect(localStorage.getItem(DRAWER_OPEN_KEY)).toBe("true");

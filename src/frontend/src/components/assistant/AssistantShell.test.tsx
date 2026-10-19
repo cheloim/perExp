@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { AssistantShell } from "./AssistantShell";
 import { ASSISTANT_CONFIGS } from "./configs";
 import { SHARED_STORAGE } from "./types";
-import type { AssistantConfig, Message, Session } from "./types";
+import type { Message, Session } from "./types";
 
 function sse(...texts: string[]): string[] {
   return [...texts.map((t) => `data: ${JSON.stringify({ text: t })}\n\n`), "data: [DONE]\n\n"];
@@ -38,8 +38,6 @@ function seed(messages: Message[]): void {
 }
 
 describe("AssistantShell", () => {
-  const spending: AssistantConfig = ASSISTANT_CONFIGS.spending;
-
   beforeEach(() => {
     localStorage.clear();
     vi.stubGlobal(
@@ -50,7 +48,14 @@ describe("AssistantShell", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("names the dialog from config.title for assistive tech", () => {
-    render(<AssistantShell config={spending} open onToggle={() => {}} />);
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
 
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveAccessibleName("Asistente de Gastos");
@@ -58,7 +63,14 @@ describe("AssistantShell", () => {
   });
 
   it("applies the approved 76% x 78% geometry on desktop", () => {
-    render(<AssistantShell config={spending} open onToggle={() => {}} />);
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
 
     const dialog = screen.getByRole("dialog");
     expect(dialog.className).toContain("sm:w-[76%]");
@@ -66,14 +78,28 @@ describe("AssistantShell", () => {
   });
 
   it("autofocuses the composer 100ms after open", async () => {
-    render(<AssistantShell config={spending} open onToggle={() => {}} />);
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
 
     const box = screen.getByRole("textbox");
     await waitFor(() => expect(box).toHaveFocus(), { timeout: 500 });
   });
 
   it("traps focus and never lets Tab or Shift+Tab escape", async () => {
-    render(<AssistantShell config={spending} open onToggle={() => {}} />);
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
     const dialog = screen.getByRole("dialog");
     const box = screen.getByRole("textbox");
     await waitFor(() => expect(box).toHaveFocus(), { timeout: 500 });
@@ -88,7 +114,14 @@ describe("AssistantShell", () => {
   it("escape asks the owner to close, so the close can be persisted", async () => {
     const onToggle = vi.fn();
     seed([]);
-    render(<AssistantShell config={spending} open onToggle={onToggle} />);
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={onToggle}
+      />,
+    );
     const dialog = screen.getByRole("dialog");
 
     fireEvent.keyDown(dialog, { key: "Escape" });
@@ -104,7 +137,14 @@ describe("AssistantShell", () => {
       { role: "user", text: "hola", domain: "spending" },
       { role: "assistant", text: "respuesta previa", domain: "spending" },
     ]);
-    render(<AssistantShell config={spending} open onToggle={() => {}} />);
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
 
     expect(screen.getByText("respuesta previa")).toBeInTheDocument();
 
@@ -118,15 +158,91 @@ describe("AssistantShell", () => {
   });
 
   it("shows the analyze slot only when config.analyzeSlot is present", () => {
-    const { rerender } = render(<AssistantShell config={spending} open onToggle={() => {}} />);
+    const { rerender } = render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
     expect(screen.getByRole("button", { name: "✨ Analizar gastos del mes" })).toBeInTheDocument();
 
-    rerender(<AssistantShell config={ASSISTANT_CONFIGS.investments} open onToggle={() => {}} />);
+    rerender(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="investments"
+        open
+        onToggle={() => {}}
+      />,
+    );
     expect(screen.queryByRole("button", { name: "✨ Analizar gastos del mes" })).toBeNull();
   });
 
   it("renders nothing when closed", () => {
-    render(<AssistantShell config={spending} open={false} onToggle={() => {}} />);
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open={false}
+        onToggle={() => {}}
+      />,
+    );
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("Resumir writes session.summary and never overwrites the last reply", async () => {
+    seed([
+      { role: "user", text: "gasto", domain: "spending" },
+      { role: "assistant", text: "respuesta-valiosa", domain: "spending" },
+    ]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => fakeStream(sse("RESUMEN-DE-LA-CHARLA"))),
+    );
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Resumir" }));
+
+    await waitFor(() => expect(screen.getByText("RESUMEN-DE-LA-CHARLA")).toBeInTheDocument());
+    // The user's reply must survive the summarize.
+    expect(screen.getByText("respuesta-valiosa")).toBeInTheDocument();
+
+    const stored = JSON.parse(localStorage.getItem(SHARED_STORAGE.sessions)!);
+    expect(stored[0].summary).toBe("RESUMEN-DE-LA-CHARLA");
+  });
+
+  it("a failed monthly analysis shows the error state and retries via the slot", async () => {
+    let calls = 0;
+    const configs = {
+      ...ASSISTANT_CONFIGS,
+      spending: {
+        ...ASSISTANT_CONFIGS.spending,
+        analyzeSlot: {
+          ...ASSISTANT_CONFIGS.spending.analyzeSlot!,
+          run: () => {
+            calls += 1;
+            return calls === 1 ? Promise.reject(new Error("sin clave")) : Promise.resolve("listo");
+          },
+        },
+      },
+    };
+    render(<AssistantShell configs={configs} initialDomain="spending" open onToggle={() => {}} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "✨ Analizar gastos del mes" }));
+
+    // The failure must be an error bubble, or the retry affordance never appears.
+    await waitFor(() => expect(screen.getByText(/No pude analizar el mes/)).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+    await waitFor(() => expect(screen.getByText("listo")).toBeInTheDocument());
+    expect(calls).toBe(2);
   });
 });

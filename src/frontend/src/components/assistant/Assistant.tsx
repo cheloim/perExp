@@ -3,9 +3,6 @@ import { getInvestments } from "../../api/client";
 import type { Investment } from "../../types";
 import { AssistantShell } from "./AssistantShell";
 import { ASSISTANT_CONFIGS } from "./configs";
-import { domainOf } from "./domainOf";
-import { useAssistantSessions } from "./useAssistantSessions";
-import { SHARED_STORAGE } from "./types";
 import type { AssistantDomain } from "./types";
 
 export const DRAWER_OPEN_KEY = "ai_drawer_open";
@@ -72,9 +69,16 @@ export function buildPortfolioContext(investments: Investment[]): string {
 }
 
 /**
- * The one assistant. Chrome and endpoint follow the domain of the last message,
- * so a thread can cross between spending and investments without restarting and
- * without the window changing personality when the route changes.
+ * The one assistant.
+ *
+ * `AssistantShell` owns the session store and resolves the domain from the live
+ * thread; this wrapper only supplies the config map, the route seed and the
+ * extra request context. Keeping the store down there is deliberate: two hook
+ * instances would keep independent state and the chrome would follow a frozen
+ * mount-time snapshot instead of the thread.
+ *
+ * The floating trigger is route chrome — App decides *whether* to show it — but
+ * it is labelled from the config of the domain the route seeded.
  */
 export default function Assistant({
   open,
@@ -85,17 +89,9 @@ export default function Assistant({
   open: boolean;
   onToggle: () => void;
   initialDomain: AssistantDomain;
-  /** Whether this surface owns the floating trigger (route decides; the config styles it). */
+  /** Whether this surface owns the floating trigger. */
   showTrigger?: boolean;
 }) {
-  // The migration runs inside `useAssistantSessions` before the first read.
-  const { activeSession } = useAssistantSessions(
-    SHARED_STORAGE,
-    ASSISTANT_CONFIGS.spending.rotateAfterIdleMinutes,
-  );
-  const domain = domainOf(activeSession, initialDomain);
-  const config = ASSISTANT_CONFIGS[domain];
-
   // The investments endpoint wants a portfolio snapshot the spending endpoint
   // ignores. Always computed; `buildPortfolioContext` returns "" when empty.
   const { data: investments } = useQuery<Investment[]>({
@@ -108,13 +104,15 @@ export default function Assistant({
     onToggle();
   };
 
+  const triggerLabel = ASSISTANT_CONFIGS[initialDomain].triggerLabel;
+
   return (
     <>
       {showTrigger && !open && (
         <button
           onClick={handleToggle}
-          title={config.triggerLabel}
-          aria-label={config.triggerLabel}
+          title={triggerLabel}
+          aria-label={triggerLabel}
           className="fixed right-4 bottom-[calc(3.5rem+var(--browser-bottom-inset,0px))] md:bottom-6 z-50 w-10 h-10 bg-[var(--color-primary)] hover:brightness-110 rounded-full shadow-lg flex items-center justify-center text-[var(--color-on-primary)] transition-all duration-200"
         >
           <svg
@@ -135,7 +133,8 @@ export default function Assistant({
         </button>
       )}
       <AssistantShell
-        config={config}
+        configs={ASSISTANT_CONFIGS}
+        initialDomain={initialDomain}
         open={open}
         onToggle={handleToggle}
         buildContext={() => buildPortfolioContext(investments ?? [])}

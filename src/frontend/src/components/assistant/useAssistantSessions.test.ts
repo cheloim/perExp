@@ -165,7 +165,7 @@ describe("useAssistantSessions", () => {
   beforeEach(() => localStorage.clear());
 
   it("creates a session and makes it active", () => {
-    const { result } = renderHook(() => useAssistantSessions(storage, 120));
+    const { result } = renderHook(() => useAssistantSessions(storage));
 
     let id = "";
     act(() => {
@@ -179,7 +179,7 @@ describe("useAssistantSessions", () => {
   });
 
   it("persists sessions to the configured storage keys", () => {
-    const { result } = renderHook(() => useAssistantSessions(storage, 120));
+    const { result } = renderHook(() => useAssistantSessions(storage));
 
     act(() => {
       result.current.createSession();
@@ -194,25 +194,25 @@ describe("useAssistantSessions", () => {
     const stale = Date.now() - 3 * 60 * 60 * 1000; // 3h ago
     seedSession(storage, "stale", stale);
 
-    const { result } = renderHook(() => useAssistantSessions(storage, 120));
+    const { result } = renderHook(() => useAssistantSessions(storage));
 
     expect(result.current.activeId).toBe("stale");
     act(() => {
-      result.current.maybeRotate();
+      result.current.maybeRotate(120);
     });
 
     expect(result.current.activeId).not.toBe("stale");
     expect(result.current.sessions).toHaveLength(2);
   });
 
-  it("never rotates when rotateAfterIdleMinutes is 0", () => {
+  it("never rotates when the idle threshold is 0", () => {
     const stale = Date.now() - 30 * 24 * 60 * 60 * 1000;
     seedSession(storage, "stale", stale);
 
-    const { result } = renderHook(() => useAssistantSessions(storage, 0));
+    const { result } = renderHook(() => useAssistantSessions(storage));
 
     act(() => {
-      result.current.maybeRotate();
+      result.current.maybeRotate(0);
     });
 
     expect(result.current.activeId).toBe("stale");
@@ -220,12 +220,55 @@ describe("useAssistantSessions", () => {
   });
 
   it("caps retained sessions at 30", () => {
-    const { result } = renderHook(() => useAssistantSessions(storage, 120));
+    const { result } = renderHook(() => useAssistantSessions(storage));
 
     act(() => {
       for (let i = 0; i < 35; i++) result.current.createSession();
     });
 
     expect(result.current.sessions).toHaveLength(30);
+  });
+
+  it("a deleted session stays deleted across a remount", () => {
+    localStorage.setItem(
+      "ai_assistant_sessions",
+      JSON.stringify([
+        {
+          id: "s1",
+          ts: 1000,
+          messages: [{ role: "user", text: "gasto" }],
+        },
+      ]),
+    );
+
+    const first = renderHook(() => useAssistantSessions(storage));
+    act(() => {
+      first.result.current.deleteSession("s1");
+    });
+    first.unmount();
+
+    // A fresh mount runs the migration again; the deletion must survive it
+    // rather than the legacy source resurrecting the session.
+    const second = renderHook(() => useAssistantSessions(storage));
+    expect(second.result.current.sessions.map((s) => s.id)).not.toContain("s1");
+  });
+
+  it("does not truncate a merged history that is larger than the cap", () => {
+    const many = Array.from({ length: 25 }, (_, i) => ({
+      id: `s${i}`,
+      ts: 1000 + i,
+      messages: [{ role: "user", text: `m${i}` }],
+    }));
+    localStorage.setItem("ai_assistant_sessions", JSON.stringify(many.slice(0, 12)));
+    localStorage.setItem("inv_assistant_sessions", JSON.stringify(many.slice(12)));
+
+    const { result } = renderHook(() => useAssistantSessions(storage));
+    expect(result.current.sessions).toHaveLength(25);
+
+    // The next write must not silently drop the half that came from the merge.
+    act(() => {
+      result.current.createSession();
+    });
+    expect(result.current.sessions).toHaveLength(26);
   });
 });

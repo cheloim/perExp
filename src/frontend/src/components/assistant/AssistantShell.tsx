@@ -3,11 +3,12 @@ import { ConfirmDialog } from "../ConfirmDialog";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
 import { Bubble } from "./Bubble";
 import { SessionCard } from "./SessionCard";
+import { domainOf } from "./domainOf";
 import { useAssistantChat } from "./useAssistantChat";
 import { useAssistantSessions } from "./useAssistantSessions";
 import { useSummarize } from "./useSummarize";
 import { SHARED_STORAGE } from "./types";
-import type { AssistantConfig, Message } from "./types";
+import type { AssistantConfig, AssistantDomain, Message } from "./types";
 
 const MAX_INPUT_LENGTH = 2000;
 
@@ -18,18 +19,21 @@ const FOLLOW_UPS = [
 ];
 
 export function AssistantShell({
-  config,
+  configs,
+  initialDomain,
   open,
   onToggle,
   buildContext,
 }: {
-  config: AssistantConfig;
+  configs: Record<AssistantDomain, AssistantConfig>;
+  initialDomain: AssistantDomain;
   open: boolean;
   onToggle: () => void;
   /** Supplies the extra request context a domain needs (e.g. the portfolio snapshot). */
   buildContext?: () => string;
 }) {
   const trapRef = useFocusTrap(open, onToggle);
+  const store = useAssistantSessions(SHARED_STORAGE);
   const {
     sessions,
     activeId,
@@ -38,7 +42,14 @@ export function AssistantShell({
     updateSession,
     deleteSession,
     maybeRotate,
-  } = useAssistantSessions(SHARED_STORAGE, config.rotateAfterIdleMinutes);
+  } = store;
+
+  // Chrome and endpoint follow the domain of the last message, not the route,
+  // so a thread can cross between spending and investments without the window
+  // changing personality when the user navigates.
+  const domain = domainOf(activeSession, initialDomain);
+  const config = configs[domain];
+
   const { streaming, error, send, cancel } = useAssistantChat(config);
   const { summarizing, summarize } = useSummarize();
 
@@ -71,9 +82,12 @@ export function AssistantShell({
 
   useEffect(() => {
     if (!open) return;
+    // Evaluate idle rotation on open too, not only when a message is sent, or a
+    // stale thread is shown until the first send and then jumps mid-interaction.
+    maybeRotate(config.rotateAfterIdleMinutes);
     const id = setTimeout(() => inputRef.current?.focus(), 100);
     return () => clearTimeout(id);
-  }, [open]);
+  }, [open, maybeRotate, config.rotateAfterIdleMinutes]);
 
   useEffect(() => {
     const el = inputRef.current;
@@ -142,7 +156,9 @@ export function AssistantShell({
       if (overrideText === undefined) setInput("");
       busyRef.current = true;
 
-      const sessionId = maybeRotate();
+      const previousId = activeIdRef.current;
+      const sessionId = maybeRotate(config.rotateAfterIdleMinutes);
+      if (sessionId !== previousId) summarizeById(previousId);
       appendPair(sessionId, text);
 
       const history = messages;
@@ -188,16 +204,56 @@ export function AssistantShell({
     ],
   );
 
+  /**
+   * Summarize the current session. The stream goes into a transient preview and
+   * is committed to `Session.summary` — never into the last message, which is
+   * the user's actual reply and must not be overwritten.
+   */
+  const runSummarize = useCallback(async () => {
+    const full = await summarize(messages, () => {});
+    if (full) {
+      updateSession(activeIdRef.current, (s) => ({ ...s, summary: full }));
+    }
+  }, [messages, summarize, updateSession]);
+
   const runAnalyze = useCallback(() => {
     const slot = config.analyzeSlot;
-    if (!slot || streaming) return;
-    const sessionId = maybeRotate();
+    if (!slot || streaming || busyRef.current) return;
+    busyRef.current = true;
+    const previousId = activeIdRef.current;
+    const sessionId = maybeRotate(config.rotateAfterIdleMinutes);
+    if (sessionId !== previousId) summarizeById(previousId);
     appendPair(sessionId, slot.prompt);
     void slot
       .run()
-      .then(writeLast)
-      .catch(() => writeLast(""));
-  }, [config.analyzeSlot, streaming, maybeRotate, appendPair, writeLast]);
+      .then((full) => writeLast(full))
+      .catch((err: unknown) => {
+        // Mirror the chat error path so the bubble gets `error: true` and the
+        // Reintentar affordance (and the sentinel retry branch) becomes reachable.
+        const detail = err instanceof Error ? err.message : "Error desconocido";
+        updateSession(activeIdRef.current, (s) => {
+          const next = [...s.messages];
+          if (next.length === 0) return s;
+          next[next.length - 1] = {
+            ...next[next.length - 1],
+            text: `No pude analizar el mes: ${detail}`,
+            error: true,
+          };
+          return { ...s, messages: next };
+        });
+      })
+      .finally(() => {
+        busyRef.current = false;
+      });
+  }, [
+    config.analyzeSlot,
+    config.rotateAfterIdleMinutes,
+    streaming,
+    maybeRotate,
+    appendPair,
+    writeLast,
+    updateSession,
+  ]);
 
   /**
    * Re-run the last user prompt. Pops the failed assistant bubble AND the user
@@ -219,10 +275,27 @@ export function AssistantShell({
     void sendMessage(text);
   }, [messages, updateSession, config.analyzeSlot, sendMessage, runAnalyze]);
 
+  /**
+   * Summarize a session before it is left behind, so the history tab and the
+   * "Resumen" panel keep working for new sessions the way they did before the
+   * unification. Fire-and-forget: the user is already moving on.
+   */
+  const summarizeById = useCallback(
+    (id: string) => {
+      const target = sessions.find((s) => s.id === id);
+      if (!target || target.messages.length === 0 || target.summary) return;
+      void summarize(target.messages, () => {}).then((full) => {
+        if (full) updateSession(id, (s) => ({ ...s, summary: full }));
+      });
+    },
+    [sessions, summarize, updateSession],
+  );
+
   const startNewSession = useCallback(() => {
+    summarizeById(activeIdRef.current);
     createSession();
     setShowHistory(false);
-  }, [createSession]);
+  }, [summarizeById, createSession]);
 
   const handleDeleteSession = useCallback(() => {
     if (deleteConfirm) deleteSession(deleteConfirm);
@@ -283,7 +356,7 @@ export function AssistantShell({
             <div className="flex items-center gap-1.5">
               {messages.length > 0 && (
                 <button
-                  onClick={() => void summarize(messages, writeLast)}
+                  onClick={() => void runSummarize()}
                   disabled={summarizing}
                   className="gnome-btn-secondary-round text-sm"
                 >

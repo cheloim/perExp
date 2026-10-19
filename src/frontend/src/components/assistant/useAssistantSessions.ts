@@ -17,11 +17,23 @@ function readSessions(key: string): Session[] {
 /**
  * The legacy stores are merged before the very first read, or the seeded
  * history would not be in state on the render that follows. `migrateLegacySessions`
- * is idempotent, so this is safe to call on every mount.
+ * is idempotent, so this is safe on every mount.
  */
 function ensureMigrated(storage: StorageKeys): void {
   if (storage.sessions !== SHARED_STORAGE.sessions) return;
   migrateLegacySessions(SHARED_STORAGE, LEGACY_STORAGE);
+}
+
+/** Drop a session from the legacy sources too, or the next mount re-merges it. */
+function purgeLegacy(sessionId: string): void {
+  for (const keys of Object.values(LEGACY_STORAGE)) {
+    try {
+      const kept = readSessions(keys.sessions).filter((s) => s.id !== sessionId);
+      localStorage.setItem(keys.sessions, JSON.stringify(kept));
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 export function newSessionId(): string {
@@ -41,17 +53,16 @@ function lastOf<T>(items: T[]): T | undefined {
 /**
  * Shared, domain-agnostic session store.
  *
- * In-memory state is authoritative: it is the only place message objects keep
- * their identity. Re-reading localStorage on every write would hand back
- * freshly parsed objects, which defeats `Bubble`'s memo and makes a streaming
- * chunk re-render the whole thread. Storage is a persistence side effect.
+ * There must be exactly ONE instance of this hook for the assistant: two would
+ * keep independent state and the chrome would follow a frozen mount-time
+ * snapshot instead of the live thread. `AssistantShell` owns the instance.
  *
- * The hook owns no timer: `maybeRotate()` is called by the consumer (on open
- * and before appending a message) and evaluates inactivity at that moment. Call
- * it *before* appending, or the new message lands in the session being rotated
- * out.
+ * In-memory state is authoritative: it is the only place message objects keep
+ * their identity. Re-reading localStorage on every write would hand back freshly
+ * parsed objects, which defeats `Bubble`'s memo and makes a streaming chunk
+ * re-render the whole thread. Storage is a persistence side effect.
  */
-export function useAssistantSessions(storage: StorageKeys, rotateAfterIdleMinutes: number) {
+export function useAssistantSessions(storage: StorageKeys) {
   const [sessions, setSessions] = useState<Session[]>(() => {
     ensureMigrated(storage);
     return readSessions(storage.sessions);
@@ -64,10 +75,18 @@ export function useAssistantSessions(storage: StorageKeys, rotateAfterIdleMinute
   const sessionsRef = useRef<Session[]>(sessions);
   sessionsRef.current = sessions;
 
+  /**
+   * The merge can legitimately produce more than MAX_SESSIONS (two legacy
+   * stores of 30 each). Truncating to 30 on the first write would silently drop
+   * half of a user's history, so the post-merge count is the floor.
+   */
+  const floorRef = useRef<number>(sessions.length);
+
   /** Persist as a side effect; the array passed in is what stays in state. */
   const commit = useCallback(
     (next: Session[]) => {
-      const capped = next.slice(-MAX_SESSIONS);
+      const cap = Math.max(MAX_SESSIONS, floorRef.current);
+      const capped = next.length > cap ? next.slice(-cap) : next;
       sessionsRef.current = capped;
       setSessions(capped);
       try {
@@ -107,6 +126,7 @@ export function useAssistantSessions(storage: StorageKeys, rotateAfterIdleMinute
     (id: string) => {
       const next = sessionsRef.current.filter((s) => s.id !== id);
       commit(next);
+      purgeLegacy(id);
       setActiveIdState((prev) => (prev === id ? (lastOf(next)?.id ?? "") : prev));
     },
     [commit],
@@ -115,23 +135,27 @@ export function useAssistantSessions(storage: StorageKeys, rotateAfterIdleMinute
   /**
    * Rotate to a fresh session when the active one has been idle past the
    * threshold. Returns the session id a new message should land in, so callers
-   * never race the rotation.
+   * never race the rotation. `idleMinutes <= 0` disables rotation for a surface
+   * that has none.
    */
-  const maybeRotate = useCallback((): string => {
-    const current = sessionsRef.current.find((s) => s.id === activeId);
-    if (rotateAfterIdleMinutes <= 0 || !current || current.messages.length === 0) {
-      return activeId || createSession();
-    }
+  const maybeRotate = useCallback(
+    (idleMinutes: number): string => {
+      const current = sessionsRef.current.find((s) => s.id === activeId);
+      if (idleMinutes <= 0 || !current || current.messages.length === 0) {
+        return activeId || createSession();
+      }
 
-    const lastTs = current.lastMessageTs ?? current.ts;
-    const idleMs = Date.now() - lastTs;
-    if (idleMs <= rotateAfterIdleMinutes * 60 * 1000) return activeId;
+      const lastTs = current.lastMessageTs ?? current.ts;
+      const idleMs = Date.now() - lastTs;
+      if (idleMs <= idleMinutes * 60 * 1000) return activeId;
 
-    const fresh = blankSession();
-    commit([...sessionsRef.current, fresh]);
-    setActiveIdState(fresh.id);
-    return fresh.id;
-  }, [rotateAfterIdleMinutes, activeId, commit, createSession]);
+      const fresh = blankSession();
+      commit([...sessionsRef.current, fresh]);
+      setActiveIdState(fresh.id);
+      return fresh.id;
+    },
+    [activeId, commit, createSession],
+  );
 
   const activeSession = sessions.find((s) => s.id === activeId);
 
@@ -146,3 +170,5 @@ export function useAssistantSessions(storage: StorageKeys, rotateAfterIdleMinute
     maybeRotate,
   };
 }
+
+export type AssistantStore = ReturnType<typeof useAssistantSessions>;
