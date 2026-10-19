@@ -4,10 +4,7 @@ import { useSummarize } from "./useSummarize";
 import type { Message } from "./types";
 
 function sse(...texts: string[]): string[] {
-  return [
-    ...texts.map((t) => `data: ${JSON.stringify({ text: t })}\n\n`),
-    "data: [DONE]\n\n",
-  ];
+  return [...texts.map((t) => `data: ${JSON.stringify({ text: t })}\n\n`), "data: [DONE]\n\n"];
 }
 
 function fakeStream(chunks: string[]): Response {

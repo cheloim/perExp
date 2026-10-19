@@ -24,10 +24,7 @@ export function useAssistantChat(config: AssistantConfig) {
   }, []);
 
   const run = useCallback(
-    async (
-      args: StreamArgs,
-      onChunk: (full: string) => void,
-    ): Promise<string> => {
+    async (args: StreamArgs, onChunk: (full: string) => void): Promise<string> => {
       lastArgsRef.current = args;
       lastOnChunkRef.current = onChunk;
       setError(null);
@@ -35,12 +32,7 @@ export function useAssistantChat(config: AssistantConfig) {
       const controller = new AbortController();
       abortRef.current = controller;
       try {
-        return await streamTo(
-          config.streamUrl,
-          config.buildBody(args),
-          onChunk,
-          controller.signal,
-        );
+        return await streamTo(config.streamUrl, config.buildBody(args), onChunk, controller.signal);
       } catch (err) {
         if ((err as Error)?.name === "AbortError") return "";
         setError((err as Error)?.message ?? "Error al procesar la solicitud");

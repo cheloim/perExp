@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { ASSISTANT_CONFIGS } from "./configs";
+import { LEGACY_STORAGE } from "./types";
 import type { StreamArgs } from "./types";
 
 const ARGS: StreamArgs = {
@@ -22,8 +23,8 @@ describe("ASSISTANT_CONFIGS.spending", () => {
     });
   });
 
-  it("uses ai_assistant_sessions / ai_assistant_active", () => {
-    expect(cfg.storage).toEqual({
+  it("is migrated from the legacy ai_assistant_* store", () => {
+    expect(LEGACY_STORAGE.spending).toEqual({
       sessions: "ai_assistant_sessions",
       active: "ai_assistant_active",
     });
@@ -65,8 +66,8 @@ describe("ASSISTANT_CONFIGS.investments", () => {
     });
   });
 
-  it("uses inv_assistant_sessions / inv_assistant_active", () => {
-    expect(cfg.storage).toEqual({
+  it("is migrated from the legacy inv_assistant_* store", () => {
+    expect(LEGACY_STORAGE.investments).toEqual({
       sessions: "inv_assistant_sessions",
       active: "inv_assistant_active",
     });
@@ -98,9 +99,7 @@ describe("both configs", () => {
     expect(ASSISTANT_CONFIGS.spending.openBudgetMs).toBe(
       ASSISTANT_CONFIGS.investments.openBudgetMs,
     );
-    expect(ASSISTANT_CONFIGS.spending.title).not.toBe(
-      ASSISTANT_CONFIGS.investments.title,
-    );
+    expect(ASSISTANT_CONFIGS.spending.title).not.toBe(ASSISTANT_CONFIGS.investments.title);
     expect(ASSISTANT_CONFIGS.spending.title).toBe("Asistente de Gastos");
     expect(ASSISTANT_CONFIGS.investments.title).toBe("Asistente de Inversiones");
   });

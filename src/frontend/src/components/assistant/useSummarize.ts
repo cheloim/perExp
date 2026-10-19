@@ -14,10 +14,7 @@ export function useSummarize() {
   const [summarizing, setSummarizing] = useState(false);
 
   const summarize = useCallback(
-    async (
-      messages: Message[],
-      onChunk: (full: string) => void,
-    ): Promise<string> => {
+    async (messages: Message[], onChunk: (full: string) => void): Promise<string> => {
       if (messages.length === 0) return "";
       setSummarizing(true);
       try {

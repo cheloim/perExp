@@ -21,11 +21,7 @@ const SOURCES: Record<AssistantDomain, StorageKeys> = {
 };
 
 /** Legacy shape as stored today — no `domain`, `ts` instead of a message timestamp. */
-function legacySession(
-  id: string,
-  ts: number,
-  texts: string[],
-): Record<string, unknown> {
+function legacySession(id: string, ts: number, texts: string[]): Record<string, unknown> {
   return {
     id,
     ts,
@@ -56,11 +52,7 @@ describe("migrateLegacySessions", () => {
     migrateLegacySessions(TARGET, SOURCES);
 
     const merged = JSON.parse(localStorage.getItem(TARGET.sessions)!);
-    expect(merged.map((s: { id: string }) => s.id)).toEqual([
-      "spend-old",
-      "inv-mid",
-      "inv-new",
-    ]);
+    expect(merged.map((s: { id: string }) => s.id)).toEqual(["spend-old", "inv-mid", "inv-new"]);
   });
 
   it("tags every migrated message with its source domain", () => {
@@ -109,10 +101,7 @@ describe("migrateLegacySessions", () => {
   it("preserves every session from both sources", () => {
     localStorage.setItem(
       SOURCES.spending.sessions,
-      JSON.stringify([
-        legacySession("s1", 1000, ["uno"]),
-        legacySession("s2", 1500, ["dos"]),
-      ]),
+      JSON.stringify([legacySession("s1", 1000, ["uno"]), legacySession("s2", 1500, ["dos"])]),
     );
     localStorage.setItem(
       SOURCES.investments.sessions,
@@ -127,13 +116,7 @@ describe("migrateLegacySessions", () => {
 
     const merged = JSON.parse(localStorage.getItem(TARGET.sessions)!);
     expect(merged).toHaveLength(5);
-    expect(merged.map((s: { id: string }) => s.id).sort()).toEqual([
-      "i1",
-      "i2",
-      "i3",
-      "s1",
-      "s2",
-    ]);
+    expect(merged.map((s: { id: string }) => s.id).sort()).toEqual(["i1", "i2", "i3", "s1", "s2"]);
   });
 
   it("keeps the summary and timestamps so nothing user-visible is lost", () => {
@@ -162,11 +145,7 @@ describe("migrateLegacySessions", () => {
   });
 });
 
-function seedSession(
-  storage: StorageKeys,
-  id: string,
-  lastMessageTs: number,
-): void {
+function seedSession(storage: StorageKeys, id: string, lastMessageTs: number): void {
   const session: Session = {
     id,
     ts: lastMessageTs,

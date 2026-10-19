@@ -26,6 +26,25 @@ export type Session = {
 
 export type StorageKeys = { sessions: string; active: string };
 
+/**
+ * The one shared, domain-agnostic store. The thread follows the user across
+ * screens, so there is exactly one session list — the legacy per-domain keys
+ * survive only as migration sources.
+ */
+export const SHARED_STORAGE: StorageKeys = {
+  sessions: "assistant_sessions",
+  active: "assistant_active",
+};
+
+/** Where `migrateLegacySessions` reads the pre-unification data from. */
+export const LEGACY_STORAGE: Record<AssistantDomain, StorageKeys> = {
+  spending: { sessions: "ai_assistant_sessions", active: "ai_assistant_active" },
+  investments: {
+    sessions: "inv_assistant_sessions",
+    active: "inv_assistant_active",
+  },
+};
+
 export type StreamArgs = {
   question: string;
   history: Message[];
@@ -40,7 +59,6 @@ export type AssistantConfig = {
   triggerLabel: string;
   placeholder: string;
   suggestions: string[];
-  storage: StorageKeys;
   streamUrl: string;
   buildBody: (args: StreamArgs) => Record<string, unknown>;
   /** Present when the domain offers a one-click analysis. `run` returns the reply text. */

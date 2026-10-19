@@ -6,6 +6,7 @@ import { SessionCard } from "./SessionCard";
 import { useAssistantChat } from "./useAssistantChat";
 import { useAssistantSessions } from "./useAssistantSessions";
 import { useSummarize } from "./useSummarize";
+import { SHARED_STORAGE } from "./types";
 import type { AssistantConfig, Message } from "./types";
 
 const MAX_INPUT_LENGTH = 2000;
@@ -20,10 +21,13 @@ export function AssistantShell({
   config,
   open,
   onToggle,
+  buildContext,
 }: {
   config: AssistantConfig;
   open: boolean;
   onToggle: () => void;
+  /** Supplies the extra request context a domain needs (e.g. the portfolio snapshot). */
+  buildContext?: () => string;
 }) {
   const trapRef = useFocusTrap(open, onToggle);
   const {
@@ -34,7 +38,7 @@ export function AssistantShell({
     updateSession,
     deleteSession,
     maybeRotate,
-  } = useAssistantSessions(config.storage, config.rotateAfterIdleMinutes);
+  } = useAssistantSessions(SHARED_STORAGE, config.rotateAfterIdleMinutes);
   const { streaming, error, send, cancel } = useAssistantChat(config);
   const { summarizing, summarize } = useSummarize();
 
@@ -45,6 +49,13 @@ export function AssistantShell({
   const [debugMode, setDebugMode] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  /**
+   * Synchronous re-entrancy guard. `streaming` is React state and does not
+   * update until the next render, so two triggers in the same tick (Enter
+   * keydown plus the form submit, for instance) would both pass the guard and
+   * append two bubbles.
+   */
+  const busyRef = useRef(false);
 
   /** Always current, so streaming callbacks never write into a stale session. */
   const activeIdRef = useRef(activeId);
@@ -56,8 +67,7 @@ export function AssistantShell({
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const isLocalhost =
-    typeof window !== "undefined" &&
-    /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
+    typeof window !== "undefined" && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
 
   useEffect(() => {
     if (!open) return;
@@ -66,8 +76,36 @@ export function AssistantShell({
   }, [open]);
 
   useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [input]);
+
+  useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length, open]);
+
+  // Open-time instrumentation: `open-start` is marked by the owner's toggle, and
+  // the first painted frame closes the measurement.
+  useEffect(() => {
+    if (!open) return;
+    const done = () => {
+      try {
+        performance.mark("ai-assistant:open-end");
+        const m = performance.measure(
+          "ai-assistant:open",
+          "ai-assistant:open-start",
+          "ai-assistant:open-end",
+        );
+        (window as unknown as Record<string, number>).__AI_ASSISTANT_OPEN_MS__ = m.duration;
+      } catch {
+        /* start mark missing — not an open we instrumented */
+      }
+    };
+    const raf2 = requestAnimationFrame(() => requestAnimationFrame(done));
+    return () => cancelAnimationFrame(raf2);
+  }, [open]);
 
   const writeLast = useCallback(
     (full: string) => {
@@ -100,34 +138,40 @@ export function AssistantShell({
   const sendMessage = useCallback(
     async (overrideText?: string) => {
       const text = (overrideText ?? input).trim();
-      if (!text || streaming) return;
+      if (!text || streaming || busyRef.current) return;
       if (overrideText === undefined) setInput("");
+      busyRef.current = true;
 
       const sessionId = maybeRotate();
       appendPair(sessionId, text);
 
       const history = messages;
-      await send(
-        {
-          question: text,
-          history,
-          month: currentMonth,
-          debugMode,
-        },
-        writeLast,
-      ).catch(() => {
-        writeLast("");
-        updateSession(activeIdRef.current, (s) => {
-          const next = [...s.messages];
-          if (next.length === 0) return s;
-          next[next.length - 1] = {
-            ...next[next.length - 1],
-            text: "No pude procesar tu consulta. Probá de nuevo.",
-            error: true,
-          };
-          return { ...s, messages: next };
+      try {
+        await send(
+          {
+            question: text,
+            history,
+            month: currentMonth,
+            debugMode,
+            context: buildContext ? buildContext() : undefined,
+          },
+          writeLast,
+        ).catch(() => {
+          writeLast("");
+          updateSession(activeIdRef.current, (s) => {
+            const next = [...s.messages];
+            if (next.length === 0) return s;
+            next[next.length - 1] = {
+              ...next[next.length - 1],
+              text: "No pude procesar la consulta. Probá de nuevo.",
+              error: true,
+            };
+            return { ...s, messages: next };
+          });
         });
-      });
+      } finally {
+        busyRef.current = false;
+      }
     },
     [
       input,
@@ -140,6 +184,7 @@ export function AssistantShell({
       updateSession,
       debugMode,
       currentMonth,
+      buildContext,
     ],
   );
 
@@ -148,7 +193,10 @@ export function AssistantShell({
     if (!slot || streaming) return;
     const sessionId = maybeRotate();
     appendPair(sessionId, slot.prompt);
-    void slot.run().then(writeLast).catch(() => writeLast(""));
+    void slot
+      .run()
+      .then(writeLast)
+      .catch(() => writeLast(""));
   }, [config.analyzeSlot, streaming, maybeRotate, appendPair, writeLast]);
 
   /**
@@ -239,11 +287,7 @@ export function AssistantShell({
                   disabled={summarizing}
                   className="gnome-btn-secondary-round text-sm"
                 >
-                  {summarizing ? (
-                    <span className="animate-spin inline-block">↻</span>
-                  ) : (
-                    "Resumir"
-                  )}
+                  {summarizing ? <span className="animate-spin inline-block">↻</span> : "Resumir"}
                 </button>
               )}
               {isLocalhost && (
@@ -376,9 +420,7 @@ export function AssistantShell({
                     <Bubble
                       key={`${activeId}-${i}`}
                       msg={msg}
-                      streaming={
-                        streaming && i === messages.length - 1 && msg.role === "assistant"
-                      }
+                      streaming={streaming && i === messages.length - 1 && msg.role === "assistant"}
                     />
                   ))}
 
@@ -465,7 +507,15 @@ export function AssistantShell({
 
                 <button
                   type="submit"
-                  onClick={streaming ? (e) => { e.preventDefault(); cancel(); } : undefined}
+                  onClick={
+                    streaming
+                      ? (e) => {
+                          e.preventDefault();
+                          cancel();
+                          writeLast("Respuesta cancelada.");
+                        }
+                      : undefined
+                  }
                   disabled={!streaming && !input.trim()}
                   aria-label={streaming ? "Cancelar respuesta" : "Enviar mensaje"}
                   className={`flex items-center justify-center w-9 h-9 rounded-full transition-all flex-shrink-0 disabled:opacity-40 ${
@@ -485,13 +535,7 @@ export function AssistantShell({
                       <rect x="6" y="6" width="12" height="12" rx="2.5" />
                     </svg>
                   ) : (
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 16 16"
-                      fill="none"
-                      aria-hidden="true"
-                    >
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                       <path d="M2 8l12-6-3 6 3 6-12-6z" fill="currentColor" />
                     </svg>
                   )}

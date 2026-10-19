@@ -11,7 +11,6 @@ const CONFIG: AssistantConfig = {
   triggerLabel: "Abrir asistente",
   placeholder: "Preguntame...",
   suggestions: [],
-  storage: { sessions: "assistant_sessions", active: "assistant_active" },
   streamUrl: "/api/analysis/stream",
   buildBody: (args) => ({
     month: args.month ?? null,
@@ -23,10 +22,7 @@ const CONFIG: AssistantConfig = {
 };
 
 function sse(...texts: string[]): string[] {
-  return [
-    ...texts.map((t) => `data: ${JSON.stringify({ text: t })}\n\n`),
-    "data: [DONE]\n\n",
-  ];
+  return [...texts.map((t) => `data: ${JSON.stringify({ text: t })}\n\n`), "data: [DONE]\n\n"];
 }
 
 type FetchOpts = { hang?: boolean; signal?: AbortSignal | null };
@@ -42,8 +38,7 @@ function fakeStream(chunks: string[], opts?: FetchOpts): Response {
         read: (): Promise<{ done: boolean; value?: Uint8Array }> => {
           if (opts?.hang) {
             return new Promise((_resolve, reject) => {
-              const onAbort = () =>
-                reject(new DOMException("Aborted", "AbortError"));
+              const onAbort = () => reject(new DOMException("Aborted", "AbortError"));
               if (opts.signal?.aborted) return onAbort();
               opts.signal?.addEventListener("abort", onAbort);
             });
@@ -62,9 +57,7 @@ type RequestRecord = {
   signal: AbortSignal | null | undefined;
 };
 
-function installFetch(
-  build: (record: RequestRecord) => Response | Promise<Response>,
-) {
+function installFetch(build: (record: RequestRecord) => Response | Promise<Response>) {
   const calls: RequestRecord[] = [];
   const fn = vi.fn(async (url: string, init: RequestInit) => {
     const record: RequestRecord = {
@@ -156,7 +149,7 @@ describe("useAssistantChat", () => {
   });
 
   it("surfaces an HTTP error", async () => {
-    installFetch(() => ({ ok: false, status: 500 } as Response));
+    installFetch(() => ({ ok: false, status: 500 }) as Response);
 
     const { result } = renderHook(() => useAssistantChat(CONFIG));
     await act(async () => {
@@ -170,9 +163,7 @@ describe("useAssistantChat", () => {
   it("retry re-sends the original prompt text, not cleared input", async () => {
     let mode: "ok" | "fail" = "fail";
     const { calls } = installFetch(() =>
-      mode === "fail"
-        ? ({ ok: false, status: 500 } as Response)
-        : fakeStream(sse("recuperado")),
+      mode === "fail" ? ({ ok: false, status: 500 } as Response) : fakeStream(sse("recuperado")),
     );
 
     const { result } = renderHook(() => useAssistantChat(CONFIG));
@@ -192,9 +183,7 @@ describe("useAssistantChat", () => {
   it("sends a sentinel-shaped prompt verbatim — routing it elsewhere is the consumer's job", async () => {
     let mode: "ok" | "fail" = "fail";
     const { calls } = installFetch(() =>
-      mode === "fail"
-        ? ({ ok: false, status: 500 } as Response)
-        : fakeStream(sse("listo")),
+      mode === "fail" ? ({ ok: false, status: 500 } as Response) : fakeStream(sse("listo")),
     );
 
     const { result } = renderHook(() => useAssistantChat(CONFIG));

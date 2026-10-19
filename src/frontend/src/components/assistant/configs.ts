@@ -43,10 +43,6 @@ const SPENDING_CONFIG: AssistantConfig = {
     "¿Dónde puedo recortar?",
     "¿Cómo voy contra el presupuesto?",
   ],
-  storage: {
-    sessions: "ai_assistant_sessions",
-    active: "ai_assistant_active",
-  },
   streamUrl: "/api/analysis/stream",
   buildBody: (args: StreamArgs) => ({
     month: args.month ?? null,
@@ -73,10 +69,6 @@ const INVESTMENTS_CONFIG: AssistantConfig = {
     "¿Dónde estoy más expuesto?",
     "Compará mis rendimientos",
   ],
-  storage: {
-    sessions: "inv_assistant_sessions",
-    active: "inv_assistant_active",
-  },
   streamUrl: "/api/investments/chat/stream",
   buildBody: (args: StreamArgs) => ({
     question: args.question,

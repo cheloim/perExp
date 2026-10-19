@@ -97,6 +97,12 @@ export async function seedAuth(
       // seeded history is never displayed.
       if (activeId) window.localStorage.setItem("ai_assistant_active", activeId);
       else window.localStorage.removeItem("ai_assistant_active");
+      // The unification merged the two per-domain stores into one shared thread
+      // (`assistant_*`). Clear it too: pages in one context share localStorage,
+      // so a previous measure() run would otherwise leak its session and active
+      // id, and the next run would append into that thread instead of its own.
+      window.localStorage.removeItem("assistant_sessions");
+      window.localStorage.removeItem("assistant_active");
       window.localStorage.setItem("whats_new_dont_remind_version", "999.0.0");
     },
     {

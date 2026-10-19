@@ -1,0 +1,145 @@
+import { useQuery } from "@tanstack/react-query";
+import { getInvestments } from "../../api/client";
+import type { Investment } from "../../types";
+import { AssistantShell } from "./AssistantShell";
+import { ASSISTANT_CONFIGS } from "./configs";
+import { domainOf } from "./domainOf";
+import { useAssistantSessions } from "./useAssistantSessions";
+import { SHARED_STORAGE } from "./types";
+import type { AssistantDomain } from "./types";
+
+export const DRAWER_OPEN_KEY = "ai_drawer_open";
+
+export function readDrawerOpen(): boolean {
+  try {
+    return localStorage.getItem(DRAWER_OPEN_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+export function persistDrawerOpen(open: boolean): void {
+  try {
+    localStorage.setItem(DRAWER_OPEN_KEY, open ? "true" : "false");
+  } catch {
+    /* ignore */
+  }
+}
+
+function fmt(n: number): string {
+  return n.toLocaleString("es-AR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+/** Portfolio snapshot handed to the investments endpoint as `context`. */
+export function buildPortfolioContext(investments: Investment[]): string {
+  if (!investments.length) return "";
+  const ars = investments.filter((i) => i.currency === "ARS");
+  const usd = investments.filter((i) => i.currency === "USD");
+  const arsV = ars.reduce((s, i) => s + (i.current_value ?? i.cost_basis), 0);
+  const usdV = usd.reduce((s, i) => s + (i.current_value ?? i.cost_basis), 0);
+  const arsC = ars.reduce((s, i) => s + i.cost_basis, 0);
+  const usdC = usd.reduce((s, i) => s + i.cost_basis, 0);
+  const sym = (c?: string) => (c === "USD" ? "u$s" : "$");
+  const lines = [
+    "=== CARTERA ACTUAL ===",
+    `ARS: $${fmt(arsV)} (costo $${fmt(arsC)}, P&L $${fmt(arsV - arsC)})`,
+    `USD: u$s${fmt(usdV)} (costo u$s${fmt(usdC)}, P&L u$s${fmt(usdV - usdC)})`,
+    "POSICIONES:",
+    ...investments.map((inv) => {
+      const v = inv.current_value ?? inv.cost_basis;
+      const pnl =
+        inv.pnl !== null
+          ? ` P&L ${sym(inv.currency)}${fmt(inv.pnl)}${
+              inv.pnl_pct !== null
+                ? ` (${inv.pnl_pct >= 0 ? "+" : ""}${inv.pnl_pct.toFixed(2)}%)`
+                : ""
+            }`
+          : "";
+      const price =
+        inv.current_price !== null ? sym(inv.currency) + fmt(inv.current_price) : "sin precio";
+      return `- [${inv.ticker || inv.name}] ${inv.type} ${inv.broker} ${
+        inv.quantity
+      }u avg ${sym(inv.currency)}${fmt(inv.avg_cost)} actual ${price} valor ${sym(
+        inv.currency,
+      )}${fmt(v)}${pnl}`;
+    }),
+    "=== FIN CARTERA ===",
+  ];
+  return lines.join("\n");
+}
+
+/**
+ * The one assistant. Chrome and endpoint follow the domain of the last message,
+ * so a thread can cross between spending and investments without restarting and
+ * without the window changing personality when the route changes.
+ */
+export default function Assistant({
+  open,
+  onToggle,
+  initialDomain,
+  showTrigger = false,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  initialDomain: AssistantDomain;
+  /** Whether this surface owns the floating trigger (route decides; the config styles it). */
+  showTrigger?: boolean;
+}) {
+  // The migration runs inside `useAssistantSessions` before the first read.
+  const { activeSession } = useAssistantSessions(
+    SHARED_STORAGE,
+    ASSISTANT_CONFIGS.spending.rotateAfterIdleMinutes,
+  );
+  const domain = domainOf(activeSession, initialDomain);
+  const config = ASSISTANT_CONFIGS[domain];
+
+  // The investments endpoint wants a portfolio snapshot the spending endpoint
+  // ignores. Always computed; `buildPortfolioContext` returns "" when empty.
+  const { data: investments } = useQuery<Investment[]>({
+    queryKey: ["investments"],
+    queryFn: () => getInvestments(),
+  });
+
+  const handleToggle = () => {
+    persistDrawerOpen(!open);
+    onToggle();
+  };
+
+  return (
+    <>
+      {showTrigger && !open && (
+        <button
+          onClick={handleToggle}
+          title={config.triggerLabel}
+          aria-label={config.triggerLabel}
+          className="fixed right-4 bottom-[calc(3.5rem+var(--browser-bottom-inset,0px))] md:bottom-6 z-50 w-10 h-10 bg-[var(--color-primary)] hover:brightness-110 rounded-full shadow-lg flex items-center justify-center text-[var(--color-on-primary)] transition-all duration-200"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <line x1="18" y1="20" x2="18" y2="10" />
+            <line x1="12" y1="20" x2="12" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="14" />
+          </svg>
+        </button>
+      )}
+      <AssistantShell
+        config={config}
+        open={open}
+        onToggle={handleToggle}
+        buildContext={() => buildPortfolioContext(investments ?? [])}
+      />
+    </>
+  );
+}

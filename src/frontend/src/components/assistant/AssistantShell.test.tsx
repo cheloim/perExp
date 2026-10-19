@@ -2,13 +2,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { AssistantShell } from "./AssistantShell";
 import { ASSISTANT_CONFIGS } from "./configs";
+import { SHARED_STORAGE } from "./types";
 import type { AssistantConfig, Message, Session } from "./types";
 
 function sse(...texts: string[]): string[] {
-  return [
-    ...texts.map((t) => `data: ${JSON.stringify({ text: t })}\n\n`),
-    "data: [DONE]\n\n",
-  ];
+  return [...texts.map((t) => `data: ${JSON.stringify({ text: t })}\n\n`), "data: [DONE]\n\n"];
 }
 
 function fakeStream(chunks: string[]): Response {
@@ -35,11 +33,8 @@ function seed(messages: Message[]): void {
     lastMessageTs: Date.now(),
     messages,
   };
-  localStorage.setItem(
-    ASSISTANT_CONFIGS.spending.storage.sessions,
-    JSON.stringify([session]),
-  );
-  localStorage.setItem(ASSISTANT_CONFIGS.spending.storage.active, "s1");
+  localStorage.setItem(SHARED_STORAGE.sessions, JSON.stringify([session]));
+  localStorage.setItem(SHARED_STORAGE.active, "s1");
 }
 
 describe("AssistantShell", () => {
@@ -118,30 +113,16 @@ describe("AssistantShell", () => {
     });
     fireEvent.submit(screen.getByRole("textbox").closest("form")!);
 
-    await waitFor(() =>
-      expect(screen.getByText("respuesta")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("respuesta")).toBeInTheDocument());
     expect(screen.getByText("respuesta previa")).toBeInTheDocument();
   });
 
   it("shows the analyze slot only when config.analyzeSlot is present", () => {
-    const { rerender } = render(
-      <AssistantShell config={spending} open onToggle={() => {}} />,
-    );
-    expect(
-      screen.getByRole("button", { name: "✨ Analizar gastos del mes" }),
-    ).toBeInTheDocument();
+    const { rerender } = render(<AssistantShell config={spending} open onToggle={() => {}} />);
+    expect(screen.getByRole("button", { name: "✨ Analizar gastos del mes" })).toBeInTheDocument();
 
-    rerender(
-      <AssistantShell
-        config={ASSISTANT_CONFIGS.investments}
-        open
-        onToggle={() => {}}
-      />,
-    );
-    expect(
-      screen.queryByRole("button", { name: "✨ Analizar gastos del mes" }),
-    ).toBeNull();
+    rerender(<AssistantShell config={ASSISTANT_CONFIGS.investments} open onToggle={() => {}} />);
+    expect(screen.queryByRole("button", { name: "✨ Analizar gastos del mes" })).toBeNull();
   });
 
   it("renders nothing when closed", () => {
