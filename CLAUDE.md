@@ -75,3 +75,11 @@ Follow the rules in `.sdd/guides/ai-agent-guide.md`:
 - **Bots**: Telegram + WhatsApp integration
 - **Deployment**: Podman Compose
 - **Specs**: OpenAPI + feature specs in `docs/specs/`
+
+## Agentes en paralelo
+
+Cuando un trabajo se divide entre varios agentes, coordinar según `AGENTS.md`: clasificar
+por archivos (disjuntos → paralelo; solapados → ramas separadas más rama de integración;
+dependientes → en orden), un agente = un worktree + una rama, declarar en el brief el
+estado global compartido (Postgres de tests, `node_modules`, containers), y correr la
+verificación completa una sola vez sobre la integración.
