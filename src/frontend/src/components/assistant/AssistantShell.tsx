@@ -429,7 +429,7 @@ export function AssistantShell({
                 }`}
                 aria-pressed={showHistory}
               >
-                Historial{" "}
+                Conversaciones{" "}
                 {sessions.filter((s) => s.id !== activeId).length > 0 && (
                   <span className="ml-1 opacity-70">
                     ({sessions.filter((s) => s.id !== activeId).length})
@@ -448,7 +448,9 @@ export function AssistantShell({
             {showHistory ? (
               <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
                 {sessions.length === 0 ? (
-                  <p className="text-sm text-secondary text-center py-8">Sin historial aún</p>
+                  <p className="text-sm text-secondary text-center py-8">
+                    No hay conversaciones anteriores
+                  </p>
                 ) : (
                   [...sessions]
                     .reverse()

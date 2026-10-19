@@ -324,7 +324,7 @@ describe("AssistantShell", () => {
   });
 
   it("deleting a session asks for one confirmation, not two", () => {
-    // Two sessions so the target shows up in Historial (the active one is hidden).
+    // Two sessions so the target shows up in Conversaciones (the active one is hidden).
     const old: Session = {
       id: "old",
       ts: Date.now() - 60_000,
@@ -343,7 +343,7 @@ describe("AssistantShell", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /^Historial/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Conversaciones/ }));
     fireEvent.click(screen.getByText("gasto viejo")); // expand the card
     fireEvent.click(screen.getByRole("button", { name: "Eliminar sesión" }));
 
