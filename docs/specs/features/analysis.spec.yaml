@@ -5,7 +5,7 @@ version: "1.0.0"
 status: implemented
 owner: full-stack
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-10-19
 github_issue: null
 
 description: >
@@ -26,6 +26,8 @@ pre_evaluation:
       answer: "Gemini Flash via Google AI API"
     - question: "Is conversation context maintained between queries?"
       answer: "No, each analysis is stateless; history is for reference only"
+    - question: "Is the spending assistant still a standalone component?"
+      answer: "No. Since 2026-10-19 both assistants share one AssistantShell plus an AssistantConfig; see docs/Asistente-IA-Unificacion.md"
     - question: "What data is sent to the LLM?"
       answer: "A summary of user expenses (amounts, categories, dates) — no PII beyond first name"
 

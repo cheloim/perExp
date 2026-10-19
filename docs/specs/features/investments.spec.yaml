@@ -5,7 +5,7 @@ version: "1.0.0"
 status: implemented
 owner: full-stack
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-10-19
 github_issue: null
 
 description: >
@@ -28,6 +28,8 @@ pre_evaluation:
       answer: "Every 15 minutes during trading hours (9:30-17:00 ART), scheduled via APScheduler"
     - question: "Can users add investments manually?"
       answer: "Yes, manual entry is supported alongside broker sync"
+    - question: "Is the investments chat a standalone component?"
+      answer: "No. Since 2026-10-19 both assistants share one AssistantShell plus an AssistantConfig; see docs/Asistente-IA-Unificacion.md"
 
 users:
   - role: "authenticated_user"

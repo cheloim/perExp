@@ -1,8 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import useSeoMeta from "./hooks/useSeoMeta";
-import AIAssistant from "./components/AIAssistant";
-import InvestmentsAssistant from "./components/InvestmentsAssistant";
+import Assistant from "./components/assistant/Assistant";
 import UserPanel from "./components/UserPanel";
 import NotificationsPanel from "./components/NotificationsPanel";
 import { UploadProgressProvider } from "./context/UploadProgressContext";
@@ -378,6 +377,9 @@ function MainLayout() {
   }, []);
 
   const toggleDrawer = (open: boolean) => {
+    // Open-time instrumentation; AssistantShell closes the measurement on the
+    // first painted frame and publishes window.__AI_ASSISTANT_OPEN_MS__.
+    if (open) performance.mark("ai-assistant:open-start");
     // Paired with the "ai-assistant:open-end" mark in AIAssistant; together they
     // produce the "ai-assistant:open" measure the perf budget asserts against.
     if (open) {
@@ -570,10 +572,12 @@ function MainLayout() {
             onOpenNewExpense={() => setNewExpenseOpen(true)}
           />
 
-          {!isInvestments && (
-            <AIAssistant open={aiDrawerOpen} onToggle={() => toggleDrawer(!aiDrawerOpen)} />
-          )}
-          {isInvestments && <InvestmentsAssistant />}
+          <Assistant
+            open={aiDrawerOpen}
+            onToggle={() => toggleDrawer(!aiDrawerOpen)}
+            initialDomain={isInvestments ? "investments" : "spending"}
+            showTrigger={isInvestments}
+          />
         </div>
 
         <UserPanel open={userPanelOpen} onClose={() => setUserPanelOpen(false)} />
