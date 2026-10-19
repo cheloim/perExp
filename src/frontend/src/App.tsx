@@ -82,6 +82,15 @@ function getInitialDrawerState(): boolean {
   }
 }
 
+/** Single writer for the drawer flag — every close path must go through this. */
+function persistDrawerState(open: boolean) {
+  try {
+    localStorage.setItem(AI_DRAWER_STATE_KEY, JSON.stringify(open));
+  } catch {
+    /* ignore */
+  }
+}
+
 function RequireAuth({ children }: { children: React.ReactNode }) {
   if (!getStoredToken()) return <Navigate to="/login" replace />;
   return <>{children}</>;
@@ -317,7 +326,11 @@ function MainLayout() {
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (aiDrawerOpen) setAiDrawerOpen(false);
+        if (aiDrawerOpen) {
+          setAiDrawerOpen(false);
+          // Mirror toggleDrawer: without this the drawer reopens on reload.
+          persistDrawerState(false);
+        }
         if (userPanelOpen) setUserPanelOpen(false);
         if (notifOpen) setNotifOpen(false);
       }
@@ -365,12 +378,17 @@ function MainLayout() {
   }, []);
 
   const toggleDrawer = (open: boolean) => {
-    setAiDrawerOpen(open);
-    try {
-      localStorage.setItem(AI_DRAWER_STATE_KEY, JSON.stringify(open));
-    } catch {
-      // ignore
+    // Paired with the "ai-assistant:open-end" mark in AIAssistant; together they
+    // produce the "ai-assistant:open" measure the perf budget asserts against.
+    if (open) {
+      try {
+        performance.mark("ai-assistant:open-start");
+      } catch {
+        /* performance API unavailable — perf reporting is best-effort */
+      }
     }
+    setAiDrawerOpen(open);
+    persistDrawerState(open);
   };
 
   return (

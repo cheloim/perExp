@@ -81,6 +81,18 @@
   --color-on-sidebar: #3d3846 !important;
   --color-primary: #3584e4 !important;
   --color-on-primary: #ffffff !important;
+  /**
+   * Accessible primary pair.
+   *
+   * `--color-primary` (#3584e4) only reaches 3.76:1 against white, short of
+   * the 4.5:1 WCAG AA floor for body text. These two tokens are the AA-safe
+   * variant: solid buttons take `strong` as background with `on-primary-strong`
+   * as text, and inline text (chips, links) takes `strong` as its colour.
+   * Deliberately separate from the legacy tokens so the 20-odd pre-existing
+   * call sites keep their current look until they are migrated deliberately.
+   */
+  --color-primary-strong: #1c71d8 !important;
+  --color-on-primary-strong: #ffffff !important;
   --color-success: #26a269 !important;
   --color-warning: #e8a100 !important;
   --color-danger: #e01b24 !important;
@@ -200,6 +212,16 @@
   --color-on-sidebar: #ffffff !important;
   --color-primary: #62a0ea !important;
   --color-on-primary: #ffffff !important;
+  /**
+   * Accessible primary pair (dark theme).
+   *
+   * `--color-primary` is a LIGHT blue here, so white text on it is 2.72:1 —
+   * the failure is worse than in light mode. Inverting to dark text restores
+   * 6.27:1, and the same light blue also clears AA as inline text on the dark
+   * surface, so one token covers both usages.
+   */
+  --color-primary-strong: #62a0ea !important;
+  --color-on-primary-strong: #1c1b1f !important;
   --color-success: #33d17a !important;
   --color-warning: #f5c211 !important;
   --color-danger: #ed333b !important;
@@ -856,6 +878,41 @@
     box-shadow: var(--shadow-sm);
   }
   .gnome-btn-primary:disabled {
+    opacity: var(--disabled-opacity);
+    cursor: not-allowed;
+  }
+
+  /**
+   * .gnome-btn-primary, WCAG AA-safe variant.
+   *
+   * `--color-primary` only reaches 3.76:1 with its white foreground, below the
+   * 4.5:1 body-text floor. This variant swaps in the `strong` token pair. Kept
+   * as a separate class on purpose: `.gnome-btn-primary` has 20+ call sites and
+   * changing it in place would repaint the whole app in one PR.
+   */
+  .gnome-btn-primary-strong {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-on-primary-strong);
+    background: var(--color-primary-strong);
+    border-radius: 6px;
+    transition: all 0.15s;
+    box-shadow: var(--shadow-sm);
+    min-height: 44px;
+  }
+  .gnome-btn-primary-strong:hover {
+    filter: brightness(1.1);
+    box-shadow: var(--shadow-md);
+  }
+  .gnome-btn-primary-strong:active {
+    transform: scale(0.98);
+    box-shadow: var(--shadow-sm);
+  }
+  .gnome-btn-primary-strong:disabled {
     opacity: var(--disabled-opacity);
     cursor: not-allowed;
   }

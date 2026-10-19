@@ -1,11 +1,13 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
 import { getDashboardAITrends } from "../api/client";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { formatAIResponse } from "../utils/formatText";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 interface ChatMessage {
   role: "user" | "assistant";
   text: string;
+  error?: boolean;
 }
 
 interface Session {
@@ -18,6 +20,16 @@ interface Session {
 
 const SESSIONS_KEY = "ai_assistant_sessions";
 const ACTIVE_KEY = "ai_assistant_active";
+const MAX_INPUT_LENGTH = 2000;
+/** Sentinel user-prompt posted when the user hits "Analizar gastos del mes". */
+const ANALYZE_PROMPT = "✨ Analizar gastos del mes";
+
+const SUGGESTIONS = [
+  "¿Cuánto llevo gastado este mes?",
+  "Compará con el mes pasado",
+  "¿Dónde puedo recortar?",
+  "¿Cómo voy contra el presupuesto?",
+];
 
 function loadSessions(): Session[] {
   try {
@@ -41,11 +53,12 @@ function newSessionId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-async function streamTo(
+const streamTo = async (
   url: string,
   body: object,
   onChunk: (full: string) => void,
-): Promise<string> {
+  signal?: AbortSignal,
+): Promise<string> => {
   const token = localStorage.getItem("auth_token");
   const resp = await fetch(url, {
     method: "POST",
@@ -54,6 +67,7 @@ async function streamTo(
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(body),
+    signal,
   });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const reader = resp.body!.getReader();
@@ -80,22 +94,7 @@ async function streamTo(
     }
   }
   return full;
-}
-
-function AnalyzeButton({ onClick }: { onClick: () => void }) {
-  return (
-    <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
-      <button
-        onClick={onClick}
-        className="flex items-center gap-2 px-6 py-3 bg-[var(--color-primary)] text-white rounded-full hover:brightness-110 shadow-gnome transition-all font-medium"
-      >
-        <span>✨</span>
-        <span>Analizar gastos del mes</span>
-      </button>
-      <p className="text-xs text-tertiary">Obtené un resumen de tus gastos del mes</p>
-    </div>
-  );
-}
+};
 
 function ThinkingDots() {
   const [d, setD] = useState(".");
@@ -126,18 +125,61 @@ function TrashIcon() {
   );
 }
 
+/**
+ * Dev-only render counter for `Bubble`.
+ *
+ * Lets e2e/assistant-perf.spec.ts assert that a streaming chunk renders ONE
+ * bubble instead of all of them — a deterministic count rather than a timing
+ * assertion, which would just flake in CI. `import.meta.env.DEV` is statically
+ * false in a production build, so this compiles away and never ships.
+ */
+const countBubbleRender = () => {
+  if (!import.meta.env.DEV) return;
+  const w = window as unknown as { __BUBBLE_RENDERS__?: number };
+  w.__BUBBLE_RENDERS__ = (w.__BUBBLE_RENDERS__ ?? 0) + 1;
+};
+
+/**
+ * One chat bubble. Memoized so that a streaming update to the LAST message
+ * does not re-run formatAIResponse on every message already on screen.
+ *
+ * The memo is effective because the streaming reducer copies the array but
+ * keeps the untouched message objects identical (`u = [...prev]` then replaces
+ * only the tail), so `msg` and `streaming` both compare equal for every bubble
+ * except the one receiving the chunk. e2e/assistant-perf.spec.ts asserts the
+ * resulting call count stays flat as history grows.
+ */
+const Bubble = memo(({ msg, streaming }: { msg: ChatMessage; streaming: boolean }) => {
+  countBubbleRender();
+  return (
+    <div className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+      <div
+        className={`max-w-[85%] px-4 py-3 rounded-xl text-sm leading-relaxed whitespace-pre-wrap ${
+          msg.role === "user"
+            ? "bg-[var(--color-primary-strong)] text-[var(--color-on-primary-strong)] rounded-br-sm"
+            : msg.error
+              ? "bg-danger/10 border border-danger/30 text-danger rounded-bl-sm"
+              : "bg-[var(--color-base-alt)] text-[var(--text-primary)] rounded-bl-sm"
+        }`}
+      >
+        {msg.role === "assistant" && msg.text && !msg.error
+          ? formatAIResponse(msg.text)
+          : msg.text || (streaming ? <ThinkingDots /> : "")}
+      </div>
+    </div>
+  );
+});
+
 function SessionCard({
   session,
   expanded,
   onToggle,
   onDelete,
-  isActive,
 }: {
   session: Session;
   expanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
-  isActive: boolean;
 }) {
   const userMsgs = session.messages.filter((m) => m.role === "user");
   const preview = userMsgs[0]?.text ?? "(sin mensajes)";
@@ -152,16 +194,11 @@ function SessionCard({
   return (
     <div
       className={`rounded-md border overflow-hidden relative ${
-        isActive
+        expanded
           ? "border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5"
           : "border-[var(--border-color)] bg-[var(--color-base-alt)]"
       }`}
     >
-      {isActive && (
-        <span className="absolute top-1.5 right-7 text-[9px] font-bold px-1.5 py-0.5 bg-[var(--color-primary)] text-white rounded-full z-10">
-          activa
-        </span>
-      )}
       <div
         className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-[var(--color-base-alt)]/80 transition-colors"
         onClick={onToggle}
@@ -234,7 +271,7 @@ function SessionCard({
   );
 }
 
-export default function AIAssistant({ open }: { open: boolean; onToggle?: () => void }) {
+export default function AIAssistant({ open, onToggle }: { open: boolean; onToggle?: () => void }) {
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
@@ -255,25 +292,38 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
   const [showHistory, setShowHistory] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [debugMode, setDebugMode] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(true);
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  // When the assistant is opened externally (via FAB / speed-dial),
-  // expand the panel directly instead of showing the collapsed bubble.
-  useEffect(() => {
-    if (open) setIsCollapsed(false);
-  }, [open]);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const isLocalhost =
     window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  // Escape is owned by the global handler in App.tsx; the trap only manages Tab.
+  const trapRef = useFocusTrap(open);
 
   const activeSession = sessions.find((s) => s.id === activeId);
   const messages = useMemo(() => activeSession?.messages ?? [], [activeSession]);
+  const lastMessage = messages[messages.length - 1];
+  const hasError = !!lastMessage?.error;
+
+  // Auto-grow the textarea, capped so the composer never eats the thread.
+  const resizeTextarea = useCallback(() => {
+    const ta = inputRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = `${Math.min(ta.scrollHeight, 120)}px`;
+  }, []);
+
+  useEffect(() => {
+    resizeTextarea();
+  }, [input, resizeTextarea]);
+
+  // Abort any in-flight stream when the assistant closes or unmounts.
+  useEffect(() => {
+    return () => abortRef.current?.abort();
+  }, []);
 
   // Handle keyboard visibility on mobile
   useEffect(() => {
@@ -281,9 +331,8 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
     if (!vp) return;
 
     const update = () => {
-      if (panelRef.current && window.innerWidth < 640) {
-        panelRef.current.style.height = `${vp.height}px`;
-        panelRef.current.style.top = `${vp.offsetTop}px`;
+      if (trapRef.current && window.innerWidth < 640) {
+        trapRef.current.style.top = `${vp.offsetTop}px`;
       }
     };
 
@@ -293,7 +342,7 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
       vp.removeEventListener("resize", update);
       vp.removeEventListener("scroll", update);
     };
-  }, []);
+  }, [trapRef]);
 
   const updateSession = useCallback((id: string, updater: (s: Session) => Session) => {
     setSessions((prev) => {
@@ -332,22 +381,31 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-  useEffect(() => {
-    if (!isCollapsed) setTimeout(() => inputRef.current?.focus(), 100);
-  }, [isCollapsed]);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      if (isExpanded) {
-        setIsExpanded(false);
-      } else if (!isCollapsed) {
-        setIsCollapsed(true);
-      }
+    if (open) setTimeout(() => inputRef.current?.focus(), 100);
+  }, [open]);
+
+  /**
+   * Open-time instrumentation (issue #415 asks for a measurable number).
+   *
+   * `ai-assistant:open-start` is marked in the click handler's render pass;
+   * `ai-assistant:open-end` fires on the first paint after the card is in the
+   * DOM. The resulting `ai-assistant:open` measure is what the e2e perf budget
+   * asserts against and what the perf doc reports.
+   */
+  useEffect(() => {
+    if (!open) return;
+    const done = () => {
+      performance.mark("ai-assistant:open-end");
+      const entries = performance.measure("ai-assistant:open", "ai-assistant:open-start");
+      // Surfaced on window so the e2e perf spec can read the real number.
+      (window as unknown as Record<string, unknown>).__AI_ASSISTANT_OPEN_MS__ = entries.duration;
     };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isCollapsed, isExpanded]);
+    // Double rAF: the first frame commits the DOM, the second confirms paint.
+    const raf2 = requestAnimationFrame(() => requestAnimationFrame(done));
+    return () => cancelAnimationFrame(raf2);
+  }, [open]);
 
   useEffect(() => {
     const checkInactivity = () => {
@@ -376,12 +434,28 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
     return () => clearInterval(interval);
   }, [sessions, activeId, summarizeSession]);
 
-  const sendMessage = async () => {
-    const text = input.trim();
+  const stopStreaming = () => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setStreaming(false);
+    setMessages((prev) => {
+      const u = [...prev];
+      const last = u[u.length - 1];
+      if (last?.role === "assistant" && !last.text) {
+        u[u.length - 1] = { role: "assistant", text: "Respuesta cancelada." };
+      }
+      return u;
+    });
+  };
+
+  const sendMessage = async (overrideText?: string) => {
+    const text = (overrideText ?? input).trim();
     if (!text || streaming) return;
-    setInput("");
+    if (overrideText === undefined) setInput("");
     setMessages((prev) => [...prev, { role: "user", text }, { role: "assistant", text: "" }]);
     setStreaming(true);
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
       await streamTo(
         "/api/analysis/stream",
@@ -392,31 +466,55 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
             u[u.length - 1] = { role: "assistant", text: full };
             return u;
           }),
+        controller.signal,
       );
-    } catch {
+    } catch (err) {
+      if ((err as Error)?.name === "AbortError") return;
       setMessages((prev) => {
         const u = [...prev];
         u[u.length - 1] = {
           role: "assistant",
-          text: "Error al procesar la consulta.",
+          text: "No pude procesar la consulta. Revisá tu conexión e intentá de nuevo.",
+          error: true,
         };
         return u;
       });
     } finally {
+      abortRef.current = null;
       setStreaming(false);
     }
+  };
+
+  /**
+   * Re-run the last user prompt. Pops the failed assistant bubble AND the
+   * user message that produced it so sendMessage can re-append both — otherwise
+   * the retry would duplicate the user bubble.
+   */
+  const retryLastMessage = () => {
+    const lastUserIdx = messages.map((m) => m.role).lastIndexOf("user");
+    if (lastUserIdx === -1) return;
+    const text = messages[lastUserIdx].text;
+    setMessages((prev) => prev.slice(0, lastUserIdx));
+    // The month-analysis button posts a sentinel prompt; retry must re-run it
+    // rather than shipping the sentinel text to the LLM.
+    if (text === ANALYZE_PROMPT) void analyzeMonth();
+    else void sendMessage(text);
   };
 
   const analyzeMonth = async () => {
     if (streaming) return;
     setMessages((prev) => [
       ...prev,
-      { role: "user", text: "✨ Analizar gastos del mes" },
+      { role: "user", text: ANALYZE_PROMPT },
       { role: "assistant", text: "" },
     ]);
     setStreaming(true);
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
       const data = await getDashboardAITrends({ month: currentMonth });
+      // No cancelable at the fetch layer; drop the result if the user hit stop.
+      if (controller.signal.aborted) return;
 
       const trendIcon = data.trend === "up" ? "↑" : data.trend === "down" ? "↓" : "→";
       const trendLabel =
@@ -444,11 +542,13 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
         const u = [...prev];
         u[u.length - 1] = {
           role: "assistant",
-          text: `Error al procesar la consulta: ${errorMessage}`,
+          text: `No pude analizar el mes: ${errorMessage}`,
+          error: true,
         };
         return u;
       });
     } finally {
+      abortRef.current = null;
       setStreaming(false);
     }
   };
@@ -468,10 +568,7 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
     setActiveId(id);
     saveActiveId(id);
     setShowHistory(false);
-  };
-
-  const confirmDelete = (id: string) => {
-    setDeleteConfirm(id);
+    setTimeout(() => inputRef.current?.focus(), 0);
   };
 
   const deleteSession = () => {
@@ -509,6 +606,7 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
             strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
+            aria-hidden="true"
           >
             <line x1="18" y1="20" x2="18" y2="10" />
             <line x1="12" y1="20" x2="12" y2="4" />
@@ -516,6 +614,15 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
           </svg>
         </span>
         <span className="text-base font-semibold text-primary">Asistente de Gastos</span>
+        {streaming && (
+          <span className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
+            <span
+              className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"
+              aria-hidden="true"
+            />
+            respondiendo
+          </span>
+        )}
       </div>
       <div className="flex items-center gap-1.5">
         {messages.length > 0 && (
@@ -536,53 +643,16 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
                 : "bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)]"
             }`}
             title={debugMode ? "Debug mode ON" : "Activar debug mode"}
+            aria-pressed={debugMode}
           >
             {debugMode ? "🔓" : "🔒"}
           </button>
         )}
-        {!isExpanded && (
-          <button
-            onClick={() => setIsExpanded(true)}
-            className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)] transition-all"
-            title="Expandir a modal"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
-            </svg>
-          </button>
-        )}
-        {isExpanded && (
-          <button
-            onClick={() => setIsExpanded(false)}
-            className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)] transition-all"
-            title="Contraer"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" />
-            </svg>
-          </button>
-        )}
         <button
-          onClick={() => {
-            setIsCollapsed(true);
-            setIsExpanded(false);
-          }}
+          onClick={() => onToggle?.()}
           className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)] transition-all"
           title="Cerrar"
+          aria-label="Cerrar asistente"
         >
           <svg
             width="16"
@@ -591,6 +661,7 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
+            aria-hidden="true"
           >
             <path d="M18 6L6 18M6 6l12 12" />
           </svg>
@@ -606,9 +677,10 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
           onClick={() => setShowHistory(false)}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
             !showHistory
-              ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
+              ? "bg-[var(--color-primary-strong)] text-[var(--color-on-primary-strong)]"
               : "bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)]"
           }`}
+          aria-pressed={!showHistory}
         >
           Chat
         </button>
@@ -616,9 +688,10 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
           onClick={() => setShowHistory(true)}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
             showHistory
-              ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
+              ? "bg-[var(--color-primary-strong)] text-[var(--color-on-primary-strong)]"
               : "bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)]"
           }`}
+          aria-pressed={showHistory}
         >
           Historial{" "}
           {sessions.filter((s) => s.id !== activeId).length > 0 && (
@@ -638,6 +711,7 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
             stroke="currentColor"
             strokeWidth="2"
             strokeLinecap="round"
+            aria-hidden="true"
           >
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
@@ -662,8 +736,7 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
               session={s}
               expanded={expandedId === s.id}
               onToggle={() => setExpandedId(expandedId === s.id ? null : s.id)}
-              onDelete={() => confirmDelete(s.id)}
-              isActive={false}
+              onDelete={() => setDeleteConfirm(s.id)}
             />
           ))
       )}
@@ -671,8 +744,37 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
   );
 
   const messageListJsx = (
+    // Single scroll container for the thread — the render wrapper below must NOT
+    // also scroll or we get two nested scrollers fighting over the same space.
     <div className="flex-1 flex flex-col px-5 py-4 space-y-3 min-h-0 overflow-y-auto">
-      {messages.length === 0 && !streaming && <AnalyzeButton onClick={analyzeMonth} />}
+      {/* ── Idle: prominent suggestions before the user has asked anything ── */}
+      {messages.length === 0 && !streaming && (
+        <div className="flex-1 flex flex-col justify-center items-start gap-4 py-6">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1">
+              Empezá por acá
+            </p>
+            <div className="flex flex-col gap-2">
+              {SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => {
+                    setInput(s);
+                    inputRef.current?.focus();
+                  }}
+                  className="text-left text-sm px-3.5 py-2.5 rounded-xl bg-[var(--color-primary-strong)]/8 hover:bg-[var(--color-primary-strong)]/15 text-[var(--color-primary-strong)] transition-colors"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button onClick={analyzeMonth} className="gnome-btn-primary-strong text-sm">
+            ✨ Analizar gastos del mes
+          </button>
+        </div>
+      )}
+
       {messages.length === 0 && streaming && (
         <div className="flex flex-col items-center justify-center h-full text-center space-y-2">
           <svg
@@ -681,6 +783,7 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
             viewBox="0 0 24 24"
             fill="none"
             className="text-[var(--text-tertiary)]"
+            aria-hidden="true"
           >
             <path
               d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z"
@@ -697,39 +800,61 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
           </p>
         </div>
       )}
-      <div className="flex-1 space-y-3 overflow-y-auto min-h-0">
+
+      {/* Inner list is NOT a scroll container; messageListJsx owns scrolling. */}
+      <div className="space-y-3">
         {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div
-              className={`max-w-[85%] px-4 py-3 rounded-lg text-sm leading-relaxed ${
-                msg.role === "user"
-                  ? "bg-[var(--color-primary)] text-white rounded-br-lg"
-                  : "bg-[var(--color-base-alt)] text-[var(--text-primary)] rounded-bl-lg"
-              }`}
-            >
-              {msg.role === "assistant" && msg.text
-                ? formatAIResponse(msg.text)
-                : msg.text ||
-                  (streaming && i === messages.length - 1 && msg.role === "assistant" ? (
-                    <ThinkingDots />
-                  ) : (
-                    ""
-                  ))}
-            </div>
-          </div>
+          <Bubble
+            key={`${activeId}-${i}`}
+            msg={msg}
+            streaming={streaming && i === messages.length - 1 && msg.role === "assistant"}
+          />
         ))}
-        {streaming && (
-          <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)] pl-2">
-            <span className="animate-pulse">●</span>
-            <span>Analizando...</span>
+
+        {/* ── Error: retry affordance ── */}
+        {hasError && !streaming && (
+          <div className="flex gap-2 pl-1">
+            <button onClick={() => retryLastMessage()} className="gnome-btn-secondary text-sm">
+              Reintentar
+            </button>
+            <button onClick={startNewSession} className="gnome-btn-secondary text-sm">
+              Nueva consulta
+            </button>
           </div>
         )}
+
+        {/* ── Follow-up suggestions after an answer ── */}
+        {!streaming && !hasError && lastMessage?.role === "assistant" && lastMessage.text && (
+          <div
+            className="flex flex-wrap gap-2 pt-1"
+            role="group"
+            aria-label="Sugerencias de seguimiento"
+          >
+            {[
+              "Compará con el mes pasado",
+              "¿Dónde más puedo recortar?",
+              "Detallame por categoría",
+            ].map((s) => (
+              <button
+                key={s}
+                onClick={() => {
+                  setInput(s);
+                  inputRef.current?.focus();
+                }}
+                className="text-xs px-2.5 py-1.5 rounded-full border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition-colors"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div ref={chatEndRef} />
       </div>
     </div>
   );
 
-  const inputBarJsx = (iRef: React.RefObject<HTMLInputElement>) => (
+  const inputBarJsx = (
     <div className="px-4 py-3 border-t border-[var(--border-color)] flex-shrink-0 bg-[var(--color-surface)]">
       {activeSession?.summary && (
         <div className="mb-2 px-3 py-2 bg-[var(--color-primary)]/10 border border-[var(--border-color)] rounded-lg">
@@ -741,85 +866,107 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
           </p>
         </div>
       )}
-      <div className="flex items-center gap-2">
-        <input
-          ref={iRef}
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-          placeholder="Preguntá sobre tus gastos..."
-          disabled={streaming}
-          className="flex-1 input text-sm"
-        />
+
+      <div className="flex items-end gap-2 bg-[var(--color-base-alt)] border border-transparent focus-within:border-[var(--color-primary)] focus-within:bg-[var(--color-surface)] rounded-2xl px-3.5 py-2.5 transition-colors">
+        <div className="flex-1 min-w-0">
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value.slice(0, MAX_INPUT_LENGTH))}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" || e.shiftKey) return;
+              // Guard against IME composition (CJK input)
+              if (e.nativeEvent.isComposing) return;
+              e.preventDefault();
+              sendMessage();
+            }}
+            rows={1}
+            maxLength={MAX_INPUT_LENGTH}
+            aria-label="Preguntá sobre tus gastos"
+            placeholder="Preguntá sobre tus gastos..."
+            className="w-full bg-transparent border-0 outline-none resize-none text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] leading-relaxed py-0.5"
+          />
+          <p className="text-[10px] text-[var(--text-tertiary)] mt-1 hidden sm:block">
+            <kbd className="px-1 py-px rounded bg-[var(--color-base)] border border-[var(--border-color)] text-[var(--text-secondary)]">
+              Enter
+            </kbd>{" "}
+            envía ·{" "}
+            <kbd className="px-1 py-px rounded bg-[var(--color-base)] border border-[var(--border-color)] text-[var(--text-secondary)]">
+              Shift
+            </kbd>
+            +
+            <kbd className="px-1 py-px rounded bg-[var(--color-base)] border border-[var(--border-color)] text-[var(--text-secondary)]">
+              Enter
+            </kbd>{" "}
+            salto de línea
+          </p>
+        </div>
+
         <button
-          onClick={sendMessage}
-          disabled={!input.trim() || streaming}
-          className="flex items-center justify-center w-9 h-9 rounded-full bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 active:scale-95 disabled:opacity-40 transition-all flex-shrink-0"
+          onClick={streaming ? stopStreaming : () => void sendMessage()}
+          disabled={!streaming && !input.trim()}
+          aria-label={streaming ? "Cancelar respuesta" : "Enviar mensaje"}
+          className={`flex items-center justify-center w-9 h-9 rounded-full transition-all flex-shrink-0 disabled:opacity-40 ${
+            streaming
+              ? "bg-danger text-white hover:brightness-110"
+              : "bg-[var(--color-primary-strong)] text-[var(--color-on-primary-strong)] hover:brightness-110 active:scale-95"
+          }`}
         >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-            <path d="M2 8l12-6-3 6 3 6-12-6z" fill="currentColor" />
-          </svg>
+          {streaming ? (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <rect x="6" y="6" width="12" height="12" rx="2.5" />
+            </svg>
+          ) : (
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M2 8l12-6-3 6 3 6-12-6z" fill="currentColor" />
+            </svg>
+          )}
         </button>
+      </div>
+
+      <div className="flex items-center gap-3 mt-1.5 text-[10px] text-[var(--text-tertiary)] px-1">
+        <span role="status" aria-live="polite">
+          {streaming ? "Analizando tus gastos…" : ""}
+        </span>
+        <span className="ml-auto tabular-nums">
+          {input.length} / {MAX_INPUT_LENGTH}
+        </span>
       </div>
     </div>
   );
 
-  // ── Render ────────────────────────────────────────────────────────────────────
+  // ── Render ──────────────────────────────────────────────────────────────────
 
   if (!open) return null;
 
   return (
     <>
-      {/* Floating button - collapsed state */}
-      {isCollapsed && (
-        <button
-          onClick={() => setIsCollapsed(false)}
-          className="fixed right-4 bottom-[calc(3.5rem+var(--browser-bottom-inset,0px))] md:bottom-6 z-50 w-10 h-10 bg-[var(--color-primary)] hover:brightness-110 rounded-full shadow-lg flex items-center justify-center text-[var(--color-on-primary)] transition-all duration-200"
-          title="Abrir Asistente de Gastos"
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-          </svg>
-        </button>
-      )}
-
-      {/* Side panel - floating above content */}
-      {!isCollapsed && !isExpanded && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 animate-modal-backdrop bg-black/60"
+        onClick={() => onToggle?.()}
+      >
         <div
-          ref={panelRef}
-          className="fixed inset-x-0 top-0 sm:inset-auto sm:right-0 sm:top-0 h-full sm:h-full bg-[var(--color-surface)] border-t sm:border-t-0 sm:border-l border-[var(--border-color)] shadow-lg z-50 flex flex-col w-full sm:w-96 overflow-hidden rounded-t-lg sm:rounded-none"
+          ref={trapRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Asistente de Gastos"
+          className="relative flex flex-col bg-[var(--color-surface)] border border-[var(--border-color)] rounded-none sm:rounded-2xl shadow-gnome-lg animate-modal-content w-full h-full sm:w-auto sm:h-auto sm:max-w-2xl sm:max-h-[78vh] sm:min-h-[520px] overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
         >
+          {/* Sheet grip — the GNOME bottom-sheet language the user approved on D3 */}
+          <div className="flex justify-center pt-2.5 pb-1" aria-hidden="true">
+            <span className="w-9 h-1 rounded-full bg-[var(--border-color)]" />
+          </div>
+
           {headerJsx}
           {toolbarJsx}
-          <div className="flex-1 overflow-y-auto min-h-0">
+          {/* Wrapper is a flex column, not a scroller — messageListJsx scrolls. */}
+          <div className="flex-1 flex flex-col min-h-0">
             {showHistory ? historyJsx : messageListJsx}
           </div>
-          {!showHistory && inputBarJsx(inputRef)}
+          {!showHistory && inputBarJsx}
         </div>
-      )}
-
-      {/* Modal overlay - expanded mode, GNOME 50 bottom-sheet on mobile */}
-      {isExpanded && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setIsExpanded(false)} />
-          <div className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-t-lg sm:rounded-lg shadow-xl flex flex-col w-full sm:max-w-2xl max-h-[90dvh] sm:max-h-[85vh] overflow-hidden">
-            {headerJsx}
-            {toolbarJsx}
-            <div className="flex-1 overflow-y-auto min-h-0">
-              {showHistory ? historyJsx : messageListJsx}
-            </div>
-            {!showHistory && inputBarJsx(inputRef)}
-          </div>
-        </div>
-      )}
+      </div>
 
       <ConfirmDialog
         isOpen={deleteConfirm !== null}
