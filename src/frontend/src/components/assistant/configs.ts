@@ -33,6 +33,21 @@ async function runMonthlyAnalysis(): Promise<string> {
   return text;
 }
 
+/**
+ * The thread as conversation turns.
+ *
+ * Strips the per-message `domain` — routing metadata, not content — and drops
+ * error bubbles: a "No pude procesar" placeholder is not a reply, and handing
+ * it back to the model as one teaches it to apologise at random.
+ */
+function wireMessages(
+  history: StreamArgs["history"],
+): { role: "user" | "assistant"; text: string }[] {
+  return history
+    .filter((m) => !m.error && m.text.trim() !== "")
+    .map((m) => ({ role: m.role, text: m.text }));
+}
+
 const SPENDING_CONFIG: AssistantConfig = {
   domain: "spending",
   title: "Asistente de Gastos",
@@ -51,6 +66,7 @@ const SPENDING_CONFIG: AssistantConfig = {
     month: args.month ?? null,
     question: args.question,
     debug_mode: args.debugMode ?? false,
+    messages: wireMessages(args.history),
   }),
   analyzeSlot: {
     label: ANALYZE_PROMPT,
@@ -78,6 +94,7 @@ const INVESTMENTS_CONFIG: AssistantConfig = {
   buildBody: (args: StreamArgs) => ({
     question: args.question,
     context: args.context ?? "",
+    messages: wireMessages(args.history),
   }),
   // No analyze slot: month analysis is a spending feature.
   rotateAfterIdleMinutes: 0,

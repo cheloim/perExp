@@ -4,6 +4,7 @@ import { useFocusTrap } from "../../hooks/useFocusTrap";
 import { Bubble } from "./Bubble";
 import { SessionCard } from "./SessionCard";
 import { domainOf } from "./domainOf";
+import { routeDomain } from "./routeDomain";
 import { useAssistantChat } from "./useAssistantChat";
 import { useAssistantSessions } from "./useAssistantSessions";
 import { useSummarize } from "./useSummarize";
@@ -44,7 +45,7 @@ export function AssistantShell({
   const domain = domainOf(activeSession, initialDomain);
   const config = configs[domain];
 
-  const { streaming, error, send, cancel } = useAssistantChat(config);
+  const { streaming, error, send, cancel } = useAssistantChat();
   const { summarizing, summarize } = useSummarize();
 
   const [input, setInput] = useState("");
@@ -137,18 +138,18 @@ export function AssistantShell({
   );
 
   const appendPair = useCallback(
-    (sessionId: string, text: string) => {
+    (sessionId: string, text: string, domain: AssistantDomain) => {
       updateSession(sessionId, (s) => ({
         ...s,
         lastMessageTs: Date.now(),
         messages: [
           ...s.messages,
-          { role: "user", text, domain: config.domain },
-          { role: "assistant", text: "", domain: config.domain },
+          { role: "user", text, domain },
+          { role: "assistant", text: "", domain },
         ] as Message[],
       }));
     },
-    [updateSession, config.domain],
+    [updateSession],
   );
 
   /**
@@ -180,11 +181,16 @@ export function AssistantShell({
       const previousId = activeIdRef.current;
       const sessionId = maybeRotate(config.rotateAfterIdleMinutes);
       if (sessionId !== previousId) summarizeById(previousId);
-      appendPair(sessionId, text);
+
+      // The words decide which endpoint answers, not the route: a cartera
+      // question asked in a spending thread goes to the investments model.
+      const target = configs[routeDomain(text, config.domain)];
+      appendPair(sessionId, text, target.domain);
 
       const history = messages;
       try {
         await send(
+          target,
           {
             question: text,
             history,
@@ -214,7 +220,8 @@ export function AssistantShell({
       input,
       streaming,
       maybeRotate,
-      config.rotateAfterIdleMinutes,
+      config,
+      configs,
       summarizeById,
       appendPair,
       messages,
@@ -246,7 +253,7 @@ export function AssistantShell({
     const previousId = activeIdRef.current;
     const sessionId = maybeRotate(config.rotateAfterIdleMinutes);
     if (sessionId !== previousId) summarizeById(previousId);
-    appendPair(sessionId, slot.prompt);
+    appendPair(sessionId, slot.prompt, config.domain);
     void slot
       .run()
       .then((full) => writeLast(full))
@@ -268,16 +275,7 @@ export function AssistantShell({
       .finally(() => {
         busyRef.current = false;
       });
-  }, [
-    config.analyzeSlot,
-    config.rotateAfterIdleMinutes,
-    streaming,
-    maybeRotate,
-    summarizeById,
-    appendPair,
-    writeLast,
-    updateSession,
-  ]);
+  }, [config, streaming, maybeRotate, summarizeById, appendPair, writeLast, updateSession]);
 
   /**
    * Re-run the last user prompt. Pops the failed assistant bubble AND the user

@@ -350,6 +350,38 @@ describe("AssistantShell", () => {
     expect(screen.queryByText("¿Eliminar?")).toBeNull();
   });
 
+  it("routes an investments question to the investments endpoint and flips the chrome", async () => {
+    seed([{ role: "user", text: "gasté 100 en el super", domain: "spending" }]);
+    const fetchMock = vi.fn(async () => fakeStream(sse("respuesta de cartera")));
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "¿cómo viene mi cartera?" } });
+    fireEvent.submit(screen.getByRole("textbox").closest("form")!);
+
+    await waitFor(() => expect(screen.getByText("respuesta de cartera")).toBeInTheDocument());
+
+    // The message routes to the investments endpoint — separate model, separate key.
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, { body: string }];
+    expect(url).toBe("/api/investments/chat/stream");
+    // …and the whole thread went with it, not just the question.
+    const body = JSON.parse(init.body);
+    expect(body.question).toBe("¿cómo viene mi cartera?");
+    expect(body.messages).toEqual([{ role: "user", text: "gasté 100 en el super" }]);
+
+    // The chrome follows the message that was actually answered.
+    await waitFor(() =>
+      expect(screen.getByRole("dialog")).toHaveAccessibleName("Asistente de Inversiones"),
+    );
+  });
+
   it("releases the open instrumentation after measuring so it cannot accumulate", async () => {
     performance.clearMarks();
     performance.clearMeasures();

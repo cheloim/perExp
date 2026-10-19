@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Investment, Setting, User
+from app.prompts import INVESTMENTS_SYSTEM_PROMPT
 from app.routers.groups import get_group_user_ids
 from app.schemas import InvestmentCreate
 from app.services.auth import get_current_user
@@ -1038,19 +1039,8 @@ def delete_manual_cash_balance(
 
 
 # ─── Investments Chat ─────────────────────────────────────────────────────────
-
-INVESTMENTS_SYSTEM_PROMPT = """Sos un asistente financiero especializado exclusivamente en inversiones, tanto del mercado argentino como de la bolsa de Estados Unidos.
-Tu único rol es ayudar al usuario a entender su cartera, analizar activos, interpretar rendimientos y tomar mejores decisiones de inversión.
-Conocés en profundidad:
-- Mercado argentino: BYMA, Merval, bonos soberanos, ONs, FCI, cauciones, tipo de cambio, inflación y macroeconomía local.
-- CEDEARs: instrumentos que replican acciones y ETFs del exterior operados en pesos en Argentina — entendés su relación con el CCL, el ratio de conversión y cómo seguir el subyacente en NYSE/NASDAQ.
-- Bolsa de EE.UU.: NYSE, NASDAQ, S&P 500, acciones, ETFs, opciones, bonos del Tesoro, REITs, política de la Fed y macroeconomía global.
-
-RESTRICCIONES ESTRICTAS:
-- Solo respondés preguntas relacionadas con inversiones, mercados financieros, activos, carteras o economía.
-- Si el usuario pregunta sobre cualquier otro tema (gastos, tecnología, recetas, etc.), respondés exactamente: "Solo puedo ayudarte con temas de inversiones y mercados financieros."
-- Nunca das asesoramiento financiero formal ni garantizás rendimientos — aclarás cuando corresponde.
-- Respondés en español, de forma clara, concisa y profesional."""
+# The system prompt lives in app.prompts, beside ANALYSIS_SYSTEM_PROMPT, so both
+# assistants' prompts can be reviewed and tested in one place.
 
 
 @router.post(
@@ -1068,6 +1058,8 @@ async def investments_chat_stream(
     from fastapi.responses import StreamingResponse
     from google import genai
     from google.genai import types as genai_types
+
+    from app.services.chat_context import to_genai_contents
 
     question = (body.get("question") or "").strip()
     context = (body.get("context") or "").strip()
@@ -1095,7 +1087,7 @@ async def investments_chat_stream(
             client = genai.Client(api_key=api_key)
             async for chunk in await client.aio.models.generate_content_stream(
                 model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
-                contents=user_message,
+                contents=to_genai_contents(body.get("messages"), user_message),
                 config=genai_types.GenerateContentConfig(
                     system_instruction=INVESTMENTS_SYSTEM_PROMPT,
                     temperature=0.4,

@@ -20,6 +20,7 @@ describe("ASSISTANT_CONFIGS.spending", () => {
       month: "2026-10",
       question: "¿cuánto gasté?",
       debug_mode: false,
+      messages: [],
     });
   });
 
@@ -34,6 +35,27 @@ describe("ASSISTANT_CONFIGS.spending", () => {
     expect(cfg.analyzeSlot?.label).toBe("✨ Analizar gastos del mes");
     expect(cfg.analyzeSlot?.prompt).toBe("✨ Analizar gastos del mes");
     expect(typeof cfg.analyzeSlot?.run).toBe("function");
+  });
+
+  it("sends the whole thread as conversation turns, not just the question", () => {
+    const withHistory: StreamArgs = {
+      ...ARGS,
+      history: [
+        { role: "user", text: "¿cuánto gasté?", domain: "spending" },
+        { role: "assistant", text: "$10.000", domain: "spending" },
+        // An error bubble is not a reply — it must not enter the conversation.
+        { role: "assistant", text: "No pude procesar la consulta.", error: true },
+        { role: "assistant", text: "   ", domain: "spending" },
+      ],
+    };
+    const expected = [
+      { role: "user", text: "¿cuánto gasté?" },
+      { role: "assistant", text: "$10.000" },
+    ];
+    expect(cfg.buildBody(withHistory).messages).toEqual(expected);
+    // Both endpoints get the same thread — the backend is not domain-filtered.
+    expect(ASSISTANT_CONFIGS.investments.buildBody(withHistory).messages).toEqual(expected);
+    expect(cfg.buildBody(ARGS).messages).toEqual([]);
   });
 
   it("rotates sessions after 120 minutes", () => {
@@ -63,6 +85,7 @@ describe("ASSISTANT_CONFIGS.investments", () => {
     expect(cfg.buildBody(ARGS)).toEqual({
       question: "¿cuánto gasté?",
       context: "=== CARTERA ACTUAL ===\nARS: $1.000",
+      messages: [],
     });
   });
 
