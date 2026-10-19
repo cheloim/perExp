@@ -162,3 +162,61 @@ export function isMobileViewport(page: Page) {
   const size = page.viewportSize();
   return !!size && size.width < 768;
 }
+
+/**
+ * Put focus on a REAL focusable element outside the dialog.
+ *
+ * This is the state a keyboard user is actually in right after opening: the
+ * trigger that opened the modal keeps focus until the component's own
+ * autofocus runs ~100ms later, and in CI that window is wide enough to hit.
+ *
+ * Blurring to `document.body` is NOT equivalent, and that distinction is the
+ * whole point: Shift+Tab from body lands on the document's last tabbable,
+ * which in this app happens to be inside the dialog, so the trap's
+ * outside-focus gap passes by accident.
+ *
+ * `anchor` picks which outside element receives focus, and it must match the
+ * direction under test or the browser's own tab order decides the outcome:
+ *
+ * - `firstOutside` — the document's first tabbable. Its NEXT tabbable is
+ *   outside (the dialog starts ~50 elements in), so plain Tab escapes.
+ * - `beforeDialog` — the tabbable immediately preceding the dialog, i.e. the
+ *   trigger area. Its PREVIOUS tabbable is outside, so Shift+Tab escapes.
+ *
+ * Throws when it cannot seed that state, so the precondition fails loudly
+ * instead of silently degrading.
+ */
+export type OutsideAnchor = "firstOutside" | "beforeDialog";
+
+export async function focusOutsideDialog(page: Page, anchor: OutsideAnchor) {
+  const outcome = await page.evaluate((which) => {
+    const dlg = document.querySelector('[role="dialog"]');
+    if (!dlg) return "no-dialog";
+
+    const visible = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    ).filter((el) => el.getClientRects().length > 0);
+
+    const firstInside = visible.findIndex((el) => dlg.contains(el));
+    const target =
+      which === "beforeDialog"
+        ? firstInside > 0
+          ? visible[firstInside - 1]
+          : undefined
+        : visible.find((el) => !dlg.contains(el));
+
+    if (!target) return "no-outside-focusable";
+
+    target.focus();
+    const ae = document.activeElement;
+    return ae && ae !== document.body && !dlg.contains(ae) ? "focused-outside" : "focus-failed";
+  }, anchor);
+
+  if (outcome !== "focused-outside") {
+    throw new Error(
+      `focusOutsideDialog(${anchor}): could not seed focus outside the dialog (${outcome})`,
+    );
+  }
+}

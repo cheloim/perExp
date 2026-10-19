@@ -49,6 +49,25 @@ El `Escape` lo maneja el handler global de `App.tsx`, no el focus trap. Es
 deliberado: si ambos lo manejaran se dispararían dos toggles sobre el mismo
 keydown.
 
+### Trampa de foco
+
+`useFocusTrap` (`src/hooks/useFocusTrap.ts`) envuelve el `Tab` en los dos bordes y
+además **recupera el foco si está fuera del diálogo**. Ese segundo caso importa:
+al abrir, el foco queda todavía en el disparador que abrió el modal hasta que el
+autofocus del composer corre (~100 ms después), y en ese intervalo un `Tab` o
+`Shift+Tab` se escapaba del modal sin que las guardas de los bordes se activaran
+(comparaban contra `first`/`last`, no contra "¿estoy adentro?").
+
+Es un fix del hook compartido, así que aplica a los otros consumidores:
+`DetailModal`, `ConfirmDialog`, `ExpenseModals` y las dos instancias de
+`ClasificacionPage`.
+
+El test cubre el caso de forma determinista: siembra el foco en un elemento
+exterior (no en `document.body`, que hace que el navegador caiga dentro por
+casualidad) **después** de esperar a que el autofocus ya haya corrido, y verifica
+que la primera tecla trae el foco de vuelta. Sin el fix los dos tests fallan en
+ambos viewports.
+
 ## Contraste
 
 El par `--color-primary` / `--color-on-primary` del design system no llega al

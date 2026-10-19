@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { openApp, mockBackend, seedAuth, openAssistant } from "./helpers";
+import { openApp, mockBackend, seedAuth, openAssistant, focusOutsideDialog } from "./helpers";
 
 const STREAM_PATH = "/api/analysis/stream";
 
@@ -56,6 +56,26 @@ test.describe("assistant accessibility", () => {
     const dialog = page.getByRole("dialog", { name: "Asistente de Gastos" });
     await expect(dialog).toBeVisible();
 
+    // Wait for the component's own autofocus to have FIRED before seeding
+    // outside focus. It runs once per open, ~100ms after mount; if we seed
+    // before it fires it steals focus back into the composer and the trap is
+    // never actually exercised (the test then passes for the wrong reason).
+    await expect(page.getByRole("textbox", { name: "Preguntá sobre tus gastos" })).toBeFocused();
+
+    // Same precondition as the Shift+Tab case: focus outside the dialog must
+    // be pulled in, not followed out of the modal. `firstOutside` sits at the
+    // head of the document, so its NEXT tabbable is outside the dialog.
+    await focusOutsideDialog(page, "firstOutside");
+
+    // First Tab is the escape case: without handling focus-outside, this
+    // walks to whatever precedes the trigger and focus never enters at all.
+    await page.keyboard.press("Tab");
+    const pulledIn = await page.evaluate(() => {
+      const dlg = document.querySelector('[role="dialog"]');
+      return !!dlg && !!document.activeElement && dlg.contains(document.activeElement);
+    });
+    expect(pulledIn, "Tab from outside the dialog left focus outside").toBe(true);
+
     // Tab many times; focus must never leave the dialog subtree.
     for (let i = 0; i < 25; i++) {
       await page.keyboard.press("Tab");
@@ -71,6 +91,27 @@ test.describe("assistant accessibility", () => {
     await openApp(page);
     await openAssistant(page);
     await expect(page.getByRole("dialog", { name: "Asistente de Gastos" })).toBeVisible();
+
+    // Same as the Tab case: let the 100ms autofocus fire first, or it undoes
+    // the seeding below and the trap is never tested.
+    await expect(page.getByRole("textbox", { name: "Preguntá sobre tus gastos" })).toBeFocused();
+
+    // Exactly the CI failure: focus still sits on an element OUTSIDE the
+    // dialog (the trigger that opened it), before the 100ms autofocus runs.
+    // The trap must pull focus back in instead of letting Shift+Tab walk out.
+    // `beforeDialog` sits right in front of the dialog, so its PREVIOUS
+    // tabbable is outside — that is what makes Shift+Tab escape.
+    await focusOutsideDialog(page, "beforeDialog");
+
+    await page.keyboard.press("Shift+Tab");
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const dlg = document.querySelector('[role="dialog"]');
+          return !!dlg && !!document.activeElement && dlg.contains(document.activeElement);
+        }),
+      )
+      .toBe(true);
 
     for (let i = 0; i < 15; i++) {
       await page.keyboard.press("Shift+Tab");
