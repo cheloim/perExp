@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import useSeoMeta from "./hooks/useSeoMeta";
-import Assistant from "./components/assistant/Assistant";
+import Assistant, { readDrawerOpen, persistDrawerOpen } from "./components/assistant/Assistant";
 import UserPanel from "./components/UserPanel";
 import NotificationsPanel from "./components/NotificationsPanel";
 import { UploadProgressProvider } from "./context/UploadProgressContext";
@@ -69,26 +69,6 @@ const TABS = [
     tour: "sidebar-clasificacion",
   },
 ];
-
-const AI_DRAWER_STATE_KEY = "ai_drawer_open";
-
-function getInitialDrawerState(): boolean {
-  try {
-    const saved = localStorage.getItem(AI_DRAWER_STATE_KEY);
-    return saved ? JSON.parse(saved) : false;
-  } catch {
-    return false;
-  }
-}
-
-/** Single writer for the drawer flag — every close path must go through this. */
-function persistDrawerState(open: boolean) {
-  try {
-    localStorage.setItem(AI_DRAWER_STATE_KEY, JSON.stringify(open));
-  } catch {
-    /* ignore */
-  }
-}
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   if (!getStoredToken()) return <Navigate to="/login" replace />;
@@ -219,7 +199,7 @@ export default function App() {
 function MainLayout() {
   const location = useLocation();
   const isInvestments = location.pathname === "/investments";
-  const [aiDrawerOpen, setAiDrawerOpen] = useState(getInitialDrawerState);
+  const [aiDrawerOpen, setAiDrawerOpen] = useState(readDrawerOpen);
   const [userPanelOpen, setUserPanelOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [showMoreNav, setShowMoreNav] = useState(false);
@@ -326,7 +306,7 @@ function MainLayout() {
         if (aiDrawerOpen) {
           setAiDrawerOpen(false);
           // Mirror toggleDrawer: without this the drawer reopens on reload.
-          persistDrawerState(false);
+          persistDrawerOpen(false);
         }
         if (userPanelOpen) setUserPanelOpen(false);
         if (notifOpen) setNotifOpen(false);
@@ -389,7 +369,7 @@ function MainLayout() {
       }
     }
     setAiDrawerOpen(open);
-    persistDrawerState(open);
+    persistDrawerOpen(open);
   };
 
   return (

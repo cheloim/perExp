@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { ASSISTANT_CONFIGS } from "./configs";
-import { LEGACY_STORAGE } from "./types";
+import { ASSISTANT_OPEN_BUDGET_MS, LEGACY_STORAGE } from "./types";
 import type { StreamArgs } from "./types";
 
 const ARGS: StreamArgs = {
@@ -102,5 +102,19 @@ describe("both configs", () => {
     expect(ASSISTANT_CONFIGS.spending.title).not.toBe(ASSISTANT_CONFIGS.investments.title);
     expect(ASSISTANT_CONFIGS.spending.title).toBe("Asistente de Gastos");
     expect(ASSISTANT_CONFIGS.investments.title).toBe("Asistente de Inversiones");
+  });
+
+  it("share one open budget, owned where the perf spec enforces it", () => {
+    expect(ASSISTANT_OPEN_BUDGET_MS).toBe(300);
+    expect(ASSISTANT_CONFIGS.spending.openBudgetMs).toBe(ASSISTANT_OPEN_BUDGET_MS);
+    expect(ASSISTANT_CONFIGS.investments.openBudgetMs).toBe(ASSISTANT_OPEN_BUDGET_MS);
+  });
+
+  it("carry the per-domain copy the shell renders", () => {
+    expect(ASSISTANT_CONFIGS.spending.analyzingLabel).toBe("Analizando tus gastos…");
+    expect(ASSISTANT_CONFIGS.investments.analyzingLabel).toBe("Analizando tus inversiones…");
+    expect(ASSISTANT_CONFIGS.spending.followUps).not.toEqual(
+      ASSISTANT_CONFIGS.investments.followUps,
+    );
   });
 });

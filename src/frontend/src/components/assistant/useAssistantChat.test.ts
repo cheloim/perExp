@@ -11,6 +11,8 @@ const CONFIG: AssistantConfig = {
   triggerLabel: "Abrir asistente",
   placeholder: "Preguntame...",
   suggestions: [],
+  analyzingLabel: "Analizando tus gastos…",
+  followUps: [],
   streamUrl: "/api/analysis/stream",
   buildBody: (args) => ({
     month: args.month ?? null,

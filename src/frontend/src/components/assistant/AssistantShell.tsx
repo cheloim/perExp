@@ -12,12 +12,6 @@ import type { AssistantConfig, AssistantDomain, Message } from "./types";
 
 const MAX_INPUT_LENGTH = 2000;
 
-const FOLLOW_UPS = [
-  "Compará con el mes pasado",
-  "¿Dónde más puedo recortar?",
-  "Detallame por categoría",
-];
-
 export function AssistantShell({
   configs,
   initialDomain,
@@ -531,7 +525,7 @@ export function AssistantShell({
                         role="group"
                         aria-label="Sugerencias de seguimiento"
                       >
-                        {FOLLOW_UPS.map((s) => (
+                        {config.followUps.map((s) => (
                           <button
                             key={s}
                             onClick={() => {
@@ -631,7 +625,7 @@ export function AssistantShell({
 
               <div className="flex items-center gap-3 mt-1.5 text-[10px] text-[var(--text-tertiary)] px-1">
                 <span role="status" aria-live="polite">
-                  {streaming ? "Analizando tus gastos…" : ""}
+                  {streaming ? config.analyzingLabel : ""}
                 </span>
                 <span className="ml-auto tabular-nums">
                   {input.length} / {MAX_INPUT_LENGTH}

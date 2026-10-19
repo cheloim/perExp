@@ -246,6 +246,110 @@ describe("AssistantShell", () => {
     expect(calls).toBe(2);
   });
 
+  it("the streaming status names the domain being analysed", async () => {
+    // A stream that never settles keeps `streaming` true so the status is visible.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {})),
+    );
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="investments"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "¿Cómo viene mi cartera?" } });
+    fireEvent.submit(screen.getByRole("textbox").closest("form")!);
+
+    await waitFor(() => expect(screen.getByText("Analizando tus inversiones…")).toBeVisible());
+    expect(screen.queryByText("Analizando tus gastos…")).toBeNull();
+  });
+
+  it("follow-up suggestions follow the domain of the thread", () => {
+    seed([
+      { role: "user", text: "gasté 100", domain: "spending" },
+      { role: "assistant", text: "ok", domain: "spending" },
+    ]);
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    const group = screen.getByRole("group", { name: "Sugerencias de seguimiento" });
+    expect(group).toHaveTextContent("¿Dónde más puedo recortar?");
+    // Investments follow-ups must not leak into a spending thread.
+    expect(group).not.toHaveTextContent("Detallame por activo");
+  });
+
+  it("follow-up suggestions follow the thread, not the route that seeds it", () => {
+    seed([
+      { role: "user", text: "¿Cómo viene mi cartera?", domain: "investments" },
+      { role: "assistant", text: "Va bien", domain: "investments" },
+    ]);
+    const { rerender } = render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="investments"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    expect(screen.getByRole("group", { name: "Sugerencias de seguimiento" })).toHaveTextContent(
+      "Detallame por activo",
+    );
+
+    // Navigating must not swap the thread's persona.
+    rerender(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+    const group = screen.getByRole("group", { name: "Sugerencias de seguimiento" });
+    expect(group).toHaveTextContent("Detallame por activo");
+    expect(group).not.toHaveTextContent("¿Dónde más puedo recortar?");
+  });
+
+  it("deleting a session asks for one confirmation, not two", () => {
+    // Two sessions so the target shows up in Historial (the active one is hidden).
+    const old: Session = {
+      id: "old",
+      ts: Date.now() - 60_000,
+      messages: [{ role: "user", text: "gasto viejo", domain: "spending" }],
+    };
+    const active: Session = { id: "active", ts: Date.now(), messages: [] };
+    localStorage.setItem(SHARED_STORAGE.sessions, JSON.stringify([old, active]));
+    localStorage.setItem(SHARED_STORAGE.active, "active");
+
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /^Historial/ }));
+    fireEvent.click(screen.getByText("gasto viejo")); // expand the card
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar sesión" }));
+
+    // The trash opens the shared ConfirmDialog directly — no inline "¿Eliminar?"
+    // step in between — so exactly one Eliminar affordance is on screen.
+    expect(screen.getAllByRole("button", { name: "Eliminar" })).toHaveLength(1);
+    expect(screen.queryByText("¿Eliminar?")).toBeNull();
+  });
+
   it("releases the open instrumentation after measuring so it cannot accumulate", async () => {
     performance.clearMarks();
     performance.clearMeasures();

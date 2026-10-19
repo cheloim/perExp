@@ -1,5 +1,6 @@
 import { getDashboardAITrends } from "../../api/client";
 import type { AssistantConfig, StreamArgs } from "./types";
+import { ASSISTANT_OPEN_BUDGET_MS } from "./types";
 
 /** Sentinel user-prompt posted when the user hits "Analizar gastos del mes". */
 export const ANALYZE_PROMPT = "✨ Analizar gastos del mes";
@@ -43,6 +44,8 @@ const SPENDING_CONFIG: AssistantConfig = {
     "¿Dónde puedo recortar?",
     "¿Cómo voy contra el presupuesto?",
   ],
+  analyzingLabel: "Analizando tus gastos…",
+  followUps: ["Compará con el mes pasado", "¿Dónde más puedo recortar?", "Detallame por categoría"],
   streamUrl: "/api/analysis/stream",
   buildBody: (args: StreamArgs) => ({
     month: args.month ?? null,
@@ -55,7 +58,7 @@ const SPENDING_CONFIG: AssistantConfig = {
     run: runMonthlyAnalysis,
   },
   rotateAfterIdleMinutes: 120,
-  openBudgetMs: 300,
+  openBudgetMs: ASSISTANT_OPEN_BUDGET_MS,
 };
 
 const INVESTMENTS_CONFIG: AssistantConfig = {
@@ -69,6 +72,8 @@ const INVESTMENTS_CONFIG: AssistantConfig = {
     "¿Dónde estoy más expuesto?",
     "Compará mis rendimientos",
   ],
+  analyzingLabel: "Analizando tus inversiones…",
+  followUps: ["Compará con el mes pasado", "Detallame por activo", "¿Cómo viene mi P&L?"],
   streamUrl: "/api/investments/chat/stream",
   buildBody: (args: StreamArgs) => ({
     question: args.question,
@@ -76,7 +81,7 @@ const INVESTMENTS_CONFIG: AssistantConfig = {
   }),
   // No analyze slot: month analysis is a spending feature.
   rotateAfterIdleMinutes: 0,
-  openBudgetMs: 300,
+  openBudgetMs: ASSISTANT_OPEN_BUDGET_MS,
 };
 
 export const ASSISTANT_CONFIGS = {

@@ -93,16 +93,16 @@ export default function Assistant({
   showTrigger?: boolean;
 }) {
   // The investments endpoint wants a portfolio snapshot the spending endpoint
-  // ignores. Always computed; `buildPortfolioContext` returns "" when empty.
+  // ignores. Only fetched while the drawer is open — it is request context, not
+  // app state, and fetching it on every route charged every spending user for it.
   const { data: investments } = useQuery<Investment[]>({
     queryKey: ["investments"],
     queryFn: () => getInvestments(),
+    enabled: open,
   });
 
-  const handleToggle = () => {
-    persistDrawerOpen(!open);
-    onToggle();
-  };
+  // Persistence is the owner's job (App wires `onToggle` to the drawer flag and
+  // the one localStorage writer), exactly as the Escape path expects.
 
   const triggerLabel = ASSISTANT_CONFIGS[initialDomain].triggerLabel;
 
@@ -110,7 +110,7 @@ export default function Assistant({
     <>
       {showTrigger && !open && (
         <button
-          onClick={handleToggle}
+          onClick={onToggle}
           title={triggerLabel}
           aria-label={triggerLabel}
           className="fixed right-4 bottom-[calc(3.5rem+var(--browser-bottom-inset,0px))] md:bottom-6 z-50 w-10 h-10 bg-[var(--color-primary)] hover:brightness-110 rounded-full shadow-lg flex items-center justify-center text-[var(--color-on-primary)] transition-all duration-200"
@@ -136,7 +136,7 @@ export default function Assistant({
         configs={ASSISTANT_CONFIGS}
         initialDomain={initialDomain}
         open={open}
-        onToggle={handleToggle}
+        onToggle={onToggle}
         buildContext={() => buildPortfolioContext(investments ?? [])}
       />
     </>

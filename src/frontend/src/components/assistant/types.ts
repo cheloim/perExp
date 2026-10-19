@@ -27,6 +27,13 @@ export type Session = {
 export type StorageKeys = { sessions: string; active: string };
 
 /**
+ * How long the assistant modal may take to open. Owned here — the one place
+ * with no imports — so `configs.ts` (which documents the per-domain parity)
+ * and `e2e/assistant-perf.spec.ts` (which enforces it) cannot drift apart.
+ */
+export const ASSISTANT_OPEN_BUDGET_MS = 300;
+
+/**
  * The one shared, domain-agnostic store. The thread follows the user across
  * screens, so there is exactly one session list — the legacy per-domain keys
  * survive only as migration sources.
@@ -59,6 +66,10 @@ export type AssistantConfig = {
   triggerLabel: string;
   placeholder: string;
   suggestions: string[];
+  /** Streaming status in the composer footer. Names the domain being analysed. */
+  analyzingLabel: string;
+  /** Chips offered after an assistant reply, in the thread's domain. */
+  followUps: string[];
   streamUrl: string;
   buildBody: (args: StreamArgs) => Record<string, unknown>;
   /** Present when the domain offers a one-click analysis. `run` returns the reply text. */

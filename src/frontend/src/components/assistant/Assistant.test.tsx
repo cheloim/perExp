@@ -1,9 +1,18 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import Assistant, { persistDrawerOpen, DRAWER_OPEN_KEY } from "./Assistant";
+import Assistant, { persistDrawerOpen, readDrawerOpen, DRAWER_OPEN_KEY } from "./Assistant";
+import { getInvestments } from "../../api/client";
 import { SHARED_STORAGE } from "./types";
 import type { Message, Session } from "./types";
+
+// Only `getInvestments` is faked — it is the request this file is about to
+// start gating. Everything else stays real so the chrome tests keep covering
+// the real configs.
+vi.mock("../../api/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/client")>();
+  return { ...actual, getInvestments: vi.fn(async () => []) };
+});
 
 function sse(...texts: string[]): string[] {
   return [...texts.map((t) => `data: ${JSON.stringify({ text: t })}\n\n`), "data: [DONE]\n\n"];
@@ -120,21 +129,63 @@ describe("Assistant", () => {
     expect(screen.queryByRole("button", { name: "✨ Analizar gastos del mes" })).toBeNull();
   });
 
-  it("escape closes the dialog and persists the closed state", async () => {
+  it("reads back exactly what the drawer writer stores", () => {
+    // The key is part of the persisted contract: renaming it silently orphans
+    // every user's saved drawer state.
+    expect(DRAWER_OPEN_KEY).toBe("ai_drawer_open");
+
+    expect(readDrawerOpen()).toBe(false);
     persistDrawerOpen(true);
     expect(localStorage.getItem(DRAWER_OPEN_KEY)).toBe("true");
+    expect(readDrawerOpen()).toBe(true);
+    persistDrawerOpen(false);
+    expect(localStorage.getItem(DRAWER_OPEN_KEY)).toBe("false");
+    expect(readDrawerOpen()).toBe(false);
+  });
 
+  it("fetches the portfolio snapshot only while the drawer is open", async () => {
+    const mocked = vi.mocked(getInvestments);
+    mocked.mockClear();
+
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { rerender } = render(
+      <QueryClientProvider client={client}>
+        <Assistant open={false} onToggle={() => {}} initialDomain="investments" />
+      </QueryClientProvider>,
+    );
+
+    // Closed: the snapshot the investments endpoint wants must not be fetched.
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(mocked).not.toHaveBeenCalled();
+
+    rerender(
+      <QueryClientProvider client={client}>
+        <Assistant open onToggle={() => {}} initialDomain="investments" />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => expect(mocked).toHaveBeenCalledTimes(1));
+  });
+
+  it("escape asks the owner to close — the owner's write is what persists", async () => {
+    persistDrawerOpen(true);
+    expect(readDrawerOpen()).toBe(true);
+
+    // App is the single writer: every open/close path funnels through
+    // `toggleDrawer`, which persists. The shell only asks.
+    const ownerToggle = vi.fn(() => persistDrawerOpen(false));
     render(
       <QueryClientProvider
         client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
       >
-        <Assistant open onToggle={() => {}} initialDomain="spending" />
+        <Assistant open onToggle={ownerToggle} initialDomain="spending" />
       </QueryClientProvider>,
     );
 
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
 
-    await waitFor(() => expect(localStorage.getItem(DRAWER_OPEN_KEY)).toBe("false"));
+    expect(ownerToggle).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(readDrawerOpen()).toBe(false));
   });
 
   it("merges the two legacy stores into one shared thread on first render", async () => {
