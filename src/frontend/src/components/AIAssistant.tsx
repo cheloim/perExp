@@ -257,6 +257,12 @@ export default function AIAssistant({ open }: { open: boolean; onToggle?: () => 
   const [debugMode, setDebugMode] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // When the assistant is opened externally (via FAB / speed-dial),
+  // expand the panel directly instead of showing the collapsed bubble.
+  useEffect(() => {
+    if (open) setIsCollapsed(false);
+  }, [open]);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const isLocalhost =
