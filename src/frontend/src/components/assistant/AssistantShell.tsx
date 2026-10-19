@@ -5,6 +5,7 @@ import { Bubble } from "./Bubble";
 import { SessionCard } from "./SessionCard";
 import { domainOf } from "./domainOf";
 import { routeDomain } from "./routeDomain";
+import { RemoteError } from "./streamTo";
 import { useAssistantChat } from "./useAssistantChat";
 import { useAssistantSessions } from "./useAssistantSessions";
 import { useSummarize } from "./useSummarize";
@@ -120,8 +121,17 @@ export function AssistantShell({
         performance.clearMeasures("ai-assistant:open");
       }
     };
-    const raf2 = requestAnimationFrame(() => requestAnimationFrame(done));
-    return () => cancelAnimationFrame(raf2);
+    // Two nested frames: the measure has to close after paint. Both ids are
+    // kept so an unmount between the frames cancels the work instead of
+    // running it against a dead component.
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(done);
+    });
+    return () => {
+      cancelAnimationFrame(outer);
+      cancelAnimationFrame(inner);
+    };
   }, [open]);
 
   const writeLast = useCallback(
@@ -172,7 +182,7 @@ export function AssistantShell({
   );
 
   const sendMessage = useCallback(
-    async (overrideText?: string) => {
+    async (overrideText?: string, historyOverride?: Message[]) => {
       const text = (overrideText ?? input).trim();
       if (!text || streaming || busyRef.current) return;
       if (overrideText === undefined) setInput("");
@@ -189,8 +199,9 @@ export function AssistantShell({
 
       // A rotated session starts clean. `messages` is the array captured before
       // the rotation — the thread that was just left behind — and must not
-      // travel with the first message of the new one.
-      const history = sessionId === previousId ? messages : [];
+      // travel with the first message of the new one. A retry passes its own
+      // window: the thread as it stood before the failed turn.
+      const history = sessionId === previousId ? (historyOverride ?? messages) : [];
       try {
         await send(
           target,
@@ -202,14 +213,20 @@ export function AssistantShell({
             context: buildContext ? buildContext() : undefined,
           },
           writeLast,
-        ).catch(() => {
+        ).catch((err: unknown) => {
           writeLast("");
+          // The server's own failure text is worth showing; a transport
+          // failure is not, so the connection copy stands for all of them.
+          const detail =
+            err instanceof RemoteError
+              ? err.message
+              : "No pude procesar la consulta. Revisá tu conexión e intentá de nuevo.";
           updateSession(activeIdRef.current, (s) => {
             const next = [...s.messages];
             if (next.length === 0) return s;
             next[next.length - 1] = {
               ...next[next.length - 1],
-              text: "No pude procesar la consulta. Revisá tu conexión e intentá de nuevo.",
+              text: detail,
               error: true,
             };
             return { ...s, messages: next };
@@ -284,11 +301,17 @@ export function AssistantShell({
    * Re-run the last user prompt. Pops the failed assistant bubble AND the user
    * message that produced it so the replay can re-append both — otherwise the
    * retry would duplicate the user bubble.
+   *
+   * The replay's window is the thread as it stood before the failed turn. The
+   * array in state is read after the pop, but the render this callback closed
+   * over is not: sending it would put the failed question in the history AND
+   * in the new turn, twice.
    */
   const retryLastMessage = useCallback(() => {
     const lastUserIdx = messages.map((m) => m.role).lastIndexOf("user");
     if (lastUserIdx === -1) return;
     const text = messages[lastUserIdx].text;
+    const history = messages.slice(0, lastUserIdx);
     updateSession(activeIdRef.current, (s) => ({
       ...s,
       messages: s.messages.slice(0, lastUserIdx),
@@ -297,7 +320,7 @@ export function AssistantShell({
       runAnalyze();
       return;
     }
-    void sendMessage(text);
+    void sendMessage(text, history);
   }, [messages, updateSession, config.analyzeSlot, sendMessage, runAnalyze]);
 
   const startNewSession = useCallback(() => {

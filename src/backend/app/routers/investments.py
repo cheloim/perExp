@@ -1066,7 +1066,7 @@ async def investments_chat_stream(
     if not question:
 
         async def _err():
-            yield f"data: {json.dumps({'text': 'Pregunta vacía.'})}\n\ndata: [DONE]\n\n"
+            yield f"data: {json.dumps({'error': True, 'text': 'Pregunta vacía.'})}\n\ndata: [DONE]\n\n"
 
         return StreamingResponse(_err(), media_type="text/event-stream")
 
@@ -1074,7 +1074,7 @@ async def investments_chat_stream(
     if not api_key:
 
         async def _no_key():
-            yield f"data: {json.dumps({'text': 'INVESTMENTS_LLM_API_KEY / LLM_API_KEY no configurada.'})}\n\ndata: [DONE]\n\n"
+            yield f"data: {json.dumps({'error': True, 'text': 'INVESTMENTS_LLM_API_KEY / LLM_API_KEY no configurada.'})}\n\ndata: [DONE]\n\n"
 
         return StreamingResponse(_no_key(), media_type="text/event-stream")
 
@@ -1096,7 +1096,9 @@ async def investments_chat_stream(
                 if chunk.text:
                     yield f"data: {json.dumps({'text': chunk.text})}\n\n"
         except Exception:
-            yield f"data: {json.dumps({'text': 'Error al procesar la solicitud'})}\n\n"
+            # Marked as an error frame: the text is not a reply, and the client
+            # must not store it in the thread as if the model had said it.
+            yield f"data: {json.dumps({'error': True, 'text': 'Error al procesar la solicitud'})}\n\n"
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(

@@ -19,6 +19,11 @@ export function useSummarize() {
       setSummarizing(true);
       try {
         return await streamTo(SUMMARIZE_URL, { messages }, onChunk);
+      } catch {
+        // A failed summary is not worth an error bubble: nothing is lost, and
+        // the failure text would otherwise be stored as if it were the
+        // conversation being summarized.
+        return "";
       } finally {
         setSummarizing(false);
       }

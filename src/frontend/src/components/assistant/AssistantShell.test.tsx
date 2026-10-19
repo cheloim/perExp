@@ -9,6 +9,11 @@ function sse(...texts: string[]): string[] {
   return [...texts.map((t) => `data: ${JSON.stringify({ text: t })}\n\n`), "data: [DONE]\n\n"];
 }
 
+/** A frame the server marked as a failure, not as part of the reply. */
+function sseError(text: string): string[] {
+  return [`data: ${JSON.stringify({ error: true, text })}\n\n`, "data: [DONE]\n\n"];
+}
+
 function fakeStream(chunks: string[]): Response {
   const enc = new TextEncoder();
   let i = 0;
@@ -472,5 +477,85 @@ describe("AssistantShell", () => {
       ).toBeInTheDocument(),
     );
     expect(screen.getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
+  });
+
+  it("retry replays the question once, not in the history and again as the question", async () => {
+    seed([
+      { role: "user", text: "gasté 100", domain: "spending" },
+      { role: "assistant", text: "$100", domain: "spending" },
+    ]);
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        throw new TypeError("Failed to fetch");
+      })
+      .mockImplementationOnce(async () => fakeStream(sse("respuesta")));
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "¿y el mes pasado?" } });
+    fireEvent.submit(screen.getByRole("textbox").closest("form")!);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Reintentar" })).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+    await waitFor(() => expect(screen.getByText("respuesta")).toBeInTheDocument());
+
+    const bodies = (fetchMock.mock.calls as unknown as [string, { body: string }][]).map(
+      ([, init]) => JSON.parse(init.body),
+    );
+    // The replay sends the thread as it stood before the failed turn: the
+    // question is the question, never a prior turn as well.
+    for (const body of bodies) {
+      expect(body.question).toBe("¿y el mes pasado?");
+      expect(body.messages).toEqual([
+        { role: "user", text: "gasté 100" },
+        { role: "assistant", text: "$100" },
+      ]);
+    }
+  });
+
+  it("an error frame is shown as an error and never travels back as a reply", async () => {
+    seed([]);
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(async () => fakeStream(sseError("LLM_API_KEY no configurada.")))
+      .mockImplementationOnce(async () => fakeStream(sse("ok")));
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "¿cuánto gasté?" } });
+    fireEvent.submit(screen.getByRole("textbox").closest("form")!);
+
+    // The server's own words, in the error bubble — with the retry affordance
+    // that marks it a failure instead of a reply.
+    await waitFor(() =>
+      expect(screen.getByText("LLM_API_KEY no configurada.")).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "hola de nuevo" } });
+    fireEvent.submit(screen.getByRole("textbox").closest("form")!);
+    await waitFor(() => expect(fetchMock.mock.calls.length).toBe(2));
+
+    const [, init] = fetchMock.mock.calls[1] as unknown as [string, { body: string }];
+    // The question the user asked is still a turn — but what the server marked
+    // as an error is not a reply and must not travel back as one.
+    expect(JSON.parse(init.body).messages).toEqual([{ role: "user", text: "¿cuánto gasté?" }]);
   });
 });
