@@ -45,7 +45,10 @@ describe("AssistantShell", () => {
       vi.fn(async () => fakeStream(sse("respuesta"))),
     );
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
 
   it("names the dialog from config.title for assistive tech", () => {
     render(
@@ -380,6 +383,38 @@ describe("AssistantShell", () => {
     await waitFor(() =>
       expect(screen.getByRole("dialog")).toHaveAccessibleName("Asistente de Inversiones"),
     );
+  });
+
+  it("a rotated session starts clean instead of inheriting the old thread", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-19T12:00:00Z"));
+    seed([{ role: "user", text: "gasté 100 en el super", domain: "spending" }]);
+
+    const fetchMock = vi.fn(async () => fakeStream(sse("ok")));
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    // Three hours later the spending surface rotates (its threshold is 120 min).
+    vi.setSystemTime(new Date("2026-10-19T15:00:00Z"));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "¿cuánto gasté este mes?" } });
+    fireEvent.submit(screen.getByRole("textbox").closest("form")!);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    // Rotation summarizes the thread it left behind first, so the chat request
+    // is not necessarily the first fetch — find it by URL.
+    const chatCall = (fetchMock.mock.calls as unknown as [string, { body: string }][]).find(
+      ([url]) => url === "/api/analysis/stream",
+    );
+    expect(chatCall, "the chat request never went out").toBeDefined();
+    // A "new" session must not answer with the old conversation still attached.
+    expect(JSON.parse(chatCall![1].body).messages).toEqual([]);
   });
 
   it("releases the open instrumentation after measuring so it cannot accumulate", async () => {

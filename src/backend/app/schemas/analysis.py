@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ChatMessage(BaseModel):
@@ -15,8 +15,10 @@ class AnalysisRequest(BaseModel):
     question: str | None = None
     debug_mode: bool = False
     # The whole thread, so the model knows what has already been said. Optional:
-    # an older client asking a single question must keep working.
-    messages: list[ChatMessage] | None = None
+    # an older client asking a single question must keep working. Bounded: the
+    # client sends a window already, and this turns a runaway payload into a
+    # 422 instead of a slow request.
+    messages: list[ChatMessage] | None = Field(default=None, max_length=50)
 
 
 class AnalysisHistoryResponse(BaseModel):

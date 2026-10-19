@@ -1,6 +1,6 @@
 import { getDashboardAITrends } from "../../api/client";
 import type { AssistantConfig, StreamArgs } from "./types";
-import { ASSISTANT_OPEN_BUDGET_MS } from "./types";
+import { ASSISTANT_HISTORY_MESSAGES, ASSISTANT_OPEN_BUDGET_MS } from "./types";
 
 /** Sentinel user-prompt posted when the user hits "Analizar gastos del mes". */
 export const ANALYZE_PROMPT = "✨ Analizar gastos del mes";
@@ -36,15 +36,19 @@ async function runMonthlyAnalysis(): Promise<string> {
 /**
  * The thread as conversation turns.
  *
- * Strips the per-message `domain` — routing metadata, not content — and drops
- * error bubbles: a "No pude procesar" placeholder is not a reply, and handing
- * it back to the model as one teaches it to apologise at random.
+ * Sliced to the window the backend forwards — the browser keeps every message
+ * forever and the request must not. Strips the per-message `domain` (routing
+ * metadata, not content) and drops error bubbles and blanks: a "No pude
+ * procesar" placeholder is not a reply, and handing it back to the model as
+ * one teaches it to apologise at random. `text` is read defensively because
+ * stored sessions predate this wire format and are not validated on read.
  */
 function wireMessages(
   history: StreamArgs["history"],
 ): { role: "user" | "assistant"; text: string }[] {
   return history
-    .filter((m) => !m.error && m.text.trim() !== "")
+    .slice(-ASSISTANT_HISTORY_MESSAGES)
+    .filter((m) => !m.error && (m.text ?? "").trim() !== "")
     .map((m) => ({ role: m.role, text: m.text }));
 }
 

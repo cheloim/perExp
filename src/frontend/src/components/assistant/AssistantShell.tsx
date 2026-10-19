@@ -187,7 +187,10 @@ export function AssistantShell({
       const target = configs[routeDomain(text, config.domain)];
       appendPair(sessionId, text, target.domain);
 
-      const history = messages;
+      // A rotated session starts clean. `messages` is the array captured before
+      // the rotation — the thread that was just left behind — and must not
+      // travel with the first message of the new one.
+      const history = sessionId === previousId ? messages : [];
       try {
         await send(
           target,

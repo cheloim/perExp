@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { ASSISTANT_CONFIGS } from "./configs";
-import { ASSISTANT_OPEN_BUDGET_MS, LEGACY_STORAGE } from "./types";
-import type { StreamArgs } from "./types";
+import { ASSISTANT_HISTORY_MESSAGES, ASSISTANT_OPEN_BUDGET_MS, LEGACY_STORAGE } from "./types";
+import type { Message, StreamArgs } from "./types";
 
 const ARGS: StreamArgs = {
   question: "¿cuánto gasté?",
@@ -56,6 +56,32 @@ describe("ASSISTANT_CONFIGS.spending", () => {
     // Both endpoints get the same thread — the backend is not domain-filtered.
     expect(ASSISTANT_CONFIGS.investments.buildBody(withHistory).messages).toEqual(expected);
     expect(cfg.buildBody(ARGS).messages).toEqual([]);
+  });
+
+  it("never sends more turns than the window the backend forwards", () => {
+    const long: StreamArgs = {
+      ...ARGS,
+      history: Array.from({ length: 50 }, (_, i) => ({
+        role: "user" as const,
+        text: `turno ${i}`,
+      })),
+    };
+    const sent = cfg.buildBody(long).messages as { text: string }[];
+
+    // The browser keeps every message forever; the request must not.
+    expect(sent).toHaveLength(ASSISTANT_HISTORY_MESSAGES);
+    expect(sent[0].text).toBe(`turno ${50 - ASSISTANT_HISTORY_MESSAGES}`);
+    expect(sent[sent.length - 1].text).toBe("turno 49");
+  });
+
+  it("survives a legacy message that has no text", () => {
+    // Stored sessions predate the wire format and are not validated on read.
+    // A missing field must drop the turn, not throw inside buildBody — a throw
+    // there surfaces as a connection error and repeats on every send.
+    const legacy = { role: "user" } as unknown as Message;
+    const body = cfg.buildBody({ ...ARGS, history: [legacy, { role: "user", text: "hola" }] });
+
+    expect(body.messages).toEqual([{ role: "user", text: "hola" }]);
   });
 
   it("rotates sessions after 120 minutes", () => {

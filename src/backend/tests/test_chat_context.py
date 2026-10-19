@@ -84,3 +84,12 @@ def test_the_analysis_request_carries_the_thread():
     assert [m.model_dump() for m in req.messages] == [{"role": "user", "text": "hola"}]
     # Omitting it must stay valid — an older client asking a single question.
     assert AnalysisRequest(question="hola").messages is None
+
+
+def test_the_analysis_request_rejects_a_runaway_thread():
+    from pydantic import ValidationError
+
+    from app.schemas.analysis import AnalysisRequest
+
+    with pytest.raises(ValidationError):
+        AnalysisRequest(question="hola", messages=[{"role": "user", "text": "x"}] * 51)

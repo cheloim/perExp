@@ -34,6 +34,14 @@ export type StorageKeys = { sessions: string; active: string };
 export const ASSISTANT_OPEN_BUDGET_MS = 300;
 
 /**
+ * How many prior turns travel with a request. The browser stores the whole
+ * thread forever and the backend caps what it forwards, so this bounds the
+ * request itself — a 5000-message thread would otherwise mean a multi-MB
+ * upload and a full parse for every single question.
+ */
+export const ASSISTANT_HISTORY_MESSAGES = 20;
+
+/**
  * The one shared, domain-agnostic store. The thread follows the user across
  * screens, so there is exactly one session list — the legacy per-domain keys
  * survive only as migration sources.

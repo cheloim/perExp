@@ -32,7 +32,10 @@ function fmt(n: number): string {
 
 /** Portfolio snapshot handed to the investments endpoint as `context`. */
 export function buildPortfolioContext(investments: Investment[]): string {
-  if (!investments.length) return "";
+  const header = "=== CARTERA ACTUAL ===";
+  // Never a silent blank. An empty portfolio is a fact the model must be told,
+  // or it answers about positions it cannot see and sounds certain doing it.
+  if (!investments.length) return `${header}\n(sin posiciones cargadas)`;
   const ars = investments.filter((i) => i.currency === "ARS");
   const usd = investments.filter((i) => i.currency === "USD");
   const arsV = ars.reduce((s, i) => s + (i.current_value ?? i.cost_basis), 0);
@@ -41,7 +44,7 @@ export function buildPortfolioContext(investments: Investment[]): string {
   const usdC = usd.reduce((s, i) => s + i.cost_basis, 0);
   const sym = (c?: string) => (c === "USD" ? "u$s" : "$");
   const lines = [
-    "=== CARTERA ACTUAL ===",
+    header,
     `ARS: $${fmt(arsV)} (costo $${fmt(arsC)}, P&L $${fmt(arsV - arsC)})`,
     `USD: u$s${fmt(usdV)} (costo u$s${fmt(usdC)}, P&L u$s${fmt(usdV - usdC)})`,
     "POSICIONES:",
@@ -137,7 +140,11 @@ export default function Assistant({
         initialDomain={initialDomain}
         open={open}
         onToggle={onToggle}
-        buildContext={() => buildPortfolioContext(investments ?? [])}
+        buildContext={() =>
+          investments === undefined
+            ? "=== CARTERA ACTUAL ===\n(el resumen de posiciones no está disponible)"
+            : buildPortfolioContext(investments)
+        }
       />
     </>
   );

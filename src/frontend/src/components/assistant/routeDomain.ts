@@ -12,6 +12,13 @@ import type { AssistantDomain } from "./types";
  * is. That is the "keep the focus" rule: a stray word does not flip a thread,
  * and a topic from neither domain stays in the domain it landed in so the
  * prompt can decline it there.
+ *
+ * Word forms that collide with ordinary Spanish will still misroute — "me
+ * robaron la cartera", "la bolsa de trabajo", "el bono de la ANSES". That is
+ * the price of a free router, and the cost is low: the other model answers a
+ * question it can still answer. The misses that matter are the domain's own
+ * verbs ("invertir") and its everyday assets ("el dólar"), which would send a
+ * real question to the wrong prompt entirely — those are pinned in the tests.
  */
 /**
  * Stems rather than full word forms, so one term covers a whole family —
@@ -34,13 +41,12 @@ const TERMS: Record<AssistantDomain, string[]> = {
     "ingres",
     "sueld",
     "salari",
-    "deud",
   ],
   investments: [
     "carter",
     "inversion",
+    "invert",
     "activo",
-    "activos",
     "bono",
     "cedear",
     "fci",
@@ -49,8 +55,7 @@ const TERMS: Record<AssistantDomain, string[]> = {
     "bolsa",
     "plazo fijo",
     "caucion",
-    "dolar mep",
-    "dolar ccl",
+    "dolar",
     "mep",
     "ccl",
     "rendimiento",
@@ -65,9 +70,31 @@ const TERMS: Record<AssistantDomain, string[]> = {
     "portfolio",
     "tenencia",
     "valuacion",
-    "soberano",
+    "soberan",
+    "merval",
+    "byma",
+    "nyse",
+    "nasdaq",
+    "reit",
+    "comitente",
+    "negociabl",
+    "iol",
+    "ppi",
   ],
 };
+
+/**
+ * Word-start match, not substring: "ejemplo" must not match "mep", "violín"
+ * must not match "iol", "accidente" is not "acción". Stems still work — "gast"
+ * matches gasto, gastos, gastado and gasté alike, which is the point of
+ * listing stems instead of word forms.
+ */
+const MATCHERS: Record<AssistantDomain, RegExp[]> = Object.fromEntries(
+  (Object.keys(TERMS) as AssistantDomain[]).map((domain) => [
+    domain,
+    TERMS[domain].map((term) => new RegExp(`\\b${term}`)),
+  ]),
+) as Record<AssistantDomain, RegExp[]>;
 
 /** Lowercase and strip diacritics so "gasté", "Gasté" and "gaste" all match. */
 function normalize(text: string): string {
@@ -82,7 +109,7 @@ export function routeDomain(text: string, fallback: AssistantDomain): AssistantD
   if (!norm.trim()) return fallback;
 
   const score = (domain: AssistantDomain) =>
-    TERMS[domain].reduce((hits, term) => hits + (norm.includes(term) ? 1 : 0), 0);
+    MATCHERS[domain].reduce((hits, matcher) => hits + (matcher.test(norm) ? 1 : 0), 0);
 
   const spending = score("spending");
   const investments = score("investments");

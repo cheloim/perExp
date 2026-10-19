@@ -45,6 +45,28 @@ def test_each_prompt_says_what_to_do_when_asked_something_else():
         assert "foco" in prompt, f"{name} prompt never tells the model to keep the focus"
 
 
+def test_each_prompt_names_the_other_domain_as_out_of_scope():
+    # Without this, a cross-domain question that slips past the router is
+    # *answered* by the wrong prompt instead of declined — "¿en qué me
+    # conviene invertir?" is a legitimate personal-finance question to the
+    # spending prompt, so only an explicit boundary stops it.
+    assert "inversiones" in ANALYSIS_SYSTEM_PROMPT
+    assert "gasto del día a día" in INVESTMENTS_SYSTEM_PROMPT
+
+
+def test_the_analysis_prompt_only_arms_the_full_report_for_a_full_analysis():
+    # Follow-ups exist now ("¿Y en diciembre?"). A one-word pronoun must not
+    # inherit a mandatory five-section report.
+    assert "pregunta concreta" in ANALYSIS_SYSTEM_PROMPT
+
+
+def test_the_investments_prompt_says_what_to_do_without_a_portfolio():
+    # The snapshot is fetched on demand and can be missing; the model must say
+    # so instead of estimating positions.
+    assert "estimar" in INVESTMENTS_SYSTEM_PROMPT
+    assert "cartera" in INVESTMENTS_SYSTEM_PROMPT
+
+
 def test_the_analysis_prompt_keeps_its_analysis_structure():
     for section in ("Resumen general", "Top categorías", "Insights clave", "Sugerencias concretas"):
         assert section in ANALYSIS_SYSTEM_PROMPT

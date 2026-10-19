@@ -28,6 +28,26 @@ describe("routeDomain", () => {
     expect(routeDomain("¿cómo hago un for en Python?", "spending")).toBe("spending");
   });
 
+  it("routes the domain's own verbs and its everyday assets", () => {
+    // The misses that matter most: a real question that used to reach the
+    // other model, answered with the other data and billed to the other key.
+    expect(routeDomain("¿en qué me conviene invertir?", "spending")).toBe("investments");
+    expect(routeDomain("quiero invertir en la bolsa", "spending")).toBe("investments");
+    expect(routeDomain("¿está caro el dólar?", "spending")).toBe("investments");
+    expect(routeDomain("¿cómo viene el Merval?", "spending")).toBe("investments");
+    expect(routeDomain("compré obligaciones negociables de YPF", "spending")).toBe("investments");
+    expect(routeDomain("¿cómo está la deuda soberana?", "spending")).toBe("investments");
+    expect(routeDomain("ingresé 200 dólares a IOL", "spending")).toBe("investments");
+  });
+
+  it("matches a term at the start of a word, never inside one", () => {
+    // "violín" contains "iol", the IOL broker handle; "ejemplo" contains "mep".
+    expect(routeDomain("¿cuánto salió el violín?", "spending")).toBe("spending");
+    expect(routeDomain("no entiendo este ejemplo", "spending")).toBe("spending");
+    // …while a stem still covers its whole word family.
+    expect(routeDomain("gasté, gastado y por gastar", "investments")).toBe("spending");
+  });
+
   it("stays put when both domains are equally present — the tie goes to the thread", () => {
     expect(routeDomain("¿cómo viene mi cartera y cuánto gasté este mes?", "investments")).toBe(
       "investments",

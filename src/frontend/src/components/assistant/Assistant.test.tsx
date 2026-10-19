@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import Assistant, { persistDrawerOpen, readDrawerOpen, DRAWER_OPEN_KEY } from "./Assistant";
+import Assistant, {
+  buildPortfolioContext,
+  persistDrawerOpen,
+  readDrawerOpen,
+  DRAWER_OPEN_KEY,
+} from "./Assistant";
 import { getInvestments } from "../../api/client";
 import { SHARED_STORAGE } from "./types";
 import type { Message, Session } from "./types";
@@ -58,6 +63,8 @@ function renderAssistant(initialDomain: "spending" | "investments") {
 describe("Assistant", () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.mocked(getInvestments).mockReset();
+    vi.mocked(getInvestments).mockResolvedValue([]);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => fakeStream(sse("respuesta"))),
@@ -165,6 +172,35 @@ describe("Assistant", () => {
     );
 
     await waitFor(() => expect(mocked).toHaveBeenCalledTimes(1));
+  });
+
+  it("never leaves the investments endpoint blind about the portfolio", () => {
+    // An empty portfolio and a missing one are different facts; both must be
+    // stated, never left as a silent blank the model would fill with guesses.
+    expect(buildPortfolioContext([])).toContain("CARTERA ACTUAL");
+    expect(buildPortfolioContext([])).toContain("sin posiciones cargadas");
+  });
+
+  it("says the snapshot is unavailable while it is still loading", async () => {
+    vi.mocked(getInvestments).mockImplementation(() => new Promise(() => []));
+    seed([{ role: "user", text: "cartera", domain: "investments" }]);
+    const fetchMock = vi.fn(async () => fakeStream(sse("ok")));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <Assistant open onToggle={() => {}} initialDomain="investments" />
+      </QueryClientProvider>,
+    );
+
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "¿cómo viene mi cartera?" } });
+    fireEvent.submit(screen.getByRole("textbox").closest("form")!);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, { body: string }];
+    expect(JSON.parse(init.body).context).toContain("no está disponible");
   });
 
   it("escape asks the owner to close — the owner's write is what persists", async () => {
