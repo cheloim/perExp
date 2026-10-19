@@ -71,7 +71,7 @@ def _get_group_user_ids(user_id: int, db: Session) -> list[int]:
     if not member:
         return [user_id]
     return [
-        m.user_id
+        int(m.user_id)
         for m in db.query(GroupMember).filter(GroupMember.group_id == member.group_id).all()
     ]
 
@@ -82,7 +82,7 @@ def _get_spending_for_category(
     """Get total spending for a category in a given month (including children)."""
     cat_ids = [category_id]
     children = db.query(Category).filter(Category.parent_id == category_id).all()
-    cat_ids.extend([c.id for c in children])
+    cat_ids.extend([int(c.id) for c in children])
 
     start = date(year, month, 1)
     end = date(year, month, monthrange(year, month)[1])
@@ -145,7 +145,7 @@ def _get_avg_monthly_spending(category_id: int, uid_list: list[int], db: Session
     today = date.today()
     cat_ids = [category_id]
     children = db.query(Category).filter(Category.parent_id == category_id).all()
-    cat_ids.extend([c.id for c in children])
+    cat_ids.extend([int(c.id) for c in children])
 
     monthly_totals = []
     for i in range(3):
@@ -176,7 +176,7 @@ def _get_months_with_spending(category_id: int, uid_list: list[int], db: Session
     today = date.today()
     cat_ids = [category_id]
     children = db.query(Category).filter(Category.parent_id == category_id).all()
-    cat_ids.extend([c.id for c in children])
+    cat_ids.extend([int(c.id) for c in children])
 
     months = 0
     for i in range(3):
@@ -579,9 +579,9 @@ def suggest_budgets(
             continue
 
         # Get average monthly spending for this category
-        cat_ids = [cat.id]
+        cat_ids = [int(cat.id)]
         children = db.query(Category).filter(Category.parent_id == cat.id).all()
-        cat_ids.extend([c.id for c in children])
+        cat_ids.extend([int(c.id) for c in children])
 
         monthly_totals = []
         for i in range(3):
@@ -919,7 +919,7 @@ def init_default_groups(
             name=g["name"],
             display_name=g["display_name"],
             percentage=g["percentage"],
-            amount=round(monthly_income * g["percentage"] / 100, 2),
+            amount=round(monthly_income * float(g["percentage"]) / 100, 2),
         )
         db.add(group)
         groups.append(group)

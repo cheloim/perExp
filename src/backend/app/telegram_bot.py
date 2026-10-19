@@ -567,13 +567,13 @@ def _save_expense(
         if not tag_ids and (card_id is not None or account_id is not None):
             tag = _find_or_create_tag(db, user_id, "", card_id=card_id, account_id=account_id)
             if tag:
-                tag_ids = [tag.id]
+                tag_ids = [int(tag.id)]
         elif not tag_ids and payment_tag_name:
             from app.services.tag_sync import get_or_create_payment_tag
 
             tag = get_or_create_payment_tag(db, user_id, name_hint=payment_tag_name)
             if tag:
-                tag_ids = [tag.id]
+                tag_ids = [int(tag.id)]
 
         if tag_ids:
             # Validate tags exist before inserting to avoid FK violations
