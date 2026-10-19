@@ -425,7 +425,7 @@ def get_categories(db: Session, user_id: int) -> dict[str, Category]:
             .all()
         )
 
-    return {c.name: c for c in cats}
+    return {str(c.name): c for c in cats}
 
 
 def seed_demo_expenses(db: Session, user_id: int, count: int = 60):

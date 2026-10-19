@@ -24,10 +24,7 @@ WHATSAPP_PHONE_ID = os.getenv("WHATSAPP_PHONE_ID", "")
 WHATSAPP_API_URL = f"https://graph.facebook.com/v21.0/{WHATSAPP_PHONE_ID}/messages"
 
 # Timezone
-try:
-    from zoneinfo import ZoneInfo
-except ImportError:
-    from backports.zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo
 
 BUE = ZoneInfo("America/Argentina/Buenos_Aires")
 

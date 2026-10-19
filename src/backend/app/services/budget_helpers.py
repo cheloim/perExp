@@ -44,7 +44,7 @@ def get_group_user_ids(user_id: int, db: Session) -> list[int]:
     if not member:
         return [user_id]
     return [
-        m.user_id
+        int(m.user_id)
         for m in db.query(GroupMember).filter(GroupMember.group_id == member.group_id).all()
     ]
 
@@ -57,7 +57,7 @@ def get_spending_for_category(
 
     cat_ids = [category_id]
     children = db.query(Category).filter(Category.parent_id == category_id).all()
-    cat_ids.extend([c.id for c in children])
+    cat_ids.extend([int(c.id) for c in children])
 
     start = date(year, month, 1)
     end = date(year, month, monthrange(year, month)[1])
@@ -154,7 +154,7 @@ def get_avg_monthly_spending(category_id: int, uid_list: list[int], db: Session)
     today = date.today()
     cat_ids = [category_id]
     children = db.query(Category).filter(Category.parent_id == category_id).all()
-    cat_ids.extend([c.id for c in children])
+    cat_ids.extend([int(c.id) for c in children])
 
     monthly_totals = []
     for i in range(3):

@@ -381,8 +381,8 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     category_trends = []
     for cat_id, cat_data in by_cat.items():
         cat_name = cat_data["name"]
-        current_val = cat_data["total"]
-        prev_val = prev_by_cat.get(cat_name, 0)
+        current_val = float(cat_data["total"])
+        prev_val = float(prev_by_cat.get(cat_name, 0))
         if prev_val > 0:
             change_pct = ((current_val - prev_val) / prev_val) * 100
         elif current_val > 0:
@@ -416,7 +416,7 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
         else:
             method = "Otro"
         payment_methods[method]["total"] += abs(e.amount)
-        payment_methods[method]["count"] += 1
+        payment_methods[method]["count"] = int(payment_methods[method]["count"]) + 1
         payment_methods[method]["name"] = method
     payment_list = sorted(payment_methods.values(), key=lambda x: x["total"], reverse=True)
 
@@ -921,11 +921,11 @@ Usa flags para tendencias preocupantes a monitorear."""
 
     # Build summary grouped by description
     recurring_summary = {}
-    for e in recurring_expenses_this_month:
-        key = (e.description or "").strip()
+    for exp in recurring_expenses_this_month:
+        key = (exp.description or "").strip()
         if key not in recurring_summary:
             recurring_summary[key] = {"description": key, "amount": 0.0}
-        recurring_summary[key]["amount"] += abs(e.amount)
+        recurring_summary[key]["amount"] += abs(exp.amount)
 
     recurring_list = sorted(
         recurring_summary.values(),
