@@ -96,21 +96,26 @@ export function useAssistantSessions(
     [persist, storage.sessions, activeId],
   );
 
-  const maybeRotate = useCallback(() => {
-    if (rotateAfterIdleMinutes <= 0) return;
-    const current = readSessions(storage.sessions).find(
-      (s) => s.id === activeId,
-    );
-    if (!current || current.messages.length === 0) return;
+  /**
+   * Rotate to a fresh session when the active one has been idle past the
+   * threshold. Returns the session id a new message should land in, so callers
+   * never race the rotation.
+   */
+  const maybeRotate = useCallback((): string => {
+    const current = readSessions(storage.sessions).find((s) => s.id === activeId);
+    if (rotateAfterIdleMinutes <= 0 || !current || current.messages.length === 0) {
+      return activeId || createSession();
+    }
 
     const lastTs = current.lastMessageTs ?? current.ts;
     const idleMs = Date.now() - lastTs;
-    if (idleMs <= rotateAfterIdleMinutes * 60 * 1000) return;
+    if (idleMs <= rotateAfterIdleMinutes * 60 * 1000) return activeId;
 
     const fresh = blankSession();
     persist([...readSessions(storage.sessions), fresh]);
     setActiveIdState(fresh.id);
-  }, [rotateAfterIdleMinutes, storage.sessions, activeId, persist]);
+    return fresh.id;
+  }, [rotateAfterIdleMinutes, storage.sessions, activeId, persist, createSession]);
 
   const activeSession = sessions.find((s) => s.id === activeId);
 

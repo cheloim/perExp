@@ -30,10 +30,9 @@ describe("ASSISTANT_CONFIGS.spending", () => {
   });
 
   it("keeps the ANALYZE_PROMPT sentinel and its slot", () => {
-    expect(cfg.analyzeSlot).toEqual({
-      label: "✨ Analizar gastos del mes",
-      prompt: "✨ Analizar gastos del mes",
-    });
+    expect(cfg.analyzeSlot?.label).toBe("✨ Analizar gastos del mes");
+    expect(cfg.analyzeSlot?.prompt).toBe("✨ Analizar gastos del mes");
+    expect(typeof cfg.analyzeSlot?.run).toBe("function");
   });
 
   it("rotates sessions after 120 minutes", () => {

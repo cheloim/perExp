@@ -43,7 +43,8 @@ export type AssistantConfig = {
   storage: StorageKeys;
   streamUrl: string;
   buildBody: (args: StreamArgs) => Record<string, unknown>;
-  analyzeSlot?: { label: string; prompt: string };
+  /** Present when the domain offers a one-click analysis. `run` returns the reply text. */
+  analyzeSlot?: { label: string; prompt: string; run: () => Promise<string> };
   rotateAfterIdleMinutes: number;
   openBudgetMs: number;
 };
