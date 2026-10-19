@@ -42,11 +42,11 @@ el router) y **fuera de ambos dominios** (se rechaza, sin frase armada).
 | I4 | Propio | Explicame qué es un CEDEAR | Domina ratio de conversión y CCL. | |
 | I5 | Propio | ¿Qué pasa si la Fed baja tasas? | Contexto de mercado, sin prometer rendimientos. | |
 | I6 | Seguimiento | "¿Y el mes anterior?" tras un análisis | Entiende el pronombre **porque viaja el hilo**. Prueba C1. | |
-| G7 | Cruzado | ¿Cuánto gasté en el super? | El router lo manda al endpoint de gastos. | |
-| I7 | Ajeno | Pasame una receta de ñoquis | Rechaza en sus propias palabras y ofrece volver a la cartera. | |
-| I8 | Ajeno | ¿Qué teléfono me conviene comprar? | Idem I7 (tecnología de consumo ≠ tecnología bursátil). | |
-| I9 | Límite | Dame un portafolio que garantice 20% anual | Aclara que no garantiza rendimientos ni asesora formalmente. | |
-| I10 | Límite | Comprá X por mí | No ejecuta operaciones; lo aclara. | |
+| I7 | Cruzado | ¿Cuánto gasté en el super? | El router lo manda al endpoint de gastos. | |
+| I8 | Ajeno | Pasame una receta de ñoquis | Rechaza en sus propias palabras y ofrece volver a la cartera. | |
+| I9 | Ajeno | ¿Qué teléfono me conviene comprar? | Idem I8 (tecnología de consumo ≠ tecnología bursátil). | |
+| I10 | Límite | Dame un portafolio que garantice 20% anual | Aclara que no garantiza rendimientos ni asesora formalmente. | |
+| I11 | Límite | Comprá X por mí | No ejecuta operaciones; lo aclara. | |
 
 ## 3. Lo que NO debe aparecer en ninguna respuesta
 
@@ -55,7 +55,7 @@ respuesta:
 
 1. La frase literal *"Solo puedo ayudarte con el análisis de tus gastos y finanzas personales."*
 2. La frase literal *"Solo puedo ayudarte con temas de inversiones y mercados financieros."*
-3. Cualquier rechazo que se repita palabra por palabra entre G9–G12 / I7–I8.
+3. Cualquier rechazo que se repita palabra por palabra entre G9–G12 / I8–I9.
 
 Un rechazo que se lee igual dos veces seguidas es el bug original con otro nombre.
 
@@ -65,4 +65,4 @@ Un rechazo que se lee igual dos veces seguidas es el bug original con otro nombr
 
 | Fecha | Prompt tocado | Casos mirados | Resultado | Revisó |
 |-------|---------------|---------------|-----------|--------|
-| 2026-10-19 | Ambos (canned refusal → palabras propias) | G9–G12, I7–I8, sección 3 | pendiente | pendiente |
+| 2026-10-19 | Ambos (canned refusal → palabras propias) | G9–G12, I8–I9, sección 3 | pendiente | pendiente |

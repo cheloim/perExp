@@ -1,7 +1,7 @@
 feature: analysis
 domain: AI Spending Analysis
 type: full
-version: "1.1.0"
+version: "1.1.1"
 status: implemented
 owner: full-stack
 created: 2026-08-16
@@ -10,20 +10,23 @@ github_issue: null
 
 description: >
   Enables users to ask natural language questions about their spending
-  patterns. Queries are sent to Gemini Flash which generates insights
-  based on the user's expense data. All queries and responses are stored
-  in AnalysisHistory for future reference.
+  patterns. Queries are sent to the configured LLM (Gemini Flash today) which
+  generates insights based on the user's expense data. All queries and
+  responses are stored in AnalysisHistory for future reference.
 
 requirements:
   - "User must be authenticated"
   - "User must have expenses in the system"
-  - "Gemini Flash API key must be configured"
+  - "LLM_API_KEY must be configured"
   - "Analysis history is stored per-user"
 
 pre_evaluation:
   questions:
     - question: "Which LLM provider is used?"
-      answer: "Gemini Flash via Google AI API"
+      answer: >
+        Gemini Flash via Google AI API. The key is read as LLM_API_KEY — the
+        env name is provider-agnostic so the model can be swapped without
+        touching configuration.
     - question: "Is conversation context maintained between queries?"
       answer: >
         Yes, since 2026-10-19. The browser keeps one thread and sends it with
@@ -125,9 +128,11 @@ business_rules:
   - name: "Threaded Context"
     description: >
       The client sends its whole thread with each request; the server holds no
-      conversation state between requests. The 20 most recent turns are
-      forwarded to the LLM as prior turns (assistant replies become model
-      turns), and the new question is always the final user turn.
+      conversation state between requests. The 20 most recent turns (40
+      messages, since a turn is a question and its reply) are forwarded to the
+      LLM as prior turns (assistant replies become model turns), the newest
+      turns go first when they do not fit in 16.000 characters, and the new
+      question is always the final user turn.
   - name: "History Storage"
     description: "Every query and response is persisted in analysis_history for the user"
   - name: "Data Scoping"
@@ -145,14 +150,15 @@ frontend:
         copy, endpoint and body shape.
     - name: "SessionCard"
       path: "frontend/src/components/assistant/SessionCard.tsx"
-      description: "Past conversations in the Historial tab, with their summary"
+      description: "Past conversations in the Conversaciones tab, with their summary"
 
 integrations:
   - name: "Gemini Flash"
     type: "llm"
-    description: "Google Gemini Flash model for natural language spending analysis"
+    description: "LLM provider for natural language spending analysis"
     config:
-      api_key_env: "GEMINI_API_KEY"
+      api_key_env: "LLM_API_KEY"
+      model_env: "LLM_MODEL_NAME"
       model: "gemini-flash"
 
 migrations: []
