@@ -38,8 +38,21 @@ export const ASSISTANT_OPEN_BUDGET_MS = 300;
  * thread forever and the backend caps what it forwards, so this bounds the
  * request itself — a 5000-message thread would otherwise mean a multi-MB
  * upload and a full parse for every single question.
+ *
+ * A turn is a question and its reply, so the window is two messages per turn.
+ * Counting turns rather than messages matters now that one thread crosses
+ * domains: an error bubble or a blank reply must not eat half the window.
  */
-export const ASSISTANT_HISTORY_MESSAGES = 20;
+export const ASSISTANT_HISTORY_TURNS = 20;
+
+export const ASSISTANT_HISTORY_MESSAGES = ASSISTANT_HISTORY_TURNS * 2;
+
+/**
+ * Second, independent bound: long messages. 40 messages of 2000 characters
+ * each is a multi-MB request; this keeps the window cheap even when the thread
+ * is made of essays. Oldest turns go first, so the newest question always fits.
+ */
+export const ASSISTANT_HISTORY_CHARS = 16000;
 
 /**
  * The one shared, domain-agnostic store. The thread follows the user across

@@ -1,6 +1,10 @@
 import { getDashboardAITrends } from "../../api/client";
 import type { AssistantConfig, StreamArgs } from "./types";
-import { ASSISTANT_HISTORY_MESSAGES, ASSISTANT_OPEN_BUDGET_MS } from "./types";
+import {
+  ASSISTANT_HISTORY_CHARS,
+  ASSISTANT_HISTORY_MESSAGES,
+  ASSISTANT_OPEN_BUDGET_MS,
+} from "./types";
 
 /** Sentinel user-prompt posted when the user hits "Analizar gastos del mes". */
 export const ANALYZE_PROMPT = "✨ Analizar gastos del mes";
@@ -36,20 +40,39 @@ async function runMonthlyAnalysis(): Promise<string> {
 /**
  * The thread as conversation turns.
  *
- * Sliced to the window the backend forwards — the browser keeps every message
- * forever and the request must not. Strips the per-message `domain` (routing
- * metadata, not content) and drops error bubbles and blanks: a "No pude
- * procesar" placeholder is not a reply, and handing it back to the model as
- * one teaches it to apologise at random. `text` is read defensively because
- * stored sessions predate this wire format and are not validated on read.
+ * Two bounds, applied in this order: the number of turns the backend forwards,
+ * and the size in characters. The browser keeps every message forever and the
+ * request must not.
+ *
+ * Error bubbles and blanks are dropped before the window is cut, not after:
+ * slicing first would let a "No pude procesar" placeholder eat a slot, and
+ * handing it back to the model as a real reply teaches it to apologise at
+ * random. `text` is read defensively because stored sessions predate this wire
+ * format and are not validated on read.
+ *
+ * The window starts on a user turn. A thread is read as question/answer pairs,
+ * so a leading orphan reply would be read as the model talking to itself.
  */
 function wireMessages(
   history: StreamArgs["history"],
 ): { role: "user" | "assistant"; text: string }[] {
-  return history
-    .slice(-ASSISTANT_HISTORY_MESSAGES)
+  const clean = history
     .filter((m) => !m.error && (m.text ?? "").trim() !== "")
     .map((m) => ({ role: m.role, text: m.text }));
+
+  // Newest first, so both bounds stop as soon as the window is full.
+  const kept: { role: "user" | "assistant"; text: string }[] = [];
+  let chars = 0;
+  for (let i = clean.length - 1; i >= 0; i--) {
+    if (kept.length >= ASSISTANT_HISTORY_MESSAGES) break;
+    const m = clean[i];
+    if (kept.length > 0 && chars + m.text.length > ASSISTANT_HISTORY_CHARS) break;
+    kept.unshift(m);
+    chars += m.text.length;
+  }
+
+  const firstUser = kept.findIndex((m) => m.role === "user");
+  return firstUser > 0 ? kept.slice(firstUser) : kept;
 }
 
 const SPENDING_CONFIG: AssistantConfig = {
