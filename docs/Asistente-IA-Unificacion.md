@@ -177,7 +177,7 @@ se corrige — los dos asistentes pasan a 76% × 78%.
 
 "Un solo hilo" significa que **la sesión no está atada a un dominio**: navegar o
 cambiar de tema no crea una sesión nueva. **No** significa una conversación infinita.
-Se conservan el botón de nueva conversación, el tab de Historial, las sesiones
+Se conservan el botón de nueva conversación, el tab de Conversaciones, las sesiones
 pasadas y la rotación por inactividad. Las consultas de meses anteriores siguen
 visibles y consultables igual que hoy.
 

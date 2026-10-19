@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { ASSISTANT_CONFIGS } from "./configs";
-import { ASSISTANT_HISTORY_MESSAGES, ASSISTANT_OPEN_BUDGET_MS, LEGACY_STORAGE } from "./types";
+import {
+  ASSISTANT_HISTORY_CHARS,
+  ASSISTANT_HISTORY_MESSAGES,
+  ASSISTANT_HISTORY_TURNS,
+  ASSISTANT_OPEN_BUDGET_MS,
+  LEGACY_STORAGE,
+} from "./types";
 import type { Message, StreamArgs } from "./types";
 
 const ARGS: StreamArgs = {
@@ -58,6 +64,14 @@ describe("ASSISTANT_CONFIGS.spending", () => {
     expect(cfg.buildBody(ARGS).messages).toEqual([]);
   });
 
+  it("pins the same window the backend enforces", () => {
+    // chat_context.py enforces the same two caps. A mismatch silently drops
+    // context, so the numbers live here as well as there.
+    expect(ASSISTANT_HISTORY_TURNS).toBe(20);
+    expect(ASSISTANT_HISTORY_MESSAGES).toBe(40);
+    expect(ASSISTANT_HISTORY_CHARS).toBe(16000);
+  });
+
   it("never sends more turns than the window the backend forwards", () => {
     const long: StreamArgs = {
       ...ARGS,
@@ -72,6 +86,50 @@ describe("ASSISTANT_CONFIGS.spending", () => {
     expect(sent).toHaveLength(ASSISTANT_HISTORY_MESSAGES);
     expect(sent[0].text).toBe(`turno ${50 - ASSISTANT_HISTORY_MESSAGES}`);
     expect(sent[sent.length - 1].text).toBe("turno 49");
+  });
+
+  it("opens the window on a question, never on an orphan reply", () => {
+    // 41 messages, so the cut lands mid-pair and the window would otherwise
+    // start on an assistant reply — read by the model as talking to itself.
+    const odd: StreamArgs = {
+      ...ARGS,
+      history: Array.from({ length: 41 }, (_, i) => ({
+        role: (i % 2 === 0 ? "user" : "assistant") as "user" | "assistant",
+        text: `m${i}`,
+      })),
+    };
+    const sent = cfg.buildBody(odd).messages as { role: string; text: string }[];
+
+    expect(sent).toHaveLength(ASSISTANT_HISTORY_MESSAGES - 1);
+    expect(sent[0]).toEqual({ role: "user", text: "m2" });
+    expect(sent[sent.length - 1].text).toBe("m40");
+  });
+
+  it("drops the oldest turns when the window is too big in characters", () => {
+    const huge: StreamArgs = {
+      ...ARGS,
+      history: [
+        { role: "user", text: "a".repeat(9000) },
+        { role: "assistant", text: "b".repeat(9000) },
+        { role: "user", text: "c".repeat(9000) },
+      ],
+    };
+    const sent = cfg.buildBody(huge).messages as { text: string }[];
+
+    // 27.000 characters in, 9.000 out: only the newest question survives.
+    expect(sent).toHaveLength(1);
+    expect(sent[0].text).toBe("c".repeat(9000));
+  });
+
+  it("keeps a single question that is bigger than the character budget", () => {
+    // A user input over the budget must not vanish: no prior turn means no
+    // context to lose, and the fresh question is appended by the backend.
+    const oversized = cfg.buildBody({
+      ...ARGS,
+      history: [{ role: "user", text: "x".repeat(20000) }],
+    }).messages as { text: string }[];
+
+    expect(oversized).toHaveLength(1);
   });
 
   it("survives a legacy message that has no text", () => {

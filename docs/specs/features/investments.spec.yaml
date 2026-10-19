@@ -1,7 +1,7 @@
 feature: investments
 domain: Investment Portfolio
 type: full
-version: "1.0.0"
+version: "1.1.0"
 status: implemented
 owner: full-stack
 created: 2026-08-16
@@ -177,6 +177,35 @@ endpoints:
         updated: "integer"
         errors: "integer"
 
+  - method: "POST"
+    path: "/investments/chat/stream"
+    description: "SSE chat endpoint for the investments assistant"
+    auth: "required"
+    request_body:
+      question:
+        type: "string"
+        required: true
+        description: "Natural language question about investments"
+      context:
+        type: "string"
+        required: false
+        description: "Portfolio snapshot supplied by the client"
+      messages:
+        type: "array of { role: 'user' | 'assistant', text: string }"
+        required: false
+        description: >
+          The whole conversation so far, so the model has context. Optional: a
+          client that sends only a question still works. Bounded the same way
+          as the spending assistant — see the analysis spec.
+    response:
+      status: 200
+      body: "text/event-stream — data: {\"text\": ...} frames, terminated by data: [DONE]"
+    errors:
+      - status: 401
+        description: "Unauthorized"
+      - status: 500
+        description: "Neither INVESTMENTS_LLM_API_KEY nor LLM_API_KEY is configured"
+
 business_rules:
   - name: "Price Refresh Schedule"
     description: "Prices are automatically refreshed every 15 minutes during ART trading hours (9:30-17:00) via APScheduler"
@@ -188,6 +217,17 @@ business_rules:
     description: "Total value = SUM(shares * current_price); Gain/Loss = total_value - SUM(shares * purchase_price)"
   - name: "Symbol Validation"
     description: "Symbol must be a valid ticker; validation occurs on price refresh"
+  - name: "Assistant Context"
+    description: >
+      The client sends its whole thread as `messages` with each request. The
+      20 most recent turns (40 messages) are forwarded, oldest dropped first
+      when they do not fit in 16.000 characters, and the new question is always
+      the final user turn. The server holds no conversation state.
+  - name: "Assistant Billing"
+    description: >
+      The chat is billed to INVESTMENTS_LLM_API_KEY when it is set, and falls
+      back to LLM_API_KEY otherwise — that is what keeps the two assistants on
+      separate keys without a second deployment.
 
 frontend:
   components:

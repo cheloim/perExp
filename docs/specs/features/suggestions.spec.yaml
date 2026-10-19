@@ -143,9 +143,10 @@ frontend:
 integrations:
   - name: "Gemini Flash"
     type: "llm"
-    description: "Google Gemini Flash model for category suggestion generation"
+    description: "LLM provider for category suggestion generation"
     config:
-      api_key_env: "GEMINI_API_KEY"
+      api_key_env: "LLM_API_KEY"
+      model_env: "LLM_MODEL_NAME"
       model: "gemini-flash"
 
 migrations: []
