@@ -1,7 +1,7 @@
 feature: analysis
 domain: AI Spending Analysis
 type: full
-version: "1.0.0"
+version: "1.1.0"
 status: implemented
 owner: full-stack
 created: 2026-08-16
@@ -25,11 +25,20 @@ pre_evaluation:
     - question: "Which LLM provider is used?"
       answer: "Gemini Flash via Google AI API"
     - question: "Is conversation context maintained between queries?"
-      answer: "No, each analysis is stateless; history is for reference only"
+      answer: >
+        Yes, since 2026-10-19. The browser keeps one thread and sends it with
+        every request as `messages`, so the model sees what has already been
+        said. The server holds no conversation state between requests.
     - question: "Is the spending assistant still a standalone component?"
       answer: "No. Since 2026-10-19 both assistants share one AssistantShell plus an AssistantConfig; see docs/Asistente-IA-Unificacion.md"
     - question: "What data is sent to the LLM?"
       answer: "A summary of user expenses (amounts, categories, dates) — no PII beyond first name"
+    - question: "Which endpoint answers a given question?"
+      answer: >
+        A vocabulary router on the client picks spending or investments from the
+        words the user typed, so each message reaches the domain that can answer
+        it and the LLM key that domain bills to. Ambiguous or off-topic messages
+        stay in the thread's own domain.
 
 users:
   - role: "authenticated_user"
@@ -67,24 +76,36 @@ entities:
 
 endpoints:
   - method: "POST"
-    path: "/analysis"
-    description: "Submit a natural language query for spending analysis"
+    path: "/analysis/stream"
+    description: "Stream a spending analysis, optionally answering a specific question"
     auth: "required"
     request_body:
-      query:
+      question:
         type: "string"
-        required: true
+        required: false
         description: "Natural language question about spending"
+      month:
+        type: "string"
+        required: false
+        description: "Period to analyse, 'YYYY-MM'"
+      debug_mode:
+        type: "boolean"
+        required: false
+        default: false
+      messages:
+        type: "array of { role: 'user' | 'assistant', text: string }"
+        required: false
+        description: >
+          The whole conversation so far, so the model has context. Optional: a
+          client that sends only a question still works.
     response:
       status: 200
-      body:
-        response: "string"
-        analysis_id: "integer"
+      body: "text/event-stream — data: {\"text\": ...} frames, terminated by data: [DONE]"
     errors:
       - status: 401
         description: "Unauthorized"
       - status: 500
-        description: "LLM service unavailable"
+        description: "LLM_API_KEY not configured"
 
   - method: "GET"
     path: "/analysis/history"
@@ -101,8 +122,12 @@ endpoints:
         history: "array of AnalysisHistory objects"
 
 business_rules:
-  - name: "Stateless Queries"
-    description: "Each analysis query is independent; no conversation context is carried over"
+  - name: "Threaded Context"
+    description: >
+      The client sends its whole thread with each request; the server holds no
+      conversation state between requests. The 20 most recent turns are
+      forwarded to the LLM as prior turns (assistant replies become model
+      turns), and the new question is always the final user turn.
   - name: "History Storage"
     description: "Every query and response is persisted in analysis_history for the user"
   - name: "Data Scoping"
@@ -112,12 +137,15 @@ business_rules:
 
 frontend:
   components:
-    - name: "AnalysisPage"
-      path: "frontend/src/pages/Analysis.tsx"
-      description: "Chat-like interface for submitting queries and viewing responses"
-    - name: "AnalysisHistory"
-      path: "frontend/src/components/AnalysisHistory.tsx"
-      description: "Sidebar or list showing past analysis queries"
+    - name: "Assistant"
+      path: "frontend/src/components/assistant/"
+      description: >
+        The single assistant implementation (spending and investments share it).
+        `AssistantShell` owns the thread; `configs.ts` owns the per-domain
+        copy, endpoint and body shape.
+    - name: "SessionCard"
+      path: "frontend/src/components/assistant/SessionCard.tsx"
+      description: "Past conversations in the Historial tab, with their summary"
 
 integrations:
   - name: "Gemini Flash"
@@ -135,7 +163,7 @@ tests:
     description: "Submitting a query returns an LLM-generated response"
     steps:
       - "Authenticate as user with expenses"
-      - "POST /analysis with query 'How much did I spend on food last month?'"
+      - "POST /analysis/stream with question 'How much did I spend on food last month?'"
       - "Assert 200 response with non-empty response string"
     expected: "Response contains spending analysis"
 
@@ -163,9 +191,26 @@ tests:
     description: "LLM handles empty expense data gracefully"
     steps:
       - "Authenticate as user with zero expenses"
-      - "POST /analysis with query 'Show my spending summary'"
+      - "POST /analysis/stream with question 'Show my spending summary'"
       - "Assert 200 response with appropriate message"
     expected: "Response indicates no expenses found"
+
+  - name: "Prior turns are understood"
+    type: "integration"
+    description: "A follow-up that depends on an earlier turn resolves it"
+    steps:
+      - "POST /analysis/stream with messages [{user: '¿Cuánto gasté?'}, {assistant: '$10.000'}] and question '¿Y el mes pasado?'"
+      - "Assert the reply refers to the earlier period rather than to the literal words"
+    expected: "The pronoun resolves from the thread"
+
+  - name: "Out-of-scope questions are declined without a fixed sentence"
+    type: "integration"
+    description: "The focus is kept, the wording is not canned"
+    steps:
+      - "POST /analysis/stream with question 'Pasame una receta de ñoquis'"
+      - "Assert the reply declines and returns to spending"
+      - "Assert it is not the literal 'Solo puedo ayudarte con el análisis de tus gastos y finanzas personales.'"
+    expected: "A decline in the model's own words, not a muletilla"
 
 documentation:
   - type: "api"
@@ -174,6 +219,13 @@ documentation:
     description: "Gemini Flash setup instructions in project docs"
 
 changelog:
+  - version: "1.1.0"
+    date: "2026-10-19"
+    changes:
+      - "Queries are no longer stateless: the client sends its thread as `messages` and the LLM sees prior turns"
+      - "A vocabulary router picks the endpoint per message (spending vs investments)"
+      - "Out-of-scope questions are declined in the model's own words instead of a fixed sentence"
+      - "Endpoint documented as POST /analysis/stream, which is what the app actually calls"
   - version: "1.0.0"
     date: "2026-08-16"
     changes:
