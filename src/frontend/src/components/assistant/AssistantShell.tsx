@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
 import { Bubble } from "./Bubble";
@@ -72,7 +72,9 @@ export function AssistantShell({
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
 
-  const messages = activeSession?.messages ?? [];
+  // Memoized so the callbacks below keep a stable identity between renders and
+  // never close over a fresh empty array.
+  const messages = useMemo(() => activeSession?.messages ?? [], [activeSession]);
   const lastMessage = messages[messages.length - 1];
   const hasError = lastMessage?.error === true;
   const now = new Date();
@@ -115,6 +117,12 @@ export function AssistantShell({
         (window as unknown as Record<string, number>).__AI_ASSISTANT_OPEN_MS__ = m.duration;
       } catch {
         /* start mark missing — not an open we instrumented */
+      } finally {
+        // Release both ends and the measure once the duration is published: an
+        // unreleased entry grows the performance buffer by one per open, forever.
+        performance.clearMarks("ai-assistant:open-start");
+        performance.clearMarks("ai-assistant:open-end");
+        performance.clearMeasures("ai-assistant:open");
       }
     };
     const raf2 = requestAnimationFrame(() => requestAnimationFrame(done));
@@ -149,6 +157,25 @@ export function AssistantShell({
     [updateSession, config.domain],
   );
 
+  /**
+   * Summarize a session before it is left behind, so the history tab and the
+   * "Resumen" panel keep working for new sessions the way they did before the
+   * unification. Fire-and-forget: the user is already moving on.
+   *
+   * Declared before the send paths so they can name it in their dependency
+   * arrays without hitting the temporal dead zone.
+   */
+  const summarizeById = useCallback(
+    (id: string) => {
+      const target = sessions.find((s) => s.id === id);
+      if (!target || target.messages.length === 0 || target.summary) return;
+      void summarize(target.messages, () => {}).then((full) => {
+        if (full) updateSession(id, (s) => ({ ...s, summary: full }));
+      });
+    },
+    [sessions, summarize, updateSession],
+  );
+
   const sendMessage = useCallback(
     async (overrideText?: string) => {
       const text = (overrideText ?? input).trim();
@@ -179,7 +206,7 @@ export function AssistantShell({
             if (next.length === 0) return s;
             next[next.length - 1] = {
               ...next[next.length - 1],
-              text: "No pude procesar la consulta. Probá de nuevo.",
+              text: "No pude procesar la consulta. Revisá tu conexión e intentá de nuevo.",
               error: true,
             };
             return { ...s, messages: next };
@@ -193,6 +220,8 @@ export function AssistantShell({
       input,
       streaming,
       maybeRotate,
+      config.rotateAfterIdleMinutes,
+      summarizeById,
       appendPair,
       messages,
       send,
@@ -250,6 +279,7 @@ export function AssistantShell({
     config.rotateAfterIdleMinutes,
     streaming,
     maybeRotate,
+    summarizeById,
     appendPair,
     writeLast,
     updateSession,
@@ -274,22 +304,6 @@ export function AssistantShell({
     }
     void sendMessage(text);
   }, [messages, updateSession, config.analyzeSlot, sendMessage, runAnalyze]);
-
-  /**
-   * Summarize a session before it is left behind, so the history tab and the
-   * "Resumen" panel keep working for new sessions the way they did before the
-   * unification. Fire-and-forget: the user is already moving on.
-   */
-  const summarizeById = useCallback(
-    (id: string) => {
-      const target = sessions.find((s) => s.id === id);
-      if (!target || target.messages.length === 0 || target.summary) return;
-      void summarize(target.messages, () => {}).then((full) => {
-        if (full) updateSession(id, (s) => ({ ...s, summary: full }));
-      });
-    },
-    [sessions, summarize, updateSession],
-  );
 
   const startNewSession = useCallback(() => {
     summarizeById(activeIdRef.current);

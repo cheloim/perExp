@@ -245,4 +245,61 @@ describe("AssistantShell", () => {
     await waitFor(() => expect(screen.getByText("listo")).toBeInTheDocument());
     expect(calls).toBe(2);
   });
+
+  it("releases the open instrumentation after measuring so it cannot accumulate", async () => {
+    performance.clearMarks();
+    performance.clearMeasures();
+    delete (window as unknown as Record<string, number | undefined>).__AI_ASSISTANT_OPEN_MS__;
+    // The owner marks the open before committing the drawer state.
+    performance.mark("ai-assistant:open-start");
+
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    // The duration is still published where the perf budget reads it…
+    await waitFor(() =>
+      expect(
+        (window as unknown as Record<string, number>).__AI_ASSISTANT_OPEN_MS__,
+      ).toBeGreaterThan(0),
+    );
+    // …but nothing stays in the buffer: an unreleased mark grows the
+    // performance buffer by one entry per open, forever.
+    expect(performance.getEntriesByName("ai-assistant:open-start")).toHaveLength(0);
+    expect(performance.getEntriesByName("ai-assistant:open-end")).toHaveLength(0);
+    expect(performance.getEntriesByName("ai-assistant:open")).toHaveLength(0);
+  });
+
+  it("a stream failure tells the user to check their connection, and can be retried", async () => {
+    seed([]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch");
+      }),
+    );
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "¿Cuánto gasté?" } });
+    fireEvent.submit(screen.getByRole("textbox").closest("form")!);
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("No pude procesar la consulta. Revisá tu conexión e intentá de nuevo."),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
+  });
 });

@@ -317,8 +317,6 @@ function MainLayout() {
     if (main) main.scrollTo(0, 0);
   }, [location.pathname]);
 
-  const panelWidth = 360;
-  const isCollapsed = true;
   const { unreadCount } = useNotifications();
 
   // Global Escape key handler
@@ -379,9 +377,10 @@ function MainLayout() {
   const toggleDrawer = (open: boolean) => {
     // Open-time instrumentation; AssistantShell closes the measurement on the
     // first painted frame and publishes window.__AI_ASSISTANT_OPEN_MS__.
-    if (open) performance.mark("ai-assistant:open-start");
-    // Paired with the "ai-assistant:open-end" mark in AIAssistant; together they
-    // produce the "ai-assistant:open" measure the perf budget asserts against.
+    // Paired with the "ai-assistant:open-end" mark in AssistantShell, this
+    // produces the "ai-assistant:open" measure the perf budget asserts against.
+    // Exactly one mark per open: a duplicate leaves the measure resolving an
+    // ambiguous start time.
     if (open) {
       try {
         performance.mark("ai-assistant:open-start");
@@ -407,12 +406,7 @@ function MainLayout() {
         />
 
         {/* Main content */}
-        <div
-          className={`md:pl-16 pb-14 flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ${
-            isInvestments ? (isCollapsed ? "mr-0" : `mr-0 sm:mr-[${panelWidth}px]`) : "mr-0"
-          }`}
-          style={isInvestments && !isCollapsed ? { marginRight: panelWidth } : undefined}
-        >
+        <div className="md:pl-16 pb-14 flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 mr-0">
           {/* Mobile header — Adwaita HeaderBar with actions */}
           <MobileHeader
             unreadCount={unreadCount}

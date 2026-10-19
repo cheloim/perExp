@@ -53,12 +53,24 @@ NikoFin's frontend is a React 18 SPA built with TypeScript, Vite, and TanStack Q
 
 ### AI
 
-- **AIAssistant.tsx**: Expense analysis chat (SSE streaming). Modal rediseñado en #415
-  (tarjeta centrada 76%×78%) — ver especificación de [estados](Asistente-IA-Estados.md),
+- **components/assistant/**: el asistente único (gastos e inversiones comparten la misma
+  implementación; solo cambia el objetivo). Modal rediseñado en #415 (tarjeta centrada
+  76%×78%) — ver especificación de [estados](Asistente-IA-Estados.md),
   [accesibilidad](Asistente-IA-Accesibilidad.md), [performance](Asistente-IA-Performance.md)
   y [unificación de los dos asistentes](Asistente-IA-Unificacion.md)
   y el [mockup aprobado](mockups/ai-assistant-modal.html) (HTML interactivo, stand-in de Figma).
-- **InvestmentsAssistant.tsx**: Investment analysis chat
+  - `Assistant.tsx`: punto de entrada. Aporta el mapa de config, el dominio que siembra la
+    ruta y el contexto extra por dominio (la foto de cartera para inversiones).
+  - `AssistantShell.tsx`: el chrome del modal. El dominio —y con él el título, el endpoint y
+    el placeholder— se resuelve del **último mensaje del hilo**, no de la ruta, así un hilo
+    puede cruzar entre pantallas sin que la ventana cambie de personalidad.
+  - `configs.ts`: `ASSISTANT_CONFIGS`, una config por dominio (título, sugerencias, endpoint,
+    `buildBody`, slot de análisis mensual, rotación por inactividad).
+  - `domainOf.ts`, `streamTo.ts`, `types.ts`: dominio del hilo, cliente SSE y contratos.
+  - `useAssistantSessions.ts`, `useAssistantChat.ts`, `useSummarize.ts`: store de sesiones
+    compartida (una sola, agnóstica al dominio), chat con streaming y resumen.
+  - `Bubble.tsx`, `SessionCard.tsx`, `migrateLegacySessions.ts`: burbujas, tarjetas del
+    historial y migración desde las stores legadas `ai_assistant_*` / `inv_assistant_*`.
 
 ### Investments
 

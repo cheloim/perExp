@@ -42,7 +42,7 @@ export function useAssistantChat(config: AssistantConfig) {
         setStreaming(false);
       }
     },
-    [config.streamUrl, config.buildBody],
+    [config],
   );
 
   const send = useCallback(
