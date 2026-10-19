@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import useSeoMeta from "./hooks/useSeoMeta";
-import Assistant from "./components/assistant/Assistant";
+import Assistant, { readDrawerOpen, persistDrawerOpen } from "./components/assistant/Assistant";
 import UserPanel from "./components/UserPanel";
 import NotificationsPanel from "./components/NotificationsPanel";
 import { UploadProgressProvider } from "./context/UploadProgressContext";
@@ -69,26 +69,6 @@ const TABS = [
     tour: "sidebar-clasificacion",
   },
 ];
-
-const AI_DRAWER_STATE_KEY = "ai_drawer_open";
-
-function getInitialDrawerState(): boolean {
-  try {
-    const saved = localStorage.getItem(AI_DRAWER_STATE_KEY);
-    return saved ? JSON.parse(saved) : false;
-  } catch {
-    return false;
-  }
-}
-
-/** Single writer for the drawer flag — every close path must go through this. */
-function persistDrawerState(open: boolean) {
-  try {
-    localStorage.setItem(AI_DRAWER_STATE_KEY, JSON.stringify(open));
-  } catch {
-    /* ignore */
-  }
-}
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   if (!getStoredToken()) return <Navigate to="/login" replace />;
@@ -219,7 +199,7 @@ export default function App() {
 function MainLayout() {
   const location = useLocation();
   const isInvestments = location.pathname === "/investments";
-  const [aiDrawerOpen, setAiDrawerOpen] = useState(getInitialDrawerState);
+  const [aiDrawerOpen, setAiDrawerOpen] = useState(readDrawerOpen);
   const [userPanelOpen, setUserPanelOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [showMoreNav, setShowMoreNav] = useState(false);
@@ -317,8 +297,6 @@ function MainLayout() {
     if (main) main.scrollTo(0, 0);
   }, [location.pathname]);
 
-  const panelWidth = 360;
-  const isCollapsed = true;
   const { unreadCount } = useNotifications();
 
   // Global Escape key handler
@@ -328,7 +306,7 @@ function MainLayout() {
         if (aiDrawerOpen) {
           setAiDrawerOpen(false);
           // Mirror toggleDrawer: without this the drawer reopens on reload.
-          persistDrawerState(false);
+          persistDrawerOpen(false);
         }
         if (userPanelOpen) setUserPanelOpen(false);
         if (notifOpen) setNotifOpen(false);
@@ -379,9 +357,10 @@ function MainLayout() {
   const toggleDrawer = (open: boolean) => {
     // Open-time instrumentation; AssistantShell closes the measurement on the
     // first painted frame and publishes window.__AI_ASSISTANT_OPEN_MS__.
-    if (open) performance.mark("ai-assistant:open-start");
-    // Paired with the "ai-assistant:open-end" mark in AIAssistant; together they
-    // produce the "ai-assistant:open" measure the perf budget asserts against.
+    // Paired with the "ai-assistant:open-end" mark in AssistantShell, this
+    // produces the "ai-assistant:open" measure the perf budget asserts against.
+    // Exactly one mark per open: a duplicate leaves the measure resolving an
+    // ambiguous start time.
     if (open) {
       try {
         performance.mark("ai-assistant:open-start");
@@ -390,7 +369,7 @@ function MainLayout() {
       }
     }
     setAiDrawerOpen(open);
-    persistDrawerState(open);
+    persistDrawerOpen(open);
   };
 
   return (
@@ -407,12 +386,7 @@ function MainLayout() {
         />
 
         {/* Main content */}
-        <div
-          className={`md:pl-16 pb-14 flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ${
-            isInvestments ? (isCollapsed ? "mr-0" : `mr-0 sm:mr-[${panelWidth}px]`) : "mr-0"
-          }`}
-          style={isInvestments && !isCollapsed ? { marginRight: panelWidth } : undefined}
-        >
+        <div className="md:pl-16 pb-14 flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 mr-0">
           {/* Mobile header — Adwaita HeaderBar with actions */}
           <MobileHeader
             unreadCount={unreadCount}

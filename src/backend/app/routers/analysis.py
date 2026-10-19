@@ -15,6 +15,7 @@ from app.models import AnalysisHistory, Category, Expense, User
 from app.prompts import ANALYSIS_SYSTEM_PROMPT
 from app.schemas import AnalysisHistoryResponse, AnalysisRequest
 from app.services.auth import get_current_user
+from app.services.chat_context import to_genai_contents
 
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
@@ -108,6 +109,9 @@ TOP 10 GASTOS MÁS ALTOS:
             500, "LLM_API_KEY no está configurada. Creá un archivo .env con tu API key."
         )
 
+    # The whole thread, so the model knows what has already been said.
+    contents = to_genai_contents([m.model_dump() for m in req.messages or []], user_message)
+
     expense_count_val = len(expenses)
     total_val = total
     accumulated_text: list = []
@@ -117,7 +121,7 @@ TOP 10 GASTOS MÁS ALTOS:
             client = genai.Client(api_key=api_key)
             async for chunk in await client.aio.models.generate_content_stream(
                 model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
-                contents=user_message,
+                contents=contents,
                 config=genai_types.GenerateContentConfig(
                     system_instruction=(None if req.debug_mode else ANALYSIS_SYSTEM_PROMPT),
                 ),

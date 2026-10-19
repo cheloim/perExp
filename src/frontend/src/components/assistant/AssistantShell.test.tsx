@@ -45,7 +45,10 @@ describe("AssistantShell", () => {
       vi.fn(async () => fakeStream(sse("respuesta"))),
     );
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
 
   it("names the dialog from config.title for assistive tech", () => {
     render(
@@ -244,5 +247,230 @@ describe("AssistantShell", () => {
 
     await waitFor(() => expect(screen.getByText("listo")).toBeInTheDocument());
     expect(calls).toBe(2);
+  });
+
+  it("the streaming status names the domain being analysed", async () => {
+    // A stream that never settles keeps `streaming` true so the status is visible.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {})),
+    );
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="investments"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "¿Cómo viene mi cartera?" } });
+    fireEvent.submit(screen.getByRole("textbox").closest("form")!);
+
+    await waitFor(() => expect(screen.getByText("Analizando tus inversiones…")).toBeVisible());
+    expect(screen.queryByText("Analizando tus gastos…")).toBeNull();
+  });
+
+  it("follow-up suggestions follow the domain of the thread", () => {
+    seed([
+      { role: "user", text: "gasté 100", domain: "spending" },
+      { role: "assistant", text: "ok", domain: "spending" },
+    ]);
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    const group = screen.getByRole("group", { name: "Sugerencias de seguimiento" });
+    expect(group).toHaveTextContent("¿Dónde más puedo recortar?");
+    // Investments follow-ups must not leak into a spending thread.
+    expect(group).not.toHaveTextContent("Detallame por activo");
+  });
+
+  it("follow-up suggestions follow the thread, not the route that seeds it", () => {
+    seed([
+      { role: "user", text: "¿Cómo viene mi cartera?", domain: "investments" },
+      { role: "assistant", text: "Va bien", domain: "investments" },
+    ]);
+    const { rerender } = render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="investments"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    expect(screen.getByRole("group", { name: "Sugerencias de seguimiento" })).toHaveTextContent(
+      "Detallame por activo",
+    );
+
+    // Navigating must not swap the thread's persona.
+    rerender(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+    const group = screen.getByRole("group", { name: "Sugerencias de seguimiento" });
+    expect(group).toHaveTextContent("Detallame por activo");
+    expect(group).not.toHaveTextContent("¿Dónde más puedo recortar?");
+  });
+
+  it("deleting a session asks for one confirmation, not two", () => {
+    // Two sessions so the target shows up in Historial (the active one is hidden).
+    const old: Session = {
+      id: "old",
+      ts: Date.now() - 60_000,
+      messages: [{ role: "user", text: "gasto viejo", domain: "spending" }],
+    };
+    const active: Session = { id: "active", ts: Date.now(), messages: [] };
+    localStorage.setItem(SHARED_STORAGE.sessions, JSON.stringify([old, active]));
+    localStorage.setItem(SHARED_STORAGE.active, "active");
+
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /^Historial/ }));
+    fireEvent.click(screen.getByText("gasto viejo")); // expand the card
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar sesión" }));
+
+    // The trash opens the shared ConfirmDialog directly — no inline "¿Eliminar?"
+    // step in between — so exactly one Eliminar affordance is on screen.
+    expect(screen.getAllByRole("button", { name: "Eliminar" })).toHaveLength(1);
+    expect(screen.queryByText("¿Eliminar?")).toBeNull();
+  });
+
+  it("routes an investments question to the investments endpoint and flips the chrome", async () => {
+    seed([{ role: "user", text: "gasté 100 en el super", domain: "spending" }]);
+    const fetchMock = vi.fn(async () => fakeStream(sse("respuesta de cartera")));
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "¿cómo viene mi cartera?" } });
+    fireEvent.submit(screen.getByRole("textbox").closest("form")!);
+
+    await waitFor(() => expect(screen.getByText("respuesta de cartera")).toBeInTheDocument());
+
+    // The message routes to the investments endpoint — separate model, separate key.
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, { body: string }];
+    expect(url).toBe("/api/investments/chat/stream");
+    // …and the whole thread went with it, not just the question.
+    const body = JSON.parse(init.body);
+    expect(body.question).toBe("¿cómo viene mi cartera?");
+    expect(body.messages).toEqual([{ role: "user", text: "gasté 100 en el super" }]);
+
+    // The chrome follows the message that was actually answered.
+    await waitFor(() =>
+      expect(screen.getByRole("dialog")).toHaveAccessibleName("Asistente de Inversiones"),
+    );
+  });
+
+  it("a rotated session starts clean instead of inheriting the old thread", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-19T12:00:00Z"));
+    seed([{ role: "user", text: "gasté 100 en el super", domain: "spending" }]);
+
+    const fetchMock = vi.fn(async () => fakeStream(sse("ok")));
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    // Three hours later the spending surface rotates (its threshold is 120 min).
+    vi.setSystemTime(new Date("2026-10-19T15:00:00Z"));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "¿cuánto gasté este mes?" } });
+    fireEvent.submit(screen.getByRole("textbox").closest("form")!);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    // Rotation summarizes the thread it left behind first, so the chat request
+    // is not necessarily the first fetch — find it by URL.
+    const chatCall = (fetchMock.mock.calls as unknown as [string, { body: string }][]).find(
+      ([url]) => url === "/api/analysis/stream",
+    );
+    expect(chatCall, "the chat request never went out").toBeDefined();
+    // A "new" session must not answer with the old conversation still attached.
+    expect(JSON.parse(chatCall![1].body).messages).toEqual([]);
+  });
+
+  it("releases the open instrumentation after measuring so it cannot accumulate", async () => {
+    performance.clearMarks();
+    performance.clearMeasures();
+    delete (window as unknown as Record<string, number | undefined>).__AI_ASSISTANT_OPEN_MS__;
+    // The owner marks the open before committing the drawer state.
+    performance.mark("ai-assistant:open-start");
+
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    // The duration is still published where the perf budget reads it…
+    await waitFor(() =>
+      expect(
+        (window as unknown as Record<string, number>).__AI_ASSISTANT_OPEN_MS__,
+      ).toBeGreaterThan(0),
+    );
+    // …but nothing stays in the buffer: an unreleased mark grows the
+    // performance buffer by one entry per open, forever.
+    expect(performance.getEntriesByName("ai-assistant:open-start")).toHaveLength(0);
+    expect(performance.getEntriesByName("ai-assistant:open-end")).toHaveLength(0);
+    expect(performance.getEntriesByName("ai-assistant:open")).toHaveLength(0);
+  });
+
+  it("a stream failure tells the user to check their connection, and can be retried", async () => {
+    seed([]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch");
+      }),
+    );
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "¿Cuánto gasté?" } });
+    fireEvent.submit(screen.getByRole("textbox").closest("form")!);
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("No pude procesar la consulta. Revisá tu conexión e intentá de nuevo."),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
   });
 });

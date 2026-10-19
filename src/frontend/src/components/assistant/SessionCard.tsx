@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { Session } from "./types";
 
 function TrashIcon() {
@@ -40,8 +39,6 @@ export function SessionCard({
     hour: "2-digit",
     minute: "2-digit",
   });
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
-
   return (
     <div
       className={`rounded-md border overflow-hidden relative ${
@@ -64,8 +61,11 @@ export function SessionCard({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setDeleteConfirm(true);
+              // Straight to the shared ConfirmDialog — one confirmation, not two.
+              onDelete();
             }}
+            title="Eliminar sesión"
+            aria-label="Eliminar sesión"
             className="text-[var(--text-tertiary)] hover:text-[var(--color-danger)] text-sm transition-colors"
           >
             <TrashIcon />
@@ -103,26 +103,6 @@ export function SessionCard({
               </div>
             ))}
           </div>
-          {deleteConfirm && (
-            <div className="px-3 py-2 border-t border-[var(--border-color)] flex items-center gap-2">
-              <span className="text-xs text-[var(--text-secondary)]">¿Eliminar?</span>
-              <button
-                onClick={() => {
-                  onDelete();
-                  setDeleteConfirm(false);
-                }}
-                className="text-xs px-2 py-1 rounded bg-danger text-white"
-              >
-                Eliminar
-              </button>
-              <button
-                onClick={() => setDeleteConfirm(false)}
-                className="text-xs px-2 py-1 rounded bg-[var(--color-base-alt)] text-secondary"
-              >
-                Cancelar
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>

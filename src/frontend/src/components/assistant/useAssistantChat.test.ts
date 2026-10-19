@@ -11,6 +11,8 @@ const CONFIG: AssistantConfig = {
   triggerLabel: "Abrir asistente",
   placeholder: "Preguntame...",
   suggestions: [],
+  analyzingLabel: "Analizando tus gastos…",
+  followUps: [],
   streamUrl: "/api/analysis/stream",
   buildBody: (args) => ({
     month: args.month ?? null,
@@ -88,10 +90,10 @@ describe("useAssistantChat", () => {
   it("posts config.buildBody(args) to config.streamUrl and accumulates chunks", async () => {
     const { calls } = installFetch(() => fakeStream(sse("Hola ", "mundo")));
 
-    const { result } = renderHook(() => useAssistantChat(CONFIG));
+    const { result } = renderHook(() => useAssistantChat());
     let out = "";
     await act(async () => {
-      await result.current.send(baseArgs, (full) => (out = full));
+      await result.current.send(CONFIG, baseArgs, (full) => (out = full));
     });
 
     expect(calls).toHaveLength(1);
@@ -117,9 +119,9 @@ describe("useAssistantChat", () => {
     };
     installFetch(() => fakeStream(sse("ok")));
 
-    const { result } = renderHook(() => useAssistantChat(config));
+    const { result } = renderHook(() => useAssistantChat());
     await act(async () => {
-      await result.current.send(baseArgs, () => {});
+      await result.current.send(config, baseArgs, () => {});
     });
 
     expect(seen).toHaveLength(1);
@@ -132,11 +134,11 @@ describe("useAssistantChat", () => {
       fakeStream([], { hang: true, signal: record.signal }),
     );
 
-    const { result } = renderHook(() => useAssistantChat(CONFIG));
+    const { result } = renderHook(() => useAssistantChat());
 
     let promise: Promise<string> | undefined;
     await act(async () => {
-      promise = result.current.send(baseArgs, () => {});
+      promise = result.current.send(CONFIG, baseArgs, () => {});
       result.current.cancel();
     });
     await act(async () => {
@@ -151,9 +153,9 @@ describe("useAssistantChat", () => {
   it("surfaces an HTTP error", async () => {
     installFetch(() => ({ ok: false, status: 500 }) as Response);
 
-    const { result } = renderHook(() => useAssistantChat(CONFIG));
+    const { result } = renderHook(() => useAssistantChat());
     await act(async () => {
-      await result.current.send(baseArgs, () => {}).catch(() => {});
+      await result.current.send(CONFIG, baseArgs, () => {}).catch(() => {});
     });
 
     expect(result.current.error).toContain("500");
@@ -166,9 +168,9 @@ describe("useAssistantChat", () => {
       mode === "fail" ? ({ ok: false, status: 500 } as Response) : fakeStream(sse("recuperado")),
     );
 
-    const { result } = renderHook(() => useAssistantChat(CONFIG));
+    const { result } = renderHook(() => useAssistantChat());
     await act(async () => {
-      await result.current.send(baseArgs, () => {}).catch(() => {});
+      await result.current.send(CONFIG, baseArgs, () => {}).catch(() => {});
     });
 
     mode = "ok";
@@ -186,10 +188,10 @@ describe("useAssistantChat", () => {
       mode === "fail" ? ({ ok: false, status: 500 } as Response) : fakeStream(sse("listo")),
     );
 
-    const { result } = renderHook(() => useAssistantChat(CONFIG));
+    const { result } = renderHook(() => useAssistantChat());
     await act(async () => {
       await result.current
-        .send({ ...baseArgs, question: ANALYZE_PROMPT }, () => {})
+        .send(CONFIG, { ...baseArgs, question: ANALYZE_PROMPT }, () => {})
         .catch(() => {});
     });
 

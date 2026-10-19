@@ -32,7 +32,10 @@ function fmt(n: number): string {
 
 /** Portfolio snapshot handed to the investments endpoint as `context`. */
 export function buildPortfolioContext(investments: Investment[]): string {
-  if (!investments.length) return "";
+  const header = "=== CARTERA ACTUAL ===";
+  // Never a silent blank. An empty portfolio is a fact the model must be told,
+  // or it answers about positions it cannot see and sounds certain doing it.
+  if (!investments.length) return `${header}\n(sin posiciones cargadas)`;
   const ars = investments.filter((i) => i.currency === "ARS");
   const usd = investments.filter((i) => i.currency === "USD");
   const arsV = ars.reduce((s, i) => s + (i.current_value ?? i.cost_basis), 0);
@@ -41,7 +44,7 @@ export function buildPortfolioContext(investments: Investment[]): string {
   const usdC = usd.reduce((s, i) => s + i.cost_basis, 0);
   const sym = (c?: string) => (c === "USD" ? "u$s" : "$");
   const lines = [
-    "=== CARTERA ACTUAL ===",
+    header,
     `ARS: $${fmt(arsV)} (costo $${fmt(arsC)}, P&L $${fmt(arsV - arsC)})`,
     `USD: u$s${fmt(usdV)} (costo u$s${fmt(usdC)}, P&L u$s${fmt(usdV - usdC)})`,
     "POSICIONES:",
@@ -93,16 +96,16 @@ export default function Assistant({
   showTrigger?: boolean;
 }) {
   // The investments endpoint wants a portfolio snapshot the spending endpoint
-  // ignores. Always computed; `buildPortfolioContext` returns "" when empty.
+  // ignores. Only fetched while the drawer is open — it is request context, not
+  // app state, and fetching it on every route charged every spending user for it.
   const { data: investments } = useQuery<Investment[]>({
     queryKey: ["investments"],
     queryFn: () => getInvestments(),
+    enabled: open,
   });
 
-  const handleToggle = () => {
-    persistDrawerOpen(!open);
-    onToggle();
-  };
+  // Persistence is the owner's job (App wires `onToggle` to the drawer flag and
+  // the one localStorage writer), exactly as the Escape path expects.
 
   const triggerLabel = ASSISTANT_CONFIGS[initialDomain].triggerLabel;
 
@@ -110,7 +113,7 @@ export default function Assistant({
     <>
       {showTrigger && !open && (
         <button
-          onClick={handleToggle}
+          onClick={onToggle}
           title={triggerLabel}
           aria-label={triggerLabel}
           className="fixed right-4 bottom-[calc(3.5rem+var(--browser-bottom-inset,0px))] md:bottom-6 z-50 w-10 h-10 bg-[var(--color-primary)] hover:brightness-110 rounded-full shadow-lg flex items-center justify-center text-[var(--color-on-primary)] transition-all duration-200"
@@ -136,8 +139,12 @@ export default function Assistant({
         configs={ASSISTANT_CONFIGS}
         initialDomain={initialDomain}
         open={open}
-        onToggle={handleToggle}
-        buildContext={() => buildPortfolioContext(investments ?? [])}
+        onToggle={onToggle}
+        buildContext={() =>
+          investments === undefined
+            ? "=== CARTERA ACTUAL ===\n(el resumen de posiciones no está disponible)"
+            : buildPortfolioContext(investments)
+        }
       />
     </>
   );

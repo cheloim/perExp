@@ -1,5 +1,6 @@
 import { getDashboardAITrends } from "../../api/client";
 import type { AssistantConfig, StreamArgs } from "./types";
+import { ASSISTANT_HISTORY_MESSAGES, ASSISTANT_OPEN_BUDGET_MS } from "./types";
 
 /** Sentinel user-prompt posted when the user hits "Analizar gastos del mes". */
 export const ANALYZE_PROMPT = "✨ Analizar gastos del mes";
@@ -32,6 +33,25 @@ async function runMonthlyAnalysis(): Promise<string> {
   return text;
 }
 
+/**
+ * The thread as conversation turns.
+ *
+ * Sliced to the window the backend forwards — the browser keeps every message
+ * forever and the request must not. Strips the per-message `domain` (routing
+ * metadata, not content) and drops error bubbles and blanks: a "No pude
+ * procesar" placeholder is not a reply, and handing it back to the model as
+ * one teaches it to apologise at random. `text` is read defensively because
+ * stored sessions predate this wire format and are not validated on read.
+ */
+function wireMessages(
+  history: StreamArgs["history"],
+): { role: "user" | "assistant"; text: string }[] {
+  return history
+    .slice(-ASSISTANT_HISTORY_MESSAGES)
+    .filter((m) => !m.error && (m.text ?? "").trim() !== "")
+    .map((m) => ({ role: m.role, text: m.text }));
+}
+
 const SPENDING_CONFIG: AssistantConfig = {
   domain: "spending",
   title: "Asistente de Gastos",
@@ -43,11 +63,14 @@ const SPENDING_CONFIG: AssistantConfig = {
     "¿Dónde puedo recortar?",
     "¿Cómo voy contra el presupuesto?",
   ],
+  analyzingLabel: "Analizando tus gastos…",
+  followUps: ["Compará con el mes pasado", "¿Dónde más puedo recortar?", "Detallame por categoría"],
   streamUrl: "/api/analysis/stream",
   buildBody: (args: StreamArgs) => ({
     month: args.month ?? null,
     question: args.question,
     debug_mode: args.debugMode ?? false,
+    messages: wireMessages(args.history),
   }),
   analyzeSlot: {
     label: ANALYZE_PROMPT,
@@ -55,7 +78,7 @@ const SPENDING_CONFIG: AssistantConfig = {
     run: runMonthlyAnalysis,
   },
   rotateAfterIdleMinutes: 120,
-  openBudgetMs: 300,
+  openBudgetMs: ASSISTANT_OPEN_BUDGET_MS,
 };
 
 const INVESTMENTS_CONFIG: AssistantConfig = {
@@ -69,14 +92,17 @@ const INVESTMENTS_CONFIG: AssistantConfig = {
     "¿Dónde estoy más expuesto?",
     "Compará mis rendimientos",
   ],
+  analyzingLabel: "Analizando tus inversiones…",
+  followUps: ["Compará con el mes pasado", "Detallame por activo", "¿Cómo viene mi P&L?"],
   streamUrl: "/api/investments/chat/stream",
   buildBody: (args: StreamArgs) => ({
     question: args.question,
     context: args.context ?? "",
+    messages: wireMessages(args.history),
   }),
   // No analyze slot: month analysis is a spending feature.
   rotateAfterIdleMinutes: 0,
-  openBudgetMs: 300,
+  openBudgetMs: ASSISTANT_OPEN_BUDGET_MS,
 };
 
 export const ASSISTANT_CONFIGS = {

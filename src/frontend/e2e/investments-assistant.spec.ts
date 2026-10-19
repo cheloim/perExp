@@ -104,7 +104,8 @@ test.describe("investments assistant", () => {
 
     const cancel = page.getByRole("button", { name: "Cancelar respuesta" });
     await expect(cancel).toBeVisible();
-    await expect(page.getByText("Analizando tus gastos…")).toBeVisible();
+    // The status names the domain being analysed — "gastos" would be the bug.
+    await expect(page.getByText("Analizando tus inversiones…")).toBeVisible();
 
     await cancel.click();
     await expect(page.getByText("Respuesta cancelada.")).toBeVisible();

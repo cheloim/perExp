@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
 import { Bubble } from "./Bubble";
 import { SessionCard } from "./SessionCard";
 import { domainOf } from "./domainOf";
+import { routeDomain } from "./routeDomain";
 import { useAssistantChat } from "./useAssistantChat";
 import { useAssistantSessions } from "./useAssistantSessions";
 import { useSummarize } from "./useSummarize";
@@ -11,12 +12,6 @@ import { SHARED_STORAGE } from "./types";
 import type { AssistantConfig, AssistantDomain, Message } from "./types";
 
 const MAX_INPUT_LENGTH = 2000;
-
-const FOLLOW_UPS = [
-  "Compará con el mes pasado",
-  "¿Dónde más puedo recortar?",
-  "Detallame por categoría",
-];
 
 export function AssistantShell({
   configs,
@@ -50,7 +45,7 @@ export function AssistantShell({
   const domain = domainOf(activeSession, initialDomain);
   const config = configs[domain];
 
-  const { streaming, error, send, cancel } = useAssistantChat(config);
+  const { streaming, error, send, cancel } = useAssistantChat();
   const { summarizing, summarize } = useSummarize();
 
   const [input, setInput] = useState("");
@@ -72,7 +67,9 @@ export function AssistantShell({
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
 
-  const messages = activeSession?.messages ?? [];
+  // Memoized so the callbacks below keep a stable identity between renders and
+  // never close over a fresh empty array.
+  const messages = useMemo(() => activeSession?.messages ?? [], [activeSession]);
   const lastMessage = messages[messages.length - 1];
   const hasError = lastMessage?.error === true;
   const now = new Date();
@@ -115,6 +112,12 @@ export function AssistantShell({
         (window as unknown as Record<string, number>).__AI_ASSISTANT_OPEN_MS__ = m.duration;
       } catch {
         /* start mark missing — not an open we instrumented */
+      } finally {
+        // Release both ends and the measure once the duration is published: an
+        // unreleased entry grows the performance buffer by one per open, forever.
+        performance.clearMarks("ai-assistant:open-start");
+        performance.clearMarks("ai-assistant:open-end");
+        performance.clearMeasures("ai-assistant:open");
       }
     };
     const raf2 = requestAnimationFrame(() => requestAnimationFrame(done));
@@ -135,18 +138,37 @@ export function AssistantShell({
   );
 
   const appendPair = useCallback(
-    (sessionId: string, text: string) => {
+    (sessionId: string, text: string, domain: AssistantDomain) => {
       updateSession(sessionId, (s) => ({
         ...s,
         lastMessageTs: Date.now(),
         messages: [
           ...s.messages,
-          { role: "user", text, domain: config.domain },
-          { role: "assistant", text: "", domain: config.domain },
+          { role: "user", text, domain },
+          { role: "assistant", text: "", domain },
         ] as Message[],
       }));
     },
-    [updateSession, config.domain],
+    [updateSession],
+  );
+
+  /**
+   * Summarize a session before it is left behind, so the history tab and the
+   * "Resumen" panel keep working for new sessions the way they did before the
+   * unification. Fire-and-forget: the user is already moving on.
+   *
+   * Declared before the send paths so they can name it in their dependency
+   * arrays without hitting the temporal dead zone.
+   */
+  const summarizeById = useCallback(
+    (id: string) => {
+      const target = sessions.find((s) => s.id === id);
+      if (!target || target.messages.length === 0 || target.summary) return;
+      void summarize(target.messages, () => {}).then((full) => {
+        if (full) updateSession(id, (s) => ({ ...s, summary: full }));
+      });
+    },
+    [sessions, summarize, updateSession],
   );
 
   const sendMessage = useCallback(
@@ -159,11 +181,19 @@ export function AssistantShell({
       const previousId = activeIdRef.current;
       const sessionId = maybeRotate(config.rotateAfterIdleMinutes);
       if (sessionId !== previousId) summarizeById(previousId);
-      appendPair(sessionId, text);
 
-      const history = messages;
+      // The words decide which endpoint answers, not the route: a cartera
+      // question asked in a spending thread goes to the investments model.
+      const target = configs[routeDomain(text, config.domain)];
+      appendPair(sessionId, text, target.domain);
+
+      // A rotated session starts clean. `messages` is the array captured before
+      // the rotation — the thread that was just left behind — and must not
+      // travel with the first message of the new one.
+      const history = sessionId === previousId ? messages : [];
       try {
         await send(
+          target,
           {
             question: text,
             history,
@@ -179,7 +209,7 @@ export function AssistantShell({
             if (next.length === 0) return s;
             next[next.length - 1] = {
               ...next[next.length - 1],
-              text: "No pude procesar la consulta. Probá de nuevo.",
+              text: "No pude procesar la consulta. Revisá tu conexión e intentá de nuevo.",
               error: true,
             };
             return { ...s, messages: next };
@@ -193,6 +223,9 @@ export function AssistantShell({
       input,
       streaming,
       maybeRotate,
+      config,
+      configs,
+      summarizeById,
       appendPair,
       messages,
       send,
@@ -223,7 +256,7 @@ export function AssistantShell({
     const previousId = activeIdRef.current;
     const sessionId = maybeRotate(config.rotateAfterIdleMinutes);
     if (sessionId !== previousId) summarizeById(previousId);
-    appendPair(sessionId, slot.prompt);
+    appendPair(sessionId, slot.prompt, config.domain);
     void slot
       .run()
       .then((full) => writeLast(full))
@@ -245,15 +278,7 @@ export function AssistantShell({
       .finally(() => {
         busyRef.current = false;
       });
-  }, [
-    config.analyzeSlot,
-    config.rotateAfterIdleMinutes,
-    streaming,
-    maybeRotate,
-    appendPair,
-    writeLast,
-    updateSession,
-  ]);
+  }, [config, streaming, maybeRotate, summarizeById, appendPair, writeLast, updateSession]);
 
   /**
    * Re-run the last user prompt. Pops the failed assistant bubble AND the user
@@ -274,22 +299,6 @@ export function AssistantShell({
     }
     void sendMessage(text);
   }, [messages, updateSession, config.analyzeSlot, sendMessage, runAnalyze]);
-
-  /**
-   * Summarize a session before it is left behind, so the history tab and the
-   * "Resumen" panel keep working for new sessions the way they did before the
-   * unification. Fire-and-forget: the user is already moving on.
-   */
-  const summarizeById = useCallback(
-    (id: string) => {
-      const target = sessions.find((s) => s.id === id);
-      if (!target || target.messages.length === 0 || target.summary) return;
-      void summarize(target.messages, () => {}).then((full) => {
-        if (full) updateSession(id, (s) => ({ ...s, summary: full }));
-      });
-    },
-    [sessions, summarize, updateSession],
-  );
 
   const startNewSession = useCallback(() => {
     summarizeById(activeIdRef.current);
@@ -517,7 +526,7 @@ export function AssistantShell({
                         role="group"
                         aria-label="Sugerencias de seguimiento"
                       >
-                        {FOLLOW_UPS.map((s) => (
+                        {config.followUps.map((s) => (
                           <button
                             key={s}
                             onClick={() => {
@@ -617,7 +626,7 @@ export function AssistantShell({
 
               <div className="flex items-center gap-3 mt-1.5 text-[10px] text-[var(--text-tertiary)] px-1">
                 <span role="status" aria-live="polite">
-                  {streaming ? "Analizando tus gastos…" : ""}
+                  {streaming ? config.analyzingLabel : ""}
                 </span>
                 <span className="ml-auto tabular-nums">
                   {input.length} / {MAX_INPUT_LENGTH}

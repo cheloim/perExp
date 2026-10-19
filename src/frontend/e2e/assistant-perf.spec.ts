@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { openApp, openAssistant, seedAuth, mockBackend } from "./helpers";
+import { ASSISTANT_OPEN_BUDGET_MS } from "../src/components/assistant/types";
 
 /**
  * Open-time budget for the assistant modal (issue #415 asks for a measurable
@@ -9,11 +10,14 @@ import { openApp, openAssistant, seedAuth, mockBackend } from "./helpers";
  * "ai-assistant:open-end" on the first painted frame; the resulting duration is
  * exposed on window.__AI_ASSISTANT_OPEN_MS__.
  *
+ * The budget lives in the assistant's own types module so this spec and the
+ * per-domain `openBudgetMs` cannot drift apart.
+ *
  * The budget is deliberately generous. This asserts "opening the card is not
  * accidentally quadratic / not blocking on a lazy chunk", not a hard SLA — CI
  * runners are noisy and a tight number here would just flake.
  */
-const OPEN_BUDGET_MS = 300;
+const OPEN_BUDGET_MS = ASSISTANT_OPEN_BUDGET_MS;
 
 test.describe("assistant performance", () => {
   test("opens within the budget", async ({ page }) => {
