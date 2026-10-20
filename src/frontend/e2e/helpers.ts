@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 /**
  * Network-layer backend stub.
@@ -225,4 +225,36 @@ export async function focusOutsideDialog(page: Page, anchor: OutsideAnchor) {
       `focusOutsideDialog(${anchor}): could not seed focus outside the dialog (${outcome})`,
     );
   }
+}
+
+/**
+ * Let a container's opening animations settle before scanning it with axe.
+ *
+ * Playwright's visibility check passes as soon as an opacity fade leaves 0, but
+ * axe-core models ancestor opacity and flattens foreground colors against the
+ * backdrop — so a scan taken mid-fade sees a lower-contrast palette than the
+ * one the user actually ends up with. The 0.2s `modal-content-in` fade on the
+ * assistant dialog produced exactly that: `color-contrast` violations that
+ * disappear at α=1. Awaiting the animations' own `finished` promises waits out
+ * the fade without an arbitrary sleep.
+ *
+ * The scan root is the target's PARENT on purpose: the modal backdrop
+ * (`animate-modal-backdrop`) sits outside the dialog subtree but its opacity
+ * still changes the computed colors inside it.
+ *
+ * The `iterations !== Infinity` filter is load-bearing. Infinite animations
+ * (`animate-pulse` and friends) never finish, so awaiting their `finished`
+ * hangs until the test times out. They are safe to skip: a loop has no "end
+ * state" to settle to — every frame is already the steady state.
+ */
+export async function settleOpenAnimations(target: Locator) {
+  await target.evaluate(async (el) => {
+    const root: Element = el.parentElement ?? el;
+    await Promise.all(
+      root
+        .getAnimations({ subtree: true })
+        .filter((a) => a.effect?.getTiming().iterations !== Infinity)
+        .map((a) => a.finished.catch(() => {})),
+    );
+  });
 }
