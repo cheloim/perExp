@@ -26,11 +26,23 @@ test.describe("assistant performance", () => {
     await openAssistant(page);
     await expect(page.getByRole("dialog", { name: "Asistente de Gastos" })).toBeVisible();
 
-    const ms = await page.evaluate(
-      () => (window as unknown as Record<string, number>).__AI_ASSISTANT_OPEN_MS__ ?? -1,
-    );
-
-    expect(ms, "open-start mark never fired").toBeGreaterThan(0);
+    // The mark is written two requestAnimationFrame ticks after the first
+    // paint, while toBeVisible() resolves as soon as the open fade turns
+    // opaque — a single read can land before the write and see -1. Polling for
+    // it keeps the budget assertion honest; a mark that truly never fires still
+    // fails here.
+    let ms = -1;
+    await expect
+      .poll(
+        async () => {
+          ms = await page.evaluate(
+            () => (window as unknown as Record<string, number>).__AI_ASSISTANT_OPEN_MS__ ?? -1,
+          );
+          return ms;
+        },
+        { message: "open-start mark never fired" },
+      )
+      .toBeGreaterThan(0);
     expect(
       ms,
       `assistant took ${ms.toFixed(1)}ms to open (budget ${OPEN_BUDGET_MS}ms)`,
@@ -44,11 +56,22 @@ test.describe("assistant performance", () => {
     for (let i = 0; i < 5; i++) {
       await openAssistant(page);
       await expect(page.getByRole("dialog", { name: "Asistente de Gastos" })).toBeVisible();
-      samples.push(
-        await page.evaluate(
-          () => (window as unknown as Record<string, number>).__AI_ASSISTANT_OPEN_MS__ ?? -1,
-        ),
-      );
+      // Same race as the single-open case: the mark may not be written yet.
+      // Polling here also keeps a missing mark from silently passing the
+      // budget assertion below (-1 is less than any budget).
+      let ms = -1;
+      await expect
+        .poll(
+          async () => {
+            ms = await page.evaluate(
+              () => (window as unknown as Record<string, number>).__AI_ASSISTANT_OPEN_MS__ ?? -1,
+            );
+            return ms;
+          },
+          { message: `open-start mark never fired (reopen #${i + 1})` },
+        )
+        .toBeGreaterThan(0);
+      samples.push(ms);
       await page.keyboard.press("Escape");
       await expect(page.getByRole("dialog", { name: "Asistente de Gastos" })).toHaveCount(0);
     }
