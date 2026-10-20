@@ -452,7 +452,7 @@ async def confirm_import_job(
                         tag = get_or_create_payment_tag(db, user.id, card=card)
                         from app.services.tag_sync import assign_tags_validated
 
-                        assign_tags_validated(db, expense.id, [tag.id], user.id)
+                        assign_tags_validated(db, expense.id, [int(tag.id)], user.id)
 
                 imported_count += 1
             except Exception as e:

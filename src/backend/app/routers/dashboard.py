@@ -669,16 +669,20 @@ async def get_monthly_report(
 
     # 6-month trend history for charts — single GROUP BY query
     trend_start = add_months(target_start, -5).replace(day=1)
+    # Una sola expresión compartida entre SELECT y GROUP BY: con psycopg v3 (server-side
+    # binds) dos llamadas iguales generan dos parámetros distintos y Postgres rechaza el
+    # GROUP BY porque no puede probar que sean la misma expresión.
+    month_key = func.to_char(Expense.date, "YYYY-MM")
     trend_rows = (
         db.query(
-            func.to_char(Expense.date, "YYYY-MM"),
+            month_key,
             Expense.is_income,
             func.coalesce(func.sum(func.abs(Expense.amount)), 0.0),
         )
         .filter(
             Expense.user_id.in_(uid_list), Expense.date >= trend_start, Expense.date <= target_end
         )
-        .group_by(func.to_char(Expense.date, "YYYY-MM"), Expense.is_income)
+        .group_by(month_key, Expense.is_income)
         .all()
     )
     trend_map: dict = {}

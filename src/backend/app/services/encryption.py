@@ -122,7 +122,7 @@ def needs_migration() -> bool:
                 "SELECT COUNT(*) FROM users WHERE full_name IS NOT NULL AND full_name NOT LIKE 'gAAAAAB%'"
             )
         ).scalar()
-        return result > 0
+        return bool(result and result > 0)
     except Exception:
         return True  # If check fails, run migration to be safe
     finally:

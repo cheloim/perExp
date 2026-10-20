@@ -7,6 +7,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   frontend:
     name: Frontend Lint & Typecheck
@@ -15,9 +19,9 @@ jobs:
       run:
         working-directory: src/frontend
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: "22.16.0"
           cache: "npm"
@@ -35,7 +39,6 @@ jobs:
 
       - name: TypeScript
         run: npm run typecheck
-        continue-on-error: true
 
   backend:
     name: Backend Lint & Typecheck
@@ -44,9 +47,9 @@ jobs:
       run:
         working-directory: src/backend
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: "pip"
@@ -63,7 +66,6 @@ jobs:
 
       - name: MyPy
         run: mypy app/
-        continue-on-error: true
 
   test:
     name: Backend Tests
@@ -86,9 +88,9 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: "pip"
@@ -112,9 +114,9 @@ jobs:
       run:
         working-directory: src/frontend
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: "22.16.0"
           cache: "npm"
@@ -132,9 +134,9 @@ jobs:
       run:
         working-directory: src/frontend
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: "22.16.0"
           cache: "npm"
@@ -145,7 +147,7 @@ jobs:
       # Browsers live outside the npm cache, so cache them separately —
       # a cold download of chromium is the slow part of this job.
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('src/frontend/package-lock.json') }}
@@ -160,7 +162,7 @@ jobs:
 
       - name: Upload Playwright report on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: |
@@ -176,9 +178,9 @@ jobs:
       run:
         working-directory: src/frontend
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: "22.16.0"
           cache: "npm"
@@ -206,9 +208,9 @@ jobs:
     name: Roadmap Validation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -231,9 +233,9 @@ jobs:
       run:
         working-directory: src/backend
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -247,9 +249,9 @@ jobs:
       run:
         working-directory: src/backend
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 

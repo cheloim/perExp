@@ -6,47 +6,40 @@ Personal finance app with Telegram bot, WhatsApp bot, FastAPI backend, React fro
 
 ## Lint Commands
 
-Run before every commit:
+Flujo por niveles — cada nivel tiene su comando:
 
-```bash
-./scripts/lint.sh
-```
+1. **Loop interno** — el test puntual del archivo que estés tocando (`npx vitest run <archivo>`, `pytest tests/<archivo>`).
+2. **Antes de cada commit** — `./scripts/lint.sh` (solo estático).
+3. **Antes de abrir un PR** — `./scripts/verify.sh` (todo, una sola vez).
+4. **Solo si tocás routers, imports o deploy** — `./scripts/smoke.sh`, y una sola vez, no dos.
 
-Run with auto-fix:
+Auto-fix:
 
 ```bash
 ./scripts/lint.sh --fix
 ```
 
-Individual commands:
-
-```bash
-# Frontend
-cd src/frontend && npm run lint && npx prettier --check src/ && npm run typecheck
-
-# Backend
-cd src/backend && ruff check app/ && ruff format --check app/ && mypy app/
-```
-
 ## Functional Verification
 
-Run after schema/router changes or before creating a PR:
+`./scripts/smoke.sh` solo si tocás routers, imports o deploy — y una sola vez, no dos:
 
 ```bash
 ./scripts/smoke.sh
 ```
 
-Full validation:
-
-```bash
-./scripts/lint.sh && ./scripts/smoke.sh
-```
-
 ## Test Commands
 
+Loop interno — el test puntual del archivo que estés tocando:
+
 ```bash
-cd src/backend && SECRET_KEY="test-secret-key-that-is-at-least-32-chars-long-for-testing" pytest tests/ -v
+# Frontend
+cd src/frontend && npx vitest run <archivo>
+
+# Backend
+cd src/backend && SECRET_KEY="test-secret-key-that-is-at-least-32-chars-long-for-testing" pytest tests/<archivo>
 ```
+
+La suite completa (estáticos + tests unitarios) corre con `./scripts/verify.sh` antes de abrir un PR. `./scripts/lint.sh` no corre tests.
 
 ## Key Paths
 
@@ -75,3 +68,11 @@ Follow the rules in `.sdd/guides/ai-agent-guide.md`:
 - **Bots**: Telegram + WhatsApp integration
 - **Deployment**: Podman Compose
 - **Specs**: OpenAPI + feature specs in `docs/specs/`
+
+## Agentes en paralelo
+
+Cuando un trabajo se divide entre varios agentes, coordinar según `AGENTS.md`: clasificar
+por archivos (disjuntos → paralelo; solapados → ramas separadas más rama de integración;
+dependientes → en orden), un agente = un worktree + una rama, declarar en el brief el
+estado global compartido (Postgres de tests, `node_modules`, containers), y correr la
+verificación completa una sola vez sobre la integración.

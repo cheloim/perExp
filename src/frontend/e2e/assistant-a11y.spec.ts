@@ -1,6 +1,13 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { openApp, mockBackend, seedAuth, openAssistant, focusOutsideDialog } from "./helpers";
+import {
+  openApp,
+  mockBackend,
+  seedAuth,
+  openAssistant,
+  focusOutsideDialog,
+  settleOpenAnimations,
+} from "./helpers";
 
 const STREAM_PATH = "/api/analysis/stream";
 
@@ -8,7 +15,11 @@ test.describe("assistant accessibility", () => {
   test("the open dialog has no detectable WCAG A/AA violations", async ({ page }) => {
     await openApp(page);
     await openAssistant(page);
-    await expect(page.getByRole("dialog", { name: "Asistente de Gastos" })).toBeVisible();
+    const dialog = page.getByRole("dialog", { name: "Asistente de Gastos" });
+    await expect(dialog).toBeVisible();
+    // axe flattens colors through ancestor opacity: run only once the 0.2s
+    // open fade has settled, or a mid-fade scan invents contrast violations.
+    await settleOpenAnimations(dialog);
 
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
@@ -40,6 +51,10 @@ test.describe("assistant accessibility", () => {
     await page.getByRole("textbox", { name: "Preguntá sobre tus gastos" }).fill("hola");
     await page.getByRole("textbox", { name: "Preguntá sobre tus gastos" }).press("Enter");
     await expect(page.getByRole("button", { name: "Cancelar respuesta" })).toBeVisible();
+
+    // Same fade race as above; the streaming dot's infinite `animate-pulse` in
+    // this subtree is skipped by the helper (it has no end state to await).
+    await settleOpenAnimations(page.getByRole("dialog", { name: "Asistente de Gastos" }));
 
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa"])

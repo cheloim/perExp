@@ -178,9 +178,13 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     trend_end = date(
         target_start.year, target_start.month, monthrange(target_start.year, target_start.month)[1]
     )
+    # Una sola expresión compartida entre SELECT y GROUP BY: con psycopg v3 (server-side
+    # binds) dos llamadas iguales generan dos parámetros distintos y Postgres rechaza el
+    # GROUP BY porque no puede probar que sean la misma expresión.
+    month_key = func.to_char(Expense.date, "YYYY-MM")
     trend_rows = (
         db.query(
-            func.to_char(Expense.date, "YYYY-MM"),
+            month_key,
             Expense.is_income,
             func.coalesce(func.sum(func.abs(Expense.amount)), 0.0),
         )
@@ -189,7 +193,7 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
             Expense.date >= trend_start,
             Expense.date <= trend_end,
         )
-        .group_by(func.to_char(Expense.date, "YYYY-MM"), Expense.is_income)
+        .group_by(month_key, Expense.is_income)
         .all()
     )
     trend_map: dict = {}
@@ -381,8 +385,8 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     category_trends = []
     for cat_id, cat_data in by_cat.items():
         cat_name = cat_data["name"]
-        current_val = cat_data["total"]
-        prev_val = prev_by_cat.get(cat_name, 0)
+        current_val = float(cat_data["total"])
+        prev_val = float(prev_by_cat.get(cat_name, 0))
         if prev_val > 0:
             change_pct = ((current_val - prev_val) / prev_val) * 100
         elif current_val > 0:
@@ -416,7 +420,7 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
         else:
             method = "Otro"
         payment_methods[method]["total"] += abs(e.amount)
-        payment_methods[method]["count"] += 1
+        payment_methods[method]["count"] = int(payment_methods[method]["count"]) + 1
         payment_methods[method]["name"] = method
     payment_list = sorted(payment_methods.values(), key=lambda x: x["total"], reverse=True)
 
@@ -921,11 +925,11 @@ Usa flags para tendencias preocupantes a monitorear."""
 
     # Build summary grouped by description
     recurring_summary = {}
-    for e in recurring_expenses_this_month:
-        key = (e.description or "").strip()
+    for exp in recurring_expenses_this_month:
+        key = (exp.description or "").strip()
         if key not in recurring_summary:
             recurring_summary[key] = {"description": key, "amount": 0.0}
-        recurring_summary[key]["amount"] += abs(e.amount)
+        recurring_summary[key]["amount"] += abs(exp.amount)
 
     recurring_list = sorted(
         recurring_summary.values(),

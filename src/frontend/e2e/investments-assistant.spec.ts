@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { seedAuth, mockBackend } from "./helpers";
+import { seedAuth, mockBackend, settleOpenAnimations } from "./helpers";
 
 /**
  * e2e coverage for the investments surface of the unified assistant.
@@ -147,17 +147,37 @@ test.describe("investments assistant", () => {
     await openAssistant(page);
     await expect(page.getByRole("dialog", { name: "Asistente de Inversiones" })).toBeVisible();
 
-    const ms = await page.evaluate(
-      () => (window as unknown as Record<string, number>).__AI_ASSISTANT_OPEN_MS__ ?? -1,
-    );
-    expect(ms, "open-start mark never fired").toBeGreaterThan(0);
+    // Same race class as the axe fade: the mark is published two nested rAFs
+    // after the dialog's first paint, while `toBeVisible()` resolves as soon as
+    // opacity leaves 0 — so a single read right after visibility regularly
+    // lands before the value is written (it reads as -1). Polling absorbs the
+    // write delay without touching the measurement: `ms` is still the app-side
+    // duration, captured once it exists. If the mark were genuinely lost (the
+    // app-side measure threw), the value never appears and this fails with the
+    // same "open-start mark never fired" as before.
+    let ms = -1;
+    await expect
+      .poll(
+        async () => {
+          ms = await page.evaluate(
+            () => (window as unknown as Record<string, number>).__AI_ASSISTANT_OPEN_MS__ ?? -1,
+          );
+          return ms;
+        },
+        { message: "open-start mark never fired" },
+      )
+      .toBeGreaterThan(0);
     expect(ms, `took ${ms.toFixed(1)}ms (budget ${OPEN_BUDGET_MS}ms)`).toBeLessThan(OPEN_BUDGET_MS);
   });
 
   test("has no axe violations", async ({ page }) => {
     await openInvestmentsApp(page);
     await openAssistant(page);
-    await expect(page.getByRole("dialog", { name: "Asistente de Inversiones" })).toBeVisible();
+    const dialog = page.getByRole("dialog", { name: "Asistente de Inversiones" });
+    await expect(dialog).toBeVisible();
+    // axe flattens colors through ancestor opacity: run only once the 0.2s
+    // open fade has settled, or a mid-fade scan invents contrast violations.
+    await settleOpenAnimations(dialog);
 
     const results = await new AxeBuilder({ page })
       .include('[role="dialog"]')
