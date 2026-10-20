@@ -3,6 +3,8 @@ name: CI
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -173,7 +175,6 @@ jobs:
   specs:
     name: Spec Validation & Codegen
     runs-on: ubuntu-latest
-    continue-on-error: true
     defaults:
       run:
         working-directory: src/frontend
