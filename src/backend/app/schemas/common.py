@@ -70,6 +70,11 @@ def _validate_email_format(v: str) -> str:
 def _validate_password_strength(v: str) -> str:
     if len(v) < 8:
         raise ValueError("La contraseña debe tener al menos 8 caracteres")
+    if len(v.encode("utf-8")) > 72:
+        raise ValueError(
+            "La contraseña debe tener como máximo 72 bytes "
+            "(bcrypt no admite contraseñas más largas)"
+        )
     if not any(c.isupper() for c in v):
         raise ValueError("La contraseña debe contener al menos una mayúscula")
     if not any(c.islower() for c in v):
