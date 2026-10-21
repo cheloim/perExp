@@ -1,4 +1,17 @@
-import defaultTheme from "tailwindcss/defaultTheme";
+/**
+ * Tailwind v4 no longer ships the v3 `tailwindcss/defaultTheme` font stacks (the
+ * compat shim that remains exposes a different list), so the v3 `fontFamily.sans`
+ * fallback chain is inlined verbatim to keep rendering identical.
+ */
+const defaultSansFallback = [
+  "ui-sans-serif",
+  "system-ui",
+  "sans-serif",
+  '"Apple Color Emoji"',
+  '"Segoe UI Emoji"',
+  '"Segoe UI Symbol"',
+  '"Noto Color Emoji"',
+];
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -13,7 +26,7 @@ export default {
           "Ubuntu",
           "system-ui",
           "-apple-system",
-          ...defaultTheme.fontFamily.sans,
+          ...defaultSansFallback,
         ],
       },
       colors: {
@@ -108,6 +121,11 @@ export default {
         primarySubtle: "rgba(53,132,228,0.25)",
       },
       boxShadow: {
+        // Tailwind v4 renamed the shadow scale (v3 `shadow-sm` -> v4 `shadow-xs`,
+        // v3 `shadow` -> v4 `shadow-sm`). Pin `sm` to its v3 value so the two
+        // `shadow-sm` call sites keep their original rendering. `md`, `lg`, `xl`
+        // and `2xl` kept their v3 values in v4 and need no pin.
+        sm: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
         glass: "0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)",
         card: "0 1px 4px rgba(0,0,0,0.08)",
         gnome: "0 2px 8px rgba(0,0,0,0.12)",
