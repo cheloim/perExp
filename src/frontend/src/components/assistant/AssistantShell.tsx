@@ -507,7 +507,7 @@ export function AssistantShell({
                               setInput(s);
                               inputRef.current?.focus();
                             }}
-                            className="text-left text-sm px-3.5 py-2.5 rounded-xl bg-[var(--color-primary-strong)]/8 hover:bg-[var(--color-primary-strong)]/15 text-[var(--color-primary-strong)] transition-colors"
+                            className="text-left text-sm px-3.5 py-2.5 rounded-xl bg-[var(--color-primary-strong)]/8 hover:bg-[var(--color-primary-strong)]/15 text-[var(--accent-color)] transition-colors"
                           >
                             {s}
                           </button>
