@@ -76,7 +76,8 @@ export const LEGACY_STORAGE: Record<AssistantDomain, StorageKeys> = {
 export type StreamArgs = {
   question: string;
   history: Message[];
-  month?: string | null;
+  /** Data window length in months; `null` means "let the config decide". */
+  months?: number | null;
   debugMode?: boolean;
   context?: string;
 };

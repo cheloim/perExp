@@ -73,8 +73,6 @@ export function AssistantShell({
   const messages = useMemo(() => activeSession?.messages ?? [], [activeSession]);
   const lastMessage = messages[messages.length - 1];
   const hasError = lastMessage?.error === true;
-  const now = new Date();
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const isLocalhost =
     typeof window !== "undefined" && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
 
@@ -208,7 +206,6 @@ export function AssistantShell({
           {
             question: text,
             history,
-            month: currentMonth,
             debugMode,
             context: buildContext ? buildContext() : undefined,
           },
@@ -249,7 +246,6 @@ export function AssistantShell({
       writeLast,
       updateSession,
       debugMode,
-      currentMonth,
       buildContext,
     ],
   );
