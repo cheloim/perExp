@@ -1,19 +1,39 @@
 /* Fonts loaded via <link> in index.html (preconnect + display=swap) */
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../tailwind.config.js";
 
-@layer utilities {
-  .scrollbar-none {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-  .scrollbar-none::-webkit-scrollbar {
+@utility scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
     display: none;
   }
-  .pb-safe {
-    padding-bottom: var(--browser-bottom-inset, env(safe-area-inset-bottom, 0px));
+}
+
+@utility pb-safe {
+  padding-bottom: var(--browser-bottom-inset, env(safe-area-inset-bottom, 0px));
+}
+
+/* Tailwind v3 auto-generated variants (hover:, …) for the hand-written classes
+   in `@layer components`; v4 only does that for `@utility` declarations. This
+   keeps `hover:bg-base-alt` (5 call sites) working with the exact same
+   `background` shorthand the hand-written class uses. */
+@utility bg-base-alt {
+  background: var(--color-base-alt);
+}
+
+/* Tailwind v4's preflight lets border-color default to `currentColor` (v3 used
+   `theme('borderColor.DEFAULT')`). Restore the v3 default so bare `border` and
+   the `border-b`/`border-t`/… side utilities keep rendering `var(--border-color)`.
+   Lives in `@layer base` so any explicit border-color utility still wins. */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--border-color);
   }
 }
 
