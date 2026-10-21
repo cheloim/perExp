@@ -15,7 +15,7 @@ const CONFIG: AssistantConfig = {
   followUps: [],
   streamUrl: "/api/analysis/stream",
   buildBody: (args) => ({
-    month: args.month ?? null,
+    months: args.months ?? null,
     question: args.question,
     debug_mode: args.debugMode ?? false,
   }),
@@ -80,7 +80,7 @@ const baseArgs: StreamArgs = {
     { role: "user", text: "hola", domain: "spending" },
     { role: "assistant", text: "hola!", domain: "spending" },
   ],
-  month: "2026-10",
+  months: 3,
 };
 
 describe("useAssistantChat", () => {
@@ -99,7 +99,7 @@ describe("useAssistantChat", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0].url).toBe("/api/analysis/stream");
     expect(calls[0].body).toEqual({
-      month: "2026-10",
+      months: 3,
       question: "¿cuánto gasté?",
       debug_mode: false,
     });
