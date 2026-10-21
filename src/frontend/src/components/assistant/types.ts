@@ -12,19 +12,21 @@ export type Message = {
 };
 
 /**
- * Field names are the legacy ones (`ts`, `lastMessageTs`, `summary`) so the
- * migration from `ai_assistant_*` / `inv_assistant_*` is lossless and the
- * existing history-tab and rotation semantics carry over unchanged.
+ * A conversation as the pre-thread stores held it — the shape the migration
+ * reads and all `domainOf` needs. `ts` breaks ties when picking the freshest
+ * session to carry into the thread, and `id` is just what their records kept.
+ * Everything else a session held (`lastMessageTs`, `summary`) went away with
+ * the session model, and these survivors are optional because the thread has
+ * no use for them.
  */
 export type Session = {
-  id: string;
-  ts: number;
-  lastMessageTs?: number;
+  id?: string;
+  ts?: number;
   messages: Message[];
-  summary?: string;
 };
 
-export type StorageKeys = { sessions: string; active: string };
+/** The thread's persistence: one key holding `Message[]`. */
+export type StorageKeys = { thread: string };
 
 /**
  * How long the assistant modal may take to open. Owned here — the one place
@@ -55,22 +57,30 @@ export const ASSISTANT_HISTORY_MESSAGES = ASSISTANT_HISTORY_TURNS * 2;
 export const ASSISTANT_HISTORY_CHARS = 16000;
 
 /**
- * The one shared, domain-agnostic store. The thread follows the user across
- * screens, so there is exactly one session list — the legacy per-domain keys
- * survive only as migration sources.
+ * The one shared, domain-agnostic thread. It follows the user across screens,
+ * so there is exactly one conversation — everything written before it survives
+ * only as a migration source.
  */
 export const SHARED_STORAGE: StorageKeys = {
-  sessions: "assistant_sessions",
-  active: "assistant_active",
+  thread: "assistant_thread",
 };
 
-/** Where `migrateLegacySessions` reads the pre-unification data from. */
-export const LEGACY_STORAGE: Record<AssistantDomain, StorageKeys> = {
+/** A pre-thread store: the `Session[]` list to read plus the pointer to purge. */
+type LegacyKeys = { sessions: string; active: string };
+
+/**
+ * Every key written before `assistant_thread`, as the migration's key map: the
+ * two per-domain stores from before the unification (`spending`, `investments`)
+ * and the single-list store the thread replaces (`unified`). Sessions are read
+ * from `sessions`, freshest by `ts`; `active` is only purged.
+ */
+export const LEGACY_STORAGE: Record<AssistantDomain | "unified", LegacyKeys> = {
   spending: { sessions: "ai_assistant_sessions", active: "ai_assistant_active" },
   investments: {
     sessions: "inv_assistant_sessions",
     active: "inv_assistant_active",
   },
+  unified: { sessions: "assistant_sessions", active: "assistant_active" },
 };
 
 export type StreamArgs = {

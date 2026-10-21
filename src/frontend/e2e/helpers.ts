@@ -1,4 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
+import { LEGACY_STORAGE, SHARED_STORAGE } from "../src/components/assistant/types";
 
 /**
  * Network-layer backend stub.
@@ -70,46 +71,43 @@ export async function mockBackend(page: Page, overrides: Record<string, unknown>
 }
 
 /**
+ * Every key written before the single thread. Purged on every seed so the
+ * assistant's one-time migration can never fire mid-test and pull in leftovers
+ * from a previous run — pages in one context share localStorage.
+ */
+const STALE_KEYS = Object.values(LEGACY_STORAGE).flatMap((keys) => [keys.sessions, keys.active]);
+
+/**
  * Seed auth so RequireAuth renders, plus the drawer flag the assistant reads.
  *
- * `sessions` pre-populates the assistant history. It must be written from an
- * init script rather than page.evaluate, because init scripts re-run on
+ * `thread` pre-populates the assistant conversation. It must be written from
+ * an init script rather than page.evaluate, because init scripts re-run on
  * reload — a long-history test that seeds then reloads would otherwise have its
- * fixture wiped by the default empty list.
+ * fixture wiped by the default empty thread.
  */
 export async function seedAuth(
   page: Page,
-  opts: { drawerOpen?: boolean; sessions?: unknown[]; activeId?: string } = {},
+  opts: { drawerOpen?: boolean; thread?: unknown[] } = {},
 ) {
   await page.addInitScript(
-    ({ token, drawerOpen, sessions, activeId }) => {
+    ({ token, drawerOpen, thread, threadKey, staleKeys }) => {
       window.localStorage.setItem("auth_token", token);
       // Always set the flag explicitly. Pages in one context share
       // localStorage, so a previous run that opened the drawer would otherwise
       // leak ai_drawer_open=true into the next one and hide the FAB.
       window.localStorage.setItem("ai_drawer_open", JSON.stringify(drawerOpen));
-      // Default to a clean slate unless the caller pre-seeded history.
-      window.localStorage.setItem(
-        "ai_assistant_sessions",
-        JSON.stringify(sessions !== undefined ? sessions : []),
-      );
-      // Without an active id the component opens a NEW empty session and the
-      // seeded history is never displayed.
-      if (activeId) window.localStorage.setItem("ai_assistant_active", activeId);
-      else window.localStorage.removeItem("ai_assistant_active");
-      // The unification merged the two per-domain stores into one shared thread
-      // (`assistant_*`). Clear it too: pages in one context share localStorage,
-      // so a previous measure() run would otherwise leak its session and active
-      // id, and the next run would append into that thread instead of its own.
-      window.localStorage.removeItem("assistant_sessions");
-      window.localStorage.removeItem("assistant_active");
+      // The thread is always written, empty by default: an absent key would
+      // trigger the one-time migration against stale keys from a previous run.
+      window.localStorage.setItem(threadKey, JSON.stringify(thread ?? []));
+      for (const key of staleKeys) window.localStorage.removeItem(key);
       window.localStorage.setItem("whats_new_dont_remind_version", "999.0.0");
     },
     {
       token,
       drawerOpen: opts.drawerOpen ?? false,
-      sessions: opts.sessions,
-      activeId: opts.activeId,
+      thread: opts.thread,
+      threadKey: SHARED_STORAGE.thread,
+      staleKeys: STALE_KEYS,
     },
   );
 }
@@ -118,7 +116,7 @@ export async function seedAuth(
 export async function openApp(
   page: Page,
   path = "/guide",
-  opts: { drawerOpen?: boolean; sessions?: unknown[]; activeId?: string } = {},
+  opts: { drawerOpen?: boolean; thread?: unknown[] } = {},
 ) {
   await seedAuth(page, opts);
   await mockBackend(page);

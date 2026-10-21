@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { AssistantShell } from "./AssistantShell";
 import { ASSISTANT_CONFIGS } from "./configs";
 import { SHARED_STORAGE } from "./types";
-import type { Message, Session } from "./types";
+import type { Message } from "./types";
 
 function sse(...texts: string[]): string[] {
   return [...texts.map((t) => `data: ${JSON.stringify({ text: t })}\n\n`), "data: [DONE]\n\n"];
@@ -32,14 +32,7 @@ function fakeStream(chunks: string[]): Response {
 }
 
 function seed(messages: Message[]): void {
-  const session: Session = {
-    id: "s1",
-    ts: Date.now(),
-    lastMessageTs: Date.now(),
-    messages,
-  };
-  localStorage.setItem(SHARED_STORAGE.sessions, JSON.stringify([session]));
-  localStorage.setItem(SHARED_STORAGE.active, "s1");
+  localStorage.setItem(SHARED_STORAGE.thread, JSON.stringify(messages));
 }
 
 describe("AssistantShell", () => {
@@ -199,15 +192,13 @@ describe("AssistantShell", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("Resumir writes session.summary and never overwrites the last reply", async () => {
-    seed([
-      { role: "user", text: "gasto", domain: "spending" },
-      { role: "assistant", text: "respuesta-valiosa", domain: "spending" },
-    ]);
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => fakeStream(sse("RESUMEN-DE-LA-CHARLA"))),
-    );
+  it("el tope de 200 mensajes recorta los más viejos", async () => {
+    const history: Message[] = Array.from({ length: 205 }, (_, i) => ({
+      role: i % 2 === 0 ? "user" : "assistant",
+      text: `m${i}`,
+      domain: "spending",
+    }));
+    seed(history);
     render(
       <AssistantShell
         configs={ASSISTANT_CONFIGS}
@@ -217,14 +208,43 @@ describe("AssistantShell", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Resumir" }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "hola" } });
+    fireEvent.submit(screen.getByRole("textbox").closest("form")!);
+    await waitFor(() => expect(screen.getByText("respuesta")).toBeInTheDocument());
 
-    await waitFor(() => expect(screen.getByText("RESUMEN-DE-LA-CHARLA")).toBeInTheDocument());
-    // The user's reply must survive the summarize.
-    expect(screen.getByText("respuesta-valiosa")).toBeInTheDocument();
+    const stored = JSON.parse(localStorage.getItem(SHARED_STORAGE.thread)!) as Message[];
+    // 205 seeded + the new pair is 207: the seven oldest go, the newest stay.
+    expect(stored).toHaveLength(200);
+    expect(stored[0].text).toBe("m7");
+    expect(stored.some((m) => m.text === "m0")).toBe(false);
+    expect(stored[stored.length - 1].text).toBe("respuesta");
+  });
 
-    const stored = JSON.parse(localStorage.getItem(SHARED_STORAGE.sessions)!);
-    expect(stored[0].summary).toBe("RESUMEN-DE-LA-CHARLA");
+  it("el tope de 256 KB recorta los más viejos cuando llega antes", async () => {
+    const big = (n: number): Message => ({
+      role: "user",
+      text: `grande-${n} ${"a".repeat(120_000)}`,
+      domain: "spending",
+    });
+    seed([big(0), big(1), big(2)]);
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "hola" } });
+    fireEvent.submit(screen.getByRole("textbox").closest("form")!);
+    await waitFor(() => expect(screen.getByText("respuesta")).toBeInTheDocument());
+
+    const stored = JSON.parse(localStorage.getItem(SHARED_STORAGE.thread)!) as Message[];
+    // Three ~120 KB exchanges break the 256 KB budget before the count cap
+    // ever matters, and the oldest is the one that goes.
+    expect(stored.some((m) => m.text.startsWith("grande-0"))).toBe(false);
+    expect(stored[0].text.startsWith("grande-1")).toBe(true);
   });
 
   it("a failed monthly analysis shows the error state and retries via the slot", async () => {
@@ -328,16 +348,11 @@ describe("AssistantShell", () => {
     expect(group).not.toHaveTextContent("¿Dónde más puedo recortar?");
   });
 
-  it("deleting a session asks for one confirmation, not two", () => {
-    // Two sessions so the target shows up in Conversaciones (the active one is hidden).
-    const old: Session = {
-      id: "old",
-      ts: Date.now() - 60_000,
-      messages: [{ role: "user", text: "gasto viejo", domain: "spending" }],
-    };
-    const active: Session = { id: "active", ts: Date.now(), messages: [] };
-    localStorage.setItem(SHARED_STORAGE.sessions, JSON.stringify([old, active]));
-    localStorage.setItem(SHARED_STORAGE.active, "active");
+  it("Limpiar asks once with the agreed copy and only clears on confirm", () => {
+    seed([
+      { role: "user", text: "gasto viejo", domain: "spending" },
+      { role: "assistant", text: "$100", domain: "spending" },
+    ]);
 
     render(
       <AssistantShell
@@ -348,14 +363,28 @@ describe("AssistantShell", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /^Conversaciones/ }));
-    fireEvent.click(screen.getByText("gasto viejo")); // expand the card
-    fireEvent.click(screen.getByRole("button", { name: "Eliminar sesión" }));
+    fireEvent.click(screen.getByRole("button", { name: "Limpiar" }));
 
-    // The trash opens the shared ConfirmDialog directly — no inline "¿Eliminar?"
-    // step in between — so exactly one Eliminar affordance is on screen.
-    expect(screen.getAllByRole("button", { name: "Eliminar" })).toHaveLength(1);
-    expect(screen.queryByText("¿Eliminar?")).toBeNull();
+    // The trash opens the shared ConfirmDialog directly — no inline step in
+    // between — so exactly one Limpiar affordance is on screen.
+    const confirm = screen.getByRole("dialog", { name: "Limpiar conversación" });
+    expect(
+      within(confirm).getByText(
+        "Esto borra los mensajes de esta conversación. No se puede deshacer.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(confirm).getAllByRole("button", { name: "Limpiar" })).toHaveLength(1);
+
+    // Cancelling keeps the thread.
+    fireEvent.click(within(confirm).getByRole("button", { name: "Cancelar" }));
+    expect(screen.getByText("gasto viejo")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Limpiar" }));
+    const reopened = screen.getByRole("dialog", { name: "Limpiar conversación" });
+    fireEvent.click(within(reopened).getByRole("button", { name: "Limpiar" }));
+
+    expect(screen.queryByText("gasto viejo")).toBeNull();
+    expect(JSON.parse(localStorage.getItem(SHARED_STORAGE.thread)!)).toEqual([]);
   });
 
   it("routes an investments question to the investments endpoint and flips the chrome", async () => {
@@ -388,38 +417,6 @@ describe("AssistantShell", () => {
     await waitFor(() =>
       expect(screen.getByRole("dialog")).toHaveAccessibleName("Asistente de Inversiones"),
     );
-  });
-
-  it("a rotated session starts clean instead of inheriting the old thread", async () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-10-19T12:00:00Z"));
-    seed([{ role: "user", text: "gasté 100 en el super", domain: "spending" }]);
-
-    const fetchMock = vi.fn(async () => fakeStream(sse("ok")));
-    vi.stubGlobal("fetch", fetchMock);
-    render(
-      <AssistantShell
-        configs={ASSISTANT_CONFIGS}
-        initialDomain="spending"
-        open
-        onToggle={() => {}}
-      />,
-    );
-
-    // Three hours later the spending surface rotates (its threshold is 120 min).
-    vi.setSystemTime(new Date("2026-10-19T15:00:00Z"));
-    fireEvent.change(screen.getByRole("textbox"), { target: { value: "¿cuánto gasté este mes?" } });
-    fireEvent.submit(screen.getByRole("textbox").closest("form")!);
-
-    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    // Rotation summarizes the thread it left behind first, so the chat request
-    // is not necessarily the first fetch — find it by URL.
-    const chatCall = (fetchMock.mock.calls as unknown as [string, { body: string }][]).find(
-      ([url]) => url === "/api/analysis/stream",
-    );
-    expect(chatCall, "the chat request never went out").toBeDefined();
-    // A "new" session must not answer with the old conversation still attached.
-    expect(JSON.parse(chatCall![1].body).messages).toEqual([]);
   });
 
   it("releases the open instrumentation after measuring so it cannot accumulate", async () => {
