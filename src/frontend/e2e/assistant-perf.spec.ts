@@ -90,16 +90,12 @@ test.describe("assistant performance", () => {
   test("a long thread does not block interaction", async ({ page }) => {
     // Seed via init script so the fixture survives navigation, and start with
     // the drawer closed so the FAB is present to click.
-    const now = Date.now();
     const longThread = Array.from({ length: 40 }, (_, i) =>
       i % 2 === 0
         ? { role: "user", text: `pregunta ${i}` }
         : { role: "assistant", text: `respuesta ${i} con **negritas** y texto normal` },
     );
-    await openApp(page, "/guide", {
-      sessions: [{ id: `${now}-seed`, ts: now, messages: longThread }],
-      activeId: `${now}-seed`,
-    });
+    await openApp(page, "/guide", { thread: longThread });
 
     await openAssistant(page);
     const box = page.getByRole("textbox", { name: "Preguntá sobre tus gastos" });
@@ -136,15 +132,13 @@ test.describe("assistant performance", () => {
     const measure = async (historyLen: number) => {
       const p = await page.context().newPage();
       try {
-        const ts = Date.now();
-        const id = `hist-${historyLen}-${ts}`;
         const history = Array.from({ length: historyLen }, (_, i) =>
           i % 2 === 0
             ? { role: "user", text: `pregunta ${i}` }
             : { role: "assistant", text: `respuesta ${i}` },
         );
 
-        await seedAuth(p, { sessions: [{ id, ts, messages: history }], activeId: id });
+        await seedAuth(p, { thread: history });
         await mockBackend(p);
         // Registered after mockBackend so it wins (Playwright matches the most
         // recently registered route first).

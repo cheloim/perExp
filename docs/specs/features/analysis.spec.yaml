@@ -1,11 +1,11 @@
 feature: analysis
 domain: AI Spending Analysis
 type: full
-version: "1.1.2"
+version: "1.2.0"
 status: implemented
 owner: full-stack
 created: 2026-08-16
-updated: 2026-10-19
+updated: 2026-10-20
 github_issue: null
 
 description: >
@@ -92,7 +92,19 @@ endpoints:
       month:
         type: "string"
         required: false
-        description: "Period to analyse, 'YYYY-MM'"
+        description: >
+          Period to analyse, 'YYYY-MM'. Takes priority: when it is present,
+          `months` is ignored.
+      months:
+        type: "integer"
+        required: false
+        default: null
+        description: >
+          Data window length when no exact month is named: the current month
+          plus `months - 1` previous ones, from the first day of the oldest
+          month up to today (no upper bound on the date). The assistant sends
+          3, so it sees the current month and the two before it.
+        constraints: "integer, 1 ≤ months ≤ 24; anything else is a 422"
       debug_mode:
         type: "boolean"
         required: false
@@ -140,6 +152,13 @@ business_rules:
       question is always the final user turn.
   - name: "History Storage"
     description: "Every query and response is persisted in analysis_history for the user"
+  - name: "Analysis Window"
+    description: >
+      The assistant analyses a window, not a single month. `months` selects the
+      current month plus `months - 1` previous ones, and the client asks for 3.
+      An exact `month` wins over the window when both arrive. With neither, all
+      the user's expenses are analysed. `AnalysisHistory.month` stores the exact
+      month only: a window leaves it null, because a window is not a month.
   - name: "Data Scoping"
     description: "Only the authenticated user's expenses are included in the LLM prompt"
   - name: "PII Minimization"
@@ -206,6 +225,32 @@ tests:
       - "Assert 200 response with appropriate message"
     expected: "Response indicates no expenses found"
 
+  - name: "The window covers three months"
+    type: "integration"
+    description: "months=3 brings the current month and the two before it, and nothing older"
+    steps:
+      - "Add expenses in the current month, the two previous ones and one four months back"
+      - "POST /analysis/stream with months=3"
+      - "Assert the three months are analysed, the older expense is left out, and the period is the window"
+    expected: "Only the three months of the window reach the model"
+
+  - name: "An exact month wins over the window"
+    type: "integration"
+    description: "month and months together analyse the named month only"
+    steps:
+      - "POST /analysis/stream with month 'YYYY-MM' and months 3"
+      - "Assert only that month's expenses are analysed"
+    expected: "month has priority over months"
+
+  - name: "A window length outside 1..24 is rejected"
+    type: "integration"
+    description: "months is bounded, so a runaway window cannot ask for everything"
+    steps:
+      - "POST /analysis/stream with months 0"
+      - "POST /analysis/stream with months 25"
+      - "Assert both are 422"
+    expected: "422 for any months outside 1..24"
+
   - name: "Prior turns are understood"
     type: "integration"
     description: "A follow-up that depends on an earlier turn resolves it"
@@ -230,6 +275,11 @@ documentation:
     description: "Gemini Flash setup instructions in project docs"
 
 changelog:
+  - version: "1.2.0"
+    date: "2026-10-20"
+    changes:
+      - "The assistant analyses a three-month window — the current month plus the two before it — instead of only the current month"
+      - "New `months` field (1..24, default null) picks the window length; `month` keeps its meaning and wins when both are sent"
   - version: "1.1.0"
     date: "2026-10-19"
     changes:

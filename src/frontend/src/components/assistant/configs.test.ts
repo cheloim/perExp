@@ -12,7 +12,7 @@ import type { Message, StreamArgs } from "./types";
 const ARGS: StreamArgs = {
   question: "¿cuánto gasté?",
   history: [],
-  month: "2026-10",
+  months: 3,
   debugMode: false,
   context: "=== CARTERA ACTUAL ===\nARS: $1.000",
 };
@@ -20,14 +20,17 @@ const ARGS: StreamArgs = {
 describe("ASSISTANT_CONFIGS.spending", () => {
   const cfg = ASSISTANT_CONFIGS.spending;
 
-  it("targets /api/analysis/stream with { month, question, debug_mode }", () => {
+  it("targets /api/analysis/stream with { months, question, debug_mode }", () => {
     expect(cfg.streamUrl).toBe("/api/analysis/stream");
     expect(cfg.buildBody(ARGS)).toEqual({
-      month: "2026-10",
+      months: 3,
       question: "¿cuánto gasté?",
       debug_mode: false,
       messages: [],
     });
+    // The window is a three-month default: a caller that names no length still
+    // gets the current month plus the two before it.
+    expect(cfg.buildBody({ ...ARGS, months: null }).months).toBe(3);
   });
 
   it("is migrated from the legacy ai_assistant_* store", () => {
