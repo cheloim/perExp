@@ -50,14 +50,44 @@ def _leaf_cats(cats: list) -> list:
 
 
 def auto_categorize(description: str, categories: list) -> int | None:
+    """Pick a category by ranked keyword matching.
+
+    Each keyword scores with its best match tier: whole word in the description
+    (3), word prefix when ``len(kw) >= 4`` (2) or raw substring when
+    ``len(kw) >= 4`` (1, kept for keywords already stored glued to other text).
+    Short keywords only match as whole words, so ``gas`` no longer matches
+    ``gaseosa``.
+
+    The highest score wins; ties go to the longest keyword and then to the
+    smallest category id, so the result never depends on the order of
+    ``categories``.
+    """
+    import re
+
     desc_lower = description.lower()
+    best: tuple[int, int, int] | None = None
+    best_cat_id: int | None = None
     for cat in _leaf_cats(categories):
-        if cat.keywords:
-            for kw in cat.keywords.split(","):
-                kw = kw.strip()
-                if kw and kw in desc_lower:
-                    return cat.id
-    return None
+        if not cat.keywords:
+            continue
+        for raw_kw in cat.keywords.split(","):
+            kw = raw_kw.strip().lower()
+            if not kw:
+                continue
+            escaped = re.escape(kw)
+            if re.search(rf"(?<!\w){escaped}(?!\w)", desc_lower):
+                score = 3
+            elif len(kw) >= 4 and re.search(rf"(?<!\w){escaped}", desc_lower):
+                score = 2
+            elif len(kw) >= 4 and kw in desc_lower:
+                score = 1
+            else:
+                continue
+            rank = (-score, -len(kw), cat.id)
+            if best is None or rank < best:
+                best = rank
+                best_cat_id = cat.id
+    return best_cat_id
 
 
 def _should_skip(description: str) -> bool:
@@ -154,11 +184,32 @@ def _normalize_merchant_key(description: str) -> str:
     return text[:255] if text else ""
 
 
+def _fuzzy_preference_key(merchant_key: str) -> str:
+    """Comparison form for fuzzy preference matching.
+
+    Normalizes the key and drops trailing domain-style suffixes so bank
+    variants of the same merchant compare equal: "NETFLIX.COM" and
+    "NETFLIX 03/06" both become "NETFLIX".
+    """
+    import re
+
+    normalized = _normalize_merchant_key(merchant_key)
+    return re.sub(r"(?:\.[A-Z]{2,4})+$", "", normalized).strip(" .-")
+
+
 def check_user_preference(description: str, user_id: int, db: Session) -> int | None:
     """Check if user has a stored preference for this merchant.
 
+    The exact merchant_key match is checked first and always wins. When there
+    is no exact row, a fuzzy fallback compares against the preferences of this
+    user with usage_count >= 2: SequenceMatcher ratio >= 0.88 and at most 2
+    characters of length difference between the merchant keys. Best ratio
+    wins, ties go to the highest usage_count.
+
     Returns category_id if found, None otherwise.
     """
+    from difflib import SequenceMatcher
+
     from app.models import MerchantPreference
 
     merchant_key = _normalize_merchant_key(description)
@@ -173,9 +224,37 @@ def check_user_preference(description: str, user_id: int, db: Session) -> int | 
         )
         .first()
     )
+    if pref is not None:
+        return pref.category_id if pref.confidence >= 0.5 else None
 
-    if pref and pref.confidence >= 0.5:
-        return pref.category_id
+    fuzzy_key = _fuzzy_preference_key(merchant_key)
+    if not fuzzy_key:
+        return None
+
+    best: MerchantPreference | None = None
+    best_rank: tuple[float, int, int] | None = None
+    candidates = (
+        db.query(MerchantPreference)
+        .filter(
+            MerchantPreference.user_id == user_id,
+            MerchantPreference.usage_count >= 2,
+        )
+        .all()
+    )
+    for candidate in candidates:
+        other_key = _fuzzy_preference_key(candidate.merchant_key)
+        if not other_key or abs(len(fuzzy_key) - len(other_key)) > 2:
+            continue
+        ratio = SequenceMatcher(None, fuzzy_key, other_key).ratio()
+        if ratio < 0.88:
+            continue
+        rank = (-ratio, -(candidate.usage_count or 0), candidate.id or 0)
+        if best_rank is None or rank < best_rank:
+            best_rank = rank
+            best = candidate
+
+    if best is not None and best.confidence >= 0.5:
+        return best.category_id
     return None
 
 
