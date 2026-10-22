@@ -18,6 +18,12 @@ from app.services.llm import LLMMessage, get_client, is_configured
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
 
+def _first_of_month_back(today: date, back: int) -> date:
+    """First day of the month `back` months before the month `today` is in."""
+    total = today.year * 12 + today.month - 1 - back
+    return date(total // 12, total % 12 + 1, 1)
+
+
 @router.post(
     "/stream",
     summary="Stream expense analysis",
@@ -29,6 +35,7 @@ async def stream_analysis(
     current_user: User = Depends(get_current_user),
 ):
     q = db.query(Expense).filter(Expense.user_id == current_user.id)
+    window_start: date | None = None
     if req.month:
         try:
             y, m = int(req.month[:4]), int(req.month[5:7])
@@ -38,6 +45,11 @@ async def stream_analysis(
             )
         except (ValueError, IndexError):
             pass
+    elif req.months:
+        # A window, not a month: the current month plus `months - 1` previous
+        # ones, with no upper bound so a spend dated later is still analysed.
+        window_start = _first_of_month_back(date.today(), req.months - 1)
+        q = q.filter(Expense.date >= window_start)
 
     expenses = q.all()
     categories = db.query(Category).all()
@@ -72,6 +84,8 @@ async def stream_analysis(
     period = ""
     if req.month:
         period = f"Período: {req.month}"
+    elif window_start:
+        period = f"Período: {window_start} → {date.today()}"
     else:
         dates = [e.date for e in expenses]
         period = f"Período: {min(dates)} → {max(dates)}" if dates else ""

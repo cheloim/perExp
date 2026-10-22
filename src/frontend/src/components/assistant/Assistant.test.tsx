@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Assistant, {
   buildPortfolioContext,
@@ -9,7 +9,7 @@ import Assistant, {
 } from "./Assistant";
 import { getInvestments } from "../../api/client";
 import { SHARED_STORAGE } from "./types";
-import type { Message, Session } from "./types";
+import type { Message } from "./types";
 
 // Only `getInvestments` is faked — it is the request this file is about to
 // start gating. Everything else stays real so the chrome tests keep covering
@@ -41,14 +41,7 @@ function fakeStream(chunks: string[]): Response {
 }
 
 function seed(messages: Message[]): void {
-  const session: Session = {
-    id: "s1",
-    ts: Date.now(),
-    lastMessageTs: Date.now(),
-    messages,
-  };
-  localStorage.setItem(SHARED_STORAGE.sessions, JSON.stringify([session]));
-  localStorage.setItem(SHARED_STORAGE.active, "s1");
+  localStorage.setItem(SHARED_STORAGE.thread, JSON.stringify(messages));
 }
 
 function renderAssistant(initialDomain: "spending" | "investments") {
@@ -112,7 +105,7 @@ describe("Assistant", () => {
     expect(screen.getByRole("dialog")).toHaveAccessibleName("Asistente de Gastos");
   });
 
-  it("chrome follows the thread when a new session is started, not the mount snapshot", async () => {
+  it("Limpiar vacía el hilo", async () => {
     seed([{ role: "user", text: "gasto", domain: "spending" }]);
 
     render(
@@ -127,13 +120,20 @@ describe("Assistant", () => {
     // the investments route.
     expect(screen.getByRole("dialog")).toHaveAccessibleName("Asistente de Gastos");
 
-    fireEvent.click(screen.getByRole("button", { name: "Nueva" }));
+    fireEvent.click(screen.getByRole("button", { name: "Limpiar" }));
+    const confirm = screen.getByRole("dialog", { name: "Limpiar conversación" });
+    fireEvent.click(within(confirm).getByRole("button", { name: "Limpiar" }));
 
-    // A fresh session has no messages, so it falls back to the route's domain.
+    // An empty thread has no domain of its own, so the chrome falls back to the
+    // route's — the thread still leads, not the mount snapshot.
     await waitFor(() =>
       expect(screen.getByRole("dialog")).toHaveAccessibleName("Asistente de Inversiones"),
     );
     expect(screen.queryByRole("button", { name: "✨ Analizar gastos del mes" })).toBeNull();
+
+    // …and the initial state with the suggestions is back.
+    expect(screen.getByText("Empezá por acá")).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem(SHARED_STORAGE.thread)!)).toEqual([]);
   });
 
   it("reads back exactly what the drawer writer stores", () => {
@@ -224,7 +224,7 @@ describe("Assistant", () => {
     await waitFor(() => expect(readDrawerOpen()).toBe(false));
   });
 
-  it("merges the two legacy stores into one shared thread on first render", async () => {
+  it("la migración toma la sesión más reciente y borra las legacy", async () => {
     localStorage.setItem(
       "ai_assistant_sessions",
       JSON.stringify([
@@ -236,21 +236,53 @@ describe("Assistant", () => {
       ]),
     );
     localStorage.setItem(
+      "assistant_sessions",
+      JSON.stringify([
+        {
+          id: "mid",
+          ts: 2000,
+          messages: [{ role: "user", text: "unificado" }],
+        },
+      ]),
+    );
+    localStorage.setItem("assistant_active", "mid");
+    localStorage.setItem(
       "inv_assistant_sessions",
       JSON.stringify([
         {
           id: "old-inv",
-          ts: 2000,
-          messages: [{ role: "user", text: "inversión vieja" }],
+          ts: 3000,
+          messages: [{ role: "user", text: "inversión reciente" }],
         },
       ]),
     );
 
-    renderAssistant("spending");
+    const first = renderAssistant("spending");
 
+    // The freshest session by ts becomes the thread, whatever store it came
+    // from — with the domain of its store so the chrome still follows it.
     await waitFor(() => {
-      const merged = JSON.parse(localStorage.getItem(SHARED_STORAGE.sessions)!);
-      expect(merged.map((s: { id: string }) => s.id)).toEqual(["old-spend", "old-inv"]);
+      expect(JSON.parse(localStorage.getItem(SHARED_STORAGE.thread)!)).toEqual([
+        { role: "user", text: "inversión reciente", domain: "investments" },
+      ]);
     });
+    for (const key of [
+      "ai_assistant_sessions",
+      "ai_assistant_active",
+      "inv_assistant_sessions",
+      "inv_assistant_active",
+      "assistant_sessions",
+      "assistant_active",
+    ]) {
+      expect(localStorage.getItem(key)).toBeNull();
+    }
+
+    // Running the migration again on a fresh mount is inert.
+    first.unmount();
+    renderAssistant("spending");
+    expect(screen.getByText("inversión reciente")).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem(SHARED_STORAGE.thread)!)).toEqual([
+      { role: "user", text: "inversión reciente", domain: "investments" },
+    ]);
   });
 });
