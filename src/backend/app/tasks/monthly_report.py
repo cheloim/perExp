@@ -532,16 +532,11 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
 
     # LLM analysis
     analysis = None
-    import os
 
-    api_key = os.getenv("LLM_API_KEY")
-    if api_key:
+    from app.services.llm import LLMMessage, get_client, is_configured
+
+    if is_configured():
         try:
-            import asyncio
-
-            from google import genai
-            from google.genai import types as genai_types
-
             today = date.today()
             trend_lines = []
             for t in trend_history:
@@ -655,20 +650,16 @@ Usa flags para tendencias preocupantes a monitorear."""
 
             prompt = prompt + "\n" + monthly_prompt_rules(limited_history)
 
-            client = genai.Client(api_key=api_key)
-
-            async def _call_llm():
-                return await client.aio.models.generate_content(
-                    model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
-                    contents=llm_context,
-                    config=genai_types.GenerateContentConfig(
-                        system_instruction=prompt,
-                        response_mime_type="application/json",
-                    ),
+            raw_text = (
+                get_client()
+                .complete(
+                    [LLMMessage(role="user", text=llm_context)],
+                    feature="monthly_report",
+                    system=prompt,
+                    json_mode=True,
                 )
-
-            response = asyncio.run(_call_llm())
-            raw_text = response.text.strip()
+                .text.strip()
+            )
             logger.debug(f"[MONTHLY REPORT] LLM raw response ({len(raw_text)} chars)")
             # Print last 500 chars to see what's after the JSON
             logger.debug(f"[MONTHLY REPORT] Last 500 chars: {raw_text[-500:]}")

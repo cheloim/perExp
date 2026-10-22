@@ -1,12 +1,11 @@
-import json
 import logging
 import os
 
-from google import genai
 from sqlalchemy.orm import Session
 
 from app.models import Category
 from app.services import get_setting as _get_setting
+from app.services.llm import LLMMessage, get_client
 
 logger = logging.getLogger(__name__)
 
@@ -220,8 +219,8 @@ def _build_formatted_categories(cats: list) -> str:
     return "\n".join(lines)
 
 
-def _llm_client() -> genai.Client:
-    return genai.Client(api_key=os.getenv("LLM_API_KEY", ""))
+def _llm_client():
+    return get_client()
 
 
 def _get_parent_name(cat: Category, categories: list) -> str:
@@ -274,21 +273,11 @@ def llm_categorize(
             logger.info("[AI-CAT] Calling LLM: desc=%s, amount=%s", description, amount_str)
 
         client = _llm_client()
-        response = client.models.generate_content(
-            model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
-            contents=prompt,
-            config={"temperature": temperature},
+        data = client.complete_json(
+            [LLMMessage(role="user", text=prompt)],
+            feature="categorization",
+            temperature=temperature,
         )
-        text = response.text.strip()
-
-        # Extract JSON from response (handle markdown code blocks)
-        if "```" in text:
-            text = text.split("```")[1]
-            if text.startswith("json"):
-                text = text[4:]
-            text = text.strip()
-
-        data = json.loads(text)
         category_id = data.get("category_id")
         confidence = float(data.get("confidence", 0))
 

@@ -10,7 +10,7 @@ The client sends the same window (see `wireMessages` in
 request is not trusted: the caps are enforced here too.
 """
 
-from google.genai import types as genai_types
+from app.services.llm.types import LLMMessage
 
 #: How many prior turns are forwarded. Big enough to keep a conversation
 #: coherent, small enough that a long thread cannot grow the prompt without
@@ -71,24 +71,22 @@ def _window(history) -> list[tuple[str, str]]:
     return kept
 
 
-def to_genai_contents(history, final_user_text: str) -> list:
+def to_llm_messages(history, final_user_text: str) -> list[LLMMessage]:
     """Build conversation turns from `{"role": "user" | "assistant", "text": ...}`.
 
-    An assistant reply becomes a "model" turn. The fresh question is appended
-    last, always as a user turn.
+    An assistant reply becomes an assistant turn. The fresh question is
+    appended last, always as a user turn. Roles are provider-neutral; each
+    adapter maps them onto its own vocabulary.
     """
     if history is None:
         history = []
     if not isinstance(history, list):
         raise TypeError(f"history must be a list, got {type(history).__name__}")
 
-    turns: list = [
-        genai_types.Content(
-            role="user" if role == "user" else "model",
-            parts=[genai_types.Part(text=text)],
-        )
+    turns: list[LLMMessage] = [
+        LLMMessage(role=("user" if role == "user" else "assistant"), text=text)
         for role, text in _window(history)
     ]
 
-    turns.append(genai_types.Content(role="user", parts=[genai_types.Part(text=final_user_text)]))
+    turns.append(LLMMessage(role="user", text=final_user_text))
     return turns

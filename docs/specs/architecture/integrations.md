@@ -38,11 +38,12 @@ Library: **python-telegram-bot** (v20+, async)
 
 ### LLM Integration
 
-Uses **Google Gemini Flash** for natural language parsing:
+Uses the provider-neutral LLM layer (`app/services/llm`) for natural language parsing:
 - `EXPENSE_PARSE_PROMPT` — extracts date, amount, description from free text
 - `CARD_EXTRACT_PROMPT` — extracts card_name and bank from user input
-- Model: `gemini-flash-latest` (configurable via `LLM_MODEL_NAME`)
+- Model: `LLM_MODEL_NAME` (see the LLM Provider Layer section)
 - API key: `MESSAGES_BOT_LLM_API_KEY`
+- Metric labels: `telegram_expense`, `telegram_card`, `telegram_bank`
 
 ### Commands
 
@@ -57,7 +58,7 @@ Uses **Google Gemini Flash** for natural language parsing:
 ### Key Flows
 
 1. **Auth**: User sends Telegram key → bot looks up `User.telegram_key` → stores `telegram_chat_id` (encrypted)
-2. **Expense logging**: Free text → Gemini parses → card selection → confirm → saved as `Expense`
+2. **Expense logging**: Free text → LLM parses → card selection → confirm → saved as `Expense`
 3. **Card creation**: Inline keyboard flow through card type → bank/name → confirm → `Card` created
 
 ## WhatsApp Bot
@@ -77,19 +78,56 @@ Env vars reserved:
 
 User model already has `whatsapp_phone` (encrypted) and `whatsapp_phone_hash` (HMAC) fields.
 
-## Google Gemini Flash
+## LLM Provider Layer
 
-Library: **google-genai** (`from google import genai`)
+The app never talks to a vendor SDK directly. Everything goes through
+`app/services/llm/`, so a provider swap is a configuration change.
 
-### Use Cases
+Library: **openai** (default) or **google-genai** (fallback), selected per call.
 
-| Use Case                  | Prompt / Location              | Model                    |
-|---------------------------|--------------------------------|--------------------------|
-| Expense text parsing      | `EXPENSE_PARSE_PROMPT`         | `gemini-flash-latest`    |
-| Card info extraction      | `CARD_EXTRACT_PROMPT`          | `gemini-flash-latest`    |
-| Category suggestion       | `app/services/categorization.py` | `gemini-flash-latest`  |
-| Spending analysis         | `app/routers/analysis.py`      | `gemini-flash-latest`    |
-| PDF report text extraction| `app/services/pdf_parser.py`   | `gemini-flash-latest`    |
+### Layout
+
+| File | Responsibility |
+|------|----------------|
+| `app/services/llm/types.py` | `LLMMessage`, `LLMResult`, `parse_json_block` |
+| `app/services/llm/client.py` | The facade: `complete` / `complete_json` / `stream`, plus async variants |
+| `app/services/llm/openai_adapter.py` | OpenAI: chat completions, JSON mode, streaming + usage |
+| `app/services/llm/google_adapter.py` | Gemini: `generate_content`, `system_instruction`, streaming |
+| `app/services/llm/pricing.py` | USD per 1M tokens, for the cost metric |
+| `app/services/llm/metrics.py` | Usage accounting → Prometheus |
+
+### Provider selection
+
+`LLM_PROVIDER` wins when set (`openai` | `google`). Otherwise the provider is
+inferred from the key shape: `sk-...` is OpenAI, anything else is Google. That
+is what makes replacing the value of `LLM_API_KEY` enough to move providers.
+
+`LLM_MODEL_NAME` defaults to `gpt-6-luna` (OpenAI) or `gemini-flash-latest`
+(Google). Note that Google's `-latest` aliases are floating and move without
+notice; OpenAI and Anthropic have no equivalent, so upgrades there are manual.
+
+### Call sites
+
+Every call passes a `feature` label — that is how the dashboard attributes cost.
+
+| Feature | Use case | Location |
+|---------|----------|----------|
+| `telegram_expense` | Free-text expense parsing | `app/telegram_bot.py` |
+| `telegram_card` | Card name/bank extraction | `app/telegram_bot.py` |
+| `telegram_bank` | Bank notification parsing | `app/telegram_bot.py` |
+| `categorization` | Category suggestion + confidence | `app/services/categorization.py` |
+| `smart_import` | Statement/PDF extraction (JSON) | `app/services/smart_import_core.py` |
+| `analysis_chat` | Financial analysis chat (streaming) | `app/routers/analysis.py` |
+| `analysis_summary` | Chat session summary (streaming) | `app/routers/analysis.py` |
+| `investments_chat` | Investments assistant (streaming) | `app/routers/investments.py` |
+| `dashboard_monthly` | Monthly analysis (JSON) | `app/routers/dashboard.py` |
+| `dashboard_trends` | Trends and projections (JSON) | `app/routers/dashboard.py` |
+| `weekly_summary` | Weekly report analysis | `app/tasks/weekly_summary.py` |
+| `monthly_report` | Monthly report analysis (JSON) | `app/tasks/monthly_report.py` |
+
+Conversation history is turned into provider-neutral turns by
+`app/services/chat_context.to_llm_messages`, which also caps how much of a
+thread reaches the model.
 
 ### API Keys
 
@@ -99,20 +137,64 @@ Library: **google-genai** (`from google import genai`)
 | `INVESTMENTS_LLM_API_KEY`    | Investment analysis        |
 | `MESSAGES_BOT_LLM_API_KEY`   | Telegram/WhatsApp bot LLM  |
 
+The last two fall back to `LLM_API_KEY` when unset. Each call site may use its
+own key, which is why cost can be split per feature without extra keys.
+
 ### Client Pattern
 
 ```python
-from google import genai
+from app.services.llm import LLMMessage, get_client
 
-def _gemini_client() -> genai.Client:
-    return genai.Client(api_key=os.getenv("MESSAGES_BOT_LLM_API_KEY", ""))
-
-response = client.models.generate_content(
-    model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
-    contents=prompt,
+client = get_client()                       # provider from env / key shape
+result = client.complete(
+    [LLMMessage(role="user", text=prompt)],
+    feature="telegram_expense",
 )
-result = json.loads(response.text.strip())
+
+data = client.complete_json([...], feature="categorization", temperature=0.3)
+
+async for delta in client.astream([...], feature="analysis_chat", system=PROMPT):
+    ...
 ```
+
+`complete_json` sets the provider's JSON mode and unwraps markdown fences, so
+callers get a dict or a `ValueError`. A missing key raises `LLMError`, and
+`is_configured()` lets a call site degrade gracefully instead.
+
+### Usage and cost metrics
+
+Every call records tokens, latency, request status and an estimated cost. The
+records live in Redis rather than in process memory: Celery tasks call the LLM
+from a worker whose Prometheus registry is never scraped, and Redis is already
+shared by both processes. A custom collector turns those records into series at
+scrape time (`/metrics`).
+
+| Series | Type | Labels |
+|--------|------|--------|
+| `oikonomia_llm_requests_total` | counter | provider, model, feature, status |
+| `oikonomia_llm_tokens_total` | counter | provider, model, feature, direction |
+| `oikonomia_llm_cost_usd_total` | counter | provider, model, feature |
+| `oikonomia_llm_latency_seconds` | summary | provider, model, feature |
+| `oikonomia_llm_spend_usd_month_to_date` | gauge | — |
+| `oikonomia_llm_budget_used_ratio` | gauge | — |
+| `oikonomia_llm_budget_usd` | gauge | — |
+| `oikonomia_llm_credit_balance_usd` | gauge | — |
+| `oikonomia_llm_credit_amount_usd` | gauge | — |
+| `oikonomia_llm_credit_expires_timestamp_seconds` | gauge | — |
+
+Dashboard: **Oikonomia - LLM** (`docker/grafana/dashboards/llm.json`).
+Alerts: `docker/prometheus/rules.yml`.
+
+Budget and credit come from `LLM_MONTHLY_BUDGET_USD`, `LLM_CREDIT_AMOUNT_USD`
+and `LLM_CREDIT_EXPIRES_AT`. There is no official OpenAI endpoint for a prepaid
+balance, so those gauges are a configured purchase minus recorded spend. Prepaid
+credits expire 12 months after purchase — that is what the expiry gauge tracks.
+
+### Adding a provider
+
+Implement the four raw calls (`_complete`, `_acomplete`, `_stream`, `_astream`)
+on `LLMClient`, return `LLMResult` with whatever `usage` the vendor reports, and
+add its price to `pricing.py`. No call site changes.
 
 ## Resend (Email)
 

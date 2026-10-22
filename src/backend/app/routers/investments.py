@@ -1,5 +1,4 @@
 import contextlib
-import os
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -1056,10 +1055,9 @@ async def investments_chat_stream(
     import json
 
     from fastapi.responses import StreamingResponse
-    from google import genai
-    from google.genai import types as genai_types
 
-    from app.services.chat_context import to_genai_contents
+    from app.services.chat_context import to_llm_messages
+    from app.services.llm import get_client, is_configured
 
     question = (body.get("question") or "").strip()
     context = (body.get("context") or "").strip()
@@ -1070,8 +1068,7 @@ async def investments_chat_stream(
 
         return StreamingResponse(_err(), media_type="text/event-stream")
 
-    api_key = os.getenv("INVESTMENTS_LLM_API_KEY") or os.getenv("LLM_API_KEY")
-    if not api_key:
+    if not is_configured("INVESTMENTS_LLM_API_KEY"):
 
         async def _no_key():
             yield f"data: {json.dumps({'error': True, 'text': 'INVESTMENTS_LLM_API_KEY / LLM_API_KEY no configurada.'})}\n\ndata: [DONE]\n\n"
@@ -1084,17 +1081,14 @@ async def investments_chat_stream(
 
     async def generate():
         try:
-            client = genai.Client(api_key=api_key)
-            async for chunk in await client.aio.models.generate_content_stream(
-                model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
-                contents=to_genai_contents(body.get("messages"), user_message),
-                config=genai_types.GenerateContentConfig(
-                    system_instruction=INVESTMENTS_SYSTEM_PROMPT,
-                    temperature=0.4,
-                ),
+            client = get_client(api_key_env="INVESTMENTS_LLM_API_KEY")
+            async for text in client.astream(
+                to_llm_messages(body.get("messages"), user_message),
+                feature="investments_chat",
+                system=INVESTMENTS_SYSTEM_PROMPT,
+                temperature=0.4,
             ):
-                if chunk.text:
-                    yield f"data: {json.dumps({'text': chunk.text})}\n\n"
+                yield f"data: {json.dumps({'text': text})}\n\n"
         except Exception:
             # Marked as an error frame: the text is not a reply, and the client
             # must not store it in the thread as if the model had said it.

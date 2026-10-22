@@ -1,5 +1,4 @@
 import json
-import os
 import time
 from calendar import monthrange
 from collections import Counter, defaultdict
@@ -15,6 +14,7 @@ from app.models import Card, Category, Expense, ExpenseTag, MonthlyReport, Notif
 from app.routers.groups import get_group_user_ids
 from app.services.auth import get_current_user
 from app.services.date_utils import MONTHS_ES, add_months
+from app.services.llm import LLMMessage, get_client, is_configured
 from app.services.normalizers import normalize_bank
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -707,11 +707,9 @@ async def get_monthly_report(
 
     # LLM analysis
     analysis = None
-    api_key = os.getenv("LLM_API_KEY")
-    if api_key:
+    if is_configured():
         try:
-            from google import genai
-            from google.genai import types as genai_types
+            import asyncio
 
             # Build context for LLM
             trend_lines = []
@@ -757,21 +755,14 @@ El JSON debe tener esta estructura:
 
 Sé específico con los números. Respondé en español, de forma clara y amigable. Usá emojis para hacerlo más visual."""
 
-            client = genai.Client(api_key=api_key)
-            import asyncio
-
-            response = await asyncio.wait_for(
-                client.aio.models.generate_content(
-                    model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
-                    contents=llm_context,
-                    config=genai_types.GenerateContentConfig(
-                        system_instruction=prompt,
-                        response_mime_type="application/json",
-                    ),
+            analysis = await asyncio.wait_for(
+                get_client().acomplete_json(
+                    [LLMMessage(role="user", text=llm_context)],
+                    feature="dashboard_monthly",
+                    system=prompt,
                 ),
                 timeout=8.0,
             )
-            analysis = json.loads(response.text)
         except Exception:
             analysis = None  # Don't fail the endpoint if LLM fails
 
@@ -2183,13 +2174,9 @@ async def get_ai_trends(
         _redis_set(cache_key, cached, ttl=300)
         return cached
 
-    from google import genai
-    from google.genai import types as genai_types
-
     from app.prompts import AI_TRENDS_PROMPT
 
-    api_key = os.getenv("LLM_API_KEY")
-    if not api_key:
+    if not is_configured():
         raise HTTPException(500, "LLM_API_KEY no configurada.")
 
     today = date.today()
@@ -2283,23 +2270,18 @@ CUOTAS PENDIENTES PROYECTADAS:
 Fecha actual: {today.isoformat()}
 """
 
-    client = genai.Client(api_key=api_key)
     try:
         import asyncio
 
-        response = await asyncio.wait_for(
-            client.aio.models.generate_content(
-                model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
-                contents=context,
-                config=genai_types.GenerateContentConfig(
-                    system_instruction=AI_TRENDS_PROMPT,
-                    response_mime_type="application/json",
-                ),
+        result = await asyncio.wait_for(
+            get_client().acomplete_json(
+                [LLMMessage(role="user", text=context)],
+                feature="dashboard_trends",
+                system=AI_TRENDS_PROMPT,
             ),
             timeout=8.0,
         )
-        result = json.loads(response.text)
-    except json.JSONDecodeError:
+    except ValueError:
         raise HTTPException(422, "La IA no pudo generar el análisis. Intentá más tarde.")
     except TimeoutError:
         raise HTTPException(504, "La IA tardó demasiado. Intentá más tarde.")

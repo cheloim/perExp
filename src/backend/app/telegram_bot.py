@@ -15,7 +15,6 @@ import pandas as pd
 BUE = ZoneInfo("America/Argentina/Buenos_Aires")
 
 import telegram
-from google import genai
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -42,6 +41,7 @@ from app.services.bot_reports import _cat_emoji
 from app.services.categorization import auto_categorize, llm_categorize
 from app.services.encryption import compute_hmac
 from app.services.import_utils import _normalize_text
+from app.services.llm import LLMMessage, get_client, is_configured, parse_json_block
 
 logger = logging.getLogger(__name__)
 
@@ -73,8 +73,9 @@ WAITING_EDIT_VALUE = 18
 WAITING_EDIT_CONFIRM = 19
 
 
-def _gemini_client() -> genai.Client:
-    return genai.Client(api_key=os.getenv("MESSAGES_BOT_LLM_API_KEY", ""))
+def _llm_client():
+    """Client for the bot's own key (falls back to `LLM_API_KEY`)."""
+    return get_client(api_key_env="MESSAGES_BOT_LLM_API_KEY")
 
 
 def _parse_expense(text: str) -> list[dict]:
@@ -82,19 +83,13 @@ def _parse_expense(text: str) -> list[dict]:
     prompt = EXPENSE_PARSE_PROMPT.format(today=today) + f"\n\nMensaje: {text}"
     logger.debug(f"[PARSE] Prompt:\n{prompt}")
     try:
-        client = _gemini_client()
-        response = client.models.generate_content(
-            model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
-            contents=prompt,
+        response = _llm_client().complete(
+            [LLMMessage(role="user", text=prompt)], feature="telegram_expense"
         )
         raw = response.text.strip()
         logger.debug(f"[PARSE] Raw response: {raw}")
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        result = json.loads(raw.strip())
-        logger.info("Gemini parsed result: %s", result)
+        result = parse_json_block(raw)
+        logger.info("LLM parsed result: %s", result)
         # Normalize: if LLM returns a single object, wrap in list
         if isinstance(result, dict):
             return [result]
@@ -102,7 +97,7 @@ def _parse_expense(text: str) -> list[dict]:
             return [r for r in result if isinstance(r, dict) and r.get("amount")]
         return []
     except Exception as e:
-        logger.error("Gemini parse error: %s", e)
+        logger.error("LLM parse error: %s", e)
         logger.debug(f"[PARSE] Failed text input: {text}")
         return []
 
@@ -110,22 +105,13 @@ def _parse_expense(text: str) -> list[dict]:
 def _extract_card_info(raw_input: str, card_type: str) -> dict:
     """Extract card_name and bank from user input using LLM."""
     prompt = CARD_EXTRACT_PROMPT.format(raw_input=raw_input, card_type=card_type)
-    api_key = os.getenv("LLM_API_KEY")
-    if not api_key:
+    if not is_configured():
         return {"card_name": raw_input, "bank": ""}
 
     try:
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
-            model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
-            contents=prompt,
+        result = _llm_client().complete_json(
+            [LLMMessage(role="user", text=prompt)], feature="telegram_card"
         )
-        raw = response.text.strip()
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        result = json.loads(raw.strip())
         logger.info("Card extract result: %s", result)
         return result
     except Exception as e:
@@ -364,17 +350,9 @@ def _parse_bank_notification(text: str) -> dict | None:
 
     try:
         logger.info("[BANK_PARSE] Parsing bank notification: %s", text[:100])
-        client = _gemini_client()
-        response = client.models.generate_content(
-            model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"), contents=prompt
+        result = _llm_client().complete_json(
+            [LLMMessage(role="user", text=prompt)], feature="telegram_bank"
         )
-        raw = response.text.strip()
-        if "```" in raw:
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-            raw = raw.strip()
-        result = json.loads(raw)
         logger.info("[BANK_PARSE] LLM result: %s", result)
 
         # Strip payment entity prefixes from description (e.g., "MERPAGO*BABYPOP" -> "BABYPOP")
