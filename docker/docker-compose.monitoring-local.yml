@@ -4,6 +4,7 @@ services:
     network_mode: host
     volumes:
       - ../config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../prometheus/rules.yml:/etc/prometheus/rules.yml:ro
       - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
@@ -28,8 +29,10 @@ services:
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/status.json
     volumes:
       - grafana_data:/var/lib/grafana
-      - ../config/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ../config/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      # Single source of truth: docker/grafana. config/grafana was a stale copy
+      # whose provisioning files sat in the wrong directory and never loaded.
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../grafana/dashboards:/var/lib/grafana/dashboards:ro
     deploy:
       resources:
         limits:
