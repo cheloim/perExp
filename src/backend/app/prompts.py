@@ -139,7 +139,9 @@ El JSON debe tener exactamente esta estructura:
 
 Usá los datos históricos por mes para proyectar los próximos 3 meses.
 Las cuotas pendientes ya están calculadas: sumá el monto de cuotas de cada mes futuro al gasto proyectado base.
-Sé conservador en las proyecciones: usá el promedio de los últimos 3 meses como base."""
+Sé conservador en las proyecciones: usá el promedio de los últimos 3 meses como base.
+
+Escribí en español rioplatense todos los campos de prosa ("trend_explanation", "note", "alert", "recommendation")."""
 
 
 CARD_EXTRACT_PROMPT = """Sos un asistente que extrae información de tarjetas de crédito.

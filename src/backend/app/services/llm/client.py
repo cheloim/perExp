@@ -27,6 +27,12 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT_SECONDS = 30.0
 
+#: Language anchor injected as the system turn when a call site passes none.
+#: A short prompt without context does not pin a language and the model drifts
+#: (measured: "Deci hola." answered in Romanian ~30% of the time), so no call
+#: may ever leave without one.
+DEFAULT_SYSTEM = "Respondé siempre en español rioplatense."
+
 #: Env var names a call site may want instead of the default `LLM_API_KEY`.
 KEY_ENV_VARS = ("LLM_API_KEY", "MESSAGES_BOT_LLM_API_KEY", "INVESTMENTS_LLM_API_KEY")
 
@@ -66,10 +72,14 @@ def resolve_model(provider: str, model: str | None = None) -> str:
 
 
 def _as_messages(messages: Any, system: str | None = None) -> list[LLMMessage]:
-    """Accept a list of `LLMMessage`, or `{"role": ..., "text": ...}` dicts."""
+    """Accept a list of `LLMMessage`, or `{"role": ..., "text": ...}` dicts.
+
+    When `system` is missing or empty, `DEFAULT_SYSTEM` goes in as the first
+    turn so no call leaves without a language anchor. A caller-supplied
+    `system` is kept as-is — it already anchors the reply.
+    """
     out: list[LLMMessage] = []
-    if system:
-        out.append(LLMMessage(role="system", text=system))
+    out.append(LLMMessage(role="system", text=system or DEFAULT_SYSTEM))
     for m in messages or []:
         if isinstance(m, LLMMessage):
             out.append(m)
