@@ -130,4 +130,6 @@ corrió y su salida real, no "debería pasar".
 
 | Lote | Trabajo | Ramas | Resultado |
 |---|---|---|---|
-| `ci-hardening` | 17 errores de `mypy` + gates de CI y pipeline de tests | `fix/backend-types`, `chore/ci-gates` → `integration/ci-hardening` | en curso |
+| `ci-hardening` | 17 errores de `mypy` + gates de CI y pipeline de tests | `fix/backend-types`, `chore/ci-gates` → `integration/ci-hardening` | mergeado (#440) |
+| `deps-batch` | Dependabot agrupado: deps frontend/backend, fix de carreras en e2e | `fix/frontend-deps`, `fix/backend-deps`, `fix/e2e-axe-race` | mergeado (#441–#443) |
+| `assistant-v2` | Ventana de datos de 3 meses + hilo único con Limpiar | `feat/analysis-window`, `refactor/single-thread` → `integration/assistant-v2` | mergeado (#448) |
