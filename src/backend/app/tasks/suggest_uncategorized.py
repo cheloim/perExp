@@ -6,7 +6,7 @@ import logging
 from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import CategorySuggestion, Expense, Notification, User
-from app.services.categorization import llm_categorize
+from app.services.categorization_batch import batch_categorize
 from app.services.task_tracker import record_task_run
 
 logger = logging.getLogger(__name__)
@@ -73,24 +73,19 @@ def suggest_uncategorized_categories():
             if not cats:
                 continue
 
-            # Suggest categories for each expense (high temperature for ambiguous descriptions)
+            # Suggest categories for the whole batch in one LLM call
+            # (high temperature for ambiguous descriptions; keyword fallback inside)
+            results = batch_categorize(db, user, expenses, cats)
             suggestions_data = []
             for exp in expenses:
-                result = llm_categorize(
-                    exp.description,
-                    exp.amount,
-                    cats,
-                    user.id,
-                    db,
-                    temperature=0.7,
-                )
-                if result and result["confidence"] >= 0.4:
+                result = results.get(exp.id)
+                if result and result.confidence >= 0.4:
                     # Store in CategorySuggestion table
                     suggestion = CategorySuggestion(
                         expense_id=exp.id,
                         user_id=user.id,
-                        suggested_category_id=result["category_id"],
-                        confidence=round(result["confidence"], 2),
+                        suggested_category_id=result.category_id,
+                        confidence=round(result.confidence, 2),
                         status="pending",
                         source="llm",
                     )
@@ -102,10 +97,10 @@ def suggest_uncategorized_categories():
                             "description": exp.description,
                             "amount": exp.amount,
                             "date": exp.date.isoformat(),
-                            "suggested_category_id": result["category_id"],
-                            "category_name": result["category_name"],
-                            "parent_name": result.get("parent_name"),
-                            "confidence": round(result["confidence"], 2),
+                            "suggested_category_id": result.category_id,
+                            "category_name": result.category_name,
+                            "parent_name": result.parent_name,
+                            "confidence": round(result.confidence, 2),
                         }
                     )
 
