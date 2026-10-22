@@ -354,6 +354,12 @@ def install_metrics(app: FastAPI) -> None:
     """Mount the metrics middleware and /metrics endpoint on *app*."""
     from starlette.middleware.base import BaseHTTPMiddleware
 
+    # LLM usage lives in Redis so Celery-side calls are counted too; the
+    # collector turns those records into Prometheus series at scrape time.
+    from app.services.llm.metrics import register_llm_metrics
+
+    register_llm_metrics()
+
     app.add_middleware(BaseHTTPMiddleware, dispatch=_metrics_middleware_factory())
 
     @app.get("/metrics", include_in_schema=False)

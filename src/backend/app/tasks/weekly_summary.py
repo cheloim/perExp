@@ -16,16 +16,11 @@ BUE = ZoneInfo("America/Argentina/Buenos_Aires")
 
 
 def _generate_weekly_llm_analysis(report_data: dict) -> dict:
-    """Generate LLM analysis for weekly report using Gemini."""
+    """Generate LLM analysis for the weekly report."""
     try:
-        import asyncio
-        import os
+        from app.services.llm import LLMMessage, get_client, is_configured
 
-        from google import genai
-        from google.genai import types as genai_types
-
-        api_key = os.getenv("LLM_API_KEY")
-        if not api_key:
+        if not is_configured():
             logger.info("[WEEKLY LLM] No API key found, skipping LLM analysis")
             return None
 
@@ -73,18 +68,12 @@ Responde en español, amigable, sin emojis. Máximo 80 palabras.
 Devolve SOLO el texto del análisis, sin formato JSON.
 """ + weekly_prompt_rules(limited)
 
-        client = genai.Client(api_key=api_key)
-
-        async def _call_llm():
-            return await client.aio.models.generate_content(
-                model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
-                contents=llm_context,
-                config=genai_types.GenerateContentConfig(
-                    system_instruction=prompt,
-                ),
-            )
-
-        response = asyncio.run(_call_llm())
+        client = get_client()
+        response = client.complete(
+            [LLMMessage(role="user", text=llm_context)],
+            feature="weekly_summary",
+            system=prompt,
+        )
         analysis_text = response.text.strip()
 
         # Extract tip (last line if it starts with 💡 or Consejo)

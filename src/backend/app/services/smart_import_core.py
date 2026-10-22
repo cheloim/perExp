@@ -4,13 +4,10 @@ Extracted from routers/import_.py to be reusable by both sync endpoint and backg
 """
 
 import json
-import os
 import re
 from datetime import date
 
 import pandas as pd
-from google import genai
-from google.genai import types as genai_types
 from sqlalchemy.orm import Session
 
 from app.models import Card, Category, User
@@ -23,6 +20,7 @@ from app.services.import_utils import (
     _is_scheduled_duplicate,
     _load_dataframe,
 )
+from app.services.llm import LLMMessage, get_client, is_configured
 from app.services.normalizers import (
     normalize_bank,
 )
@@ -178,8 +176,7 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
     Raises:
         ValueError: If API key missing, file format unsupported, or no transactions found
     """
-    api_key = os.getenv("LLM_API_KEY")
-    if not api_key:
+    if not is_configured():
         raise ValueError("LLM_API_KEY no está configurada.")
 
     filename_lower = filename.lower()
@@ -228,25 +225,16 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
     }
 
     # Step 4: Call LLM with user name for filtering
-    client = genai.Client(api_key=api_key)
     prompt_with_context = SMART_IMPORT_PROMPT.replace("{user_full_name}", user_full_name)
     try:
-        response = await client.aio.models.generate_content(
-            model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
-            contents=f"Extracto bancario:\n\n{raw_text[:20000]}",
-            config=genai_types.GenerateContentConfig(
-                system_instruction=prompt_with_context,
-                response_mime_type="application/json",
-            ),
-        )
-        raw_response = (response.text or "").strip()
-        if not raw_response:
-            raise ValueError("El modelo no devolvió contenido. Intentá de nuevo.")
-
         try:
-            rows_raw = json.loads(raw_response)
-        except json.JSONDecodeError:
-            raise ValueError(f"Respuesta inválida del modelo (no es JSON): {raw_response[:300]}")
+            rows_raw = await get_client().acomplete_json(
+                [LLMMessage(role="user", text=f"Extracto bancario:\n\n{raw_text[:20000]}")],
+                feature="smart_import",
+                system=prompt_with_context,
+            )
+        except ValueError as e:
+            raise ValueError(f"Respuesta inválida del modelo (no es JSON): {e}")
 
         if not isinstance(rows_raw, list):
             raise ValueError("Response is not a list")

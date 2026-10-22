@@ -297,6 +297,11 @@ jobs:
           LLM_API_KEY=${{ secrets.LLM_API_KEY }}
           INVESTMENTS_LLM_API_KEY=${{ secrets.INVESTMENTS_LLM_API_KEY }}
           MESSAGES_BOT_LLM_API_KEY=${{ secrets.MESSAGES_BOT_LLM_API_KEY }}
+          LLM_PROVIDER=${{ vars.LLM_PROVIDER || 'openai' }}
+          LLM_MODEL_NAME=${{ vars.LLM_MODEL_NAME || 'gpt-6-luna' }}
+          LLM_MONTHLY_BUDGET_USD=${{ vars.LLM_MONTHLY_BUDGET_USD || '10' }}
+          LLM_CREDIT_AMOUNT_USD=${{ vars.LLM_CREDIT_AMOUNT_USD || '10' }}
+          LLM_CREDIT_EXPIRES_AT=${{ vars.LLM_CREDIT_EXPIRES_AT }}
           TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_OIDC_CLIENT_ID=${{ secrets.TELEGRAM_OIDC_CLIENT_ID }}
           TELEGRAM_OIDC_CLIENT_SECRET=${{ secrets.TELEGRAM_OIDC_CLIENT_SECRET }}

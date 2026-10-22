@@ -48,24 +48,15 @@ def _add_expense(db, user, on: date, description: str, amount: float) -> Expense
     return exp
 
 
-class _FakeModels:
-    """The model API surface the router uses: one frame, and the prompt kept."""
+class _FakeLLM:
+    """The LLM facade the router uses: one frame, and the prompt kept."""
 
     def __init__(self, prompts: list):
         self._prompts = prompts
 
-    async def generate_content_stream(self, **kwargs):
-        self._prompts.append(kwargs["contents"])
-
-        async def _frames():
-            yield SimpleNamespace(text="respuesta del modelo")
-
-        return _frames()
-
-
-class _FakeClient:
-    def __init__(self, prompts: list):
-        self.aio = SimpleNamespace(models=_FakeModels(prompts))
+    async def astream(self, messages, *, feature, system=None, temperature=None):
+        self._prompts.append(messages)
+        yield "respuesta del modelo"
 
 
 class _HistorySink:
@@ -89,14 +80,15 @@ def fake_llm(monkeypatch):
     prompts: list = []
     sink = _HistorySink()
     monkeypatch.setenv("LLM_API_KEY", "test-key")
-    monkeypatch.setattr(analysis.genai, "Client", lambda api_key=None: _FakeClient(prompts))
+    monkeypatch.setattr(analysis, "get_client", lambda **kw: _FakeLLM(prompts))
+    monkeypatch.setattr(analysis, "is_configured", lambda *a, **k: True)
     monkeypatch.setattr(analysis, "SessionLocal", lambda: sink)
     return SimpleNamespace(prompts=prompts, history=sink)
 
 
 def _prompt_text(prompts: list) -> str:
     """The data block the endpoint hands to the model as its final turn."""
-    return prompts[-1][-1].parts[0].text
+    return prompts[-1][-1].text
 
 
 def _stream(req: AnalysisRequest, db, user) -> str:

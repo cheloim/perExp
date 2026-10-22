@@ -1,0 +1,403 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [
+    {
+      "title": "Status",
+      "url": "/d/oikonomia-status",
+      "type": "link"
+    },
+    {
+      "title": "Application",
+      "url": "/d/oikonomia-api",
+      "type": "link"
+    },
+    {
+      "title": "Logs",
+      "url": "/d/oikonomia-logs",
+      "type": "link"
+    }
+  ],
+  "panels": [
+    {
+      "title": "Gasto del mes",
+      "description": "USD estimados consumidos en el mes calendario en curso.",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "oikonomia_llm_spend_usd_month_to_date",
+          "legendFormat": "mes",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 8 },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "% del presupuesto",
+      "description": "Fracción de LLM_MONTHLY_BUDGET_USD consumida este mes.",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "targets": [
+        {
+          "expr": "oikonomia_llm_budget_used_ratio",
+          "legendFormat": "budget",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 1,
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.5 },
+              { "color": "red", "value": 0.8 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Crédito prepago restante",
+      "description": "LLM_CREDIT_AMOUNT_USD menos el gasto registrado. No hay API oficial de saldo: esto es una estimación.",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "targets": [
+        {
+          "expr": "oikonomia_llm_credit_balance_usd",
+          "legendFormat": "saldo",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 2 },
+              { "color": "green", "value": 5 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Días para el vencimiento",
+      "description": "Los créditos prepagos de OpenAI vencen 12 meses después de la compra (LLM_CREDIT_EXPIRES_AT).",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "oikonomia_llm_credit_expires_timestamp_seconds - time()",
+          "legendFormat": "vencimiento",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "d",
+          "decimals": 0,
+          "noValue": "sin configurar",
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 2592000 },
+              { "color": "green", "value": 7776000 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Tokens (24h)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(increase(oikonomia_llm_tokens_total[24h]))",
+          "legendFormat": "tokens",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        }
+      }
+    },
+    {
+      "title": "Llamadas / min",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(oikonomia_llm_requests_total[5m])) * 60",
+          "legendFormat": "rpm",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1
+        }
+      }
+    },
+    {
+      "title": "Costo por día y feature",
+      "description": "Dónde se va la plata. El costo se estima con app/services/llm/pricing.py.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        {
+          "expr": "sum by (feature) (increase(oikonomia_llm_cost_usd_total[1d]))",
+          "legendFormat": "{{feature}}",
+          "interval": "1d",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 3,
+          "custom": {
+            "drawStyle": "bars",
+            "stacking": { "mode": "normal" },
+            "fillOpacity": 60
+          }
+        }
+      }
+    },
+    {
+      "title": "Tokens por día (input vs output)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        {
+          "expr": "sum by (direction) (increase(oikonomia_llm_tokens_total[1d]))",
+          "legendFormat": "{{direction}}",
+          "interval": "1d",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "stacking": { "mode": "normal" },
+            "fillOpacity": 60
+          }
+        }
+      }
+    },
+    {
+      "title": "Llamadas / min por feature",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "targets": [
+        {
+          "expr": "sum by (feature) (rate(oikonomia_llm_requests_total[5m])) * 60",
+          "legendFormat": "{{feature}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10
+          }
+        }
+      }
+    },
+    {
+      "title": "Tasa de error",
+      "description": "Llamadas que terminaron en error o timeout sobre el total.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "targets": [
+        {
+          "expr": "sum(rate(oikonomia_llm_requests_total{status!=\"ok\"}[5m])) / clamp_min(sum(rate(oikonomia_llm_requests_total[5m])), 0.000001)",
+          "legendFormat": "errores",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 2,
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 20
+          },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.01 },
+              { "color": "red", "value": 0.05 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Latencia promedio por feature",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "targets": [
+        {
+          "expr": "sum by (feature) (rate(oikonomia_llm_latency_seconds_sum[5m])) / clamp_min(sum by (feature) (rate(oikonomia_llm_latency_seconds_count[5m])), 0.000001)",
+          "legendFormat": "{{feature}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2,
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10
+          }
+        }
+      }
+    },
+    {
+      "title": "Gasto acumulado del mes",
+      "description": "Curva del mes calendario. Sirve para ver si el ritmo entra en el presupuesto antes de fin de mes.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "targets": [
+        {
+          "expr": "oikonomia_llm_spend_usd_month_to_date",
+          "legendFormat": "acumulado",
+          "refId": "A"
+        },
+        {
+          "expr": "oikonomia_llm_budget_usd",
+          "legendFormat": "presupuesto",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "presupuesto" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "dash": [10, 10], "fill": "dash" } },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Top features por costo",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
+      "targets": [
+        {
+          "expr": "topk(10, sum by (feature) (increase(oikonomia_llm_cost_usd_total[$__range])))",
+          "instant": true,
+          "format": "table",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        }
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": { "feature": "Feature", "Value": "USD" },
+            "indexByName": { "feature": 0, "Value": 1 }
+          }
+        }
+      ]
+    },
+    {
+      "title": "Uso por modelo",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
+      "targets": [
+        {
+          "expr": "sum by (provider, model) (increase(oikonomia_llm_tokens_total[$__range]))",
+          "instant": true,
+          "format": "table",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        }
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "provider": "Proveedor",
+              "model": "Modelo",
+              "Value": "Tokens"
+            },
+            "indexByName": { "provider": 0, "model": 1, "Value": 2 }
+          }
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["oikonomia", "llm", "ai", "cost"],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "title": "Oikonomia - LLM",
+  "uid": "oikonomia-llm",
+  "version": 1
+}

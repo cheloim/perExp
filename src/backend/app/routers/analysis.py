@@ -1,12 +1,9 @@
 import json
-import os
 from calendar import monthrange
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from google import genai
-from google.genai import types as genai_types
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
@@ -15,7 +12,8 @@ from app.models import AnalysisHistory, Category, Expense, User
 from app.prompts import ANALYSIS_SYSTEM_PROMPT
 from app.schemas import AnalysisHistoryResponse, AnalysisRequest
 from app.services.auth import get_current_user
-from app.services.chat_context import to_genai_contents
+from app.services.chat_context import to_llm_messages
+from app.services.llm import LLMMessage, get_client, is_configured
 
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
@@ -117,14 +115,14 @@ TOP 10 GASTOS MÁS ALTOS:
     else:
         user_message += "\n\nAnalizá estos gastos en detalle y dame sugerencias concretas para optimizar mis finanzas."
 
-    api_key = os.getenv("LLM_API_KEY")
-    if not api_key:
+    api_key_env = "LLM_API_KEY"
+    if not is_configured(api_key_env):
         raise HTTPException(
             500, "LLM_API_KEY no está configurada. Creá un archivo .env con tu API key."
         )
 
     # The whole thread, so the model knows what has already been said.
-    contents = to_genai_contents([m.model_dump() for m in req.messages or []], user_message)
+    contents = to_llm_messages([m.model_dump() for m in req.messages or []], user_message)
 
     expense_count_val = len(expenses)
     total_val = total
@@ -132,17 +130,14 @@ TOP 10 GASTOS MÁS ALTOS:
 
     async def generate():
         try:
-            client = genai.Client(api_key=api_key)
-            async for chunk in await client.aio.models.generate_content_stream(
-                model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
-                contents=contents,
-                config=genai_types.GenerateContentConfig(
-                    system_instruction=(None if req.debug_mode else ANALYSIS_SYSTEM_PROMPT),
-                ),
+            client = get_client(api_key_env=api_key_env)
+            async for text in client.astream(
+                contents,
+                feature="analysis_chat",
+                system=(None if req.debug_mode else ANALYSIS_SYSTEM_PROMPT),
             ):
-                if chunk.text:
-                    accumulated_text.append(chunk.text)
-                    yield f"data: {json.dumps({'text': chunk.text})}\n\n"
+                accumulated_text.append(text)
+                yield f"data: {json.dumps({'text': text})}\n\n"
         except Exception:
             # Marked as an error frame: the text is not a reply, and the client
             # must not store it in the thread as if the model had said it.
@@ -192,8 +187,6 @@ async def summarize_chat(
     import json as _json
 
     from fastapi.responses import StreamingResponse as _SR
-    from google import genai as _genai
-    from google.genai import types as _gtypes
 
     messages = body.get("messages", [])
     if not messages:
@@ -203,8 +196,7 @@ async def summarize_chat(
 
         return _SR(_empty(), media_type="text/event-stream")
 
-    api_key = os.getenv("LLM_API_KEY")
-    if not api_key:
+    if not is_configured():
 
         async def _no_key():
             yield f"data: {_json.dumps({'error': True, 'text': 'LLM_API_KEY no configurada.'})}\n\ndata: [DONE]\n\n"
@@ -225,14 +217,12 @@ async def summarize_chat(
 
     async def generate():
         try:
-            client = _genai.Client(api_key=api_key)
-            async for chunk in await client.aio.models.generate_content_stream(
-                model=os.getenv("LLM_MODEL_NAME", "gemini-flash-latest"),
-                contents=prompt,
-                config=_gtypes.GenerateContentConfig(temperature=0.3),
+            async for text in get_client().astream(
+                [LLMMessage(role="user", text=prompt)],
+                feature="analysis_summary",
+                temperature=0.3,
             ):
-                if chunk.text:
-                    yield f"data: {_json.dumps({'text': chunk.text})}\n\n"
+                yield f"data: {_json.dumps({'text': text})}\n\n"
         except Exception:
             yield f"data: {_json.dumps({'error': True, 'text': 'Error al procesar la solicitud'})}\n\n"
         yield "data: [DONE]\n\n"

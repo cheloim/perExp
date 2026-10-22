@@ -11,12 +11,12 @@ os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-t
 class TestParseExpenseBatch(unittest.TestCase):
     """Test _parse_expense returns list[dict] for single and multi-expense input."""
 
-    @patch("app.telegram_bot._gemini_client")
+    @patch("app.telegram_bot._llm_client")
     def test_single_expense_returns_list(self, mock_client_fn):
         """Single expense input should return a list with one dict."""
         mock_client = MagicMock()
         mock_client_fn.return_value = mock_client
-        mock_client.models.generate_content.return_value.text = json.dumps(
+        mock_client.complete.return_value.text = json.dumps(
             {"amount": 1500.0, "description": "farmacity", "date": "2026-05-05", "currency": "ARS"}
         )
 
@@ -28,12 +28,12 @@ class TestParseExpenseBatch(unittest.TestCase):
         self.assertEqual(result[0]["amount"], 1500.0)
         self.assertEqual(result[0]["description"], "farmacity")
 
-    @patch("app.telegram_bot._gemini_client")
+    @patch("app.telegram_bot._llm_client")
     def test_multi_expense_returns_list(self, mock_client_fn):
         """Multi-expense input should return a list with multiple dicts."""
         mock_client = MagicMock()
         mock_client_fn.return_value = mock_client
-        mock_client.models.generate_content.return_value.text = json.dumps(
+        mock_client.complete.return_value.text = json.dumps(
             [
                 {"amount": 1500.0, "description": "farmacity", "date": "2026-05-05", "currency": "ARS"},
                 {"amount": 800.0, "description": "uber", "date": "2026-05-05", "currency": "ARS"},
@@ -48,12 +48,12 @@ class TestParseExpenseBatch(unittest.TestCase):
         self.assertEqual(result[0]["description"], "farmacity")
         self.assertEqual(result[1]["description"], "uber")
 
-    @patch("app.telegram_bot._gemini_client")
+    @patch("app.telegram_bot._llm_client")
     def test_markdown_fences_stripped(self, mock_client_fn):
         """LLM response wrapped in markdown code fences should be parsed."""
         mock_client = MagicMock()
         mock_client_fn.return_value = mock_client
-        mock_client.models.generate_content.return_value.text = (
+        mock_client.complete.return_value.text = (
             '```json\n[{"amount": 500.0, "description": "cafe", "date": "2026-05-05", "currency": "ARS"}]\n```'
         )
 
@@ -64,12 +64,12 @@ class TestParseExpenseBatch(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["amount"], 500.0)
 
-    @patch("app.telegram_bot._gemini_client")
+    @patch("app.telegram_bot._llm_client")
     def test_invalid_json_returns_empty_list(self, mock_client_fn):
         """Invalid JSON response should return empty list."""
         mock_client = MagicMock()
         mock_client_fn.return_value = mock_client
-        mock_client.models.generate_content.return_value.text = "not valid json"
+        mock_client.complete.return_value.text = "not valid json"
 
         from app.telegram_bot import _parse_expense
 
@@ -77,12 +77,12 @@ class TestParseExpenseBatch(unittest.TestCase):
         self.assertIsInstance(result, list)
         self.assertEqual(len(result), 0)
 
-    @patch("app.telegram_bot._gemini_client")
+    @patch("app.telegram_bot._llm_client")
     def test_empty_list_response(self, mock_client_fn):
         """Empty array response should return empty list."""
         mock_client = MagicMock()
         mock_client_fn.return_value = mock_client
-        mock_client.models.generate_content.return_value.text = "[]"
+        mock_client.complete.return_value.text = "[]"
 
         from app.telegram_bot import _parse_expense
 
@@ -90,12 +90,12 @@ class TestParseExpenseBatch(unittest.TestCase):
         self.assertIsInstance(result, list)
         self.assertEqual(len(result), 0)
 
-    @patch("app.telegram_bot._gemini_client")
+    @patch("app.telegram_bot._llm_client")
     def test_list_with_invalid_entries_filtered(self, mock_client_fn):
         """Entries without 'amount' should be filtered out."""
         mock_client = MagicMock()
         mock_client_fn.return_value = mock_client
-        mock_client.models.generate_content.return_value.text = json.dumps(
+        mock_client.complete.return_value.text = json.dumps(
             [
                 {"amount": 100.0, "description": "valid", "date": "2026-05-05", "currency": "ARS"},
                 {"description": "no amount", "date": "2026-05-05", "currency": "ARS"},
