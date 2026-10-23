@@ -59,6 +59,11 @@ services:
       REDIS_URL: redis://redis:6379/1
       REDIS_CACHE_URL: redis://redis:6379/2
       PYTHONUNBUFFERED: "1"
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-gpt-6-luna}
+      LLM_MONTHLY_BUDGET_USD: ${LLM_MONTHLY_BUDGET_USD:-10}
+      LLM_CREDIT_AMOUNT_USD: ${LLM_CREDIT_AMOUNT_USD:-10}
+      LLM_CREDIT_EXPIRES_AT: ${LLM_CREDIT_EXPIRES_AT}
       SMTP_FROM: ${SMTP_FROM:-NikoFin}
       SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-noreply@resend.dev}
       TZ: America/Argentina/Buenos_Aires
@@ -134,6 +139,11 @@ services:
       DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD_DEV}@db:5432/expenses
       REDIS_URL: redis://redis:6379/1
       PYTHONUNBUFFERED: "1"
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-gpt-6-luna}
+      LLM_MONTHLY_BUDGET_USD: ${LLM_MONTHLY_BUDGET_USD:-10}
+      LLM_CREDIT_AMOUNT_USD: ${LLM_CREDIT_AMOUNT_USD:-10}
+      LLM_CREDIT_EXPIRES_AT: ${LLM_CREDIT_EXPIRES_AT}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@nikofin.com}
       SMTP_FROM: ${SMTP_FROM:-NikoFin}
       SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-noreply@resend.dev}
@@ -176,6 +186,11 @@ services:
       DATABASE_URL: postgresql://expenses_user:${POSTGRES_PASSWORD_DEV}@db:5432/expenses
       REDIS_URL: redis://redis:6379/1
       PYTHONUNBUFFERED: "1"
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-gpt-6-luna}
+      LLM_MONTHLY_BUDGET_USD: ${LLM_MONTHLY_BUDGET_USD:-10}
+      LLM_CREDIT_AMOUNT_USD: ${LLM_CREDIT_AMOUNT_USD:-10}
+      LLM_CREDIT_EXPIRES_AT: ${LLM_CREDIT_EXPIRES_AT}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@nikofin.com}
       SMTP_FROM: ${SMTP_FROM:-NikoFin}
       SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-noreply@resend.dev}

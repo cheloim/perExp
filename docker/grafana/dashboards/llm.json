@@ -25,12 +25,13 @@
   "panels": [
     {
       "title": "Gasto del mes",
-      "description": "USD estimados consumidos en el mes calendario en curso.",
+      "description": "USD estimados consumidos en el mes calendario en curso. Redondeado hacia arriba al centavo: cualquier actividad muestra al menos 0,01.",
       "type": "stat",
       "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
       "targets": [
         {
-          "expr": "oikonomia_llm_spend_usd_month_to_date",
+          "expr": "ceil(oikonomia_llm_spend_usd_month_to_date * 100) / 100",
+          "instant": true,
           "legendFormat": "mes",
           "refId": "A"
         }
@@ -57,6 +58,7 @@
       "targets": [
         {
           "expr": "oikonomia_llm_budget_used_ratio",
+          "instant": true,
           "legendFormat": "budget",
           "refId": "A"
         }
@@ -83,6 +85,7 @@
       "targets": [
         {
           "expr": "oikonomia_llm_credit_balance_usd",
+          "instant": true,
           "legendFormat": "saldo",
           "refId": "A"
         }
@@ -91,6 +94,7 @@
         "defaults": {
           "unit": "currencyUSD",
           "decimals": 2,
+          "noValue": "sin configurar",
           "thresholds": {
             "steps": [
               { "color": "red", "value": null },
@@ -108,7 +112,8 @@
       "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
       "targets": [
         {
-          "expr": "oikonomia_llm_credit_expires_timestamp_seconds - time()",
+          "expr": "(oikonomia_llm_credit_expires_timestamp_seconds - time()) / 86400",
+          "instant": true,
           "legendFormat": "vencimiento",
           "refId": "A"
         }
@@ -121,20 +126,22 @@
           "thresholds": {
             "steps": [
               { "color": "red", "value": null },
-              { "color": "yellow", "value": 2592000 },
-              { "color": "green", "value": 7776000 }
+              { "color": "yellow", "value": 30 },
+              { "color": "green", "value": 90 }
             ]
           }
         }
       }
     },
     {
-      "title": "Tokens (24h)",
+      "title": "Tokens (rango)",
+      "description": "Tokens consumidos en el rango de tiempo seleccionado.",
       "type": "stat",
       "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
       "targets": [
         {
-          "expr": "sum(increase(oikonomia_llm_tokens_total[24h]))",
+          "expr": "sum(increase(oikonomia_llm_tokens_total[$__range]))",
+          "instant": true,
           "legendFormat": "tokens",
           "refId": "A"
         }
@@ -152,7 +159,8 @@
       "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
       "targets": [
         {
-          "expr": "sum(rate(oikonomia_llm_requests_total[5m])) * 60",
+          "expr": "sum(rate(oikonomia_llm_requests_total[$__rate_interval])) * 60",
+          "instant": true,
           "legendFormat": "rpm",
           "refId": "A"
         }
@@ -171,7 +179,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
       "targets": [
         {
-          "expr": "sum by (feature) (increase(oikonomia_llm_cost_usd_total[1d]))",
+          "expr": "sum by (feature) (increase(oikonomia_llm_cost_usd_total[$__rate_interval]))",
           "legendFormat": "{{feature}}",
           "interval": "1d",
           "refId": "A"
@@ -195,7 +203,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
       "targets": [
         {
-          "expr": "sum by (direction) (increase(oikonomia_llm_tokens_total[1d]))",
+          "expr": "sum by (direction) (increase(oikonomia_llm_tokens_total[$__rate_interval]))",
           "legendFormat": "{{direction}}",
           "interval": "1d",
           "refId": "A"
@@ -218,7 +226,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
       "targets": [
         {
-          "expr": "sum by (feature) (rate(oikonomia_llm_requests_total[5m])) * 60",
+          "expr": "sum by (feature) (rate(oikonomia_llm_requests_total[$__rate_interval])) * 60",
           "legendFormat": "{{feature}}",
           "refId": "A"
         }
@@ -241,7 +249,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
       "targets": [
         {
-          "expr": "sum(rate(oikonomia_llm_requests_total{status!=\"ok\"}[5m])) / clamp_min(sum(rate(oikonomia_llm_requests_total[5m])), 0.000001)",
+          "expr": "sum(rate(oikonomia_llm_requests_total{status!=\"ok\"}[$__rate_interval])) / clamp_min(sum(rate(oikonomia_llm_requests_total[$__rate_interval])), 0.000001)",
           "legendFormat": "errores",
           "refId": "A"
         }
@@ -270,7 +278,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
       "targets": [
         {
-          "expr": "sum by (feature) (rate(oikonomia_llm_latency_seconds_sum[5m])) / clamp_min(sum by (feature) (rate(oikonomia_llm_latency_seconds_count[5m])), 0.000001)",
+          "expr": "sum by (feature) (rate(oikonomia_llm_latency_seconds_sum[$__rate_interval])) / clamp_min(sum by (feature) (rate(oikonomia_llm_latency_seconds_count[$__rate_interval])), 0.000001)",
           "legendFormat": "{{feature}}",
           "refId": "A"
         }

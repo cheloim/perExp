@@ -33,7 +33,7 @@ run_check() {
 
 echo "=== Frontend ==="
 run_check "ESLint" "npm run lint" "$PROJECT_ROOT/src/frontend"
-run_check "Prettier" "npx prettier --check src/" "$PROJECT_ROOT/src/frontend"
+run_check "Prettier" "npx prettier --check src/ e2e/ playwright.config.ts" "$PROJECT_ROOT/src/frontend"
 run_check "TypeScript" "npm run typecheck" "$PROJECT_ROOT/src/frontend"
 run_check "Unit Tests" "npm test" "$PROJECT_ROOT/src/frontend"
 

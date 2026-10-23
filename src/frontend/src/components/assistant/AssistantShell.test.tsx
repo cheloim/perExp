@@ -520,6 +520,59 @@ describe("AssistantShell", () => {
     }
   });
 
+  it("una sugerencia inicial envía la pregunta al tocarla, sin pasar por el formulario", async () => {
+    const fetchMock = vi.fn(async () => fakeStream(sse("respuesta")));
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    // A draft the user typed but never submitted: the suggestion must send its
+    // own question and drop the draft, not smuggle it through the form.
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "borrador sin enviar" } });
+    fireEvent.click(screen.getByRole("button", { name: "¿Cuánto llevo gastado este mes?" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, { body: string }];
+    // The turn that went out is the suggestion — the form's onSubmit path
+    // would have sent the textarea contents instead.
+    expect(JSON.parse(init.body).question).toBe("¿Cuánto llevo gastado este mes?");
+    expect(screen.getByRole("textbox")).toHaveValue("");
+    expect(screen.queryByText("borrador sin enviar")).toBeNull();
+  });
+
+  it("una sugerencia de seguimiento envía la pregunta al tocarla, sin pasar por el formulario", async () => {
+    seed([
+      { role: "user", text: "gasté 100", domain: "spending" },
+      { role: "assistant", text: "ok", domain: "spending" },
+    ]);
+    const fetchMock = vi.fn(async () => fakeStream(sse("respuesta")));
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "borrador sin enviar" } });
+    const group = screen.getByRole("group", { name: "Sugerencias de seguimiento" });
+    fireEvent.click(within(group).getByRole("button", { name: "¿Dónde más puedo recortar?" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, { body: string }];
+    expect(JSON.parse(init.body).question).toBe("¿Dónde más puedo recortar?");
+    expect(screen.getByRole("textbox")).toHaveValue("");
+    expect(screen.queryByText("borrador sin enviar")).toBeNull();
+  });
+
   it("an error frame is shown as an error and never travels back as a reply", async () => {
     seed([]);
     const fetchMock = vi
