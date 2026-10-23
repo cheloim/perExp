@@ -185,8 +185,6 @@ test.describe("assistant accessibility", () => {
     // The user's bubble carries the same text as the chip, and the chip itself
     // is unmounted as soon as the thread stops being empty — take the last
     // match so the assertion holds either way.
-    await expect(
-      dialog.getByText("¿Cuánto llevo gastado este mes?").last(),
-    ).toBeVisible();
+    await expect(dialog.getByText("¿Cuánto llevo gastado este mes?").last()).toBeVisible();
   });
 });
