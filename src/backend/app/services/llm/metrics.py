@@ -16,6 +16,7 @@ import contextlib
 import logging
 import os
 import time
+from dataclasses import dataclass
 from datetime import date
 
 logger = logging.getLogger(__name__)
@@ -150,8 +151,30 @@ def _read_hash(key: str) -> dict[str, float]:
         return {}
 
 
-def _budget_state() -> tuple[float, float, float, float]:
-    """(spend_this_month, budget, credit_amount, expires_ts). Zeros when unset."""
+@dataclass(frozen=True)
+class LLMBudgetState:
+    """What the app configured for LLM spend, plus what it has consumed.
+
+    `budget_usd` and `credit_usd` are 0 when not configured, and
+    `credit_expires_at` is a Unix timestamp that stays 0 when
+    `LLM_CREDIT_EXPIRES_AT` is unset — an unset value is not a zero balance.
+    """
+
+    spend_usd: float
+    budget_usd: float
+    credit_usd: float
+    credit_expires_at: float
+
+
+def get_budget_state() -> LLMBudgetState:
+    """Month-to-date spend, the monthly budget, the credit and its expiry.
+
+    Public: `client.py` reads it before every call to enforce the monthly
+    budget, and the collector turns it into the dashboard series. Nothing here
+    raises — a dead Redis must not break the call being accounted. A spend read
+    that fails is logged and reported as 0, which is also what makes the budget
+    check fail open: with no readable spend there is nothing to block on.
+    """
     spend = 0.0
     r = _redis()
     if r is not None:
@@ -159,8 +182,8 @@ def _budget_state() -> tuple[float, float, float, float]:
             raw = r.get(f"{_SPEND_PREFIX}{date.today().strftime('%Y-%m')}")
             if raw is not None:
                 spend = float(raw)
-        except Exception:  # pragma: no cover
-            pass
+        except Exception as exc:
+            logger.warning("No se pudo leer el gasto mensual de LLM desde Redis: %s", exc)
 
     def _f(name: str) -> float:
         try:
@@ -183,7 +206,12 @@ def _budget_state() -> tuple[float, float, float, float]:
             except ValueError:
                 continue
 
-    return spend, budget, credit, expires_ts
+    return LLMBudgetState(
+        spend_usd=spend,
+        budget_usd=budget,
+        credit_usd=credit,
+        credit_expires_at=expires_ts,
+    )
 
 
 class _LLMCollector:
@@ -238,49 +266,56 @@ class _LLMCollector:
                 latency.add_metric(list(p), int(counts.get(field, 0)), sum_value)
         families.append(latency)
 
-        spend, budget, credit, expires_ts = _budget_state()
+        state = get_budget_state()
 
         spend_gauge = GaugeMetricFamily(
             "oikonomia_llm_spend_usd_month_to_date",
             "Estimated LLM spend for the current calendar month in USD",
         )
-        spend_gauge.add_metric([], spend)
+        spend_gauge.add_metric([], state.spend_usd)
         families.append(spend_gauge)
 
         budget_ratio = GaugeMetricFamily(
             "oikonomia_llm_budget_used_ratio",
             "Fraction of the monthly LLM budget consumed (0 when no budget is set)",
         )
-        budget_ratio.add_metric([], (spend / budget) if budget > 0 else 0.0)
+        budget_ratio.add_metric(
+            [], (state.spend_usd / state.budget_usd) if state.budget_usd > 0 else 0.0
+        )
         families.append(budget_ratio)
 
         budget_gauge = GaugeMetricFamily(
             "oikonomia_llm_budget_usd",
             "Configured monthly LLM budget in USD (0 when not set)",
         )
-        budget_gauge.add_metric([], budget)
+        budget_gauge.add_metric([], state.budget_usd)
         families.append(budget_gauge)
 
         credit_amount = GaugeMetricFamily(
             "oikonomia_llm_credit_amount_usd",
             "Prepaid credit purchased in USD (0 when not configured)",
         )
-        credit_amount.add_metric([], credit)
+        credit_amount.add_metric([], state.credit_usd)
         families.append(credit_amount)
 
-        credit_gauge = GaugeMetricFamily(
-            "oikonomia_llm_credit_balance_usd",
-            "Remaining prepaid credit, from the configured purchase minus recorded spend",
-        )
-        credit_gauge.add_metric([], max(credit - spend, 0.0) if credit > 0 else 0.0)
-        families.append(credit_gauge)
+        # An unset credit or expiry is not a zero: "0.00 balance" and "expired
+        # in 1970" are lies the dashboard used to print. Emitting no sample at
+        # all makes those panels say "sin configurar" instead.
+        if state.credit_usd > 0:
+            credit_gauge = GaugeMetricFamily(
+                "oikonomia_llm_credit_balance_usd",
+                "Remaining prepaid credit, from the configured purchase minus recorded spend",
+            )
+            credit_gauge.add_metric([], max(state.credit_usd - state.spend_usd, 0.0))
+            families.append(credit_gauge)
 
-        expiry = GaugeMetricFamily(
-            "oikonomia_llm_credit_expires_timestamp_seconds",
-            "Unix time the prepaid credit expires at (0 when not configured)",
-        )
-        expiry.add_metric([], expires_ts)
-        families.append(expiry)
+        if state.credit_expires_at > 0:
+            expiry = GaugeMetricFamily(
+                "oikonomia_llm_credit_expires_timestamp_seconds",
+                "Unix time the prepaid credit expires at",
+            )
+            expiry.add_metric([], state.credit_expires_at)
+            families.append(expiry)
 
         return families
 
@@ -304,7 +339,7 @@ def register_llm_metrics() -> None:
 
 def credit_days_remaining() -> float | None:
     """Days until the prepaid credit expires, for the admin panel."""
-    _, _, _, expires_ts = _budget_state()
+    expires_ts = get_budget_state().credit_expires_at
     if not expires_ts:
         return None
     return round((expires_ts - time.time()) / 86400, 1)

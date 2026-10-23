@@ -9,6 +9,11 @@ rewrite.
 Provider is resolved from `LLM_PROVIDER`, or inferred from the key shape when
 that is unset (`sk-...` is OpenAI, anything else is Google). That is what makes
 swapping the value of `LLM_API_KEY` enough to move providers.
+
+Every call is checked against `LLM_MONTHLY_BUDGET_USD` before it goes out: when
+the month's spend has already reached the budget, the call is recorded as
+`budget_blocked` and raises `LLMBudgetExceededError`. No budget configured means
+no limit.
 """
 
 from __future__ import annotations
@@ -19,7 +24,7 @@ import time
 from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
-from .metrics import record_llm_call
+from .metrics import get_budget_state, record_llm_call
 from .pricing import estimate_cost_usd
 from .types import LLMMessage, LLMResult, parse_json_block
 
@@ -39,6 +44,10 @@ KEY_ENV_VARS = ("LLM_API_KEY", "MESSAGES_BOT_LLM_API_KEY", "INVESTMENTS_LLM_API_
 
 class LLMError(RuntimeError):
     """Raised when no LLM is configured for a call site."""
+
+
+class LLMBudgetExceededError(LLMError):
+    """Raised when the monthly LLM budget is spent and the call is blocked."""
 
 
 def resolve_api_key(api_key: str | None = None, api_key_env: str = "LLM_API_KEY") -> str:
@@ -126,6 +135,7 @@ class LLMClient:
         temperature: float | None = None,
         json_mode: bool = False,
     ) -> LLMResult:
+        self._check_budget(feature)
         turns = _as_messages(messages, system)
         start = time.perf_counter()
         try:
@@ -145,6 +155,7 @@ class LLMClient:
         temperature: float | None = None,
         json_mode: bool = False,
     ) -> LLMResult:
+        self._check_budget(feature)
         turns = _as_messages(messages, system)
         start = time.perf_counter()
         try:
@@ -173,7 +184,14 @@ class LLMClient:
         system: str | None = None,
         temperature: float | None = None,
     ) -> Iterator[str]:
-        turns = _as_messages(messages, system)
+        # Deliberately not a generator: the budget check must fire when the call
+        # is made, not when the caller starts iterating the reply.
+        self._check_budget(feature)
+        return self._stream_recorded(_as_messages(messages, system), feature, temperature)
+
+    def _stream_recorded(
+        self, turns: list[LLMMessage], feature: str, temperature: float | None
+    ) -> Iterator[str]:
         start = time.perf_counter()
         final: list[LLMResult] = []
         try:
@@ -187,7 +205,7 @@ class LLMClient:
             raise
         self._record(feature, start, "ok", final[0] if final else None)
 
-    async def astream(
+    def astream(
         self,
         messages: Any,
         *,
@@ -195,7 +213,14 @@ class LLMClient:
         system: str | None = None,
         temperature: float | None = None,
     ) -> AsyncIterator[str]:
-        turns = _as_messages(messages, system)
+        # Same as `stream`: the check runs before the first `__anext__`, and the
+        # call shape `async for chunk in client.astream(...)` is unchanged.
+        self._check_budget(feature)
+        return self._astream_recorded(_as_messages(messages, system), feature, temperature)
+
+    async def _astream_recorded(
+        self, turns: list[LLMMessage], feature: str, temperature: float | None
+    ) -> AsyncIterator[str]:
         start = time.perf_counter()
         final: list[LLMResult] = []
         try:
@@ -208,6 +233,32 @@ class LLMClient:
             self._record(feature, start, "error", final[0] if final else None)
             raise
         self._record(feature, start, "ok", final[0] if final else None)
+
+    def _check_budget(self, feature: str) -> None:
+        """Block the call when this month's spend already reached the budget.
+
+        Only an explicit `LLM_MONTHLY_BUDGET_USD` above 0 sets a limit; unset or
+        0 keeps the unlimited behaviour. Anything that stops us from reading the
+        spend — Redis down, a malformed value — fails open and lets the call
+        through: the app must not break because the accounting is unreachable.
+        """
+        try:
+            state = get_budget_state()
+        except Exception as exc:  # pragma: no cover — get_budget_state never raises
+            logger.warning("No se pudo leer el gasto mensual de LLM; la llamada sigue: %s", exc)
+            return
+        if state.budget_usd <= 0 or state.spend_usd < state.budget_usd:
+            return
+        record_llm_call(
+            provider=self.provider,
+            model=self.model,
+            feature=feature,
+            status="budget_blocked",
+        )
+        raise LLMBudgetExceededError(
+            f"Presupuesto mensual de LLM agotado: este mes ya gastaste USD {state.spend_usd:.2f} "
+            f"de un presupuesto de USD {state.budget_usd:.2f}."
+        )
 
     def _record(
         self, feature: str, start: float, status: str, result: LLMResult | None = None
