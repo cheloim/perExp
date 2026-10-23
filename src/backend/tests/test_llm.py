@@ -2,18 +2,22 @@
 
 These are the pieces that must not drift when a provider is swapped — the
 adapters themselves are thin, but a wrong price or a lost token count would
-quietly misreport spend on the dashboard.
+quietly misreport spend on the dashboard. The monthly budget guard lives here
+too: what it blocks, and — more importantly — what it must never block.
 """
 
+import asyncio
 import os
 import unittest
+from datetime import date
 from unittest.mock import patch
 
 os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-testing"
 
 from app.services.llm import metrics as llm_metrics  # noqa: E402
+from app.services.llm.client import LLMBudgetExceededError, LLMClient, LLMError  # noqa: E402
 from app.services.llm.pricing import estimate_cost_usd, price_for  # noqa: E402
-from app.services.llm.types import parse_json_block  # noqa: E402
+from app.services.llm.types import LLMResult, parse_json_block  # noqa: E402
 
 
 class TestParseJsonBlock(unittest.TestCase):
@@ -134,8 +138,12 @@ class TestUsageAccounting(unittest.TestCase):
     def test_records_cost_and_monthly_bucket(self):
         self._record(input_tokens=1_000_000, output_tokens=1_000_000, cost_usd=0.60)
 
-        self.assertEqual(self.fake.store[llm_metrics._COST_KEY]["openai|gpt-6-luna|analysis_chat"], 0.60)
-        month_key = f"{llm_metrics._SPEND_PREFIX}{__import__('datetime').date.today().strftime('%Y-%m')}"
+        self.assertEqual(
+            self.fake.store[llm_metrics._COST_KEY]["openai|gpt-6-luna|analysis_chat"], 0.60
+        )
+        month_key = (
+            f"{llm_metrics._SPEND_PREFIX}{__import__('datetime').date.today().strftime('%Y-%m')}"
+        )
         self.assertEqual(self.fake.store[month_key], 0.60)
 
     def test_never_raises_without_redis(self):
@@ -186,6 +194,223 @@ class TestUsageAccounting(unittest.TestCase):
         self.assertIsNotNone(days)
         self.assertGreater(days, 300)
         self.assertLess(days, 400)
+
+    def test_budget_state_reads_spend_config_and_expiry(self):
+        self._record(input_tokens=1_000_000, output_tokens=1_000_000, cost_usd=0.60)
+        env = {
+            "LLM_MONTHLY_BUDGET_USD": "10",
+            "LLM_CREDIT_AMOUNT_USD": "10",
+            "LLM_CREDIT_EXPIRES_AT": "2027-10-20",
+        }
+        with patch.dict(os.environ, env, clear=False):
+            state = llm_metrics.get_budget_state()
+
+        self.assertAlmostEqual(state.spend_usd, 0.60)
+        self.assertEqual(state.budget_usd, 10.0)
+        self.assertEqual(state.credit_usd, 10.0)
+        self.assertGreater(state.credit_expires_at, 0)
+
+    def test_no_expiry_series_when_not_configured(self):
+        """An unset expiry is not "expired in 1970": the series stays silent."""
+        env = {"LLM_CREDIT_EXPIRES_AT": "", "LLM_CREDIT_AMOUNT_USD": ""}
+        with patch.dict(os.environ, env, clear=False):
+            samples = [s for f in llm_metrics._LLMCollector().collect() for s in f.samples]
+
+        self.assertNotIn(
+            "oikonomia_llm_credit_expires_timestamp_seconds", {s.name for s in samples}
+        )
+
+    def test_no_credit_balance_series_without_credit(self):
+        env = {"LLM_CREDIT_EXPIRES_AT": "", "LLM_CREDIT_AMOUNT_USD": ""}
+        with patch.dict(os.environ, env, clear=False):
+            samples = [s for f in llm_metrics._LLMCollector().collect() for s in f.samples]
+
+        self.assertNotIn("oikonomia_llm_credit_balance_usd", {s.name for s in samples})
+
+    def test_credit_balance_series_when_credit_is_configured(self):
+        self._record(input_tokens=1_000_000, output_tokens=1_000_000, cost_usd=0.60)
+        env = {"LLM_CREDIT_AMOUNT_USD": "10", "LLM_CREDIT_EXPIRES_AT": ""}
+        with patch.dict(os.environ, env, clear=False):
+            families = {f.name: f for f in llm_metrics._LLMCollector().collect()}
+
+        balance = families["oikonomia_llm_credit_balance_usd"].samples[0]
+        self.assertAlmostEqual(balance.value, 9.40)
+
+
+class _StubClient(LLMClient):
+    """A provider that answers from memory: the guard is what is under test."""
+
+    provider = "openai"
+
+    def _complete(self, messages, temperature, json_mode) -> LLMResult:
+        return LLMResult(text="{}", model="gpt-6-luna", input_tokens=1, output_tokens=1)
+
+    async def _acomplete(self, messages, temperature, json_mode) -> LLMResult:
+        return LLMResult(text="{}", model="gpt-6-luna", input_tokens=1, output_tokens=1)
+
+    def _stream(self, messages, temperature):
+        yield {"text": "hola", "result": LLMResult(text="hola", model="gpt-6-luna")}
+
+    async def _astream(self, messages, temperature):
+        yield {"text": "hola", "result": LLMResult(text="hola", model="gpt-6-luna")}
+
+
+class _BrokenRedis:
+    """Every read fails, the way a dead Redis would."""
+
+    def get(self, key):
+        raise ConnectionError("redis caído")
+
+
+class TestBudgetGuard(unittest.TestCase):
+    """The monthly budget is a real block, and only when it is configured."""
+
+    def setUp(self):
+        self.fake = _FakeRedis()
+        self._client = llm_metrics._redis_client
+        self._pid = llm_metrics._redis_pid
+        llm_metrics._redis_client = self.fake
+        llm_metrics._redis_pid = os.getpid()
+        self.llm = _StubClient("test-key", "gpt-6-luna")
+
+    def tearDown(self):
+        llm_metrics._redis_client = self._client
+        llm_metrics._redis_pid = self._pid
+
+    def _set_spend(self, amount: float) -> None:
+        self.fake.store[f"{llm_metrics._SPEND_PREFIX}{date.today().strftime('%Y-%m')}"] = amount
+
+    def _month_spend(self) -> float:
+        return self.fake.store[f"{llm_metrics._SPEND_PREFIX}{date.today().strftime('%Y-%m')}"]
+
+    def _blocked_records(self) -> int:
+        requests = self.fake.store.get(llm_metrics._REQUESTS_KEY, {})
+        return int(requests.get("openai|gpt-6-luna|analysis_chat|budget_blocked", 0))
+
+    def test_budget_error_is_an_llm_error(self):
+        self.assertTrue(issubclass(LLMBudgetExceededError, LLMError))
+
+    def test_no_budget_never_blocks(self):
+        """Unset or 0 budget keeps today's behaviour: unlimited."""
+        self._set_spend(1000.0)
+        for budget in ("", "0"):
+            with self.subTest(budget=budget):
+                env = {"LLM_MONTHLY_BUDGET_USD": budget}
+                with patch.dict(os.environ, env, clear=False):
+                    result = self.llm.complete(
+                        [{"role": "user", "text": "hola"}], feature="analysis_chat"
+                    )
+                self.assertEqual(result.text, "{}")
+                self.assertEqual(self._blocked_records(), 0)
+
+    def test_under_budget_goes_through(self):
+        self._set_spend(9.99)
+        with patch.dict(os.environ, {"LLM_MONTHLY_BUDGET_USD": "10"}, clear=False):
+            result = self.llm.complete([{"role": "user", "text": "hola"}], feature="analysis_chat")
+
+        self.assertEqual(result.text, "{}")
+        self.assertEqual(self._blocked_records(), 0)
+
+    def test_at_budget_blocks_and_records(self):
+        self._set_spend(10.0)
+        with (
+            patch.dict(os.environ, {"LLM_MONTHLY_BUDGET_USD": "10"}, clear=False),
+            self.assertRaises(LLMBudgetExceededError),
+        ):
+            self.llm.complete([{"role": "user", "text": "hola"}], feature="analysis_chat")
+
+        self.assertEqual(self._blocked_records(), 1)
+
+    def test_over_budget_blocks(self):
+        self._set_spend(12.5)
+        with (
+            patch.dict(os.environ, {"LLM_MONTHLY_BUDGET_USD": "10"}, clear=False),
+            self.assertRaises(LLMBudgetExceededError),
+        ):
+            self.llm.complete([{"role": "user", "text": "hola"}], feature="analysis_chat")
+
+    def test_blocked_call_does_not_spend(self):
+        self._set_spend(10.0)
+        with (
+            patch.dict(os.environ, {"LLM_MONTHLY_BUDGET_USD": "10"}, clear=False),
+            self.assertRaises(LLMBudgetExceededError),
+        ):
+            self.llm.complete([{"role": "user", "text": "hola"}], feature="analysis_chat")
+
+        self.assertEqual(self._month_spend(), 10.0)
+
+    def test_json_helpers_block_through_the_same_guard(self):
+        self._set_spend(10.0)
+        with (
+            patch.dict(os.environ, {"LLM_MONTHLY_BUDGET_USD": "10"}, clear=False),
+            self.assertRaises(LLMBudgetExceededError),
+        ):
+            self.llm.complete_json([{"role": "user", "text": "hola"}], feature="analysis_chat")
+
+        # One check, one record: the helper delegates instead of re-checking.
+        self.assertEqual(self._blocked_records(), 1)
+
+    def test_async_and_streaming_calls_are_guarded_at_call_time(self):
+        self._set_spend(10.0)
+        env = {"LLM_MONTHLY_BUDGET_USD": "10"}
+        with patch.dict(os.environ, env, clear=False), self.assertRaises(LLMBudgetExceededError):
+            asyncio.run(
+                self.llm.acomplete([{"role": "user", "text": "hola"}], feature="analysis_chat")
+            )
+        with patch.dict(os.environ, env, clear=False), self.assertRaises(LLMBudgetExceededError):
+            self.llm.stream([{"role": "user", "text": "hola"}], feature="analysis_chat")
+        with patch.dict(os.environ, env, clear=False), self.assertRaises(LLMBudgetExceededError):
+            self.llm.astream([{"role": "user", "text": "hola"}], feature="analysis_chat")
+
+    def test_streaming_still_yields_when_under_budget(self):
+        self._set_spend(0.5)
+        env = {"LLM_MONTHLY_BUDGET_USD": "10"}
+        with patch.dict(os.environ, env, clear=False):
+            chunks = list(
+                self.llm.stream([{"role": "user", "text": "hola"}], feature="analysis_chat")
+            )
+
+        async def consume():
+            return [
+                c
+                async for c in self.llm.astream(
+                    [{"role": "user", "text": "hola"}], feature="analysis_chat"
+                )
+            ]
+
+        with patch.dict(os.environ, env, clear=False):
+            async_chunks = asyncio.run(consume())
+
+        self.assertEqual(chunks, ["hola"])
+        self.assertEqual(async_chunks, ["hola"])
+
+    def test_unreadable_spend_fails_open_and_logs(self):
+        """A dead Redis must not stop the app: the call goes through."""
+        llm_metrics._redis_client = _BrokenRedis()
+        env = {"LLM_MONTHLY_BUDGET_USD": "10"}
+        with (
+            patch.dict(os.environ, env, clear=False),
+            self.assertLogs("app.services.llm.metrics", level="WARNING") as logs,
+        ):
+            result = self.llm.complete([{"role": "user", "text": "hola"}], feature="analysis_chat")
+
+        self.assertEqual(result.text, "{}")
+        self.assertEqual(self._blocked_records(), 0)
+        self.assertTrue(any("gasto mensual" in line for line in logs.output))
+
+    def test_unexpected_state_failure_fails_open_and_logs(self):
+        self._set_spend(1000.0)
+        env = {"LLM_MONTHLY_BUDGET_USD": "10"}
+        with (
+            patch.dict(os.environ, env, clear=False),
+            patch("app.services.llm.client.get_budget_state", side_effect=RuntimeError("raro")),
+            self.assertLogs("app.services.llm.client", level="WARNING") as logs,
+        ):
+            result = self.llm.complete([{"role": "user", "text": "hola"}], feature="analysis_chat")
+
+        self.assertEqual(result.text, "{}")
+        self.assertEqual(self._blocked_records(), 0)
+        self.assertTrue(any("llamada sigue" in line for line in logs.output))
 
 
 if __name__ == "__main__":
