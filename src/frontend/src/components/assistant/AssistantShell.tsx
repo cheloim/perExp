@@ -384,8 +384,8 @@ export function AssistantShell({
                         <button
                           key={s}
                           onClick={() => {
-                            setInput(s);
-                            inputRef.current?.focus();
+                            setInput("");
+                            void sendMessage(s);
                           }}
                           className="text-left text-sm px-3.5 py-2.5 rounded-xl bg-[var(--color-primary-strong)]/8 hover:bg-[var(--color-primary-strong)]/15 text-[var(--accent-color)] transition-colors"
                         >
@@ -438,8 +438,8 @@ export function AssistantShell({
                         <button
                           key={s}
                           onClick={() => {
-                            setInput(s);
-                            inputRef.current?.focus();
+                            setInput("");
+                            void sendMessage(s);
                           }}
                           className="text-xs px-2.5 py-1.5 rounded-full border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition-colors"
                         >

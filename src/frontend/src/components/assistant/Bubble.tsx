@@ -37,20 +37,25 @@ function ThinkingDots() {
  */
 export const Bubble = memo(({ msg, streaming }: { msg: Message; streaming: boolean }) => {
   countBubbleRender();
+  const rich = msg.role === "assistant" && !!msg.text && !msg.error;
   return (
     <div className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[85%] px-4 py-3 rounded-xl text-sm leading-relaxed whitespace-pre-wrap ${
+        className={`max-w-[85%] px-4 py-3 rounded-xl text-sm leading-relaxed ${
+          // Markdown owns the whitespace of a rendered reply; the other bubbles
+          // keep the pre-wrap the composer writes into.
+          rich ? "" : "whitespace-pre-wrap"
+        } ${
           msg.role === "user"
             ? "bg-[var(--color-primary-strong)] text-[var(--color-on-primary-strong)] rounded-br-sm"
             : msg.error
               ? "bg-danger/10 border border-danger/30 text-danger rounded-bl-sm"
-              : "bg-[var(--color-base-alt)] text-[var(--text-primary)] rounded-bl-sm"
+              : // Accent bar on the left edge: the assistant's bubble wears the
+                // theme's primary, the user's the solid primary fill.
+                "bg-[var(--color-base-alt)] text-[var(--text-primary)] rounded-bl-sm border-l-[3px] border-l-[var(--color-primary)]"
         }`}
       >
-        {msg.role === "assistant" && msg.text && !msg.error
-          ? formatAIResponse(msg.text)
-          : msg.text || (streaming ? <ThinkingDots /> : "")}
+        {rich ? formatAIResponse(msg.text) : msg.text || (streaming ? <ThinkingDots /> : "")}
       </div>
     </div>
   );

@@ -40,8 +40,10 @@
     "react-day-picker": "^10.0.2",
     "react-dom": "^18.3.1",
     "react-joyride": "^3.2.0",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.14.2",
     "recharts": "^2.13.3",
+    "remark-gfm": "^4.0.1",
     "web-vitals": "^6.2.3"
   },
   "devDependencies": {
