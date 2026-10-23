@@ -172,12 +172,21 @@ test.describe("assistant accessibility", () => {
     // sleep) proves the timer has already fired — it runs once per open.
     await expect(box).toBeFocused();
 
-    // Keyboard activation must populate the composer (not send).
+    // Keyboard activation sends the question straight away: a chip is a
+    // shortcut into the conversation, not a composer filler.
     await chip.focus();
     await expect(chip).toBeFocused();
     await page.keyboard.press("Enter");
 
+    // The focus goes back to the composer so the keyboard user can keep typing,
+    // and the composer is left empty rather than pre-filled.
     await expect(box).toBeFocused();
-    await expect(box).toHaveValue("¿Cuánto llevo gastado este mes?");
+    await expect(box).toHaveValue("");
+    // The user's bubble carries the same text as the chip, and the chip itself
+    // is unmounted as soon as the thread stops being empty — take the last
+    // match so the assertion holds either way.
+    await expect(
+      dialog.getByText("¿Cuánto llevo gastado este mes?").last(),
+    ).toBeVisible();
   });
 });

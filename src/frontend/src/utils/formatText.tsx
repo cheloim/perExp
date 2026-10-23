@@ -159,12 +159,14 @@ const markdownComponents: Components = {
       {decorate(children, "h4")}
     </h4>
   ),
-  h5: ({ children }) => <h5 className="mt-2 mb-1 text-xs text-[var(--text-tertiary)]">{children}</h5>,
-  h6: ({ children }) => <h6 className="mt-2 mb-1 text-xs text-[var(--text-tertiary)]">{children}</h6>,
+  h5: ({ children }) => (
+    <h5 className="mt-2 mb-1 text-xs text-[var(--text-tertiary)]">{children}</h5>
+  ),
+  h6: ({ children }) => (
+    <h6 className="mt-2 mb-1 text-xs text-[var(--text-tertiary)]">{children}</h6>
+  ),
   ul: ({ children }) => (
-    <ul className="my-2 list-disc space-y-1 pl-5 marker:text-[var(--color-primary)]">
-      {children}
-    </ul>
+    <ul className="my-2 list-disc space-y-1 pl-5 marker:text-[var(--color-primary)]">{children}</ul>
   ),
   ol: ({ children }) => (
     <ol className="my-2 list-decimal space-y-1 pl-5 marker:text-[var(--color-primary)]">
@@ -182,10 +184,14 @@ const markdownComponents: Components = {
     </div>
   ),
   thead: ({ children }) => (
-    <thead className="bg-[var(--color-primary-strong)]/10 text-[var(--text-primary)]">{children}</thead>
+    <thead className="bg-[var(--color-primary-strong)]/10 text-[var(--text-primary)]">
+      {children}
+    </thead>
   ),
   tbody: ({ children }) => <tbody>{children}</tbody>,
-  tr: ({ children }) => <tr className="even:bg-[var(--color-primary-strong)]/[0.05]">{children}</tr>,
+  tr: ({ children }) => (
+    <tr className="even:bg-[var(--color-primary-strong)]/[0.05]">{children}</tr>
+  ),
   th: ({ children }) => (
     <th className="border-b border-[var(--border-color)] px-3 py-2 text-left font-semibold text-[var(--text-primary)]">
       {decorate(children, "th")}
@@ -227,7 +233,9 @@ const markdownComponents: Components = {
   ),
   hr: () => <hr className="my-3 border-[var(--border-color)]" />,
   strong: ({ children }) => (
-    <strong className="font-semibold text-[var(--text-primary)]">{decorate(children, "strong")}</strong>
+    <strong className="font-semibold text-[var(--text-primary)]">
+      {decorate(children, "strong")}
+    </strong>
   ),
   em: ({ children }) => <em className="italic">{decorate(children, "em")}</em>,
   del: ({ children }) => (

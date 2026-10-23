@@ -386,6 +386,10 @@ export function AssistantShell({
                           onClick={() => {
                             setInput("");
                             void sendMessage(s);
+                            // Sending empties the thread, which unmounts this
+                            // very button. Without returning the focus the
+                            // keyboard user is dropped on <body>.
+                            inputRef.current?.focus();
                           }}
                           className="text-left text-sm px-3.5 py-2.5 rounded-xl bg-[var(--color-primary-strong)]/8 hover:bg-[var(--color-primary-strong)]/15 text-[var(--accent-color)] transition-colors"
                         >
@@ -440,6 +444,9 @@ export function AssistantShell({
                           onClick={() => {
                             setInput("");
                             void sendMessage(s);
+                            // Same as the seed chips: the reply unmounts this
+                            // group, so hand the focus back to the composer.
+                            inputRef.current?.focus();
                           }}
                           className="text-xs px-2.5 py-1.5 rounded-full border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition-colors"
                         >

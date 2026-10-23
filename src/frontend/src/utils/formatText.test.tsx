@@ -88,9 +88,11 @@ describe("formatAIResponse", () => {
 
   it("links, negritas y blockquotes se renderizan como estructura real", () => {
     const { container } = renderReply(
-      ["Mirá [la guía](https://ejemplo.com/ayuda) para más.", "", "> **Importante:** revisá el mes."].join(
-        "\n",
-      ),
+      [
+        "Mirá [la guía](https://ejemplo.com/ayuda) para más.",
+        "",
+        "> **Importante:** revisá el mes.",
+      ].join("\n"),
     );
 
     const link = container.querySelector("a");
