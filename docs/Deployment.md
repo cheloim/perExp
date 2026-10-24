@@ -197,6 +197,16 @@ pre-provisionado no puede entrar. La consistencia es eventual a propósito —
 reconcilia cuando cambia el flag y cada hora desde celery beat, nunca durante
 un login.
 
+Grafana identifica a los usuarios OAuth por `(auth_module, auth_id)`, no por
+email, así que un usuario creado por el proveedor viejo (Generic OAuth) o por
+el sync no tiene identidad Google y el login devolvía "Sign up is disabled"
+aunque existiera y fuera admin. Por eso corre
+`GF_AUTH_OAUTH_ALLOW_INSECURE_EMAIL_LOOKUP=true`: el primer login con Google
+empata al usuario ya provisionado por email y le pega la identidad. Es
+aceptable porque Google es el único IdP y verifica el email — el caso que los
+docs de Grafana señalan como razonable — y porque `allow_sign_up` sigue cerrado:
+quien no está pre-provisionado no tiene nada con qué empatar.
+
 Queda además una llave de emergencia: el formulario de login local con
 `GRAFANA_ADMIN_PASSWORD` (secret de GitHub, **obligatorio**: `validate-config`
 aborta si falta, porque una Grafana pública con password por default es peor
