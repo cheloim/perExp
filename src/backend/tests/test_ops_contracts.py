@@ -675,32 +675,45 @@ class TestHousekeepingSafety2:
 
 
 class TestDeployJobGraph:
-    def test_platform_containers_are_only_killed_before_a_redeploy(self):
-        """deploy-infra stops and removes the platform containers so
-        deploy-platform can recreate them. If it runs without deploy-platform
-        following — an infra-only or monitoring-only change — production stays
-        down: nothing brings the app back.
+    def test_deploy_infra_never_stops_the_app(self):
+        """deploy-platform and deploy-bots stop their own services right before
+        recreating them. deploy-infra doing it too was a bomb: whenever the job
+        that recreates the app was skipped — a failed backup, say — nothing
+        brought it back and production stayed down. That is what happened on
+        2026-10-24.
         """
         deploy = _read(DEPLOY_YML)
         infra = deploy.split("deploy-infra:")[1].split("\n  deploy-platform:")[0]
-        marker = infra.split("Cleaning up orphaned containers")[1]
+        assert 'podman stop "oikonomia-platform_' not in infra
+        assert 'podman rm -f "oikonomia-platform_' not in infra
+        assert 'podman stop "oikonomia-bots_' not in infra
 
-        guard = re.search(
-            r'if \[ "\$\{\{ needs\.detect-changes\.outputs\.platform \}\}" = "true" \]'
-            r'[\s\S]*?; then([\s\S]*?)\n\s*fi',
-            marker,
-        )
-        assert guard, (
-            "killing the platform containers must be guarded so it only happens "
-            "when a redeploy follows"
-        )
-        inside = guard.group(1)
-        assert 'podman stop "oikonomia-platform_' in inside
+    def test_every_deployed_script_is_actually_copied(self):
+        """A script the pipeline runs but never copies is a 127 in production —
+        which is exactly how the backup job died on 2026-10-24."""
+        deploy = _read(DEPLOY_YML)
+        scp = deploy.split("Copy ops scripts via SCP")[1]
+        for script in ("scripts/housekeeping.sh", "scripts/backup-db.sh"):
+            assert script in scp, f"{script} is never sent to the server"
 
-        outside = marker.replace(inside, "")
-        assert 'podman stop "oikonomia-platform_' not in outside, (
-            "nothing outside the guard may stop the platform containers"
+    def test_big_journal_files_are_truncated_not_copied(self):
+        """`logrotate` with copytruncate copies the whole file first: on an 8GB
+        journal.log that blows the step's timeout and the deploy dies mid-setup."""
+        deploy = _read(DEPLOY_YML)
+        job = deploy.split("deploy-monitoring:")[1]
+        assert "1073741824" in job, "there must be a size ceiling above which it truncates"
+        assert ": > /opt/creditcardanalyzer/logs/journal.log" in job
+        timeout = re.search(r"command_timeout:\s*(\d+)m", job)
+        assert timeout and int(timeout.group(1)) >= 10, (
+            "the monitoring step needs room for journald, logrotate and the stack"
         )
+
+    def test_landing_does_not_depend_on_the_backup(self):
+        """The landing touches no data. Coupling it to the checkpoint meant a
+        failed backup took the landing down alongside the app."""
+        deploy = _read(DEPLOY_YML)
+        head = deploy.split("deploy-landing:")[1].split("steps:")[0]
+        assert "backup-db" not in head
 
     def test_ops_filter_covers_everything_copied_to_the_server(self):
         """A change that is deployed but never copied is a green run that

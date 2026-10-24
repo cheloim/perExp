@@ -340,7 +340,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ vars.SSH_PORT || '43422' }}
-          source: "scripts/housekeeping.sh"
+          source: "scripts/housekeeping.sh,scripts/backup-db.sh"
           target: /opt/creditcardanalyzer
           strip_components: 0
 
@@ -579,31 +579,20 @@ jobs:
               podman rm -f "$OLD" 2>/dev/null || true
             done
 
-            # Clean up orphaned containers from failed deploys.
+            # Clean up legacy containers from the pre-compose naming.
             # But DO NOT touch infra containers (db, redis) — they have persistent data.
             #
-            # OJO: esto DETIENE los contenedores de la plataforma y los borra.
-            # Su función es limpiar restos de un deploy fallido justo antes de
-            # recrearlos, así que sólo puede correr si después viene
-            # deploy-platform. Si corre sin él (un cambio sólo de infra, o
-            # sólo de monitoring) nadie vuelve a levantar la app y producción
-            # se queda caída.
-            echo "Cleaning up orphaned containers..."
-            if [ "${{ needs.detect-changes.outputs.platform }}" = "true" ] || [ "${{ inputs.action }}" = "full" ]; then
-              for SVC in backend platform-frontend celery_worker celery_beat; do
-                podman stop "oikonomia-platform_${SVC}_1" 2>/dev/null || true
-                podman rm -f "oikonomia-platform_${SVC}_1" 2>/dev/null || true
-              done
-            else
-              echo "Sin redeploy de plataforma: no se tocan sus contenedores"
-            fi
-
-            if [ "${{ needs.detect-changes.outputs.bots }}" = "true" ] || [ "${{ needs.detect-changes.outputs.platform }}" = "true" ] || [ "${{ inputs.action }}" = "full" ]; then
-              for SVC in telegram_bot; do
-                podman stop "oikonomia-bots_${SVC}_1" 2>/dev/null || true
-                podman rm -f "oikonomia-bots_${SVC}_1" 2>/dev/null || true
-              done
-            fi
+            # OJO: acá NO se detienen los contenedores de la plataforma ni los
+            # bots. Cada job (deploy-platform, deploy-bots) detiene los suyos
+            # justo antes de recrearlos. Hacerlo acá era una bomba: si el job
+            # que recrea queda skipeado — por un backup fallido, por ejemplo —
+            # nadie vuelve a levantar la app y producción se queda caída.
+            echo "Cleaning up legacy containers..."
+            for OLD in $(podman ps -a --format '{{.Names}}' | grep '^creditcardanalyzer_' 2>/dev/null || true); do
+              echo "  Removing legacy: $OLD"
+              podman stop "$OLD" 2>/dev/null || true
+              podman rm -f "$OLD" 2>/dev/null || true
+            done
             # NOTE: nginx, monitoring exporters, and alloy are NEVER killed during cleanup.
             # Nginx stays up to serve the maintenance page during platform restarts.
             # Monitoring stays up to keep observability during deploys.
@@ -1057,11 +1046,12 @@ jobs:
     # rollback, la landing se queda con el bundle que se sabe que anda.
     # `skipped` también vale: un cambio que toca sólo la landing igual tiene que
     # llegar, y en ese caso deploy-platform no corre.
-    needs: [deploy-platform, backup-db, detect-changes]
+    # NO depende del backup: la landing no toca datos, y atarla al checkpoint la
+    # dejaba caída junto con la plataforma cuando el backup fallaba.
+    needs: [deploy-platform, detect-changes]
     if: |
       always() && !cancelled() &&
       (needs.detect-changes.outputs.landing == 'true' || needs.detect-changes.outputs.platform == 'true' || inputs.action == 'full') &&
-      needs.backup-db.result != 'failure' &&
       (needs.deploy-platform.result == 'success' || needs.deploy-platform.result == 'skipped')
 
     steps:
@@ -1107,7 +1097,9 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ vars.SSH_PORT || '43422' }}
-          command_timeout: 4m
+          # El setup de monitoring toca journald, logrotate y el stack entero:
+          # 4m se quedaba corto y el paso moría a mitad de camino.
+          command_timeout: 15m
           script: |
             cd /opt/creditcardanalyzer
             export PATH="$HOME/.local/bin:$PATH"
@@ -1163,8 +1155,15 @@ jobs:
 
             # Sólo se fuerza la rotación si ya se pasó del tope: si el
             # logrotate.timer del sistema funciona, esto nunca corre.
+            # OJO con archivos enormes: copytruncate COPIA el archivo antes de
+            # truncarlo, y con 8GB se pasa del timeout del paso sin aportar
+            # nada (el contenido ya está ingerido). Arriba de 1GB se trunca,
+            # que es instantáneo y deja el inode igual para el exporter.
             JOURNAL_SIZE=$(stat -c%s /opt/creditcardanalyzer/logs/journal.log 2>/dev/null || echo "0")
-            if [ "$JOURNAL_SIZE" -gt 209715200 ]; then
+            if [ "$JOURNAL_SIZE" -gt 1073741824 ]; then
+              echo "journal.log ocupa $((JOURNAL_SIZE / 1048576))MB — truncando en vez de rotar"
+              : > /opt/creditcardanalyzer/logs/journal.log
+            elif [ "$JOURNAL_SIZE" -gt 209715200 ]; then
               echo "journal.log is $((JOURNAL_SIZE / 1048576))MB, rotating..."
               sudo logrotate -f /etc/logrotate.d/oikonomia
             fi
