@@ -199,6 +199,30 @@ y la rúbrica del set de evaluación.
 El set de preguntas de evaluación y las respuestas antes/después se le pasan al
 maintainer antes del merge, pero no es gate.
 
+### 12. La ventana es de doce meses, y el prompt está acotado (#417)
+
+El asistente analizaba un solo mes, lo que hacía imposible responder "compará con
+el mes pasado" o "¿cómo vengo en el año?". Ahora:
+
+- **Ventana de 12 meses por defecto**, elegible desde el selector de período
+  (3 / 6 / 12 meses) que el header muestra en todo momento — la UI dice el
+  período consultado antes de preguntar. El backend acepta 1..24 y **siempre**
+  acota: no hay forma de pedirle todo el historial.
+- **Comparativos calculados en el servidor**: cada mes contra el anterior y el
+  top 5 de categorías del último mes contra el previo. El modelo *reporta* la
+  comparación en vez de restar totales, que es donde más se equivoca.
+- **Retrieval por palabras clave**: la pregunta trae los gastos de los que habla
+  ("¿cuánto gasté en YENNY TORTUGAS?"), matching por descripción y categoría
+  (sin acentos ni mayúsculas), top 20. Es keyword a propósito: no hay vector
+  store en el stack y las palabras que escribe el usuario son las palabras que
+  están en las descripciones. Si un día hace falta semántica, el corte está en
+  `_question_terms` y el bloque es el único que cambia.
+- **Presupuesto de prompt**: agregados + top 10 + comparativos + ≤20 matches,
+  nunca un dump de transacciones. Un año de gastos (500 movimientos) queda bajo
+  16.000 caracteres, con test que lo afirma. El costo por pregunta escala con
+  la ventana agregada, no con la cantidad de gastos: 12 meses son ~12 líneas de
+  totales más los bloques fijos, del orden de 1–2k tokens contra el modelo.
+
 ## Arquitectura propuesta
 
 ### Etapa 1 — refactor del frontend, cero cambio de producto
