@@ -431,6 +431,18 @@ class TestNginxEdge:
         assert default["external"] is True
         assert default["name"] == "${NETWORK_NAME:-oikonomia}"
 
+    def test_deploy_syncs_the_grafana_admin_password(self):
+        """Grafana applies GF_SECURITY_ADMIN_PASSWORD only on first init, so the
+        volume kept the default that used to live in this repo and every later
+        deploy silently ignored the secret. The deploy has to converge Grafana
+        onto the secret, or the checks authenticate with a password Grafana
+        does not have."""
+        deploy = _read(DEPLOY_YML)
+        assert "/api/user/password" in deploy, "the deploy must sync the password"
+        assert "grafana cli admin reset-admin-password" in deploy, (
+            "when it cannot converge it must say how to recover"
+        )
+
 
 class TestLandingIndependence:
     def test_landing_reuses_the_frontend_image(self):

@@ -202,6 +202,11 @@ Queda además una llave de emergencia: el formulario de login local con
 aborta si falta, porque una Grafana pública con password por default es peor
 que no tener tablero). Es el camino que no depende de nadie más.
 
+> Ojo: Grafana sólo aplica `GF_SECURITY_ADMIN_PASSWORD` la **primera vez** que
+> se inicializa el volumen. Un deploy posterior no la cambia. El deploy
+> sincroniza el admin con el secret (`/api/user/password`) justamente por eso,
+> y si no puede converge dice cómo resetearla a mano.
+
 Requisito manual, una vez: agregar `https://grafana.<dominio>/login/google`
 como redirect URI autorizado en Google Cloud Console.
 
