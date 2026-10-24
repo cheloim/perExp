@@ -1,11 +1,11 @@
 feature: notifications
 domain: SSE Notifications
 type: full
-version: "1.0.0"
+version: "1.1.0"
 status: implemented
 owner: full-stack
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-10-24
 github_issue: null
 
 description: >
@@ -115,7 +115,11 @@ frontend:
   components:
     - name: "NotificationsPanel"
       path: "frontend/src/components/NotificationsPanel.tsx"
-      description: "Dropdown/side panel showing unread notifications with read/dismiss actions"
+      description: >
+        Panel showing notifications with read/dismiss actions. The title and
+        body are shown in full — no clamp, no ellipsis — and a notification is
+        deleted with a single click. The confirm dialog is reserved for the
+        deletes that take something else down with them (an import job).
     - name: "NotificationsWorker"
       path: "frontend/src/workers/notifications.worker.ts"
       description: "SharedWorker that manages SSE connection and broadcasts to tabs"
@@ -164,6 +168,19 @@ tests:
       - "Assert only User A receives notification"
     expected: "No cross-user notification leakage"
 
+  - name: "Notification text is shown in full and deletes with one click"
+    type: "unit"
+    description: >
+      The panel never clamps the notification title or body, and a click on the
+      trash icon deletes the notification (the confirm dialog is only for the
+      deletes that also destroy an import job).
+    steps:
+      - "Render a notification whose body is longer than two lines"
+      - "Assert the whole body and title are in the DOM, with no line-clamp/truncate"
+      - "Click the delete icon once"
+      - "Assert deleteNotification was called once with the notification id"
+    expected: "Full text visible; one click deletes"
+
 documentation:
   - type: "api"
     description: "SSE notification endpoints documented in OpenAPI spec"
@@ -171,6 +188,11 @@ documentation:
     description: "SharedWorker SSE deduplication pattern documented"
 
 changelog:
+  - version: "1.1.0"
+    date: "2026-10-24"
+    changes:
+      - "Notification title and body shown in full (issue #412)"
+      - "One-click delete for notifications; confirm only for import jobs"
   - version: "1.0.0"
     date: "2026-08-16"
     changes:
