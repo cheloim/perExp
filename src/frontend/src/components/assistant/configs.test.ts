@@ -28,9 +28,9 @@ describe("ASSISTANT_CONFIGS.spending", () => {
       debug_mode: false,
       messages: [],
     });
-    // The window is a three-month default: a caller that names no length still
-    // gets the current month plus the two before it.
-    expect(cfg.buildBody({ ...ARGS, months: null }).months).toBe(3);
+    // The window is a twelve-month default: a caller that names no length gets
+    // the current month plus the eleven before it, never the whole history.
+    expect(cfg.buildBody({ ...ARGS, months: null }).months).toBe(12);
   });
 
   it("is migrated from the legacy ai_assistant_* store", () => {

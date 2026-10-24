@@ -608,4 +608,56 @@ describe("AssistantShell", () => {
     // as an error is not a reply and must not travel back as one.
     expect(JSON.parse(init.body).messages).toEqual([{ role: "user", text: "¿cuánto gasté?" }]);
   });
+
+  it("analyses twelve months by default and follows the period selector", async () => {
+    seed([]);
+    const fetchMock = vi.fn(async () => fakeStream(sse("respuesta")));
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    // The window in force is visible: the selector names it and marks it.
+    const periods = screen.getByRole("group", { name: "Período de análisis" });
+    expect(within(periods).getByRole("button", { name: "12m" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "¿cómo vengo?" } });
+    fireEvent.submit(screen.getByRole("textbox").closest("form")!);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const [, first] = fetchMock.mock.calls[0] as unknown as [string, { body: string }];
+    expect(JSON.parse(first.body).months).toBe(12);
+
+    fireEvent.click(within(periods).getByRole("button", { name: "6m" }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "¿cuánto gasté?" } });
+    fireEvent.submit(screen.getByRole("textbox").closest("form")!);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const [, second] = fetchMock.mock.calls[1] as unknown as [string, { body: string }];
+    expect(JSON.parse(second.body).months).toBe(6);
+    expect(within(periods).getByRole("button", { name: "6m" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("offers no period to the investments domain, whose endpoint takes none", () => {
+    seed([]);
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="investments"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    expect(screen.queryByRole("group", { name: "Período de análisis" })).toBeNull();
+  });
 });
