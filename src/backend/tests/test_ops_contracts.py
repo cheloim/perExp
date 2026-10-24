@@ -24,6 +24,8 @@ NGINX_CONF = os.path.join(REPO_ROOT, "docker", "nginx", "nginx.conf")
 LANDING_COMPOSE = os.path.join(REPO_ROOT, "docker", "docker-compose.web-landing.yml")
 MONITORING_COMPOSE = os.path.join(REPO_ROOT, "docker", "docker-compose.monitoring.yml")
 NGINX_COMPOSE = os.path.join(REPO_ROOT, "docker", "docker-compose.nginx.yml")
+PLATFORM_COMPOSE = os.path.join(REPO_ROOT, "docker", "docker-compose.platform.yml")
+CELERY_SCHEDULE = os.path.join(REPO_ROOT, "src", "backend", "app", "celery_schedule.py")
 
 
 def _read(path: str) -> str:
@@ -500,6 +502,40 @@ class TestNginxEdge:
         assert "getent hosts prometheus" in job, (
             "a failure must show whether DNS is the cause"
         )
+
+
+class TestGrafanaAccess:
+    def test_google_identities_link_to_provisioned_users(self):
+        """Grafana identifies OAuth users by (auth_module, auth_id), not by
+        email. grafana_sync pre-provisions users by email (and the ones created
+        under the old Generic OAuth provider keep that binding), so a Google
+        login finds no identity to attach, signup is closed, and Grafana
+        answers "Sign up is disabled" — even to a provisioned admin.
+
+        Email lookup is what joins the pre-provisioned account to the Google
+        identity on the first login. It is acceptable here because Google is
+        the single IdP and verifies the email; signup stays closed so only
+        provisioned users can match at all."""
+        compose = _read(MONITORING_COMPOSE)
+        assert 'GF_AUTH_GOOGLE_ALLOW_SIGN_UP: "false"' in compose, (
+            "signup must stay closed: only provisioned admins may enter"
+        )
+        assert 'GF_USERS_ALLOW_SIGN_UP: "false"' in compose
+        assert 'GF_AUTH_OAUTH_ALLOW_INSECURE_EMAIL_LOOKUP: "true"' in compose, (
+            "without email lookup a provisioned user cannot link its Google identity"
+        )
+
+    def test_admin_reconciliation_keeps_reaching_grafana(self):
+        """Access is materialized from `is_admin` and reconciled hourly; if the
+        task is not scheduled or the worker cannot reach Grafana, provisioned
+        admins silently never appear and nobody can sign in."""
+        schedule = _read(CELERY_SCHEDULE)
+        assert "app.tasks.grafana_reconcile.reconcile_grafana_admins" in schedule, (
+            "the hourly reconcile must stay in the beat schedule"
+        )
+        platform = _read(PLATFORM_COMPOSE)
+        assert "GRAFANA_INTERNAL_URL" in platform
+        assert "GRAFANA_ADMIN_PASSWORD" in platform
 
 
 class TestLandingIndependence:

@@ -51,6 +51,14 @@ services:
       GF_AUTH_GOOGLE_TOKEN_URL: "https://oauth2.googleapis.com/token"
       GF_AUTH_GOOGLE_API_URL: "https://openidconnect.googleapis.com/v1/userinfo"
       GF_AUTH_GOOGLE_ALLOW_SIGN_UP: "false"
+      # Grafana identifica a los usuarios OAuth por (auth_module, auth_id), no
+      # por email. El sync pre-provisiona por email, así que sin este flag un
+      # usuario ya creado no puede enlazar su identidad Google y devuelve
+      # "Sign up is disabled" aunque exista y sea admin. Google es el único IdP
+      # y verifica el email, que es exactamente el caso en el que los docs
+      # recomiendan el flag. Con allow_sign_up=false sólo entra quien está
+      # pre-provisionado: esto NO abre el registro.
+      GF_AUTH_OAUTH_ALLOW_INSECURE_EMAIL_LOOKUP: "true"
       GF_AUTH_OAUTH_AUTO_LOGIN: "false"
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_USERS_AUTO_ASSIGN_ORG: "true"
