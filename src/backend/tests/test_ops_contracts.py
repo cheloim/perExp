@@ -444,6 +444,24 @@ class TestNginxEdge:
             "when it cannot converge it must be able to reset the admin itself"
         )
 
+    def test_monitoring_stack_is_force_recreated(self):
+        """podman-compose does not recreate a container just because the network
+        it attaches to changed, so a network fix silently never applies and the
+        datasources 502 forever."""
+        deploy = _read(DEPLOY_YML)
+        job = deploy.split("deploy-monitoring:")[1]
+        assert "up -d --force-recreate" in job
+
+    def test_datasource_check_retries_before_failing(self):
+        """Freshly recreated Prometheus and Loki take a few seconds; a single
+        attempt reported a failure that was not one."""
+        deploy = _read(DEPLOY_YML)
+        job = deploy.split("deploy-monitoring:")[1]
+        assert "for ATTEMPT in" in job, "the datasource check must retry"
+        assert "getent hosts prometheus" in job, (
+            "a failure must show whether DNS is the cause"
+        )
+
 
 class TestLandingIndependence:
     def test_landing_reuses_the_frontend_image(self):
