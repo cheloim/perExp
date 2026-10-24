@@ -1344,57 +1344,70 @@ paths:
   # ─────────────────────────────────────────────────────────────
   # ANALYSIS
   # ─────────────────────────────────────────────────────────────
-  /analysis:
+  /analysis/stream:
     post:
       tags: [analysis]
-      summary: Submit spending analysis query
-      operationId: createAnalysis
+      summary: Stream a spending analysis
+      operationId: streamAnalysis
+      description: >
+        SSE endpoint that summarizes the user's expenses and asks the LLM for
+        insights, optionally answering a specific question. The whole
+        conversation can be sent along so the model has context; the server
+        keeps no state between requests.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [query]
-              properties:
-                query:
-                  type: string
+              $ref: '#/components/schemas/AnalysisRequest'
       responses:
         '200':
-          description: Analysis result
+          description: >
+            SSE stream of `data:` frames carrying a `text` field, terminated by
+            `data: [DONE]`. A failure is a frame of its own, `{"error": true,
+            "text": ...}`, and is not a reply.
           content:
-            application/json:
+            text/event-stream:
               schema:
-                type: object
-                properties:
-                  response:
-                    type: string
-                  analysis_id:
-                    type: integer
+                type: string
+        '401':
+          description: Unauthorized
+        '422':
+          description: Invalid request body (over 50 messages, malformed month)
+        '500':
+          description: LLM_API_KEY is not configured
 
   /analysis/history:
     get:
       tags: [analysis]
       summary: Retrieve past analysis queries
       operationId: analysisHistory
-      parameters:
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 20
       responses:
         '200':
-          description: Analysis history
+          description: The last 50 analysis history entries for the current user
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  history:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/AnalysisHistoryEntry'
+                type: array
+                items:
+                  $ref: '#/components/schemas/AnalysisHistoryEntry'
+
+  /analysis/history/{hist_id}:
+    parameters:
+      - name: hist_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    delete:
+      tags: [analysis]
+      summary: Delete an analysis entry
+      operationId: deleteAnalysisHistory
+      responses:
+        '200':
+          description: 'Entry deleted, body `{"ok": true}`'
+        '404':
+          description: Entry not found
 
   # ─────────────────────────────────────────────────────────────
   # GROUPS
@@ -2757,20 +2770,70 @@ components:
           type: integer
 
     # ─── ANALYSIS ─────────────────────────────────────────────
+    ChatMessage:
+      type: object
+      required: [role, text]
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        text:
+          type: string
+
+    AnalysisRequest:
+      type: object
+      properties:
+        month:
+          type: string
+          nullable: true
+          description: >
+            Period to analyse, `YYYY-MM`. Wins over `months` when both arrive:
+            it names a precise period and is the field older clients send.
+        months:
+          type: integer
+          nullable: true
+          default: 12
+          minimum: 1
+          maximum: 24
+          description: >
+            Window length: the current month plus this many previous ones.
+            Ignored when `month` arrives. Bounded, so no request can ask for
+            the whole history.
+        question:
+          type: string
+          nullable: true
+          description: The user's specific question. Omit for a general review.
+        debug_mode:
+          type: boolean
+          default: false
+          description: Skip the system prompt so the raw model answers.
+        messages:
+          type: array
+          maxItems: 50
+          description: The whole conversation so far, so the model has context.
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+
     AnalysisHistoryEntry:
       type: object
       properties:
         id:
           type: integer
-        query:
-          type: string
-        response:
-          type: string
-        user_id:
-          type: integer
         created_at:
           type: string
           format: date-time
+        month:
+          type: string
+          nullable: true
+        question:
+          type: string
+          nullable: true
+        result_text:
+          type: string
+        expense_count:
+          type: integer
+        total_amount:
+          type: number
 
     # ─── GROUPS ───────────────────────────────────────────────
     GroupResponse:

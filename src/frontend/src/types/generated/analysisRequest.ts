@@ -32,7 +32,31 @@
  *
  * OpenAPI spec version: 1.0.0
  */
+import type { ChatMessage } from "./chatMessage.ts";
 
-export type CreateAnalysisBody = {
-  query: string;
-};
+export interface AnalysisRequest {
+  /**
+   * Period to analyse, `YYYY-MM`. Wins over `months` when both arrive: it names a precise period and is the field older clients send.
+   * @nullable
+   */
+  month?: string | null;
+  /**
+   * Window length: the current month plus this many previous ones. Ignored when `month` arrives. Bounded, so no request can ask for the whole history.
+   * @minimum 1
+   * @maximum 24
+   * @nullable
+   */
+  months?: number | null;
+  /**
+   * The user's specific question. Omit for a general review.
+   * @nullable
+   */
+  question?: string | null;
+  /** Skip the system prompt so the raw model answers. */
+  debug_mode?: boolean;
+  /**
+   * The whole conversation so far, so the model has context.
+   * @maxItems 50
+   */
+  messages?: ChatMessage[];
+}

@@ -35,8 +35,12 @@
 
 export interface AnalysisHistoryEntry {
   id?: number;
-  query?: string;
-  response?: string;
-  user_id?: number;
   created_at?: string;
+  /** @nullable */
+  month?: string | null;
+  /** @nullable */
+  question?: string | null;
+  result_text?: string;
+  expense_count?: number;
+  total_amount?: number;
 }

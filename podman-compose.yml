@@ -71,6 +71,9 @@ services:
       - ./src/backend/app:/app/app:z
       - ./src/backend/main.py:/app/main.py:z
       - ./src/backend/scripts:/app/scripts:z
+      # Destination for scripts/export_openapi.py, which cannot discover the
+      # repo root from inside the container.
+      - ./docs/specs:/app/docs/specs:z
     ports:
       - "8001:8000"
     healthcheck:

@@ -32,8 +32,9 @@
  *
  * OpenAPI spec version: 1.0.0
  */
+import type { ChatMessageRole } from "./chatMessageRole.ts";
 
-export type CreateAnalysis200 = {
-  response?: string;
-  analysis_id?: number;
-};
+export interface ChatMessage {
+  role: ChatMessageRole;
+  text: string;
+}

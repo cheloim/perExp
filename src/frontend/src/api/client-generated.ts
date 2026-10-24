@@ -55,8 +55,8 @@ import type {
   AdminAuditLogsParams,
   AdminImpersonateBody,
   AdminListUsersParams,
-  AnalysisHistory200,
-  AnalysisHistoryParams,
+  AnalysisHistoryEntry,
+  AnalysisRequest,
   AuditLogResponse,
   BudgetCreate,
   BudgetEventCreate,
@@ -80,8 +80,6 @@ import type {
   CategorySuggestResponse,
   ChangePasswordBody,
   ConfirmImportJob200,
-  CreateAnalysis200,
-  CreateAnalysisBody,
   CreateGroupBody,
   CreateImportJobBody,
   DashboardByCategoryParams,
@@ -6351,45 +6349,46 @@ export function useDashboardRecent<
 }
 
 /**
- * @summary Submit spending analysis query
+ * SSE endpoint that summarizes the user's expenses and asks the LLM for insights, optionally answering a specific question. The whole conversation can be sent along so the model has context; the server keeps no state between requests.
+ * @summary Stream a spending analysis
  */
-export const createAnalysis = (
-  createAnalysisBody: BodyType<CreateAnalysisBody>,
+export const streamAnalysis = (
+  analysisRequest: BodyType<AnalysisRequest>,
   options?: SecondParameter<typeof customInstance>,
   signal?: AbortSignal,
 ) => {
-  return customInstance<CreateAnalysis200>(
+  return customInstance<string>(
     {
-      url: `/analysis`,
+      url: `/analysis/stream`,
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      data: createAnalysisBody,
+      data: analysisRequest,
       signal,
     },
     options,
   );
 };
 
-export const getCreateAnalysisMutationKey = () => ["createAnalysis"] as const;
+export const getStreamAnalysisMutationKey = () => ["streamAnalysis"] as const;
 
-export const getCreateAnalysisMutationOptions = <
-  TError = ErrorType<unknown>,
+export const getStreamAnalysisMutationOptions = <
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createAnalysis>>,
+    Awaited<ReturnType<typeof streamAnalysis>>,
     TError,
-    CreateAnalysisMutationVariables,
+    StreamAnalysisMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof createAnalysis>>,
+  Awaited<ReturnType<typeof streamAnalysis>>,
   TError,
-  CreateAnalysisMutationVariables,
+  StreamAnalysisMutationVariables,
   TContext
 > => {
-  const mutationKey = getCreateAnalysisMutationKey();
+  const mutationKey = getStreamAnalysisMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -6397,79 +6396,75 @@ export const getCreateAnalysisMutationOptions = <
     : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createAnalysis>>,
-    CreateAnalysisMutationVariables
+    Awaited<ReturnType<typeof streamAnalysis>>,
+    StreamAnalysisMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
-    return createAnalysis(data, requestOptions);
+    return streamAnalysis(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type CreateAnalysisMutationResult = NonNullable<Awaited<ReturnType<typeof createAnalysis>>>;
-export type CreateAnalysisMutationBody = BodyType<CreateAnalysisBody>;
-export type CreateAnalysisMutationError = ErrorType<unknown>;
-export type CreateAnalysisMutationVariables = { data: BodyType<CreateAnalysisBody> };
+export type StreamAnalysisMutationResult = NonNullable<Awaited<ReturnType<typeof streamAnalysis>>>;
+export type StreamAnalysisMutationBody = BodyType<AnalysisRequest>;
+export type StreamAnalysisMutationError = ErrorType<void>;
+export type StreamAnalysisMutationVariables = { data: BodyType<AnalysisRequest> };
 
 /**
- * @summary Submit spending analysis query
+ * @summary Stream a spending analysis
  */
-export const useCreateAnalysis = <TError = ErrorType<unknown>, TContext = unknown>(
+export const useStreamAnalysis = <TError = ErrorType<void>, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof createAnalysis>>,
+      Awaited<ReturnType<typeof streamAnalysis>>,
       TError,
-      CreateAnalysisMutationVariables,
+      StreamAnalysisMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
   },
   queryClient?: QueryClient,
 ): UseMutationResult<
-  Awaited<ReturnType<typeof createAnalysis>>,
+  Awaited<ReturnType<typeof streamAnalysis>>,
   TError,
-  CreateAnalysisMutationVariables,
+  StreamAnalysisMutationVariables,
   TContext
 > => {
-  return useMutation(getCreateAnalysisMutationOptions(options), queryClient);
+  return useMutation(getStreamAnalysisMutationOptions(options), queryClient);
 };
 
 /**
  * @summary Retrieve past analysis queries
  */
 export const analysisHistory = (
-  params?: AnalysisHistoryParams,
   options?: SecondParameter<typeof customInstance>,
   signal?: AbortSignal,
 ) => {
-  return customInstance<AnalysisHistory200>(
-    { url: `/analysis/history`, method: "GET", params, signal },
+  return customInstance<AnalysisHistoryEntry[]>(
+    { url: `/analysis/history`, method: "GET", signal },
     options,
   );
 };
 
-export const getAnalysisHistoryQueryKey = (params?: AnalysisHistoryParams) => {
-  return [`/analysis/history`, ...(params ? [params] : [])] as const;
+export const getAnalysisHistoryQueryKey = () => {
+  return [`/analysis/history`] as const;
 };
 
 export const getAnalysisHistoryQueryOptions = <
   TData = Awaited<ReturnType<typeof analysisHistory>>,
   TError = ErrorType<unknown>,
->(
-  params?: AnalysisHistoryParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof analysisHistory>>, TError, TData>>;
-    request?: SecondParameter<typeof customInstance>;
-  },
-) => {
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof analysisHistory>>, TError, TData>>;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getAnalysisHistoryQueryKey(params);
+  const queryKey = queryOptions?.queryKey ?? getAnalysisHistoryQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof analysisHistory>>> = ({ signal }) =>
-    analysisHistory(params, requestOptions, signal);
+    analysisHistory(requestOptions, signal);
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof analysisHistory>>,
@@ -6485,7 +6480,6 @@ export function useAnalysisHistory<
   TData = Awaited<ReturnType<typeof analysisHistory>>,
   TError = ErrorType<unknown>,
 >(
-  params: undefined | AnalysisHistoryParams,
   options: {
     query: Partial<UseQueryOptions<Awaited<ReturnType<typeof analysisHistory>>, TError, TData>> &
       Pick<
@@ -6504,7 +6498,6 @@ export function useAnalysisHistory<
   TData = Awaited<ReturnType<typeof analysisHistory>>,
   TError = ErrorType<unknown>,
 >(
-  params?: AnalysisHistoryParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof analysisHistory>>, TError, TData>> &
       Pick<
@@ -6523,7 +6516,6 @@ export function useAnalysisHistory<
   TData = Awaited<ReturnType<typeof analysisHistory>>,
   TError = ErrorType<unknown>,
 >(
-  params?: AnalysisHistoryParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof analysisHistory>>, TError, TData>>;
     request?: SecondParameter<typeof customInstance>;
@@ -6538,14 +6530,13 @@ export function useAnalysisHistory<
   TData = Awaited<ReturnType<typeof analysisHistory>>,
   TError = ErrorType<unknown>,
 >(
-  params?: AnalysisHistoryParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof analysisHistory>>, TError, TData>>;
     request?: SecondParameter<typeof customInstance>;
   },
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getAnalysisHistoryQueryOptions(params, options);
+  const queryOptions = getAnalysisHistoryQueryOptions(options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -6553,6 +6544,88 @@ export function useAnalysisHistory<
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+/**
+ * @summary Delete an analysis entry
+ */
+export const deleteAnalysisHistory = (
+  histId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/analysis/history/${histId}`, method: "DELETE", signal },
+    options,
+  );
+};
+
+export const getDeleteAnalysisHistoryMutationKey = () => ["deleteAnalysisHistory"] as const;
+
+export const getDeleteAnalysisHistoryMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAnalysisHistory>>,
+    TError,
+    DeleteAnalysisHistoryMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteAnalysisHistory>>,
+  TError,
+  DeleteAnalysisHistoryMutationVariables,
+  TContext
+> => {
+  const mutationKey = getDeleteAnalysisHistoryMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteAnalysisHistory>>,
+    DeleteAnalysisHistoryMutationVariables
+  > = (props) => {
+    const { histId } = props ?? {};
+
+    return deleteAnalysisHistory(histId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteAnalysisHistoryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteAnalysisHistory>>
+>;
+
+export type DeleteAnalysisHistoryMutationError = ErrorType<void>;
+export type DeleteAnalysisHistoryMutationVariables = { histId: number };
+
+/**
+ * @summary Delete an analysis entry
+ */
+export const useDeleteAnalysisHistory = <TError = ErrorType<void>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteAnalysisHistory>>,
+      TError,
+      DeleteAnalysisHistoryMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteAnalysisHistory>>,
+  TError,
+  DeleteAnalysisHistoryMutationVariables,
+  TContext
+> => {
+  return useMutation(getDeleteAnalysisHistoryMutationOptions(options), queryClient);
+};
 
 /**
  * @summary Get current user's group and members
