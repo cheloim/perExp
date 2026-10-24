@@ -1,5 +1,6 @@
 import logging
 import os
+from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
@@ -48,24 +49,45 @@ def _leaf_cats(cats: list) -> list:
     return [c for c in cats if c.id not in parent_ids]
 
 
-def auto_categorize(description: str, categories: list) -> int | None:
-    """Pick a category by ranked keyword matching.
+def match_keyword_tier(desc_lower: str, keyword: str) -> int:
+    """Match tier of one keyword against a lowercased description.
 
-    Each keyword scores with its best match tier: whole word in the description
-    (3), word prefix when ``len(kw) >= 4`` (2) or raw substring when
-    ``len(kw) >= 4`` (1, kept for keywords already stored glued to other text).
-    Short keywords only match as whole words, so ``gas`` no longer matches
-    ``gaseosa``.
-
-    The highest score wins; ties go to the longest keyword and then to the
-    smallest category id, so the result never depends on the order of
-    ``categories``.
+    3 = whole word in the description, 2 = word prefix when ``len(kw) >= 4``,
+    1 = raw substring when ``len(kw) >= 4`` (kept for keywords already stored
+    glued to other text), 0 = no match. Short keywords only match as whole
+    words, so ``gas`` no longer matches ``gaseosa`` or ``tortugas``.
     """
     import re
 
+    escaped = re.escape(keyword)
+    if re.search(rf"(?<!\w){escaped}(?!\w)", desc_lower):
+        return 3
+    if len(keyword) >= 4 and re.search(rf"(?<!\w){escaped}", desc_lower):
+        return 2
+    if len(keyword) >= 4 and keyword in desc_lower:
+        return 1
+    return 0
+
+
+@dataclass(frozen=True)
+class KeywordMatch:
+    """The winning keyword match of a description against a set of categories."""
+
+    category_id: int
+    keyword: str
+    tier: int
+
+
+def best_keyword_match(description: str, categories: list) -> KeywordMatch | None:
+    """Pick the winning keyword match (see :func:`match_keyword_tier`).
+
+    The highest tier wins; ties go to the longest keyword and then to the
+    smallest category id, so the result never depends on the order of
+    ``categories``.
+    """
     desc_lower = description.lower()
     best: tuple[int, int, int] | None = None
-    best_cat_id: int | None = None
+    best_match: KeywordMatch | None = None
     for cat in _leaf_cats(categories):
         if not cat.keywords:
             continue
@@ -73,20 +95,20 @@ def auto_categorize(description: str, categories: list) -> int | None:
             kw = raw_kw.strip().lower()
             if not kw:
                 continue
-            escaped = re.escape(kw)
-            if re.search(rf"(?<!\w){escaped}(?!\w)", desc_lower):
-                score = 3
-            elif len(kw) >= 4 and re.search(rf"(?<!\w){escaped}", desc_lower):
-                score = 2
-            elif len(kw) >= 4 and kw in desc_lower:
-                score = 1
-            else:
+            tier = match_keyword_tier(desc_lower, kw)
+            if not tier:
                 continue
-            rank = (-score, -len(kw), cat.id)
+            rank = (-tier, -len(kw), cat.id)
             if best is None or rank < best:
                 best = rank
-                best_cat_id = cat.id
-    return best_cat_id
+                best_match = KeywordMatch(category_id=cat.id, keyword=kw, tier=tier)
+    return best_match
+
+
+def auto_categorize(description: str, categories: list) -> int | None:
+    """Pick a category by ranked keyword matching (see :func:`best_keyword_match`)."""
+    match = best_keyword_match(description, categories)
+    return match.category_id if match else None
 
 
 def _should_skip(description: str) -> bool:

@@ -10,7 +10,7 @@ from types import SimpleNamespace
 
 os.environ.setdefault("SECRET_KEY", "test-secret-key-that-is-at-least-32-chars-long-for-testing")
 
-from app.services.categorization import auto_categorize, check_user_preference
+from app.services.categorization import auto_categorize, best_keyword_match, check_user_preference
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -64,6 +64,18 @@ def _create_pref(db, user, category, merchant_key, usage_count=1, confidence=1.0
 
 def test_gaseosa_does_not_match_gas():
     assert auto_categorize("GASEOSA COCA COLA", [_cat(1, "gas")]) is None
+
+
+def test_tortugas_does_not_match_gas():
+    """Regresión del caso YENNY TORTUGAS (issue #414): 'gas' dentro de otra palabra."""
+    assert auto_categorize("YENNY TORTUGAS OPEN MALL", [_cat(1, "gas")]) is None
+
+
+def test_best_keyword_match_exposes_the_winning_tier():
+    match = best_keyword_match("SUPERMERCADO COTO", [_cat(1, "coto"), _cat(2, "supe")])
+    assert match.category_id == 1
+    assert match.keyword == "coto"
+    assert match.tier == 3
 
 
 def test_pantalon_does_not_match_pan():

@@ -12,6 +12,7 @@
 | card-closings | full | ✅ Done | Card billing period management allowing users to define closing and due dates | - | - |
 | cards | full | ✅ Done | CRUD management for credit and debit cards. Cards are the primary payment method | - | - |
 | categories | full | ✅ Done | Hierarchical category system for organizing expenses. Categories support up to | - | - |
+| categorization-review | full | 🚧 In Progress | Internal detection of expenses that look miscategorized (admin-only review, | - | #414 |
 | dashboard | full | ✅ Done | Provides aggregated spending summaries and KPIs on the main dashboard. Displays ... | - | - |
 | expenses | full | ✅ Done | Core expense and income tracking. Expenses are the central entity of the system, | - | - |
 | groups | full | ✅ Done | Enables users to create and join family groups for shared expense tracking. Grou... | - | - |

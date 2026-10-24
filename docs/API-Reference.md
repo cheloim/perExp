@@ -200,6 +200,23 @@ Status values:
 | `POST` | `/scheduled-expenses/{id}/execute` | Execute scheduled expense |
 | `POST` | `/scheduled-expenses/{id}/cancel`  | Cancel scheduled expense  |
 
+### Admin — Categorization Reviews (`/admin/categorization-reviews`)
+
+Internal, admin-only (issue #414): findings of the miscategorization detector.
+Never exposed to end users, notifications or chat.
+
+| Method | Endpoint                                | Description                                        |
+| ------ | --------------------------------------- | -------------------------------------------------- |
+| `GET`  | `/admin/categorization-reviews`         | List reviews + summary (status, user_id, min_score, signal, page) |
+| `GET`  | `/admin/categorization-reviews/{id}`    | Detail with evidence                               |
+| `POST` | `/admin/categorization-reviews/{id}/accept`      | Apply the suggested (or explicit `category_id`) category |
+| `POST` | `/admin/categorization-reviews/{id}/reject`      | Mark as false positive (expense unchanged)         |
+| `POST` | `/admin/categorization-reviews/{id}/investigate` | Mark as reviewed, no change                        |
+| `POST` | `/admin/categorization-reviews/scan`    | Run the detector now (forward-only: `since`, `user_id`, `use_llm`, `persist`) |
+
+`accept` returns `409` when the expense was recategorized after the review was
+created, and `400` when no category can be applied.
+
 ## Error Responses
 
 All errors follow the format:

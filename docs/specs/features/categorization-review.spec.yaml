@@ -1,0 +1,192 @@
+feature: categorization-review
+domain: Categorization Review
+type: full
+version: "1.0.0"
+status: in-progress
+owner: backend
+created: 2026-10-24
+updated: 2026-10-24
+github_issue: 414
+
+description: >
+  Internal, admin-only detection of expenses that already have a category but look
+  miscategorized. Rules first (keyword conflict, category keyword miss, merchant
+  history, amount outlier) with the LLM as a batched second opinion on the rule
+  candidates only. Findings are persisted as reviews that an analyst resolves
+  through the admin API or the CLI. Nothing reaches the end user, notifications or
+  chat; it never touches the user-facing `/suggestions` flow.
+
+requirements:
+  - "Admin access for every endpoint (JWT + is_admin)"
+  - "Forward-only: only expenses created in the scan window are reviewed"
+  - "LLM second opinion is optional and falls back to rules-only on failure"
+  - "Feature flag categorization_review_enabled; off unless explicitly enabled"
+
+pre_evaluation:
+  questions:
+    - question: "Are suggestions shown to the user?"
+      answer: "No. This is internal review only until the pilot shows acceptable precision (>= 0.8)."
+    - question: "Does the detector change expenses by itself?"
+      answer: "No. Categories change only on an explicit accept action."
+    - question: "Is the pre-existing dataset re-scanned?"
+      answer: "No. The scan is forward-only over newly created rows."
+
+users:
+  - role: "admin"
+    description: "Analyst reviewing miscategorization findings"
+    permissions:
+      - "view_reviews"
+      - "accept_review"
+      - "reject_review"
+      - "investigate_review"
+      - "run_scan"
+
+entities:
+  - name: "CategorizationReview"
+    table: "categorization_reviews"
+    description: "One finding of the miscategorization detector"
+    fields:
+      - name: "id"
+        type: "integer"
+        primary_key: true
+      - name: "expense_id"
+        type: "integer"
+        foreign_key: "expenses.id"
+        required: true
+      - name: "user_id"
+        type: "integer"
+        foreign_key: "users.id"
+        required: true
+      - name: "current_category_id"
+        type: "integer"
+        foreign_key: "categories.id"
+        nullable: true
+      - name: "suggested_category_id"
+        type: "integer"
+        foreign_key: "categories.id"
+        nullable: true
+        description: "Null when the detector only flags the expense"
+      - name: "score"
+        type: "float"
+        description: "Combined signal score, 0-1"
+      - name: "source"
+        type: "string"
+        enum: ["rules", "rules+llm"]
+      - name: "reason"
+        type: "text"
+      - name: "evidence"
+        type: "text"
+        description: "JSON with signals, merchant key, category stats and the LLM verdict"
+      - name: "detector_version"
+        type: "string"
+      - name: "status"
+        type: "string"
+        enum: ["pending", "accepted", "rejected", "investigated"]
+    indexes:
+      - columns: ["user_id"]
+      - columns: ["expense_id"]
+      - columns: ["status"]
+      - columns: ["status", "score"]
+    constraints:
+      - columns: ["expense_id", "detector_version"]
+        type: "unique"
+
+endpoints:
+  - method: "GET"
+    path: "/admin/categorization-reviews"
+    description: "List reviews with summary (counts by status/signal and observed precision)"
+    auth: "admin"
+    query_params:
+      - name: "status"
+        type: "string"
+        default: "pending"
+      - name: "user_id"
+        type: "integer"
+      - name: "min_score"
+        type: "float"
+      - name: "signal"
+        type: "string"
+      - name: "page"
+        type: "integer"
+      - name: "per_page"
+        type: "integer"
+
+  - method: "GET"
+    path: "/admin/categorization-reviews/{review_id}"
+    description: "One review with its evidence"
+    auth: "admin"
+
+  - method: "POST"
+    path: "/admin/categorization-reviews/{review_id}/accept"
+    description: "Apply the suggested (or explicit) category and teach the merchant preference"
+    auth: "admin"
+    errors:
+      - status: 400
+        description: "No category can be applied / category does not belong to the user"
+      - status: 409
+        description: "The expense was recategorized after the review was created"
+
+  - method: "POST"
+    path: "/admin/categorization-reviews/{review_id}/reject"
+    description: "Mark as false positive; the expense keeps its category"
+    auth: "admin"
+
+  - method: "POST"
+    path: "/admin/categorization-reviews/{review_id}/investigate"
+    description: "Mark as reviewed without changing anything"
+    auth: "admin"
+
+  - method: "POST"
+    path: "/admin/categorization-reviews/scan"
+    description: "Run the detector now (forward-only). Same code path as the daily job"
+    auth: "admin"
+
+business_rules:
+  - name: "Rules First"
+    description: "Deterministic signals score the expense; the LLM only reviews rule candidates"
+  - name: "Precision First"
+    description: "Reviews are persisted only from score >= 0.50; amount outliers alone never qualify"
+  - name: "Forward Only"
+    description: "The scan looks at expenses created in the last 7 days; the historical dataset is never re-processed"
+  - name: "Idempotent"
+    description: "One review per (expense_id, detector_version); re-running the scan does not duplicate"
+  - name: "Stale Guard"
+    description: "Accepting a review fails with 409 when the expense category changed since the review"
+  - name: "Internal Only"
+    description: "No notifications, no chat, no user-facing surface"
+
+integrations:
+  - name: "LLM batch second opinion"
+    type: "llm"
+    description: "Batched review of rule candidates, feature label categorization_review"
+    config:
+      batch_size: 25
+      max_candidates_per_user_run: 50
+
+tasks:
+  - name: "categorization-review-scan-daily"
+    schedule: "SCHEDULE_CATEGORIZATION_REVIEW, default 04:30"
+    description: "Forward-only scan for opted-in users"
+
+tests:
+  - name: "YENNY TORTUGAS case"
+    type: "unit"
+    description: "A bookstore/shopping purchase filed under Electricidad & Gas is flagged"
+  - name: "Legitimate merchant not flagged"
+    type: "unit"
+    description: "EDENOR under Electricidad & Gas produces no review"
+  - name: "Amount outlier alone is not enough"
+    type: "unit"
+    description: "A lone amount outlier scores below the persistence threshold"
+  - name: "LLM second opinion"
+    type: "unit"
+    description: "Batched verdict fills the suggested category; a batch failure falls back to rules"
+  - name: "Resolution"
+    type: "unit"
+    description: "Accept applies the category and the merchant preference; reject/investigate do not touch the expense"
+
+documentation:
+  - "docs/analysis/ISSUE-414-categorization-review.md"
+  - "docs/Data-Model.md"
+  - "docs/API-Reference.md"
+  - "docs/AI-Integration.md"
