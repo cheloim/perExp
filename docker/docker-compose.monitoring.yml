@@ -5,7 +5,6 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./prometheus/rules.yml:/etc/prometheus/rules.yml:ro
       - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
@@ -111,11 +110,15 @@ services:
       - "--path.procfs=/host/proc"
       - "--path.sysfs=/host/sys"
       - "--path.rootfs=/host"
+      # Textfile collector: acá escribe scripts/housekeeping.sh las métricas de
+      # staleness que usan las alertas de limpieza y backup.
+      - "--collector.textfile.directory=/var/lib/node_exporter/textfile"
       - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
     volumes:
       - /:/rootfs:ro
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
+      - /var/lib/node_exporter/textfile:/var/lib/node_exporter/textfile:ro
     security_opt:
       - label=disable
     restart: unless-stopped

@@ -1,0 +1,14 @@
+# Política de notificación: todo alerta al chat del admin.
+#
+# group_by alertname para que cada problema llegue como su propio mensaje en
+# vez de agruparse con otros, y repeat_interval corto para algo tan accionable
+# como un disco llenándose.
+apiVersion: 1
+
+policies:
+  - orgId: 1
+    receiver: oikonomia-telegram-admin
+    group_by: ["alertname"]
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h

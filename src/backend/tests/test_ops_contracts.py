@@ -11,8 +11,10 @@ import re
 import stat
 import subprocess
 import textwrap
+import time
 
 import pytest
+import yaml
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 DEPLOY_YML = os.path.join(REPO_ROOT, ".github", "workflows", "deploy.yml")
@@ -60,6 +62,8 @@ def _run_housekeeping(
     rollback: str,
     journal_size: int = 0,
     *extra: str,
+    tsfile_dir: str | None = None,
+    root: str | None = None,
 ):
     """Run housekeeping.sh --dry-run against a fake podman.
 
@@ -68,12 +72,13 @@ def _run_housekeeping(
     import tempfile
 
     with tempfile.TemporaryDirectory() as tmp:
-        root = os.path.join(tmp, "root")
         bin_dir = os.path.join(tmp, "bin")
-        os.makedirs(root)
         os.makedirs(bin_dir)
-        os.makedirs(os.path.join(root, "logs"))
-        os.makedirs(os.path.join(root, "backups"))
+        if root is None:
+            root = os.path.join(tmp, "root")
+            os.makedirs(root)
+        os.makedirs(os.path.join(root, "logs"), exist_ok=True)
+        os.makedirs(os.path.join(root, "backups"), exist_ok=True)
 
         if rollback:
             with open(os.path.join(root, ".rollback_platform_tag"), "w") as f:
@@ -117,7 +122,7 @@ def _run_housekeeping(
         env = dict(os.environ)
         env["PATH"] = bin_dir + os.pathsep + env["PATH"]
         env["HOUSEKEEPING_ROOT"] = root
-        env["HOUSEKEEPING_TSFILE_DIR"] = os.path.join(tmp, "no-textfile")
+        env["HOUSEKEEPING_TSFILE_DIR"] = tsfile_dir or os.path.join(tmp, "no-textfile")
 
         proc = subprocess.run(
             ["bash", HOUSEKEEPING, "--dry-run", *extra],
@@ -207,6 +212,62 @@ class TestHousekeepingSafety:
         assert "FAKE-PODMAN rmi" not in out, "--dry-run must not call podman rmi"
         assert "FAKE-PODMAN volume" not in out, "--dry-run must not prune volumes"
         assert "FAKE-PODMAN image" not in out, "--dry-run must not prune images"
+
+    def test_publishes_the_staleness_metrics(self):
+        """Alerting needs an observable signal for 'the cleanup stopped running'
+        and 'the backups stopped happening'."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tsdir:
+            code, out, err = _run_housekeeping([], [], "", 0, tsfile_dir=tsdir)
+            assert code == 0, err
+
+            with open(os.path.join(tsdir, "oikonomia_housekeeping.prom")) as f:
+                metrics = f.read()
+
+        assert "oikonomia_housekeeping_last_success_timestamp_seconds" in metrics
+        assert "oikonomia_backup_newest_timestamp_seconds" in metrics
+
+    def test_backup_timestamp_is_the_newest_backup(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tsdir = os.path.join(tmp, "textfile")
+            os.makedirs(tsdir)
+            root = os.path.join(tmp, "root")
+            backups = os.path.join(root, "backups")
+            os.makedirs(backups)
+            os.makedirs(os.path.join(root, "logs"))
+
+            age_seconds = 5 * 3600
+            backup = os.path.join(backups, "db_20261023_010000.sql.gz")
+            with open(backup, "w") as f:
+                f.write("x")
+            stamp = time.time() - age_seconds
+            os.utime(backup, (stamp, stamp))
+
+            code, out, err = _run_housekeeping([], [], "", 0, tsfile_dir=tsdir, root=root)
+            assert code == 0, err
+
+            with open(os.path.join(tsdir, "oikonomia_housekeeping.prom")) as f:
+                metrics = f.read()
+
+        reported = re.search(r"oikonomia_backup_newest_timestamp_seconds (\d+)", metrics)
+        assert reported, metrics
+        assert abs(int(reported.group(1)) - stamp) < 60
+
+    def test_backup_timestamp_is_zero_when_there_is_no_backup(self):
+        """`time() - 0` is huge, so 'never backed up' alerts on its own."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tsdir:
+            code, out, err = _run_housekeeping([], [], "", 0, tsfile_dir=tsdir)
+            assert code == 0, err
+
+            with open(os.path.join(tsdir, "oikonomia_housekeeping.prom")) as f:
+                metrics = f.read()
+
+        assert "oikonomia_backup_newest_timestamp_seconds 0" in metrics
 
     def test_warns_when_journal_log_exceeds_the_cap(self):
         """Unbounded log growth must be reported before the disk fills."""
@@ -392,3 +453,86 @@ class TestLandingIndependence:
         assert "up -d" in guard.group(1), "the first deploy still needs to create the container"
         outside = job.replace(guard.group(1), "")
         assert "podman-compose -p oikonomia-nginx -f docker-compose.nginx.yml up -d" not in outside
+
+
+# ── alerting ───────────────────────────────────────────────────────
+
+ALERTING_DIR = os.path.join(REPO_ROOT, "docker", "grafana", "provisioning", "alerting")
+ALERTING_RULES = os.path.join(ALERTING_DIR, "rules.yml")
+CONTACT_POINTS = os.path.join(ALERTING_DIR, "contact-points.yml")
+POLICIES = os.path.join(ALERTING_DIR, "policies.yml")
+PROMETHEUS_CONF = os.path.join(REPO_ROOT, "docker", "prometheus", "prometheus.yml")
+
+REQUIRED_ALERTS = {
+    "oikonomia-disk-critical",
+    "oikonomia-disk-warning",
+    "oikonomia-disk-filling",
+    "oikonomia-cert-expiring",
+    "oikonomia-target-down",
+    "oikonomia-housekeeping-stale",
+    "oikonomia-backup-stale",
+}
+
+
+def _alert_uids() -> set[str]:
+    rules = yaml.safe_load(_read(ALERTING_RULES))
+    return {r["uid"] for g in rules["groups"] for r in g["rules"]}
+
+
+class TestAlerting:
+    def test_rules_cover_the_incident_modes(self):
+        """These are the failures that were invisible during the incident."""
+        uids = _alert_uids()
+        missing = REQUIRED_ALERTS - uids
+        assert not missing, f"alert rules missing: {sorted(missing)}"
+
+    def test_llm_alerts_live_with_the_others(self):
+        """They were in prometheus/rules.yml, which had no Alertmanager and no
+        Grafana provisioning: evaluated, firing, and delivered nowhere."""
+        uids = _alert_uids()
+        llm = {u for u in uids if u.startswith("oikonomia-llm-")}
+        assert len(llm) >= 4, f"expected the LLM alerts to be migrated, found {sorted(llm)}"
+
+    def test_prometheus_rules_are_not_orphaned(self):
+        """One source of truth: rules that cannot notify must not exist."""
+        assert not os.path.exists(
+            os.path.join(REPO_ROOT, "docker", "prometheus", "rules.yml")
+        )
+        assert re.search(r"^rule_files:", _read(PROMETHEUS_CONF), re.MULTILINE) is None
+
+    def test_contact_point_is_telegram_with_placeholders(self):
+        """The bot token must not be committed; deploy injects it from .env."""
+        contact = yaml.safe_load(_read(CONTACT_POINTS))
+        receivers = contact["contactPoints"][0]["receivers"]
+        telegram = [r for r in receivers if r["type"] == "telegram"]
+        assert telegram, "the contact point must be Telegram"
+        assert telegram[0]["uid"] == "oikonomia-telegram-admin"
+        # Grafana wants the bot token in `settings`: `secureSettings` makes the
+        # whole alerting provisioning fail to load.
+        settings = telegram[0]["settings"]
+        assert settings.get("bottoken") == "__TELEGRAM_BOT_TOKEN__"
+        assert settings.get("chatid") == "__TELEGRAM_ADMIN_CHAT_ID__"
+
+    def test_no_secret_is_committed_in_the_alerting_provisioning(self):
+        for name in ("contact-points.yml", "policies.yml", "rules.yml"):
+            content = _read(os.path.join(ALERTING_DIR, name))
+            assert not re.search(r"\b\d{8,}:[A-Za-z0-9_-]{20,}", content), (
+                f"{name} looks like it contains a bot token"
+            )
+
+    def test_policies_route_to_the_contact_point(self):
+        policies = yaml.safe_load(_read(POLICIES))
+        root = policies["policies"][0]
+        assert root["receiver"] == "oikonomia-telegram-admin"
+
+    def test_deploy_injects_the_telegram_secret(self):
+        deploy = _read(DEPLOY_YML)
+        assert "__TELEGRAM_BOT_TOKEN__" in deploy, "deploy must fill the placeholders"
+        assert "__TELEGRAM_ADMIN_CHAT_ID__" in deploy
+
+    def test_node_exporter_collects_the_staleness_metrics(self):
+        """Without the textfile collector housekeeping's metrics never reach
+        Prometheus and the staleness alerts have nothing to read."""
+        compose = _read(MONITORING_COMPOSE)
+        assert "collector.textfile.directory" in compose
+        assert "node_exporter/textfile" in compose

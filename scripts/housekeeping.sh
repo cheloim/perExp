@@ -176,15 +176,26 @@ if [ -f "$JOURNAL_LOG" ]; then
     fi
 fi
 
-# ── 5. Métrica de última limpieza ──
+# ── 5. Métricas para las alertas ──
+# Se escriben también en --dry-run: no son destructivas, y así la alerta de
+# staleness se puede probar sin limpiar nada. `0` significa "nunca hubo
+# backup", y la alerta dispara igual.
 
-if $DRY_RUN; then
-    log "DRY-RUN: no se escribe la métrica $METRIC_NAME"
-elif [ -d "$TSFILE_DIR" ] && [ -w "$TSFILE_DIR" ]; then
-    echo "$METRIC_NAME $(date +%s)" >"$TSFILE_DIR/oikonomia_housekeeping.prom"
-    log "Métrica publicada en $TSFILE_DIR/oikonomia_housekeeping.prom"
+newest_backup="$(
+    find "$BACKUPS_DIR" -type f \( -name 'db_*.sql.gz' -o -name 'db_*.dump' \) -printf '%T@\n' 2>/dev/null |
+        sort -n | tail -1 || true
+)"
+newest_backup="${newest_backup%%.*}"
+[ -n "$newest_backup" ] || newest_backup=0
+
+if [ -d "$TSFILE_DIR" ] && [ -w "$TSFILE_DIR" ]; then
+    {
+        echo "$METRIC_NAME $(date +%s)"
+        echo "oikonomia_backup_newest_timestamp_seconds $newest_backup"
+    } >"$TSFILE_DIR/oikonomia_housekeeping.prom"
+    log "Métricas publicadas en $TSFILE_DIR/oikonomia_housekeeping.prom"
 else
-    log "Textfile collector no disponible en $TSFILE_DIR — métrica omitida"
+    log "Textfile collector no disponible en $TSFILE_DIR — métricas omitidas"
 fi
 
 log "Housekeeping completo (retención: ${RETENTION_DAYS} días)"

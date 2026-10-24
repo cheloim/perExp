@@ -329,6 +329,8 @@ jobs:
           # Password del admin de Grafana. Sin él, Grafana queda con password
           # vacía y su API de sync no autentica: validate-config lo exige.
           GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+          # Chat de Telegram donde llegan las alertas de Grafana.
+          TELEGRAM_ADMIN_CHAT_ID=${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
           GRAFANA_CLOUD_PROMETHEUS_URL=${{ secrets.GRAFANA_CLOUD_PROMETHEUS_URL }}
           GRAFANA_CLOUD_PROMETHEUS_USER=${{ secrets.GRAFANA_CLOUD_PROMETHEUS_USER }}
           GRAFANA_CLOUD_PROMETHEUS_PASSWORD=${{ secrets.GRAFANA_CLOUD_PROMETHEUS_PASSWORD }}
@@ -1195,6 +1197,25 @@ jobs:
               echo "journal.log is $((JOURNAL_SIZE / 1048576))MB, rotating..."
               sudo logrotate -f /etc/logrotate.d/oikonomia
             fi
+
+            # ── 2b. Alertas: inyectar el contact point de Telegram ──
+            # Los secretos no entran en git: se reemplazan los placeholders
+            # desde .env. Sin chat id las alertas se siguen evaluando y quedan
+            # visibles en Grafana, pero no notifican, y el pipeline lo dice.
+            echo "Setting up alerting..."
+            if [ -n "${TELEGRAM_BOT_TOKEN}" ] && [ -n "${TELEGRAM_ADMIN_CHAT_ID}" ]; then
+              sed -i "s|__TELEGRAM_BOT_TOKEN__|${TELEGRAM_BOT_TOKEN}|; s|__TELEGRAM_ADMIN_CHAT_ID__|${TELEGRAM_ADMIN_CHAT_ID}|" /opt/creditcardanalyzer/grafana/provisioning/alerting/contact-points.yml
+              echo "Contact point de Telegram configurado"
+            else
+              echo "::warning::Falta TELEGRAM_ADMIN_CHAT_ID en .env: las alertas se evalúan pero no notifican"
+              rm -f /opt/creditcardanalyzer/grafana/provisioning/alerting/contact-points.yml
+              rm -f /opt/creditcardanalyzer/grafana/provisioning/alerting/policies.yml
+            fi
+
+            # Textfile collector: métricas de staleness que escriben las alertas
+            # de limpieza y backup.
+            sudo mkdir -p /var/lib/node_exporter/textfile
+            sudo chown "$USER:$USER" /var/lib/node_exporter/textfile
 
             # ── 3. Start monitoring stack ──
             echo "Starting monitoring stack..."

@@ -164,6 +164,38 @@ que no tener tablero). Es el camino que no depende de nadie más.
 Requisito manual, una vez: agregar `https://grafana.<dominio>/login/google`
 como redirect URI autorizado en Google Cloud Console.
 
+### Alertas
+
+Todo alerta por Telegram, al chat del admin. Las reglas viven en
+`docker/grafana/provisioning/alerting/rules.yml` (Grafana-managed) y **no** en
+`docker/prometheus/rules.yml`: ahí se evaluaban y quedaban en `firing`, pero sin
+Alertmanager ni provisioning en Grafana no notificaban a nadie.
+
+| Alerta | Dispara | Severidad |
+|--------|---------|-----------|
+| `oikonomia-disk-critical` | disco con menos del 10% libre por 5m | critical |
+| `oikonomia-disk-warning` | disco con menos del 20% libre por 10m | warning |
+| `oikonomia-disk-filling` | `predict_linear`: se llena en menos de 24h | warning |
+| `oikonomia-target-down` | un target de Prometheus caído 5m | critical |
+| `oikonomia-cert-expiring` | certificado por vencer en menos de 14 días | warning |
+| `oikonomia-housekeeping-stale` | sin limpieza hace más de 2 días | warning |
+| `oikonomia-backup-stale` | backup más nuevo con más de 2 días, o ninguno | critical |
+| `oikonomia-llm-*` | presupuesto, crédito, errores y métricas del LLM | warning / critical |
+
+Dos piezas sostienen las alertas de staleness: `node-exporter` corre con el
+textfile collector (`/var/lib/node_exporter/textfile`) y `scripts/housekeeping.sh`
+escribe ahí `oikonomia_housekeeping_last_success_timestamp_seconds` y
+`oikonomia_backup_newest_timestamp_seconds` (0 significa que nunca hubo backup,
+y dispara igual).
+
+El contact point es de Telegram y **los secretos no se commitean**: `deploy.yml`
+reemplaza los placeholders desde `.env`. Si falta `TELEGRAM_ADMIN_CHAT_ID`, el
+deploy borra el contact point y avisa — las alertas se siguen evaluando y quedan
+visibles en Grafana, pero no notifican.
+
+El provisioning se verificó levantando un Grafana real con los archivos del
+repo: 13 reglas cargadas, contact point y política raíz correctos, sin errores.
+
 ### Celery Beat Schedule
 
 | Schedule               | Task                          | Description                          |
